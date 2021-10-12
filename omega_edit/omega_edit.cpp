@@ -29,7 +29,7 @@ struct author_t {
 struct change_t {
     int64_t computed_offset;
     int64_t num_bytes;
-    int32_t serial;
+    int64_t serial;
     const author_t *author_ptr;
     uint8_t byte;
 };
@@ -43,11 +43,12 @@ struct viewport_t {
 
 struct session_t {
     FILE *file_ptr{};
+    int64_t serial{};
     int64_t computed_file_size{};
     vector<shared_ptr<author_t> > authors;
     vector<shared_ptr<viewport_t> > viewports;
     vector<change_t> changes;
-    vector<int32_t> changes_by_offset;
+    vector<int64_t> changes_by_offset;
 };
 
 //
@@ -57,6 +58,7 @@ struct session_t {
 session_t *create_session(FILE *file_ptr) {
     fseek(file_ptr, 0L, SEEK_END);
     auto *session_ptr = new session_t;
+    session_ptr->serial = 0;
     session_ptr->file_ptr = file_ptr;
     session_ptr->computed_file_size = ftell(file_ptr);
     return session_ptr;
@@ -129,37 +131,37 @@ int add_change(session_t *session_ptr, const change_t *change_ptr) {
 
 // Add an overwrite change
 int ovr(session_t *session_ptr, int64_t offset, uint8_t byte, const author_t *author_ptr) {
-    DBG(clog << "Overwriting with byte '" << byte << "' at offset " << offset << endl;);
     change_t change{};
     change.author_ptr = author_ptr;
     change.computed_offset = offset;
     change.byte = byte;
     change.num_bytes = 0;
-    change.serial = (int32_t) session_ptr->changes.size();
+    change.serial = session_ptr->serial++;
+    DBG(clog << "'" << get_author_name(author_ptr) << "' overwriting with byte '" << byte << "' at offset " << offset << " serial " << change.serial << endl;);
     return add_change(session_ptr, &change);
 }
 
 // Add a delete change
 int del(session_t *session_ptr, int64_t offset, int64_t num_bytes, const author_t *author_ptr) {
-    DBG(clog << "Deleting " << num_bytes << " bytes at offset " << offset << endl;);
     change_t change{};
     change.author_ptr = author_ptr;
     change.computed_offset = offset;
     change.byte = 0;
     change.num_bytes = num_bytes * -1;  // negative for delete
-    change.serial = (int32_t) session_ptr->changes.size();
+    change.serial = session_ptr->serial++;
+    DBG(clog << "'" << get_author_name(author_ptr) << "' deleting " << num_bytes << " bytes at offset " << offset << " serial " << change.serial << endl;);
     return add_change(session_ptr, &change);
 }
 
 // Add an insert change
 int ins(session_t *session_ptr, int64_t offset, int64_t num_bytes, uint8_t fill, const author_t *author_ptr) {
-    DBG(clog << "Inserting " << num_bytes << " of '" << fill << "' at offset " << offset << endl;);
     change_t change{};
     change.author_ptr = author_ptr;
     change.computed_offset = offset;
     change.byte = fill;
     change.num_bytes = num_bytes;  // positive for insert
-    change.serial = (int32_t) session_ptr->changes.size();
+    change.serial = session_ptr->serial++;
+    DBG(clog << "'" << get_author_name(author_ptr) << "' inserting " << num_bytes << " of '" << fill << "' at offset " << offset << " serial " << change.serial << endl;);
     return add_change(session_ptr, &change);
 }
 
@@ -179,6 +181,20 @@ int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t offset) 
         offset -= session_ptr->changes[*iter].num_bytes;
     }
     return offset;
+}
+
+size_t num_changes(const session_t * session_ptr) {
+    return session_ptr->changes.size();
+}
+
+size_t num_changes_by_author(const session_t * session_ptr, const author_t *author_ptr) {
+    size_t count = 0;
+    for (const auto & change : session_ptr->changes) {
+        if (change.author_ptr == author_ptr) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 // Write a segment of one file into another
@@ -208,7 +224,7 @@ int save(const session_t *session_ptr, FILE *file_ptr) {
     DBG(clog << "C-Off: " << read_offset << endl;);
     DBG(clog << "CFS: " << session_ptr->computed_file_size << endl;);
 
-    auto computed_file_size = session_ptr->computed_file_size;
+    //auto computed_file_size = session_ptr->computed_file_size;
 
     //write_segment(session_ptr->file_ptr, read_offset, computed_file_size, file_ptr);
 
@@ -251,20 +267,28 @@ int save(const session_t *session_ptr, FILE *file_ptr) {
     return 0;
 }
 
+// returns 1 if a change was found and undone and 0 if no change was found
 int undo(session_t * session_ptr, const author_t * author_ptr) {
+    int rc = 0;
     for (auto riter = session_ptr->changes.rbegin(); riter != session_ptr->changes.rend(); ++riter) {
         if (riter->author_ptr == author_ptr) {
+            DBG(clog << "Undoing most recent change by '" << author_ptr->author_name << "'" << endl;);
             auto changes_by_pos_iter = find(session_ptr->changes_by_offset.begin(), session_ptr->changes_by_offset.end(), riter->serial);
+            assert(changes_by_pos_iter != session_ptr->changes_by_offset.end());
             if (riter->num_bytes != 0) {
-                // Change is an insert or delete, so adjust computed offsets
+                // Change is an insert or delete, so adjust computed offsets to the changes following this one
                 for (auto iter(changes_by_pos_iter + 1); iter != session_ptr->changes_by_offset.end(); ++iter) {
-
+                    session_ptr->changes[*iter].computed_offset -= riter->num_bytes;
                 }
             }
+            session_ptr->computed_file_size -= riter->num_bytes;
+            session_ptr->changes_by_offset.erase(changes_by_pos_iter);
+            session_ptr->changes.erase(std::next(riter).base());
+            rc = 1;
             break;
         }
     }
-    return 0;
+    return rc;
 }
 
 // Destroy the given session

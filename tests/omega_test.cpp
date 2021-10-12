@@ -62,6 +62,11 @@ TEST_CASE("Check initialization", "[InitTests]") {
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     del(session_ptr, 9, 5, author_ptr);
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
+                    auto num_changes_before_undo = num_changes(session_ptr);
+                    REQUIRE(num_changes_by_author(session_ptr, author_ptr) == num_changes_before_undo);
+                    undo(session_ptr, author_ptr);
+                    REQUIRE(num_changes(session_ptr) == num_changes_before_undo - 1);
+                    REQUIRE(get_computed_file_size(session_ptr) == 71);
                     auto orig_offset = computed_offset_to_offset(session_ptr, 15);
                     DBG(std::clog << "OFFSET: " << orig_offset << std::endl;);
                     save(session_ptr, test_outfile_ptr);

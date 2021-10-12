@@ -27,6 +27,9 @@ int ovr(session_t * session_ptr, int64_t offset, uint8_t byte, const author_t * 
 int del(session_t * session_ptr, int64_t offset, int64_t num_bytes, const author_t * author_ptr);
 int ins(session_t * session_ptr, int64_t offset, int64_t num_bytes, uint8_t fill, const author_t * author_ptr);
 
+size_t num_changes(const session_t * session_ptr);
+size_t num_changes_by_author(const session_t * session_ptr, const author_t *author_ptr);
+
 int64_t get_computed_file_size(const session_t * session_ptr);
 int64_t offset_to_computed_offset(const session_t * session_ptr, int64_t offset);
 int64_t computed_offset_to_offset(const session_t * session_ptr, int64_t offset);
