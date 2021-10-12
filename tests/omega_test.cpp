@@ -20,7 +20,7 @@ TEST_CASE("File Compare", "[UtilTests]") {
 }
 
 TEST_CASE("Write Segment", "[WriteSegmentTests]") {
-    FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "rw");
+    FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "w");
     FILE *read_file_ptr = fopen("data/test1.dat", "r");
     auto rc = write_segment(read_file_ptr, 10, 26, test_outfile_ptr);
     REQUIRE(rc == 0);
