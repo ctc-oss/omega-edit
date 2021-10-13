@@ -80,7 +80,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
 
 void change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
     if (change_ptr) {
-        fprintf(stdout, "Author: %s", get_author_name(get_author(change_ptr)));
+        fprintf(stdout, "Change Author: %s\n", get_author_name(get_author(change_ptr)));
     }
     fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld\n[",
             get_author_name(get_viewport_author(viewport_ptr)),

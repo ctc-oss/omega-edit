@@ -14,6 +14,7 @@ using namespace std;
 #ifdef DEBUG
 
 #include <iostream>
+#include <cassert>
 
 #define DBG(x) do{x}while(0)
 #else
@@ -366,7 +367,7 @@ int undo(const author_t *author_ptr) {
             DBG(clog << "Undoing most recent change by '" << author_ptr->name << "'" << endl;);
             auto changes_by_pos_iter = find(session_ptr->changes_by_offset.begin(),
                                             session_ptr->changes_by_offset.end(), riter->serial);
-            assert(changes_by_pos_iter != session_ptr->changes_by_offset.end());
+            DBG(assert(changes_by_pos_iter != session_ptr->changes_by_offset.end()););
             if (riter->num_bytes != 0) {
                 // Change is an insert or delete, so adjust computed offsets to the changes following this one
                 for (auto iter(changes_by_pos_iter + 1); iter != session_ptr->changes_by_offset.end(); ++iter) {
