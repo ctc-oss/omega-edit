@@ -41,4 +41,16 @@ inline int compare_files(const char * f1, const char * f2) {
     return result;
 }
 
+inline FILE * fill_file(const char * f1, int64_t file_size, const char * fill, uint64_t fill_length) {
+    FILE * f1_ptr = fopen(f1, "w+");
+    while (file_size) {
+        auto count = (fill_length > file_size) ? file_size : fill_length;
+        fwrite(fill, 1, count, f1_ptr);
+        file_size -= count;
+    }
+    fflush(f1_ptr);
+    fseek(f1_ptr, 0, SEEK_SET);
+    return f1_ptr;
+}
+
 #endif //OMEGA_EDIT_TEST_UTILS_H

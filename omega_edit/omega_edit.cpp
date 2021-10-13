@@ -59,8 +59,8 @@ uint8_t get_byte(const change_t *change_ptr) {
 
 struct viewport_t {
     const author_t *author_ptr{};
-    int32_t capacity{};
-    int32_t length{};
+    int64_t capacity{};
+    int64_t length{};
     int64_t computed_offset{};
     on_change_cbk on_change_cbk{};
     void *user_data_ptr{};
@@ -71,11 +71,11 @@ const author_t *get_viewport_author(const viewport_t *viewport_ptr) {
     return viewport_ptr->author_ptr;
 }
 
-int32_t get_viewport_capacity(const viewport_t *viewport_ptr) {
+int64_t get_viewport_capacity(const viewport_t *viewport_ptr) {
     return viewport_ptr->capacity;
 }
 
-int32_t get_viewport_length(const viewport_t *viewport_ptr) {
+int64_t get_viewport_length(const viewport_t *viewport_ptr) {
     return viewport_ptr->length;
 }
 
@@ -142,7 +142,10 @@ add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_ch
     viewport_ptr->user_data_ptr = user_data_ptr;
     author_ptr->session_ptr->viewports.push_back(viewport_ptr);
     // TODO: populate the viewport and call the on change callback
-
+    read_segment(author_ptr->session_ptr->file_ptr, offset, author_ptr->session_ptr->computed_file_size,
+                 viewport_ptr->data.data(), viewport_ptr->capacity,
+                 &viewport_ptr->length);
+    (*viewport_ptr->on_change_cbk)(viewport_ptr.get(), nullptr);
     return viewport_ptr.get();
 }
 
@@ -153,6 +156,11 @@ int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity) {
         viewport_ptr->capacity = capacity;
         viewport_ptr->data.reserve(capacity);
         // TODO: update viewport and call the on change callback
+        read_segment(viewport_ptr->author_ptr->session_ptr->file_ptr, offset,
+                     viewport_ptr->author_ptr->session_ptr->computed_file_size, viewport_ptr->data.data(),
+                     viewport_ptr->capacity,
+                     &viewport_ptr->length);
+        (*viewport_ptr->on_change_cbk)(viewport_ptr, nullptr);
     }
     return 0;
 }
@@ -259,6 +267,17 @@ size_t num_changes_by_author(const author_t *author_ptr) {
         }
     }
     return count;
+}
+
+int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t *buffer, int64_t capacity,
+                 int64_t *length) {
+    auto len = file_size - offset;
+    if (len > 0) {
+        *length = (len < capacity) ? len : capacity;
+        fseek(from_file_ptr, offset, SEEK_SET);
+        fread(buffer, 1, *length, from_file_ptr);
+    }
+    return 0;
 }
 
 // Write a segment of one file into another

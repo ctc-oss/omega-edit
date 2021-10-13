@@ -36,7 +36,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
 
     SECTION("Open data file") {
         test_infile_ptr = fopen("data/test1.dat", "r");
-        FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w+");
+        FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != 0);
         SECTION("Create Session") {
             session_ptr = create_session(test_infile_ptr);
@@ -76,4 +76,39 @@ TEST_CASE("Check initialization", "[InitTests]") {
             destroy_session(session_ptr);
         }
     }
+}
+
+void change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
+    if (change_ptr) {
+        fprintf(stdout, "Author: %s", get_author_name(get_author(change_ptr)));
+    }
+    fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld\n[",
+            get_author_name(get_viewport_author(viewport_ptr)),
+            get_viewport_capacity(viewport_ptr), get_viewport_length(viewport_ptr),
+            get_viewport_computed_offset(viewport_ptr));
+    fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
+    fprintf(stdout, "]\n");
+    fflush(stdout);
+}
+
+TEST_CASE("File Viewing", "[InitTests]") {
+    auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    auto const fill_length = strlen(fill);
+    auto const file_name = "data/test.dat.view";
+    auto const *author_name = "Test Author";
+    FILE *test_infile_ptr = fill_file(file_name, 1024, fill, fill_length);
+    session_t *session_ptr;
+    const author_t *author_ptr;
+    viewport_t *viewport_ptr;
+
+    session_ptr = create_session(test_infile_ptr);
+    author_ptr = add_author(session_ptr, author_name);
+    viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, nullptr);
+    for(int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
+        set_viewport(viewport_ptr, offset, 10 + (offset % 40));
+    }
+    set_viewport(viewport_ptr, 0, 20);
+    destroy_session(session_ptr);
+
+    remove(file_name);
 }

@@ -26,9 +26,9 @@ uint8_t get_byte(const change_t *change_ptr);
 
 const author_t *get_viewport_author(const viewport_t *viewport_ptr);
 
-int32_t get_viewport_capacity(const viewport_t *viewport_ptr);
+int64_t get_viewport_capacity(const viewport_t *viewport_ptr);
 
-int32_t get_viewport_length(const viewport_t *viewport_ptr);
+int64_t get_viewport_length(const viewport_t *viewport_ptr);
 
 int64_t get_viewport_computed_offset(const viewport_t *viewport_ptr);
 
@@ -79,6 +79,9 @@ int undo(const author_t *author_ptr);
 
 // Save the given session to the given file (return 0 on success, non-zero otherwise)
 int save(const author_t *author_ptr, FILE *file_ptr);
+
+int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t *buffer, int64_t capacity,
+                 int64_t *length);
 
 int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
