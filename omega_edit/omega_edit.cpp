@@ -87,6 +87,10 @@ const uint8_t *get_viewport_data(const viewport_t *viewport_ptr) {
     return viewport_ptr->data.data();
 }
 
+void *get_viewport_user_data(const viewport_t *viewport_ptr) {
+    return viewport_ptr->user_data_ptr;
+}
+
 struct session_t {
     FILE *file_ptr{};
     int64_t serial{};
@@ -138,7 +142,7 @@ add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_ch
     viewport_ptr->user_data_ptr = user_data_ptr;
     author_ptr->session_ptr->viewports.push_back(viewport_ptr);
     // TODO: populate the viewport and call the on change callback
-    
+
     return viewport_ptr.get();
 }
 
