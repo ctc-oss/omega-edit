@@ -1,9 +1,8 @@
 #ifndef OMEGA_OMEGA_EDIT_H
 #define OMEGA_OMEGA_EDIT_H
 
-
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 
 // Forward declarations
 struct session_t;

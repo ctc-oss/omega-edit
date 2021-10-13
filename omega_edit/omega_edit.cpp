@@ -1,10 +1,11 @@
 // Source file (.cpp)
 #include "omega_edit.h"
+#include <algorithm>
 #include <cstdint>
-#include <string>
-#include <vector>
 #include <cstdio>
 #include <memory>
+#include <string>
+#include <vector>
 
 using namespace std;
 
@@ -13,6 +14,7 @@ using namespace std;
 
 #ifdef DEBUG
 
+#include <cassert>
 #include <iostream>
 
 #define DBG(x) do{x}while(0)
@@ -62,7 +64,7 @@ struct viewport_t {
     int64_t capacity{};
     int64_t length{};
     int64_t computed_offset{};
-    on_change_cbk on_change_cbk{};
+    on_change_cbk cbk{};
     void *user_data_ptr{};
     vector<uint8_t> data;
 };
@@ -138,14 +140,14 @@ add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_ch
     viewport_ptr->capacity = capacity;
     viewport_ptr->length = 0;
     viewport_ptr->data.reserve(capacity);
-    viewport_ptr->on_change_cbk = cbk;
+    viewport_ptr->cbk = cbk;
     viewport_ptr->user_data_ptr = user_data_ptr;
     author_ptr->session_ptr->viewports.push_back(viewport_ptr);
     // TODO: populate the viewport and call the on change callback
     read_segment(author_ptr->session_ptr->file_ptr, offset, author_ptr->session_ptr->computed_file_size,
                  viewport_ptr->data.data(), viewport_ptr->capacity,
                  &viewport_ptr->length);
-    (*viewport_ptr->on_change_cbk)(viewport_ptr.get(), nullptr);
+    (*viewport_ptr->cbk)(viewport_ptr.get(), nullptr);
     return viewport_ptr.get();
 }
 
@@ -160,7 +162,7 @@ int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity) {
                      viewport_ptr->author_ptr->session_ptr->computed_file_size, viewport_ptr->data.data(),
                      viewport_ptr->capacity,
                      &viewport_ptr->length);
-        (*viewport_ptr->on_change_cbk)(viewport_ptr, nullptr);
+        (*viewport_ptr->cbk)(viewport_ptr, nullptr);
     }
     return 0;
 }
@@ -366,7 +368,7 @@ int undo(const author_t *author_ptr) {
             DBG(clog << "Undoing most recent change by '" << author_ptr->name << "'" << endl;);
             auto changes_by_pos_iter = find(session_ptr->changes_by_offset.begin(),
                                             session_ptr->changes_by_offset.end(), riter->serial);
-            assert(changes_by_pos_iter != session_ptr->changes_by_offset.end());
+            DBG(assert(changes_by_pos_iter != session_ptr->changes_by_offset.end()););
             if (riter->num_bytes != 0) {
                 // Change is an insert or delete, so adjust computed offsets to the changes following this one
                 for (auto iter(changes_by_pos_iter + 1); iter != session_ptr->changes_by_offset.end(); ++iter) {
