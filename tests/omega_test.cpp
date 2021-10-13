@@ -12,8 +12,7 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(compare_files("data/test1.dat", "data/test1.dat") == 0);
-    }
-    SECTION("Difference") {
+    }SECTION("Difference") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
@@ -31,9 +30,9 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 }
 
 TEST_CASE("Check initialization", "[InitTests]") {
-    FILE *test_infile_ptr = nullptr;
-    session_t *session_ptr = nullptr;
-    const author_t *author_ptr = nullptr;
+    FILE *test_infile_ptr;
+    session_t *session_ptr;
+    const author_t *author_ptr;
 
     SECTION("Open data file") {
         test_infile_ptr = fopen("data/test1.dat", "r");
@@ -48,28 +47,28 @@ TEST_CASE("Check initialization", "[InitTests]") {
                 author_ptr = add_author(session_ptr, author_name);
                 REQUIRE(strcmp(author_name, get_author_name(author_ptr)) == 0);
                 SECTION("Add bytes") {
-                    ins(session_ptr, 10, 4, '+', author_ptr);
+                    ins(author_ptr, 10, 4, '+');
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ovr(session_ptr, 12, '.', author_ptr);
+                    ovr(author_ptr, 12, '.');
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ins(session_ptr, 0, 3, '+', author_ptr);
+                    ins(author_ptr, 0, 3, '+');
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(session_ptr, 1, '.', author_ptr);
+                    ovr(author_ptr, 1, '.');
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(session_ptr, 15, '*', author_ptr);
+                    ovr(author_ptr, 15, '*');
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ins(session_ptr, 15, 1, '+', author_ptr);
+                    ins(author_ptr, 15, 1, '+');
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
-                    del(session_ptr, 9, 5, author_ptr);
+                    del(author_ptr, 9, 5);
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
                     auto num_changes_before_undo = num_changes(session_ptr);
-                    REQUIRE(num_changes_by_author(session_ptr, author_ptr) == num_changes_before_undo);
-                    undo(session_ptr, author_ptr);
+                    REQUIRE(num_changes_by_author(author_ptr) == num_changes_before_undo);
+                    undo(author_ptr);
                     REQUIRE(num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     auto orig_offset = computed_offset_to_offset(session_ptr, 15);
                     DBG(std::clog << "OFFSET: " << orig_offset << std::endl;);
-                    save(session_ptr, test_outfile_ptr);
+                    save(author_ptr, test_outfile_ptr);
                     fclose(test_infile_ptr);
                     fclose(test_outfile_ptr);
                 }

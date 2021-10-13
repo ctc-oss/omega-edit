@@ -7,8 +7,29 @@
 
 // Forward declarations
 struct session_t;
+struct change_t;
 struct author_t;
 struct viewport_t;
+
+// On viewport change callback
+typedef void (*on_change_cbk)(const viewport_t *, const change_t *, void *);
+
+int64_t get_computed_offset(const change_t * change_ptr);
+int64_t get_num_bytes(const change_t * change_ptr);
+int64_t get_serial(const change_t * change_ptr);
+const author_t * get_author(const change_t * change_ptr);
+uint8_t get_byte(const change_t * change_ptr);
+
+const author_t * get_viewport_author(const viewport_t * viewport_ptr);
+int32_t get_viewport_capacity(const viewport_t * viewport_ptr);
+int32_t get_viewport_length(const viewport_t * viewport_ptr);
+int64_t get_viewport_computed_offset(const viewport_t * viewport_ptr);
+const uint8_t * get_viewport_data(const viewport_t * viewport_ptr);
+
+// Returns the author's name from the given author structure
+const char * get_author_name(const author_t * author_ptr);
+
+session_t *get_author_session(const author_t *author_ptr);
 
 // Create a session (return 0 on error, pointer otherwise)
 session_t * create_session(FILE * file_ptr);
@@ -17,36 +38,31 @@ session_t * create_session(FILE * file_ptr);
 const author_t * add_author(session_t * session_ptr, const char * author_name);
 
 // Add a viewport to the given session
-viewport_t * add_viewport(session_t *session_ptr, int32_t capacity);
+viewport_t * add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void * user_data_ptr);
 
 // Destroy the given session
 void destroy_session(session_t * session_ptr);
 
 // handle changes (return 0 on success, non-zero otherwise)
-int ovr(session_t * session_ptr, int64_t offset, uint8_t byte, const author_t * author_ptr);
-int del(session_t * session_ptr, int64_t offset, int64_t num_bytes, const author_t * author_ptr);
-int ins(session_t * session_ptr, int64_t offset, int64_t num_bytes, uint8_t fill, const author_t * author_ptr);
+int ovr(const author_t *author_ptr, int64_t offset, uint8_t byte);
+int del(const author_t *author_ptr, int64_t offset, int64_t num_bytes);
+int ins(const author_t *author_ptr, int64_t offset, int64_t num_bytes, uint8_t fill);
 
 size_t num_changes(const session_t * session_ptr);
-size_t num_changes_by_author(const session_t * session_ptr, const author_t *author_ptr);
+size_t num_changes_by_author(const author_t *author_ptr);
 
 int64_t get_computed_file_size(const session_t * session_ptr);
 int64_t offset_to_computed_offset(const session_t * session_ptr, int64_t offset);
 int64_t computed_offset_to_offset(const session_t * session_ptr, int64_t offset);
-int save(const session_t * session_ptr, FILE * file_ptr);
 
-// Returns the author's name from the given author structure
-const char * get_author_name(const author_t * author_ptr);
-
-// Populate viewport at the given offset (return 0 on success, non-zero otherwise)
-int set_vpt(session_t * session_ptr, viewport_t * viewport_ptr, int64_t offset);
-int get_vpt(const session_t * session_ptr, viewport_t * viewport_ptr, uint8_t ** data, int32_t * length);
+// Set viewport at the given offset (return 0 on success, non-zero otherwise)
+int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity);
 
 // Undo the last change for this author from the given session (return 0 on success, non-zero otherwise)
-int undo(session_t * session_ptr, const author_t * author_ptr);
+int undo(const author_t *author_ptr);
 
 // Save the given session to the given file (return 0 on success, non-zero otherwise)
-int save(const session_t * session_ptr, FILE * file_ptr);
+int save(const author_t *author_ptr, FILE * file_ptr);
 
 int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
