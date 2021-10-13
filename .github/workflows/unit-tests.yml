@@ -10,14 +10,14 @@ jobs:
     name: Unit Tests
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: cmake -S . -B cmake-build-debug
     - name: Create omega_test
-      run: cmake --build cmake-build-debug --target omega_test
+      run: cmake --build cmake-build-debug --target omega_test -- -j 6
     - name: Run tests
       run: |
         cd cmake-build-debug/tests/
