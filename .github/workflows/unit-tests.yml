@@ -1,0 +1,21 @@
+---
+name: Unit Tests
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    name: Unit Tests
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cmake -S . -B cmake-build-debug
+    - name: Create omega_test
+      run: cmake --build cmake-build-debug --target omega_test -- -j 6
+    - name: Run tests
+      run: |
+        cd cmake-build-debug/tests/
+        ./omega_test -d yes --order lex
