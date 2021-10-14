@@ -1,0 +1,23 @@
+{
+  "name": "omega-edit",
+  "version": "1.0.0",
+  "main": "",
+  "repository": {
+    "url": "https://github.com/scholarsmate/omega-edit",
+    "type": "git"
+  },
+  "author": "Shane Dell, Davin Shearer, John Wass",
+  "license": "Apache",
+  "dependencies": {
+    "node-gyp": "^8.2.0"
+  },
+  "scripts": {
+    "gyp-build": "yarn run node-gyp build",
+    "gyp-clean": "yarn run node-gyp clean",
+    "gyp-configure": "yarn run node-gyp configure",
+    "gyp-rebuild": "yarn run node-gyp rebuild",
+    "gyp-install": "yarn run node-gyp install",
+    "gyp-list": "yarn run node-gyp list",
+    "gyp-remove": "yarn run node-gyp remove"
+  }
+}

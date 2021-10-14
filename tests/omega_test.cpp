@@ -52,10 +52,10 @@ TEST_CASE("Check initialization", "[InitTests]") {
     SECTION("Open data file") {
         test_infile_ptr = fopen("data/test1.dat", "r");
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
-        REQUIRE(test_infile_ptr != 0);
+        REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
             session_ptr = create_session(test_infile_ptr);
-            REQUIRE(session_ptr != 0);
+            REQUIRE(session_ptr != NULL);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
                 const char *author_name = "Test Author";
