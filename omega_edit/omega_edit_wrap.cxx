@@ -2975,6 +2975,62 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_left_shift_buffer(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  uint8_t *arg1 = (uint8_t *) 0 ;
+  int64_t arg2 ;
+  uint8_t arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int result;
+  
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_left_shift_buffer.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_uint8_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "left_shift_buffer" "', argument " "1"" of type '" "uint8_t *""'"); 
+  }
+  arg1 = reinterpret_cast< uint8_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "left_shift_buffer" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "left_shift_buffer" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_uint8_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "left_shift_buffer" "', argument " "3"" of type '" "uint8_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "left_shift_buffer" "', argument " "3"" of type '" "uint8_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< uint8_t * >(argp3));
+    }
+  }
+  result = (int)left_shift_buffer(arg1,arg2,arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_right_shift_buffer(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -3439,6 +3495,7 @@ SWIGV8_AddStaticFunction(exports_obj, "undo", _wrap_undo);
 SWIGV8_AddStaticFunction(exports_obj, "save", _wrap_save);
 SWIGV8_AddStaticFunction(exports_obj, "read_segment", _wrap_read_segment);
 SWIGV8_AddStaticFunction(exports_obj, "write_segment", _wrap_write_segment);
+SWIGV8_AddStaticFunction(exports_obj, "left_shift_buffer", _wrap_left_shift_buffer);
 SWIGV8_AddStaticFunction(exports_obj, "right_shift_buffer", _wrap_right_shift_buffer);
 
 
