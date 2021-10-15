@@ -1,6 +1,6 @@
 {
   "name": "omega-edit",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "main": "",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
@@ -12,6 +12,7 @@
   "author": "Shane Dell, Davin Shearer, John Wass",
   "license": "Apache",
   "dependencies": {
+    "ansi-regex": "^5.0.1",
     "node-gyp": "^8.2.0"
   },
   "scripts": {
