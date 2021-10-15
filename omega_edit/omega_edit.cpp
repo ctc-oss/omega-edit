@@ -126,6 +126,23 @@ struct session_t {
 // FUNCTIONS
 //
 
+int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left) {
+    int rc = -1;
+    if (shift_left > 0 && shift_left < 8) {
+        uint8_t shift_right = 8 - shift_left;
+        uint8_t mask = ((1 << shift_left) - 1) << shift_right;
+        uint8_t bits1 = 0;
+        for (auto i = len - 1; i >= 0; --i) {
+            auto bits2 = array[i] & mask;
+            array[i] <<= shift_left;
+            array[i] |= bits1 >> shift_right;
+            bits1 = bits2;
+        }
+        rc = 0;
+    }
+    return rc;
+}
+
 int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right) {
     int rc = -1;
     if (shift_right > 0 && shift_right < 8) {
@@ -319,7 +336,7 @@ int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t
         fseek(from_file_ptr, offset, SEEK_SET);
         fread(buffer, 1, *length, from_file_ptr);
         if (bit_offset > 0) {
-            right_shift_buffer(buffer, *length, bit_offset);
+            left_shift_buffer(buffer, *length, bit_offset);
         }
     }
     return 0;

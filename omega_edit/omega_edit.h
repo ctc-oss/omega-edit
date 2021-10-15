@@ -102,6 +102,8 @@ int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t
 
 int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
+int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left);
+
 int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right);
 
 #endif //OMEGA_OMEGA_EDIT_H

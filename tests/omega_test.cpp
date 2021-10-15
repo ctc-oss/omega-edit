@@ -26,15 +26,29 @@ TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     auto *buffer = (uint8_t *) strdup(fill);
     auto buff_len = (int64_t) strlen((const char *) buffer);
-    fprintf(stdout, "FOO %lld\n", buff_len);
+
     // Shift the buffer 3 bits to the right
     auto rc = right_shift_buffer(buffer, buff_len, 3);
     REQUIRE(rc == 0);
-    // Shift the buffer 5 bites to the right
+    // Shift the buffer 5 bits to the right
     rc = right_shift_buffer(buffer, buff_len, 5);
     REQUIRE(rc == 0);
     // We shifted a total of 8 bits (one byte) to the right, so compare the buffer against the fill plus one byte
     REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+
+    // Reset the buffer
+    memcpy(buffer, fill, buff_len);
+    REQUIRE(strcmp((const char *) fill, (const char *) buffer) == 0);
+
+    // Shift the buffer 6 bits to the left
+    rc = left_shift_buffer(buffer, buff_len, 6);
+    REQUIRE(rc == 0);
+    // Shift the buffer 2 bits to the left
+    rc = left_shift_buffer(buffer, buff_len, 2);
+    REQUIRE(rc == 0);
+    // We shifted a total of 8 bits (one byte) to the left, so compare the buffer against the fill plus one byte
+    REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+
     free(buffer);
 }
 
@@ -172,17 +186,24 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
     view_mode.display_mode = BIT_MODE;
     set_viewport(viewport_ptr, 0, 20, 0);
-    // Change to bit offset 6
+
+    // Change to bit offsets
+    set_viewport(viewport_ptr, 0, 20, 1);
+    set_viewport(viewport_ptr, 0, 20, 2);
+    set_viewport(viewport_ptr, 0, 20, 3);
+    set_viewport(viewport_ptr, 0, 20, 4);
+    set_viewport(viewport_ptr, 0, 20, 5);
     set_viewport(viewport_ptr, 0, 20, 6);
+    set_viewport(viewport_ptr, 0, 20, 7);
 
     view_mode.display_mode = BYTE_MODE;
     change_cbk(viewport_ptr, nullptr);
 
-    // Copy the contents of the 6-bit offset viewport into a buffer and shift it 2 more bits to get back on 8-bit
+    // Copy the contents of the 6-bit offset viewport into a buffer and shift it 1 more bit to get back on 8-bit
     // alignment for simple comparison with the original fill
     auto *buffer = (uint8_t *) malloc(get_viewport_capacity(viewport_ptr));
     memcpy(buffer, get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
-    auto rc = right_shift_buffer(buffer, get_viewport_length(viewport_ptr), 2);
+    auto rc = left_shift_buffer(buffer, get_viewport_length(viewport_ptr), 1);
     REQUIRE(rc == 0);
     REQUIRE(memcmp(buffer, fill + 1, get_viewport_length(viewport_ptr) - 1) == 0);
     free(buffer);
