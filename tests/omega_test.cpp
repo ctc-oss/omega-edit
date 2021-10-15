@@ -123,15 +123,26 @@ void change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
             get_author_name(get_viewport_author(viewport_ptr)),
             get_viewport_capacity(viewport_ptr), get_viewport_length(viewport_ptr),
             get_viewport_computed_offset(viewport_ptr), get_viewport_bit_offset(viewport_ptr));
-    auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
-    if (view_mode_ptr->display_mode == CHAR_MODE) {
-        fprintf(stdout, "\nCHAR MODE [");
-        fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
-        fprintf(stdout, "]\n");
-    } else if (view_mode_ptr->display_mode == BYTE_MODE) {
-        fprintf(stdout, "\nBYTE MODE [");
-        write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
-        fprintf(stdout, "]\n");
+    if (get_viewport_user_data(viewport_ptr)) {
+        auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
+        switch (view_mode_ptr->display_mode) {
+            case BIT_MODE:
+                fprintf(stdout, "\n BIT MODE [");
+                write_pretty_bits(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+            case CHAR_MODE:
+                fprintf(stdout, "\nCHAR MODE [");
+                fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+            default: // flow through
+            case BYTE_MODE:
+                fprintf(stdout, "\nBYTE MODE [");
+                write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+        }
     }
     fflush(stdout);
 }
@@ -145,22 +156,27 @@ TEST_CASE("File Viewing", "[InitTests]") {
     session_t *session_ptr;
     const author_t *author_ptr;
     viewport_t *viewport_ptr;
-
     view_mode_t view_mode;
-    view_mode.display_mode = CHAR_MODE;
 
     session_ptr = create_session(test_infile_ptr);
     author_ptr = add_author(session_ptr, author_name);
+    view_mode.display_mode = BIT_MODE;
     viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, &view_mode, 0);
+    view_mode.display_mode = CHAR_MODE;
+    change_cbk(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
         set_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
     }
 
     // Change the display mode from character mode to byte mode to handle non-standard byte alignment
-    view_mode.display_mode = BYTE_MODE;
 
+    view_mode.display_mode = BIT_MODE;
+    set_viewport(viewport_ptr, 0, 20, 0);
     // Change to bit offset 6
     set_viewport(viewport_ptr, 0, 20, 6);
+
+    view_mode.display_mode = BYTE_MODE;
+    change_cbk(viewport_ptr, nullptr);
 
     // Copy the contents of the 6-bit offset viewport into a buffer and shift it 2 more bits to get back on 8-bit
     // alignment for simple comparison with the original fill

@@ -70,14 +70,30 @@ inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, uint
     return f1_ptr;
 }
 
-inline void write_pretty_bytes(const uint8_t *ptr, int64_t size, FILE * out_fp) {
+inline void write_pretty_bits_byte(uint8_t byte, FILE * out_fp) {
+    for (auto i = 7; 0 <= i; --i) {
+        fprintf(out_fp, "%c", (byte & (1 << i)) ? '1' : '0');
+    }
+}
+
+inline void write_pretty_bits(const uint8_t *ptr, int64_t size, FILE *out_fp) {
     if (size > 0) {
         auto i = 0;
-        while (i < size - 1) {
-            fprintf(out_fp, "%02hhX ", ptr[i]);
-            ++i;
+        write_pretty_bits_byte(ptr[i++], out_fp);
+        while (i < size) {
+            fprintf(out_fp, " ");
+            write_pretty_bits_byte(ptr[i++], out_fp);
         }
-        fprintf(out_fp, "%02hhX", ptr[i]);
+    }
+}
+
+inline void write_pretty_bytes(const uint8_t *ptr, int64_t size, FILE *out_fp) {
+    if (size > 0) {
+        auto i = 0;
+        fprintf(out_fp, "%02hhX", ptr[i++]);
+        while (i < size) {
+            fprintf(out_fp, " %02hhX", ptr[i++]);
+        }
     }
 }
 
