@@ -23,7 +23,9 @@
 #define DEBUG
 
 #ifdef DEBUG
+
 #include <iostream>
+
 #define DBG(x) do{x}while(0)
 #else
 #define DBG(x)
@@ -47,17 +49,17 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
     return (feof(f1) && feof(f2)) ? 0 : 1;
 }
 
-inline int compare_files(const char * f1, const char * f2) {
-    FILE * f1_ptr = fopen(f1, "r");
-    FILE * f2_ptr = fopen(f2, "r");
+inline int compare_files(const char *f1, const char *f2) {
+    FILE *f1_ptr = fopen(f1, "r");
+    FILE *f2_ptr = fopen(f2, "r");
     auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);
     return result;
 }
 
-inline FILE * fill_file(const char * f1, int64_t file_size, const char * fill, uint64_t fill_length) {
-    FILE * f1_ptr = fopen(f1, "w+");
+inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, uint64_t fill_length) {
+    FILE *f1_ptr = fopen(f1, "w+");
     while (file_size) {
         auto count = (fill_length > file_size) ? file_size : fill_length;
         fwrite(fill, 1, count, f1_ptr);
@@ -66,6 +68,17 @@ inline FILE * fill_file(const char * f1, int64_t file_size, const char * fill, u
     fflush(f1_ptr);
     fseek(f1_ptr, 0, SEEK_SET);
     return f1_ptr;
+}
+
+inline void write_pretty_bytes(const uint8_t *ptr, int64_t size, FILE * out_fp) {
+    if (size > 0) {
+        auto i = 0;
+        while (i < size - 1) {
+            fprintf(out_fp, "%02hhX ", ptr[i]);
+            ++i;
+        }
+        fprintf(out_fp, "%02hhX", ptr[i]);
+    }
 }
 
 #endif //OMEGA_EDIT_TEST_UTILS_H
