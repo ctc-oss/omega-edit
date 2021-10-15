@@ -6,6 +6,9 @@
     "url": "https://github.com/scholarsmate/omega-edit",
     "type": "git"
   },
+  "bugs": {
+    "url": "https://github.com/scholarsmate/omega-edit/issues"
+  },
   "author": "Shane Dell, Davin Shearer, John Wass",
   "license": "Apache",
   "dependencies": {
