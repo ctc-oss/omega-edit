@@ -2296,6 +2296,34 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_destroy_viewport(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_destroy_viewport.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "destroy_viewport" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = (int)destroy_viewport((viewport_t const *)arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_destroy_session(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -2733,6 +2761,34 @@ static SwigV8ReturnValue _wrap_set_viewport(const SwigV8Arguments &args) {
   }
   result = (int)set_viewport(arg1,arg2,arg3,arg4);
   jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_num_viewports(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_num_viewports.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "num_viewports" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  result = num_viewports((session_t const *)arg1);
+  jsresult = SWIG_From_size_t(static_cast< size_t >(result));
   
   
   SWIGV8_RETURN(jsresult);
@@ -3481,6 +3537,7 @@ SWIGV8_AddStaticFunction(exports_obj, "get_author_session", _wrap_get_author_ses
 SWIGV8_AddStaticFunction(exports_obj, "create_session", _wrap_create_session);
 SWIGV8_AddStaticFunction(exports_obj, "add_author", _wrap_add_author);
 SWIGV8_AddStaticFunction(exports_obj, "add_viewport", _wrap_add_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "destroy_viewport", _wrap_destroy_viewport);
 SWIGV8_AddStaticFunction(exports_obj, "destroy_session", _wrap_destroy_session);
 SWIGV8_AddStaticFunction(exports_obj, "ovr", _wrap_ovr);
 SWIGV8_AddStaticFunction(exports_obj, "del", _wrap_del);
@@ -3491,6 +3548,7 @@ SWIGV8_AddStaticFunction(exports_obj, "get_computed_file_size", _wrap_get_comput
 SWIGV8_AddStaticFunction(exports_obj, "offset_to_computed_offset", _wrap_offset_to_computed_offset);
 SWIGV8_AddStaticFunction(exports_obj, "computed_offset_to_offset", _wrap_computed_offset_to_offset);
 SWIGV8_AddStaticFunction(exports_obj, "set_viewport", _wrap_set_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "num_viewports", _wrap_num_viewports);
 SWIGV8_AddStaticFunction(exports_obj, "undo", _wrap_undo);
 SWIGV8_AddStaticFunction(exports_obj, "save", _wrap_save);
 SWIGV8_AddStaticFunction(exports_obj, "read_segment", _wrap_read_segment);

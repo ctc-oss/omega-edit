@@ -112,13 +112,17 @@ uint8_t get_viewport_bit_offset(const viewport_t *viewport_ptr) {
     return viewport_ptr->bit_offset;
 }
 
+typedef vector<shared_ptr<author_t> > author_vector_t;
+typedef vector<shared_ptr<viewport_t> > viewport_vector_t;
+typedef vector<change_t> change_vector_t;
+
 struct session_t {
     FILE *file_ptr{};
     int64_t serial{};
     int64_t computed_file_size{};
-    vector<shared_ptr<author_t> > authors;
-    vector<shared_ptr<viewport_t> > viewports;
-    vector<change_t> changes;
+    author_vector_t authors;
+    viewport_vector_t viewports;
+    change_vector_t changes;
     vector<int64_t> changes_by_offset;
 };
 
@@ -206,9 +210,23 @@ add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_ch
     return viewport_ptr.get();
 }
 
+int destroy_viewport(const viewport_t *viewport_ptr) {
+    int rc = -1;
+    viewport_vector_t *session_viewport_ptr = &viewport_ptr->author_ptr->session_ptr->viewports;
+    for (auto iter = session_viewport_ptr->begin(); iter != session_viewport_ptr->end(); ++iter) {
+        if (viewport_ptr == iter->get()) {
+            session_viewport_ptr->erase(iter);
+            rc = 0;
+            break;
+        }
+    }
+    return rc;
+}
+
 int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uint8_t bit_offset) {
     // only change settings if they are different
-    if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity || viewport_ptr->bit_offset != bit_offset) {
+    if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity ||
+        viewport_ptr->bit_offset != bit_offset) {
         viewport_ptr->computed_offset = offset;
         viewport_ptr->capacity = capacity;
         viewport_ptr->data.reserve(capacity);
@@ -222,6 +240,10 @@ int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uin
         (*viewport_ptr->cbk)(viewport_ptr, nullptr);
     }
     return 0;
+}
+
+size_t num_viewports(const session_t *session_ptr) {
+    return session_ptr->viewports.size();
 }
 
 // Internal function to add a change to the given session

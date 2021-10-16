@@ -68,6 +68,8 @@ viewport_t *
 add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr,
              uint8_t bit_offset);
 
+int destroy_viewport(const viewport_t *viewport_ptr);
+
 // Destroy the given session
 void destroy_session(session_t *session_ptr);
 
@@ -90,6 +92,9 @@ int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t offset);
 
 // Set viewport at the given offset (return 0 on success, non-zero otherwise)
 int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uint8_t bit_offset);
+
+// Number of active viewports in this given session
+size_t num_viewports(const session_t *session_ptr);
 
 // Undo the last change for this author from the given session (return 0 on success, non-zero otherwise)
 int undo(const author_t *author_ptr);

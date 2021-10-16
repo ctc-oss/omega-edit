@@ -174,8 +174,11 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
     session_ptr = create_session(test_infile_ptr);
     author_ptr = add_author(session_ptr, author_name);
+    auto viewport_count = num_viewports(session_ptr);
+    REQUIRE(viewport_count == 0);
     view_mode.display_mode = BIT_MODE;
     viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, &view_mode, 0);
+    REQUIRE(viewport_count + 1 == num_viewports(session_ptr));
     view_mode.display_mode = CHAR_MODE;
     change_cbk(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
@@ -208,6 +211,12 @@ TEST_CASE("File Viewing", "[InitTests]") {
     REQUIRE(memcmp(buffer, fill + 1, get_viewport_length(viewport_ptr) - 1) == 0);
     free(buffer);
 
+    rc = ins(author_ptr, 3, 4, '+');
+    REQUIRE(rc == 0);
+    viewport_count = num_viewports(session_ptr);
+    rc = destroy_viewport(viewport_ptr);
+    REQUIRE(rc == 0);
+    REQUIRE(viewport_count - 1 == num_viewports(session_ptr));
     destroy_session(session_ptr);
 
     remove(file_name);
