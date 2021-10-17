@@ -81,6 +81,7 @@ struct viewport_t {
     on_change_cbk cbk{};
     void *user_data_ptr{};
     vector<uint8_t> data;
+    uint8_t bit_offset{};
 };
 
 const author_t *get_viewport_author(const viewport_t *viewport_ptr) {
@@ -107,19 +108,61 @@ void *get_viewport_user_data(const viewport_t *viewport_ptr) {
     return viewport_ptr->user_data_ptr;
 }
 
+uint8_t get_viewport_bit_offset(const viewport_t *viewport_ptr) {
+    return viewport_ptr->bit_offset;
+}
+
+typedef vector<shared_ptr<author_t> > author_vector_t;
+typedef vector<shared_ptr<viewport_t> > viewport_vector_t;
+typedef vector<change_t> change_vector_t;
+
 struct session_t {
     FILE *file_ptr{};
     int64_t serial{};
     int64_t computed_file_size{};
-    vector<shared_ptr<author_t> > authors;
-    vector<shared_ptr<viewport_t> > viewports;
-    vector<change_t> changes;
+    author_vector_t authors;
+    viewport_vector_t viewports;
+    change_vector_t changes;
     vector<int64_t> changes_by_offset;
 };
 
 //
 // FUNCTIONS
 //
+
+int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left) {
+    int rc = -1;
+    if (shift_left > 0 && shift_left < 8) {
+        uint8_t shift_right = 8 - shift_left;
+        uint8_t mask = ((1 << shift_left) - 1) << shift_right;
+        uint8_t bits1 = 0;
+        for (auto i = len - 1; i >= 0; --i) {
+            auto bits2 = array[i] & mask;
+            array[i] <<= shift_left;
+            array[i] |= bits1 >> shift_right;
+            bits1 = bits2;
+        }
+        rc = 0;
+    }
+    return rc;
+}
+
+int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right) {
+    int rc = -1;
+    if (shift_right > 0 && shift_right < 8) {
+        uint8_t shift_left = 8 - shift_right;
+        uint8_t mask = (1 << shift_right) - 1;
+        uint8_t bits1 = 0;
+        for (auto i = len - 1; i >= 0; --i) {
+            auto bits2 = array[i] & mask;
+            array[i] >>= shift_right;
+            array[i] |= bits1 << shift_left;
+            bits1 = bits2;
+        }
+        rc = 0;
+    }
+    return rc;
+}
 
 session_t *create_session(FILE *file_ptr) {
     fseek(file_ptr, 0L, SEEK_END);
@@ -147,7 +190,8 @@ session_t *get_author_session(const author_t *author_ptr) {
 }
 
 viewport_t *
-add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr) {
+add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr,
+             uint8_t bit_offset) {
     auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
     viewport_ptr->author_ptr = author_ptr;
     viewport_ptr->computed_offset = offset;
@@ -156,29 +200,50 @@ add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_ch
     viewport_ptr->data.reserve(capacity);
     viewport_ptr->cbk = cbk;
     viewport_ptr->user_data_ptr = user_data_ptr;
+    viewport_ptr->bit_offset = bit_offset;
     author_ptr->session_ptr->viewports.push_back(viewport_ptr);
     // TODO: populate the viewport and call the on change callback
     read_segment(author_ptr->session_ptr->file_ptr, offset, author_ptr->session_ptr->computed_file_size,
                  viewport_ptr->data.data(), viewport_ptr->capacity,
-                 &viewport_ptr->length);
+                 &viewport_ptr->length, viewport_ptr->bit_offset);
     (*viewport_ptr->cbk)(viewport_ptr.get(), nullptr);
     return viewport_ptr.get();
 }
 
-int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity) {
+int destroy_viewport(const viewport_t *viewport_ptr) {
+    int rc = -1;
+    viewport_vector_t *session_viewport_ptr = &viewport_ptr->author_ptr->session_ptr->viewports;
+    for (auto iter = session_viewport_ptr->begin(); iter != session_viewport_ptr->end(); ++iter) {
+        if (viewport_ptr == iter->get()) {
+            session_viewport_ptr->erase(iter);
+            rc = 0;
+            break;
+        }
+    }
+    return rc;
+}
+
+int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uint8_t bit_offset) {
     // only change settings if they are different
-    if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity) {
+    if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity ||
+        viewport_ptr->bit_offset != bit_offset) {
         viewport_ptr->computed_offset = offset;
         viewport_ptr->capacity = capacity;
         viewport_ptr->data.reserve(capacity);
+        viewport_ptr->bit_offset = bit_offset;
         // TODO: update viewport and call the on change callback
         read_segment(viewport_ptr->author_ptr->session_ptr->file_ptr, offset,
                      viewport_ptr->author_ptr->session_ptr->computed_file_size, viewport_ptr->data.data(),
                      viewport_ptr->capacity,
-                     &viewport_ptr->length);
+                     &viewport_ptr->length,
+                     viewport_ptr->bit_offset);
         (*viewport_ptr->cbk)(viewport_ptr, nullptr);
     }
     return 0;
+}
+
+size_t num_viewports(const session_t *session_ptr) {
+    return session_ptr->viewports.size();
 }
 
 // Internal function to add a change to the given session
@@ -286,12 +351,15 @@ size_t num_changes_by_author(const author_t *author_ptr) {
 }
 
 int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t *buffer, int64_t capacity,
-                 int64_t *length) {
+                 int64_t *length, uint8_t bit_offset) {
     auto len = file_size - offset;
     if (len > 0) {
         *length = (len < capacity) ? len : capacity;
         fseek(from_file_ptr, offset, SEEK_SET);
         fread(buffer, 1, *length, from_file_ptr);
+        if (bit_offset > 0) {
+            left_shift_buffer(buffer, *length, bit_offset);
+        }
     }
     return 0;
 }
@@ -366,11 +434,6 @@ int save(const author_t *author_ptr, FILE *file_ptr) {
     }
     fflush(file_ptr);
     return 0;
-}
-
-viewport_t *add_viewport(const author_t *author_ptr, int32_t capacity, on_change_cbk cbk, void *user_data_ptr) {
-    // TODO: Implement
-    return nullptr;
 }
 
 // returns 1 if a change was found and undone and 0 if no change was found

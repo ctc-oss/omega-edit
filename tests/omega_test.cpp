@@ -22,6 +22,35 @@
 #include <iostream>
 #include "../omega_edit/omega_edit.h"
 
+TEST_CASE("Buffer Shift", "[BufferShift]") {
+    auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    auto *buffer = (uint8_t *) strdup(fill);
+    auto buff_len = (int64_t) strlen((const char *) buffer);
+
+    // Shift the buffer 3 bits to the right
+    auto rc = right_shift_buffer(buffer, buff_len, 3);
+    REQUIRE(rc == 0);
+    // Shift the buffer 5 bits to the right
+    rc = right_shift_buffer(buffer, buff_len, 5);
+    REQUIRE(rc == 0);
+    // We shifted a total of 8 bits (one byte) to the right, so compare the buffer against the fill plus one byte
+    REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+
+    // Reset the buffer
+    memcpy(buffer, fill, buff_len);
+    REQUIRE(strcmp((const char *) fill, (const char *) buffer) == 0);
+
+    // Shift the buffer 6 bits to the left
+    rc = left_shift_buffer(buffer, buff_len, 6);
+    REQUIRE(rc == 0);
+    // Shift the buffer 2 bits to the left
+    rc = left_shift_buffer(buffer, buff_len, 2);
+    REQUIRE(rc == 0);
+    // We shifted a total of 8 bits (one byte) to the left, so compare the buffer against the fill plus one byte
+    REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+
+    free(buffer);
+}
 
 TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
@@ -93,16 +122,42 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
+enum display_mode_t {
+    BIT_MODE, BYTE_MODE, CHAR_MODE
+};
+struct view_mode_t {
+    enum display_mode_t display_mode = CHAR_MODE;
+};
+
 void change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
     if (change_ptr) {
         fprintf(stdout, "Change Author: %s\n", get_author_name(get_author(change_ptr)));
     }
-    fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld\n[",
+    fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld, bit offset: %u",
             get_author_name(get_viewport_author(viewport_ptr)),
             get_viewport_capacity(viewport_ptr), get_viewport_length(viewport_ptr),
-            get_viewport_computed_offset(viewport_ptr));
-    fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
-    fprintf(stdout, "]\n");
+            get_viewport_computed_offset(viewport_ptr), get_viewport_bit_offset(viewport_ptr));
+    if (get_viewport_user_data(viewport_ptr)) {
+        auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
+        switch (view_mode_ptr->display_mode) {
+            case BIT_MODE:
+                fprintf(stdout, "\n BIT MODE [");
+                write_pretty_bits(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+            case CHAR_MODE:
+                fprintf(stdout, "\nCHAR MODE [");
+                fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+            default: // flow through
+            case BYTE_MODE:
+                fprintf(stdout, "\nBYTE MODE [");
+                write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
+                fprintf(stdout, "]\n");
+                break;
+        }
+    }
     fflush(stdout);
 }
 
@@ -115,14 +170,53 @@ TEST_CASE("File Viewing", "[InitTests]") {
     session_t *session_ptr;
     const author_t *author_ptr;
     viewport_t *viewport_ptr;
+    view_mode_t view_mode;
 
     session_ptr = create_session(test_infile_ptr);
     author_ptr = add_author(session_ptr, author_name);
-    viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, nullptr);
-    for(int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
-        set_viewport(viewport_ptr, offset, 10 + (offset % 40));
+    auto viewport_count = num_viewports(session_ptr);
+    REQUIRE(viewport_count == 0);
+    view_mode.display_mode = BIT_MODE;
+    viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, &view_mode, 0);
+    REQUIRE(viewport_count + 1 == num_viewports(session_ptr));
+    view_mode.display_mode = CHAR_MODE;
+    change_cbk(viewport_ptr, nullptr);
+    for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
+        set_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
     }
-    set_viewport(viewport_ptr, 0, 20);
+
+    // Change the display mode from character mode to byte mode to handle non-standard byte alignment
+
+    view_mode.display_mode = BIT_MODE;
+    set_viewport(viewport_ptr, 0, 20, 0);
+
+    // Change to bit offsets
+    set_viewport(viewport_ptr, 0, 20, 1);
+    set_viewport(viewport_ptr, 0, 20, 2);
+    set_viewport(viewport_ptr, 0, 20, 3);
+    set_viewport(viewport_ptr, 0, 20, 4);
+    set_viewport(viewport_ptr, 0, 20, 5);
+    set_viewport(viewport_ptr, 0, 20, 6);
+    set_viewport(viewport_ptr, 0, 20, 7);
+
+    view_mode.display_mode = BYTE_MODE;
+    change_cbk(viewport_ptr, nullptr);
+
+    // Copy the contents of the 6-bit offset viewport into a buffer and shift it 1 more bit to get back on 8-bit
+    // alignment for simple comparison with the original fill
+    auto *buffer = (uint8_t *) malloc(get_viewport_capacity(viewport_ptr));
+    memcpy(buffer, get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
+    auto rc = left_shift_buffer(buffer, get_viewport_length(viewport_ptr), 1);
+    REQUIRE(rc == 0);
+    REQUIRE(memcmp(buffer, fill + 1, get_viewport_length(viewport_ptr) - 1) == 0);
+    free(buffer);
+
+    rc = ins(author_ptr, 3, 4, '+');
+    REQUIRE(rc == 0);
+    viewport_count = num_viewports(session_ptr);
+    rc = destroy_viewport(viewport_ptr);
+    REQUIRE(rc == 0);
+    REQUIRE(viewport_count - 1 == num_viewports(session_ptr));
     destroy_session(session_ptr);
 
     remove(file_name);

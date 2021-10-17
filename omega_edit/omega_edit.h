@@ -50,6 +50,8 @@ const uint8_t *get_viewport_data(const viewport_t *viewport_ptr);
 
 void *get_viewport_user_data(const viewport_t *viewport_ptr);
 
+uint8_t get_viewport_bit_offset(const viewport_t *viewport_ptr);
+
 // Returns the author's name from the given author structure
 const char *get_author_name(const author_t *author_ptr);
 
@@ -63,7 +65,10 @@ const author_t *add_author(session_t *session_ptr, const char *author_name);
 
 // Add a viewport to the given session
 viewport_t *
-add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr);
+add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr,
+             uint8_t bit_offset);
+
+int destroy_viewport(const viewport_t *viewport_ptr);
 
 // Destroy the given session
 void destroy_session(session_t *session_ptr);
@@ -86,7 +91,10 @@ int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset);
 int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t offset);
 
 // Set viewport at the given offset (return 0 on success, non-zero otherwise)
-int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity);
+int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uint8_t bit_offset);
+
+// Number of active viewports in this given session
+size_t num_viewports(const session_t *session_ptr);
 
 // Undo the last change for this author from the given session (return 0 on success, non-zero otherwise)
 int undo(const author_t *author_ptr);
@@ -95,8 +103,12 @@ int undo(const author_t *author_ptr);
 int save(const author_t *author_ptr, FILE *file_ptr);
 
 int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t *buffer, int64_t capacity,
-                 int64_t *length);
+                 int64_t *length, uint8_t bit_offset);
 
 int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
+
+int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left);
+
+int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right);
 
 #endif //OMEGA_OMEGA_EDIT_H

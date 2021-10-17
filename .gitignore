@@ -1,7 +1,10 @@
-# generate files
+# generated files
 node_modules/
 build/
-cmake-build-debug/
+cmake-build-*/
 
 # log files
 *.log
+
+# IDE files
+.idea/
