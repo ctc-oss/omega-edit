@@ -65,30 +65,45 @@ TEST_CASE("File Compare", "[UtilTests]") {
 TEST_CASE("Write Segment", "[WriteSegmentTests]") {
     FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "w");
     FILE *read_file_ptr = fopen("data/test1.dat", "r");
-    auto rc = write_segment(read_file_ptr, 10, 26, test_outfile_ptr);
+    auto rc = write_segment_to_file(read_file_ptr, 10, 26, test_outfile_ptr);
     REQUIRE(rc == 0);
-    rc = write_segment(read_file_ptr, 0, 10, test_outfile_ptr);
+    rc = write_segment_to_file(read_file_ptr, 0, 10, test_outfile_ptr);
     REQUIRE(rc == 0);
-    rc = write_segment(read_file_ptr, 36, 27, test_outfile_ptr);
+    rc = write_segment_to_file(read_file_ptr, 36, 27, test_outfile_ptr);
     REQUIRE(rc == 0);
+}
+
+typedef struct file_info_struct {
+    char const * filename = nullptr;
+} file_info_t;
+
+void session_change_cbk(const session_t * session_ptr, const change_t * change_ptr) {
+    auto file_info_ptr = (file_info_t * )get_session_user_data(session_ptr);
+    fprintf(stdout, "Filename: %s\n", file_info_ptr->filename);
+    fprintf(stdout, " * Num active changes: %zu\n", num_changes(session_ptr));
+    fprintf(stdout, " * Computed file size: %lld\n", get_computed_file_size(session_ptr));
+    fprintf(stdout, " * Change serial: %lld\n", get_change_serial(change_ptr));
 }
 
 TEST_CASE("Check initialization", "[InitTests]") {
     FILE *test_infile_ptr;
     session_t *session_ptr;
+    file_info_t file_info;
     const author_t *author_ptr;
 
+    file_info.filename = "data/test1.dat";
+
     SECTION("Open data file") {
-        test_infile_ptr = fopen("data/test1.dat", "r");
+        test_infile_ptr = fopen(file_info.filename, "r");
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
-            session_ptr = create_session(test_infile_ptr);
+            session_ptr = create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
             REQUIRE(session_ptr != NULL);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
                 const char *author_name = "Test Author";
-                author_ptr = add_author(session_ptr, author_name);
+                author_ptr = create_author(session_ptr, author_name);
                 REQUIRE(strcmp(author_name, get_author_name(author_ptr)) == 0);
                 SECTION("Add bytes") {
                     ins(author_ptr, 10, 4, '+');
@@ -107,12 +122,12 @@ TEST_CASE("Check initialization", "[InitTests]") {
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
                     auto num_changes_before_undo = num_changes(session_ptr);
                     REQUIRE(num_changes_by_author(author_ptr) == num_changes_before_undo);
-                    undo(author_ptr);
+                    undo_last_change(author_ptr);
                     REQUIRE(num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     auto orig_offset = computed_offset_to_offset(session_ptr, 15);
                     DBG(std::clog << "OFFSET: " << orig_offset << std::endl;);
-                    save(author_ptr, test_outfile_ptr);
+                    save_to_file(author_ptr, test_outfile_ptr);
                     fclose(test_infile_ptr);
                     fclose(test_outfile_ptr);
                 }
@@ -129,9 +144,9 @@ struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
 
-void change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
+void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
     if (change_ptr) {
-        fprintf(stdout, "Change Author: %s\n", get_author_name(get_author(change_ptr)));
+        fprintf(stdout, "Change Author: %s\n", get_author_name(get_change_author(change_ptr)));
     }
     fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld, bit offset: %u",
             get_author_name(get_viewport_author(viewport_ptr)),
@@ -172,15 +187,16 @@ TEST_CASE("File Viewing", "[InitTests]") {
     viewport_t *viewport_ptr;
     view_mode_t view_mode;
 
-    session_ptr = create_session(test_infile_ptr);
-    author_ptr = add_author(session_ptr, author_name);
+    session_ptr = create_session(test_infile_ptr, 100);
+    REQUIRE(get_viewport_max_capacity(session_ptr) == 100);
+    author_ptr = create_author(session_ptr, author_name);
     auto viewport_count = num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = BIT_MODE;
-    viewport_ptr = add_viewport(author_ptr, 0, 10, change_cbk, &view_mode, 0);
+    viewport_ptr = add_viewport(author_ptr, 0, 10, vpt_change_cbk, &view_mode, 0);
     REQUIRE(viewport_count + 1 == num_viewports(session_ptr));
     view_mode.display_mode = CHAR_MODE;
-    change_cbk(viewport_ptr, nullptr);
+    vpt_change_cbk(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
         set_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
     }
@@ -200,7 +216,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     set_viewport(viewport_ptr, 0, 20, 7);
 
     view_mode.display_mode = BYTE_MODE;
-    change_cbk(viewport_ptr, nullptr);
+    vpt_change_cbk(viewport_ptr, nullptr);
 
     // Copy the contents of the 6-bit offset viewport into a buffer and shift it 1 more bit to get back on 8-bit
     // alignment for simple comparison with the original fill

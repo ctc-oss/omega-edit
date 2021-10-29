@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Concurrent Technologies Corporation, Nteligen LLC
+ * Copyright 2021 Concurrent Technologies Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ using namespace std;
 #define DBG(x)
 #endif
 
+
 //
 // DATA STRUCTURES
 //
@@ -53,23 +54,23 @@ struct change_t {
     uint8_t byte;
 };
 
-int64_t get_computed_offset(const change_t *change_ptr) {
+int64_t get_change_computed_offset(const change_t *change_ptr) {
     return change_ptr->computed_offset;
 }
 
-int64_t get_num_bytes(const change_t *change_ptr) {
+int64_t get_change_num_bytes(const change_t *change_ptr) {
     return change_ptr->num_bytes;
 }
 
-int64_t get_serial(const change_t *change_ptr) {
+int64_t get_change_serial(const change_t *change_ptr) {
     return change_ptr->serial;
 }
 
-const author_t *get_author(const change_t *change_ptr) {
+const author_t *get_change_author(const change_t *change_ptr) {
     return change_ptr->author_ptr;
 }
 
-uint8_t get_byte(const change_t *change_ptr) {
+uint8_t get_change_byte(const change_t *change_ptr) {
     return change_ptr->byte;
 }
 
@@ -78,10 +79,10 @@ struct viewport_t {
     int64_t capacity{};
     int64_t length{};
     int64_t computed_offset{};
-    on_change_cbk cbk{};
-    void *user_data_ptr{};
     vector<uint8_t> data;
     uint8_t bit_offset{};
+    viewport_on_change_cbk on_change_cbk = nullptr;
+    void *user_data_ptr = nullptr;
 };
 
 const author_t *get_viewport_author(const viewport_t *viewport_ptr) {
@@ -124,22 +125,25 @@ struct session_t {
     viewport_vector_t viewports;
     change_vector_t changes;
     vector<int64_t> changes_by_offset;
+    int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY;
+    session_on_change_cbk on_change_cbk = nullptr;
+    void *user_data_ptr = nullptr;
 };
 
 //
 // FUNCTIONS
 //
 
-int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left) {
+int left_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_left) {
     int rc = -1;
     if (shift_left > 0 && shift_left < 8) {
         uint8_t shift_right = 8 - shift_left;
         uint8_t mask = ((1 << shift_left) - 1) << shift_right;
         uint8_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
-            auto bits2 = array[i] & mask;
-            array[i] <<= shift_left;
-            array[i] |= bits1 >> shift_right;
+            auto bits2 = buffer[i] & mask;
+            buffer[i] <<= shift_left;
+            buffer[i] |= bits1 >> shift_right;
             bits1 = bits2;
         }
         rc = 0;
@@ -147,16 +151,16 @@ int left_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_left) {
     return rc;
 }
 
-int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right) {
+int right_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_right) {
     int rc = -1;
     if (shift_right > 0 && shift_right < 8) {
         uint8_t shift_left = 8 - shift_right;
         uint8_t mask = (1 << shift_right) - 1;
         uint8_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
-            auto bits2 = array[i] & mask;
-            array[i] >>= shift_right;
-            array[i] |= bits1 << shift_left;
+            auto bits2 = buffer[i] & mask;
+            buffer[i] >>= shift_right;
+            buffer[i] |= bits1 << shift_left;
             bits1 = bits2;
         }
         rc = 0;
@@ -164,21 +168,39 @@ int right_shift_buffer(uint8_t *array, int64_t len, uint8_t shift_right) {
     return rc;
 }
 
-session_t *create_session(FILE *file_ptr) {
-    fseek(file_ptr, 0L, SEEK_END);
-    auto *session_ptr = new session_t;
-    session_ptr->serial = 0;
-    session_ptr->file_ptr = file_ptr;
-    session_ptr->computed_file_size = ftell(file_ptr);
-    return session_ptr;
+session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity, session_on_change_cbk cbk, void *user_data_ptr) {
+    session_t *pSession = nullptr;
+    if (0 < viewport_max_capacity && 0 == fseek(file_ptr, 0L, SEEK_END)) {
+        auto *session_ptr = new session_t;
+        session_ptr->serial = 0;
+        session_ptr->file_ptr = file_ptr;
+        session_ptr->computed_file_size = ftell(file_ptr);
+        session_ptr->viewport_max_capacity = viewport_max_capacity;
+        session_ptr->on_change_cbk = cbk;
+        session_ptr->user_data_ptr = user_data_ptr;
+        pSession = session_ptr;
+    }
+    return pSession;
 }
 
-const author_t *add_author(session_t *session_ptr, const char *author_name) {
-    auto author_ptr = shared_ptr<author_t>(new author_t);
-    author_ptr->session_ptr = session_ptr;
-    author_ptr->name.assign(author_name);
-    session_ptr->authors.push_back(author_ptr);
-    return author_ptr.get();
+int64_t get_viewport_max_capacity(const session_t *session_ptr) {
+    return session_ptr->viewport_max_capacity;
+}
+
+void * get_session_user_data(const session_t *session_ptr){
+    return session_ptr->user_data_ptr;
+}
+
+const author_t *create_author(session_t *session_ptr, const char *author_name) {
+    const author_t *pAuthor = nullptr;
+    if (session_ptr) {
+        auto author_ptr = shared_ptr<author_t>(new author_t);
+        author_ptr->session_ptr = session_ptr;
+        author_ptr->name.assign(author_name);
+        session_ptr->authors.push_back(author_ptr);
+        pAuthor = author_ptr.get();
+    }
+    return pAuthor;
 }
 
 const char *get_author_name(const author_t *author_ptr) {
@@ -190,24 +212,32 @@ session_t *get_author_session(const author_t *author_ptr) {
 }
 
 viewport_t *
-add_viewport(const author_t *author_ptr, int64_t offset, int32_t capacity, on_change_cbk cbk, void *user_data_ptr,
+add_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk, void *user_data_ptr,
              uint8_t bit_offset) {
-    auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
-    viewport_ptr->author_ptr = author_ptr;
-    viewport_ptr->computed_offset = offset;
-    viewport_ptr->capacity = capacity;
-    viewport_ptr->length = 0;
-    viewport_ptr->data.reserve(capacity);
-    viewport_ptr->cbk = cbk;
-    viewport_ptr->user_data_ptr = user_data_ptr;
-    viewport_ptr->bit_offset = bit_offset;
-    author_ptr->session_ptr->viewports.push_back(viewport_ptr);
-    // TODO: populate the viewport and call the on change callback
-    read_segment(author_ptr->session_ptr->file_ptr, offset, author_ptr->session_ptr->computed_file_size,
-                 viewport_ptr->data.data(), viewport_ptr->capacity,
-                 &viewport_ptr->length, viewport_ptr->bit_offset);
-    (*viewport_ptr->cbk)(viewport_ptr.get(), nullptr);
-    return viewport_ptr.get();
+    viewport_t *pViewport = nullptr;
+    auto session_ptr = get_author_session(author_ptr);
+    if (capacity > 0 and capacity <= get_viewport_max_capacity(session_ptr)) {
+        auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
+        viewport_ptr->author_ptr = author_ptr;
+        viewport_ptr->computed_offset = offset;
+        viewport_ptr->capacity = capacity;
+        viewport_ptr->length = 0;
+        viewport_ptr->data.reserve(capacity);
+        viewport_ptr->on_change_cbk = cbk;
+        viewport_ptr->user_data_ptr = user_data_ptr;
+        viewport_ptr->bit_offset = bit_offset;
+        session_ptr->viewports.push_back(viewport_ptr);
+
+        // Populate the viewport and call the on change callback
+        read_segment_from_file(session_ptr->file_ptr, offset, viewport_ptr->data.data(),
+                               viewport_ptr->capacity, &viewport_ptr->length);
+        if (bit_offset > 0) {
+            left_shift_buffer(viewport_ptr->data.data(), viewport_ptr->length, bit_offset);
+        }
+        (*viewport_ptr->on_change_cbk)(viewport_ptr.get(), nullptr);
+        pViewport = viewport_ptr.get();
+    }
+    return pViewport;
 }
 
 int destroy_viewport(const viewport_t *viewport_ptr) {
@@ -223,23 +253,31 @@ int destroy_viewport(const viewport_t *viewport_ptr) {
     return rc;
 }
 
-int set_viewport(viewport_t *viewport_ptr, int64_t offset, int32_t capacity, uint8_t bit_offset) {
-    // only change settings if they are different
-    if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity ||
-        viewport_ptr->bit_offset != bit_offset) {
-        viewport_ptr->computed_offset = offset;
-        viewport_ptr->capacity = capacity;
-        viewport_ptr->data.reserve(capacity);
-        viewport_ptr->bit_offset = bit_offset;
-        // TODO: update viewport and call the on change callback
-        read_segment(viewport_ptr->author_ptr->session_ptr->file_ptr, offset,
-                     viewport_ptr->author_ptr->session_ptr->computed_file_size, viewport_ptr->data.data(),
-                     viewport_ptr->capacity,
-                     &viewport_ptr->length,
-                     viewport_ptr->bit_offset);
-        (*viewport_ptr->cbk)(viewport_ptr, nullptr);
+int set_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset) {
+    int rc = 0;
+    auto session_ptr = viewport_ptr->author_ptr->session_ptr;
+    if (capacity > 0 && capacity <= get_viewport_max_capacity(session_ptr)) {
+        // only change settings if they are different
+        if (viewport_ptr->computed_offset != offset || viewport_ptr->capacity != capacity ||
+            viewport_ptr->bit_offset != bit_offset) {
+            viewport_ptr->computed_offset = offset;
+            viewport_ptr->capacity = capacity;
+            viewport_ptr->data.reserve(capacity);
+            viewport_ptr->bit_offset = bit_offset;
+
+            // Update viewport and call the on change callback
+            read_segment_from_file(session_ptr->file_ptr, offset, viewport_ptr->data.data(),
+                                   viewport_ptr->capacity, &viewport_ptr->length);
+            if (bit_offset > 0) {
+                left_shift_buffer(viewport_ptr->data.data(), viewport_ptr->length, bit_offset);
+            }
+            (*viewport_ptr->on_change_cbk)(viewport_ptr, nullptr);
+        }
+    } else {
+        DBG(clog << "desired capacity less than 1 or greater than the viewport maximum capacity" << endl;);
+        rc = -1;
     }
-    return 0;
+    return rc;
 }
 
 size_t num_viewports(const session_t *session_ptr) {
@@ -248,7 +286,8 @@ size_t num_viewports(const session_t *session_ptr) {
 
 // Internal function to add a change to the given session
 int add_change_(const change_t *change_ptr) {
-    auto session_ptr = change_ptr->author_ptr->session_ptr;
+    int rc = 0;
+    auto session_ptr = get_author_session(get_change_author(change_ptr));
     session_ptr->changes.push_back(*change_ptr);
     auto insert_pos = session_ptr->changes_by_offset.begin();
 
@@ -276,19 +315,24 @@ int add_change_(const change_t *change_ptr) {
     }
     // TODO: update affected viewports and call their on change callbacks
 
-    return 0;
+    if (session_ptr->on_change_cbk) {
+        session_ptr->on_change_cbk(session_ptr, change_ptr);
+    }
+    return rc;
 }
 
 // Add overwrite change
-int ovr(const author_t *author_ptr, int64_t offset, uint8_t byte) {
+int ovr(const author_t *author_ptr, int64_t offset, uint8_t new_byte) {
     change_t change{};
     change.author_ptr = author_ptr;
     change.computed_offset = offset;
-    change.byte = byte;
+    change.byte = new_byte;
     change.num_bytes = 0;
     change.serial = author_ptr->session_ptr->serial++;
-    DBG(clog << "'" << get_author_name(author_ptr) << "' overwriting with byte '" << byte << "' at offset " << offset
-             << " serial " << change.serial << endl;);
+
+    DBG(clog << "'" << get_author_name(author_ptr) << "' overwriting with byte '" << new_byte << "' at offset "
+             << offset << " serial " << change.serial << endl;);
+
     return add_change_(&change);
 }
 
@@ -300,8 +344,10 @@ int del(const author_t *author_ptr, int64_t offset, int64_t num_bytes) {
     change.byte = 0;
     change.num_bytes = num_bytes * -1;  // negative for delete
     change.serial = author_ptr->session_ptr->serial++;
+
     DBG(clog << "'" << get_author_name(author_ptr) << "' deleting " << num_bytes << " bytes at offset " << offset
              << " serial " << change.serial << endl;);
+
     return add_change_(&change);
 }
 
@@ -313,8 +359,10 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t num_bytes, uint8_t f
     change.byte = fill;
     change.num_bytes = num_bytes;  // positive for insert
     change.serial = author_ptr->session_ptr->serial++;
-    DBG(clog << "'" << get_author_name(author_ptr) << "' inserting " << num_bytes << " of '" << fill << "' at offset "
-             << offset << " serial " << change.serial << endl;);
+
+    DBG(clog << "'" << get_author_name(author_ptr) << "' inserting " << num_bytes << " of '" << fill
+             << "' at offset " << offset << " serial " << change.serial << endl;);
+
     return add_change_(&change);
 }
 
@@ -328,12 +376,12 @@ int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset) 
 }
 
 // Determine thr original offset given a computed offset
-int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t offset) {
+int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t computed_offset) {
     for (auto iter(session_ptr->changes_by_offset.begin()); iter != session_ptr->changes_by_offset.end(); ++iter) {
-        if (session_ptr->changes[*iter].computed_offset <= offset) break;
-        offset -= session_ptr->changes[*iter].num_bytes;
+        if (session_ptr->changes[*iter].computed_offset <= computed_offset) break;
+        computed_offset -= session_ptr->changes[*iter].num_bytes;
     }
-    return offset;
+    return computed_offset;
 }
 
 size_t num_changes(const session_t *session_ptr) {
@@ -350,22 +398,27 @@ size_t num_changes_by_author(const author_t *author_ptr) {
     return count;
 }
 
-int read_segment(FILE *from_file_ptr, int64_t offset, int64_t file_size, uint8_t *buffer, int64_t capacity,
-                 int64_t *length, uint8_t bit_offset) {
-    auto len = file_size - offset;
-    if (len > 0) {
-        *length = (len < capacity) ? len : capacity;
-        fseek(from_file_ptr, offset, SEEK_SET);
-        fread(buffer, 1, *length, from_file_ptr);
-        if (bit_offset > 0) {
-            left_shift_buffer(buffer, *length, bit_offset);
+int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer, int64_t capacity, int64_t *length) {
+    int rc = -1;
+    if (0 == fseek(from_file_ptr, 0, SEEK_END)) {
+        auto len = ftell(from_file_ptr) - offset;
+        // make sure the offset does not exceed the file size
+        if (len > 0) {
+            // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
+            *length = (len < capacity) ? len : capacity;
+            if (0 == fseek(from_file_ptr, offset, SEEK_SET)) {
+                if (0 == fread(buffer, 1, *length, from_file_ptr)) {
+                    rc = 0; // successful read
+                }
+            }
         }
     }
-    return 0;
+    return rc;
 }
 
 // Write a segment of one file into another
-int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+int write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+    int rc = 0;
     fseek(from_file_ptr, offset, SEEK_SET);
     const int64_t buff_size = 1024 * 8;
     uint8_t buff[buff_size];
@@ -376,11 +429,12 @@ int write_segment(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE 
         byte_count -= count;
     }
     fflush(to_file_ptr);
-    return 0;
+    return rc;
 }
 
 // Save changes in the given session to the given file pointer
-int save(const author_t *author_ptr, FILE *file_ptr) {
+int save_to_file(const author_t *author_ptr, FILE *file_ptr) {
+    int rc = 0;
     session_t *session_ptr = author_ptr->session_ptr;
     const int64_t write_file_start = ftell(file_ptr);
     // tip of the file we're writing to
@@ -433,12 +487,11 @@ int save(const author_t *author_ptr, FILE *file_ptr) {
         DBG(clog << "Bytes to read from original: " << bytes_to_read_from_original << endl;);
     }
     fflush(file_ptr);
-    return 0;
+    return rc;
 }
 
-// returns 1 if a change was found and undone and 0 if no change was found
-int undo(const author_t *author_ptr) {
-    int rc = 0;
+int undo_last_change(const author_t *author_ptr) {
+    int rc = -1;
     session_t *session_ptr = author_ptr->session_ptr;
     for (auto riter = session_ptr->changes.rbegin(); riter != session_ptr->changes.rend(); ++riter) {
         if (riter->author_ptr == author_ptr) {
@@ -454,8 +507,14 @@ int undo(const author_t *author_ptr) {
             }
             session_ptr->computed_file_size -= riter->num_bytes;
             session_ptr->changes_by_offset.erase(changes_by_pos_iter);
-            session_ptr->changes.erase(std::next(riter).base());
-            rc = 1;
+            if (session_ptr->on_change_cbk) {
+                auto undone_change = *riter;
+                session_ptr->changes.erase(std::next(riter).base());
+                session_ptr->on_change_cbk(session_ptr, &undone_change);
+            } else {
+                session_ptr->changes.erase(std::next(riter).base());
+            }
+            rc = 0;
             break;
         }
     }
