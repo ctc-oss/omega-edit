@@ -262,7 +262,7 @@ int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset);
 /**
  * Given a session and an offset, return the original offset
  * @param session_ptr session used to get the original offset
- * @param computed_offset comuted offset to get the original offset of
+ * @param computed_offset computed offset to get the original offset of
  * @return original offset, or -1 on failure
  */
 int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t computed_offset);
