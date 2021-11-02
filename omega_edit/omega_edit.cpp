@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #include "omega_edit.h"
 #include <algorithm>
 #include <cstdint>
@@ -36,7 +37,6 @@ using namespace std;
 #define DBG(x)
 #endif
 
-
 //
 // DATA STRUCTURES
 //
@@ -47,11 +47,11 @@ struct author_t {
 };
 
 struct change_t {
+    int64_t serial;
     int64_t computed_offset;
     int64_t num_bytes;
-    int64_t serial;
-    const author_t *author_ptr;
     uint8_t byte;
+    const author_t *author_ptr;
 };
 
 int64_t get_change_computed_offset(const change_t *change_ptr) {
@@ -172,7 +172,7 @@ session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity, session
     session_t *pSession = nullptr;
     if (0 < viewport_max_capacity && 0 == fseek(file_ptr, 0L, SEEK_END)) {
         auto *session_ptr = new session_t;
-        session_ptr->serial = 0;
+        session_ptr->serial = 1;
         session_ptr->file_ptr = file_ptr;
         session_ptr->computed_file_size = ftell(file_ptr);
         session_ptr->viewport_max_capacity = viewport_max_capacity;
@@ -243,7 +243,7 @@ add_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewp
 int destroy_viewport(const viewport_t *viewport_ptr) {
     int rc = -1;
     viewport_vector_t *session_viewport_ptr = &viewport_ptr->author_ptr->session_ptr->viewports;
-    for (auto iter = session_viewport_ptr->begin(); iter != session_viewport_ptr->end(); ++iter) {
+    for (auto iter = session_viewport_ptr->cbegin(); iter != session_viewport_ptr->cend(); ++iter) {
         if (viewport_ptr == iter->get()) {
             session_viewport_ptr->erase(iter);
             rc = 0;
@@ -285,30 +285,35 @@ size_t num_viewports(const session_t *session_ptr) {
 }
 
 // Internal function to add a change to the given session
-int add_change_(const change_t *change_ptr) {
+int update_(const change_t *change_ptr) {
     int rc = 0;
     auto session_ptr = get_author_session(get_change_author(change_ptr));
-    session_ptr->changes.push_back(*change_ptr);
-    auto insert_pos = session_ptr->changes_by_offset.begin();
 
+    // Push this change onto the time-ordered vector of changes for the associated session
+    session_ptr->changes.push_back(*change_ptr);
+    
+    // Determine where the change needs to go in the changes by offset vector
+    auto insert_pos = session_ptr->changes_by_offset.cbegin();
     if (change_ptr->num_bytes != 0) {
         // If we're inserting bytes, bytes from the current offset on need to be adjusted
-        while (insert_pos != session_ptr->changes_by_offset.end() &&
+        while (insert_pos != session_ptr->changes_by_offset.cend() &&
                change_ptr->computed_offset > session_ptr->changes[*insert_pos].computed_offset) {
             ++insert_pos;
         }
         insert_pos = session_ptr->changes_by_offset.insert(insert_pos, change_ptr->serial);
-        if (change_ptr->num_bytes > 0 && insert_pos != session_ptr->changes_by_offset.end()) ++insert_pos;
+        if (change_ptr->num_bytes > 0 && insert_pos != session_ptr->changes_by_offset.cend()) ++insert_pos;
     } else {
-        while (insert_pos != session_ptr->changes_by_offset.end() &&
+        // Overwrite
+        while (insert_pos != session_ptr->changes_by_offset.cend() &&
                change_ptr->computed_offset >= session_ptr->changes[*insert_pos].computed_offset) {
             ++insert_pos;
         }
         insert_pos = session_ptr->changes_by_offset.insert(insert_pos, change_ptr->serial);
     }
+
     if (change_ptr->num_bytes != 0) {
-        // Adjust the offsets by the number of bytes for all change offsets on and after this change
-        for (; insert_pos != session_ptr->changes_by_offset.end(); ++insert_pos) {
+        // Adjust the offsets by the number of bytes for all change offsets on and after this change for inserts and deletes
+        for (; insert_pos != session_ptr->changes_by_offset.cend(); ++insert_pos) {
             session_ptr->changes[*insert_pos].computed_offset += change_ptr->num_bytes;
         }
         session_ptr->computed_file_size += change_ptr->num_bytes;
@@ -333,7 +338,7 @@ int ovr(const author_t *author_ptr, int64_t offset, uint8_t new_byte) {
     DBG(clog << "'" << get_author_name(author_ptr) << "' overwriting with byte '" << new_byte << "' at offset "
              << offset << " serial " << change.serial << endl;);
 
-    return add_change_(&change);
+    return update_(&change);
 }
 
 // Add delete change
@@ -348,7 +353,7 @@ int del(const author_t *author_ptr, int64_t offset, int64_t num_bytes) {
     DBG(clog << "'" << get_author_name(author_ptr) << "' deleting " << num_bytes << " bytes at offset " << offset
              << " serial " << change.serial << endl;);
 
-    return add_change_(&change);
+    return update_(&change);
 }
 
 // Add insert change
@@ -363,12 +368,12 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t num_bytes, uint8_t f
     DBG(clog << "'" << get_author_name(author_ptr) << "' inserting " << num_bytes << " of '" << fill
              << "' at offset " << offset << " serial " << change.serial << endl;);
 
-    return add_change_(&change);
+    return update_(&change);
 }
 
 // Determine the computed offset given an original offset
 int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset) {
-    for (auto iter(session_ptr->changes_by_offset.begin()); iter != session_ptr->changes_by_offset.end(); ++iter) {
+    for (auto iter(session_ptr->changes_by_offset.cbegin()); iter != session_ptr->changes_by_offset.cend(); ++iter) {
         offset += session_ptr->changes[*iter].num_bytes;
         if (session_ptr->changes[*iter].computed_offset <= offset) break;
     }
@@ -377,7 +382,7 @@ int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset) 
 
 // Determine thr original offset given a computed offset
 int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t computed_offset) {
-    for (auto iter(session_ptr->changes_by_offset.begin()); iter != session_ptr->changes_by_offset.end(); ++iter) {
+    for (auto iter(session_ptr->changes_by_offset.cbegin()); iter != session_ptr->changes_by_offset.cend(); ++iter) {
         if (session_ptr->changes[*iter].computed_offset <= computed_offset) break;
         computed_offset -= session_ptr->changes[*iter].num_bytes;
     }
@@ -451,7 +456,7 @@ int save_to_file(const author_t *author_ptr, FILE *file_ptr) {
     //write_segment(session_ptr->file_ptr, read_offset, computed_file_size, file_ptr);
 
     // TODO: Implement changeset playback
-    for (auto iter(session_ptr->changes_by_offset.begin()); iter != session_ptr->changes_by_offset.end(); ++iter) {
+    for (auto iter(session_ptr->changes_by_offset.cbegin()); iter != session_ptr->changes_by_offset.cend(); ++iter) {
         // DEBUG - log the change information
         DBG(
                 auto type = "OVR";
@@ -493,26 +498,26 @@ int save_to_file(const author_t *author_ptr, FILE *file_ptr) {
 int undo_last_change(const author_t *author_ptr) {
     int rc = -1;
     session_t *session_ptr = author_ptr->session_ptr;
-    for (auto riter = session_ptr->changes.rbegin(); riter != session_ptr->changes.rend(); ++riter) {
-        if (riter->author_ptr == author_ptr) {
+    for (auto r_iter = session_ptr->changes.rbegin(); r_iter != session_ptr->changes.rend(); ++r_iter) {
+        if (r_iter->author_ptr == author_ptr) {
             DBG(clog << "Undoing most recent change by '" << author_ptr->name << "'" << endl;);
             auto changes_by_pos_iter = find(session_ptr->changes_by_offset.begin(),
-                                            session_ptr->changes_by_offset.end(), riter->serial);
+                                            session_ptr->changes_by_offset.end(), r_iter->serial);
             DBG(assert(changes_by_pos_iter != session_ptr->changes_by_offset.end()););
-            if (riter->num_bytes != 0) {
+            if (r_iter->num_bytes != 0) {
                 // Change is an insert or delete, so adjust computed offsets to the changes following this one
                 for (auto iter(changes_by_pos_iter + 1); iter != session_ptr->changes_by_offset.end(); ++iter) {
-                    session_ptr->changes[*iter].computed_offset -= riter->num_bytes;
+                    session_ptr->changes[*iter].computed_offset -= r_iter->num_bytes;
                 }
             }
-            session_ptr->computed_file_size -= riter->num_bytes;
+            session_ptr->computed_file_size -= r_iter->num_bytes;
             session_ptr->changes_by_offset.erase(changes_by_pos_iter);
             if (session_ptr->on_change_cbk) {
-                auto undone_change = *riter;
-                session_ptr->changes.erase(std::next(riter).base());
+                auto undone_change = *r_iter;
+                session_ptr->changes.erase(std::next(r_iter).base());
                 session_ptr->on_change_cbk(session_ptr, &undone_change);
             } else {
-                session_ptr->changes.erase(std::next(riter).base());
+                session_ptr->changes.erase(std::next(r_iter).base());
             }
             rc = 0;
             break;
@@ -530,3 +535,216 @@ void destroy_session(session_t *session_ptr) {
 int64_t get_computed_file_size(const session_t *session_ptr) {
     return session_ptr->computed_file_size;
 }
+
+////////// BEGIN EXPERIMENTAL
+/*
+ The objective here is to model the edits using segments.  Essentially creating a contiguous model of the file by
+ keeping track of what to do.  The verbs here are READ, INSERT, and OVERWRITE.  We don't need to model DELETE because
+ that is covered by adjusting, or removing, the READ, INSERT, and OVERWRITE segments accordingly.
+
+ The model expects to take in changes with a current computed offset.  At this time it will also maintain it's own
+ computed offsets, though it is likely that this can change in the future once we have a greater understanding of
+ all the book keeping and where we can best centralize the offset computations.
+
+ The model does not attempt to handle undo/redo at this time due to the complexity of the book keeping required.
+ */
+
+typedef enum {READ, INSERT, OVERWRITE} segment_kind_t;
+
+// 8 bytes
+union data_t {
+    int64_t read_offset;
+    const change_t * change_ptr;
+};
+
+struct segment_t {
+    segment_kind_t segment_kind;
+    int64_t serial;
+    int64_t computed_offset;
+    int64_t computed_length;
+    data_t data;
+};
+
+struct model_t {
+    FILE * read_fptr;
+    vector<segment_t> segments;
+};
+
+void init_model_(model_t * model_ptr) {
+    segment_t read_segment;
+
+    // Model begins with a single READ segment spanning the original file
+    read_segment.segment_kind = segment_kind_t::READ;
+    read_segment.serial = 0;
+    read_segment.computed_offset = 0;
+    read_segment.data.read_offset = 0;
+    fseek(model_ptr->read_fptr, 0, SEEK_END);
+    read_segment.computed_length = ftell(model_ptr->read_fptr);
+
+    model_ptr->segments.push_back(read_segment);
+}
+
+model_t * create_model(FILE * read_fptr) {
+    auto model_ptr = new model_t;
+
+    model_ptr->read_fptr = read_fptr;
+    init_model_(model_ptr);
+    return model_ptr;
+}
+
+// WIP
+int update_model(model_t * model_ptr, const change_t * change_ptr) {
+    int rc = -1;
+    int64_t update_offset = change_ptr->computed_offset;
+    int64_t read_offset = 0;
+
+    for(auto iter = model_ptr->segments.begin(); iter != model_ptr->segments.end(); ++iter) {
+        if (read_offset != iter->computed_offset) {
+            DBG(clog << "break in continuity, expected: " << read_offset << ", got: " << iter->computed_offset << endl;);
+            break;
+        }
+        if (read_offset >= update_offset) {
+            if (read_offset != update_offset) {
+                --iter;
+                // This iter is going to be a read or insert
+            } else {
+                // This iter is going to be an overwrite
+            }
+            // Here we have the location to insert an updated segment
+            if (0 == change_ptr->num_bytes) {
+                // OVERWRITE
+                segment_t overwrite_segment;
+                overwrite_segment.segment_kind = segment_kind_t::OVERWRITE;
+                overwrite_segment.serial = change_ptr->serial;
+                overwrite_segment.computed_offset = change_ptr->computed_offset;
+                overwrite_segment.data.change_ptr = change_ptr;
+                // TODO: Finish this
+            } else if (0 < change_ptr->num_bytes) {
+                // INSERT
+            } else {
+                // DELETE
+            }
+            rc = 0;
+            break;
+        }
+        switch(iter->segment_kind) {
+            case segment_kind_t::READ: {
+                read_offset += iter->computed_length;
+                break;
+            }
+            case segment_kind_t::INSERT: {
+                read_offset += iter->data.change_ptr->num_bytes;
+                break;
+            }
+            case segment_kind_t::OVERWRITE: {
+                ++read_offset;
+                break;
+            }
+            default: abort();
+        }
+    }
+    return rc;
+}
+
+// This function is done, but needs testing, documentation, and error handing
+int populate_viewport(const model_t * model_ptr, viewport_t * viewport_ptr) {
+    int rc = -1;
+    int64_t viewport_offset = get_viewport_computed_offset(viewport_ptr);
+    int64_t read_offset = 0;
+
+    for(auto iter = model_ptr->segments.cbegin(); iter != model_ptr->segments.cend(); ++iter) {
+        if (read_offset != iter->computed_offset) {
+            DBG(clog << "break in continuity, expected: " << read_offset << ", got: " << iter->computed_offset << endl;);
+            break;
+        }
+        if (read_offset >= viewport_offset) {
+            viewport_ptr->data.clear();
+            viewport_ptr->length = 0;
+            int64_t delta = 0;
+            if (read_offset != viewport_offset) {
+                --iter;
+                delta = viewport_ptr->computed_offset - iter->computed_offset;
+            }
+            do {
+                switch(iter->segment_kind) {
+                    case segment_kind_t::READ: {
+                        auto amount = iter->computed_length - delta;
+                        amount = (amount > viewport_ptr->capacity)?viewport_ptr->capacity:amount;
+                        fread(viewport_ptr->data.data(), amount, 1, model_ptr->read_fptr);
+                        viewport_ptr->length = amount;
+                        break;
+                    }
+                    case segment_kind_t::INSERT: {
+                        auto amount = iter->data.change_ptr->num_bytes - delta;
+                        amount = (amount > viewport_ptr->capacity)?viewport_ptr->capacity:amount;
+                        while(viewport_ptr->length < amount) {
+                            viewport_ptr->data.data()[viewport_ptr->length++] = iter->data.change_ptr->byte;
+                        }
+                        break;
+                    }
+                    case segment_kind_t::OVERWRITE: {
+                        viewport_ptr->data.data()[viewport_ptr->length++] = iter->data.change_ptr->byte;
+                        break;
+                    }
+                    default: abort();
+                }
+            } while (viewport_ptr->length < viewport_ptr->capacity && ++iter != model_ptr->segments.end());
+            rc = 0;
+            break;
+        }
+        switch(iter->segment_kind) {
+            case segment_kind_t::READ: {
+                read_offset += iter->computed_length;
+                break;
+            }
+            case segment_kind_t::INSERT: {
+                read_offset += iter->data.change_ptr->num_bytes;
+                break;
+            }
+            case segment_kind_t::OVERWRITE: {
+                ++read_offset;
+                break;
+            }
+            default: abort();
+        }
+    }
+
+    return rc;
+}
+
+// This function is done, but needs testing, documentation, and error handing
+int save_model_to_file(const model_t * model_ptr, FILE * write_fptr) {
+    int rc = -1;
+    int64_t write_offset = 0;
+    for(auto iter = model_ptr->segments.cbegin(); iter != model_ptr->segments.cend(); ++iter) {
+        if (write_offset != iter->computed_offset) {
+            DBG(clog << "break in continuity, expected: " << write_offset << ", got: " << iter->computed_offset << endl;);
+            break;
+        }
+        // TODO: Error handling
+        switch(iter->segment_kind) {
+            case segment_kind_t::READ: {
+                write_segment_to_file(model_ptr->read_fptr, iter->data.read_offset, iter->computed_length, write_fptr);
+                write_offset += iter->computed_length;
+                break;
+            }
+            case segment_kind_t::INSERT: {
+                auto count = iter->data.change_ptr->num_bytes;
+                while(count--) {
+                    fputc(iter->data.change_ptr->byte, write_fptr);
+                }
+                write_offset += iter->data.change_ptr->num_bytes;
+                break;
+            }
+            case segment_kind_t::OVERWRITE: {
+                fputc(iter->data.change_ptr->byte, write_fptr);
+                ++write_offset;
+                break;
+            }
+            default: abort();
+        }
+    }
+    return rc;
+}
+
+////////// END EXPERIMENTAL
