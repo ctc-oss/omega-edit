@@ -38,8 +38,8 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
     uint8_t buf2[buff_size];
 
     do {
-        size_t r1 = fread(buf1, 1, buff_size, f1);
-        size_t r2 = fread(buf2, 1, buff_size, f2);
+        auto r1 = fread(buf1, 1, buff_size, f1);
+        auto r2 = fread(buf2, 1, buff_size, f2);
 
         if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
             return 1;  // Files are not equal
@@ -50,8 +50,8 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
 }
 
 inline int compare_files(const char *f1, const char *f2) {
-    FILE *f1_ptr = fopen(f1, "r");
-    FILE *f2_ptr = fopen(f2, "r");
+    auto f1_ptr = fopen(f1, "r");
+    auto f2_ptr = fopen(f2, "r");
     auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);
@@ -59,7 +59,7 @@ inline int compare_files(const char *f1, const char *f2) {
 }
 
 inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, uint64_t fill_length) {
-    FILE *f1_ptr = fopen(f1, "w+");
+    auto f1_ptr = fopen(f1, "w+");
     while (file_size) {
         auto count = (fill_length > file_size) ? file_size : fill_length;
         fwrite(fill, 1, count, f1_ptr);
