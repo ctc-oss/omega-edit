@@ -2,6 +2,8 @@
 node_modules/
 build/
 cmake-build-*/
+yarn.lock
+package-lock.json
 
 # log files
 *.log
