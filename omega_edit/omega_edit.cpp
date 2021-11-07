@@ -28,7 +28,7 @@
 using namespace std;
 
 // define DEBUG for debugging
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 
@@ -595,8 +595,7 @@ static char segment_kind_to_char_(segment_kind_t segment_kind) {
             c = 'O';
             break;
         default:
-            //ABORT(CLOG << LOCATION << " Unhandled segment kind: " << endl;);
-            break;
+            ABORT(CLOG << LOCATION << " Unhandled segment kind: " << endl;);
     }
     return c;
 }

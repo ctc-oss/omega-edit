@@ -57,11 +57,11 @@ int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer,
         // make sure the offset does not exceed the file size
         if (len > 0) {
             // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
-            auto amount = (len < capacity) ? len : capacity;
+            auto count = (len < capacity) ? len : capacity;
             if (0 == fseeko(from_file_ptr, offset, SEEK_SET)) {
-                if (0 == fread(buffer, 1, amount, from_file_ptr)) {
+                if (count == fread(buffer, 1, count, from_file_ptr)) {
                     rc = 0;// successful read
-                    if (length) { *length = amount; }
+                    if (length) { *length = count; }
                 }
             }
         }
@@ -69,7 +69,6 @@ int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer,
     return rc;
 }
 
-// Write a segment of one file into another
 int write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     int rc = 0;
     fseeko(from_file_ptr, offset, SEEK_SET);
@@ -77,10 +76,11 @@ int write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_coun
     uint8_t buff[buff_size];
     while (byte_count) {
         auto count = (buff_size > byte_count) ? byte_count : buff_size;
-        fread(buff, 1, count, from_file_ptr);
-        fwrite(buff, 1, count, to_file_ptr);
+        if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) {
+            rc = -1;
+            break;
+        }
         byte_count -= count;
     }
-    fflush(to_file_ptr);
     return rc;
 }

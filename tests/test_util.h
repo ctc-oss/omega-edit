@@ -63,7 +63,7 @@ inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int6
     auto f1_ptr = fopen(f1, "w+");
     while (file_size) {
         auto count = (fill_length > file_size) ? file_size : fill_length;
-        fwrite(fill, 1, count, f1_ptr);
+        if (count != fwrite(fill, 1, count, f1_ptr)) { abort(); }
         file_size -= count;
     }
     fflush(f1_ptr);
