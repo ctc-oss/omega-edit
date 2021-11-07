@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <iostream>
 #include "../omega_edit/omega_edit.h"
+#include <iostream>
 
 using namespace std;
 
@@ -25,11 +25,9 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    clog << R"({ "filename" : ")" << file_info_ptr->filename
-         << R"(", "num_changes" : )" << get_session_num_changes(session_ptr)
-         << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr)
-         << "}" << endl;
+    clog << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
+         << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << "}" << endl;
 }
 
 int main(int argc, char *argv[]) {

@@ -60,10 +60,8 @@ int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer,
             auto amount = (len < capacity) ? len : capacity;
             if (0 == fseeko(from_file_ptr, offset, SEEK_SET)) {
                 if (0 == fread(buffer, 1, amount, from_file_ptr)) {
-                    rc = 0; // successful read
-                    if (length) {
-                        *length = amount;
-                    }
+                    rc = 0;// successful read
+                    if (length) { *length = amount; }
                 }
             }
         }

@@ -16,10 +16,10 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "catch.hpp"
-#include "test_util.h"
 #include "../omega_edit/omega_edit.h"
 #include "../omega_edit/omega_util.h"
+#include "catch.hpp"
+#include "test_util.h"
 
 #include <cstdio>
 #include <cstring>
@@ -61,7 +61,8 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(compare_files("data/test1.dat", "data/test1.dat") == 0);
-    }SECTION("Difference") {
+    }
+    SECTION("Difference") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
@@ -84,11 +85,9 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    clog << R"({ "filename" : ")" << file_info_ptr->filename
-         << R"(", "num_changes" : )" << get_session_num_changes(session_ptr)
-         << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr)
-         << "}" << endl;
+    clog << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
+         << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << "}" << endl;
 }
 
 TEST_CASE("Check initialization", "[InitTests]") {
@@ -104,8 +103,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
-            session_ptr = create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk,
-                                         &file_info);
+            session_ptr =
+                    create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
             REQUIRE(session_ptr != NULL);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
@@ -142,21 +141,18 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
-enum display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
 
 void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
-    if (change_ptr) {
-        clog << "Change Author: " << get_author_name(get_change_author(change_ptr)) << endl;
-    }
-    clog << "'" << get_author_name(get_viewport_author(viewport_ptr)) << "' viewport, capacity: "
-         << get_viewport_capacity(viewport_ptr) << " length: " << get_viewport_length(viewport_ptr) << " offset: "
-         << get_viewport_computed_offset(viewport_ptr) << " bit offset:" << get_viewport_bit_offset(viewport_ptr)
-         << endl;
+    if (change_ptr) { clog << "Change Author: " << get_author_name(get_change_author(change_ptr)) << endl; }
+    clog << "'" << get_author_name(get_viewport_author(viewport_ptr))
+         << "' viewport, capacity: " << get_viewport_capacity(viewport_ptr)
+         << " length: " << get_viewport_length(viewport_ptr)
+         << " offset: " << get_viewport_computed_offset(viewport_ptr)
+         << " bit offset:" << get_viewport_bit_offset(viewport_ptr) << endl;
     if (get_viewport_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
@@ -167,10 +163,10 @@ void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) 
                 break;
             case CHAR_MODE:
                 clog << "CHAR MODE [";
-                clog << string((const char *)get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
+                clog << string((const char *) get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
                 clog << "]\n";
                 break;
-            default: // flow through
+            default:// flow through
             case BYTE_MODE:
                 clog << "BYTE MODE [";
                 write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));

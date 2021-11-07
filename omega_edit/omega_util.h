@@ -60,4 +60,4 @@ int left_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_left);
 int right_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_right);
 
 
-#endif //OMEGA_EDIT_OMEGA_UTIL_H
+#endif//OMEGA_EDIT_OMEGA_UTIL_H

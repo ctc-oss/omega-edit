@@ -279,4 +279,4 @@ int undo_last_change(const author_t *author_ptr);
  */
 int save_to_file(const session_t *session_ptr, FILE *file_ptr);
 
-#endif //OMEGA_OMEGA_EDIT_H
+#endif//OMEGA_OMEGA_EDIT_H

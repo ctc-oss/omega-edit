@@ -26,7 +26,8 @@ using namespace std;
 #define DEBUG
 
 #ifdef DEBUG
-#define DBG(x) do{x}while(0)
+#define DBG(x)                                                                                                         \
+    do { x } while (0)
 #else
 #define DBG(x)
 #endif
@@ -42,7 +43,7 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
         auto r2 = fread(buf2, 1, buff_size, f2);
 
         if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
-            return 1;  // Files are not equal
+            return 1;// Files are not equal
         }
     } while (!feof(f1) && !feof(f2));
 
@@ -71,9 +72,7 @@ inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int6
 }
 
 inline void write_pretty_bits_byte(uint8_t byte) {
-    for (auto i = 7; 0 <= i; --i) {
-        clog << ((byte & (1 << i)) ? '1' : '0');
-    }
+    for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
 inline void write_pretty_bits(const uint8_t *ptr, int64_t size) {
@@ -92,10 +91,8 @@ inline void write_pretty_bytes(const uint8_t *data, int64_t size) {
         auto i = 0;
         clog << std::setfill('0');
         clog << std::hex << std::setw(2) << (int) data[i++];
-        while (i < size) {
-            clog << " " << std::hex << std::setw(2) << (int) data[i++];
-        }
+        while (i < size) { clog << " " << std::hex << std::setw(2) << (int) data[i++]; }
     }
 }
 
-#endif //OMEGA_EDIT_TEST_UTIL_H
+#endif//OMEGA_EDIT_TEST_UTIL_H
