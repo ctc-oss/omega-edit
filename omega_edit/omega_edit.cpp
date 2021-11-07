@@ -16,8 +16,10 @@
 
 #include "omega_edit.h"
 #include "omega_util.h"
+
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <vector>
@@ -39,7 +41,8 @@ using namespace std;
 #define ASSERT(x)
 #endif
 
-#define LOCATION __FILE_NAME__ << ": " <<  __FUNCTION__ << "@" << __LINE__
+#define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define LOCATION SOURCE_FILENAME << "@" <<  __LINE__ << "::" << __FUNCTION__ << ":"
 #define CLOG clog
 #define ABORT(x) do{x abort();}while(0)
 
