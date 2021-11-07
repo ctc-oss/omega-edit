@@ -42,21 +42,21 @@ typedef void (*session_on_change_cbk)(const session_t *, const change_t *);
 typedef void (*viewport_on_change_cbk)(const viewport_t *, const change_t *);
 
 /**
- * Given a change, return the computed change offset
- * @param change_ptr change to get the computed change offset from
- * @return computed change offset
+ * Given a change, return the original change offset
+ * @param change_ptr change to get the original change offset from
+ * @return original change offset
  */
-int64_t get_change_computed_offset(const change_t *change_ptr);
+int64_t get_change_original_offset(const change_t *change_ptr);
 
 /**
- * Given a change, return the number of bytes inserted or deleted (zero for overwrite)
- * @param change_ptr change to get the number of bytes from
- * @return number of bytes inserted or deleted (zero for overwrite)
- */
-int64_t get_change_num_bytes(const change_t *change_ptr);
+* Given a change, return the original number of bytes inserted or deleted (zero for overwrite)
+* @param change_ptr change to get the original number of bytes from
+* @return original number of bytes inserted or deleted (zero for overwrite)
+*/
+int64_t get_change_original_length(const change_t *change_ptr);
 
 /**
- * Given a change, return the change serial number
+ * Given a change, return the change serial number. A negative serial number is an undone change.
  * @param change_ptr change to get the serial number from
  * @return change serial number
  */
@@ -153,10 +153,15 @@ session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity = DEFAUL
 /**
  * Given a session, return the maximum viewport capacity
  * @param session_ptr session to get the maximum viewport capacity from
- * @return maximum viewport capacity
+ * @return maximum viewport capacity for the given session
  */
-int64_t get_viewport_max_capacity(const session_t *session_ptr);
+int64_t get_session_viewport_max_capacity(const session_t *session_ptr);
 
+/**
+ * Given a session, return the associated user data
+ * @param session_ptr session to get the associated user data from
+ * @return associated user data for the given session
+ */
 void *get_session_user_data(const session_t *session_ptr);
 
 /**
@@ -177,10 +182,8 @@ const author_t *create_author(session_t *session_ptr, const char *author_name);
  * @param bit_offset bit offset for this viewport (0 - 7)
  * @return pointer to the new viewport, nullptr on failure
  */
-viewport_t *
-add_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk,
-             void *user_data_ptr,
-             uint8_t bit_offset = 0);
+viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk,
+                            void *user_data_ptr, uint8_t bit_offset = 0);
 
 /**
  * Destroy a given viewport
@@ -193,7 +196,7 @@ int destroy_viewport(const viewport_t *viewport_ptr);
  * Destroy the given session and all associated objects (authors, changes, and viewports)
  * @param session_ptr session to destroy
  */
-void destroy_session(session_t *session_ptr);
+void destroy_session(const session_t *session_ptr);
 
 /**
  * Overwrite a byte at the given offset with the given new byte
@@ -208,41 +211,41 @@ int ovr(const author_t *author_ptr, int64_t offset, uint8_t new_byte);
  * Delete a number of bytes at the given offset
  * @param author_ptr author making the change
  * @param offset location offset to make the change
- * @param num_bytes number of bytes to delete
+ * @param length number of bytes to delete
  * @return 0 on success, non-zero otherwise
  */
-int del(const author_t *author_ptr, int64_t offset, int64_t num_bytes);
+int del(const author_t *author_ptr, int64_t offset, int64_t length);
 
 /**
  * Insert a number of bytes with value fill at the given offset
  * @param author_ptr author making the change
  * @param offset location offset to make the change
- * @param num_bytes number of bytes to insert
+ * @param length number of bytes to insert
  * @param fill the value of the fill bytes
  * @return - on success, non-zero otherwise
  */
-int ins(const author_t *author_ptr, int64_t offset, int64_t num_bytes, uint8_t fill);
+int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill);
 
 /**
  * Given a session, return the current number of active changes
  * @param session_ptr session to get number of active changes from
  * @return number of active changes
  */
-size_t num_changes(const session_t *session_ptr);
+size_t get_session_num_changes(const session_t *session_ptr);
 
 /**
  * Given a session, return the number of active viewports
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports
  */
-size_t num_viewports(const session_t *session_ptr);
+size_t get_session_num_viewports(const session_t *session_ptr);
 
 /**
  * Given an author, return the number of active changes from this author
  * @param author_ptr author to get the number of active changes from
  * @return number of active change
  */
-size_t num_changes_by_author(const author_t *author_ptr);
+size_t get_author_num_changes(const author_t *author_ptr);
 
 /**
  * Given a session, return the computed file size in bytes
@@ -252,22 +255,6 @@ size_t num_changes_by_author(const author_t *author_ptr);
 int64_t get_computed_file_size(const session_t *session_ptr);
 
 /**
- * Given a session and an offset, return the computed offset
- * @param session_ptr session used to get the computed offset
- * @param offset original offset to get the computed offset of
- * @return computed offset, or -1 on failure
- */
-int64_t offset_to_computed_offset(const session_t *session_ptr, int64_t offset);
-
-/**
- * Given a session and an offset, return the original offset
- * @param session_ptr session used to get the original offset
- * @param computed_offset computed offset to get the original offset of
- * @return original offset, or -1 on failure
- */
-int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t computed_offset);
-
-/**
  * Change viewport settings
  * @param viewport_ptr viewport to change settings on
  * @param offset offset for the viewport
@@ -275,7 +262,7 @@ int64_t computed_offset_to_offset(const session_t *session_ptr, int64_t computed
  * @param bit_offset bit offset of the viewport
  * @return 0 on success, non-zero otherwise
  */
-int set_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset);
+int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset);
 
 /**
  * Given an author, undo the author's last change
@@ -286,49 +273,10 @@ int undo_last_change(const author_t *author_ptr);
 
 /**
  * Save the given session to the given file
- * @param author_ptr author making the save
+ * @param session_ptr session to save
  * @param file_ptr file (open for write) to save to
  * @return 0 on success, non-zero otherwise
  */
-int save_to_file(const author_t *author_ptr, FILE *file_ptr);
+int save_to_file(const session_t *session_ptr, FILE *file_ptr);
 
-/**
- * Read a segment from a file into the given buffer
- * @param from_file_ptr file to read the segment from
- * @param offset offset from the file beginning to read from
- * @param buffer pointer to the buffer to write the bytes to
- * @param capacity capacity of the buffer
- * @param length write the number of bytes read to this location
- * @return 0 on success, non-zero on failure
- */
-int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer, int64_t capacity, int64_t *length);
-
-/**
- * Write a segment from one file into another
- * @param from_file_ptr file to read the segment from
- * @param offset offset from the file beginning to read from
- * @param byte_count number of bytes, starting at the offset, to read and write
- * @param to_file_ptr file to write the segment to, at whatever position it is currently at
- * @return 0 on success, non-zero on failure
- */
-int write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
-
-/**
- * Shift the bits of the given buffer by a given number of bits to the left
- * @param buffer pointer to the start of the buffer
- * @param len length of the buffer
- * @param shift_left number of bits (greater than 0 and less than 8) to shift to the left
- * @return 0 on success, non-zero on failure
- */
-int left_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_left);
-
-/**
- * Shift the bits of the given buffer by a given number of bits to the right
- * @param buffer pointer to the start of the buffer
- * @param len length of the buffer
- * @param shift_right number of bits (greater than 0 and less than 8) to shift to the right
- * @return 0 on success, non-zero on failure
- */
-int right_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_right);
-
-#endif //OMEGA_OMEGA_EDIT_H
+#endif//OMEGA_OMEGA_EDIT_H

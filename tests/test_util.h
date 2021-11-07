@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef OMEGA_EDIT_TEST_UTILS_H
-#define OMEGA_EDIT_TEST_UTILS_H
+#ifndef OMEGA_EDIT_TEST_UTIL_H
+#define OMEGA_EDIT_TEST_UTIL_H
 
 #include <cstdio>
 #include <cstring>
+#include <iostream>
+
+using namespace std;
 
 // define DEBUG for debugging
 #define DEBUG
 
 #ifdef DEBUG
-
-#include <iostream>
-
-#define DBG(x) do{x}while(0)
+#define DBG(x)                                                                                                         \
+    do { x } while (0)
 #else
 #define DBG(x)
 #endif
@@ -38,11 +39,11 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
     uint8_t buf2[buff_size];
 
     do {
-        size_t r1 = fread(buf1, 1, buff_size, f1);
-        size_t r2 = fread(buf2, 1, buff_size, f2);
+        auto r1 = fread(buf1, 1, buff_size, f1);
+        auto r2 = fread(buf2, 1, buff_size, f2);
 
         if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
-            return 1;  // Files are not equal
+            return 1;// Files are not equal
         }
     } while (!feof(f1) && !feof(f2));
 
@@ -50,16 +51,16 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
 }
 
 inline int compare_files(const char *f1, const char *f2) {
-    FILE *f1_ptr = fopen(f1, "r");
-    FILE *f2_ptr = fopen(f2, "r");
+    auto f1_ptr = fopen(f1, "r");
+    auto f2_ptr = fopen(f2, "r");
     auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);
     return result;
 }
 
-inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, uint64_t fill_length) {
-    FILE *f1_ptr = fopen(f1, "w+");
+inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int64_t fill_length) {
+    auto f1_ptr = fopen(f1, "w+");
     while (file_size) {
         auto count = (fill_length > file_size) ? file_size : fill_length;
         fwrite(fill, 1, count, f1_ptr);
@@ -70,31 +71,28 @@ inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, uint
     return f1_ptr;
 }
 
-inline void write_pretty_bits_byte(uint8_t byte, FILE * out_fp) {
-    for (auto i = 7; 0 <= i; --i) {
-        fprintf(out_fp, "%c", (byte & (1 << i)) ? '1' : '0');
-    }
+inline void write_pretty_bits_byte(uint8_t byte) {
+    for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
-inline void write_pretty_bits(const uint8_t *ptr, int64_t size, FILE *out_fp) {
+inline void write_pretty_bits(const uint8_t *ptr, int64_t size) {
     if (size > 0) {
         auto i = 0;
-        write_pretty_bits_byte(ptr[i++], out_fp);
+        write_pretty_bits_byte(ptr[i++]);
         while (i < size) {
-            fprintf(out_fp, " ");
-            write_pretty_bits_byte(ptr[i++], out_fp);
+            clog << " ";
+            write_pretty_bits_byte(ptr[i++]);
         }
     }
 }
 
-inline void write_pretty_bytes(const uint8_t *ptr, int64_t size, FILE *out_fp) {
+inline void write_pretty_bytes(const uint8_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
-        fprintf(out_fp, "%02hhX", ptr[i++]);
-        while (i < size) {
-            fprintf(out_fp, " %02hhX", ptr[i++]);
-        }
+        clog << std::setfill('0');
+        clog << std::hex << std::setw(2) << (int) data[i++];
+        while (i < size) { clog << " " << std::hex << std::setw(2) << (int) data[i++]; }
     }
 }
 
-#endif //OMEGA_EDIT_TEST_UTILS_H
+#endif//OMEGA_EDIT_TEST_UTIL_H

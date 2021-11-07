@@ -1,8 +1,8 @@
-# Omega Edit Library
+# Ωmega Edit Library
 The goal of this project is to provide an open source library for building editors that can handle massive files.
 
 ## Requirements
-This repo is built heavly using CLion, if using CLion everything will work seamlessly. (cmake)
+This repo is built using CLion, if using CLion everything will work seamlessly, though Visual Studio Code also works well. (cmake)
 
 If you are using just the command line you will need these things installed:
 - C++ Compiler

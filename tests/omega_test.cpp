@@ -13,14 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #define CATCH_CONFIG_MAIN
 
+#include "../omega_edit/omega_edit.h"
+#include "../omega_edit/omega_util.h"
 #include "catch.hpp"
-#include "test_utils.h"
+#include "test_util.h"
+
 #include <cstdio>
 #include <cstring>
 #include <iostream>
-#include "../omega_edit/omega_edit.h"
+
+using namespace std;
 
 TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -56,7 +61,8 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(compare_files("data/test1.dat", "data/test1.dat") == 0);
-    }SECTION("Difference") {
+    }
+    SECTION("Difference") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
@@ -74,15 +80,14 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 }
 
 typedef struct file_info_struct {
-    char const * filename = nullptr;
+    char const *filename = nullptr;
 } file_info_t;
 
-void session_change_cbk(const session_t * session_ptr, const change_t * change_ptr) {
-    auto file_info_ptr = (file_info_t * )get_session_user_data(session_ptr);
-    fprintf(stdout, "Filename: %s\n", file_info_ptr->filename);
-    fprintf(stdout, " * Num active changes: %zu\n", num_changes(session_ptr));
-    fprintf(stdout, " * Computed file size: %lld\n", get_computed_file_size(session_ptr));
-    fprintf(stdout, " * Change serial: %lld\n", get_change_serial(change_ptr));
+void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
+    auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
+    clog << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
+         << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << "}" << endl;
 }
 
 TEST_CASE("Check initialization", "[InitTests]") {
@@ -98,7 +103,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
-            session_ptr = create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
+            session_ptr =
+                    create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
             REQUIRE(session_ptr != NULL);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
@@ -120,14 +126,12 @@ TEST_CASE("Check initialization", "[InitTests]") {
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     del(author_ptr, 9, 5);
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
-                    auto num_changes_before_undo = num_changes(session_ptr);
-                    REQUIRE(num_changes_by_author(author_ptr) == num_changes_before_undo);
+                    auto num_changes_before_undo = get_session_num_changes(session_ptr);
+                    REQUIRE(get_author_num_changes(author_ptr) == num_changes_before_undo);
                     undo_last_change(author_ptr);
-                    REQUIRE(num_changes(session_ptr) == num_changes_before_undo - 1);
+                    REQUIRE(get_session_num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
-                    auto orig_offset = computed_offset_to_offset(session_ptr, 15);
-                    DBG(std::clog << "OFFSET: " << orig_offset << std::endl;);
-                    save_to_file(author_ptr, test_outfile_ptr);
+                    save_to_file(session_ptr, test_outfile_ptr);
                     fclose(test_infile_ptr);
                     fclose(test_outfile_ptr);
                 }
@@ -137,43 +141,40 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
-enum display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
 
 void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
-    if (change_ptr) {
-        fprintf(stdout, "Change Author: %s\n", get_author_name(get_change_author(change_ptr)));
-    }
-    fprintf(stdout, "'%s' viewport, capacity: %lld, length: %lld, offset: %lld, bit offset: %u",
-            get_author_name(get_viewport_author(viewport_ptr)),
-            get_viewport_capacity(viewport_ptr), get_viewport_length(viewport_ptr),
-            get_viewport_computed_offset(viewport_ptr), get_viewport_bit_offset(viewport_ptr));
+    if (change_ptr) { clog << "Change Author: " << get_author_name(get_change_author(change_ptr)) << endl; }
+    clog << "'" << get_author_name(get_viewport_author(viewport_ptr))
+         << "' viewport, capacity: " << get_viewport_capacity(viewport_ptr)
+         << " length: " << get_viewport_length(viewport_ptr)
+         << " offset: " << get_viewport_computed_offset(viewport_ptr)
+         << " bit offset:" << get_viewport_bit_offset(viewport_ptr) << endl;
     if (get_viewport_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
             case BIT_MODE:
-                fprintf(stdout, "\n BIT MODE [");
-                write_pretty_bits(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
-                fprintf(stdout, "]\n");
+                clog << " BIT MODE [";
+                write_pretty_bits(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
+                clog << "]\n";
                 break;
             case CHAR_MODE:
-                fprintf(stdout, "\nCHAR MODE [");
-                fwrite(get_viewport_data(viewport_ptr), 1, get_viewport_length(viewport_ptr), stdout);
-                fprintf(stdout, "]\n");
+                clog << "CHAR MODE [";
+                clog << string((const char *) get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
+                clog << "]\n";
                 break;
-            default: // flow through
+            default:// flow through
             case BYTE_MODE:
-                fprintf(stdout, "\nBYTE MODE [");
-                write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr), stdout);
-                fprintf(stdout, "]\n");
+                clog << "BYTE MODE [";
+                write_pretty_bytes(get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
+                clog << "]\n";
                 break;
         }
+        clog << endl;
     }
-    fflush(stdout);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {
@@ -188,32 +189,32 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode_t view_mode;
 
     session_ptr = create_session(test_infile_ptr, 100);
-    REQUIRE(get_viewport_max_capacity(session_ptr) == 100);
+    REQUIRE(get_session_viewport_max_capacity(session_ptr) == 100);
     author_ptr = create_author(session_ptr, author_name);
-    auto viewport_count = num_viewports(session_ptr);
+    auto viewport_count = get_session_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = BIT_MODE;
-    viewport_ptr = add_viewport(author_ptr, 0, 10, vpt_change_cbk, &view_mode, 0);
-    REQUIRE(viewport_count + 1 == num_viewports(session_ptr));
+    viewport_ptr = create_viewport(author_ptr, 0, 10, vpt_change_cbk, &view_mode, 0);
+    REQUIRE(viewport_count + 1 == get_session_num_viewports(session_ptr));
     view_mode.display_mode = CHAR_MODE;
     vpt_change_cbk(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
-        set_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
+        update_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
     }
 
     // Change the display mode from character mode to byte mode to handle non-standard byte alignment
 
     view_mode.display_mode = BIT_MODE;
-    set_viewport(viewport_ptr, 0, 20, 0);
+    update_viewport(viewport_ptr, 0, 20, 0);
 
     // Change to bit offsets
-    set_viewport(viewport_ptr, 0, 20, 1);
-    set_viewport(viewport_ptr, 0, 20, 2);
-    set_viewport(viewport_ptr, 0, 20, 3);
-    set_viewport(viewport_ptr, 0, 20, 4);
-    set_viewport(viewport_ptr, 0, 20, 5);
-    set_viewport(viewport_ptr, 0, 20, 6);
-    set_viewport(viewport_ptr, 0, 20, 7);
+    update_viewport(viewport_ptr, 0, 20, 1);
+    update_viewport(viewport_ptr, 0, 20, 2);
+    update_viewport(viewport_ptr, 0, 20, 3);
+    update_viewport(viewport_ptr, 0, 20, 4);
+    update_viewport(viewport_ptr, 0, 20, 5);
+    update_viewport(viewport_ptr, 0, 20, 6);
+    update_viewport(viewport_ptr, 0, 20, 7);
 
     view_mode.display_mode = BYTE_MODE;
     vpt_change_cbk(viewport_ptr, nullptr);
@@ -229,10 +230,10 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
     rc = ins(author_ptr, 3, 4, '+');
     REQUIRE(rc == 0);
-    viewport_count = num_viewports(session_ptr);
+    viewport_count = get_session_num_viewports(session_ptr);
     rc = destroy_viewport(viewport_ptr);
     REQUIRE(rc == 0);
-    REQUIRE(viewport_count - 1 == num_viewports(session_ptr));
+    REQUIRE(viewport_count - 1 == get_session_num_viewports(session_ptr));
     destroy_session(session_ptr);
 
     remove(file_name);
