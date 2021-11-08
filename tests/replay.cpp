@@ -44,6 +44,9 @@ int main(int argc, char *argv[]) {
     const char *author_name = "Test Author";
     author_ptr = create_author(session_ptr, author_name);
     clog << "Author: " << get_author_name(author_ptr) << endl;
+    clog << "File Size: " << get_computed_file_size(session_ptr) << endl;
+    del(author_ptr, 0, get_computed_file_size(session_ptr));
+    undo_last_change(author_ptr);
     ins(author_ptr, 0, 4, '+');
     ins(author_ptr, 0, 4, '+');
     ins(author_ptr, 71, 4, '+');
@@ -59,6 +62,7 @@ int main(int argc, char *argv[]) {
 
     del(author_ptr, 1, 50);
     undo_last_change(author_ptr);
+    del(author_ptr, 0, get_computed_file_size(session_ptr));
 
     save_to_file(session_ptr, test_outfile_ptr);
 

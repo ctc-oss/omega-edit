@@ -63,11 +63,11 @@ int64_t get_change_original_length(const change_t *change_ptr);
 int64_t get_change_serial(const change_t *change_ptr);
 
 /**
- * Given a change, return the change author
- * @param change_ptr change to get the author from
- * @return change author
+ * Given a change, return a character representing the kind of change ('D', 'I', and 'O')
+ * @param change_ptr change to get the kind from
+ * @return 'D' if the change is a delete, 'I' if the change is an insert and 'O' if the change is an overwrite
  */
-const author_t *get_change_author(const change_t *change_ptr);
+char get_change_kind_as_char(const change_t *change_ptr);
 
 /**
  * Given a change, return the new byte value for insert or overwrite (zero for delete)
@@ -75,6 +75,13 @@ const author_t *get_change_author(const change_t *change_ptr);
  * @return new byte value
  */
 uint8_t get_change_byte(const change_t *change_ptr);
+
+/**
+ * Given a change, return the change author
+ * @param change_ptr change to get the author from
+ * @return change author
+ */
+const author_t *get_change_author(const change_t *change_ptr);
 
 /**
  * Given a viewport, return the author

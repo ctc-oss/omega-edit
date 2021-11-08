@@ -80,14 +80,93 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 }
 
 typedef struct file_info_struct {
+    int64_t num_changes{};
     char const *filename = nullptr;
 } file_info_t;
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    clog << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
+    file_info_ptr->num_changes = get_session_num_changes(session_ptr);
+    clog << dec << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr) << "}" << endl;
+         << R"(, "change_serial": )" << get_change_serial(change_ptr)
+         << R"(, "kind": )" << get_change_kind_as_char(change_ptr)
+         << R"(, "offset": )" << get_change_original_offset(change_ptr)
+         << R"(, "length": )" << get_change_original_length(change_ptr)
+         << R"(, "byte": )" << get_change_byte(change_ptr)
+         << "}" << endl;
+}
+
+TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
+    file_info_t file_info;
+    file_info.filename = "data/model-test.txt";
+    FILE *test_infile_fptr = fopen(file_info.filename, "r");
+    REQUIRE(test_infile_fptr);
+    FILE *test_outfile_fptr = nullptr;
+    auto author_name = "model insert test";
+    auto session_ptr =
+            create_session(test_infile_fptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
+    fseeko(test_infile_fptr, 0, SEEK_END);
+    auto file_size = ftello(test_infile_fptr);
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    auto author_ptr = create_author(session_ptr, author_name);
+    ins(author_ptr, 0, 1, '0');
+    file_size += 1;
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.1.txt") != 0);
+    REQUIRE(compare_files("data/model-test.expected.1.txt", "data/model-test.actual.1.txt") == 0);
+    ins(author_ptr, 10, 1, '0');
+    file_size += 1;
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    test_outfile_fptr = fopen("data/model-test.actual.2.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.expected.2.txt", "data/model-test.actual.2.txt") == 0);
+    ins(author_ptr, 5, 3, 'x');
+    file_size += 3;
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.expected.3.txt", "data/model-test.actual.3.txt") == 0);
+    auto num_changes = file_info.num_changes;
+    undo_last_change(author_ptr);
+    REQUIRE(file_info.num_changes == num_changes - 1);
+    file_size -= 3;
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    test_outfile_fptr = fopen("data/model-test.actual.4.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
+
+    ovr(author_ptr, 0, '-');
+    ovr(author_ptr, file_size - 1, '+');
+    ins(author_ptr, 5, 7, 'X');
+    del(author_ptr, 7, 4);
+    ovr(author_ptr, 6, 'O');
+    test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
+    //del(author_ptr, 0, get_computed_file_size(session_ptr));
+    while (file_info.num_changes) {
+        undo_last_change(author_ptr);
+    }
+    test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.6.txt") == 0);
+
+    fclose(test_infile_fptr);
 }
 
 TEST_CASE("Check initialization", "[InitTests]") {

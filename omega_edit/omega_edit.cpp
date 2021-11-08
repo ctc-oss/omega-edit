@@ -122,15 +122,13 @@ static void initialize_model_(session_t *session_ptr);
 
 static int update_viewports_(session_t *session_ptr, const change_t *change_ptr);
 
-static char change_kind_to_char_(const change_t *change_ptr);
-
 static change_kind_t get_change_kind_(const change_t *change_ptr);
 
 static void log_change_(const change_t *change_ptr);
 
 static void log_changes_(const session_t *session_ptr);
 
-static char segment_kind_to_char_(segment_kind_t segment_kind);
+static char segment_kind_as_char_(segment_kind_t segment_kind);
 
 static segment_kind_t get_segment_kind_(const segment_t *segment_ptr);
 
@@ -190,9 +188,27 @@ int64_t get_change_original_length(const change_t *change_ptr) { return change_p
 
 int64_t get_change_serial(const change_t *change_ptr) { return change_ptr->serial; }
 
-const author_t *get_change_author(const change_t *change_ptr) { return change_ptr->author_ptr; }
-
 uint8_t get_change_byte(const change_t *change_ptr) { return change_ptr->byte; }
+
+char get_change_kind_as_char(const change_t *change_ptr) {
+    char c = 'x';
+    switch (get_change_kind_(change_ptr)) {
+        case change_kind_t::CHANGE_DELETE:
+            c = 'D';
+            break;
+        case change_kind_t::CHANGE_INSERT:
+            c = 'I';
+            break;
+        case change_kind_t::CHANGE_OVERWRITE:
+            c = 'O';
+            break;
+        default:
+            ABORT(CLOG << LOCATION << " Unhandled change kind" << endl;);
+    }
+    return c;
+}
+
+const author_t *get_change_author(const change_t *change_ptr) { return change_ptr->author_ptr; }
 
 int ovr(const author_t *author_ptr, int64_t offset, uint8_t new_byte) {
     auto change_ptr = shared_ptr<change_t>(new change_t);
@@ -237,7 +253,7 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill
 }
 
 int undo_last_change(const author_t *author_ptr) {
-    int rc = -1;
+    int rc = 0;
     session_t *session_ptr = author_ptr->session_ptr;
 
     // Grab the change that is about to be undone
@@ -515,24 +531,6 @@ static int update_viewports_(session_t *session_ptr, const change_t *change_ptr)
     return rc;
 }
 
-static char change_kind_to_char_(const change_t *change_ptr) {
-    char c = 'x';
-    switch (get_change_kind_(change_ptr)) {
-        case change_kind_t::CHANGE_DELETE:
-            c = 'D';
-            break;
-        case change_kind_t::CHANGE_INSERT:
-            c = 'I';
-            break;
-        case change_kind_t::CHANGE_OVERWRITE:
-            c = 'O';
-            break;
-        default:
-            ABORT(CLOG << LOCATION << " Unhandled change kind" << endl;);
-    }
-    return c;
-}
-
 static change_kind_t get_change_kind_(const change_t *change_ptr) {
     change_kind_t change_kind = change_kind_t::CHANGE_OVERWRITE;
     if (change_ptr->original_length != 0) {
@@ -546,7 +544,7 @@ static change_kind_t get_change_kind_(const change_t *change_ptr) {
 }
 
 static void log_change_(const change_t *change_ptr) {
-    CLOG << R"({"change": )" << change_kind_to_char_(change_ptr) << R"(, "serial": )" << change_ptr->serial
+    CLOG << R"({"change": )" << get_change_kind_as_char(change_ptr) << R"(, "serial": )" << change_ptr->serial
          << R"(, "original_offset": )" << change_ptr->original_offset << R"(, "original_length": )"
          << change_ptr->original_length;
     switch (get_change_kind_(change_ptr)) {
@@ -582,7 +580,7 @@ static void log_changes_(const session_t *session_ptr) {
     CLOG << "]" << endl;
 }
 
-static char segment_kind_to_char_(segment_kind_t segment_kind) {
+static char segment_kind_as_char_(segment_kind_t segment_kind) {
     char c = 'x';
     switch (segment_kind) {
         case segment_kind_t::SEGMENT_READ:
@@ -603,7 +601,7 @@ static char segment_kind_to_char_(segment_kind_t segment_kind) {
 static segment_kind_t get_segment_kind_(const segment_t *segment_ptr) { return segment_ptr->segment_kind; }
 
 static void log_segment_(const segment_t *segment_ptr) {
-    CLOG << R"({"segment": )" << segment_kind_to_char_(segment_ptr->segment_kind) << R"(, "computed_offset": )"
+    CLOG << R"({"segment": )" << segment_kind_as_char_(segment_ptr->segment_kind) << R"(, "computed_offset": )"
          << segment_ptr->computed_offset << R"(, "computed_length": )" << segment_ptr->computed_length;
     switch (segment_ptr->segment_kind) {
         case segment_kind_t::SEGMENT_READ:
@@ -683,11 +681,11 @@ static int update_model_(session_t *session_ptr, const change_ptr_t &change_ptr)
                 auto delta = update_offset - abs((*iter)->computed_offset);
                 if (delta == (*iter)->computed_length) {
                     DBG(CLOG << LOCATION << " split position " << delta << " is at the end of "
-                             << segment_kind_to_char_(get_segment_kind_(iter->get())) << " segment "
+                             << segment_kind_as_char_(get_segment_kind_(iter->get())) << " segment "
                              << (*iter)->change_ptr->serial << ", no split necessary " << endl;);
                     ++iter;
                 } else {
-                    DBG(CLOG << LOCATION << " splitting " << segment_kind_to_char_(get_segment_kind_(iter->get()))
+                    DBG(CLOG << LOCATION << " splitting " << segment_kind_as_char_(get_segment_kind_(iter->get()))
                              << " segment " << (*iter)->change_ptr->serial << " at position: " << delta << endl;);
                     auto split_segment_ptr = duplicate_segment_(*iter);
                     switch (get_segment_kind_(iter->get())) {
@@ -845,15 +843,20 @@ static int update_model_(session_t *session_ptr, const change_ptr_t &change_ptr)
 }
 
 static int update_(const change_ptr_t &change_ptr) {
-    int rc = 0;
+    int rc = -1;
     auto session_ptr = change_ptr->author_ptr->session_ptr;
+    const auto computed_file_size = get_computed_file_size(session_ptr);
 
-    // Push this change onto the time-ordered vector of changes for the associated session
-    session_ptr->changes_by_time.push_back(change_ptr);
+    if (change_ptr->original_offset <= computed_file_size) {
 
-    // Update the model
-    update_model_(session_ptr, change_ptr);
+        // Push this change onto the time-ordered vector of changes for the associated session
+        session_ptr->changes_by_time.push_back(change_ptr);
 
-    if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
+        // Update the model
+        rc = update_model_(session_ptr, change_ptr);
+
+        if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
+    }
+
     return rc;
 }
