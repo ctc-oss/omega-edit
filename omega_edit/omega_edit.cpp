@@ -358,7 +358,9 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
  * SESSION FUNCTIONS
  **********************************************************************************************************************/
 int64_t get_computed_file_size(const session_t *session_ptr) {
-    return session_ptr->model.segments.back()->computed_offset + session_ptr->model.segments.back()->computed_length;
+    return (session_ptr->model.segments.empty()) ? 0
+                                                 : session_ptr->model.segments.back()->computed_offset +
+                                                           session_ptr->model.segments.back()->computed_length;
 }
 
 int64_t get_session_viewport_max_capacity(const session_t *session_ptr) { return session_ptr->viewport_max_capacity; }

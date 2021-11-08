@@ -77,6 +77,8 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
     REQUIRE(rc == 0);
     rc = write_segment_to_file(read_file_ptr, 36, 27, test_outfile_ptr);
     REQUIRE(rc == 0);
+    fclose(read_file_ptr);
+    fclose(test_outfile_ptr);
 }
 
 typedef struct file_info_struct {
@@ -145,7 +147,6 @@ TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
-
     ovr(author_ptr, 0, '-');
     ovr(author_ptr, file_size - 1, '+');
     ins(author_ptr, 5, 7, 'X');
@@ -156,7 +157,8 @@ TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
-    //del(author_ptr, 0, get_computed_file_size(session_ptr));
+    del(author_ptr, 0, get_computed_file_size(session_ptr));
+    REQUIRE(get_computed_file_size(session_ptr) == 0);
     while (file_info.num_changes) {
         undo_last_change(author_ptr);
     }
@@ -165,7 +167,7 @@ TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.6.txt") == 0);
-
+    destroy_session(session_ptr);
     fclose(test_infile_fptr);
 }
 
@@ -314,6 +316,6 @@ TEST_CASE("File Viewing", "[InitTests]") {
     REQUIRE(rc == 0);
     REQUIRE(viewport_count - 1 == get_session_num_viewports(session_ptr));
     destroy_session(session_ptr);
-
+    fclose(test_infile_ptr);
     remove(file_name);
 }
