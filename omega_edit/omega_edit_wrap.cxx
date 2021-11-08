@@ -1636,6 +1636,13 @@ SWIG_FromCharPtrAndSize(const char* carray, size_t size)
 }
 
 
+SWIGINTERNINLINE v8::Handle<v8::Value>
+SWIG_From_char  (char c) 
+{ 
+  return SWIG_FromCharPtrAndSize(&c,1);
+}
+
+
 SWIGINTERNINLINE v8::Handle<v8::Value> 
 SWIG_FromCharPtr(const char *cptr)
 { 
@@ -1856,24 +1863,24 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_get_change_author(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_get_change_kind_as_char(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
   change_t *arg1 = (change_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  author_t *result = 0 ;
+  char result;
   
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_change_author.");
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_change_kind_as_char.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_change_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_change_author" "', argument " "1"" of type '" "change_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_change_kind_as_char" "', argument " "1"" of type '" "change_t const *""'"); 
   }
   arg1 = reinterpret_cast< change_t * >(argp1);
-  result = (author_t *)get_change_author((change_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
+  result = (char)get_change_kind_as_char((change_t const *)arg1);
+  jsresult = SWIG_From_char(static_cast< char >(result));
   
   
   SWIGV8_RETURN(jsresult);
@@ -1902,6 +1909,34 @@ static SwigV8ReturnValue _wrap_get_change_byte(const SwigV8Arguments &args) {
   arg1 = reinterpret_cast< change_t * >(argp1);
   result = get_change_byte((change_t const *)arg1);
   jsresult = SWIG_NewPointerObj((new uint8_t(static_cast< const uint8_t& >(result))), SWIGTYPE_p_uint8_t, SWIG_POINTER_OWN |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_change_author(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  change_t *arg1 = (change_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  author_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_change_author.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_change_author" "', argument " "1"" of type '" "change_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< change_t * >(argp1);
+  result = (author_t *)get_change_author((change_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -3576,8 +3611,9 @@ void SWIGV8_INIT (v8::Handle<v8::Object> exports, v8::Handle<v8::Object> /*modul
   SWIGV8_AddStaticFunction(exports_obj, "get_change_original_offset", _wrap_get_change_original_offset);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_original_length", _wrap_get_change_original_length);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_serial", _wrap_get_change_serial);
-SWIGV8_AddStaticFunction(exports_obj, "get_change_author", _wrap_get_change_author);
+SWIGV8_AddStaticFunction(exports_obj, "get_change_kind_as_char", _wrap_get_change_kind_as_char);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_byte", _wrap_get_change_byte);
+SWIGV8_AddStaticFunction(exports_obj, "get_change_author", _wrap_get_change_author);
 SWIGV8_AddStaticFunction(exports_obj, "get_viewport_author", _wrap_get_viewport_author);
 SWIGV8_AddStaticFunction(exports_obj, "get_viewport_capacity", _wrap_get_viewport_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "get_viewport_length", _wrap_get_viewport_length);
