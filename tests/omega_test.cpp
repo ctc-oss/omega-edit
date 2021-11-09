@@ -91,22 +91,38 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     file_info_ptr->num_changes = get_session_num_changes(session_ptr);
     clog << dec << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr)
-         << R"(, "kind": )" << get_change_kind_as_char(change_ptr)
-         << R"(, "offset": )" << get_change_original_offset(change_ptr)
-         << R"(, "length": )" << get_change_original_length(change_ptr)
-         << R"(, "byte": )" << get_change_byte(change_ptr)
-         << "}" << endl;
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": )"
+         << get_change_kind_as_char(change_ptr) << R"(, "offset": )" << get_change_offset(change_ptr)
+         << R"(, "length": )" << get_change_length(change_ptr) << R"(, "byte": )" << get_change_byte(change_ptr) << "}"
+         << endl;
 }
 
-TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
+TEST_CASE("Empty File Test", "[EmptyFileTests]") {
+    file_info_t file_info;
+    file_info.filename = "data/empty_file.txt";
+    const auto test_infile_fptr = fopen(file_info.filename, "r");
+    REQUIRE(test_infile_fptr);
+    const auto author_name = "empty file test";
+    const auto session_ptr =
+            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    const auto author_ptr = create_author(session_ptr, author_name);
+    REQUIRE(get_session_offset(session_ptr) == 0);
+    auto file_size = get_session_length(session_ptr);
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    ins(author_ptr, 0, 1, '0');
+    file_size += 1;
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    destroy_session(session_ptr);
+}
+
+TEST_CASE("Model Test", "[ModelTests]") {
     file_info_t file_info;
     file_info.filename = "data/model-test.txt";
     auto test_infile_fptr = fopen(file_info.filename, "r");
     REQUIRE(test_infile_fptr);
-    auto author_name = "model insert test";
-    auto session_ptr =
-            create_session(test_infile_fptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
+    const auto author_name = "model insert test";
+    const auto session_ptr =
+            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     fseeko(test_infile_fptr, 0, SEEK_END);
     auto file_size = ftello(test_infile_fptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
@@ -158,9 +174,7 @@ TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
     REQUIRE(get_computed_file_size(session_ptr) == 0);
-    while (file_info.num_changes) {
-        undo_last_change(author_ptr);
-    }
+    while (file_info.num_changes) { undo_last_change(author_ptr); }
     test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
@@ -183,8 +197,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
-            session_ptr =
-                    create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
+            session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY,
+                                         0, 0);
             REQUIRE(session_ptr != NULL);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
@@ -268,7 +282,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     viewport_t *viewport_ptr;
     view_mode_t view_mode;
 
-    session_ptr = create_session(test_infile_ptr, 100);
+    session_ptr = create_session(test_infile_ptr, nullptr, nullptr, 100, 0, 0);
     REQUIRE(get_session_viewport_max_capacity(session_ptr) == 100);
     author_ptr = create_author(session_ptr, author_name);
     auto viewport_count = get_session_num_viewports(session_ptr);

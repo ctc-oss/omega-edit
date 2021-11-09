@@ -46,14 +46,14 @@ typedef void (*viewport_on_change_cbk)(const viewport_t *, const change_t *);
  * @param change_ptr change to get the original change offset from
  * @return original change offset
  */
-int64_t get_change_original_offset(const change_t *change_ptr);
+int64_t get_change_offset(const change_t *change_ptr);
 
 /**
 * Given a change, return the original number of bytes inserted or deleted (zero for overwrite)
 * @param change_ptr change to get the original number of bytes from
 * @return original number of bytes inserted or deleted (zero for overwrite)
 */
-int64_t get_change_original_length(const change_t *change_ptr);
+int64_t get_change_length(const change_t *change_ptr);
 
 /**
  * Given a change, return the change serial number. A negative serial number is an undone change.
@@ -154,8 +154,8 @@ session_t *get_author_session(const author_t *author_ptr);
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @return pointer to the created session, nullptr on failure
  */
-session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY,
-                          session_on_change_cbk cbk = nullptr, void *user_data_ptr = nullptr);
+session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk, void *user_data_ptr, int64_t viewport_max_capacity,
+                          int64_t offset, int64_t length);
 
 /**
  * Given a session, return the maximum viewport capacity
@@ -239,6 +239,21 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill
  * @return number of active changes
  */
 size_t get_session_num_changes(const session_t *session_ptr);
+
+/**
+ * Given a session, return the offset
+ * @param session_ptr session to get offset from
+ * @return offset
+ */
+int64_t get_session_offset(const session_t *session_ptr);
+
+/**
+ * Given a session, return the length
+ * @param session_ptr session to get length from
+ * @return length
+ */
+int64_t get_session_length(const session_t *session_ptr);
+
 
 /**
  * Given a session, return the number of active viewports

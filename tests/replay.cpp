@@ -40,7 +40,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     test_infile_ptr = fopen(file_info.filename, "r");
     FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
 
-    session_ptr = create_session(test_infile_ptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
+    session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     const char *author_name = "Test Author";
     author_ptr = create_author(session_ptr, author_name);
     clog << "Author: " << get_author_name(author_ptr) << endl;
