@@ -17,7 +17,6 @@
 #include "omega_edit.h"
 #include "omega_util.h"
 
-#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -421,11 +420,9 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
                     case segment_kind_t::SEGMENT_READ: {
                         auto remaining_capacity = viewport_ptr->capacity - viewport_ptr->length;
                         auto amount = (*iter)->change_ptr->length - delta;
-                        int64_t length = 0;
                         amount = (amount > remaining_capacity) ? remaining_capacity : amount;
                         read_segment_from_file(session_ptr->file_ptr, (*iter)->change_ptr->offset + delta,
-                                               viewport_ptr->data_ptr.get() + viewport_ptr->length, amount, &length);
-                        assert(length == amount);
+                                               viewport_ptr->data_ptr.get() + viewport_ptr->length, amount);
                         viewport_ptr->length += amount;
                         break;
                     }
