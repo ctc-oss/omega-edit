@@ -55,13 +55,14 @@ struct change_t {
     uint8_t byte{};                      ///< Overwrite or insert fill byte value
 };
 typedef shared_ptr<change_t> change_ptr_t;
+typedef unique_ptr<uint8_t[]> data_ptr_t;
 
 struct viewport_t {
     const author_t *author_ptr = nullptr;///< Author who owns this viewport instance
     int64_t capacity{};                  ///< Data capacity (in bytes) of this viewport
     int64_t length{};                    ///< Populated data length (in bytes) of this viewport
     int64_t computed_offset{};           ///< Viewport offset as changes have been made
-    vector<uint8_t> data;                ///< Data in the viewport
+    data_ptr_t data_ptr{};               ///< Data in the viewport
     uint8_t bit_offset{};                ///< Bit offset between 0 and 7 (inclusive) for this viewport (bit-shift left)
     viewport_on_change_cbk on_change_cbk = nullptr;///< User callback when the viewport changes
     void *user_data_ptr = nullptr;                 ///< Pointer to user-provided data associated with this viewport
@@ -96,8 +97,8 @@ struct session_t {
     session_on_change_cbk on_change_cbk = nullptr;///< User defined callback called when the session gets a change
     void *user_data_ptr = nullptr;                ///< Pointer to user-provided data associated with this session
     model_t model;                                ///< Edit model
-    int64_t offset;
-    int64_t length;
+    int64_t offset{};
+    int64_t length{};
 };
 
 /***********************************************************************************************************************
@@ -212,15 +213,10 @@ int undo_last_change(const author_t *author_ptr) {
     const auto session_ptr = author_ptr->session_ptr;
 
     if (!session_ptr->changes_by_time.empty()) {
-        // Grab the change that is about to be undone
         const auto change_ptr = session_ptr->changes_by_time.back();
 
-        // Remove the last change from the changes by time vector
         session_ptr->changes_by_time.pop_back();
-
-        // Initialize the model and replay the changes
         initialize_model_(session_ptr);
-
         for (auto iter = session_ptr->changes_by_time.begin(); iter != session_ptr->changes_by_time.end(); ++iter) {
             if (update_model_(session_ptr, *iter) != 0) { return -1; }
         }
@@ -228,6 +224,7 @@ int undo_last_change(const author_t *author_ptr) {
         // Negate the undone change's serial number to indicate that the change has been undone
         change_ptr->serial *= -1;
 
+        update_viewports_(session_ptr, change_ptr.get());
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
         return 0;
     }
@@ -245,7 +242,7 @@ int64_t get_viewport_length(const viewport_t *viewport_ptr) { return viewport_pt
 
 int64_t get_viewport_computed_offset(const viewport_t *viewport_ptr) { return viewport_ptr->computed_offset; }
 
-const uint8_t *get_viewport_data(const viewport_t *viewport_ptr) { return viewport_ptr->data.data(); }
+const uint8_t *get_viewport_data(const viewport_t *viewport_ptr) { return viewport_ptr->data_ptr.get(); }
 
 void *get_viewport_user_data(const viewport_t *viewport_ptr) { return viewport_ptr->user_data_ptr; }
 
@@ -260,7 +257,7 @@ viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t 
         viewport_ptr->computed_offset = offset;
         viewport_ptr->capacity = capacity;
         viewport_ptr->length = 0;
-        viewport_ptr->data.reserve(capacity);
+        viewport_ptr->data_ptr = make_unique<uint8_t[]>(capacity);
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         viewport_ptr->bit_offset = bit_offset;
@@ -294,7 +291,7 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
             viewport_ptr->bit_offset != bit_offset) {
             viewport_ptr->computed_offset = offset;
             viewport_ptr->capacity = capacity;
-            viewport_ptr->data.reserve(capacity);
+            viewport_ptr->data_ptr = make_unique<uint8_t[]>(capacity);
             viewport_ptr->bit_offset = bit_offset;
 
             // Update viewport and call the on change callback
@@ -398,7 +395,7 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
 static void viewport_callback_(viewport_t *viewport_ptr, const change_t *change_ptr) {
     if (viewport_ptr->on_change_cbk) {
         if (viewport_ptr->bit_offset > 0) {
-            left_shift_buffer(viewport_ptr->data.data(), viewport_ptr->length, viewport_ptr->bit_offset);
+            left_shift_buffer(viewport_ptr->data_ptr.get(), viewport_ptr->length, viewport_ptr->bit_offset);
         }
         (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr);
     }
@@ -410,23 +407,23 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
     const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
     const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model;
 
+    viewport_ptr->length = 0;
     for (auto iter = model_ptr->segments.cbegin(); iter != model_ptr->segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(CLOG << LOCATION << " break in continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << endl;);
         }
         if (read_offset <= viewport_offset && viewport_offset <= read_offset + (*iter)->computed_length) {
-            viewport_ptr->data.clear();
-            viewport_ptr->length = 0;
             auto delta = viewport_offset - (*iter)->computed_offset;
             do {
                 switch (get_segment_kind_(iter->get())) {
                     case segment_kind_t::SEGMENT_READ: {
-                        auto amount = (*iter)->computed_length - delta;
+                        auto amount = (*iter)->change_ptr->length - delta;
                         int64_t length = 0;
                         amount = (amount > viewport_ptr->capacity) ? viewport_ptr->capacity : amount;
-                        read_segment_from_file(session_ptr->file_ptr, (*iter)->computed_offset + delta,
-                                               viewport_ptr->data.data() + viewport_ptr->length, amount, &length);
+                        read_segment_from_file(session_ptr->file_ptr, (*iter)->change_ptr->offset + delta,
+                                               viewport_ptr->data_ptr.get() + viewport_ptr->length, amount, &length);
+                        assert(length == amount);
                         viewport_ptr->length += amount;
                         break;
                     }
@@ -434,12 +431,12 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
                         auto remaining_capacity = viewport_ptr->capacity - viewport_ptr->length;
                         auto amount = (*iter)->computed_length - delta;
                         amount = (amount > remaining_capacity) ? remaining_capacity : amount;
-                        memset(viewport_ptr->data.data() + viewport_ptr->length, (*iter)->change_ptr->byte, amount);
+                        memset(viewport_ptr->data_ptr.get() + viewport_ptr->length, (*iter)->change_ptr->byte, amount);
                         viewport_ptr->length += amount;
                         break;
                     }
                     case segment_kind_t::SEGMENT_OVERWRITE: {
-                        viewport_ptr->data[viewport_ptr->length++] = (*iter)->change_ptr->byte;
+                        viewport_ptr->data_ptr[viewport_ptr->length++] = (*iter)->change_ptr->byte;
                         break;
                     }
                     default:
