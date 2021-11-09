@@ -51,18 +51,18 @@ inline int compare_file_pointers(FILE *f1, FILE *f2) {
 }
 
 inline int compare_files(const char *f1, const char *f2) {
-    auto f1_ptr = fopen(f1, "r");
-    auto f2_ptr = fopen(f2, "r");
-    auto result = compare_file_pointers(f1_ptr, f2_ptr);
+    const auto f1_ptr = fopen(f1, "r");
+    const auto f2_ptr = fopen(f2, "r");
+    const auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);
     return result;
 }
 
 inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int64_t fill_length) {
-    auto f1_ptr = fopen(f1, "w+");
+    const auto f1_ptr = fopen(f1, "w+");
     while (file_size) {
-        auto count = (fill_length > file_size) ? file_size : fill_length;
+        const auto count = (fill_length > file_size) ? file_size : fill_length;
         if (count != fwrite(fill, 1, count, f1_ptr)) { abort(); }
         file_size -= count;
     }
@@ -89,9 +89,9 @@ inline void write_pretty_bits(const uint8_t *ptr, int64_t size) {
 inline void write_pretty_bytes(const uint8_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
-        clog << std::setfill('0');
-        clog << std::hex << std::setw(2) << (int) data[i++];
-        while (i < size) { clog << " " << std::hex << std::setw(2) << (int) data[i++]; }
+        clog << setfill('0');
+        clog << hex << setw(2) << static_cast<int>(data[i++]);
+        while (i < size) { clog << " " << hex << setw(2) << (int) data[i++]; }
     }
 }
 

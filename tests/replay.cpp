@@ -30,7 +30,7 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
          << R"(, "change_serial": )" << get_change_serial(change_ptr) << "}" << endl;
 }
 
-int main(int argc, char *argv[]) {
+int main(int /*argc*/, char ** /*argv*/) {
     FILE *test_infile_ptr;
     session_t *session_ptr;
     file_info_t file_info;

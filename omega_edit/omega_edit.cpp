@@ -137,23 +137,17 @@ size_t get_author_num_changes(const author_t *author_ptr) {
 }
 
 const author_t *create_author(session_t *session_ptr, const char *author_name) {
-    const author_t *pAuthor = nullptr;
     if (session_ptr) {
         for (const auto &author : session_ptr->authors) {
-            if (author->name == author_name) {
-                pAuthor = author.get();
-                break;
-            }
+            if (author->name == author_name) { return author.get(); }
         }
-        if (!pAuthor) {
-            const auto author_ptr = shared_ptr<author_t>(new author_t);
-            author_ptr->session_ptr = session_ptr;
-            author_ptr->name.assign(author_name);
-            session_ptr->authors.push_back(author_ptr);
-            pAuthor = author_ptr.get();
-        }
+        const auto author_ptr = shared_ptr<author_t>(new author_t);
+        author_ptr->session_ptr = session_ptr;
+        author_ptr->name.assign(author_name);
+        session_ptr->authors.push_back(author_ptr);
+        return author_ptr.get();
     }
-    return pAuthor;
+    return nullptr;
 }
 
 /***********************************************************************************************************************
@@ -213,7 +207,6 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill
 }
 
 int undo_last_change(const author_t *author_ptr) {
-    int rc = -1;
     const auto session_ptr = author_ptr->session_ptr;
 
     if (!session_ptr->changes_by_time.empty()) {
@@ -234,9 +227,9 @@ int undo_last_change(const author_t *author_ptr) {
         change_ptr->serial *= -1;
 
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
-        rc = 0;
+        return 0;
     }
-    return rc;
+    return -1;
 }
 
 /***********************************************************************************************************************
@@ -258,10 +251,9 @@ uint8_t get_viewport_bit_offset(const viewport_t *viewport_ptr) { return viewpor
 
 viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk,
                             void *user_data_ptr, uint8_t bit_offset) {
-    viewport_t *pViewport = nullptr;
-    auto session_ptr = author_ptr->session_ptr;
+    const auto session_ptr = author_ptr->session_ptr;
     if (capacity > 0 and capacity <= get_session_viewport_max_capacity(session_ptr)) {
-        auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
+        const auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
         viewport_ptr->author_ptr = author_ptr;
         viewport_ptr->computed_offset = offset;
         viewport_ptr->capacity = capacity;
@@ -276,26 +268,23 @@ viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t 
         populate_viewport_(viewport_ptr.get());
         viewport_callback_(viewport_ptr.get(), nullptr);
 
-        pViewport = viewport_ptr.get();
+        return viewport_ptr.get();
     }
-    return pViewport;
+    return nullptr;
 }
 
 int destroy_viewport(const viewport_t *viewport_ptr) {
-    int rc = -1;
     const auto session_viewport_ptr = &viewport_ptr->author_ptr->session_ptr->viewports;
     for (auto iter = session_viewport_ptr->cbegin(); iter != session_viewport_ptr->cend(); ++iter) {
         if (viewport_ptr == iter->get()) {
             session_viewport_ptr->erase(iter);
-            rc = 0;
-            break;
+            return 0;
         }
     }
-    return rc;
+    return -1;
 }
 
 int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset) {
-    int rc = -1;
     const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
     if (capacity > 0 && capacity <= get_session_viewport_max_capacity(session_ptr)) {
         // only change settings if they are different
@@ -310,9 +299,9 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
             populate_viewport_(viewport_ptr);
             viewport_callback_(viewport_ptr, nullptr);
         }
-        rc = 0;
+        return 0;
     }
-    return rc;
+    return -1;
 }
 
 /***********************************************************************************************************************
@@ -334,7 +323,6 @@ size_t get_session_num_changes(const session_t *session_ptr) { return session_pt
 
 session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity, session_on_change_cbk cbk,
                           void *user_data_ptr) {
-    session_t *pSession = nullptr;
     if (0 < viewport_max_capacity && 0 == fseeko(file_ptr, 0L, SEEK_END)) {
         const auto session_ptr = new session_t;
 
@@ -346,9 +334,9 @@ session_t *create_session(FILE *file_ptr, int64_t viewport_max_capacity, session
 
         initialize_model_(session_ptr);
 
-        pSession = session_ptr;
+        return session_ptr;
     }
-    return pSession;
+    return nullptr;
 }
 
 // Destroy the given session
@@ -406,7 +394,6 @@ static void viewport_callback_(viewport_t *viewport_ptr, const change_t *change_
 }
 
 static int populate_viewport_(viewport_t *viewport_ptr) {
-    int rc = -1;
     const auto viewport_offset = get_viewport_computed_offset(viewport_ptr);
     int64_t read_offset = 0;
     const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
@@ -449,8 +436,7 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
                 }
                 delta = 0;
             } while (viewport_ptr->length < viewport_ptr->capacity && ++iter != model_ptr->segments.end());
-            rc = 0;
-            break;
+            return 0;
         }
         switch (get_segment_kind_(iter->get())) {
             case segment_kind_t::SEGMENT_READ:// deliberate fall through
@@ -466,8 +452,7 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
                 ABORT(CLOG << LOCATION << " Unhandled segment kind" << endl;);
         }
     }
-
-    return rc;
+    return -1;
 }
 
 static void initialize_model_(session_t *session_ptr) {
@@ -537,7 +522,6 @@ static segment_ptr_t duplicate_segment_(const segment_ptr_t &segment_ptr) {
  take in changes with original offsets and lengths and the model will calculate computed offsets and lengths.
  -------------------------------------------------------------------------------------------------------------------- */
 static int update_model_(session_t *session_ptr, const change_ptr_t &change_ptr) {
-    int rc = -1;
     const auto update_offset = change_ptr->original_offset;
     const auto update_length = change_ptr->original_length;
     const auto change_kind = get_change_kind_(change_ptr.get());
@@ -677,13 +661,11 @@ static int update_model_(session_t *session_ptr, const change_ptr_t &change_ptr)
                 default:
                     ABORT(CLOG << LOCATION << " Unhandled change kind" << endl;);
             }
-            rc = 0;
-            break;
+            return update_viewports_(session_ptr, change_ptr.get());
         }
         read_offset += (*iter)->computed_length;
     }
-    update_viewports_(session_ptr, change_ptr.get());
-    return rc;
+    return -1;
 }
 
 static int update_(const change_ptr_t &change_ptr) {
@@ -692,10 +674,9 @@ static int update_(const change_ptr_t &change_ptr) {
 
     if (change_ptr->original_offset <= computed_file_size) {
         session_ptr->changes_by_time.push_back(change_ptr);
-        if(update_model_(session_ptr, change_ptr) != 0) { return -1; }
+        if (update_model_(session_ptr, change_ptr) != 0) { return -1; }
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
         return 0;
     }
-
     return -1;
 }

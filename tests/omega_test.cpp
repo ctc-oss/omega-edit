@@ -82,7 +82,7 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 }
 
 typedef struct file_info_struct {
-    int64_t num_changes{};
+    size_t num_changes{};
     char const *filename = nullptr;
 } file_info_t;
 
@@ -102,9 +102,8 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
 TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     file_info_t file_info;
     file_info.filename = "data/model-test.txt";
-    FILE *test_infile_fptr = fopen(file_info.filename, "r");
+    auto test_infile_fptr = fopen(file_info.filename, "r");
     REQUIRE(test_infile_fptr);
-    FILE *test_outfile_fptr = nullptr;
     auto author_name = "model insert test";
     auto session_ptr =
             create_session(test_infile_fptr, DEFAULT_VIEWPORT_MAX_CAPACITY, session_change_cbk, &file_info);
@@ -115,7 +114,7 @@ TEST_CASE("Insert Test - Beginning", "[ModelTests]") {
     ins(author_ptr, 0, 1, '0');
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
+    auto test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
@@ -260,10 +259,10 @@ void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) 
 
 TEST_CASE("File Viewing", "[InitTests]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    auto const fill_length = strlen(fill);
+    auto const fill_length = static_cast<int64_t>(strlen(fill));
     auto const file_name = "data/test.dat.view";
     auto const *author_name = "Test Author";
-    FILE *test_infile_ptr = fill_file(file_name, 1024, fill, fill_length);
+    auto test_infile_ptr = fill_file(file_name, 1024, fill, fill_length);
     session_t *session_ptr;
     const author_t *author_ptr;
     viewport_t *viewport_ptr;
