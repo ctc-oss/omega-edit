@@ -110,6 +110,8 @@ static int populate_viewport_(viewport_t *viewport_ptr);
 
 static void initialize_model_(session_t *session_ptr);
 
+static bool change_affects_viewport_(const viewport_t *viewport_ptr, const change_t *change_ptr);
+
 static int update_viewports_(session_t *session_ptr, const change_t *change_ptr);
 
 static change_kind_t get_change_kind_(const change_t *change_ptr);
@@ -402,12 +404,14 @@ static void viewport_callback_(viewport_t *viewport_ptr, const change_t *change_
 }
 
 static int populate_viewport_(viewport_t *viewport_ptr) {
-    const auto viewport_offset = get_viewport_computed_offset(viewport_ptr);
-    int64_t read_offset = 0;
-    const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
-    const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model;
-
     viewport_ptr->length = 0;
+    const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model;
+    if (model_ptr->segments.empty()) { return 0; }
+
+    const auto viewport_offset = get_viewport_computed_offset(viewport_ptr);
+    const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
+    int64_t read_offset = 0;
+
     for (auto iter = model_ptr->segments.cbegin(); iter != model_ptr->segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(CLOG << LOCATION << " break in continuity, expected: " << read_offset
@@ -476,14 +480,26 @@ static void initialize_model_(session_t *session_ptr) {
     session_ptr->model.segments.push_back(read_segment_ptr);
 }
 
+static bool change_affects_viewport_(const viewport_t *viewport_ptr, const change_t *change_ptr) {
+    const auto vpt_end_offset = viewport_ptr->computed_offset + viewport_ptr->capacity;
+    switch (get_change_kind_(change_ptr)) {
+        case change_kind_t::CHANGE_DELETE:
+        case change_kind_t::CHANGE_INSERT:
+            // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
+            return (change_ptr->offset <= vpt_end_offset);
+        case change_kind_t::CHANGE_OVERWRITE:
+            // OVERWRITE changes that happen in the viewport range affect the viewport
+            return (viewport_ptr->computed_offset <= change_ptr->offset && change_ptr->offset < vpt_end_offset);
+        default:
+            ABORT(CLOG << LOCATION << " Unhandled change kind" << endl;);
+    }
+}
+
 static int update_viewports_(session_t *session_ptr, const change_t *change_ptr) {
     for (const auto &viewport : session_ptr->viewports) {
-        if (viewport->computed_offset >= change_ptr->offset) {
-            if (get_change_kind_(change_ptr) != change_kind_t::CHANGE_OVERWRITE ||
-                change_ptr->offset < viewport->computed_offset + viewport->capacity) {
-                if (populate_viewport_(viewport.get()) != 0) { return -1; }
-                viewport_callback_(viewport.get(), change_ptr);
-            }
+        if (change_affects_viewport_(viewport.get(), change_ptr)) {
+            if (populate_viewport_(viewport.get()) != 0) { return -1; }
+            viewport_callback_(viewport.get(), change_ptr);
         }
     }
     return 0;
