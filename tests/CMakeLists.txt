@@ -13,3 +13,7 @@ add_custom_command(TARGET rotate POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_dir
 add_executable(slice slice.cpp)
 target_link_libraries(slice omega_edit)
 add_custom_command(TARGET slice POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:slice>/data)
+
+add_executable(peek peek.cpp)
+target_link_libraries(peek omega_edit)
+add_custom_command(TARGET peek POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:peek>/data)
