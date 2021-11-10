@@ -4,16 +4,3 @@ add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy
 
 add_executable(replay replay.cpp test_util.h)
 target_link_libraries(replay omega_edit)
-add_custom_command(TARGET replay POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:replay>/data)
-
-add_executable(rotate rotate.cpp)
-target_link_libraries(rotate omega_edit)
-add_custom_command(TARGET rotate POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:rotate>/data)
-
-add_executable(slice slice.cpp)
-target_link_libraries(slice omega_edit)
-add_custom_command(TARGET slice POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:slice>/data)
-
-add_executable(peek peek.cpp)
-target_link_libraries(peek omega_edit)
-add_custom_command(TARGET peek POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/tests/data/ $<TARGET_FILE_DIR:peek>/data)
