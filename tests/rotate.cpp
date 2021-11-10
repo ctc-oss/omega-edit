@@ -73,5 +73,7 @@ int main(int argc, char **argv) {
     fprintf(stdout, "Saving %zu changes to %s\n", get_session_num_changes(session_ptr), out_filename);
     save_to_file(session_ptr, out_fptr);
     destroy_session(session_ptr);
+    fclose(out_fptr);
+    fclose(in_fptr);
     return 0;
 }

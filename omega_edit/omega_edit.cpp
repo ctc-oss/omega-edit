@@ -473,7 +473,8 @@ static void initialize_model_(session_t *session_ptr) {
     read_segment_ptr->segment_kind = segment_kind_t::SEGMENT_READ;
     read_segment_ptr->change_ptr = shared_ptr<change_t>(new change_t);
     read_segment_ptr->change_ptr->serial = 0;
-    read_segment_ptr->computed_offset = read_segment_ptr->change_ptr->offset = session_ptr->offset;
+    read_segment_ptr->computed_offset = 0;
+    read_segment_ptr->change_ptr->offset = session_ptr->offset;
     read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length = session_ptr->length;
 
     session_ptr->model.segments.clear();
