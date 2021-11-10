@@ -29,7 +29,8 @@
  * @param length write the number of bytes read to this location
  * @return 0 on success, non-zero on failure
  */
-int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer, int64_t capacity, int64_t *length);
+int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer, int64_t capacity,
+                           int64_t *length = nullptr);
 
 /**
  * Write a segment from one file into another
