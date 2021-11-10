@@ -83,13 +83,13 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 
 typedef struct file_info_struct {
     size_t num_changes{};
-    char const *filename = nullptr;
+    char const *in_filename = nullptr;
 } file_info_t;
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
     file_info_ptr->num_changes = get_session_num_changes(session_ptr);
-    clog << dec << R"({ "filename" : ")" << file_info_ptr->filename << R"(", "num_changes" : )"
+    clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
          << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": )"
          << get_change_kind_as_char(change_ptr) << R"(, "offset": )" << get_change_offset(change_ptr)
@@ -99,8 +99,8 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
 
 TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_info_t file_info;
-    file_info.filename = "data/empty_file.txt";
-    const auto test_infile_fptr = fopen(file_info.filename, "r");
+    file_info.in_filename = "data/empty_file.txt";
+    const auto test_infile_fptr = fopen(file_info.in_filename, "r");
     REQUIRE(test_infile_fptr);
     const auto author_name = "empty file test";
     const auto session_ptr =
@@ -117,8 +117,8 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
 
 TEST_CASE("Model Test", "[ModelTests]") {
     file_info_t file_info;
-    file_info.filename = "data/model-test.txt";
-    auto test_infile_fptr = fopen(file_info.filename, "r");
+    file_info.in_filename = "data/model-test.txt";
+    auto test_infile_fptr = fopen(file_info.in_filename, "r");
     REQUIRE(test_infile_fptr);
     const auto author_name = "model insert test";
     const auto session_ptr =
@@ -190,10 +190,10 @@ TEST_CASE("Check initialization", "[InitTests]") {
     file_info_t file_info;
     const author_t *author_ptr;
 
-    file_info.filename = "data/test1.dat";
+    file_info.in_filename = "data/test1.dat";
 
     SECTION("Open data file") {
-        test_infile_ptr = fopen(file_info.filename, "r");
+        test_infile_ptr = fopen(file_info.in_filename, "r");
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {

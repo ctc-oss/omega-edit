@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     auto rotations = stol(argv[3]);
     auto in_fptr = fopen(in_filename, "r");
     auto out_fptr = fopen(out_filename, "w");
-    auto session_ptr = create_session(in_fptr, nullptr, nullptr);
+    auto session_ptr = create_session(in_fptr);
     auto author_ptr = create_author(session_ptr, "rotate");
     // Create a small viewport at the end of the file to track the last byte.
     create_viewport(author_ptr, get_computed_file_size(session_ptr) - 4, 8, vpt_change_last_byte_cbk,

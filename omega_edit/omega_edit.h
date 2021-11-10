@@ -41,6 +41,8 @@ typedef void (*session_on_change_cbk)(const session_t *, const change_t *);
 /** On viewport change callback.  This under-defined function will be called when an associated viewport changes. */
 typedef void (*viewport_on_change_cbk)(const viewport_t *, const change_t *);
 
+typedef int (*visit_changes_cbk)(const change_t *, void *);
+
 /**
  * Given a change, return the original change offset
  * @param change_ptr change to get the original change offset from
@@ -82,6 +84,16 @@ uint8_t get_change_byte(const change_t *change_ptr);
  * @return change author
  */
 const author_t *get_change_author(const change_t *change_ptr);
+
+/**
+ * Visit changes in the given session, if the callback returns an integer other than 0, visitation will stop and the
+ * return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes
+ * @param cbk user-provided function to call
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the return value of the callback if visitation was stopped
+ */
+int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data);
 
 /**
  * Given a viewport, return the author
@@ -156,7 +168,7 @@ session_t *get_author_session(const author_t *author_ptr);
  * @param length mount of the file from the offset to edit, 0 (default) is the length of the file
 * @return pointer to the created session, nullptr on failure
  */
-session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk, void *user_data_ptr,
+session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk = nullptr, void *user_data_ptr = nullptr,
                           int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY, int64_t offset = 0,
                           int64_t length = 0);
 

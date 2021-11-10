@@ -160,7 +160,7 @@ const author_t *create_author(session_t *session_ptr, const char *author_name) {
  **********************************************************************************************************************/
 int64_t get_change_offset(const change_t *change_ptr) { return change_ptr->offset; }
 
-int64_t get_change_length(const change_t *change_ptr) { return change_ptr->length; }
+int64_t get_change_length(const change_t *change_ptr) { return abs(change_ptr->length); }
 
 int64_t get_change_serial(const change_t *change_ptr) { return change_ptr->serial; }
 
@@ -209,6 +209,14 @@ int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill
     change_ptr->length = length;// positive for insert
     change_ptr->serial = ++author_ptr->session_ptr->serial;
     return update_(change_ptr);
+}
+
+int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data) {
+    int rc = 0;
+    for (const auto & iter : session_ptr->changes_by_time) {
+        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
+    }
+    return rc;
 }
 
 int undo_last_change(const author_t *author_ptr) {
