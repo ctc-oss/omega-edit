@@ -28,8 +28,18 @@ int main(int argc, char **argv) {
                 argv[0]);
         return -1;
     }
-    auto in_fptr = fopen(argv[1], "r");
-    auto out_fptr = fopen(argv[2], "w");
+    auto in_filename = argv[1];
+    auto out_filename = argv[2];
+    auto in_fptr = fopen(in_filename, "r");
+    if (!in_fptr) {
+        fprintf(stderr, "failed to open %s for reading\n", in_filename);
+        return -1;
+    }
+    auto out_fptr = fopen(out_filename, "w");
+    if (!out_fptr) {
+        fprintf(stderr, "failed to open %s for writing\n", out_filename);
+        return -1;
+    }
     auto session_ptr =
             create_session(in_fptr, nullptr, nullptr, DEFAULT_VIEWPORT_MAX_CAPACITY, stoll(argv[3]), stoll(argv[4]));
     if (session_ptr) {

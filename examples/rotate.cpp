@@ -54,7 +54,15 @@ int main(int argc, char **argv) {
     auto out_filename = argv[2];
     auto rotations = stol(argv[3]);
     auto in_fptr = fopen(in_filename, "r");
-    auto out_fptr = fopen(out_filename, "w");
+    if (!in_fptr) {
+        fprintf(stderr, "failed to open %s for reading\n", in_filename);
+        return -1;
+    }
+    auto out_fptr = fopen(out_filename, s"w");
+    if (!out_fptr) {
+        fprintf(stderr, "failed to open %s for writing\n", out_filename);
+        return -1;
+    }
     auto session_ptr = create_session(in_fptr);
     auto author_ptr = create_author(session_ptr, "rotate");
     // Create a small viewport at the end of the file to track the last byte.

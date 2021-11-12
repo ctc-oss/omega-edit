@@ -88,9 +88,10 @@ int main(int argc, char **argv) {
                 argv[0]);
         return -1;
     }
-    auto in_fptr = fopen(argv[2], "r");
+    auto in_filename = argv[2];
+    auto in_fptr = fopen(in_filename, "r");
     if (!in_fptr) {
-        fprintf(stderr, "failed to open %s for reading\n", argv[2]);
+        fprintf(stderr, "failed to open %s for reading\n", in_filename);
         return -1;
     }
     auto offset = stoll(argv[3]);

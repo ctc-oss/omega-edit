@@ -48,9 +48,18 @@ int main(int argc, char ** argv) {
 
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
-    auto test_infile_ptr = fopen(file_info.in_filename, "r");
+    auto in_fptr = fopen(file_info.in_filename, "r");
+    if (!in_fptr) {
+        fprintf(stderr, "failed to open %s for reading\n", file_info.in_filename);
+        return -1;
+    }
+    auto out_fptr = fopen(out_filename, "w");
+    if (!out_fptr) {
+        fprintf(stderr, "failed to open %s for writing\n", out_filename);
+        return -1;
+    }
 
-    session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info);
+    session_ptr = create_session(in_fptr, session_change_cbk, &file_info);
     const char *author_name = "Test Author";
     author_ptr = create_author(session_ptr, author_name);
 
@@ -84,9 +93,8 @@ int main(int argc, char ** argv) {
     }
 
     // Save the session
-    auto test_outfile_ptr = fopen(out_filename, "w");
-    save_to_file(session_ptr, test_outfile_ptr);
-    fclose(test_outfile_ptr);
+    save_to_file(session_ptr, out_fptr);
+    fclose(out_fptr);
 
     // Report
     clog << "Replayed " << deletes << " delete(s), " << inserts << " insert(s), " << overwrites
@@ -94,6 +102,6 @@ int main(int argc, char ** argv) {
 
     // Cleanup
     destroy_session(session_ptr);
-    fclose(test_infile_ptr);
+    fclose(in_fptr);
     return 0;
 }
