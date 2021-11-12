@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to open %s for reading\n", in_filename);
         return -1;
     }
-    auto out_fptr = fopen(out_filename, s"w");
+    auto out_fptr = fopen(out_filename, "w");
     if (!out_fptr) {
         fprintf(stderr, "failed to open %s for writing\n", out_filename);
         return -1;
