@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
+/*
+ * This application demonstrates many of the features of Omega Edit and represents an edit session where changes are
+ * saved to a file where they can be replayed.
+ */
+
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/omega_util.h"
+#include <cinttypes>
 #include <iomanip>
 #include <iostream>
 
@@ -27,13 +34,13 @@ typedef struct file_info_struct {
     int deletes{};
     int inserts{};
     int overwrites{};
+    char *bin_to_hex_buffer = nullptr;
+    size_t bin_to_hex_buffer_size = 0;
 } file_info_t;
 
 int save_changes_cbk(const change_t *change_ptr, void *userdata) {
     auto file_info_ptr = (file_info_t *) userdata;
     auto change_kind = get_change_kind_as_char(change_ptr);
-    fprintf(file_info_ptr->save_fptr, "%c,%lld,%lld,%02X\n", change_kind, get_change_offset(change_ptr),
-            get_change_length(change_ptr), get_change_byte(change_ptr));
     switch (change_kind) {
         case 'D':
             ++file_info_ptr->deletes;
@@ -47,6 +54,26 @@ int save_changes_cbk(const change_t *change_ptr, void *userdata) {
         default:
             abort();
     }
+    // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
+    int64_t bytes_length;
+    const uint8_t *bytes;
+    get_change_bytes(change_ptr, &bytes, &bytes_length);
+    const auto required_buffer_size = bytes_length * 2 + 1;
+    if (bytes) {
+        if (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size) {
+            do {
+                file_info_ptr->bin_to_hex_buffer_size <<= 1;
+            } while (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size);
+            file_info_ptr->bin_to_hex_buffer =
+                    (char *) realloc(file_info_ptr->bin_to_hex_buffer, file_info_ptr->bin_to_hex_buffer_size);
+        }
+        bin2hex(bytes, file_info_ptr->bin_to_hex_buffer, bytes_length);
+    } else {
+        file_info_ptr->bin_to_hex_buffer[0] = 'x';
+        file_info_ptr->bin_to_hex_buffer[1] = '\0';
+    }
+    fprintf(file_info_ptr->save_fptr, "%c,%" PRId64 ",%" PRId64 ",%s\n", change_kind, get_change_offset(change_ptr),
+            get_change_length(change_ptr), file_info_ptr->bin_to_hex_buffer);
     return 0;
 }
 
@@ -56,12 +83,6 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "w");
     visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
     fclose(file_info_ptr->save_fptr);
-    clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
-         << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": )"
-         << get_change_kind_as_char(change_ptr) << R"(, "offset": )" << get_change_offset(change_ptr)
-         << R"(, "length": )" << get_change_length(change_ptr) << R"(, "byte": )" << get_change_byte(change_ptr) << "}"
-         << endl;
 }
 
 enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
@@ -90,6 +111,7 @@ void write_pretty_bytes(const uint8_t *data, int64_t size) {
         clog << setfill('0');
         clog << hex << setw(2) << static_cast<int>(data[i++]);
         while (i < size) { clog << " " << hex << setw(2) << (int) data[i++]; }
+        clog << dec;
     }
 }
 
@@ -138,6 +160,9 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode.display_mode = CHAR_MODE;
     file_info.in_filename = "data/test1.dat";
     file_info.save_filename = "data/test1.dat.sav";
+    file_info.bin_to_hex_buffer_size = 1024;
+    file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
+
     test_infile_ptr = fopen(file_info.in_filename, "r");
     FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
 
@@ -148,28 +173,31 @@ int main(int /*argc*/, char ** /*argv*/) {
     clog << "File Size: " << get_computed_file_size(session_ptr) << endl;
     auto viewport1_ptr = create_viewport(author_ptr, 0, 100, vpt_change_cbk, &view_mode);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
+    if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
     undo_last_change(author_ptr);
-    ins(author_ptr, 0, 4, '+');
-    ovr(author_ptr, 5, '-');
-    ins(author_ptr, 0, 4, '+');
+    ins(author_ptr, 0, (const uint8_t *)"++++");
+    ovr(author_ptr, 5, (const uint8_t *)"-");
+    ins(author_ptr, 0, (const uint8_t *)"++++");
+    if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
     auto viewport2_ptr = create_viewport(author_ptr, 50, 10, vpt_change_cbk, &view_mode);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
-    ins(author_ptr, 71, 4, '+');
-    ovr(author_ptr, 10, '.');
+    ins(author_ptr, 71, (const uint8_t *)"++++");
+    ovr(author_ptr, 10, (const uint8_t *)".");
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    ovr(author_ptr, 0, '.');
-    ovr(author_ptr, 74, '.');
-    ins(author_ptr, 70, 3, '*');
+    ovr(author_ptr, 0, (const uint8_t *)"...");
+    ovr(author_ptr, 74, (const uint8_t *)".");
+    ins(author_ptr, 70, (const uint8_t *)"***");
     del(author_ptr, 70, 2);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
 
-    ins(author_ptr, 10, 4, '+');
-    ovr(author_ptr, 12, '.');
-    ins(author_ptr, 0, 3, '+');
-    ovr(author_ptr, 1, '.');
-    ovr(author_ptr, 77, '.');
+    ins(author_ptr, 10, (const uint8_t *)"++++");
+    ovr(author_ptr, 12, (const uint8_t *)".");
+
+    ins(author_ptr, 0, (const uint8_t *)"+++");
+    ovr(author_ptr, 1, (const uint8_t *)".");
+    ovr(author_ptr, 77, (const uint8_t *)".");
     del(author_ptr, 50, 3);
-    ins(author_ptr, 50, 3, '*');
+    ins(author_ptr, 50, (const uint8_t *)"***", 3);
     del(author_ptr, 1, 50);
     undo_last_change(author_ptr);
 
@@ -192,5 +220,6 @@ int main(int /*argc*/, char ** /*argv*/) {
     destroy_session(session_ptr);
     fclose(test_outfile_ptr);
     fclose(test_infile_ptr);
+    free(file_info.bin_to_hex_buffer);
     return 0;
 }

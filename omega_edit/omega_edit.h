@@ -76,7 +76,7 @@ char get_change_kind_as_char(const change_t *change_ptr);
  * @param change_ptr change to get the new byte value from
  * @return new byte value
  */
-uint8_t get_change_byte(const change_t *change_ptr);
+int get_change_bytes(const change_t *change_ptr, const uint8_t **bytes, int64_t *length);
 
 /**
  * Given a change, return the change author
@@ -221,15 +221,6 @@ int destroy_viewport(const viewport_t *viewport_ptr);
 void destroy_session(const session_t *session_ptr);
 
 /**
- * Overwrite a byte at the given offset with the given new byte
- * @param author_ptr author making the change
- * @param offset location offset to make the change
- * @param new_byte new byte to overwrite the old
- * @return 0 on success, non-zero otherwise
- */
-int ovr(const author_t *author_ptr, int64_t offset, uint8_t new_byte);
-
-/**
  * Delete a number of bytes at the given offset
  * @param author_ptr author making the change
  * @param offset location offset to make the change
@@ -242,11 +233,21 @@ int del(const author_t *author_ptr, int64_t offset, int64_t length);
  * Insert a number of bytes with value fill at the given offset
  * @param author_ptr author making the change
  * @param offset location offset to make the change
- * @param length number of bytes to insert
- * @param fill the value of the fill bytes
+ * @param bytes the value of the fill bytes
+ * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of bytes)
  * @return - on success, non-zero otherwise
  */
-int ins(const author_t *author_ptr, int64_t offset, int64_t length, uint8_t fill);
+int ins(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length = 0);
+
+/**
+ * Overwrite a byte at the given offset with the given new byte
+ * @param author_ptr author making the change
+ * @param offset location offset to make the change
+ * @param bytes new byte to overwrite the old
+ * @param length number of bytes to overwrite (if 0, strlen will be used to calculate the length of bytes)
+ * @return 0 on success, non-zero otherwise
+ */
+int ovr(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length = 0);
 
 /**
  * Given a session, return the current number of active changes
@@ -299,7 +300,7 @@ int64_t get_computed_file_size(const session_t *session_ptr);
  * @param bit_offset bit offset of the viewport
  * @return 0 on success, non-zero otherwise
  */
-int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset);
+int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset = 0);
 
 /**
  * Given an author, undo the author's last change
@@ -315,5 +316,7 @@ int undo_last_change(const author_t *author_ptr);
  * @return 0 on success, non-zero otherwise
  */
 int save_to_file(const session_t *session_ptr, FILE *file_ptr);
+
+int check_segment_continuity(const session_t *session_ptr);
 
 #endif//OMEGA_OMEGA_EDIT_H
