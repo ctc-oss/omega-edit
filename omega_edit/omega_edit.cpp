@@ -138,7 +138,7 @@ static segment_ptr_t duplicate_segment_(const segment_ptr_t &segment_ptr);
 
 static int update_model_(session_t *session_ptr, const_change_ptr_t &change_ptr);
 
-static int update_(const change_ptr_t &change_ptr);
+static int update_(const_change_ptr_t &change_ptr);
 
 /***********************************************************************************************************************
  * AUTHOR FUNCTIONS
@@ -221,7 +221,8 @@ int del(const author_t *author_ptr, int64_t offset, int64_t length) {
     if (offset < get_computed_file_size(author_ptr->session_ptr)) {
         auto change_ptr = del_(author_ptr, offset, length);
         change_ptr->serial = ++author_ptr->session_ptr->serial;
-        return update_(change_ptr);
+        const_change_ptr_t const_change_ptr = change_ptr;
+        return update_(const_change_ptr);
     }
     return -1;
 }
@@ -234,6 +235,7 @@ change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const byte_t *byte
     change_ptr->offset = offset;
     change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
+        // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
@@ -245,9 +247,11 @@ change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const byte_t *byte
 }
 
 int ins(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
-    return (offset <= get_computed_file_size(author_ptr->session_ptr))
-                   ? update_(ins_(author_ptr, offset, bytes, length))
-                   : -1;
+    if (offset <= get_computed_file_size(author_ptr->session_ptr)) {
+        const_change_ptr_t const_change_ptr = ins_(author_ptr, offset, bytes, length);
+        return update_(const_change_ptr);
+    }
+    return -1;
 }
 
 change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
@@ -258,6 +262,7 @@ change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *byte
     change_ptr->offset = offset;
     change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
+        // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
@@ -269,8 +274,11 @@ change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *byte
 }
 
 int ovr(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
-    return (offset < get_computed_file_size(author_ptr->session_ptr)) ? update_(ovr_(author_ptr, offset, bytes, length))
-                                                                      : -1;
+    if (offset < get_computed_file_size(author_ptr->session_ptr)) {
+        const_change_ptr_t const_change_ptr = ovr_(author_ptr, offset, bytes, length);
+        return update_(const_change_ptr);
+    }
+    return -1;
 }
 
 int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data) {
@@ -733,10 +741,9 @@ static int update_model_(session_t *session_ptr, const_change_ptr_t &change_ptr)
         const auto delete_length = (computed_file_size < change_ptr->offset + change_ptr->length)
                                            ? computed_file_size - change_ptr->offset
                                            : change_ptr->length;
-        if (0 < delete_length &&
-            (rc = update_model_helper_(session_ptr, del_(change_ptr->author_ptr, change_ptr->offset, delete_length))) !=
-                    0) {
-            return rc;
+        if (0 < delete_length) {
+            const_change_ptr_t const_change_ptr = del_(change_ptr->author_ptr, change_ptr->offset, delete_length);
+            if ((rc = update_model_helper_(session_ptr, const_change_ptr)) != 0) { return rc; }
         }
     }
     if ((rc = update_model_helper_(session_ptr, change_ptr)) == 0) {
@@ -745,7 +752,7 @@ static int update_model_(session_t *session_ptr, const_change_ptr_t &change_ptr)
     return rc;
 }
 
-static int update_(const change_ptr_t &change_ptr) {
+static int update_(const_change_ptr_t &change_ptr) {
     const auto session_ptr = change_ptr->author_ptr->session_ptr;
     const auto computed_file_size = get_computed_file_size(session_ptr);
     if (change_ptr->offset <= computed_file_size) {
