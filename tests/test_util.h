@@ -35,8 +35,8 @@ using namespace std;
 // Returns 0 if the content of the 2 file pointers are the same (from where the pointers are currently) and 1 if contents are not the same
 inline int compare_file_pointers(FILE *f1, FILE *f2) {
     const size_t buff_size = 1024 * 8;
-    uint8_t buf1[buff_size];
-    uint8_t buf2[buff_size];
+    byte_t buf1[buff_size];
+    byte_t buf2[buff_size];
 
     do {
         auto r1 = fread(buf1, 1, buff_size, f1);
@@ -71,11 +71,11 @@ inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int6
     return f1_ptr;
 }
 
-inline void write_pretty_bits_byte(uint8_t byte) {
+inline void write_pretty_bits_byte(byte_t byte) {
     for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
-inline void write_pretty_bits(const uint8_t *ptr, int64_t size) {
+inline void write_pretty_bits(const byte_t *ptr, int64_t size) {
     if (size > 0) {
         auto i = 0;
         write_pretty_bits_byte(ptr[i++]);
@@ -86,7 +86,7 @@ inline void write_pretty_bits(const uint8_t *ptr, int64_t size) {
     }
 }
 
-inline void write_pretty_bytes(const uint8_t *data, int64_t size) {
+inline void write_pretty_bytes(const byte_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
         clog << setfill('0');

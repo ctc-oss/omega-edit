@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
+/*
+ * This application is an example of how a saved session can be replayed.
+ */
+
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/omega_util.h"
+#include <cinttypes>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -26,15 +33,21 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
+    const byte_t *bytes;
+    const auto length = get_change_bytes(change_ptr, &bytes);
+    // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": )"
-         << get_change_kind_as_char(change_ptr) << R"(, "offset": )" << get_change_offset(change_ptr)
-         << R"(, "length": )" << get_change_length(change_ptr) << R"(, "byte": )" << get_change_byte(change_ptr) << "}"
-         << endl;
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": ")"
+         << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
+         << R"(, "length": )" << get_change_length(change_ptr);
+    if (bytes) {
+        clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")";
+    }
+    clog << "}" << endl;
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     if (argc != 3) {
         fprintf(stderr,
                 "Reads changes from stdin, applies them to the infile and saves the results to the outfile.\n\n"
@@ -72,19 +85,26 @@ int main(int argc, char ** argv) {
     while (!feof(stdin)) {
         char change_type;
         int64_t offset, length;
-        uint byte;
-        fscanf(stdin, "%c,%lld,%lld,%02X\n", &change_type, &offset, &length, &byte);
+        byte_t bytes[1024];
+        byte_t hex_bytes[2048];
+        // NOTE: This is for demonstration purposes only.  This is not production safe parsing.
+        fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes);
+        if (hex_bytes[0] != 'x' &&
+            length != hex2bin((const char *) hex_bytes, bytes, strlen((const char *) hex_bytes))) {
+            clog << "ERROR decoding: '" << hex_bytes << "'\n";
+            return -1;
+        }
         switch (change_type) {
             case 'D':
                 del(author_ptr, offset, length);
                 ++deletes;
                 break;
             case 'I':
-                ins(author_ptr, offset, length, byte);
+                ins(author_ptr, offset, bytes, length);
                 ++inserts;
                 break;
             case 'O':
-                ovr(author_ptr, offset, byte);
+                ovr(author_ptr, offset, bytes, 0);
                 ++overwrites;
                 break;
             default:

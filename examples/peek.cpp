@@ -26,11 +26,11 @@ struct view_mode_t {
     enum display_mode_t display_mode = BYTE_MODE;
 };
 
-inline void write_pretty_bits_byte(uint8_t byte) {
+inline void write_pretty_bits_byte(byte_t byte) {
     for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
-void write_pretty_bits(const uint8_t *ptr, int64_t size) {
+void write_pretty_bits(const byte_t *ptr, int64_t size) {
     if (size > 0) {
         auto i = 0;
         write_pretty_bits_byte(ptr[i++]);
@@ -41,7 +41,7 @@ void write_pretty_bits(const uint8_t *ptr, int64_t size) {
     }
 }
 
-void write_pretty_bytes(const uint8_t *data, int64_t size) {
+void write_pretty_bytes(const byte_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
         clog << setfill('0');

@@ -16,11 +16,11 @@
 
 #include "omega_util.h"
 
-int left_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_left) {
+int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left) {
     if (shift_left > 0 && shift_left < 8) {
-        uint8_t shift_right = 8 - shift_left;
-        uint8_t mask = ((1 << shift_left) - 1) << shift_right;
-        uint8_t bits1 = 0;
+        byte_t shift_right = 8 - shift_left;
+        byte_t mask = ((1 << shift_left) - 1) << shift_right;
+        byte_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
             const auto bits2 = buffer[i] & mask;
             buffer[i] <<= shift_left;
@@ -32,11 +32,11 @@ int left_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_left) {
     return -1;
 }
 
-int right_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_right) {
+int right_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_right) {
     if (shift_right > 0 && shift_right < 8) {
-        uint8_t shift_left = 8 - shift_right;
-        uint8_t mask = (1 << shift_right) - 1;
-        uint8_t bits1 = 0;
+        byte_t shift_left = 8 - shift_right;
+        byte_t mask = (1 << shift_right) - 1;
+        byte_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
             const auto bits2 = buffer[i] & mask;
             buffer[i] >>= shift_right;
@@ -48,8 +48,8 @@ int right_shift_buffer(uint8_t *buffer, int64_t len, uint8_t shift_right) {
     return -1;
 }
 
-int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer, int64_t capacity, int64_t *length) {
-    int rc = -1;
+int64_t read_segment_from_file(FILE *from_file_ptr, int64_t offset, byte_t *buffer, int64_t capacity) {
+    int64_t rc = -1;
     if (0 == fseeko(from_file_ptr, 0, SEEK_END)) {
         const auto len = ftello(from_file_ptr) - offset;
         // make sure the offset does not exceed the file size
@@ -57,26 +57,59 @@ int read_segment_from_file(FILE *from_file_ptr, int64_t offset, uint8_t *buffer,
             // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
             const auto count = (len < capacity) ? len : capacity;
             if (0 == fseeko(from_file_ptr, offset, SEEK_SET)) {
-                if (count == fread(buffer, 1, count, from_file_ptr)) {
-                    rc = 0;// successful read
-                    if (length) { *length = count; }
-                }
+                if (count == fread(buffer, 1, count, from_file_ptr)) { rc = count; }
             }
         }
     }
     return rc;
 }
 
-int write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+int64_t write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
     const int64_t buff_size = 1024 * 8;
-    uint8_t buff[buff_size];
-    while (byte_count) {
-        const auto count = (buff_size > byte_count) ? byte_count : buff_size;
+    auto remaining = byte_count;
+    byte_t buff[buff_size];
+    while (remaining) {
+        const auto count = (buff_size > remaining) ? remaining : buff_size;
         if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) {
-            return -1;
+            break;
         }
-        byte_count -= count;
+        remaining -= count;
     }
-    return 0;
+    return byte_count - remaining;
+}
+
+size_t bin2hex(const byte_t *src, char *dst, size_t src_length) {
+    static char HEXCONVTAB[] = "0123456789abcdef";
+    size_t j = 0;
+
+    for (size_t i = 0; i < src_length; ++i) {
+        dst[j++] = HEXCONVTAB[src[i] >> 4];
+        dst[j++] = HEXCONVTAB[src[i] & 15];
+    }
+    dst[j] = '\0';
+    return j;
+}
+
+size_t hex2bin(const char *src, byte_t *dst, size_t src_length) {
+    const auto dst_length = src_length >> 1;
+    size_t i = 0, j = 0;
+
+    while (i < dst_length) {
+        byte_t c = src[j++], d;
+
+        if (c >= '0' && c <= '9') { d = (c - '0') << 4; }
+        else if (c >= 'a' && c <= 'f') { d = (c - 'a' + 10) << 4; }
+        else if (c >= 'A' && c <= 'F') { d = (c - 'A' + 10) << 4; }
+        else { return 0; }
+        c = src[j++];
+
+        if (c >= '0' && c <= '9') { d |= c - '0'; }
+        else if (c >= 'a' && c <= 'f') { d |= c - 'a' + 10; }
+        else if (c >= 'A' && c <= 'F') { d |= c - 'A' + 10; }
+        else { return 0; }
+        dst[i++] = d;
+    }
+    dst[i] = '\0';
+    return i;
 }

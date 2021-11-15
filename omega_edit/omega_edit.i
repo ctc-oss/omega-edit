@@ -19,7 +19,8 @@
 %module omega_edit
 %{
 /* Includes the header in the wrapper code */
-#include "omega_edit.h"
+#include "omega_edit.h"int64_t get_change_bytes(const change_t *change_ptr, const byte_t **bytes)
+
 %}
 /* Parse the header file to generate wrappers */
 %include "omega_edit.h"

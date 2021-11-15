@@ -29,7 +29,7 @@ using namespace std;
 
 TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    auto *buffer = (uint8_t *) strdup(fill);
+    auto *buffer = (byte_t *) strdup(fill);
     auto buff_len = (int64_t) strlen((const char *) buffer);
 
     // Shift the buffer 3 bits to the right
@@ -61,8 +61,7 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(compare_files("data/test1.dat", "data/test1.dat") == 0);
-    }
-    SECTION("Difference") {
+    }SECTION("Difference") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
@@ -72,11 +71,11 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
     FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "w");
     FILE *read_file_ptr = fopen("data/test1.dat", "r");
     auto rc = write_segment_to_file(read_file_ptr, 10, 26, test_outfile_ptr);
-    REQUIRE(rc == 0);
+    REQUIRE(rc == 26);
     rc = write_segment_to_file(read_file_ptr, 0, 10, test_outfile_ptr);
-    REQUIRE(rc == 0);
+    REQUIRE(rc == 10);
     rc = write_segment_to_file(read_file_ptr, 36, 27, test_outfile_ptr);
-    REQUIRE(rc == 0);
+    REQUIRE(rc == 27);
     fclose(read_file_ptr);
     fclose(test_outfile_ptr);
 }
@@ -88,17 +87,24 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    file_info_ptr->num_changes = get_session_num_changes(session_ptr);
+    const byte_t *bytes;
+    const auto length = get_change_bytes(change_ptr, &bytes);
+    if (0 < get_change_serial(change_ptr)) { ++file_info_ptr->num_changes; }
+    else { --file_info_ptr->num_changes; /* this is in UNDO */}
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": )"
-         << get_change_kind_as_char(change_ptr) << R"(, "offset": )" << get_change_offset(change_ptr)
-         << R"(, "length": )" << get_change_length(change_ptr) << R"(, "byte": )" << get_change_byte(change_ptr) << "}"
-         << endl;
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": ")"
+         << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
+         << R"(, "length": )" << get_change_length(change_ptr);
+    if (bytes) {
+        clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")";
+    }
+    clog << "}" << endl;
 }
 
 TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_info_t file_info;
+    file_info.num_changes = 0;
     file_info.in_filename = "data/empty_file.txt";
     const auto test_infile_fptr = fopen(file_info.in_filename, "r");
     REQUIRE(test_infile_fptr);
@@ -109,14 +115,16 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     REQUIRE(get_session_offset(session_ptr) == 0);
     auto file_size = get_session_length(session_ptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    ins(author_ptr, 0, 1, '0');
+    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     destroy_session(session_ptr);
+    fclose(test_infile_fptr);
 }
 
 TEST_CASE("Model Test", "[ModelTests]") {
     file_info_t file_info;
+    file_info.num_changes = 0;
     file_info.in_filename = "data/model-test.txt";
     auto test_infile_fptr = fopen(file_info.in_filename, "r");
     REQUIRE(test_infile_fptr);
@@ -127,7 +135,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     auto file_size = ftello(test_infile_fptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto author_ptr = create_author(session_ptr, author_name);
-    ins(author_ptr, 0, 1, '0');
+    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"), 1);
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
@@ -136,7 +144,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.1.txt") != 0);
     REQUIRE(compare_files("data/model-test.expected.1.txt", "data/model-test.actual.1.txt") == 0);
-    ins(author_ptr, 10, 1, '0');
+    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("0"), 1);
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.2.txt", "w");
@@ -144,7 +152,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.2.txt", "data/model-test.actual.2.txt") == 0);
-    ins(author_ptr, 5, 3, 'x');
+    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("xxx"));
     file_size += 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
@@ -162,11 +170,11 @@ TEST_CASE("Model Test", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
-    ovr(author_ptr, 0, '-');
-    ovr(author_ptr, file_size - 1, '+');
-    ins(author_ptr, 5, 7, 'X');
+    ovr(author_ptr, 0, reinterpret_cast<const byte_t *>("-"));
+    ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1);
+    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7);
     del(author_ptr, 7, 4);
-    ovr(author_ptr, 6, 'O');
+    ovr(author_ptr, 6, reinterpret_cast<const byte_t *>("O"), 0);
     test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
@@ -178,6 +186,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.6.txt") == 0);
     destroy_session(session_ptr);
@@ -206,17 +215,17 @@ TEST_CASE("Check initialization", "[InitTests]") {
                 author_ptr = create_author(session_ptr, author_name);
                 REQUIRE(strcmp(author_name, get_author_name(author_ptr)) == 0);
                 SECTION("Add bytes") {
-                    ins(author_ptr, 10, 4, '+');
+                    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("++++"), 4);
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ovr(author_ptr, 12, '.');
+                    ovr(author_ptr, 12, reinterpret_cast<const byte_t *>("."), 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ins(author_ptr, 0, 3, '+');
+                    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("+++"));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 1, '.');
+                    ovr(author_ptr, 1, reinterpret_cast<const byte_t *>("."));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 15, '*');
+                    ovr(author_ptr, 15, reinterpret_cast<const byte_t *>("*"));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ins(author_ptr, 15, 1, '+');
+                    ins(author_ptr, 15, reinterpret_cast<const byte_t *>("+"));
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     del(author_ptr, 9, 5);
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
@@ -235,7 +244,9 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
-enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum display_mode_t {
+    BIT_MODE, BYTE_MODE, CHAR_MODE
+};
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
@@ -315,14 +326,14 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
     // Copy the contents of the 6-bit offset viewport into a buffer and shift it 1 more bit to get back on 8-bit
     // alignment for simple comparison with the original fill
-    auto *buffer = (uint8_t *) malloc(get_viewport_capacity(viewport_ptr));
+    auto *buffer = (byte_t *) malloc(get_viewport_capacity(viewport_ptr));
     memcpy(buffer, get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
     auto rc = left_shift_buffer(buffer, get_viewport_length(viewport_ptr), 1);
     REQUIRE(rc == 0);
     REQUIRE(memcmp(buffer, fill + 1, get_viewport_length(viewport_ptr) - 1) == 0);
     free(buffer);
 
-    rc = ins(author_ptr, 3, 4, '+');
+    rc = ins(author_ptr, 3, reinterpret_cast<const byte_t *>("++++"));
     REQUIRE(rc == 0);
     viewport_count = get_session_num_viewports(session_ptr);
     rc = destroy_viewport(viewport_ptr);
