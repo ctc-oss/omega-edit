@@ -54,13 +54,19 @@ typedef shared_ptr<author_t> author_ptr_t;
 enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
 typedef unique_ptr<byte_t[]> data_ptr_t;
 
+union data_t {
+    data_ptr_t bytes{};///< Hold bytes of length greater than 7
+    byte_t sm_bytes[8];///< Hold bytes of length less than 8
+    ~data_t(){};       // Need a destructor for this
+};
+
 struct change_t {
     const author_t *author_ptr{};///< Author of the change
     int64_t serial{};            ///< Serial number of the change (increasing)
     change_kind_t kind{};        ///< Change kind
     int64_t offset{};            ///< Offset at the time of the change
     int64_t length{};            ///< Number of bytes at the time of the change
-    data_ptr_t bytes{};          ///< Bytes to insert or overwrite
+    data_t data{};               ///< Bytes to insert or overwrite
 };
 typedef shared_ptr<change_t> change_ptr_t;
 
@@ -83,7 +89,7 @@ struct segment_t {
     int64_t computed_offset{};///< computed offset can differ from the change because segments can moved and be split
     int64_t computed_length{};///< computed length can differ from the change because changes can be split
     int64_t change_offset{};  ///< change offset is the offset in the change due to a split
-    change_ptr_t change_ptr;
+    change_ptr_t change_ptr{};
 };
 typedef shared_ptr<segment_t> segment_ptr_t;
 
@@ -103,10 +109,10 @@ struct session_t {
     void *user_data_ptr{};                ///< Pointer to user-provided data associated with this session
     int64_t offset{};                     ///< Edit offset into the file being edited
     int64_t length{};                     ///< Edit length into the file being edited
-    authors_t authors;                    ///< Collection of authors in this session
-    viewports_t viewports;                ///< Collection of viewports in this session
-    changes_t changes;                    ///< Collection of changes for this session, ordered by time
-    model_t model_;                       ///< Edit model (internal)
+    authors_t authors{};                  ///< Collection of authors in this session
+    viewports_t viewports{};              ///< Collection of viewports in this session
+    changes_t changes{};                  ///< Collection of changes for this session, ordered by time
+    model_t model_{};                     ///< Edit model (internal)
 };
 
 /***********************************************************************************************************************
@@ -173,8 +179,14 @@ int64_t get_change_length(const change_t *change_ptr) { return change_ptr->lengt
 
 int64_t get_change_serial(const change_t *change_ptr) { return change_ptr->serial; }
 
+inline const byte_t *change_bytes_(const change_t *change_ptr) {
+    return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
+                   ? ((change_ptr->length < 8) ? change_ptr->data.sm_bytes : change_ptr->data.bytes.get())
+                   : nullptr;
+}
+
 int64_t get_change_bytes(const change_t *change_ptr, const byte_t **bytes) {
-    *bytes = (change_ptr->kind != change_kind_t::CHANGE_DELETE) ? change_ptr->bytes.get() : nullptr;
+    *bytes = change_bytes_(change_ptr);
     return change_ptr->length;
 }
 
@@ -200,14 +212,17 @@ change_ptr_t del_(const author_t *author_ptr, int64_t offset, int64_t length) {
     change_ptr->kind = change_kind_t::CHANGE_DELETE;
     change_ptr->offset = offset;
     change_ptr->length = length;
-    change_ptr->bytes = nullptr;
+    change_ptr->data.bytes = nullptr;
     return change_ptr;
 }
 
 int del(const author_t *author_ptr, int64_t offset, int64_t length) {
-    auto change_ptr = del_(author_ptr, offset, length);
-    change_ptr->serial = ++author_ptr->session_ptr->serial;
-    return update_(change_ptr);
+    if (offset < get_computed_file_size(author_ptr->session_ptr)) {
+        auto change_ptr = del_(author_ptr, offset, length);
+        change_ptr->serial = ++author_ptr->session_ptr->serial;
+        return update_(change_ptr);
+    }
+    return -1;
 }
 
 change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
@@ -216,15 +231,22 @@ change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const byte_t *byte
     change_ptr->serial = ++author_ptr->session_ptr->serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : strlen((const char *) bytes);
-    change_ptr->bytes = make_unique<byte_t[]>(change_ptr->length + 1);
-    memcpy(change_ptr->bytes.get(), bytes, change_ptr->length);
-    change_ptr->bytes.get()[change_ptr->length] = '\0';
+    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    if (change_ptr->length < 8) {
+        memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
+        change_ptr->data.sm_bytes[change_ptr->length] = '\0';
+    } else {
+        change_ptr->data.bytes = make_unique<byte_t[]>(change_ptr->length + 1);
+        memcpy(change_ptr->data.bytes.get(), bytes, change_ptr->length);
+        change_ptr->data.bytes.get()[change_ptr->length] = '\0';
+    }
     return change_ptr;
 }
 
 int ins(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
-    return update_(ins_(author_ptr, offset, bytes, length));
+    return (offset <= get_computed_file_size(author_ptr->session_ptr))
+                   ? update_(ins_(author_ptr, offset, bytes, length))
+                   : -1;
 }
 
 change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
@@ -233,15 +255,21 @@ change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *byte
     change_ptr->serial = ++author_ptr->session_ptr->serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : strlen((const char *) bytes);
-    change_ptr->bytes = make_unique<byte_t[]>(change_ptr->length + 1);
-    memcpy(change_ptr->bytes.get(), bytes, change_ptr->length);
-    change_ptr->bytes.get()[change_ptr->length] = '\0';
+    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    if (change_ptr->length < 8) {
+        memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
+        change_ptr->data.sm_bytes[change_ptr->length] = '\0';
+    } else {
+        change_ptr->data.bytes = make_unique<byte_t[]>(change_ptr->length + 1);
+        memcpy(change_ptr->data.bytes.get(), bytes, change_ptr->length);
+        change_ptr->data.bytes.get()[change_ptr->length] = '\0';
+    }
     return change_ptr;
 }
 
 int ovr(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
-    return update_(ovr_(author_ptr, offset, bytes, length));
+    return (offset < get_computed_file_size(author_ptr->session_ptr)) ? update_(ovr_(author_ptr, offset, bytes, length))
+                                                                      : -1;
 }
 
 int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data) {
@@ -412,8 +440,8 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
                 break;
             }
             case segment_kind_t::SEGMENT_INSERT: {
-                if (fwrite(segment->change_ptr->bytes.get() + segment->change_offset, 1, segment->computed_length,
-                           write_fptr) != segment->computed_length) {
+                if (fwrite(change_bytes_(segment->change_ptr.get()) + segment->change_offset, 1,
+                           segment->computed_length, write_fptr) != segment->computed_length) {
                     return -1;
                 }
                 break;
@@ -444,8 +472,9 @@ static void print_change_(const change_ptr_t &change_ptr, ostream &out_stream) {
     out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"
                << get_change_kind_as_char(change_ptr.get()) << R"(", "offset": )" << change_ptr->offset
                << R"(, "length": )" << change_ptr->length;
-    if (change_ptr->bytes) {
-        out_stream << R"(, "bytes": ")" << string((char const *) change_ptr->bytes.get(), change_ptr->length) << R"(")";
+    if (change_bytes_(change_ptr.get())) {
+        out_stream << R"(, "bytes": ")" << string((char const *) change_bytes_(change_ptr.get()), change_ptr->length)
+                   << R"(")";
     }
     out_stream << "}";
 }
@@ -547,7 +576,7 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
                         // For insert segments, we're writing the change byte buffer, or portion thereof, into the
                         // viewport
                         memcpy(viewport_ptr->data_ptr.get() + viewport_ptr->length,
-                               (*iter)->change_ptr->bytes.get() + (*iter)->change_offset + delta, amount);
+                               change_bytes_((*iter)->change_ptr.get()) + (*iter)->change_offset + delta, amount);
                         break;
                     }
                     default:
