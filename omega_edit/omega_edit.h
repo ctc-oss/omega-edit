@@ -168,12 +168,12 @@ session_t *get_author_session(const author_t *author_ptr);
 
 /**
  * Create a file editing session
- * @param file_ptr file, opened for read, to create an editing session with
+ * @param file_ptr file, opened for read, to create an editing session with, or nullptr if we're starting from scratch
  * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @param viewport_max_capacity maximum allowed viewport capacity for this session
  * @param offset offset to start editing from, 0 (default) is the beginning of the file
- * @param length mount of the file from the offset to edit, 0 (default) is the length of the file
+ * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
 * @return pointer to the created session, nullptr on failure
  */
 session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk = nullptr, void *user_data_ptr = nullptr,
