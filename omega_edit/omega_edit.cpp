@@ -442,7 +442,7 @@ static char segment_kind_as_char_(segment_kind_t segment_kind) {
     return '?';
 }
 
-static void print_change_(const change_ptr_t change_ptr, ostream &out_stream) {
+static void print_change_(const change_ptr_t &change_ptr, ostream &out_stream) {
     out_stream << R"({"serial": )" << change_ptr->serial
                << R"(, "kind": ")" << get_change_kind_as_char(change_ptr.get())
                << R"(", "offset": )" << change_ptr->offset
