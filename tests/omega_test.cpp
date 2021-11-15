@@ -93,7 +93,7 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     else { --file_info_ptr->num_changes; /* this is in UNDO */}
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
-         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": ")"
+         << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "change_kind": ")"
          << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
          << R"(, "length": )" << get_change_length(change_ptr);
     if (bytes) {
@@ -193,6 +193,36 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_infile_fptr);
 }
 
+TEST_CASE("Hanoi insert", "[ModelTests") {
+    file_info_t file_info;
+    file_info.num_changes = 0;
+    file_info.in_filename = "NO FILE";
+    const auto author_name = "Hanoi insert test";
+    const auto session_ptr =
+            create_session(nullptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    REQUIRE(get_computed_file_size(session_ptr) == 0);
+    auto author_ptr = create_author(session_ptr, author_name);
+    // Hanoi test
+    REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("00")));
+    REQUIRE(0 == ins(author_ptr, 1, reinterpret_cast<const byte_t *>("11")));
+    REQUIRE(0 == ins(author_ptr, 2, reinterpret_cast<const byte_t *>("22")));
+    REQUIRE(0 == ins(author_ptr, 3, reinterpret_cast<const byte_t *>("33")));
+    REQUIRE(0 == ins(author_ptr, 4, reinterpret_cast<const byte_t *>("44")));
+    REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("55")));
+    REQUIRE(0 == ins(author_ptr, 6, reinterpret_cast<const byte_t *>("66")));
+    REQUIRE(0 == ins(author_ptr, 7, reinterpret_cast<const byte_t *>("77")));
+    REQUIRE(0 == ins(author_ptr, 8, reinterpret_cast<const byte_t *>("88")));
+    REQUIRE(0 == ins(author_ptr, 9, reinterpret_cast<const byte_t *>("99")));
+    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*")));
+    auto test_outfile_fptr = fopen("data/model-test.actual.7.txt", "w");
+    REQUIRE(test_outfile_fptr);
+    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
+    fclose(test_outfile_fptr);
+    REQUIRE(compare_files("data/model-test.expected.7.txt", "data/model-test.actual.7.txt") == 0);
+    destroy_session(session_ptr);
+}
+
 TEST_CASE("Check initialization", "[InitTests]") {
     FILE *test_infile_ptr;
     session_t *session_ptr;
@@ -253,11 +283,11 @@ struct view_mode_t {
 
 void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) {
     if (change_ptr) { clog << "Change Author: " << get_author_name(get_change_author(change_ptr)) << endl; }
-    clog << "'" << get_author_name(get_viewport_author(viewport_ptr))
+    clog << dec << "'" << get_author_name(get_viewport_author(viewport_ptr))
          << "' viewport, capacity: " << get_viewport_capacity(viewport_ptr)
          << " length: " << get_viewport_length(viewport_ptr)
          << " offset: " << get_viewport_computed_offset(viewport_ptr)
-         << " bit offset:" << get_viewport_bit_offset(viewport_ptr) << endl;
+         << " bit offset:" << static_cast<int>(get_viewport_bit_offset(viewport_ptr)) << endl;
     if (get_viewport_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
