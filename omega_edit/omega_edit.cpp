@@ -416,7 +416,7 @@ session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk, void *user_
             session_ptr->on_change_cbk = cbk;
             session_ptr->user_data_ptr = user_data_ptr;
             session_ptr->offset = offset;
-            session_ptr->length = (length) ? min(length, file_size) : file_size;
+            session_ptr->length = (length) ? min(length, (file_size - offset)) : (file_size - offset);
 
             initialize_model_(session_ptr);
 
