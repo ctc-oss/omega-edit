@@ -55,9 +55,8 @@ int save_changes_cbk(const change_t *change_ptr, void *userdata) {
             abort();
     }
     // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
-    int64_t bytes_length;
-    const uint8_t *bytes;
-    get_change_bytes(change_ptr, &bytes, &bytes_length);
+    const byte_t *bytes;
+    const auto bytes_length = get_change_bytes(change_ptr, &bytes);
     const auto required_buffer_size = bytes_length * 2 + 1;
     if (bytes) {
         if (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size) {
@@ -77,7 +76,7 @@ int save_changes_cbk(const change_t *change_ptr, void *userdata) {
     return 0;
 }
 
-void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
+void session_change_cbk(const session_t *session_ptr, const change_t *) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
     file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
     file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "w");
@@ -85,16 +84,18 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     fclose(file_info_ptr->save_fptr);
 }
 
-enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum display_mode_t {
+    BIT_MODE, BYTE_MODE, CHAR_MODE
+};
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
 
-inline void write_pretty_bits_byte(uint8_t byte) {
+inline void write_pretty_bits_byte(byte_t byte) {
     for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
-void write_pretty_bits(const uint8_t *ptr, int64_t size) {
+void write_pretty_bits(const byte_t *ptr, int64_t size) {
     if (size > 0) {
         auto i = 0;
         write_pretty_bits_byte(ptr[i++]);
@@ -105,7 +106,7 @@ void write_pretty_bits(const uint8_t *ptr, int64_t size) {
     }
 }
 
-void write_pretty_bytes(const uint8_t *data, int64_t size) {
+void write_pretty_bytes(const byte_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
         clog << setfill('0');
@@ -175,29 +176,29 @@ int main(int /*argc*/, char ** /*argv*/) {
     del(author_ptr, 0, get_computed_file_size(session_ptr));
     if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
     undo_last_change(author_ptr);
-    ins(author_ptr, 0, (const uint8_t *)"++++");
-    ovr(author_ptr, 5, (const uint8_t *)"-");
-    ins(author_ptr, 0, (const uint8_t *)"++++");
+    ins(author_ptr, 0, (const byte_t *) "++++");
+    ovr(author_ptr, 5, (const byte_t *) "-");
+    ins(author_ptr, 0, (const byte_t *) "++++");
     if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
     auto viewport2_ptr = create_viewport(author_ptr, 50, 10, vpt_change_cbk, &view_mode);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
-    ins(author_ptr, 71, (const uint8_t *)"++++");
-    ovr(author_ptr, 10, (const uint8_t *)".");
+    ins(author_ptr, 71, (const byte_t *) "++++");
+    ovr(author_ptr, 10, (const byte_t *) ".");
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    ovr(author_ptr, 0, (const uint8_t *)"...");
-    ovr(author_ptr, 74, (const uint8_t *)".");
-    ins(author_ptr, 70, (const uint8_t *)"***");
+    ovr(author_ptr, 0, (const byte_t *) "...");
+    ovr(author_ptr, 74, (const byte_t *) ".");
+    ins(author_ptr, 70, (const byte_t *) "***");
     del(author_ptr, 70, 2);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
 
-    ins(author_ptr, 10, (const uint8_t *)"++++");
-    ovr(author_ptr, 12, (const uint8_t *)".");
+    ins(author_ptr, 10, (const byte_t *) "++++");
+    ovr(author_ptr, 12, (const byte_t *) ".");
 
-    ins(author_ptr, 0, (const uint8_t *)"+++");
-    ovr(author_ptr, 1, (const uint8_t *)".");
-    ovr(author_ptr, 77, (const uint8_t *)".");
+    ins(author_ptr, 0, (const byte_t *) "+++");
+    ovr(author_ptr, 1, (const byte_t *) ".");
+    ovr(author_ptr, 77, (const byte_t *) ".");
     del(author_ptr, 50, 3);
-    ins(author_ptr, 50, (const uint8_t *)"***", 3);
+    ins(author_ptr, 50, (const byte_t *) "***", 3);
     del(author_ptr, 1, 50);
     undo_last_change(author_ptr);
 

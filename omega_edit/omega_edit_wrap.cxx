@@ -1570,7 +1570,7 @@ fail: ;
 #define SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void swig_types[6]
 #define SWIGTYPE_p_int64_t swig_types[7]
 #define SWIGTYPE_p_session_t swig_types[8]
-#define SWIGTYPE_p_uint8_t swig_types[9]
+#define SWIGTYPE_p_byte_t swig_types[9]
 #define SWIGTYPE_p_viewport_t swig_types[10]
 #define SWIGTYPE_p_void swig_types[11]
 static swig_type_info *swig_types[13];
@@ -1899,7 +1899,7 @@ static SwigV8ReturnValue _wrap_get_change_byte(const SwigV8Arguments &args) {
   change_t *arg1 = (change_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  uint8_t result;
+  byte_t result;
   
   if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_change_byte.");
   
@@ -1909,7 +1909,7 @@ static SwigV8ReturnValue _wrap_get_change_byte(const SwigV8Arguments &args) {
   }
   arg1 = reinterpret_cast< change_t * >(argp1);
   result = get_change_byte((change_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new uint8_t(static_cast< const uint8_t& >(result))), SWIGTYPE_p_uint8_t, SWIG_POINTER_OWN |  0 );
+  jsresult = SWIG_NewPointerObj((new byte_t(static_cast< const byte_t& >(result))), SWIGTYPE_p_byte_t, SWIG_POINTER_OWN |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -2082,7 +2082,7 @@ static SwigV8ReturnValue _wrap_get_viewport_data(const SwigV8Arguments &args) {
   viewport_t *arg1 = (viewport_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  uint8_t *result = 0 ;
+  byte_t *result = 0 ;
   
   if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_data.");
   
@@ -2091,8 +2091,8 @@ static SwigV8ReturnValue _wrap_get_viewport_data(const SwigV8Arguments &args) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_data" "', argument " "1"" of type '" "viewport_t const *""'"); 
   }
   arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (uint8_t *)get_viewport_data((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_uint8_t, 0 |  0 );
+  result = (byte_t *)get_viewport_data((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_byte_t, 0 |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -2166,7 +2166,7 @@ static SwigV8ReturnValue _wrap_get_viewport_bit_offset(const SwigV8Arguments &ar
   viewport_t *arg1 = (viewport_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  uint8_t result;
+  byte_t result;
   
   if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_bit_offset.");
   
@@ -2176,7 +2176,7 @@ static SwigV8ReturnValue _wrap_get_viewport_bit_offset(const SwigV8Arguments &ar
   }
   arg1 = reinterpret_cast< viewport_t * >(argp1);
   result = get_viewport_bit_offset((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new uint8_t(static_cast< const uint8_t& >(result))), SWIGTYPE_p_uint8_t, SWIG_POINTER_OWN |  0 );
+  jsresult = SWIG_NewPointerObj((new byte_t(static_cast< const byte_t& >(result))), SWIGTYPE_p_byte_t, SWIG_POINTER_OWN |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -2772,7 +2772,7 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &ar
   int64_t arg3 ;
   viewport_on_change_cbk arg4 = (viewport_on_change_cbk) 0 ;
   void *arg5 = (void *) 0 ;
-  uint8_t arg6 ;
+  byte_t arg6 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 ;
@@ -2822,14 +2822,14 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &ar
     SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "create_viewport" "', argument " "5"" of type '" "void *""'"); 
   }
   {
-    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_uint8_t,  0 );
+    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_byte_t,  0 );
     if (!SWIG_IsOK(res6)) {
-      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "create_viewport" "', argument " "6"" of type '" "uint8_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "create_viewport" "', argument " "6"" of type '" "byte_t""'");
     }  
     if (!argp6) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "6"" of type '" "uint8_t""'");
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "6"" of type '" "byte_t""'");
     } else {
-      arg6 = *(reinterpret_cast< uint8_t * >(argp6));
+      arg6 = *(reinterpret_cast< byte_t * >(argp6));
     }
   }
   result = (viewport_t *)create_viewport((author_t const *)arg1,arg2,arg3,arg4,arg5,arg6);
@@ -3024,7 +3024,7 @@ static SwigV8ReturnValue _wrap_ovr(const SwigV8Arguments &args) {
   v8::Handle<v8::Value> jsresult;
   author_t *arg1 = (author_t *) 0 ;
   int64_t arg2 ;
-  uint8_t arg3 ;
+  byte_t arg3 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 ;
@@ -3052,14 +3052,14 @@ static SwigV8ReturnValue _wrap_ovr(const SwigV8Arguments &args) {
     }
   }
   {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_uint8_t,  0 );
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_byte_t,  0 );
     if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "uint8_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "byte_t""'");
     }  
     if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "3"" of type '" "uint8_t""'");
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "3"" of type '" "byte_t""'");
     } else {
-      arg3 = *(reinterpret_cast< uint8_t * >(argp3));
+      arg3 = *(reinterpret_cast< byte_t * >(argp3));
     }
   }
   result = (int)ovr((author_t const *)arg1,arg2,arg3);
@@ -3137,7 +3137,7 @@ static SwigV8ReturnValue _wrap_ins(const SwigV8Arguments &args) {
   author_t *arg1 = (author_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  uint8_t arg4 ;
+  byte_t arg4 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 ;
@@ -3178,14 +3178,14 @@ static SwigV8ReturnValue _wrap_ins(const SwigV8Arguments &args) {
     }
   }
   {
-    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_uint8_t,  0 );
+    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_byte_t,  0 );
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ins" "', argument " "4"" of type '" "uint8_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ins" "', argument " "4"" of type '" "byte_t""'");
     }  
     if (!argp4) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "4"" of type '" "uint8_t""'");
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "4"" of type '" "byte_t""'");
     } else {
-      arg4 = *(reinterpret_cast< uint8_t * >(argp4));
+      arg4 = *(reinterpret_cast< byte_t * >(argp4));
     }
   }
   result = (int)ins((author_t const *)arg1,arg2,arg3,arg4);
@@ -3375,7 +3375,7 @@ static SwigV8ReturnValue _wrap_update_viewport(const SwigV8Arguments &args) {
   viewport_t *arg1 = (viewport_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  uint8_t arg4 ;
+  byte_t arg4 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 ;
@@ -3416,14 +3416,14 @@ static SwigV8ReturnValue _wrap_update_viewport(const SwigV8Arguments &args) {
     }
   }
   {
-    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_uint8_t,  0 );
+    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_byte_t,  0 );
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "update_viewport" "', argument " "4"" of type '" "uint8_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "update_viewport" "', argument " "4"" of type '" "byte_t""'");
     }  
     if (!argp4) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "4"" of type '" "uint8_t""'");
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "4"" of type '" "byte_t""'");
     } else {
-      arg4 = *(reinterpret_cast< uint8_t * >(argp4));
+      arg4 = *(reinterpret_cast< byte_t * >(argp4));
     }
   }
   result = (int)update_viewport(arg1,arg2,arg3,arg4);
@@ -3514,7 +3514,7 @@ static swig_type_info _swigt__p_f_p_q_const__session_t_p_q_const__change_t__void
 static swig_type_info _swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void = {"_p_f_p_q_const__viewport_t_p_q_const__change_t__void", "viewport_on_change_cbk|void (*)(viewport_t const *,change_t const *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int64_t = {"_p_int64_t", "int64_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_session_t = {"_p_session_t", "session_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_uint8_t = {"_p_uint8_t", "uint8_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_byte_t = {"_p_byte_t", "byte_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_viewport_t = {"_p_viewport_t", "viewport_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
 
@@ -3528,7 +3528,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
   &_swigt__p_int64_t,
   &_swigt__p_session_t,
-  &_swigt__p_uint8_t,
+  &_swigt__p_byte_t,
   &_swigt__p_viewport_t,
   &_swigt__p_void,
 };
@@ -3542,7 +3542,7 @@ static swig_cast_info _swigc__p_f_p_q_const__session_t_p_q_const__change_t__void
 static swig_cast_info _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void[] = {  {&_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_int64_t[] = {  {&_swigt__p_int64_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_session_t[] = {  {&_swigt__p_session_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_uint8_t[] = {  {&_swigt__p_uint8_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_byte_t[] = {  {&_swigt__p_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_viewport_t[] = {  {&_swigt__p_viewport_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_void[] = {  {&_swigt__p_void, 0, 0, 0},{0, 0, 0, 0}};
 
@@ -3556,7 +3556,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
   _swigc__p_int64_t,
   _swigc__p_session_t,
-  _swigc__p_uint8_t,
+  _swigc__p_byte_t,
   _swigc__p_viewport_t,
   _swigc__p_void,
 };

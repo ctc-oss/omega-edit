@@ -29,7 +29,7 @@ using namespace std;
 
 TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    auto *buffer = (uint8_t *) strdup(fill);
+    auto *buffer = (byte_t *) strdup(fill);
     auto buff_len = (int64_t) strlen((const char *) buffer);
 
     // Shift the buffer 3 bits to the right
@@ -87,9 +87,8 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    const uint8_t *bytes;
-    int64_t length;
-    get_change_bytes(change_ptr, &bytes, &length);
+    const byte_t *bytes;
+    const auto length = get_change_bytes(change_ptr, &bytes);
     if (0 < get_change_serial(change_ptr)) { ++file_info_ptr->num_changes; }
     else { --file_info_ptr->num_changes; /* this is in UNDO */}
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
@@ -116,7 +115,7 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     REQUIRE(get_session_offset(session_ptr) == 0);
     auto file_size = get_session_length(session_ptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    ins(author_ptr, 0, reinterpret_cast<const uint8_t *>("0"));
+    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     destroy_session(session_ptr);
@@ -135,7 +134,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     auto file_size = ftello(test_infile_fptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto author_ptr = create_author(session_ptr, author_name);
-    ins(author_ptr, 0, reinterpret_cast<const uint8_t *>("0"), 1);
+    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"), 1);
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
@@ -144,7 +143,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.1.txt") != 0);
     REQUIRE(compare_files("data/model-test.expected.1.txt", "data/model-test.actual.1.txt") == 0);
-    ins(author_ptr, 10, reinterpret_cast<const uint8_t *>("0"), 1);
+    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("0"), 1);
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.2.txt", "w");
@@ -152,7 +151,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.2.txt", "data/model-test.actual.2.txt") == 0);
-    ins(author_ptr, 5, reinterpret_cast<const uint8_t *>("xxx"));
+    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("xxx"));
     file_size += 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
@@ -170,11 +169,11 @@ TEST_CASE("Model Test", "[ModelTests]") {
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
-    ovr(author_ptr, 0, reinterpret_cast<const uint8_t *>("-"));
-    ovr(author_ptr, file_size - 1, reinterpret_cast<const uint8_t *>("+"), 1);
-    ins(author_ptr, 5, reinterpret_cast<const uint8_t *>("XxXxXxX"), 7);
+    ovr(author_ptr, 0, reinterpret_cast<const byte_t *>("-"));
+    ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1);
+    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7);
     del(author_ptr, 7, 4);
-    ovr(author_ptr, 6, reinterpret_cast<const uint8_t *>("O"), 0);
+    ovr(author_ptr, 6, reinterpret_cast<const byte_t *>("O"), 0);
     test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
@@ -215,17 +214,17 @@ TEST_CASE("Check initialization", "[InitTests]") {
                 author_ptr = create_author(session_ptr, author_name);
                 REQUIRE(strcmp(author_name, get_author_name(author_ptr)) == 0);
                 SECTION("Add bytes") {
-                    ins(author_ptr, 10, reinterpret_cast<const uint8_t *>("++++"), 4);
+                    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("++++"), 4);
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ovr(author_ptr, 12, reinterpret_cast<const uint8_t *>("."), 1);
+                    ovr(author_ptr, 12, reinterpret_cast<const byte_t *>("."), 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ins(author_ptr, 0, reinterpret_cast<const uint8_t *>("+++"));
+                    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("+++"));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 1, reinterpret_cast<const uint8_t *>("."));
+                    ovr(author_ptr, 1, reinterpret_cast<const byte_t *>("."));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 15, reinterpret_cast<const uint8_t *>("*"));
+                    ovr(author_ptr, 15, reinterpret_cast<const byte_t *>("*"));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ins(author_ptr, 15, reinterpret_cast<const uint8_t *>("+"));
+                    ins(author_ptr, 15, reinterpret_cast<const byte_t *>("+"));
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     del(author_ptr, 9, 5);
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
@@ -326,14 +325,14 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
     // Copy the contents of the 6-bit offset viewport into a buffer and shift it 1 more bit to get back on 8-bit
     // alignment for simple comparison with the original fill
-    auto *buffer = (uint8_t *) malloc(get_viewport_capacity(viewport_ptr));
+    auto *buffer = (byte_t *) malloc(get_viewport_capacity(viewport_ptr));
     memcpy(buffer, get_viewport_data(viewport_ptr), get_viewport_length(viewport_ptr));
     auto rc = left_shift_buffer(buffer, get_viewport_length(viewport_ptr), 1);
     REQUIRE(rc == 0);
     REQUIRE(memcmp(buffer, fill + 1, get_viewport_length(viewport_ptr) - 1) == 0);
     free(buffer);
 
-    rc = ins(author_ptr, 3, reinterpret_cast<const uint8_t *>("++++"));
+    rc = ins(author_ptr, 3, reinterpret_cast<const byte_t *>("++++"));
     REQUIRE(rc == 0);
     viewport_count = get_session_num_viewports(session_ptr);
     rc = destroy_viewport(viewport_ptr);

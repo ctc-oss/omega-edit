@@ -28,7 +28,7 @@ using namespace std;
 
 struct last_byte_info_t {
     bool has_last_byte{};
-    uint8_t last_byte{};
+    byte_t last_byte{};
 };
 
 void vpt_change_last_byte_cbk(const viewport_t *viewport_ptr, const change_t *) {
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
             auto last_byte = last_byte_info.last_byte;
             // Ths could be more efficient to insert the last_byte rather than insert a bogus byte, then overwrite it,
             // but the purpose of this routine is to exercise all the edit operations.
-            if (ins(author_ptr, 0, reinterpret_cast<const uint8_t *>("+"), 1) != 0) {
+            if (ins(author_ptr, 0, reinterpret_cast<const byte_t *>("+"), 1) != 0) {
                 clog << "Error inserting\n";
                 return -1;
             }

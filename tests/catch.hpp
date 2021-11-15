@@ -3422,7 +3422,7 @@ namespace Matchers {
 
     namespace Floating {
 
-        enum class FloatingPointKind : uint8_t;
+        enum class FloatingPointKind : byte_t;
 
         struct WithinAbsMatcher : MatcherBase<double> {
             WithinAbsMatcher(double target, double margin);
@@ -11555,7 +11555,7 @@ void write(std::ostream& out, FloatingPoint num) {
 namespace Matchers {
 namespace Floating {
 
-    enum class FloatingPointKind : uint8_t {
+    enum class FloatingPointKind : byte_t {
         Float,
         Double
     };

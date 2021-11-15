@@ -32,9 +32,8 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
-    const uint8_t *bytes;
-    int64_t length;
-    get_change_bytes(change_ptr, &bytes, &length);
+    const byte_t *bytes;
+    const auto length = get_change_bytes(change_ptr, &bytes);
     // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
@@ -47,7 +46,7 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     clog << "}" << endl;
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
     if (argc != 3) {
         fprintf(stderr,
                 "Reads changes from stdin, applies them to the infile and saves the results to the outfile.\n\n"
@@ -85,11 +84,12 @@ int main(int argc, char ** argv) {
     while (!feof(stdin)) {
         char change_type;
         int64_t offset, length;
-        uint8_t bytes[1024];
-        uint8_t hex_bytes[2048];
+        byte_t bytes[1024];
+        byte_t hex_bytes[2048];
         // NOTE: This is for demonstration purposes only.  This is not production safe parsing.
         fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes);
-        if (hex_bytes[0] != 'x' && length != hex2bin((const char *)hex_bytes, bytes, strlen((const char *)hex_bytes))) {
+        if (hex_bytes[0] != 'x' &&
+            length != hex2bin((const char *) hex_bytes, bytes, strlen((const char *) hex_bytes))) {
             clog << "ERROR decoding: '" << hex_bytes << "'\n";
             return -1;
         }

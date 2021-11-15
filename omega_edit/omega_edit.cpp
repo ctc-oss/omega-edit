@@ -31,15 +31,19 @@ using namespace std;
 /***********************************************************************************************************************
  * MACROS
  **********************************************************************************************************************/
+
 #define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
+#define ABORT(x) do { x abort(); } while (0)
+
+#ifndef CLOG
 #define CLOG clog
-#define ABORT(x)                                                                                                       \
-    do { x abort(); } while (0)
+#endif //CLOG
 
 /***********************************************************************************************************************
  * DATA STRUCTURES
  **********************************************************************************************************************/
+
 struct author_t {
     string name;             ///< Name of the author
     session_t *session_ptr{};///< Session associated with this author
@@ -49,27 +53,27 @@ typedef shared_ptr<author_t> author_ptr_t;
 enum class change_kind_t {
     CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE
 };
-typedef unique_ptr<uint8_t[]> data_ptr_t;
+typedef unique_ptr<byte_t[]> data_ptr_t;
 
 struct change_t {
-    const author_t *author_ptr = nullptr;///< Author of the change
-    int64_t serial{};                    ///< Serial number of the change (increasing)
-    change_kind_t kind{};                ///< Change kind
-    int64_t offset{};                    ///< Offset at the time of the change
-    int64_t length{};                    ///< Number of bytes at the time of the change
-    data_ptr_t bytes{};                  ///< Bytes to insert or overwrite
+    const author_t *author_ptr{};///< Author of the change
+    int64_t serial{};            ///< Serial number of the change (increasing)
+    change_kind_t kind{};        ///< Change kind
+    int64_t offset{};            ///< Offset at the time of the change
+    int64_t length{};            ///< Number of bytes at the time of the change
+    data_ptr_t bytes{};          ///< Bytes to insert or overwrite
 };
 typedef shared_ptr<change_t> change_ptr_t;
 
 struct viewport_t {
-    const author_t *author_ptr = nullptr;///< Author who owns this viewport instance
-    int64_t capacity{};                  ///< Data capacity (in bytes) of this viewport
-    int64_t length{};                    ///< Populated data length (in bytes) of this viewport
-    int64_t computed_offset{};           ///< Viewport offset as changes have been made
-    data_ptr_t data_ptr{};               ///< Data in the viewport
-    uint8_t bit_offset{};                ///< Bit offset between 0 and 7 (inclusive) for this viewport (bit-shift left)
-    viewport_on_change_cbk on_change_cbk = nullptr;///< User callback when the viewport changes
-    void *user_data_ptr = nullptr;                 ///< Pointer to user-provided data associated with this viewport
+    const author_t *author_ptr{};///< Author who owns this viewport instance
+    int64_t capacity{};          ///< Data capacity (in bytes) of this viewport
+    int64_t length{};            ///< Populated data length (in bytes) of this viewport
+    int64_t computed_offset{};   ///< Viewport offset as changes have been made
+    data_ptr_t data_ptr{};       ///< Data in the viewport
+    byte_t bit_offset{};         ///< Bit offset between 0 and 7 (inclusive) for this viewport (bit-shift left)
+    viewport_on_change_cbk on_change_cbk{};///< User callback when the viewport changes
+    void *user_data_ptr{};                 ///< Pointer to user-provided data associated with this viewport
 };
 typedef shared_ptr<viewport_t> viewport_ptr_t;
 
@@ -86,31 +90,32 @@ struct segment_t {
 };
 typedef shared_ptr<segment_t> segment_ptr_t;
 
+typedef vector<author_ptr_t> authors_t;
+typedef vector<viewport_ptr_t> viewports_t;
+typedef vector<change_ptr_t> changes_t;
+
 struct model_t {
     vector<segment_ptr_t> segments;
 };
 
-typedef vector<author_ptr_t> author_vector_t;
-typedef vector<viewport_ptr_t> viewport_vector_t;
-typedef vector<change_ptr_t> change_vector_t;
-
 struct session_t {
-    FILE *file_ptr{};                             ///< File being edited (open for read)
-    int64_t serial{};                             ///< Incremented for every change
-    author_vector_t authors;                      ///< Collection of authors in this session
-    viewport_vector_t viewports;                  ///< Collection of viewports in this session
-    change_vector_t changes_by_time;              ///< Collection of changes for this session, ordered by time
-    int64_t viewport_max_capacity{};              ///< Maximum capacity of a viewport for this session
-    session_on_change_cbk on_change_cbk = nullptr;///< User defined callback called when the session gets a change
-    void *user_data_ptr = nullptr;                ///< Pointer to user-provided data associated with this session
-    model_t model;                                ///< Edit model
-    int64_t offset{};
-    int64_t length{};
+    FILE *file_ptr{};                     ///< File being edited (open for read)
+    int64_t serial{};                     ///< Incremented for every change
+    int64_t viewport_max_capacity{};      ///< Maximum capacity of a viewport for this session
+    session_on_change_cbk on_change_cbk{};///< User defined callback called when the session gets a change
+    void *user_data_ptr{};                ///< Pointer to user-provided data associated with this session
+    int64_t offset{};                     ///< Edit offset into the file being edited
+    int64_t length{};                     ///< Edit length into the file being edited
+    authors_t authors;                    ///< Collection of authors in this session
+    viewports_t viewports;                ///< Collection of viewports in this session
+    changes_t changes;                    ///< Collection of changes for this session, ordered by time
+    model_t model_;                       ///< Edit model (internal)
 };
 
 /***********************************************************************************************************************
  * INTERNAL FUNCTION DECLARATIONS
  **********************************************************************************************************************/
+
 static void print_segments_(const session_t *session_ptr, ostream &out_stream);
 
 static void viewport_callback_(viewport_t *viewport_ptr, const change_t *change_ptr);
@@ -134,13 +139,14 @@ static int update_(const change_ptr_t &change_ptr);
 /***********************************************************************************************************************
  * AUTHOR FUNCTIONS
  **********************************************************************************************************************/
+
 const char *get_author_name(const author_t *author_ptr) { return author_ptr->name.c_str(); }
 
 session_t *get_author_session(const author_t *author_ptr) { return author_ptr->session_ptr; }
 
 size_t get_author_num_changes(const author_t *author_ptr) {
     size_t count = 0;
-    for (const auto &change: author_ptr->session_ptr->changes_by_time) {
+    for (const auto &change: author_ptr->session_ptr->changes) {
         if (change->author_ptr->name == author_ptr->name) { ++count; }
     }
     return count;
@@ -163,16 +169,16 @@ const author_t *create_author(session_t *session_ptr, const char *author_name) {
 /***********************************************************************************************************************
  * CHANGE FUNCTIONS
  **********************************************************************************************************************/
+
 int64_t get_change_offset(const change_t *change_ptr) { return change_ptr->offset; }
 
 int64_t get_change_length(const change_t *change_ptr) { return change_ptr->length; }
 
 int64_t get_change_serial(const change_t *change_ptr) { return change_ptr->serial; }
 
-int get_change_bytes(const change_t *change_ptr, const uint8_t **bytes, int64_t *length) {
+int64_t get_change_bytes(const change_t *change_ptr, const byte_t **bytes) {
     *bytes = (change_ptr->kind != change_kind_t::CHANGE_DELETE) ? change_ptr->bytes.get() : nullptr;
-    *length = change_ptr->length;
-    return 0;
+    return change_ptr->length;
 }
 
 char get_change_kind_as_char(const change_t *change_ptr) {
@@ -207,43 +213,43 @@ int del(const author_t *author_ptr, int64_t offset, int64_t length) {
     return update_(change_ptr);
 }
 
-change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length) {
+change_ptr_t ins_(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
     auto change_ptr = shared_ptr<change_t>(new change_t);
     change_ptr->author_ptr = author_ptr;
     change_ptr->serial = ++author_ptr->session_ptr->serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
     change_ptr->length = (length) ? length : strlen((const char *) bytes);
-    change_ptr->bytes = make_unique<uint8_t[]>(change_ptr->length + 1);
+    change_ptr->bytes = make_unique<byte_t[]>(change_ptr->length + 1);
     memcpy(change_ptr->bytes.get(), bytes, change_ptr->length);
     change_ptr->bytes.get()[change_ptr->length] = '\0';
     return change_ptr;
 }
 
-int ins(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length) {
+int ins(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
     return update_(ins_(author_ptr, offset, bytes, length));
 }
 
-change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length) {
+change_ptr_t ovr_(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
     auto change_ptr = shared_ptr<change_t>(new change_t);
     change_ptr->author_ptr = author_ptr;
     change_ptr->serial = ++author_ptr->session_ptr->serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
     change_ptr->length = (length) ? length : strlen((const char *) bytes);
-    change_ptr->bytes = make_unique<uint8_t[]>(change_ptr->length + 1);
+    change_ptr->bytes = make_unique<byte_t[]>(change_ptr->length + 1);
     memcpy(change_ptr->bytes.get(), bytes, change_ptr->length);
     change_ptr->bytes.get()[change_ptr->length] = '\0';
     return change_ptr;
 }
 
-int ovr(const author_t *author_ptr, int64_t offset, const uint8_t *bytes, int64_t length) {
+int ovr(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t length) {
     return update_(ovr_(author_ptr, offset, bytes, length));
 }
 
 int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data) {
     int rc = 0;
-    for (const auto &iter: session_ptr->changes_by_time) {
+    for (const auto &iter: session_ptr->changes) {
         if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
     }
     return rc;
@@ -252,12 +258,12 @@ int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *use
 int undo_last_change(const author_t *author_ptr) {
     const auto session_ptr = author_ptr->session_ptr;
 
-    if (!session_ptr->changes_by_time.empty()) {
-        const auto change_ptr = session_ptr->changes_by_time.back();
+    if (!session_ptr->changes.empty()) {
+        const auto change_ptr = session_ptr->changes.back();
 
-        session_ptr->changes_by_time.pop_back();
+        session_ptr->changes.pop_back();
         initialize_model_(session_ptr);
-        for (auto iter = session_ptr->changes_by_time.begin(); iter != session_ptr->changes_by_time.end(); ++iter) {
+        for (auto iter = session_ptr->changes.begin(); iter != session_ptr->changes.end(); ++iter) {
             if (update_model_(session_ptr, *iter) != 0) { return -1; }
         }
 
@@ -274,6 +280,7 @@ int undo_last_change(const author_t *author_ptr) {
 /***********************************************************************************************************************
  * VIEWPORT FUNCTIONS
  **********************************************************************************************************************/
+
 const author_t *get_viewport_author(const viewport_t *viewport_ptr) { return viewport_ptr->author_ptr; }
 
 int64_t get_viewport_capacity(const viewport_t *viewport_ptr) { return viewport_ptr->capacity; }
@@ -282,14 +289,14 @@ int64_t get_viewport_length(const viewport_t *viewport_ptr) { return viewport_pt
 
 int64_t get_viewport_computed_offset(const viewport_t *viewport_ptr) { return viewport_ptr->computed_offset; }
 
-const uint8_t *get_viewport_data(const viewport_t *viewport_ptr) { return viewport_ptr->data_ptr.get(); }
+const byte_t *get_viewport_data(const viewport_t *viewport_ptr) { return viewport_ptr->data_ptr.get(); }
 
 void *get_viewport_user_data(const viewport_t *viewport_ptr) { return viewport_ptr->user_data_ptr; }
 
-uint8_t get_viewport_bit_offset(const viewport_t *viewport_ptr) { return viewport_ptr->bit_offset; }
+byte_t get_viewport_bit_offset(const viewport_t *viewport_ptr) { return viewport_ptr->bit_offset; }
 
 viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk,
-                            void *user_data_ptr, uint8_t bit_offset) {
+                            void *user_data_ptr, byte_t bit_offset) {
     const auto session_ptr = author_ptr->session_ptr;
     if (capacity > 0 and capacity <= get_session_viewport_max_capacity(session_ptr)) {
         const auto viewport_ptr = shared_ptr<viewport_t>(new viewport_t);
@@ -297,7 +304,7 @@ viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t 
         viewport_ptr->computed_offset = offset;
         viewport_ptr->capacity = capacity;
         viewport_ptr->length = 0;
-        viewport_ptr->data_ptr = make_unique<uint8_t[]>(capacity);
+        viewport_ptr->data_ptr = make_unique<byte_t[]>(capacity);
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         viewport_ptr->bit_offset = bit_offset;
@@ -323,7 +330,7 @@ int destroy_viewport(const viewport_t *viewport_ptr) {
     return -1;
 }
 
-int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, uint8_t bit_offset) {
+int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, byte_t bit_offset) {
     const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
     if (capacity > 0 && capacity <= get_session_viewport_max_capacity(session_ptr)) {
         // only change settings if they are different
@@ -331,7 +338,7 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
             viewport_ptr->bit_offset != bit_offset) {
             viewport_ptr->computed_offset = offset;
             viewport_ptr->capacity = capacity;
-            viewport_ptr->data_ptr = make_unique<uint8_t[]>(capacity);
+            viewport_ptr->data_ptr = make_unique<byte_t[]>(capacity);
             viewport_ptr->bit_offset = bit_offset;
 
             // Update viewport and call the on change callback
@@ -346,9 +353,10 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
 /***********************************************************************************************************************
  * SESSION FUNCTIONS
  **********************************************************************************************************************/
+
 int64_t get_computed_file_size(const session_t *session_ptr) {
-    const auto last_segment = session_ptr->model.segments.back();
-    return (session_ptr->model.segments.empty()) ? 0 : last_segment->computed_offset + last_segment->computed_length;
+    const auto last_segment = session_ptr->model_.segments.back();
+    return (session_ptr->model_.segments.empty()) ? 0 : last_segment->computed_offset + last_segment->computed_length;
 }
 
 int64_t get_session_viewport_max_capacity(const session_t *session_ptr) { return session_ptr->viewport_max_capacity; }
@@ -357,7 +365,7 @@ void *get_session_user_data(const session_t *session_ptr) { return session_ptr->
 
 size_t get_session_num_viewports(const session_t *session_ptr) { return session_ptr->viewports.size(); }
 
-size_t get_session_num_changes(const session_t *session_ptr) { return session_ptr->changes_by_time.size(); }
+size_t get_session_num_changes(const session_t *session_ptr) { return session_ptr->changes.size(); }
 
 int64_t get_session_offset(const session_t *session_ptr) { return session_ptr->offset; }
 
@@ -392,7 +400,7 @@ void destroy_session(const session_t *session_ptr) { delete session_ptr; }
 int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
     int64_t write_offset = 0;
 
-    for (const auto &segment: session_ptr->model.segments) {
+    for (const auto &segment: session_ptr->model_.segments) {
         if (write_offset != segment->computed_offset) {
             ABORT(CLOG << LOCATION << " break in continuity, expected: " << write_offset
                        << ", got: " << segment->computed_offset << endl;);
@@ -456,12 +464,12 @@ static void print_segment_(const segment_ptr_t &segment_ptr, ostream &out_stream
 }
 
 static void print_segments_(const session_t *session_ptr, ostream &out_stream) {
-    for (const auto &segment: session_ptr->model.segments) { print_segment_(segment, out_stream); }
+    for (const auto &segment: session_ptr->model_.segments) { print_segment_(segment, out_stream); }
 }
 
 int check_segment_continuity(const session_t *session_ptr) {
     int64_t expected_offset = 0;
-    for (const auto &segment: session_ptr->model.segments) {
+    for (const auto &segment: session_ptr->model_.segments) {
         if (expected_offset != segment->computed_offset ||
             (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
             print_segments_(session_ptr, CLOG);
@@ -509,7 +517,7 @@ static int update_viewports_(session_t *session_ptr, const change_t *change_ptr)
 
 static int populate_viewport_(viewport_t *viewport_ptr) {
     viewport_ptr->length = 0;
-    const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model;
+    const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model_;
     if (model_ptr->segments.empty()) { return 0; }
 
     const auto viewport_offset = viewport_ptr->computed_offset;
@@ -577,8 +585,8 @@ static void initialize_model_(session_t *session_ptr) {
     read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset = session_ptr->offset;
     read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length = session_ptr->length;
 
-    session_ptr->model.segments.clear();
-    session_ptr->model.segments.push_back(read_segment_ptr);
+    session_ptr->model_.segments.clear();
+    session_ptr->model_.segments.push_back(read_segment_ptr);
 }
 
 static segment_ptr_t duplicate_segment_(const segment_ptr_t &segment_ptr) {
@@ -600,7 +608,7 @@ static segment_ptr_t duplicate_segment_(const segment_ptr_t &segment_ptr) {
 static int update_model_helper_(session_t *session_ptr, const change_ptr_t &change_ptr) {
     int64_t read_offset = 0;
 
-    for (auto iter = session_ptr->model.segments.begin(); iter != session_ptr->model.segments.end(); ++iter) {
+    for (auto iter = session_ptr->model_.segments.begin(); iter != session_ptr->model_.segments.end(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(CLOG << LOCATION << " break in continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << endl;);
@@ -622,17 +630,17 @@ static int update_model_helper_(session_t *session_ptr, const change_ptr_t &chan
                     (*iter)->computed_length = delta;
                     // iter will now point to the new split segment inserted into the model and who's offset falls on
                     // the update site
-                    iter = session_ptr->model.segments.insert(iter + 1, split_segment_ptr);
+                    iter = session_ptr->model_.segments.insert(iter + 1, split_segment_ptr);
                 }
             }
             switch (change_ptr->kind) {
                 case change_kind_t::CHANGE_DELETE: {
                     auto delete_length = change_ptr->length;
-                    while (delete_length && iter != session_ptr->model.segments.end()) {
+                    while (delete_length && iter != session_ptr->model_.segments.end()) {
                         if ((*iter)->computed_length <= delete_length) {
                             // DELETE change spans the entire segment
                             delete_length -= (*iter)->computed_length;
-                            iter = session_ptr->model.segments.erase(iter);
+                            iter = session_ptr->model_.segments.erase(iter);
                         } else {
                             // DELETE removes a portion of the beginning of the segment
                             (*iter)->computed_length -= delete_length;
@@ -644,7 +652,7 @@ static int update_model_helper_(session_t *session_ptr, const change_ptr_t &chan
                         }
                     }
                     // adjust the computed offsets for segments beyond the DELETE site
-                    for (; iter != session_ptr->model.segments.end(); ++iter) {
+                    for (; iter != session_ptr->model_.segments.end(); ++iter) {
                         (*iter)->computed_offset -= change_ptr->length;
                     }
                     break;
@@ -657,8 +665,8 @@ static int update_model_helper_(session_t *session_ptr, const change_ptr_t &chan
                     insert_segment_ptr->computed_length = change_ptr->length;
                     insert_segment_ptr->change_offset = 0;
                     insert_segment_ptr->change_ptr = change_ptr;
-                    iter = session_ptr->model.segments.insert(iter, insert_segment_ptr);
-                    for (++iter; iter != session_ptr->model.segments.end(); ++iter) {
+                    iter = session_ptr->model_.segments.insert(iter, insert_segment_ptr);
+                    for (++iter; iter != session_ptr->model_.segments.end(); ++iter) {
                         (*iter)->computed_offset += change_ptr->length;
                     }
                     break;
@@ -691,7 +699,7 @@ static int update_(const change_ptr_t &change_ptr) {
     const auto computed_file_size = get_computed_file_size(session_ptr);
 
     if (change_ptr->offset <= computed_file_size) {
-        session_ptr->changes_by_time.push_back(change_ptr);
+        session_ptr->changes.push_back(change_ptr);
         if (update_model_(session_ptr, change_ptr) != 0) { return -1; }
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
         return 0;
