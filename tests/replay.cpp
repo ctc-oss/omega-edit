@@ -21,6 +21,7 @@
 #include "../omega_edit/omega_edit.h"
 #include "../omega_edit/omega_util.h"
 #include <cinttypes>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 

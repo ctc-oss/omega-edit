@@ -119,6 +119,7 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     destroy_session(session_ptr);
+    fclose(test_infile_fptr);
 }
 
 TEST_CASE("Model Test", "[ModelTests]") {
