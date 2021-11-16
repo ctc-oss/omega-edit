@@ -134,11 +134,13 @@ static void initialize_model_(session_t *session_ptr);
 
 static bool change_affects_viewport_(const viewport_t *viewport_ptr, const change_t *change_ptr);
 
+static int populate_data_segment_(const session_t *session_ptr, data_segment_t *data_segment_ptr);
+
 static int update_viewports_(session_t *session_ptr, const change_t *change_ptr);
 
 static change_ptr_t duplicate_change_(const change_ptr_t &change_ptr);
 
-static model_segment_ptr_t duplicate_segment_(const model_segment_ptr_t &segment_ptr);
+static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr);
 
 static int update_model_(session_t *session_ptr, const_change_ptr_t &change_ptr);
 
@@ -489,14 +491,32 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
 int session_search(const session_t *session_ptr, const byte_t *needle, int64_t needle_length,
                    pattern_match_found_cbk_t cbk, void *user_data, int64_t session_offset, int64_t session_length) {
     int rc = -1;
-    if (NEEDLE_LENGTH_LIMIT < needle_length) {
+    if (needle_length < NEEDLE_LENGTH_LIMIT) {
         rc = 0;
+        session_length = (session_length) ? session_length : session_ptr->length;
         if (needle_length <= session_length) {
-            const int64_t window_capacity = NEEDLE_LENGTH_LIMIT * 2;
-            const auto skip_size = 1 + window_capacity - needle_length;
-            auto window_offset = session_offset;
-
-            // TODO: Lots of math, populating windows, using strstr, and making callbacks
+            data_segment_t data_segment;
+            data_segment.offset = session_offset;
+            data_segment.capacity = NEEDLE_LENGTH_LIMIT << 1;
+            const auto skip_size = 1 + data_segment.capacity - needle_length;
+            int64_t skip = 0;
+            do {
+                data_segment.offset += skip;
+                populate_data_segment_(session_ptr, &data_segment);
+                auto haystack = get_data_segment_data_(&data_segment);
+                auto haystack_length = data_segment.length;
+                void *found;
+                int64_t delta = 0;
+                CLOG << LOCATION << " Searching for: '" << needle << "' in: '" << string((char *)haystack, haystack_length) << "'\n";
+                while ((found = memmem(haystack + delta, haystack_length - delta, needle, needle_length))) {
+                    delta = static_cast<byte_t *>(found) - static_cast<byte_t *>(haystack);
+                    CLOG << LOCATION << " needle found at offset: " << data_segment.offset + delta << endl;
+                    if ((rc = cbk(data_segment.offset + delta, needle_length, user_data)) != 0 ) {
+                        return rc;
+                    }
+                }
+                skip = skip_size;
+            } while (data_segment.length == data_segment.capacity);
         }
     }
     return rc;
@@ -585,14 +605,11 @@ static int update_viewports_(session_t *session_ptr, const change_t *change_ptr)
     return 0;
 }
 
-// TODO: Refactor this to use data_segment and model so we can reuse it in the search feature
-static int populate_viewport_(viewport_t *viewport_ptr) {
-    viewport_ptr->data_segment.length = 0;
-    const auto model_ptr = &viewport_ptr->author_ptr->session_ptr->model_;
+static int populate_data_segment_(const session_t *session_ptr, data_segment_t *data_segment_ptr) {
+    const auto model_ptr = &session_ptr->model_;
+    data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
-
-    const auto viewport_offset = viewport_ptr->data_segment.offset;
-    const auto session_ptr = viewport_ptr->author_ptr->session_ptr;
+    auto data_segment_offset = data_segment_ptr->offset;
     int64_t read_offset = 0;
 
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
@@ -601,50 +618,55 @@ static int populate_viewport_(viewport_t *viewport_ptr) {
             ABORT(CLOG << LOCATION << " break in model continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << endl;);
         }
-        if (read_offset <= viewport_offset && viewport_offset <= read_offset + (*iter)->computed_length) {
-            // We're at the first segment that intersects with the viewport, but the segment and the viewport's offsets
-            // are likely not aligned, so we need to compute how much of the segment to move past (delta)
-            auto delta = viewport_offset - (*iter)->computed_offset;
+        if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
+            // We're at the first model segment that intersects with the data segment, but the model segment and the
+            // data segment offsets  are likely not aligned, so we need to compute how much of the segment to move past
+            // (the delta).
+            auto delta = data_segment_offset - (*iter)->computed_offset;
             do {
-                // This is how much of the viewport remains to be filled
-                const auto remaining_capacity = viewport_ptr->data_segment.capacity - viewport_ptr->data_segment.length;
+                // This is how much data remains to be filled
+                const auto remaining_capacity = data_segment_ptr->capacity - data_segment_ptr->length;
                 auto amount = (*iter)->computed_length - delta;
                 amount = (amount > remaining_capacity) ? remaining_capacity : amount;
                 switch ((*iter)->segment_kind) {
                     case model_segment_kind_t::SEGMENT_READ: {
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
-                        // writing it into the viewport
+                        // writing it into the data segment
                         if (read_segment_from_file(session_ptr->file_ptr, (*iter)->change_offset + delta,
-                                                   const_cast<byte_t *>(get_viewport_data(viewport_ptr)) +
-                                                           viewport_ptr->data_segment.length,
+                                                   const_cast<byte_t *>(get_data_segment_data_(data_segment_ptr)) +
+                                                           data_segment_ptr->length,
                                                    amount) != amount) {
                             return -1;
                         }
                         break;
                     }
                     case model_segment_kind_t::SEGMENT_INSERT: {
-                        // For insert segments, we're writing the change byte buffer, or portion thereof, into the
-                        // viewport
-                        memcpy(const_cast<byte_t *>(get_viewport_data(viewport_ptr)) +
-                                       viewport_ptr->data_segment.length,
+                        // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
+                        // segment
+                        memcpy(const_cast<byte_t *>(get_data_segment_data_(data_segment_ptr)) +
+                                       data_segment_ptr->length,
                                change_bytes_((*iter)->change_ptr.get()) + (*iter)->change_offset + delta, amount);
                         break;
                     }
                     default:
-                        ABORT(CLOG << LOCATION << " Unhandled segment kind" << endl;);
+                        ABORT(CLOG << LOCATION << " Unhandled model segment kind" << endl;);
                 }
                 // Add the amount written to the viewport length
-                viewport_ptr->data_segment.length += amount;
+                data_segment_ptr->length += amount;
                 // After the first segment is written, the dela should be zero from that point on
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
-            } while (viewport_ptr->data_segment.length < viewport_ptr->data_segment.capacity &&
+            } while (data_segment_ptr->length < data_segment_ptr->capacity &&
                      ++iter != model_ptr->model_segments.end());
             return 0;
         }
         read_offset += (*iter)->computed_length;
     }
     return -1;
+}
+
+static int populate_viewport_(viewport_t *viewport_ptr) {
+    return populate_data_segment_(viewport_ptr->author_ptr->session_ptr, &viewport_ptr->data_segment);
 }
 
 static void initialize_model_(session_t *session_ptr) {
@@ -666,7 +688,7 @@ static void initialize_model_(session_t *session_ptr) {
     }
 }
 
-static model_segment_ptr_t duplicate_segment_(const model_segment_ptr_t &segment_ptr) {
+static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
     auto result = shared_ptr<model_segment_t>(new model_segment_t);
     result->segment_kind = segment_ptr->segment_kind;
     result->computed_offset = segment_ptr->computed_offset;
@@ -712,7 +734,7 @@ static int update_model_helper_(session_t *session_ptr, const_change_ptr_t &chan
                     // The update site falls in the middle of an existing segment, so we need to split the segment at
                     // the update site.  iter points to the segment on the left of the split and split_segment_ptr
                     // points to a new duplicate segment on the right of the split.
-                    const auto split_segment_ptr = duplicate_segment_(*iter);
+                    const auto split_segment_ptr = clone_model_segment_(*iter);
                     split_segment_ptr->computed_offset += delta;
                     split_segment_ptr->computed_length -= delta;
                     split_segment_ptr->change_offset = delta;

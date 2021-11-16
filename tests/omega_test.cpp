@@ -193,7 +193,33 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_infile_fptr);
 }
 
-TEST_CASE("Hanoi insert", "[ModelTests") {
+int pattern_found_cbk(int64_t match_offset, int64_t match_length, void *) {
+    clog << "Pattern found at offset " << match_offset << endl;
+    return 0;
+}
+
+TEST_CASE("Search", "[SearchTests]") {
+    file_info_t file_info;
+    file_info.num_changes = 0;
+    file_info.in_filename = "data/search-test.txt";
+    auto test_infile_fptr = fopen(file_info.in_filename, "r");
+    REQUIRE(test_infile_fptr);
+    const auto author_name = "search test";
+    const auto session_ptr =
+            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    fseeko(test_infile_fptr, 0, SEEK_END);
+    auto file_size = ftello(test_infile_fptr);
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    auto author_ptr = create_author(session_ptr, author_name);
+    auto needle = "needle";
+    REQUIRE(0 == session_search(session_ptr, (byte_t *)needle, strlen(needle), pattern_found_cbk));
+    REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("needle")));
+    REQUIRE(0 == session_search(session_ptr, (byte_t *)needle, strlen(needle), pattern_found_cbk));
+    destroy_session(session_ptr);
+    fclose(test_infile_fptr);
+}
+
+TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     file_info.in_filename = "NO FILE";

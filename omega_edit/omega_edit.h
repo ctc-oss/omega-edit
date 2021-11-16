@@ -59,7 +59,7 @@ typedef int (*visit_changes_cbk_t)(const change_t *, void *);
 
 /** Callback to implement when pattern matches are found in a session.
  * Return 0 to continue matching and non-zero to stop.*/
-typedef int (*pattern_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void *);
+typedef int (*pattern_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void * user_data);
 
 /**
  * Given a change, return the original change offset
