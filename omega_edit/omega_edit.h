@@ -23,12 +23,16 @@
 // Default maximum viewport capacity
 #ifndef DEFAULT_VIEWPORT_MAX_CAPACITY
 #define DEFAULT_VIEWPORT_MAX_CAPACITY (1024 * 1024)
-#endif //DEFAULT_VIEWPORT_MAX_CAPACITY
+#endif//DEFAULT_VIEWPORT_MAX_CAPACITY
+
+#ifndef NEEDLE_LENGTH_LIMIT
+#define NEEDLE_LENGTH_LIMIT (DEFAULT_VIEWPORT_MAX_CAPACITY / 2)
+#endif//NEEDLE_LENGTH_LIMIT
 
 // Define the byte type to be used across the project
 #ifndef BYTE_T
 #define BYTE_T unsigned char
-#endif //BYTE_T
+#endif//BYTE_T
 typedef BYTE_T byte_t;
 
 /**
@@ -44,12 +48,18 @@ struct change_t;
 struct viewport_t;
 
 /** On session change callback.  This under-defined function will be called when an associated session changes. */
-typedef void (*session_on_change_cbk)(const session_t *, const change_t *);
+typedef void (*session_on_change_cbk_t)(const session_t *, const change_t *);
 
 /** On viewport change callback.  This under-defined function will be called when an associated viewport changes. */
-typedef void (*viewport_on_change_cbk)(const viewport_t *, const change_t *);
+typedef void (*viewport_on_change_cbk_t)(const viewport_t *, const change_t *);
 
-typedef int (*visit_changes_cbk)(const change_t *, void *);
+/** Callback to implement for visiting changes in a session.
+ * Return 0 to continue visiting changes and non-zero to stop.*/
+typedef int (*visit_changes_cbk_t)(const change_t *, void *);
+
+/** Callback to implement when pattern matches are found in a session.
+ * Return 0 to continue matching and non-zero to stop.*/
+typedef int (*pattern_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void *);
 
 /**
  * Given a change, return the original change offset
@@ -101,7 +111,7 @@ const author_t *get_change_author(const change_t *change_ptr);
  * @param user_data user-provided data to provide back to the callback
  * @return 0 if all changes were visited or the return value of the callback if visitation was stopped
  */
-int visit_changes(const session_t *session_ptr, visit_changes_cbk cbk, void *user_data);
+int visit_changes(const session_t *session_ptr, visit_changes_cbk_t cbk, void *user_data);
 
 /**
  * Given a viewport, return the author
@@ -176,7 +186,7 @@ session_t *get_author_session(const author_t *author_ptr);
  * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
 * @return pointer to the created session, nullptr on failure
  */
-session_t *create_session(FILE *file_ptr, session_on_change_cbk cbk = nullptr, void *user_data_ptr = nullptr,
+session_t *create_session(FILE *file_ptr, session_on_change_cbk_t cbk = nullptr, void *user_data_ptr = nullptr,
                           int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY, int64_t offset = 0,
                           int64_t length = 0);
 
@@ -212,7 +222,7 @@ const author_t *create_author(session_t *session_ptr, const char *author_name);
  * @param bit_offset bit offset for this viewport (0 - 7)
  * @return pointer to the new viewport, nullptr on failure
  */
-viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk cbk,
+viewport_t *create_viewport(const author_t *author_ptr, int64_t offset, int64_t capacity, viewport_on_change_cbk_t cbk,
                             void *user_data_ptr, byte_t bit_offset = 0);
 
 /**
@@ -325,6 +335,26 @@ int undo_last_change(const author_t *author_ptr);
  */
 int save_to_file(const session_t *session_ptr, FILE *file_ptr);
 
-int check_segment_continuity(const session_t *session_ptr);
+/**
+ * Given a session, find needles and call the match found callback as needles are found
+ * @param session_ptr session to find the needles in
+ * @param needle pointer to the needle to find
+ * @param needle_length length of the needle
+ * @param cbk the callback to call as needles are found in the session
+ * @param user_data user data to send back into the callback
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @return 0 if all needles have been found, or the non-zero return from the user callback
+ */
+int session_search(const session_t *session_ptr, const byte_t *needle, int64_t needle_length,
+                   pattern_match_found_cbk_t cbk, void *user_data = nullptr, int64_t session_offset = 0,
+                   int64_t session_length = 0);
+
+/**
+ * Checks the internal session model for errors
+ * @param session_ptr session whose model to check for errors
+ * @return 0 if the model is error free and non-zero otherwise
+ */
+int check_session_model(const session_t *session_ptr);
 
 #endif//OMEGA_OMEGA_EDIT_H
