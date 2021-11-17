@@ -1565,17 +1565,18 @@ fail: ;
 #define SWIGTYPE_p_author_t swig_types[1]
 #define SWIGTYPE_p_change_t swig_types[2]
 #define SWIGTYPE_p_char swig_types[3]
-#define SWIGTYPE_p_f_p_q_const__change_t_p_void__int swig_types[4]
-#define SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void swig_types[5]
-#define SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void swig_types[6]
-#define SWIGTYPE_p_int64_t swig_types[7]
-#define SWIGTYPE_p_p_unsigned_char swig_types[8]
-#define SWIGTYPE_p_session_t swig_types[9]
-#define SWIGTYPE_p_unsigned_char swig_types[10]
-#define SWIGTYPE_p_viewport_t swig_types[11]
-#define SWIGTYPE_p_void swig_types[12]
-static swig_type_info *swig_types[14];
-static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
+#define SWIGTYPE_p_f_int64_t_int64_t_p_void__int swig_types[4]
+#define SWIGTYPE_p_f_p_q_const__change_t_p_void__int swig_types[5]
+#define SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void swig_types[6]
+#define SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void swig_types[7]
+#define SWIGTYPE_p_int64_t swig_types[8]
+#define SWIGTYPE_p_p_unsigned_char swig_types[9]
+#define SWIGTYPE_p_session_t swig_types[10]
+#define SWIGTYPE_p_unsigned_char swig_types[11]
+#define SWIGTYPE_p_viewport_t swig_types[12]
+#define SWIGTYPE_p_void swig_types[13]
+static swig_type_info *swig_types[15];
+static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -1872,6 +1873,25 @@ static SwigV8ReturnValue _wrap_DEFAULT_VIEWPORT_MAX_CAPACITY(v8::Local<v8::Strin
   }
 
 
+#if (V8_MAJOR_VERSION-0) < 5
+static SwigV8ReturnValue _wrap_NEEDLE_LENGTH_LIMIT(v8::Local<v8::String> property, const SwigV8PropertyCallbackInfo &info) {
+#else
+  static SwigV8ReturnValue _wrap_NEEDLE_LENGTH_LIMIT(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+#endif
+    SWIGV8_HANDLESCOPE();
+    
+    v8::Handle<v8::Value> jsresult;
+    
+    jsresult = SWIG_From_int(static_cast< int >(((1024*1024)/2)));
+    
+    SWIGV8_RETURN_INFO(jsresult, info);
+    
+    goto fail;
+  fail:
+    SWIGV8_RETURN_INFO(SWIGV8_UNDEFINED(), info);
+  }
+
+
 static SwigV8ReturnValue _wrap_get_change_offset(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -2054,7 +2074,7 @@ static SwigV8ReturnValue _wrap_visit_changes(const SwigV8Arguments &args) {
   
   v8::Handle<v8::Value> jsresult;
   session_t *arg1 = (session_t *) 0 ;
-  visit_changes_cbk arg2 = (visit_changes_cbk) 0 ;
+  visit_changes_cbk_t arg2 = (visit_changes_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -2071,7 +2091,7 @@ static SwigV8ReturnValue _wrap_visit_changes(const SwigV8Arguments &args) {
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__change_t_p_void__int);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "visit_changes" "', argument " "2"" of type '" "visit_changes_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "visit_changes" "', argument " "2"" of type '" "visit_changes_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -2350,7 +2370,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_0(const SwigV8Arguments &arg
   
   v8::Handle<v8::Value> jsresult;
   FILE *arg1 = (FILE *) 0 ;
-  session_on_change_cbk arg2 = (session_on_change_cbk) 0 ;
+  session_on_change_cbk_t arg2 = (session_on_change_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   int64_t arg4 ;
   int64_t arg5 ;
@@ -2374,7 +2394,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_0(const SwigV8Arguments &arg
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -2434,7 +2454,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_1(const SwigV8Arguments &arg
   
   v8::Handle<v8::Value> jsresult;
   FILE *arg1 = (FILE *) 0 ;
-  session_on_change_cbk arg2 = (session_on_change_cbk) 0 ;
+  session_on_change_cbk_t arg2 = (session_on_change_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   int64_t arg4 ;
   int64_t arg5 ;
@@ -2455,7 +2475,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_1(const SwigV8Arguments &arg
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -2504,7 +2524,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_2(const SwigV8Arguments &arg
   
   v8::Handle<v8::Value> jsresult;
   FILE *arg1 = (FILE *) 0 ;
-  session_on_change_cbk arg2 = (session_on_change_cbk) 0 ;
+  session_on_change_cbk_t arg2 = (session_on_change_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   int64_t arg4 ;
   void *argp1 = 0 ;
@@ -2522,7 +2542,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_2(const SwigV8Arguments &arg
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -2560,7 +2580,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_3(const SwigV8Arguments &arg
   
   v8::Handle<v8::Value> jsresult;
   FILE *arg1 = (FILE *) 0 ;
-  session_on_change_cbk arg2 = (session_on_change_cbk) 0 ;
+  session_on_change_cbk_t arg2 = (session_on_change_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -2575,7 +2595,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_3(const SwigV8Arguments &arg
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -2602,7 +2622,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_4(const SwigV8Arguments &arg
   
   v8::Handle<v8::Value> jsresult;
   FILE *arg1 = (FILE *) 0 ;
-  session_on_change_cbk arg2 = (session_on_change_cbk) 0 ;
+  session_on_change_cbk_t arg2 = (session_on_change_cbk_t) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   session_t *result = 0 ;
@@ -2615,7 +2635,7 @@ static SwigV8ReturnValue _wrap_create_session__SWIG_4(const SwigV8Arguments &arg
   {
     int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_session" "', argument " "2"" of type '" "session_on_change_cbk_t""'"); 
     }
   }
   result = (session_t *)create_session(arg1,arg2);
@@ -2871,7 +2891,7 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &ar
   author_t *arg1 = (author_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  viewport_on_change_cbk arg4 = (viewport_on_change_cbk) 0 ;
+  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
   void *arg5 = (void *) 0 ;
   byte_t arg6 ;
   void *argp1 = 0 ;
@@ -2915,7 +2935,7 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &ar
   {
     int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
     }
   }
   res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
@@ -2950,7 +2970,7 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_1(const SwigV8Arguments &ar
   author_t *arg1 = (author_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  viewport_on_change_cbk arg4 = (viewport_on_change_cbk) 0 ;
+  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
   void *arg5 = (void *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -2991,7 +3011,7 @@ static SwigV8ReturnValue _wrap_create_viewport__SWIG_1(const SwigV8Arguments &ar
   {
     int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
     }
   }
   res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
@@ -3891,7 +3911,381 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_check_segment_continuity(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_session_search__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  byte_t *arg2 = (byte_t *) 0 ;
+  int64_t arg3 ;
+  pattern_match_found_cbk_t arg4 = (pattern_match_found_cbk_t) 0 ;
+  void *arg5 = (void *) 0 ;
+  int64_t arg6 ;
+  int64_t arg7 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int res5 ;
+  void *argp6 ;
+  int res6 = 0 ;
+  void *argp7 ;
+  int res7 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< byte_t * >(argp2);
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_int64_t_int64_t_p_void__int);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "session_search" "', argument " "4"" of type '" "pattern_match_found_cbk_t""'"); 
+    }
+  }
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "session_search" "', argument " "5"" of type '" "void *""'"); 
+  }
+  {
+    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res6)) {
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "session_search" "', argument " "6"" of type '" "int64_t""'"); 
+    }  
+    if (!argp6) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "6"" of type '" "int64_t""'");
+    } else {
+      arg6 = *(reinterpret_cast< int64_t * >(argp6));
+    }
+  }
+  {
+    res7 = SWIG_ConvertPtr(args[6], &argp7, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res7)) {
+      SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "session_search" "', argument " "7"" of type '" "int64_t""'"); 
+    }  
+    if (!argp7) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "7"" of type '" "int64_t""'");
+    } else {
+      arg7 = *(reinterpret_cast< int64_t * >(argp7));
+    }
+  }
+  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5,arg6,arg7);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_session_search__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  byte_t *arg2 = (byte_t *) 0 ;
+  int64_t arg3 ;
+  pattern_match_found_cbk_t arg4 = (pattern_match_found_cbk_t) 0 ;
+  void *arg5 = (void *) 0 ;
+  int64_t arg6 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int res5 ;
+  void *argp6 ;
+  int res6 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< byte_t * >(argp2);
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_int64_t_int64_t_p_void__int);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "session_search" "', argument " "4"" of type '" "pattern_match_found_cbk_t""'"); 
+    }
+  }
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "session_search" "', argument " "5"" of type '" "void *""'"); 
+  }
+  {
+    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res6)) {
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "session_search" "', argument " "6"" of type '" "int64_t""'"); 
+    }  
+    if (!argp6) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "6"" of type '" "int64_t""'");
+    } else {
+      arg6 = *(reinterpret_cast< int64_t * >(argp6));
+    }
+  }
+  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5,arg6);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_session_search__SWIG_2(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  byte_t *arg2 = (byte_t *) 0 ;
+  int64_t arg3 ;
+  pattern_match_found_cbk_t arg4 = (pattern_match_found_cbk_t) 0 ;
+  void *arg5 = (void *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int res5 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< byte_t * >(argp2);
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_int64_t_int64_t_p_void__int);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "session_search" "', argument " "4"" of type '" "pattern_match_found_cbk_t""'"); 
+    }
+  }
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "session_search" "', argument " "5"" of type '" "void *""'"); 
+  }
+  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_session_search__SWIG_3(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  byte_t *arg2 = (byte_t *) 0 ;
+  int64_t arg3 ;
+  pattern_match_found_cbk_t arg4 = (pattern_match_found_cbk_t) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< byte_t * >(argp2);
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "session_search" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_int64_t_int64_t_p_void__int);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "session_search" "', argument " "4"" of type '" "pattern_match_found_cbk_t""'"); 
+    }
+  }
+  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_session_search(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 7) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_session_search__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_session_search__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 6) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_session_search__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_session_search__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 5) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_session_search__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_session_search__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_session_search__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_session_search__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function session_search.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_check_session_model(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
@@ -3900,14 +4294,14 @@ static SwigV8ReturnValue _wrap_check_segment_continuity(const SwigV8Arguments &a
   int res1 = 0 ;
   int result;
   
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_check_segment_continuity.");
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_check_session_model.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "check_segment_continuity" "', argument " "1"" of type '" "session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "check_session_model" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  result = (int)check_segment_continuity((session_t const *)arg1);
+  result = (int)check_session_model((session_t const *)arg1);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -3925,9 +4319,10 @@ static swig_type_info _swigt__p_FILE = {"_p_FILE", "FILE *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_author_t = {"_p_author_t", "author_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_change_t = {"_p_change_t", "change_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_f_p_q_const__change_t_p_void__int = {"_p_f_p_q_const__change_t_p_void__int", "visit_changes_cbk|int (*)(change_t const *,void *)", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_f_p_q_const__session_t_p_q_const__change_t__void = {"_p_f_p_q_const__session_t_p_q_const__change_t__void", "session_on_change_cbk|void (*)(session_t const *,change_t const *)", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void = {"_p_f_p_q_const__viewport_t_p_q_const__change_t__void", "viewport_on_change_cbk|void (*)(viewport_t const *,change_t const *)", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_int64_t_int64_t_p_void__int = {"_p_f_int64_t_int64_t_p_void__int", "int (*)(int64_t,int64_t,void *)|pattern_match_found_cbk_t", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_q_const__change_t_p_void__int = {"_p_f_p_q_const__change_t_p_void__int", "int (*)(change_t const *,void *)|visit_changes_cbk_t", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_q_const__session_t_p_q_const__change_t__void = {"_p_f_p_q_const__session_t_p_q_const__change_t__void", "void (*)(session_t const *,change_t const *)|session_on_change_cbk_t", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void = {"_p_f_p_q_const__viewport_t_p_q_const__change_t__void", "void (*)(viewport_t const *,change_t const *)|viewport_on_change_cbk_t", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int64_t = {"_p_int64_t", "int64_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_p_unsigned_char = {"_p_p_unsigned_char", "unsigned char **|byte_t **", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_session_t = {"_p_session_t", "session_t *", 0, 0, (void*)0, 0};
@@ -3940,6 +4335,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_author_t,
   &_swigt__p_change_t,
   &_swigt__p_char,
+  &_swigt__p_f_int64_t_int64_t_p_void__int,
   &_swigt__p_f_p_q_const__change_t_p_void__int,
   &_swigt__p_f_p_q_const__session_t_p_q_const__change_t__void,
   &_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
@@ -3955,6 +4351,7 @@ static swig_cast_info _swigc__p_FILE[] = {  {&_swigt__p_FILE, 0, 0, 0},{0, 0, 0,
 static swig_cast_info _swigc__p_author_t[] = {  {&_swigt__p_author_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_change_t[] = {  {&_swigt__p_change_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_f_int64_t_int64_t_p_void__int[] = {  {&_swigt__p_f_int64_t_int64_t_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__change_t_p_void__int[] = {  {&_swigt__p_f_p_q_const__change_t_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__session_t_p_q_const__change_t__void[] = {  {&_swigt__p_f_p_q_const__session_t_p_q_const__change_t__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void[] = {  {&_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void, 0, 0, 0},{0, 0, 0, 0}};
@@ -3970,6 +4367,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_author_t,
   _swigc__p_change_t,
   _swigc__p_char,
+  _swigc__p_f_int64_t_int64_t_p_void__int,
   _swigc__p_f_p_q_const__change_t_p_void__int,
   _swigc__p_f_p_q_const__session_t_p_q_const__change_t__void,
   _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
@@ -4296,6 +4694,7 @@ void SWIGV8_INIT (v8::Handle<v8::Object> exports, v8::Handle<v8::Object> /*modul
 
   /* register wrapper functions */
   SWIGV8_AddStaticVariable(exports_obj, "DEFAULT_VIEWPORT_MAX_CAPACITY", _wrap_DEFAULT_VIEWPORT_MAX_CAPACITY, JS_veto_set_variable);
+SWIGV8_AddStaticVariable(exports_obj, "NEEDLE_LENGTH_LIMIT", _wrap_NEEDLE_LENGTH_LIMIT, JS_veto_set_variable);
 
 
   /* setup inheritances */
@@ -4340,7 +4739,8 @@ SWIGV8_AddStaticFunction(exports_obj, "get_computed_file_size", _wrap_get_comput
 SWIGV8_AddStaticFunction(exports_obj, "update_viewport", _wrap___wrap_update_viewport);
 SWIGV8_AddStaticFunction(exports_obj, "undo_last_change", _wrap_undo_last_change);
 SWIGV8_AddStaticFunction(exports_obj, "save_to_file", _wrap_save_to_file);
-SWIGV8_AddStaticFunction(exports_obj, "check_segment_continuity", _wrap_check_segment_continuity);
+SWIGV8_AddStaticFunction(exports_obj, "session_search", _wrap___wrap_session_search);
+SWIGV8_AddStaticFunction(exports_obj, "check_session_model", _wrap_check_session_model);
 
 
   /* register classes */
