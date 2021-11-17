@@ -177,7 +177,9 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
     REQUIRE(0 == ovr(author_ptr, 0, reinterpret_cast<const byte_t *>("-")));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
     REQUIRE(0 == ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1));
     REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7));
     REQUIRE(0 == del(author_ptr, 7, 4));
