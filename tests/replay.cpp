@@ -110,6 +110,10 @@ int main(int argc, char **argv) {
             default:
                 abort();
         }
+        if (0 != check_session_model(session_ptr)) {
+            clog << "session model has errors" << endl;
+            abort();
+        }
     }
 
     // Save the session

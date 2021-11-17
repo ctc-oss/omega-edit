@@ -174,12 +174,12 @@ int main(int /*argc*/, char ** /*argv*/) {
     clog << "File Size: " << get_computed_file_size(session_ptr) << endl;
     auto viewport1_ptr = create_viewport(author_ptr, 0, 100, vpt_change_cbk, &view_mode);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
-    if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
+    if (0 != check_session_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
     undo_last_change(author_ptr);
     ins(author_ptr, 0, (const byte_t *) "++++");
     ovr(author_ptr, 5, (const byte_t *) "-");
     ins(author_ptr, 0, (const byte_t *) "++++");
-    if (0 != check_segment_continuity(session_ptr)) { clog << __LINE__ << " segments are not continuous\n"; }
+    if (0 != check_session_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
     auto viewport2_ptr = create_viewport(author_ptr, 50, 10, vpt_change_cbk, &view_mode);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     ins(author_ptr, 71, (const byte_t *) "++++");

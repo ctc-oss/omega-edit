@@ -61,7 +61,8 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(compare_files("data/test1.dat", "data/test1.dat") == 0);
-    }SECTION("Difference") {
+    }
+    SECTION("Difference") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
@@ -89,16 +90,17 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     auto file_info_ptr = (file_info_t *) get_session_user_data(session_ptr);
     const byte_t *bytes;
     const auto length = get_change_bytes(change_ptr, &bytes);
-    if (0 < get_change_serial(change_ptr)) { ++file_info_ptr->num_changes; }
-    else { --file_info_ptr->num_changes; /* this is in UNDO */}
+    if (0 < get_change_serial(change_ptr)) {
+        ++file_info_ptr->num_changes;
+    } else {
+        --file_info_ptr->num_changes; /* this is in UNDO */
+    }
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
          << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "change_kind": ")"
          << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
          << R"(, "length": )" << get_change_length(change_ptr);
-    if (bytes) {
-        clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")";
-    }
+    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")"; }
     clog << "}" << endl;
 }
 
@@ -193,7 +195,14 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_infile_fptr);
 }
 
-TEST_CASE("Hanoi insert", "[ModelTests") {
+int pattern_found_cbk(int64_t match_offset, int64_t match_length, void *needles_found_ptr) {
+    (*(int *) (needles_found_ptr))++;
+    clog << "Pattern found at offset " << match_offset << ", total found so far: " << (*(int *) (needles_found_ptr))
+         << endl;
+    return 0;
+}
+
+TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     file_info.in_filename = "NO FILE";
@@ -274,9 +283,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
-enum display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
@@ -310,6 +317,41 @@ void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) 
         }
         clog << endl;
     }
+}
+
+TEST_CASE("Search", "[SearchTests]") {
+    file_info_t file_info;
+    file_info.num_changes = 0;
+    file_info.in_filename = "data/search-test.txt";
+    auto test_infile_fptr = fopen(file_info.in_filename, "r");
+    REQUIRE(test_infile_fptr);
+    const auto author_name = "search test";
+    const auto session_ptr =
+            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    fseeko(test_infile_fptr, 0, SEEK_END);
+    auto file_size = ftello(test_infile_fptr);
+    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    auto author_ptr = create_author(session_ptr, author_name);
+    view_mode_t view_mode;
+    view_mode.display_mode = CHAR_MODE;
+    create_viewport(author_ptr, 0, 1024, vpt_change_cbk, &view_mode);
+    auto needle = "needle";
+    auto needle_length = strlen(needle);
+    int needles_found = 0;
+    REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, needle_length, pattern_found_cbk, &needles_found));
+    //REQUIRE(needles_found == 5);
+    REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>(needle), needle_length));
+    REQUIRE(0 == del(author_ptr, 16, needle_length));
+    REQUIRE(0 == ins(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
+    //REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
+    auto test_outfile_fptr = fopen("data/search-test.txt.out", "w");
+    save_to_file(session_ptr, test_outfile_fptr);
+    fclose(test_outfile_fptr);
+    needles_found = 0;
+    REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, strlen(needle), pattern_found_cbk, &needles_found));
+    //REQUIRE(needles_found == 6);
+    destroy_session(session_ptr);
+    fclose(test_infile_fptr);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {
