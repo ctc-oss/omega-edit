@@ -3874,6 +3874,62 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_get_last_change(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  change_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_last_change.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_last_change" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  result = (change_t *)get_last_change((session_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_change_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_last_undo(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  change_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_last_undo.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_last_undo" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  result = (change_t *)get_last_undo((session_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_change_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_undo_last_change(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -4794,6 +4850,8 @@ SWIGV8_AddStaticFunction(exports_obj, "get_session_num_viewports", _wrap_get_ses
 SWIGV8_AddStaticFunction(exports_obj, "get_author_num_changes", _wrap_get_author_num_changes);
 SWIGV8_AddStaticFunction(exports_obj, "get_computed_file_size", _wrap_get_computed_file_size);
 SWIGV8_AddStaticFunction(exports_obj, "update_viewport", _wrap___wrap_update_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "get_last_change", _wrap_get_last_change);
+SWIGV8_AddStaticFunction(exports_obj, "get_last_undo", _wrap_get_last_undo);
 SWIGV8_AddStaticFunction(exports_obj, "undo_last_change", _wrap_undo_last_change);
 SWIGV8_AddStaticFunction(exports_obj, "redo_last_undo", _wrap_redo_last_undo);
 SWIGV8_AddStaticFunction(exports_obj, "save_to_file", _wrap_save_to_file);
