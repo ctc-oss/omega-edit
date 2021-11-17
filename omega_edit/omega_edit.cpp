@@ -124,7 +124,7 @@ struct session_t {
  * INTERNAL FUNCTION DECLARATIONS
  **********************************************************************************************************************/
 
-static void print_segments_(const session_t *session_ptr, ostream &out_stream);
+static void print_model_segments_(const session_t *session_ptr, ostream &out_stream);
 
 static void viewport_callback_(viewport_t *viewport_ptr, const change_t *change_ptr);
 
@@ -386,8 +386,7 @@ int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, 
             viewport_ptr->bit_offset != bit_offset) {
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = capacity;
-            viewport_ptr->data_segment.data.bytes =
-                    (viewport_ptr->data_segment.capacity < 8) ? nullptr : make_unique<byte_t[]>(capacity);
+            viewport_ptr->data_segment.data.bytes = (capacity < 8) ? nullptr : make_unique<byte_t[]>(capacity);
             viewport_ptr->bit_offset = bit_offset;
 
             // Update viewport and call the on change callback
@@ -498,6 +497,8 @@ int session_search(const session_t *session_ptr, const byte_t *needle, int64_t n
             data_segment_t data_segment;
             data_segment.offset = session_offset;
             data_segment.capacity = NEEDLE_LENGTH_LIMIT << 1;
+            data_segment.data.bytes =
+                    (data_segment.capacity < 8) ? nullptr : make_unique<byte_t[]>(data_segment.capacity);
             const auto skip_size = 1 + data_segment.capacity - needle_length;
             int64_t skip = 0;
             do {
@@ -507,13 +508,10 @@ int session_search(const session_t *session_ptr, const byte_t *needle, int64_t n
                 auto haystack_length = data_segment.length;
                 void *found;
                 int64_t delta = 0;
-                CLOG << LOCATION << " Searching for: '" << needle << "' in: '" << string((char *)haystack, haystack_length) << "'\n";
                 while ((found = memmem(haystack + delta, haystack_length - delta, needle, needle_length))) {
                     delta = static_cast<byte_t *>(found) - static_cast<byte_t *>(haystack);
-                    CLOG << LOCATION << " needle found at offset: " << data_segment.offset + delta << endl;
-                    if ((rc = cbk(data_segment.offset + delta, needle_length, user_data)) != 0 ) {
-                        return rc;
-                    }
+                    if ((rc = cbk(data_segment.offset + delta, needle_length, user_data)) != 0) { return rc; }
+                    ++delta;
                 }
                 skip = skip_size;
             } while (data_segment.length == data_segment.capacity);
@@ -521,6 +519,7 @@ int session_search(const session_t *session_ptr, const byte_t *needle, int64_t n
     }
     return rc;
 }
+
 /***********************************************************************************************************************
  * INTERNAL FUNCTIONS
  **********************************************************************************************************************/
@@ -554,7 +553,7 @@ static void print_segment_(const model_segment_ptr_t &segment_ptr, ostream &out_
     out_stream << "}" << endl;
 }
 
-static void print_segments_(const session_t *session_ptr, ostream &out_stream) {
+static void print_model_segments_(const session_t *session_ptr, ostream &out_stream) {
     for (const auto &segment : session_ptr->model_.model_segments) { print_segment_(segment, out_stream); }
 }
 
@@ -563,7 +562,7 @@ int check_session_model(const session_t *session_ptr) {
     for (const auto &segment : session_ptr->model_.model_segments) {
         if (expected_offset != segment->computed_offset ||
             (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
-            print_segments_(session_ptr, CLOG);
+            print_model_segments_(session_ptr, CLOG);
             return -1;
         }
         expected_offset += segment->computed_length;
@@ -614,7 +613,7 @@ static int populate_data_segment_(const session_t *session_ptr, data_segment_t *
 
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
-            print_segments_(session_ptr, CLOG);
+            print_model_segments_(session_ptr, CLOG);
             ABORT(CLOG << LOCATION << " break in model continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << endl;);
         }
@@ -721,6 +720,7 @@ static int update_model_helper_(session_t *session_ptr, const_change_ptr_t &chan
     for (auto iter = session_ptr->model_.model_segments.begin(); iter != session_ptr->model_.model_segments.end();
          ++iter) {
         if (read_offset != (*iter)->computed_offset) {
+            print_model_segments_(session_ptr, CLOG);
             ABORT(CLOG << LOCATION << " break in model continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << endl;);
         }
@@ -737,7 +737,7 @@ static int update_model_helper_(session_t *session_ptr, const_change_ptr_t &chan
                     const auto split_segment_ptr = clone_model_segment_(*iter);
                     split_segment_ptr->computed_offset += delta;
                     split_segment_ptr->computed_length -= delta;
-                    split_segment_ptr->change_offset = delta;
+                    split_segment_ptr->change_offset += delta;
                     (*iter)->computed_length = delta;
                     // iter will now point to the new split segment inserted into the model and who's offset falls on
                     // the update site
