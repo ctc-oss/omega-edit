@@ -163,7 +163,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.3.txt", "data/model-test.actual.3.txt") == 0);
     auto num_changes = file_info.num_changes;
-    undo_last_change(author_ptr);
+    undo_last_change(session_ptr);
     REQUIRE(file_info.num_changes == num_changes - 1);
     file_size -= 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
@@ -184,7 +184,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
     REQUIRE(get_computed_file_size(session_ptr) == 0);
-    while (file_info.num_changes) { undo_last_change(author_ptr); }
+    while (file_info.num_changes) { undo_last_change(session_ptr); }
     test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
     REQUIRE(test_outfile_fptr);
     save_to_file(session_ptr, test_outfile_fptr);
@@ -270,7 +270,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
                     auto num_changes_before_undo = get_session_num_changes(session_ptr);
                     REQUIRE(get_author_num_changes(author_ptr) == num_changes_before_undo);
-                    undo_last_change(author_ptr);
+                    undo_last_change(session_ptr);
+                    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
                     REQUIRE(get_session_num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
                     save_to_file(session_ptr, test_outfile_ptr);
@@ -339,19 +340,25 @@ TEST_CASE("Search", "[SearchTests]") {
     auto needle_length = strlen(needle);
     int needles_found = 0;
     REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, needle_length, pattern_found_cbk, &needles_found));
-    //REQUIRE(needles_found == 5);
+    REQUIRE(needles_found == 5);
     REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>(needle), needle_length));
     REQUIRE(0 == del(author_ptr, 16, needle_length));
     REQUIRE(0 == ins(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
-    //REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
-    auto test_outfile_fptr = fopen("data/search-test.txt.out", "w");
+    undo_last_change(session_ptr);
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    undo_last_change(session_ptr);
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 2);
+    REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
+    auto test_outfile_fptr = fopen("data/search-test.actual.1.txt", "w");
     save_to_file(session_ptr, test_outfile_fptr);
     fclose(test_outfile_fptr);
     needles_found = 0;
     REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, strlen(needle), pattern_found_cbk, &needles_found));
-    //REQUIRE(needles_found == 6);
+    REQUIRE(needles_found == 6);
     destroy_session(session_ptr);
     fclose(test_infile_fptr);
+    REQUIRE(compare_files("data/search-test.expected.1.txt", "data/search-test.actual.1.txt") == 0);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {

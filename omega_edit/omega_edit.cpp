@@ -117,6 +117,7 @@ struct session_t {
     authors_t authors{};                    ///< Collection of authors in this session
     viewports_t viewports{};                ///< Collection of viewports in this session
     changes_t changes{};                    ///< Collection of changes for this session, ordered by time
+    changes_t changes_undone{};             ///< Undone changes that are eligible for being redone
     model_t model_{};                       ///< Edit model (internal)
 };
 
@@ -295,9 +296,7 @@ int visit_changes(const session_t *session_ptr, visit_changes_cbk_t cbk, void *u
     return rc;
 }
 
-int undo_last_change(const author_t *author_ptr) {
-    const auto session_ptr = author_ptr->session_ptr;
-
+int undo_last_change(session_t *session_ptr) {
     if (!session_ptr->changes.empty()) {
         const auto change_ptr = session_ptr->changes.back();
 
@@ -311,11 +310,21 @@ int undo_last_change(const author_t *author_ptr) {
         const auto undone_change_ptr = const_cast<change_t *>(change_ptr.get());
         undone_change_ptr->serial *= -1;
 
+        session_ptr->changes_undone.push_back(change_ptr);
         update_viewports_(session_ptr, undone_change_ptr);
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, undone_change_ptr); }
         return 0;
     }
     return -1;
+}
+
+int redo_last_undo(session_t *session_ptr) {
+    int rc = -1;
+    if (!session_ptr->changes_undone.empty()) {
+        rc = update_(session_ptr->changes_undone.back());
+        session_ptr->changes_undone.pop_back();
+    }
+    return rc;
 }
 
 /***********************************************************************************************************************
@@ -416,6 +425,8 @@ void *get_session_user_data(const session_t *session_ptr) { return session_ptr->
 size_t get_session_num_viewports(const session_t *session_ptr) { return session_ptr->viewports.size(); }
 
 size_t get_session_num_changes(const session_t *session_ptr) { return session_ptr->changes.size(); }
+
+size_t get_session_num_undone_changes(const session_t *session_ptr) { return session_ptr->changes_undone.size(); }
 
 int64_t get_session_offset(const session_t *session_ptr) { return session_ptr->offset; }
 
@@ -817,6 +828,14 @@ static int update_(const_change_ptr_t &change_ptr) {
     const auto session_ptr = change_ptr->author_ptr->session_ptr;
     const auto computed_file_size = get_computed_file_size(session_ptr);
     if (change_ptr->offset <= computed_file_size) {
+        if (change_ptr->serial < 0) {
+            // This is a previously undone change that is being redone, so flip the serial number back to positive
+            const auto undone_change_ptr = const_cast<change_t *>(change_ptr.get());
+            undone_change_ptr->serial *= -1;
+        } else if (!session_ptr->changes_undone.empty()) {
+            // This is not a redo change, so any changes undone are now invalid and must be cleared
+            session_ptr->changes_undone.clear();
+        }
         session_ptr->changes.push_back(change_ptr);
         if (update_model_(session_ptr, change_ptr) != 0) { return -1; }
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }

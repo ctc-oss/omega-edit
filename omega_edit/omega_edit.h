@@ -275,6 +275,13 @@ int ovr(const author_t *author_ptr, int64_t offset, const byte_t *bytes, int64_t
 size_t get_session_num_changes(const session_t *session_ptr);
 
 /**
+ * Given a session, return the current number of undone changes eligible for being redone
+ * @param session_ptr session to get the number of undone changes for
+ * @return number of undone changes eligible for being redone
+ */
+size_t get_session_num_undone_changes(const session_t *session_ptr);
+
+/**
  * Given a session, return the offset
  * @param session_ptr session to get offset from
  * @return offset
@@ -287,7 +294,6 @@ int64_t get_session_offset(const session_t *session_ptr);
  * @return length
  */
 int64_t get_session_length(const session_t *session_ptr);
-
 
 /**
  * Given a session, return the number of active viewports
@@ -321,11 +327,18 @@ int64_t get_computed_file_size(const session_t *session_ptr);
 int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, byte_t bit_offset = 0);
 
 /**
- * Given an author, undo the author's last change
- * @param author_ptr author to undo the last change for
+ * Given a session, undo the last change
+ * @param session_ptr session to undo the last change for
  * @return 0 on success, non-zero otherwise
  */
-int undo_last_change(const author_t *author_ptr);
+int undo_last_change(session_t *session_ptr);
+
+/**
+ * Redoes the last undo (if available)
+ * @param session_ptr session to redo the last undo for
+ * @return 0 if an undo is available to be redone and it does so successfully, non-zero otherwise
+ */
+int redo_last_undo(session_t *session_ptr);
 
 /**
  * Save the given session to the given file

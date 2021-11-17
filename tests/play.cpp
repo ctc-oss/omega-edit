@@ -175,7 +175,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto viewport1_ptr = create_viewport(author_ptr, 0, 100, vpt_change_cbk, &view_mode);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
     if (0 != check_session_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
-    undo_last_change(author_ptr);
+    undo_last_change(session_ptr);
     ins(author_ptr, 0, (const byte_t *) "++++");
     ovr(author_ptr, 5, (const byte_t *) "-");
     ins(author_ptr, 0, (const byte_t *) "++++");
@@ -200,11 +200,11 @@ int main(int /*argc*/, char ** /*argv*/) {
     del(author_ptr, 50, 3);
     ins(author_ptr, 50, (const byte_t *) "***", 3);
     del(author_ptr, 1, 50);
-    undo_last_change(author_ptr);
+    undo_last_change(session_ptr);
 
     destroy_viewport(viewport2_ptr);
     del(author_ptr, 0, get_computed_file_size(session_ptr));
-    undo_last_change(author_ptr);
+    undo_last_change(session_ptr);
 
     clog << "\n\nCycle through the display modes:\n";
     view_mode.display_mode = display_mode_t::CHAR_MODE;
