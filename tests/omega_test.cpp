@@ -169,6 +169,11 @@ TEST_CASE("Model Test", "[ModelTests]") {
     auto num_changes = file_info.num_changes;
     REQUIRE(0 == undo_last_change(session_ptr));
     REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    auto last_undone_change = get_last_undo(session_ptr);
+    REQUIRE(last_undone_change);
+    REQUIRE(get_change_kind_as_char(last_undone_change) == 'I');
+    REQUIRE(get_change_offset(last_undone_change) == 5);
+    REQUIRE(get_change_length(last_undone_change) == 3);
     REQUIRE(file_info.num_changes == num_changes - 1);
     file_size -= 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
@@ -182,8 +187,16 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
     REQUIRE(0 == ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1));
     REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7));
+    auto last_change = get_last_change(session_ptr);
+    REQUIRE(get_change_kind_as_char(last_change) == 'I');
+    REQUIRE(get_change_offset(last_change) == 5);
+    REQUIRE(get_change_length(last_change) == 7);
     REQUIRE(0 == del(author_ptr, 7, 4));
+    REQUIRE((last_change = get_last_change(session_ptr)));
+    REQUIRE(get_change_kind_as_char(last_change) == 'D');
     REQUIRE(0 == ovr(author_ptr, 6, reinterpret_cast<const byte_t *>("O"), 0));
+    REQUIRE((last_change = get_last_change(session_ptr)));
+    REQUIRE(get_change_kind_as_char(last_change) == 'O');
     test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
     REQUIRE(test_outfile_fptr);
     REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
@@ -231,7 +244,7 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(0 == ins(author_ptr, 7, reinterpret_cast<const byte_t *>("77")));
     REQUIRE(0 == ins(author_ptr, 8, reinterpret_cast<const byte_t *>("88")));
     REQUIRE(0 == ins(author_ptr, 9, reinterpret_cast<const byte_t *>("99")));
-    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*")));
+    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*****+*****")));
     auto test_outfile_fptr = fopen("data/model-test.actual.7.txt", "w");
     REQUIRE(test_outfile_fptr);
     REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));

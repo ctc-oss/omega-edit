@@ -327,6 +327,20 @@ int64_t get_computed_file_size(const session_t *session_ptr);
 int update_viewport(viewport_t *viewport_ptr, int64_t offset, int64_t capacity, byte_t bit_offset = 0);
 
 /**
+ * Given a session, get the last change (if any)
+ * @param session_ptr session to get the last change from
+ * @return last change, or nullptr if there are no changes
+ */
+const change_t *get_last_change(const session_t *session_ptr);
+
+/**
+ * Given a session, get the last undone change eligible for redo (if any)
+ * @param session_ptr session to get the last undone change eligible for redo from
+ * @return last undone change eligible for redo
+ */
+const change_t *get_last_undo(const session_t *session_ptr);
+
+/**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
  * @return 0 on success, non-zero otherwise

@@ -296,6 +296,14 @@ int visit_changes(const session_t *session_ptr, visit_changes_cbk_t cbk, void *u
     return rc;
 }
 
+const change_t *get_last_change(const session_t *session_ptr){
+    return (session_ptr->changes.empty()) ? nullptr : session_ptr->changes.back().get();
+}
+
+const change_t *get_last_undo(const session_t *session_ptr) {
+    return (session_ptr->changes_undone.empty()) ? nullptr : session_ptr->changes_undone.back().get();
+}
+
 int undo_last_change(session_t *session_ptr) {
     if (!session_ptr->changes.empty()) {
         const auto change_ptr = session_ptr->changes.back();
