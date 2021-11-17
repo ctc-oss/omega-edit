@@ -113,11 +113,13 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     const auto author_name = "empty file test";
     const auto session_ptr =
             create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    REQUIRE(session_ptr);
     const auto author_ptr = create_author(session_ptr, author_name);
+    REQUIRE(author_ptr);
     REQUIRE(get_session_offset(session_ptr) == 0);
     auto file_size = get_session_length(session_ptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"));
+    REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0")));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     destroy_session(session_ptr);
@@ -133,61 +135,79 @@ TEST_CASE("Model Test", "[ModelTests]") {
     const auto author_name = "model insert test";
     const auto session_ptr =
             create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    REQUIRE(session_ptr);
     fseeko(test_infile_fptr, 0, SEEK_END);
     auto file_size = ftello(test_infile_fptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto author_ptr = create_author(session_ptr, author_name);
-    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"), 1);
+    REQUIRE(author_ptr);
+    REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.1.txt") != 0);
     REQUIRE(compare_files("data/model-test.expected.1.txt", "data/model-test.actual.1.txt") == 0);
-    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("0"), 1);
+    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.2.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.2.txt", "data/model-test.actual.2.txt") == 0);
-    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("xxx"));
+    REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("xxx")));
     file_size += 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.3.txt", "data/model-test.actual.3.txt") == 0);
     auto num_changes = file_info.num_changes;
-    undo_last_change(author_ptr);
+    REQUIRE(0 == undo_last_change(session_ptr));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    auto last_undone_change = get_last_undo(session_ptr);
+    REQUIRE(last_undone_change);
+    REQUIRE(get_change_kind_as_char(last_undone_change) == 'I');
+    REQUIRE(get_change_offset(last_undone_change) == 5);
+    REQUIRE(get_change_length(last_undone_change) == 3);
     REQUIRE(file_info.num_changes == num_changes - 1);
     file_size -= 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.4.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
-    ovr(author_ptr, 0, reinterpret_cast<const byte_t *>("-"));
-    ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1);
-    ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7);
-    del(author_ptr, 7, 4);
-    ovr(author_ptr, 6, reinterpret_cast<const byte_t *>("O"), 0);
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    REQUIRE(0 == ovr(author_ptr, 0, reinterpret_cast<const byte_t *>("-")));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
+    REQUIRE(0 == ovr(author_ptr, file_size - 1, reinterpret_cast<const byte_t *>("+"), 1));
+    REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("XxXxXxX"), 7));
+    auto last_change = get_last_change(session_ptr);
+    REQUIRE(get_change_kind_as_char(last_change) == 'I');
+    REQUIRE(get_change_offset(last_change) == 5);
+    REQUIRE(get_change_length(last_change) == 7);
+    REQUIRE(0 == del(author_ptr, 7, 4));
+    REQUIRE((last_change = get_last_change(session_ptr)));
+    REQUIRE(get_change_kind_as_char(last_change) == 'D');
+    REQUIRE(0 == ovr(author_ptr, 6, reinterpret_cast<const byte_t *>("O"), 0));
+    REQUIRE((last_change = get_last_change(session_ptr)));
+    REQUIRE(get_change_kind_as_char(last_change) == 'O');
     test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
-    del(author_ptr, 0, get_computed_file_size(session_ptr));
+    REQUIRE(0 == del(author_ptr, 0, get_computed_file_size(session_ptr)));
     REQUIRE(get_computed_file_size(session_ptr) == 0);
-    while (file_info.num_changes) { undo_last_change(author_ptr); }
+    while (file_info.num_changes) { undo_last_change(session_ptr); }
     test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.6.txt") == 0);
@@ -209,8 +229,10 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     const auto author_name = "Hanoi insert test";
     const auto session_ptr =
             create_session(nullptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    REQUIRE(session_ptr);
     REQUIRE(get_computed_file_size(session_ptr) == 0);
     auto author_ptr = create_author(session_ptr, author_name);
+    REQUIRE(author_ptr);
     // Hanoi test
     REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("00")));
     REQUIRE(0 == ins(author_ptr, 1, reinterpret_cast<const byte_t *>("11")));
@@ -222,10 +244,10 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(0 == ins(author_ptr, 7, reinterpret_cast<const byte_t *>("77")));
     REQUIRE(0 == ins(author_ptr, 8, reinterpret_cast<const byte_t *>("88")));
     REQUIRE(0 == ins(author_ptr, 9, reinterpret_cast<const byte_t *>("99")));
-    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*")));
+    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*****+*****")));
     auto test_outfile_fptr = fopen("data/model-test.actual.7.txt", "w");
     REQUIRE(test_outfile_fptr);
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.7.txt", "data/model-test.actual.7.txt") == 0);
@@ -247,33 +269,35 @@ TEST_CASE("Check initialization", "[InitTests]") {
         SECTION("Create Session") {
             session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY,
                                          0, 0);
-            REQUIRE(session_ptr != NULL);
+            REQUIRE(session_ptr);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
                 const char *author_name = "Test Author";
                 author_ptr = create_author(session_ptr, author_name);
+                REQUIRE(author_ptr);
                 REQUIRE(strcmp(author_name, get_author_name(author_ptr)) == 0);
                 SECTION("Add bytes") {
-                    ins(author_ptr, 10, reinterpret_cast<const byte_t *>("++++"), 4);
+                    REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("++++"), 4));
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ovr(author_ptr, 12, reinterpret_cast<const byte_t *>("."), 1);
+                    REQUIRE(0 == ovr(author_ptr, 12, reinterpret_cast<const byte_t *>("."), 1));
                     REQUIRE(get_computed_file_size(session_ptr) == 67);
-                    ins(author_ptr, 0, reinterpret_cast<const byte_t *>("+++"));
+                    REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("+++")));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 1, reinterpret_cast<const byte_t *>("."));
+                    REQUIRE(0 == ovr(author_ptr, 1, reinterpret_cast<const byte_t *>(".")));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ovr(author_ptr, 15, reinterpret_cast<const byte_t *>("*"));
+                    REQUIRE(0 == ovr(author_ptr, 15, reinterpret_cast<const byte_t *>("*")));
                     REQUIRE(get_computed_file_size(session_ptr) == 70);
-                    ins(author_ptr, 15, reinterpret_cast<const byte_t *>("+"));
+                    REQUIRE(0 == ins(author_ptr, 15, reinterpret_cast<const byte_t *>("+")));
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
-                    del(author_ptr, 9, 5);
+                    REQUIRE(0 == del(author_ptr, 9, 5));
                     REQUIRE(get_computed_file_size(session_ptr) == 66);
                     auto num_changes_before_undo = get_session_num_changes(session_ptr);
                     REQUIRE(get_author_num_changes(author_ptr) == num_changes_before_undo);
-                    undo_last_change(author_ptr);
+                    REQUIRE(0 == undo_last_change(session_ptr));
+                    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
                     REQUIRE(get_session_num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
-                    save_to_file(session_ptr, test_outfile_ptr);
+                    REQUIRE(0 == save_to_file(session_ptr, test_outfile_ptr));
                     fclose(test_infile_ptr);
                     fclose(test_outfile_ptr);
                 }
@@ -328,10 +352,12 @@ TEST_CASE("Search", "[SearchTests]") {
     const auto author_name = "search test";
     const auto session_ptr =
             create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    REQUIRE(session_ptr);
     fseeko(test_infile_fptr, 0, SEEK_END);
     auto file_size = ftello(test_infile_fptr);
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     auto author_ptr = create_author(session_ptr, author_name);
+    REQUIRE(author_ptr);
     view_mode_t view_mode;
     view_mode.display_mode = CHAR_MODE;
     create_viewport(author_ptr, 0, 1024, vpt_change_cbk, &view_mode);
@@ -339,19 +365,25 @@ TEST_CASE("Search", "[SearchTests]") {
     auto needle_length = strlen(needle);
     int needles_found = 0;
     REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, needle_length, pattern_found_cbk, &needles_found));
-    //REQUIRE(needles_found == 5);
+    REQUIRE(needles_found == 5);
     REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>(needle), needle_length));
     REQUIRE(0 == del(author_ptr, 16, needle_length));
     REQUIRE(0 == ins(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
-    //REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
-    auto test_outfile_fptr = fopen("data/search-test.txt.out", "w");
-    save_to_file(session_ptr, test_outfile_fptr);
+    REQUIRE(0 == undo_last_change(session_ptr));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    REQUIRE(0 == undo_last_change(session_ptr));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 2);
+    REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
+    auto test_outfile_fptr = fopen("data/search-test.actual.1.txt", "w");
+    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     needles_found = 0;
     REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, strlen(needle), pattern_found_cbk, &needles_found));
-    //REQUIRE(needles_found == 6);
+    REQUIRE(needles_found == 6);
     destroy_session(session_ptr);
     fclose(test_infile_fptr);
+    REQUIRE(compare_files("data/search-test.expected.1.txt", "data/search-test.actual.1.txt") == 0);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {
@@ -376,22 +408,22 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode.display_mode = CHAR_MODE;
     vpt_change_cbk(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < get_computed_file_size(session_ptr); ++offset) {
-        update_viewport(viewport_ptr, offset, 10 + (offset % 40), 0);
+        REQUIRE(0 == update_viewport(viewport_ptr, offset, 10 + (offset % 40), 0));
     }
 
     // Change the display mode from character mode to byte mode to handle non-standard byte alignment
 
     view_mode.display_mode = BIT_MODE;
-    update_viewport(viewport_ptr, 0, 20, 0);
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 0));
 
     // Change to bit offsets
-    update_viewport(viewport_ptr, 0, 20, 1);
-    update_viewport(viewport_ptr, 0, 20, 2);
-    update_viewport(viewport_ptr, 0, 20, 3);
-    update_viewport(viewport_ptr, 0, 20, 4);
-    update_viewport(viewport_ptr, 0, 20, 5);
-    update_viewport(viewport_ptr, 0, 20, 6);
-    update_viewport(viewport_ptr, 0, 20, 7);
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 1));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 2));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 3));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 4));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 5));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 6));
+    REQUIRE(0 == update_viewport(viewport_ptr, 0, 20, 7));
 
     view_mode.display_mode = BYTE_MODE;
     vpt_change_cbk(viewport_ptr, nullptr);
