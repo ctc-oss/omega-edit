@@ -14,12 +14,7 @@
 * limitations under the License.
 */
 
-#ifndef OMEGA_EDIT_FWD_DEFS_H
-#define OMEGA_EDIT_FWD_DEFS_H
+#include "../include/license.h"
+#include "impl_/license_def.h"
 
-struct session_t;
-struct author_t;
-struct change_t;
-struct viewport_t;
-
-#endif//OMEGA_EDIT_FWD_DEFS_H
+const char *get_omega_edit_license() { return omega_edit_license; }

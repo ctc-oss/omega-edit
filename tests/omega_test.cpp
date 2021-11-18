@@ -27,6 +27,13 @@
 
 using namespace std;
 
+TEST_CASE("License check", "[LicenseCheck]") {
+    const auto license = get_omega_edit_license();
+    REQUIRE(license);
+    REQUIRE(strlen(license) == 576);
+    REQUIRE(strstr(license, "Concurrent Technologies Corporation"));
+}
+
 TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     auto *buffer = (byte_t *) strdup(fill);
