@@ -19,6 +19,7 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
+#include <cstdint>
 #include <cstdio>
 
 /**

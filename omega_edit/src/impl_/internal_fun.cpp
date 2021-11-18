@@ -25,6 +25,7 @@
 #include "model_segment_def.h"
 #include "session_def.h"
 #include "viewport_def.h"
+#include <cassert>
 
 static void print_change_(const_change_ptr_t &change_ptr, std::ostream &out_stream) {
     out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"

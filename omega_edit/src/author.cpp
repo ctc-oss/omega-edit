@@ -21,7 +21,6 @@
 #include "impl_/internal_fun.h"
 #include "impl_/model_segment_def.h"
 #include "impl_/session_def.h"
-#include <cstdint>
 #include <cstring>
 
 const author_t *create_author(session_t *session_ptr, const char *author_name) {
