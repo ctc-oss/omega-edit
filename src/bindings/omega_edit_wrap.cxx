@@ -2440,6 +2440,25 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_get_omega_edit_license(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  char *result = 0 ;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_omega_edit_license.");
+  
+  result = (char *)get_omega_edit_license();
+  jsresult = SWIG_FromCharPtr((const char *)result);
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_create_session__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
 {
   SWIGV8_HANDLESCOPE();
@@ -4708,6 +4727,7 @@ SWIGV8_AddStaticFunction(exports_obj, "get_change_serial", _wrap_get_change_seri
 SWIGV8_AddStaticFunction(exports_obj, "get_change_kind_as_char", _wrap_get_change_kind_as_char);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_bytes", _wrap_get_change_bytes);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_author", _wrap_get_change_author);
+SWIGV8_AddStaticFunction(exports_obj, "get_omega_edit_license", _wrap_get_omega_edit_license);
 SWIGV8_AddStaticFunction(exports_obj, "create_session", _wrap___wrap_create_session);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_viewport_max_capacity", _wrap_get_session_viewport_max_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_user_data", _wrap_get_session_user_data);
