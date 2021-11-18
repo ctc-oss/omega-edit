@@ -1,7 +1,7 @@
 {
   "name": "omega-edit",
-  "version": "0.5.0",
-  "main": "",
+  "version": "0.5.4",
+  "main": "build/Release/omega_edit",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
     "type": "git"
@@ -22,6 +22,9 @@
     "gyp-rebuild": "yarn run node-gyp rebuild",
     "gyp-install": "yarn run node-gyp install",
     "gyp-list": "yarn run node-gyp list",
-    "gyp-remove": "yarn run node-gyp remove"
+    "gyp-remove": "yarn run node-gyp remove",
+    "swig-compile": "swig -javascript -node -v -c++ -outdir src/bindings/javascript src/bindings/omega_edit.i",
+    "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
+    "package": "yarn pre-package && yarn publish"
   }
 }

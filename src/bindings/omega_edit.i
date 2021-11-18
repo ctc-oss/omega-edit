@@ -19,10 +19,11 @@
 %module omega_edit
 %{
 /* Includes the header in the wrapper code */
-#include "omega_edit.h"
+#include "../omega_edit/omega_edit.h"
 %}
 /* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+%include "../omega_edit/include/author.h"
+%include "../omega_edit/include/change.h"
+%include "../omega_edit/include/license.h"
+%include "../omega_edit/include/session.h"
+%include "../omega_edit/include/viewport.h"

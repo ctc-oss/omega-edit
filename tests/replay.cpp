@@ -18,8 +18,8 @@
  * This application is an example of how a saved session can be replayed.
  */
 
-#include "../omega_edit/include/encodings.h"
-#include "../omega_edit/omega_edit.h"
+#include "../src/omega_edit/include/encodings.h"
+#include "../src/omega_edit/omega_edit.h"
 #include <cinttypes>
 #include <cstring>
 #include <iomanip>

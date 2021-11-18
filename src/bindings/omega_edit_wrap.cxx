@@ -1599,7 +1599,7 @@ static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "omega_edit.h"
+#include "../omega_edit/omega_edit.h"
 
 
 SWIGINTERN swig_type_info*
@@ -2431,6 +2431,25 @@ static SwigV8ReturnValue _wrap_get_change_author(const SwigV8Arguments &args) {
   result = (author_t *)get_change_author((change_t const *)arg1);
   jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
   
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_omega_edit_license(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  char *result = 0 ;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_omega_edit_license.");
+  
+  result = (char *)get_omega_edit_license();
+  jsresult = SWIG_FromCharPtr((const char *)result);
   
   SWIGV8_RETURN(jsresult);
   
@@ -4708,6 +4727,7 @@ SWIGV8_AddStaticFunction(exports_obj, "get_change_serial", _wrap_get_change_seri
 SWIGV8_AddStaticFunction(exports_obj, "get_change_kind_as_char", _wrap_get_change_kind_as_char);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_bytes", _wrap_get_change_bytes);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_author", _wrap_get_change_author);
+SWIGV8_AddStaticFunction(exports_obj, "get_omega_edit_license", _wrap_get_omega_edit_license);
 SWIGV8_AddStaticFunction(exports_obj, "create_session", _wrap___wrap_create_session);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_viewport_max_capacity", _wrap_get_session_viewport_max_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_user_data", _wrap_get_session_user_data);
