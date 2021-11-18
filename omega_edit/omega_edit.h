@@ -25,8 +25,10 @@
  * be called with the updated viewport and the change that triggered the update.
  */
 
+
 #include "include/author.h"
 #include "include/change.h"
+#include "include/license.h"
 #include "include/session.h"
 #include "include/viewport.h"
 
