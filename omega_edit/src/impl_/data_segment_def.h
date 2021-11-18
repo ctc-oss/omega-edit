@@ -14,15 +14,18 @@
 * limitations under the License.
 */
 
-/* clang-format off */
+#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_H
+#define OMEGA_EDIT_DATA_SEGMENT_DEF_H
 
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "omega_edit.h"
-%}
-/* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+#include "../../include/fwd_defs.h"
+#include "data_def.h"
+#include <cstdint>
+
+struct data_segment_t {
+    int64_t offset{};  ///< Data offset as changes have been made
+    int64_t length{};  ///< Populated data length (in bytes)
+    int64_t capacity{};///< Data capacity (in bytes)
+    data_t data{};     ///< Copy of the data itself
+};
+
+#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_H

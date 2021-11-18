@@ -1563,16 +1563,16 @@ fail: ;
 
 #define SWIGTYPE_p_FILE swig_types[0]
 #define SWIGTYPE_p_author_t swig_types[1]
-#define SWIGTYPE_p_change_t swig_types[2]
-#define SWIGTYPE_p_char swig_types[3]
-#define SWIGTYPE_p_f_int64_t_int64_t_p_void__int swig_types[4]
-#define SWIGTYPE_p_f_p_q_const__change_t_p_void__int swig_types[5]
-#define SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void swig_types[6]
-#define SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void swig_types[7]
-#define SWIGTYPE_p_int64_t swig_types[8]
-#define SWIGTYPE_p_p_unsigned_char swig_types[9]
-#define SWIGTYPE_p_session_t swig_types[10]
-#define SWIGTYPE_p_unsigned_char swig_types[11]
+#define SWIGTYPE_p_byte_t swig_types[2]
+#define SWIGTYPE_p_change_t swig_types[3]
+#define SWIGTYPE_p_char swig_types[4]
+#define SWIGTYPE_p_f_int64_t_int64_t_p_void__int swig_types[5]
+#define SWIGTYPE_p_f_p_q_const__change_t_p_void__int swig_types[6]
+#define SWIGTYPE_p_f_p_q_const__session_t_p_q_const__change_t__void swig_types[7]
+#define SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void swig_types[8]
+#define SWIGTYPE_p_int64_t swig_types[9]
+#define SWIGTYPE_p_p_byte_t swig_types[10]
+#define SWIGTYPE_p_session_t swig_types[11]
 #define SWIGTYPE_p_viewport_t swig_types[12]
 #define SWIGTYPE_p_void swig_types[13]
 static swig_type_info *swig_types[15];
@@ -1599,15 +1599,7 @@ static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "omega_edit.h"int64_t get_change_bytes(const change_t *change_ptr, const byte_t **bytes)
-
-
-
-SWIGINTERNINLINE
-v8::Handle<v8::Value> SWIG_From_int  (int value)
-{
-  return SWIGV8_INT32_NEW(value);
-}
+#include "omega_edit.h"
 
 
 SWIGINTERN swig_type_info*
@@ -1620,59 +1612,6 @@ SWIG_pchar_descriptor(void)
     init = 1;
   }
   return info;
-}
-
-
-SWIGINTERNINLINE v8::Handle<v8::Value>
-SWIG_FromCharPtrAndSize(const char* carray, size_t size)
-{
-  if (carray) {
-    if (size > INT_MAX) {
-      // TODO: handle extra long strings
-      return SWIGV8_UNDEFINED();
-    } else {
-      v8::Handle<v8::String> js_str = SWIGV8_STRING_NEW2(carray, size);
-      return js_str;
-    }
-  } else {
-    return SWIGV8_UNDEFINED();
-  }
-}
-
-
-SWIGINTERNINLINE v8::Handle<v8::Value>
-SWIG_From_char  (char c) 
-{ 
-  return SWIG_FromCharPtrAndSize(&c,1);
-}
-
-
-SWIGINTERNINLINE
-v8::Handle<v8::Value> SWIG_From_long  (long value)
-{
-  return SWIGV8_NUMBER_NEW(value);
-}
-
-
-SWIGINTERNINLINE
-v8::Handle<v8::Value> SWIG_From_unsigned_SS_long  (unsigned long value)
-{
-  return (value > LONG_MAX) ?
-    SWIGV8_INTEGER_NEW_UNS(value) : SWIGV8_INTEGER_NEW(static_cast< long >(value));
-}
-
-
-SWIGINTERNINLINE v8::Handle<v8::Value>
-SWIG_From_unsigned_SS_char  (unsigned char value)
-{    
-  return SWIG_From_unsigned_SS_long  (value);
-}
-
-
-SWIGINTERNINLINE v8::Handle<v8::Value> 
-SWIG_FromCharPtr(const char *cptr)
-{ 
-  return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
 }
 
 
@@ -1716,6 +1655,45 @@ SWIG_AsCharPtrAndSize(v8::Handle<v8::Value> valRef, char** cptr, size_t* psize, 
 
 
 
+SWIGINTERNINLINE v8::Handle<v8::Value>
+SWIG_FromCharPtrAndSize(const char* carray, size_t size)
+{
+  if (carray) {
+    if (size > INT_MAX) {
+      // TODO: handle extra long strings
+      return SWIGV8_UNDEFINED();
+    } else {
+      v8::Handle<v8::String> js_str = SWIGV8_STRING_NEW2(carray, size);
+      return js_str;
+    }
+  } else {
+    return SWIGV8_UNDEFINED();
+  }
+}
+
+
+SWIGINTERNINLINE v8::Handle<v8::Value> 
+SWIG_FromCharPtr(const char *cptr)
+{ 
+  return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
+}
+
+
+SWIGINTERNINLINE
+v8::Handle<v8::Value> SWIG_From_long  (long value)
+{
+  return SWIGV8_NUMBER_NEW(value);
+}
+
+
+SWIGINTERNINLINE
+v8::Handle<v8::Value> SWIG_From_unsigned_SS_long  (unsigned long value)
+{
+  return (value > LONG_MAX) ?
+    SWIGV8_INTEGER_NEW_UNS(value) : SWIGV8_INTEGER_NEW(static_cast< long >(value));
+}
+
+
 #include <limits.h>
 #if !defined(SWIG_NO_LLONG_MAX)
 # if !defined(LLONG_MAX) && defined(__GNUC__) && defined (__LONG_LONG_MAX__)
@@ -1724,89 +1702,6 @@ SWIG_AsCharPtrAndSize(v8::Handle<v8::Value> valRef, char** cptr, size_t* psize, 
 #   define ULLONG_MAX (LLONG_MAX * 2ULL + 1ULL)
 # endif
 #endif
-
-
-SWIGINTERN
-int SWIG_AsVal_double (v8::Handle<v8::Value> obj, double *val)
-{
-  if(!obj->IsNumber()) {
-    return SWIG_TypeError;
-  }
-  if(val) *val = SWIGV8_NUMBER_VALUE(obj);
-
-  return SWIG_OK;
-}
-
-
-#include <float.h>
-
-
-#include <math.h>
-
-
-SWIGINTERNINLINE int
-SWIG_CanCastAsInteger(double *d, double min, double max) {
-  double x = *d;
-  if ((min <= x && x <= max)) {
-   double fx = floor(x);
-   double cx = ceil(x);
-   double rd =  ((x - fx) < 0.5) ? fx : cx; /* simple rint */
-   if ((errno == EDOM) || (errno == ERANGE)) {
-     errno = 0;
-   } else {
-     double summ, reps, diff;
-     if (rd < x) {
-       diff = x - rd;
-     } else if (rd > x) {
-       diff = rd - x;
-     } else {
-       return 1;
-     }
-     summ = rd + x;
-     reps = diff/summ;
-     if (reps < 8*DBL_EPSILON) {
-       *d = rd;
-       return 1;
-     }
-   }
-  }
-  return 0;
-}
-
-
-SWIGINTERN
-int SWIG_AsVal_unsigned_SS_long (v8::Handle<v8::Value> obj, unsigned long *val)
-{
-  if(!obj->IsNumber()) {
-    return SWIG_TypeError;
-  }
-
-  long longVal = (long) SWIGV8_NUMBER_VALUE(obj);
-
-  if(longVal < 0) {
-      return SWIG_OverflowError;
-  }
-
-  if(val) *val = longVal;
-
-  return SWIG_OK;
-}
-
-
-SWIGINTERN int
-SWIG_AsVal_unsigned_SS_char (v8::Handle<v8::Value> obj, unsigned char *val)
-{
-  unsigned long v;
-  int res = SWIG_AsVal_unsigned_SS_long (obj, &v);
-  if (SWIG_IsOK(res)) {
-    if ((v > UCHAR_MAX)) {
-      return SWIG_OverflowError;
-    } else {
-      if (val) *val = static_cast< unsigned char >(v);
-    }
-  }  
-  return res;
-}
 
 
 #if defined(LLONG_MAX) && !defined(SWIG_LONG_LONG_AVAILABLE)
@@ -1849,47 +1744,523 @@ SWIG_From_size_t  (size_t value)
 }
 
 
+SWIGINTERNINLINE
+v8::Handle<v8::Value> SWIG_From_int  (int value)
+{
+  return SWIGV8_INT32_NEW(value);
+}
+
+
+SWIGINTERNINLINE v8::Handle<v8::Value>
+SWIG_From_char  (char c) 
+{ 
+  return SWIG_FromCharPtrAndSize(&c,1);
+}
+
+
 #define SWIGV8_INIT omega_edit_initialize
 
 
 
 
-#if (V8_MAJOR_VERSION-0) < 5
-static SwigV8ReturnValue _wrap_DEFAULT_VIEWPORT_MAX_CAPACITY(v8::Local<v8::String> property, const SwigV8PropertyCallbackInfo &info) {
-#else
-  static SwigV8ReturnValue _wrap_DEFAULT_VIEWPORT_MAX_CAPACITY(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
-#endif
-    SWIGV8_HANDLESCOPE();
-    
-    v8::Handle<v8::Value> jsresult;
-    
-    jsresult = SWIG_From_int(static_cast< int >((1024*1024)));
-    
-    SWIGV8_RETURN_INFO(jsresult, info);
-    
-    goto fail;
-  fail:
-    SWIGV8_RETURN_INFO(SWIGV8_UNDEFINED(), info);
+static SwigV8ReturnValue _wrap_create_author(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  author_t *result = 0 ;
+  
+  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_create_author.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_author" "', argument " "1"" of type '" "session_t *""'"); 
   }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(args[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_author" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  result = (author_t *)create_author(arg1,(char const *)arg2);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
+  
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
 
 
-#if (V8_MAJOR_VERSION-0) < 5
-static SwigV8ReturnValue _wrap_NEEDLE_LENGTH_LIMIT(v8::Local<v8::String> property, const SwigV8PropertyCallbackInfo &info) {
-#else
-  static SwigV8ReturnValue _wrap_NEEDLE_LENGTH_LIMIT(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
-#endif
-    SWIGV8_HANDLESCOPE();
-    
-    v8::Handle<v8::Value> jsresult;
-    
-    jsresult = SWIG_From_int(static_cast< int >(((1024*1024)/2)));
-    
-    SWIGV8_RETURN_INFO(jsresult, info);
-    
-    goto fail;
-  fail:
-    SWIGV8_RETURN_INFO(SWIGV8_UNDEFINED(), info);
+static SwigV8ReturnValue _wrap_get_author_name(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  char *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_name.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_name" "', argument " "1"" of type '" "author_t const *""'"); 
   }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  result = (char *)get_author_name((author_t const *)arg1);
+  jsresult = SWIG_FromCharPtr((const char *)result);
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_author_session(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  session_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_session.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_session" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  result = (session_t *)get_author_session((author_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_session_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_author_num_changes(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_num_changes.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_num_changes" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  result = get_author_num_changes((author_t const *)arg1);
+  jsresult = SWIG_From_size_t(static_cast< size_t >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_del(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int result;
+  
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_del.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "del" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "del" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "del" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "del" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "del" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  result = (int)del((author_t const *)arg1,arg2,arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_ins__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  byte_t *arg3 = (byte_t *) 0 ;
+  int64_t arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  void *argp4 ;
+  int res4 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ins" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ins" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ins" "', argument " "3"" of type '" "byte_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< byte_t * >(argp3);
+  {
+    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ins" "', argument " "4"" of type '" "int64_t""'"); 
+    }  
+    if (!argp4) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "4"" of type '" "int64_t""'");
+    } else {
+      arg4 = *(reinterpret_cast< int64_t * >(argp4));
+    }
+  }
+  result = (int)ins((author_t const *)arg1,arg2,(byte_t const *)arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_ins__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  byte_t *arg3 = (byte_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ins" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ins" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ins" "', argument " "3"" of type '" "byte_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< byte_t * >(argp3);
+  result = (int)ins((author_t const *)arg1,arg2,(byte_t const *)arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_ins(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_ins__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_ins__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 3) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_ins__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_ins__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function ins.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_ovr__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  byte_t *arg3 = (byte_t *) 0 ;
+  int64_t arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  void *argp4 ;
+  int res4 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ovr" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "byte_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< byte_t * >(argp3);
+  {
+    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ovr" "', argument " "4"" of type '" "int64_t""'"); 
+    }  
+    if (!argp4) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "4"" of type '" "int64_t""'");
+    } else {
+      arg4 = *(reinterpret_cast< int64_t * >(argp4));
+    }
+  }
+  result = (int)ovr((author_t const *)arg1,arg2,(byte_t const *)arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_ovr__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  byte_t *arg3 = (byte_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ovr" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "byte_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< byte_t * >(argp3);
+  result = (int)ovr((author_t const *)arg1,arg2,(byte_t const *)arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_ovr(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_ovr__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_ovr__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 3) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_ovr__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_ovr__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function ovr.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
 
 
 static SwigV8ReturnValue _wrap_get_change_offset(const SwigV8Arguments &args) {
@@ -2023,12 +2394,12 @@ static SwigV8ReturnValue _wrap_get_change_bytes(const SwigV8Arguments &args) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_change_bytes" "', argument " "1"" of type '" "change_t const *""'"); 
   }
   arg1 = reinterpret_cast< change_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_p_unsigned_char, 0 |  0 );
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_p_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "get_change_bytes" "', argument " "2"" of type '" "byte_t const **""'"); 
   }
   arg2 = reinterpret_cast< byte_t ** >(argp2);
-  result = get_change_bytes((change_t const *)arg1,(unsigned char const **)arg2);
+  result = get_change_bytes((change_t const *)arg1,(byte_t const **)arg2);
   jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
   
   
@@ -2059,301 +2430,6 @@ static SwigV8ReturnValue _wrap_get_change_author(const SwigV8Arguments &args) {
   arg1 = reinterpret_cast< change_t * >(argp1);
   result = (author_t *)get_change_author((change_t const *)arg1);
   jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_visit_changes(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  session_t *arg1 = (session_t *) 0 ;
-  visit_changes_cbk_t arg2 = (visit_changes_cbk_t) 0 ;
-  void *arg3 = (void *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int res3 ;
-  int result;
-  
-  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_visit_changes.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "visit_changes" "', argument " "1"" of type '" "session_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< session_t * >(argp1);
-  {
-    int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__change_t_p_void__int);
-    if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "visit_changes" "', argument " "2"" of type '" "visit_changes_cbk_t""'"); 
-    }
-  }
-  res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "visit_changes" "', argument " "3"" of type '" "void *""'"); 
-  }
-  result = (int)visit_changes((session_t const *)arg1,arg2,arg3);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_author(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  author_t *result = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_author.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_author" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (author_t *)get_viewport_author((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_capacity(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int64_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_capacity.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_capacity" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = get_viewport_capacity((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_length(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int64_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_length.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_length" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = get_viewport_length((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_data(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  byte_t *result = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_data.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_data" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (byte_t *)get_viewport_data((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_unsigned_char, 0 |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_computed_offset(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int64_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_computed_offset.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_computed_offset" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = get_viewport_computed_offset((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_user_data(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *result = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_user_data.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_user_data" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (void *)get_viewport_user_data((viewport_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_void, 0 |  0 );
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_viewport_bit_offset(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  byte_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_bit_offset.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_bit_offset" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (byte_t)get_viewport_bit_offset((viewport_t const *)arg1);
-  jsresult = SWIG_From_unsigned_SS_char(static_cast< unsigned char >(result));
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_author_name(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  char *result = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_name.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_name" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  result = (char *)get_author_name((author_t const *)arg1);
-  jsresult = SWIG_FromCharPtr((const char *)result);
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_get_author_session(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  session_t *result = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_session.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_session" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  result = (session_t *)get_author_session((author_t const *)arg1);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_session_t, 0 |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -2845,666 +2921,42 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_create_author(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_visit_changes(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
   session_t *arg1 = (session_t *) 0 ;
-  char *arg2 = (char *) 0 ;
+  visit_changes_cbk_t arg2 = (visit_changes_cbk_t) 0 ;
+  void *arg3 = (void *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  int res2 ;
-  char *buf2 = 0 ;
-  int alloc2 = 0 ;
-  author_t *result = 0 ;
+  int res3 ;
+  int result;
   
-  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_create_author.");
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_visit_changes.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_author" "', argument " "1"" of type '" "session_t *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "visit_changes" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  res2 = SWIG_AsCharPtrAndSize(args[1], &buf2, NULL, &alloc2);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_author" "', argument " "2"" of type '" "char const *""'");
-  }
-  arg2 = reinterpret_cast< char * >(buf2);
-  result = (author_t *)create_author(arg1,(char const *)arg2);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
-  
-  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  int64_t arg3 ;
-  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
-  void *arg5 = (void *) 0 ;
-  byte_t arg6 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  int res5 ;
-  unsigned char val6 ;
-  int ecode6 = 0 ;
-  viewport_t *result = 0 ;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_viewport" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
   {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'");
-    } else {
-      arg3 = *(reinterpret_cast< int64_t * >(argp3));
-    }
-  }
-  {
-    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
+    int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__change_t_p_void__int);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "visit_changes" "', argument " "2"" of type '" "visit_changes_cbk_t""'"); 
     }
   }
-  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
-  if (!SWIG_IsOK(res5)) {
-    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "create_viewport" "', argument " "5"" of type '" "void *""'"); 
-  }
-  ecode6 = SWIG_AsVal_unsigned_SS_char(args[5], &val6);
-  if (!SWIG_IsOK(ecode6)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "create_viewport" "', argument " "6"" of type '" "byte_t""'");
-  } 
-  arg6 = static_cast< byte_t >(val6);
-  result = (viewport_t *)create_viewport((author_t const *)arg1,arg2,arg3,arg4,arg5,arg6);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_viewport_t, 0 |  0 );
-  
-  
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_create_viewport__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  int64_t arg3 ;
-  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
-  void *arg5 = (void *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  int res5 ;
-  viewport_t *result = 0 ;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_viewport" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'");
-    } else {
-      arg3 = *(reinterpret_cast< int64_t * >(argp3));
-    }
-  }
-  {
-    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
-    if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
-    }
-  }
-  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
-  if (!SWIG_IsOK(res5)) {
-    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "create_viewport" "', argument " "5"" of type '" "void *""'"); 
-  }
-  result = (viewport_t *)create_viewport((author_t const *)arg1,arg2,arg3,arg4,arg5);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_viewport_t, 0 |  0 );
-  
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap___wrap_create_viewport(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  OverloadErrorHandler errorHandler;
-  
-  
-  if(args.Length() == 6) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_create_viewport__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_create_viewport__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  if(args.Length() == 5) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_create_viewport__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_create_viewport__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function create_viewport.");
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_destroy_viewport(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_destroy_viewport.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "destroy_viewport" "', argument " "1"" of type '" "viewport_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  result = (int)destroy_viewport((viewport_t const *)arg1);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_destroy_session(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  session_t *arg1 = (session_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_destroy_session.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "destroy_session" "', argument " "1"" of type '" "session_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< session_t * >(argp1);
-  destroy_session((session_t const *)arg1);
-  jsresult = SWIGV8_UNDEFINED();
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_del(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  int64_t arg3 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  int result;
-  
-  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_del.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "del" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "del" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "del" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "del" "', argument " "3"" of type '" "int64_t""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "del" "', argument " "3"" of type '" "int64_t""'");
-    } else {
-      arg3 = *(reinterpret_cast< int64_t * >(argp3));
-    }
-  }
-  result = (int)del((author_t const *)arg1,arg2,arg3);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_ins__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  byte_t *arg3 = (byte_t *) 0 ;
-  int64_t arg4 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  void *argp4 ;
-  int res4 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ins" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ins" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
   if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ins" "', argument " "3"" of type '" "byte_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "visit_changes" "', argument " "3"" of type '" "void *""'"); 
   }
-  arg3 = reinterpret_cast< byte_t * >(argp3);
-  {
-    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ins" "', argument " "4"" of type '" "int64_t""'"); 
-    }  
-    if (!argp4) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "4"" of type '" "int64_t""'");
-    } else {
-      arg4 = *(reinterpret_cast< int64_t * >(argp4));
-    }
-  }
-  result = (int)ins((author_t const *)arg1,arg2,(unsigned char const *)arg3,arg4);
+  result = (int)visit_changes((session_t const *)arg1,arg2,arg3);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
   
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_ins__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  byte_t *arg3 = (byte_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ins" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ins" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ins" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_unsigned_char, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ins" "', argument " "3"" of type '" "byte_t const *""'"); 
-  }
-  arg3 = reinterpret_cast< byte_t * >(argp3);
-  result = (int)ins((author_t const *)arg1,arg2,(unsigned char const *)arg3);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
   
   SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap___wrap_ins(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  OverloadErrorHandler errorHandler;
-  
-  
-  if(args.Length() == 4) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_ins__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_ins__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  if(args.Length() == 3) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_ins__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_ins__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function ins.");
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_ovr__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  byte_t *arg3 = (byte_t *) 0 ;
-  int64_t arg4 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  void *argp4 ;
-  int res4 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ovr" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_unsigned_char, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "byte_t const *""'"); 
-  }
-  arg3 = reinterpret_cast< byte_t * >(argp3);
-  {
-    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "ovr" "', argument " "4"" of type '" "int64_t""'"); 
-    }  
-    if (!argp4) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "4"" of type '" "int64_t""'");
-    } else {
-      arg4 = *(reinterpret_cast< int64_t * >(argp4));
-    }
-  }
-  result = (int)ovr((author_t const *)arg1,arg2,(unsigned char const *)arg3,arg4);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_ovr__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  int64_t arg2 ;
-  byte_t *arg3 = (byte_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ovr" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "ovr" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_unsigned_char, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ovr" "', argument " "3"" of type '" "byte_t const *""'"); 
-  }
-  arg3 = reinterpret_cast< byte_t * >(argp3);
-  result = (int)ovr((author_t const *)arg1,arg2,(unsigned char const *)arg3);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap___wrap_ovr(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  OverloadErrorHandler errorHandler;
-  
-  
-  if(args.Length() == 4) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_ovr__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_ovr__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  if(args.Length() == 3) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_ovr__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_ovr__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function ovr.");
   
   goto fail;
 fail:
@@ -3652,34 +3104,6 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_get_author_num_changes(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  author_t *arg1 = (author_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  size_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_author_num_changes.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_author_num_changes" "', argument " "1"" of type '" "author_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< author_t * >(argp1);
-  result = get_author_num_changes((author_t const *)arg1);
-  jsresult = SWIG_From_size_t(static_cast< size_t >(result));
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
 static SwigV8ReturnValue _wrap_get_computed_file_size(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -3701,172 +3125,6 @@ static SwigV8ReturnValue _wrap_get_computed_file_size(const SwigV8Arguments &arg
   
   
   SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_update_viewport__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  int64_t arg2 ;
-  int64_t arg3 ;
-  byte_t arg4 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  unsigned char val4 ;
-  int ecode4 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "update_viewport" "', argument " "1"" of type '" "viewport_t *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'");
-    } else {
-      arg3 = *(reinterpret_cast< int64_t * >(argp3));
-    }
-  }
-  ecode4 = SWIG_AsVal_unsigned_SS_char(args[3], &val4);
-  if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "update_viewport" "', argument " "4"" of type '" "byte_t""'");
-  } 
-  arg4 = static_cast< byte_t >(val4);
-  result = (int)update_viewport(arg1,arg2,arg3,arg4);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_update_viewport__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
-{
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  viewport_t *arg1 = (viewport_t *) 0 ;
-  int64_t arg2 ;
-  int64_t arg3 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 ;
-  int res2 = 0 ;
-  void *argp3 ;
-  int res3 = 0 ;
-  int result;
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "update_viewport" "', argument " "1"" of type '" "viewport_t *""'"); 
-  }
-  arg1 = reinterpret_cast< viewport_t * >(argp1);
-  {
-    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'"); 
-    }  
-    if (!argp2) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'");
-    } else {
-      arg2 = *(reinterpret_cast< int64_t * >(argp2));
-    }
-  }
-  {
-    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'"); 
-    }  
-    if (!argp3) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'");
-    } else {
-      arg3 = *(reinterpret_cast< int64_t * >(argp3));
-    }
-  }
-  result = (int)update_viewport(arg1,arg2,arg3);
-  jsresult = SWIG_From_int(static_cast< int >(result));
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap___wrap_update_viewport(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  OverloadErrorHandler errorHandler;
-  
-  
-  if(args.Length() == 4) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_update_viewport__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_update_viewport__SWIG_0(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  if(args.Length() == 3) {
-    errorHandler.err.Clear();
-#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_update_viewport__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      SWIGV8_ESCAPE(jsresult);
-    }
-#else
-    _wrap_update_viewport__SWIG_1(args, errorHandler);
-    if(errorHandler.err.IsEmpty()) {
-      return;
-    }
-#endif
-  }
-  
-  
-  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function update_viewport.");
   
   goto fail;
 fail:
@@ -4053,7 +3311,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_0(const SwigV8Arguments &arg
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
   }
@@ -4101,7 +3359,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_0(const SwigV8Arguments &arg
       arg7 = *(reinterpret_cast< int64_t * >(argp7));
     }
   }
-  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5,arg6,arg7);
+  result = (int)session_search((session_t const *)arg1,(byte_t const *)arg2,arg3,arg4,arg5,arg6,arg7);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -4143,7 +3401,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_1(const SwigV8Arguments &arg
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
   }
@@ -4180,7 +3438,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_1(const SwigV8Arguments &arg
       arg6 = *(reinterpret_cast< int64_t * >(argp6));
     }
   }
-  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5,arg6);
+  result = (int)session_search((session_t const *)arg1,(byte_t const *)arg2,arg3,arg4,arg5,arg6);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -4219,7 +3477,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_2(const SwigV8Arguments &arg
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
   }
@@ -4245,7 +3503,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_2(const SwigV8Arguments &arg
   if (!SWIG_IsOK(res5)) {
     SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "session_search" "', argument " "5"" of type '" "void *""'"); 
   }
-  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4,arg5);
+  result = (int)session_search((session_t const *)arg1,(byte_t const *)arg2,arg3,arg4,arg5);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -4282,7 +3540,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_3(const SwigV8Arguments &arg
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "session_search" "', argument " "1"" of type '" "session_t const *""'"); 
   }
   arg1 = reinterpret_cast< session_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "session_search" "', argument " "2"" of type '" "byte_t const *""'"); 
   }
@@ -4304,7 +3562,7 @@ static SwigV8ReturnValue _wrap_session_search__SWIG_3(const SwigV8Arguments &arg
       SWIG_exception_fail(SWIG_ArgError(res), "in method '" "session_search" "', argument " "4"" of type '" "pattern_match_found_cbk_t""'"); 
     }
   }
-  result = (int)session_search((session_t const *)arg1,(unsigned char const *)arg2,arg3,arg4);
+  result = (int)session_search((session_t const *)arg1,(byte_t const *)arg2,arg3,arg4);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -4425,10 +3683,634 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_destroy_session(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  session_t *arg1 = (session_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_destroy_session.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "destroy_session" "', argument " "1"" of type '" "session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< session_t * >(argp1);
+  destroy_session((session_t const *)arg1);
+  jsresult = SWIGV8_UNDEFINED();
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_create_viewport__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
+  void *arg5 = (void *) 0 ;
+  byte_t arg6 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int res5 ;
+  void *argp6 ;
+  int res6 = 0 ;
+  viewport_t *result = 0 ;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_viewport" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
+    }
+  }
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "create_viewport" "', argument " "5"" of type '" "void *""'"); 
+  }
+  {
+    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_byte_t,  0 );
+    if (!SWIG_IsOK(res6)) {
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "create_viewport" "', argument " "6"" of type '" "byte_t""'"); 
+    }  
+    if (!argp6) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "6"" of type '" "byte_t""'");
+    } else {
+      arg6 = *(reinterpret_cast< byte_t * >(argp6));
+    }
+  }
+  result = (viewport_t *)create_viewport((author_t const *)arg1,arg2,arg3,arg4,arg5,arg6);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_viewport_t, 0 |  0 );
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_create_viewport__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  author_t *arg1 = (author_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  viewport_on_change_cbk_t arg4 = (viewport_on_change_cbk_t) 0 ;
+  void *arg5 = (void *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int res5 ;
+  viewport_t *result = 0 ;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_author_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "create_viewport" "', argument " "1"" of type '" "author_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< author_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "create_viewport" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__viewport_t_p_q_const__change_t__void);
+    if (!SWIG_IsOK(res)) {
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "create_viewport" "', argument " "4"" of type '" "viewport_on_change_cbk_t""'"); 
+    }
+  }
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "create_viewport" "', argument " "5"" of type '" "void *""'"); 
+  }
+  result = (viewport_t *)create_viewport((author_t const *)arg1,arg2,arg3,arg4,arg5);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_viewport_t, 0 |  0 );
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_create_viewport(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 6) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_create_viewport__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_create_viewport__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 5) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_create_viewport__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_create_viewport__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function create_viewport.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_author(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  author_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_author.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_author" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = (author_t *)get_viewport_author((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_author_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_capacity(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int64_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_capacity.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_capacity" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = get_viewport_capacity((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_length(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int64_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_length.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_length" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = get_viewport_length((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_data(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  byte_t *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_data.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_data" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = (byte_t *)get_viewport_data((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_byte_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_computed_offset(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int64_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_computed_offset.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_computed_offset" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = get_viewport_computed_offset((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_user_data(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *result = 0 ;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_user_data.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_user_data" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = (void *)get_viewport_user_data((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_void, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_get_viewport_bit_offset(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  byte_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_get_viewport_bit_offset.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "get_viewport_bit_offset" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = get_viewport_bit_offset((viewport_t const *)arg1);
+  jsresult = SWIG_NewPointerObj((new byte_t(static_cast< const byte_t& >(result))), SWIGTYPE_p_byte_t, SWIG_POINTER_OWN |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_update_viewport__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  byte_t arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  void *argp4 ;
+  int res4 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "update_viewport" "', argument " "1"" of type '" "viewport_t *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  {
+    res4 = SWIG_ConvertPtr(args[3], &argp4, SWIGTYPE_p_byte_t,  0 );
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "update_viewport" "', argument " "4"" of type '" "byte_t""'"); 
+    }  
+    if (!argp4) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "4"" of type '" "byte_t""'");
+    } else {
+      arg4 = *(reinterpret_cast< byte_t * >(argp4));
+    }
+  }
+  result = (int)update_viewport(arg1,arg2,arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_update_viewport__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "update_viewport" "', argument " "1"" of type '" "viewport_t *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "2"" of type '" "int64_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< int64_t * >(argp2));
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(args[2], &argp3, SWIGTYPE_p_int64_t,  0 );
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "update_viewport" "', argument " "3"" of type '" "int64_t""'");
+    } else {
+      arg3 = *(reinterpret_cast< int64_t * >(argp3));
+    }
+  }
+  result = (int)update_viewport(arg1,arg2,arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_update_viewport(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_update_viewport__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_update_viewport__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 3) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_update_viewport__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_update_viewport__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function update_viewport.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_destroy_viewport(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  viewport_t *arg1 = (viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_destroy_viewport.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "destroy_viewport" "', argument " "1"" of type '" "viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< viewport_t * >(argp1);
+  result = (int)destroy_viewport((viewport_t const *)arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
 static swig_type_info _swigt__p_FILE = {"_p_FILE", "FILE *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_author_t = {"_p_author_t", "author_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_byte_t = {"_p_byte_t", "byte_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_change_t = {"_p_change_t", "change_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_int64_t_int64_t_p_void__int = {"_p_f_int64_t_int64_t_p_void__int", "int (*)(int64_t,int64_t,void *)|pattern_match_found_cbk_t", 0, 0, (void*)0, 0};
@@ -4436,15 +4318,15 @@ static swig_type_info _swigt__p_f_p_q_const__change_t_p_void__int = {"_p_f_p_q_c
 static swig_type_info _swigt__p_f_p_q_const__session_t_p_q_const__change_t__void = {"_p_f_p_q_const__session_t_p_q_const__change_t__void", "void (*)(session_t const *,change_t const *)|session_on_change_cbk_t", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void = {"_p_f_p_q_const__viewport_t_p_q_const__change_t__void", "void (*)(viewport_t const *,change_t const *)|viewport_on_change_cbk_t", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int64_t = {"_p_int64_t", "int64_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_p_unsigned_char = {"_p_p_unsigned_char", "unsigned char **|byte_t **", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_p_byte_t = {"_p_p_byte_t", "byte_t **", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_session_t = {"_p_session_t", "session_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "unsigned char *|byte_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_viewport_t = {"_p_viewport_t", "viewport_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_FILE,
   &_swigt__p_author_t,
+  &_swigt__p_byte_t,
   &_swigt__p_change_t,
   &_swigt__p_char,
   &_swigt__p_f_int64_t_int64_t_p_void__int,
@@ -4452,15 +4334,15 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_f_p_q_const__session_t_p_q_const__change_t__void,
   &_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
   &_swigt__p_int64_t,
-  &_swigt__p_p_unsigned_char,
+  &_swigt__p_p_byte_t,
   &_swigt__p_session_t,
-  &_swigt__p_unsigned_char,
   &_swigt__p_viewport_t,
   &_swigt__p_void,
 };
 
 static swig_cast_info _swigc__p_FILE[] = {  {&_swigt__p_FILE, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_author_t[] = {  {&_swigt__p_author_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_byte_t[] = {  {&_swigt__p_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_change_t[] = {  {&_swigt__p_change_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_int64_t_int64_t_p_void__int[] = {  {&_swigt__p_f_int64_t_int64_t_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
@@ -4468,15 +4350,15 @@ static swig_cast_info _swigc__p_f_p_q_const__change_t_p_void__int[] = {  {&_swig
 static swig_cast_info _swigc__p_f_p_q_const__session_t_p_q_const__change_t__void[] = {  {&_swigt__p_f_p_q_const__session_t_p_q_const__change_t__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void[] = {  {&_swigt__p_f_p_q_const__viewport_t_p_q_const__change_t__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_int64_t[] = {  {&_swigt__p_int64_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_p_unsigned_char[] = {  {&_swigt__p_p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_p_byte_t[] = {  {&_swigt__p_p_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_session_t[] = {  {&_swigt__p_session_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_unsigned_char[] = {  {&_swigt__p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_viewport_t[] = {  {&_swigt__p_viewport_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_void[] = {  {&_swigt__p_void, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_FILE,
   _swigc__p_author_t,
+  _swigc__p_byte_t,
   _swigc__p_change_t,
   _swigc__p_char,
   _swigc__p_f_int64_t_int64_t_p_void__int,
@@ -4484,9 +4366,8 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_f_p_q_const__session_t_p_q_const__change_t__void,
   _swigc__p_f_p_q_const__viewport_t_p_q_const__change_t__void,
   _swigc__p_int64_t,
-  _swigc__p_p_unsigned_char,
+  _swigc__p_p_byte_t,
   _swigc__p_session_t,
-  _swigc__p_unsigned_char,
   _swigc__p_viewport_t,
   _swigc__p_void,
 };
@@ -4805,9 +4686,7 @@ void SWIGV8_INIT (v8::Handle<v8::Object> exports, v8::Handle<v8::Object> /*modul
   
 
   /* register wrapper functions */
-  SWIGV8_AddStaticVariable(exports_obj, "DEFAULT_VIEWPORT_MAX_CAPACITY", _wrap_DEFAULT_VIEWPORT_MAX_CAPACITY, JS_veto_set_variable);
-SWIGV8_AddStaticVariable(exports_obj, "NEEDLE_LENGTH_LIMIT", _wrap_NEEDLE_LENGTH_LIMIT, JS_veto_set_variable);
-
+  
 
   /* setup inheritances */
   
@@ -4816,40 +4695,29 @@ SWIGV8_AddStaticVariable(exports_obj, "NEEDLE_LENGTH_LIMIT", _wrap_NEEDLE_LENGTH
   
 
   /* add static class functions and variables */
-  SWIGV8_AddStaticFunction(exports_obj, "get_change_offset", _wrap_get_change_offset);
+  SWIGV8_AddStaticFunction(exports_obj, "create_author", _wrap_create_author);
+SWIGV8_AddStaticFunction(exports_obj, "get_author_name", _wrap_get_author_name);
+SWIGV8_AddStaticFunction(exports_obj, "get_author_session", _wrap_get_author_session);
+SWIGV8_AddStaticFunction(exports_obj, "get_author_num_changes", _wrap_get_author_num_changes);
+SWIGV8_AddStaticFunction(exports_obj, "del", _wrap_del);
+SWIGV8_AddStaticFunction(exports_obj, "ins", _wrap___wrap_ins);
+SWIGV8_AddStaticFunction(exports_obj, "ovr", _wrap___wrap_ovr);
+SWIGV8_AddStaticFunction(exports_obj, "get_change_offset", _wrap_get_change_offset);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_length", _wrap_get_change_length);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_serial", _wrap_get_change_serial);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_kind_as_char", _wrap_get_change_kind_as_char);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_bytes", _wrap_get_change_bytes);
 SWIGV8_AddStaticFunction(exports_obj, "get_change_author", _wrap_get_change_author);
-SWIGV8_AddStaticFunction(exports_obj, "visit_changes", _wrap_visit_changes);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_author", _wrap_get_viewport_author);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_capacity", _wrap_get_viewport_capacity);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_length", _wrap_get_viewport_length);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_data", _wrap_get_viewport_data);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_computed_offset", _wrap_get_viewport_computed_offset);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_user_data", _wrap_get_viewport_user_data);
-SWIGV8_AddStaticFunction(exports_obj, "get_viewport_bit_offset", _wrap_get_viewport_bit_offset);
-SWIGV8_AddStaticFunction(exports_obj, "get_author_name", _wrap_get_author_name);
-SWIGV8_AddStaticFunction(exports_obj, "get_author_session", _wrap_get_author_session);
 SWIGV8_AddStaticFunction(exports_obj, "create_session", _wrap___wrap_create_session);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_viewport_max_capacity", _wrap_get_session_viewport_max_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_user_data", _wrap_get_session_user_data);
-SWIGV8_AddStaticFunction(exports_obj, "create_author", _wrap_create_author);
-SWIGV8_AddStaticFunction(exports_obj, "create_viewport", _wrap___wrap_create_viewport);
-SWIGV8_AddStaticFunction(exports_obj, "destroy_viewport", _wrap_destroy_viewport);
-SWIGV8_AddStaticFunction(exports_obj, "destroy_session", _wrap_destroy_session);
-SWIGV8_AddStaticFunction(exports_obj, "del", _wrap_del);
-SWIGV8_AddStaticFunction(exports_obj, "ins", _wrap___wrap_ins);
-SWIGV8_AddStaticFunction(exports_obj, "ovr", _wrap___wrap_ovr);
+SWIGV8_AddStaticFunction(exports_obj, "visit_changes", _wrap_visit_changes);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_num_changes", _wrap_get_session_num_changes);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_num_undone_changes", _wrap_get_session_num_undone_changes);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_offset", _wrap_get_session_offset);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_length", _wrap_get_session_length);
 SWIGV8_AddStaticFunction(exports_obj, "get_session_num_viewports", _wrap_get_session_num_viewports);
-SWIGV8_AddStaticFunction(exports_obj, "get_author_num_changes", _wrap_get_author_num_changes);
 SWIGV8_AddStaticFunction(exports_obj, "get_computed_file_size", _wrap_get_computed_file_size);
-SWIGV8_AddStaticFunction(exports_obj, "update_viewport", _wrap___wrap_update_viewport);
 SWIGV8_AddStaticFunction(exports_obj, "get_last_change", _wrap_get_last_change);
 SWIGV8_AddStaticFunction(exports_obj, "get_last_undo", _wrap_get_last_undo);
 SWIGV8_AddStaticFunction(exports_obj, "undo_last_change", _wrap_undo_last_change);
@@ -4857,6 +4725,17 @@ SWIGV8_AddStaticFunction(exports_obj, "redo_last_undo", _wrap_redo_last_undo);
 SWIGV8_AddStaticFunction(exports_obj, "save_to_file", _wrap_save_to_file);
 SWIGV8_AddStaticFunction(exports_obj, "session_search", _wrap___wrap_session_search);
 SWIGV8_AddStaticFunction(exports_obj, "check_session_model", _wrap_check_session_model);
+SWIGV8_AddStaticFunction(exports_obj, "destroy_session", _wrap_destroy_session);
+SWIGV8_AddStaticFunction(exports_obj, "create_viewport", _wrap___wrap_create_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_author", _wrap_get_viewport_author);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_capacity", _wrap_get_viewport_capacity);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_length", _wrap_get_viewport_length);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_data", _wrap_get_viewport_data);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_computed_offset", _wrap_get_viewport_computed_offset);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_user_data", _wrap_get_viewport_user_data);
+SWIGV8_AddStaticFunction(exports_obj, "get_viewport_bit_offset", _wrap_get_viewport_bit_offset);
+SWIGV8_AddStaticFunction(exports_obj, "update_viewport", _wrap___wrap_update_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "destroy_viewport", _wrap_destroy_viewport);
 
 
   /* register classes */

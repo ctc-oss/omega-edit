@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "omega_util.h"
+#include "../include/util.h"
 
 int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left) {
     if (shift_left > 0 && shift_left < 8) {
@@ -71,45 +71,8 @@ int64_t write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_
     byte_t buff[buff_size];
     while (remaining) {
         const auto count = (buff_size > remaining) ? remaining : buff_size;
-        if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) {
-            break;
-        }
+        if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) { break; }
         remaining -= count;
     }
     return byte_count - remaining;
-}
-
-size_t bin2hex(const byte_t *src, char *dst, size_t src_length) {
-    static char HEXCONVTAB[] = "0123456789abcdef";
-    size_t j = 0;
-
-    for (size_t i = 0; i < src_length; ++i) {
-        dst[j++] = HEXCONVTAB[src[i] >> 4];
-        dst[j++] = HEXCONVTAB[src[i] & 15];
-    }
-    dst[j] = '\0';
-    return j;
-}
-
-size_t hex2bin(const char *src, byte_t *dst, size_t src_length) {
-    const auto dst_length = src_length >> 1;
-    size_t i = 0, j = 0;
-
-    while (i < dst_length) {
-        byte_t c = src[j++], d;
-
-        if (c >= '0' && c <= '9') { d = (c - '0') << 4; }
-        else if (c >= 'a' && c <= 'f') { d = (c - 'a' + 10) << 4; }
-        else if (c >= 'A' && c <= 'F') { d = (c - 'A' + 10) << 4; }
-        else { return 0; }
-        c = src[j++];
-
-        if (c >= '0' && c <= '9') { d |= c - '0'; }
-        else if (c >= 'a' && c <= 'f') { d |= c - 'a' + 10; }
-        else if (c >= 'A' && c <= 'F') { d |= c - 'A' + 10; }
-        else { return 0; }
-        dst[i++] = d;
-    }
-    dst[i] = '\0';
-    return i;
 }

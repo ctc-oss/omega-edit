@@ -14,15 +14,15 @@
 * limitations under the License.
 */
 
-/* clang-format off */
+#ifndef OMEGA_EDIT_AUTHOR_DEF_H
+#define OMEGA_EDIT_AUTHOR_DEF_H
 
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "omega_edit.h"
-%}
-/* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+#include "../../include/fwd_defs.h"
+#include <string>
+
+struct author_t {
+    std::string name{};      ///< Name of the author
+    session_t *session_ptr{};///< Session associated with this author
+};
+
+#endif//OMEGA_EDIT_AUTHOR_DEF_H

@@ -14,15 +14,19 @@
 * limitations under the License.
 */
 
-/* clang-format off */
+#ifndef OMEGA_EDIT_DATA_DEF_H
+#define OMEGA_EDIT_DATA_DEF_H
 
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "omega_edit.h"
-%}
-/* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+#include "../../include/byte.h"
+#include "../../include/fwd_defs.h"
+#include "internal_defs.h"
+
+typedef std::unique_ptr<byte_t[]> data_ptr_t;
+
+union data_t {
+    data_ptr_t bytes{};///< Hold bytes of length greater than 7
+    byte_t sm_bytes[8];///< Hold bytes of length less than 8
+    ~data_t(){};       // NOLINT This destructor is required, but don't use =default
+};
+
+#endif//OMEGA_EDIT_DATA_DEF_H

@@ -19,8 +19,8 @@
  * saved to a file where they can be replayed.
  */
 
+#include "../omega_edit/include/encodings.h"
 #include "../omega_edit/omega_edit.h"
-#include "../omega_edit/omega_util.h"
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>
@@ -84,9 +84,7 @@ void session_change_cbk(const session_t *session_ptr, const change_t *) {
     fclose(file_info_ptr->save_fptr);
 }
 
-enum display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
