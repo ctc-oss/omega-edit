@@ -18,7 +18,6 @@
 #define OMEGA_EDIT_DATA_DEF_H
 
 #include "../../include/byte.h"
-#include "../../include/fwd_defs.h"
 #include "internal_defs.h"
 
 typedef std::unique_ptr<byte_t[]> data_ptr_t;

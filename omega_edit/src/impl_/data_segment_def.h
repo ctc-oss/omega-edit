@@ -17,7 +17,6 @@
 #ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_H
 #define OMEGA_EDIT_DATA_SEGMENT_DEF_H
 
-#include "../../include/fwd_defs.h"
 #include "data_def.h"
 #include <cstdint>
 

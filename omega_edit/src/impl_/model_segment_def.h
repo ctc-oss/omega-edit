@@ -17,7 +17,6 @@
 #ifndef OMEGA_EDIT_MODEL_SEGMENT_DEF_H
 #define OMEGA_EDIT_MODEL_SEGMENT_DEF_H
 
-#include "../../include/fwd_defs.h"
 #include "internal_defs.h"
 
 enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };

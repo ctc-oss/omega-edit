@@ -17,7 +17,6 @@
 #ifndef OMEGA_EDIT_MODEL_DEF_H
 #define OMEGA_EDIT_MODEL_DEF_H
 
-#include "../../include/fwd_defs.h"
 #include "internal_defs.h"
 #include "model_segment_def.h"
 #include <vector>
