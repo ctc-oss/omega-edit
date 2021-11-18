@@ -14,15 +14,19 @@
 * limitations under the License.
 */
 
-/* clang-format off */
+#ifndef OMEGA_EDIT_MODEL_DEF_H
+#define OMEGA_EDIT_MODEL_DEF_H
 
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "omega_edit.h"
-%}
-/* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+#include "../../include/fwd_defs.h"
+#include "internal_defs.h"
+#include "model_segment_def.h"
+#include <vector>
+
+typedef std::shared_ptr<model_segment_t> model_segment_ptr_t;
+typedef std::vector<model_segment_ptr_t> model_segments_t;
+
+struct model_t {
+    model_segments_t model_segments;
+};
+
+#endif//OMEGA_EDIT_MODEL_DEF_H

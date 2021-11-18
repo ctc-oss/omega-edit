@@ -16,8 +16,8 @@
 
 #define CATCH_CONFIG_MAIN
 
+#include "../omega_edit/include/util.h"
 #include "../omega_edit/omega_edit.h"
-#include "../omega_edit/omega_util.h"
 #include "catch.hpp"
 #include "test_util.h"
 
@@ -245,6 +245,10 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(0 == ins(author_ptr, 8, reinterpret_cast<const byte_t *>("88")));
     REQUIRE(0 == ins(author_ptr, 9, reinterpret_cast<const byte_t *>("99")));
     REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("*****+*****")));
+    REQUIRE(0 == undo_last_change(session_ptr));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
+    REQUIRE(0 == redo_last_undo(session_ptr));
+    REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
     auto test_outfile_fptr = fopen("data/model-test.actual.7.txt", "w");
     REQUIRE(test_outfile_fptr);
     REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
@@ -259,7 +263,6 @@ TEST_CASE("Check initialization", "[InitTests]") {
     session_t *session_ptr;
     file_info_t file_info;
     const author_t *author_ptr;
-
     file_info.in_filename = "data/test1.dat";
 
     SECTION("Open data file") {

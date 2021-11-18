@@ -18,8 +18,8 @@
  * This application is an example of how a saved session can be replayed.
  */
 
+#include "../omega_edit/include/encodings.h"
 #include "../omega_edit/omega_edit.h"
-#include "../omega_edit/omega_util.h"
 #include <cinttypes>
 #include <cstring>
 #include <iomanip>
@@ -41,9 +41,7 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
          << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "kind": ")"
          << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
          << R"(, "length": )" << get_change_length(change_ptr);
-    if (bytes) {
-        clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")";
-    }
+    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")"; }
     clog << "}" << endl;
 }
 

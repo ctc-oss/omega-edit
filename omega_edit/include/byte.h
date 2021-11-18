@@ -14,15 +14,11 @@
 * limitations under the License.
 */
 
-/* clang-format off */
+#ifndef OMEGA_EDIT_BYTE_H
+#define OMEGA_EDIT_BYTE_H
 
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "omega_edit.h"
-%}
-/* Parse the header file to generate wrappers */
-%include "include/author.h"
-%include "include/change.h"
-%include "include/session.h"
-%include "include/viewport.h"
+#include "config.h"
+
+typedef BYTE_T byte_t;
+
+#endif//OMEGA_EDIT_BYTE_H
