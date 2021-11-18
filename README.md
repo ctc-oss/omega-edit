@@ -66,7 +66,7 @@ cmake build
 
 cmake debug
 ```bash
-./run cmake-build
+./run cmake-debug
 ```
 
 cmake test
