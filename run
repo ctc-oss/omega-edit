@@ -19,7 +19,7 @@ function cmake-test {
 }
 
 function swig-compile {
-    swig -javascript -node -c++ src/bindings/omega_edit.i
+    swig -javascript -node -v -c++ -outdir src/bindings/javascript src/bindings/omega_edit.i
 }
 
 function gyp-configure {
