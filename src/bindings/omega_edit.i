@@ -24,5 +24,6 @@
 /* Parse the header file to generate wrappers */
 %include "../omega_edit/include/author.h"
 %include "../omega_edit/include/change.h"
+%include "../omega_edit/include/license.h"
 %include "../omega_edit/include/session.h"
 %include "../omega_edit/include/viewport.h"
