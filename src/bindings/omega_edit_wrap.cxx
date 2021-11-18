@@ -1599,7 +1599,7 @@ static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "omega_edit.h"
+#include "../omega_edit/omega_edit.h"
 
 
 SWIGINTERN swig_type_info*

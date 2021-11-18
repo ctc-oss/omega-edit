@@ -40,11 +40,11 @@ cd ../../
 ## swig
 Build wrapper classes
 ```bash
-swig -javascript -node -c++ omega_edit/omega_edit.i
+swig -javascript -node -v -c++ src/bindings/omega_edit.i -outdir src/bindings/javascript
 ```
 
 ## node-gyp
-:exclamation: run `yarn install` before trying to other commands :exclamation:
+:exclamation: run `yarn install` before trying to run other commands :exclamation:
 
 Configure
 ```

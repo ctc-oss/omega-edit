@@ -1,25 +1,25 @@
 #!/bin/bash
 
 function cmake-build {
-    cmake -S . -B cmake-build-debug
+    cmake -S . -B cmake-build
 }
 
 function cmake-debug {
-    cmake -S . -B cmake-build-debug \
+    cmake -S . -B cmake-build \
         -DCMAKE_BUILD_TYPE=Debug -DCMAKE_DEPENDS_USE_COMPILER=FALSE \
         -G "CodeBlocks - Unix Makefiles" .
 }
 
 function cmake-test {
     cmake-build
-    cmake --build cmake-build-debug --target omega_test -- -j 6
-    cd cmake-build-debug/tests/
+    cmake --build cmake-build --target omega_test -- -j 6
+    cd cmake-build/tests/
     ./omega_test -d yes --order lex
     cd ../../
 }
 
 function swig-compile {
-    swig -javascript -node -c++ omega_edit/omega_edit.i
+    swig -javascript -node -c++ src/bindings/omega_edit.i
 }
 
 function gyp-configure {

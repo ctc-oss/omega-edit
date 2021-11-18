@@ -2,7 +2,8 @@
   "targets": [
     {
       "target_name": "omega_edit",
-      "sources": [ "omega_edit/omega_edit.cpp", "omega_edit/omega_edit_wrap.cxx"]
+      "libraries": ["-llibomega_edit"],
+      "sources": [ "src/bindings/omega_edit_wrap.cxx"]
     }
   ]
 }
