@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    session_ptr = create_session(in_fptr, session_change_cbk, &file_info);
+    session_ptr = create_session_fptr(in_fptr, session_change_cbk, &file_info);
     const char *author_name = "Test Author";
     author_ptr = create_author(session_ptr, author_name);
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     }
 
     // Save the session
-    save_to_file(session_ptr, out_fptr);
+    save_session_fptr(session_ptr, out_fptr);
     fclose(out_fptr);
 
     // Report

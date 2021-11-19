@@ -35,8 +35,8 @@ typedef int (*visit_changes_cbk_t)(const change_t *, void *);
 typedef int (*pattern_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void *user_data);
 
 /**
- * Create a file editing session
- * @param file_ptr file, opened for read, to create an editing session with, or nullptr if we're starting from scratch
+ * Create a file editing session from a file pointer
+ * @param file_ptr file pointer, opened for read, to create an editing session with, or nullptr if starting from scratch
  * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @param viewport_max_capacity maximum allowed viewport capacity for this session
@@ -44,9 +44,30 @@ typedef int (*pattern_match_found_cbk_t)(int64_t match_offset, int64_t match_len
  * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
 * @return pointer to the created session, nullptr on failure
  */
-session_t *create_session(FILE *file_ptr, session_on_change_cbk_t cbk = nullptr, void *user_data_ptr = nullptr,
+session_t *create_session_fptr(FILE *file_ptr, session_on_change_cbk_t cbk = nullptr, void *user_data_ptr = nullptr,
+                               int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY, int64_t offset = 0,
+                               int64_t length = 0);
+
+/**
+ * Create a file editing session from a file path
+ * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch
+ * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
+ * @param user_data_ptr pointer to user-defined data to associate with this session
+ * @param viewport_max_capacity maximum allowed viewport capacity for this session
+ * @param offset offset to start editing from, 0 (default) is the beginning of the file
+ * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
+* @return pointer to the created session, nullptr on failure
+ */
+session_t *create_session(const char *file_path, session_on_change_cbk_t cbk = nullptr, void *user_data_ptr = nullptr,
                           int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY, int64_t offset = 0,
                           int64_t length = 0);
+
+/**
+ * Given a session, return the file path being edited (if known)
+ * @param session_ptr session to return the file path from
+ * @return file path, or null if not known
+ */
+const char * get_session_file_path(const session_t *session_ptr);
 
 /**
  * Given a session, return the maximum viewport capacity
@@ -143,12 +164,20 @@ int undo_last_change(session_t *session_ptr);
 int redo_last_undo(session_t *session_ptr);
 
 /**
- * Save the given session to the given file
+ * Save the given session (the edited file) to the given file pointer
  * @param session_ptr session to save
- * @param file_ptr file (open for write) to save to
+ * @param file_ptr file pointer (open for write) to save to
  * @return 0 on success, non-zero otherwise
  */
-int save_to_file(const session_t *session_ptr, FILE *file_ptr);
+int save_session_fptr(const session_t *session_ptr, FILE *file_ptr);
+
+/**
+ * Save the given session (the edited file) to the given file path
+ * @param session_ptr session to save
+ * @param file_path file path to save to
+ * @return 0 on success, non-zero otherwise
+ */
+int save_session(const session_t *session_ptr, const char *file_path);
 
 /**
  * Given a session, find needles and call the match found callback as needles are found

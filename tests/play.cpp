@@ -165,7 +165,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     test_infile_ptr = fopen(file_info.in_filename, "r");
     FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
 
-    session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    session_ptr =
+            create_session_fptr(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     const char *author_name = "Test Author";
     author_ptr = create_author(session_ptr, author_name);
     clog << "Author: " << get_author_name(author_ptr) << endl;
@@ -212,7 +213,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     vpt_change_cbk(viewport1_ptr);
 
-    save_to_file(session_ptr, test_outfile_ptr);
+    save_session_fptr(session_ptr, test_outfile_ptr);
     clog << "Saved " << file_info.deletes << " delete(s), " << file_info.inserts << " insert(s), "
          << file_info.overwrites << " overwrite(s) to " << file_info.save_filename << ", new file size: " << dec
          << get_computed_file_size(session_ptr) << endl;

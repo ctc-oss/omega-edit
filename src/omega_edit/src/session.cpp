@@ -1,9 +1,20 @@
-//
-// Created by Shearer, Davin on 11/17/21.
-//
+/*
+* Copyright 2021 Concurrent Technologies Corporation
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 #include "../include/session.h"
-#include "../include/byte.h"
 #include "../include/change.h"
 #include "../include/util.h"
 #include "impl_/change_def.h"
@@ -54,9 +65,8 @@ static void initialize_model_(session_t *session_ptr) {
     }
 }
 
-
-session_t *create_session(FILE *file_ptr, session_on_change_cbk_t cbk, void *user_data_ptr,
-                          int64_t viewport_max_capacity, int64_t offset, int64_t length) {
+session_t *create_session_fptr(FILE *file_ptr, session_on_change_cbk_t cbk, void *user_data_ptr,
+                               int64_t viewport_max_capacity, int64_t offset, int64_t length) {
     if (0 < viewport_max_capacity) {
         off_t file_size = 0;
         if (file_ptr) {
@@ -82,10 +92,30 @@ session_t *create_session(FILE *file_ptr, session_on_change_cbk_t cbk, void *use
     return nullptr;
 }
 
-// Destroy the given session
-void destroy_session(const session_t *session_ptr) { delete session_ptr; }
+session_t *create_session(const char *file_path, session_on_change_cbk_t cbk, void *user_data_ptr,
+                          int64_t viewport_max_capacity, int64_t offset, int64_t length) {
+    FILE * file_ptr = nullptr;
+    if (file_path) {
+        file_ptr = fopen(file_path, "r");
+        if (!file_ptr) { return nullptr; }
+    }
+    auto session_ptr = create_session_fptr(file_ptr, cbk, user_data_ptr, viewport_max_capacity, offset, length);
+    if (file_path && session_ptr) { session_ptr->file_path = file_path; }
+    return session_ptr;
+}
 
-int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
+const char * get_session_file_path(const session_t *session_ptr) {
+    return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
+}
+
+void destroy_session(const session_t *session_ptr) {
+    if (!session_ptr->file_path.empty()) {
+        fclose(session_ptr->file_ptr);
+    }
+    delete session_ptr;
+}
+
+int save_session_fptr(const session_t *session_ptr, FILE *file_ptr) {
     int64_t write_offset = 0;
 
     for (const auto &segment : session_ptr->model_.model_segments) {
@@ -96,7 +126,7 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
         switch (segment->segment_kind) {
             case model_segment_kind_t::SEGMENT_READ: {
                 if (write_segment_to_file(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
-                                          write_fptr) != segment->computed_length) {
+                                          file_ptr) != segment->computed_length) {
                     return -1;
                 }
                 break;
@@ -104,7 +134,7 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
             case model_segment_kind_t::SEGMENT_INSERT: {
                 const byte_t *change_bytes;
                 get_change_bytes(segment->change_ptr.get(), &change_bytes);
-                if (fwrite(change_bytes + segment->change_offset, 1, segment->computed_length, write_fptr) !=
+                if (fwrite(change_bytes + segment->change_offset, 1, segment->computed_length, file_ptr) !=
                     segment->computed_length) {
                     return -1;
                 }
@@ -116,6 +146,16 @@ int save_to_file(const session_t *session_ptr, FILE *write_fptr) {
         write_offset += segment->computed_length;
     }
     return 0;
+}
+
+int save_session(const session_t *session_ptr, const char *file_path) {
+    int rc = -1;
+    auto file_ptr = fopen(file_path, "w");
+    if (file_ptr) {
+        rc = save_session_fptr(session_ptr, file_ptr);
+        fclose(file_ptr);
+    }
+    return rc;
 }
 
 int visit_changes(const session_t *session_ptr, visit_changes_cbk_t cbk, void *user_data) {

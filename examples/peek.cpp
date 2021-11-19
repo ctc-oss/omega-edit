@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     auto length = stoll(argv[4]);
     view_mode_t view_mode;
     view_mode.display_mode = char_to_display_mode(argv[1][0]);
-    auto session_ptr = create_session(in_fptr, nullptr, nullptr);
+    auto session_ptr = create_session_fptr(in_fptr, nullptr, nullptr);
     if (session_ptr) {
         auto author_ptr = create_author(session_ptr, "peek");
         create_viewport(author_ptr, offset, length, vpt_change_cbk, &view_mode);
