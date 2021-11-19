@@ -90,7 +90,6 @@ TEST_CASE("Write Segment", "[WriteSegmentTests]") {
 
 typedef struct file_info_struct {
     size_t num_changes{};
-    char const *in_filename = nullptr;
 } file_info_t;
 
 void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr) {
@@ -102,7 +101,9 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
     } else {
         --file_info_ptr->num_changes; /* this is in UNDO */
     }
-    clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
+    auto file_path = get_session_file_path(session_ptr);
+    file_path = (file_path) ? file_path : "NO FILENAME";
+    clog << dec << R"({ "filename" : ")" << file_path << R"(", "num_changes" : )"
          << get_session_num_changes(session_ptr) << R"(, "computed_file_size": )" << get_computed_file_size(session_ptr)
          << R"(, "change_serial": )" << get_change_serial(change_ptr) << R"(, "change_kind": ")"
          << get_change_kind_as_char(change_ptr) << R"(", "offset": )" << get_change_offset(change_ptr)
@@ -114,13 +115,12 @@ void session_change_cbk(const session_t *session_ptr, const change_t *change_ptr
 TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
-    file_info.in_filename = "data/empty_file.txt";
-    const auto test_infile_fptr = fopen(file_info.in_filename, "r");
-    REQUIRE(test_infile_fptr);
+    auto in_filename = "data/empty_file.txt";
     const auto author_name = "empty file test";
     const auto session_ptr =
-            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+            create_session(in_filename, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     REQUIRE(session_ptr);
+    REQUIRE(strcmp(get_session_file_path(session_ptr), in_filename) == 0);
     const auto author_ptr = create_author(session_ptr, author_name);
     REQUIRE(author_ptr);
     REQUIRE(get_session_offset(session_ptr) == 0);
@@ -130,47 +130,37 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     destroy_session(session_ptr);
-    fclose(test_infile_fptr);
 }
 
 TEST_CASE("Model Test", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
-    file_info.in_filename = "data/model-test.txt";
-    auto test_infile_fptr = fopen(file_info.in_filename, "r");
-    REQUIRE(test_infile_fptr);
+    auto in_filename = "data/model-test.txt";
     const auto author_name = "model insert test";
     const auto session_ptr =
-            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+            create_session(in_filename, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     REQUIRE(session_ptr);
-    fseeko(test_infile_fptr, 0, SEEK_END);
-    auto file_size = ftello(test_infile_fptr);
-    REQUIRE(get_computed_file_size(session_ptr) == file_size);
+    auto file_size = get_computed_file_size(session_ptr);
+    REQUIRE(file_size > 0);
     auto author_ptr = create_author(session_ptr, author_name);
     REQUIRE(author_ptr);
     REQUIRE(0 == ins(author_ptr, 0, reinterpret_cast<const byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    auto test_outfile_fptr = fopen("data/model-test.actual.1.txt", "w");
-    REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
-    fclose(test_outfile_fptr);
+    REQUIRE(0 == save_session(session_ptr, "data/model-test.actual.1.txt"));
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.1.txt") != 0);
     REQUIRE(compare_files("data/model-test.expected.1.txt", "data/model-test.actual.1.txt") == 0);
     REQUIRE(0 == ins(author_ptr, 10, reinterpret_cast<const byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    test_outfile_fptr = fopen("data/model-test.actual.2.txt", "w");
-    REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
-    fclose(test_outfile_fptr);
+    REQUIRE(0 == save_session(session_ptr, "data/model-test.actual.2.txt"));
     REQUIRE(compare_files("data/model-test.expected.2.txt", "data/model-test.actual.2.txt") == 0);
     REQUIRE(0 == ins(author_ptr, 5, reinterpret_cast<const byte_t *>("xxx")));
     file_size += 3;
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
-    test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
+    auto test_outfile_fptr = fopen("data/model-test.actual.3.txt", "w");
     REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.3.txt", "data/model-test.actual.3.txt") == 0);
     auto num_changes = file_info.num_changes;
@@ -186,7 +176,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(get_computed_file_size(session_ptr) == file_size);
     test_outfile_fptr = fopen("data/model-test.actual.4.txt", "w");
     REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.4.txt", "data/model-test.actual.4.txt") == 0);
     REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
@@ -206,7 +196,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(get_change_kind_as_char(last_change) == 'O');
     test_outfile_fptr = fopen("data/model-test.actual.5.txt", "w");
     REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
     REQUIRE(0 == del(author_ptr, 0, get_computed_file_size(session_ptr)));
@@ -214,12 +204,11 @@ TEST_CASE("Model Test", "[ModelTests]") {
     while (file_info.num_changes) { undo_last_change(session_ptr); }
     test_outfile_fptr = fopen("data/model-test.actual.6.txt", "w");
     REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.txt", "data/model-test.actual.6.txt") == 0);
     destroy_session(session_ptr);
-    fclose(test_infile_fptr);
 }
 
 int pattern_found_cbk(int64_t match_offset, int64_t match_length, void *needles_found_ptr) {
@@ -232,7 +221,6 @@ int pattern_found_cbk(int64_t match_offset, int64_t match_length, void *needles_
 TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
-    file_info.in_filename = "NO FILE";
     const auto author_name = "Hanoi insert test";
     const auto session_ptr =
             create_session(nullptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
@@ -258,7 +246,7 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
     auto test_outfile_fptr = fopen("data/model-test.actual.7.txt", "w");
     REQUIRE(test_outfile_fptr);
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     REQUIRE(file_info.num_changes == get_session_num_changes(session_ptr));
     fclose(test_outfile_fptr);
     REQUIRE(compare_files("data/model-test.expected.7.txt", "data/model-test.actual.7.txt") == 0);
@@ -270,15 +258,15 @@ TEST_CASE("Check initialization", "[InitTests]") {
     session_t *session_ptr;
     file_info_t file_info;
     const author_t *author_ptr;
-    file_info.in_filename = "data/test1.dat";
+    auto in_filename = "data/test1.dat";
 
     SECTION("Open data file") {
-        test_infile_ptr = fopen(file_info.in_filename, "r");
+        test_infile_ptr = fopen(in_filename, "r");
         FILE *test_outfile_ptr = fopen("data/test1.dat.out", "w");
         REQUIRE(test_infile_ptr != NULL);
         SECTION("Create Session") {
-            session_ptr = create_session(test_infile_ptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY,
-                                         0, 0);
+            session_ptr = create_session_fptr(test_infile_ptr, session_change_cbk, &file_info,
+                                              DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
             REQUIRE(session_ptr);
             REQUIRE(get_computed_file_size(session_ptr) == 63);
             SECTION("Add Author") {
@@ -307,7 +295,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
                     REQUIRE(get_session_num_undone_changes(session_ptr) == 1);
                     REQUIRE(get_session_num_changes(session_ptr) == num_changes_before_undo - 1);
                     REQUIRE(get_computed_file_size(session_ptr) == 71);
-                    REQUIRE(0 == save_to_file(session_ptr, test_outfile_ptr));
+                    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_ptr));
                     fclose(test_infile_ptr);
                     fclose(test_outfile_ptr);
                 }
@@ -328,7 +316,7 @@ void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) 
          << "' viewport, capacity: " << get_viewport_capacity(viewport_ptr)
          << " length: " << get_viewport_length(viewport_ptr)
          << " offset: " << get_viewport_computed_offset(viewport_ptr)
-         << " bit offset:" << static_cast<int>(get_viewport_bit_offset(viewport_ptr)) << endl;
+         << " bit offset: " << static_cast<int>(get_viewport_bit_offset(viewport_ptr)) << endl;
     if (get_viewport_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) get_viewport_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
@@ -356,12 +344,12 @@ void vpt_change_cbk(const viewport_t *viewport_ptr, const change_t *change_ptr) 
 TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
-    file_info.in_filename = "data/search-test.txt";
-    auto test_infile_fptr = fopen(file_info.in_filename, "r");
+    auto in_filename = "data/search-test.txt";
+    auto test_infile_fptr = fopen(in_filename, "r");
     REQUIRE(test_infile_fptr);
     const auto author_name = "search test";
     const auto session_ptr =
-            create_session(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+            create_session_fptr(test_infile_fptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
     REQUIRE(session_ptr);
     fseeko(test_infile_fptr, 0, SEEK_END);
     auto file_size = ftello(test_infile_fptr);
@@ -386,7 +374,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 == ovr(author_ptr, 16, reinterpret_cast<const byte_t *>(needle)));
     REQUIRE(get_session_num_undone_changes(session_ptr) == 0);
     auto test_outfile_fptr = fopen("data/search-test.actual.1.txt", "w");
-    REQUIRE(0 == save_to_file(session_ptr, test_outfile_fptr));
+    REQUIRE(0 == save_session_fptr(session_ptr, test_outfile_fptr));
     fclose(test_outfile_fptr);
     needles_found = 0;
     REQUIRE(0 == session_search(session_ptr, (byte_t *) needle, strlen(needle), pattern_found_cbk, &needles_found));
@@ -407,7 +395,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     viewport_t *viewport_ptr;
     view_mode_t view_mode;
 
-    session_ptr = create_session(test_infile_ptr, nullptr, nullptr, 100, 0, 0);
+    session_ptr = create_session_fptr(test_infile_ptr, nullptr, nullptr, 100, 0, 0);
     REQUIRE(get_session_viewport_max_capacity(session_ptr) == 100);
     author_ptr = create_author(session_ptr, author_name);
     auto viewport_count = get_session_num_viewports(session_ptr);

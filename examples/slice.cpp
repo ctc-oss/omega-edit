@@ -40,10 +40,10 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to open %s for writing\n", out_filename);
         return -1;
     }
-    auto session_ptr =
-            create_session(in_fptr, nullptr, nullptr, DEFAULT_VIEWPORT_MAX_CAPACITY, stoll(argv[3]), stoll(argv[4]));
+    auto session_ptr = create_session_fptr(in_fptr, nullptr, nullptr, DEFAULT_VIEWPORT_MAX_CAPACITY, stoll(argv[3]),
+                                           stoll(argv[4]));
     if (session_ptr) {
-        save_to_file(session_ptr, out_fptr);
+        save_session_fptr(session_ptr, out_fptr);
         destroy_session(session_ptr);
     } else {
         fprintf(stderr, "failed to create session, probably because the offset and/or length are out of range for the\n"

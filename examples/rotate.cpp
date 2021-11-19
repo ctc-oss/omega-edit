@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "failed to open %s for writing\n", out_filename);
         return -1;
     }
-    auto session_ptr = create_session(in_fptr);
+    auto session_ptr = create_session_fptr(in_fptr);
     auto author_ptr = create_author(session_ptr, "rotate");
     // Create a small viewport at the end of the file to track the last byte.
     auto viewport_ptr = create_viewport(author_ptr, get_computed_file_size(session_ptr) - 1, 4,
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     }
     fprintf(stdout, "Saving %zu changes to %s of size %" PRId64 "\n", get_session_num_changes(session_ptr),
             out_filename, get_computed_file_size(session_ptr));
-    save_to_file(session_ptr, out_fptr);
+    save_session_fptr(session_ptr, out_fptr);
     destroy_session(session_ptr);
     fclose(out_fptr);
     fclose(in_fptr);

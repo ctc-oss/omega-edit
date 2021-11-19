@@ -20,6 +20,7 @@
 #include "../../include/fwd_defs.h"
 #include "../../include/session.h"
 #include "model_def.h"
+#include <string>
 #include <vector>
 
 typedef std::vector<const_author_ptr_t> authors_t;
@@ -28,6 +29,7 @@ typedef std::vector<const_change_ptr_t> changes_t;
 
 struct session_t {
     FILE *file_ptr{};                       ///< File being edited (open for read)
+    std::string file_path;                  ///< File path being edited
     int64_t serial{};                       ///< Incremented for every change
     int64_t viewport_max_capacity{};        ///< Maximum capacity of a viewport for this session
     session_on_change_cbk_t on_change_cbk{};///< User defined callback called when the session gets a change
