@@ -32,15 +32,15 @@ cmake --build cmake-build-debug --target omega_test -- -j 6
 
 Run tests
 ```bash
-cd cmake-build-debug/tests/
+cd cmake-build-debug/src/tests/
 ./omega_test -d yes --order lex
-cd ../../
+cd ../../../
 ```
 
 ## swig
 Build wrapper classes
 ```bash
-swig -javascript -node -v -c++ -outdir src/bindings/javascript src/bindings/omega_edit.i
+swig -javascript -node -v -c++ src/bindings/omega_edit.i
 ```
 
 ## node-gyp

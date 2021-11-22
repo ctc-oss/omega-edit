@@ -14,9 +14,9 @@
 * limitations under the License.
 */
 
-#include "../src/omega_edit/omega_edit.h"
-#include <iostream>
+#include "../omega_edit/omega_edit.h"
 #include <iomanip>
+#include <iostream>
 #include <string>
 
 using namespace std;

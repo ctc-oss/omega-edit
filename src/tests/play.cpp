@@ -19,8 +19,8 @@
  * saved to a file where they can be replayed.
  */
 
-#include "../src/omega_edit/include/encodings.h"
-#include "../src/omega_edit/omega_edit.h"
+#include "../omega_edit/include/encodings.h"
+#include "../omega_edit/omega_edit.h"
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>

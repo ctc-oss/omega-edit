@@ -25,5 +25,5 @@ add_library(omega_edit SHARED
         )
 
 add_subdirectory(src/bindings)
-add_subdirectory(tests)
-add_subdirectory(examples)
+add_subdirectory(src/tests)
+add_subdirectory(src/examples)

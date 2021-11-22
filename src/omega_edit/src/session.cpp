@@ -78,7 +78,8 @@ session_t *create_session_fptr(FILE *file_ptr, session_on_change_cbk_t cbk, void
 
             session_ptr->serial = 0;
             session_ptr->file_ptr = file_ptr;
-            session_ptr->viewport_max_capacity = viewport_max_capacity;
+            session_ptr->viewport_max_capacity =
+                    (viewport_max_capacity) ? viewport_max_capacity : DEFAULT_VIEWPORT_MAX_CAPACITY;
             session_ptr->on_change_cbk = cbk;
             session_ptr->user_data_ptr = user_data_ptr;
             session_ptr->offset = offset;
@@ -94,24 +95,23 @@ session_t *create_session_fptr(FILE *file_ptr, session_on_change_cbk_t cbk, void
 
 session_t *create_session(const char *file_path, session_on_change_cbk_t cbk, void *user_data_ptr,
                           int64_t viewport_max_capacity, int64_t offset, int64_t length) {
-    FILE * file_ptr = nullptr;
+    FILE *file_ptr = nullptr;
     if (file_path) {
         file_ptr = fopen(file_path, "r");
         if (!file_ptr) { return nullptr; }
     }
+    viewport_max_capacity = (viewport_max_capacity) ? viewport_max_capacity : DEFAULT_VIEWPORT_MAX_CAPACITY;
     auto session_ptr = create_session_fptr(file_ptr, cbk, user_data_ptr, viewport_max_capacity, offset, length);
     if (file_path && session_ptr) { session_ptr->file_path = file_path; }
     return session_ptr;
 }
 
-const char * get_session_file_path(const session_t *session_ptr) {
+const char *get_session_file_path(const session_t *session_ptr) {
     return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
 }
 
 void destroy_session(const session_t *session_ptr) {
-    if (!session_ptr->file_path.empty()) {
-        fclose(session_ptr->file_ptr);
-    }
+    if (!session_ptr->file_path.empty()) { fclose(session_ptr->file_ptr); }
     delete session_ptr;
 }
 

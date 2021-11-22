@@ -13,9 +13,9 @@ function cmake-debug {
 function cmake-test {
     cmake-build
     cmake --build cmake-build --target omega_test -- -j 6
-    cd cmake-build/tests/
+    cd cmake-build/src/tests/
     ./omega_test -d yes --order lex
-    cd ../../
+    cd ../../../
 }
 
 function swig-compile {

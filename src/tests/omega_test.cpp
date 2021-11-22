@@ -16,8 +16,8 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../src/omega_edit/include/util.h"
-#include "../src/omega_edit/omega_edit.h"
+#include "../omega_edit/include/util.h"
+#include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
 
