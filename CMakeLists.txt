@@ -3,8 +3,9 @@ project(omega_edit)
 
 #option(BUILD_JAVASCRIPT "Build Javascript SWIG module" ON)
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_VERBOSE_MAKEFILE on)
 
-add_library(omega_edit SHARED
+add_library(omega_edit STATIC
         src/omega_edit/include/config.h
         src/omega_edit/include/fwd_defs.h
         src/omega_edit/include/byte.h

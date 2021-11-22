@@ -13,13 +13,14 @@ function cmake-debug {
 function cmake-test {
     cmake-build
     cmake --build cmake-build --target omega_test -- -j 6
+    pushd .
     cd cmake-build/src/tests/
     ./omega_test -d yes --order lex
-    cd ../../../
+    popd
 }
 
 function swig-compile {
-    swig -javascript -node -v -c++ -outdir src/bindings/javascript src/bindings/omega_edit.i
+    swig -javascript -node -v -c++ src/bindings/omega_edit.i
 }
 
 function gyp-configure {
@@ -29,6 +30,15 @@ function gyp-configure {
 function gyp-build {
     gyp-configure
     yarn run gyp-build
+}
+
+function transpile {
+  mkdir -p build-em
+  pushd .
+  cd build-em
+  emcmake cmake ..
+  make
+  popd
 }
 
 $@
