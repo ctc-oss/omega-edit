@@ -14,17 +14,17 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_H
-#define OMEGA_EDIT_DATA_SEGMENT_DEF_H
+#ifndef OMEGA_EDIT_INTERNAL_FWD_DEFS_H
+#define OMEGA_EDIT_INTERNAL_FWD_DEFS_H
 
-#include "data_def.h"
-#include <cstdint>
+#include "../../include/fwd_defs.h"
+#include <memory>
 
-struct data_segment_t {
-    int64_t offset{};  ///< Data offset as changes have been made
-    int64_t length{};  ///< Populated data length (in bytes)
-    int64_t capacity{};///< Data capacity (in bytes)
-    data_t data{};     ///< Copy of the data itself
-};
+typedef std::shared_ptr<omega_change_t> omega_change_ptr_t;
+typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
+typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
 
-#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_H
+struct omega_model_t;
+typedef std::shared_ptr<omega_model_t> omega_model_ptr_t;
+
+#endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_H

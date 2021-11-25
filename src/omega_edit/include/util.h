@@ -1,18 +1,18 @@
-/*
- * Copyright 2021 Concurrent Technologies Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/**********************************************************************************************************************
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+ *                                                                                                                    *
+ * Licensed under the Apache License, Version 2.0 (the "License");                                                    *
+ * you may not use this file except in compliance with the License.                                                   *
+ * You may obtain a copy of the License at                                                                            *
+ *                                                                                                                    *
+ *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
+ *                                                                                                                    *
+ * Unless required by applicable law or agreed to in writing, software                                                *
+ * distributed under the License is distributed on an "AS IS" BASIS,                                                  *
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.                                           *
+ * See the License for the specific language governing permissions and                                                *
+ * limitations under the License.                                                                                     *
+ **********************************************************************************************************************/
 
 #ifndef OMEGA_EDIT_UTIL_H
 #define OMEGA_EDIT_UTIL_H
@@ -20,6 +20,10 @@
 #include "byte.h"
 #include <cstdint>
 #include <cstdio>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Read a segment from a file into the given buffer
@@ -29,7 +33,7 @@
  * @param capacity capacity of the buffer
  * @return number of bytes read, -1 on failure
  */
-int64_t read_segment_from_file(FILE *from_file_ptr, int64_t offset, byte_t *buffer, int64_t capacity);
+int64_t omega_util_read_segment_from_file(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer, int64_t capacity);
 
 /**
  * Write a segment from one file into another
@@ -39,7 +43,7 @@ int64_t read_segment_from_file(FILE *from_file_ptr, int64_t offset, byte_t *buff
  * @param to_file_ptr file to write the segment to, at whatever position it is currently at
  * @return 0 on success, non-zero on failure
  */
-int64_t write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
+int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
 /**
  * Shift the bits of the given buffer by a given number of bits to the left
@@ -48,7 +52,7 @@ int64_t write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_
  * @param shift_left number of bits (greater than 0 and less than 8) to shift to the left
  * @return 0 on success, non-zero on failure
  */
-int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left);
+int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left);
 
 /**
  * Shift the bits of the given buffer by a given number of bits to the right
@@ -57,7 +61,10 @@ int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left);
  * @param shift_right number of bits (greater than 0 and less than 8) to shift to the right
  * @return 0 on success, non-zero on failure
  */
-int right_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_right);
+int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif//OMEGA_EDIT_UTIL_H

@@ -19,11 +19,11 @@
 %module omega_edit
 %{
 /* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h"
+#include "../omega_edit/omega_edit.h" 0 0const struct omega_session_t* int (*)(long long int, long long int, void *) nullptr 0 0 int (*)(const struct omega_change_t *, void *)
 %}
 /* Parse the header file to generate wrappers */
-%include "../omega_edit/include/author.h"
 %include "../omega_edit/include/change.h"
+%include "../omega_edit/include/edit.h"
 %include "../omega_edit/include/license.h"
 %include "../omega_edit/include/session.h"
 %include "../omega_edit/include/viewport.h"

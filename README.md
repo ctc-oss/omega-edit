@@ -1,5 +1,5 @@
 # Ωmega Edit Library
-The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports.
+The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports_.
 
 ## Requirements
 This repo is built using CLion, if using CLion everything will work seamlessly, though Visual Studio Code also works well. (cmake)
