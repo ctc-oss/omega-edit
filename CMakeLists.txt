@@ -37,13 +37,12 @@ set(SOURCE_FILES
 add_library(omega_edit STATIC ${SOURCE_FILES})
 
 # Generate documentation using Doxygen
-# Require dot, treat the other components as optional
-find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS dia mscgen)
+find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
 if(DOXYGEN_FOUND)
-set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
-set(DOXYGEN_EXTRACT_ALL YES)
-set(DOXYGEN_OUTPUT_DIRECTORY docs)
-doxygen_add_docs(docs src/omega_edit)
+    set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+    set(DOXYGEN_EXTRACT_ALL YES)
+    set(DOXYGEN_OUTPUT_DIRECTORY docs)
+    doxygen_add_docs(docs src/omega_edit)
 endif(DOXYGEN_FOUND)
 
 # Add additional subdirectories with CMakeLists.txt to the build
