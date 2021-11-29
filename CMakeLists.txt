@@ -1,11 +1,20 @@
 cmake_minimum_required(VERSION 3.16)
-project(omega_edit)
 
-#option(BUILD_JAVASCRIPT "Build Javascript SWIG module" ON)
+# Project information
+project(omega_edit
+        VERSION 0.6.0
+        DESCRIPTION "Apache open source library for building editors"
+        HOMEPAGE_URL https://github.com/scholarsmate/omega-edit
+        LANGUAGES C CXX)
+
+# Use C++14
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_VERBOSE_MAKEFILE on)
 
-add_library(omega_edit STATIC
+# Get verbose output from the makefile (useful for debugging the build)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# Define the library source files
+set(SOURCE_FILES
         src/omega_edit/include/config.h
         src/omega_edit/include/fwd_defs.h
         src/omega_edit/include/byte.h
@@ -24,6 +33,18 @@ add_library(omega_edit STATIC
         src/omega_edit/src/impl_/model_segment_def.h
         src/omega_edit/src/impl_/model_def.h)
 
+# Create the library archive for static linking
+add_library(omega_edit STATIC ${SOURCE_FILES})
+
+# Generate documentation using Doxygen
+# Require dot, treat the other components as optional
+find_package(Doxygen REQUIRED dot OPTIONAL_COMPONENTS dia mscgen)
+set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+set(DOXYGEN_EXTRACT_ALL YES)
+set(DOXYGEN_OUTPUT_DIRECTORY docs)
+doxygen_add_docs(docs src/omega_edit)
+
+# Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/bindings)
 add_subdirectory(src/tests)
 add_subdirectory(src/examples)

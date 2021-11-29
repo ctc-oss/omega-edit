@@ -22,8 +22,13 @@
 
 typedef std::unique_ptr<omega_byte_t[]> data_ptr_t;
 
+/**
+ * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
+ * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
+ * whose address will be stored in the bytes field.
+ */
 union data_t {
-    data_ptr_t bytes{};      ///< Hold bytes of length greater than 7
+    data_ptr_t bytes_ptr{};  ///< Hold bytes of length greater than 7
     omega_byte_t sm_bytes[8];///< Hold bytes of length less than 8
     ~data_t(){};             // NOLINT This destructor is required, but don't use =default
 };

@@ -26,9 +26,9 @@ typedef std::shared_ptr<model_segment_t> model_segment_ptr_t;
 typedef std::vector<model_segment_ptr_t> model_segments_t;
 
 struct omega_model_t {
-    changes_t changes{};                          ///< Collection of changes for this session, ordered by time
-    changes_t changes_undone{};                   ///< Undone changes that are eligible for being redone
-    model_segments_t model_segments;
+    changes_t changes{};            ///< Collection of changes for this session, ordered by time
+    changes_t changes_undone{};     ///< Undone changes that are eligible for being redone
+    model_segments_t model_segments;///< Model segment vector
 };
 
 #endif//OMEGA_EDIT_MODEL_DEF_H

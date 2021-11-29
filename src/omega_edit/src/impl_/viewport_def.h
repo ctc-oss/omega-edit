@@ -17,7 +17,7 @@
 #ifndef OMEGA_EDIT_VIEWPORT_DEF_H
 #define OMEGA_EDIT_VIEWPORT_DEF_H
 
-#include "../../include/fwd_defs.h"
+#include "../../include/viewport.h"
 #include "data_segment_def.h"
 
 struct omega_viewport_t {

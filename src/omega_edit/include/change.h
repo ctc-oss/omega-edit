@@ -33,9 +33,9 @@ extern "C" {
 int64_t omega_change_get_offset(const omega_change_t *change_ptr);
 
 /**
-* Given a change, return the original number of bytes inserted or deleted (zero for overwrite)
+* Given a change, return the original number of bytes deleted, inserted, or overwritten
 * @param change_ptr change to get the original number of bytes from
-* @return original number of bytes inserted or deleted (zero for overwrite)
+* @return original number of bytes deleted, inserted, or overwritten
 */
 int64_t omega_change_get_length(const omega_change_t *change_ptr);
 
@@ -54,11 +54,12 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr);
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 
 /**
- * Given a change, return the new byte value for insert or overwrite (zero for delete)
- * @param change_ptr change to get the new byte value from
- * @return new byte value
+ * Given a change, return a pointer to the byte data and its length
+ * @param change_ptr change to get the new bytes data from
+ * @param bytes_ptr address of a bytes pointer, that will be modified as a side effect, to point to the byte data
+ * @return length of the byte data (0 for delete)
  */
-int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes);
+int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes_ptr);
 
 #ifdef __cplusplus
 }

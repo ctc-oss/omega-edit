@@ -94,43 +94,54 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
 
 /**
  * Delete a number of bytes at the given offset
- * @param session_ptr author making the change
+ * @param session_ptr session to make the change in
  * @param offset location offset to make the change
  * @param length number of bytes to delete
- * @return change serial number on success, non-zero otherwise
+ * @return positive change serial number on success, negative value otherwise
  */
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
 
 /**
- * Insert a number of bytes with value fill at the given offset
- * @param session_ptr author making the change
+ * Insert a number of bytes at the given offset
+ * @param session_ptr session to make the change in
  * @param offset location offset to make the change
- * @param bytes the value of the fill bytes
+ * @param bytes bytes to insert at the given offset
  * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return change serial number on success, non-zero otherwise
+ * @return positive change serial number on success, negative value otherwise
  */
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length = 0);
 
 /**
- * Overwrite a byte at the given offset with the given new byte
- * @param session_ptr author making the change
+ * Overwrite bytes at the given offset with the given new bytes
+ * @param session_ptr session to make the change in
  * @param offset location offset to make the change
- * @param bytes new byte to overwrite the old
+ * @param bytes new bytes to overwrite the old bytes with
  * @param length number of bytes to overwrite (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return change serial number on success, non-zero otherwise
+ * @return positive change serial number on success, negative value otherwise
  */
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                              int64_t length = 0);
 
 /**
- * Visit changes in the given session, if the callback returns an integer other than 0, visitation will stop and the
- * return value of the callback will be this function's return value
- * @param session_ptr session to visit changes
- * @param cbk user-provided function to call
+ * Visit changes in the given session in chronological order (oldest first), if the callback returns an integer other
+ * than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
  * @param user_data user-provided data to provide back to the callback
- * @return 0 if all changes were visited or the return value of the callback if visitation was stopped
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
  */
 int omega_edit_visit_changes(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk, void *user_data);
+
+/**
+ * Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer
+ * other than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
+ */
+int omega_edit_visit_changes_rev(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
+                                 void *user_data);
 
 /**
  * Given a session, return the current number of active changes

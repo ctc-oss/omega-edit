@@ -20,6 +20,9 @@
 #include "data_def.h"
 #include <cstdint>
 
+/**
+ * A segment of data
+ */
 struct data_segment_t {
     int64_t offset{};  ///< Data offset as changes have been made
     int64_t length{};  ///< Populated data length (in bytes)

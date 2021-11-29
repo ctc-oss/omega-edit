@@ -26,12 +26,12 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr) { return chang
 
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
-                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes.get() : change_ptr->data.sm_bytes)
+                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr.get() : change_ptr->data.sm_bytes)
                    : nullptr;
 }
 
-int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes) {
-    *bytes = change_bytes_(change_ptr);
+int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes_ptr) {
+    *bytes_ptr = change_bytes_(change_ptr);
     return change_ptr->length;
 }
 

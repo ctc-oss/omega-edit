@@ -1,7 +1,9 @@
 # generated files
 node_modules/
-build/
+build*/
 cmake-build*/
+.DS_Store
+Release
 yarn.lock
 package-lock.json
 

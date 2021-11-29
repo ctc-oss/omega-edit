@@ -50,7 +50,7 @@ omega_viewport_t *omega_viewport_create(omega_session_t *session_ptr, int64_t of
         viewport_ptr->data_segment.offset = offset;
         viewport_ptr->data_segment.capacity = capacity;
         viewport_ptr->data_segment.length = 0;
-        viewport_ptr->data_segment.data.bytes =
+        viewport_ptr->data_segment.data.bytes_ptr =
                 (7 < viewport_ptr->data_segment.capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
@@ -70,7 +70,7 @@ int omega_viewport_destroy(omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
-            if (7 < (*iter)->data_segment.capacity) { (*iter)->data_segment.data.bytes.reset(); }
+            if (7 < (*iter)->data_segment.capacity) { (*iter)->data_segment.data.bytes_ptr.reset(); }
             viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
             return 0;
         }
@@ -83,10 +83,10 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || viewport_ptr->data_segment.capacity != capacity ||
             viewport_ptr->bit_offset != bit_offset) {
-            if (7 < viewport_ptr->data_segment.capacity) { viewport_ptr->data_segment.data.bytes.reset(); }
+            if (7 < viewport_ptr->data_segment.capacity) { viewport_ptr->data_segment.data.bytes_ptr.reset(); }
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = capacity;
-            viewport_ptr->data_segment.data.bytes =
+            viewport_ptr->data_segment.data.bytes_ptr =
                     (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
             viewport_ptr->bit_offset = bit_offset;
 
