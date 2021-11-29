@@ -14,17 +14,30 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_H
-#define OMEGA_EDIT_DATA_SEGMENT_DEF_H
+#include "../omega_edit/omega_edit.h"
+#include <string>
 
-#include "data_def.h"
-#include <cstdint>
+using namespace std;
 
-struct data_segment_t {
-    int64_t offset{};  ///< Data offset as changes have been made
-    int64_t length{};  ///< Populated data length (in bytes)
-    int64_t capacity{};///< Data capacity (in bytes)
-    data_t data{};     ///< Copy of the data itself
-};
-
-#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_H
+int main(int argc, char **argv) {
+    if (argc != 5) {
+        fprintf(stderr,
+                "This program extracts a slice from the infile and writes it to the outfile using an Omega Edit\n"
+                "session.\n\n"
+                "USAGE: %s infile outfile offset length\n",
+                argv[0]);
+        return -1;
+    }
+    auto in_filename = argv[1];
+    auto out_filename = argv[2];
+    auto session_ptr = omega_session_create(in_filename, nullptr, nullptr, DEFAULT_VIEWPORT_MAX_CAPACITY,
+                                                 stoll(argv[3]), stoll(argv[4]));
+    if (session_ptr) {
+        omega_edit_save(session_ptr, out_filename);
+        omega_session_destroy(session_ptr);
+    } else {
+        fprintf(stderr, "failed to create session, probably because the offset and/or length are out of range for the\n"
+                        "given input file\n");
+    }
+    return 0;
+}

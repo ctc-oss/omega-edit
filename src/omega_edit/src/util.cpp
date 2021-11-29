@@ -1,26 +1,26 @@
-/*
- * Copyright 2021 Concurrent Technologies Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/**********************************************************************************************************************
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+ *                                                                                                                    *
+ * Licensed under the Apache License, Version 2.0 (the "License");                                                    *
+ * you may not use this file except in compliance with the License.                                                   *
+ * You may obtain a copy of the License at                                                                            *
+ *                                                                                                                    *
+ *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
+ *                                                                                                                    *
+ * Unless required by applicable law or agreed to in writing, software                                                *
+ * distributed under the License is distributed on an "AS IS" BASIS,                                                  *
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.                                           *
+ * See the License for the specific language governing permissions and                                                *
+ * limitations under the License.                                                                                     *
+ **********************************************************************************************************************/
 
 #include "../include/util.h"
 
-int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left) {
+int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
     if (shift_left > 0 && shift_left < 8) {
-        byte_t shift_right = 8 - shift_left;
-        byte_t mask = ((1 << shift_left) - 1) << shift_right;
-        byte_t bits1 = 0;
+        omega_byte_t shift_right = 8 - shift_left;
+        omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
+        omega_byte_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
             const auto bits2 = buffer[i] & mask;
             buffer[i] <<= shift_left;
@@ -32,11 +32,11 @@ int left_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_left) {
     return -1;
 }
 
-int right_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_right) {
+int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right) {
     if (shift_right > 0 && shift_right < 8) {
-        byte_t shift_left = 8 - shift_right;
-        byte_t mask = (1 << shift_right) - 1;
-        byte_t bits1 = 0;
+        omega_byte_t shift_left = 8 - shift_right;
+        omega_byte_t mask = (1 << shift_right) - 1;
+        omega_byte_t bits1 = 0;
         for (auto i = len - 1; i >= 0; --i) {
             const auto bits2 = buffer[i] & mask;
             buffer[i] >>= shift_right;
@@ -48,7 +48,7 @@ int right_shift_buffer(byte_t *buffer, int64_t len, byte_t shift_right) {
     return -1;
 }
 
-int64_t read_segment_from_file(FILE *from_file_ptr, int64_t offset, byte_t *buffer, int64_t capacity) {
+int64_t omega_util_read_segment_from_file(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer, int64_t capacity) {
     int64_t rc = -1;
     if (0 == fseeko(from_file_ptr, 0, SEEK_END)) {
         const auto len = ftello(from_file_ptr) - offset;
@@ -64,11 +64,11 @@ int64_t read_segment_from_file(FILE *from_file_ptr, int64_t offset, byte_t *buff
     return rc;
 }
 
-int64_t write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
     const int64_t buff_size = 1024 * 8;
     auto remaining = byte_count;
-    byte_t buff[buff_size];
+    omega_byte_t buff[buff_size];
     while (remaining) {
         const auto count = (buff_size > remaining) ? remaining : buff_size;
         if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) { break; }

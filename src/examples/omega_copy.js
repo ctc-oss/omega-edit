@@ -14,16 +14,17 @@
 * limitations under the License.
 */
 
-/* clang-format off */
-
-%module omega_edit
-%{
-/* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h" 0 0const struct omega_session_t* int (*)(long long int, long long int, void *) nullptr 0 0 int (*)(const struct omega_change_t *, void *)
-%}
-/* Parse the header file to generate wrappers */
-%include "../omega_edit/include/change.h"
-%include "../omega_edit/include/edit.h"
-%include "../omega_edit/include/license.h"
-%include "../omega_edit/include/session.h"
-%include "../omega_edit/include/viewport.h"
+/*
+ * Uses Omega Edit to copy a file.  Example:
+ * node ./omega_copy.js ../tests/data/test1.dat test1.dat.copy
+ * Verify the file contents are identical:
+ * cmp ../tests/data/test1.dat test1.dat.copy
+ */
+omega_edit = require('../../build/Release/omega_edit')
+input_filename = process.argv[2]
+output_filename = process.argv[3]
+session = omega_edit.create_session(input_filename)
+console.log(omega_edit.get_computed_file_size(session))
+omega_edit.save_session(session, output_filename)
+omega_edit.destroy_session(session)
+console.log("finished!")

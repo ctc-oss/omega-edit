@@ -3,8 +3,8 @@
     {
       "target_name": "omega_edit",
       "sources": [
-        "src/omega_edit/src/author.cpp",
         "src/omega_edit/src/change.cpp",
+        "src/omega_edit/src/edit.cpp",
         "src/omega_edit/src/session.cpp",
         "src/omega_edit/src/viewport.cpp",
         "src/omega_edit/src/license.cpp",

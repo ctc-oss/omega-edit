@@ -14,15 +14,9 @@
 * limitations under the License.
 */
 
-#ifndef OMEGA_EDIT_AUTHOR_DEF_H
-#define OMEGA_EDIT_AUTHOR_DEF_H
-
-#include "../../include/fwd_defs.h"
-#include <string>
-
-struct author_t {
-    std::string name{};      ///< Name of the author
-    session_t *session_ptr{};///< Session associated with this author
-};
-
-#endif//OMEGA_EDIT_AUTHOR_DEF_H
+/*
+ * Uses Omega Edit to display its license.  Example:
+ * node ./omega_license.js
+ */
+omega_edit = require('../../build/Release/omega_edit')
+console.log(omega_edit.get_omega_edit_license())
