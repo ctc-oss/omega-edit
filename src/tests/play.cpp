@@ -21,6 +21,7 @@
 
 #include "../omega_edit/include/encodings.h"
 #include "../omega_edit/omega_edit.h"
+#include <cassert>
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>
@@ -54,6 +55,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
         default:
             abort();
     }
+    assert(file_info_ptr->deletes + file_info_ptr->inserts + file_info_ptr->overwrites == omega_change_get_serial(change_ptr));
     // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
     const omega_byte_t *bytes;
     const auto bytes_length = omega_change_get_bytes(change_ptr, &bytes);

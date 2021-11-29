@@ -79,7 +79,7 @@ static void print_model_segment_(const model_segment_ptr_t &segment_ptr, std::os
  **********************************************************************************************************************/
 
 omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr) {
-    return (data_segment_ptr->capacity < 8) ? data_segment_ptr->data.sm_bytes : data_segment_ptr->data.bytes.get();
+    return (data_segment_ptr->capacity < 8) ? data_segment_ptr->data.sm_bytes : data_segment_ptr->data.bytes_ptr.get();
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr) {
@@ -199,4 +199,3 @@ int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change
     }
     return 0;
 }
-

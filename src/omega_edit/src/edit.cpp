@@ -33,7 +33,7 @@ static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t len
     change_ptr->kind = change_kind_t::CHANGE_DELETE;
     change_ptr->offset = offset;
     change_ptr->length = length;
-    change_ptr->data.bytes = nullptr;
+    change_ptr->data.bytes_ptr = nullptr;
     return change_ptr;
 }
 
@@ -48,9 +48,9 @@ static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
-        change_ptr->data.bytes = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
-        memcpy(change_ptr->data.bytes.get(), bytes, change_ptr->length);
-        change_ptr->data.bytes.get()[change_ptr->length] = '\0';
+        change_ptr->data.bytes_ptr = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
+        memcpy(change_ptr->data.bytes_ptr.get(), bytes, change_ptr->length);
+        change_ptr->data.bytes_ptr.get()[change_ptr->length] = '\0';
     }
     return change_ptr;
 }
@@ -66,9 +66,9 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
-        change_ptr->data.bytes = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
-        memcpy(change_ptr->data.bytes.get(), bytes, change_ptr->length);
-        change_ptr->data.bytes.get()[change_ptr->length] = '\0';
+        change_ptr->data.bytes_ptr = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
+        memcpy(change_ptr->data.bytes_ptr.get(), bytes, change_ptr->length);
+        change_ptr->data.bytes_ptr.get()[change_ptr->length] = '\0';
     }
     return change_ptr;
 }
@@ -208,19 +208,19 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, del_(++session_ptr->serial, offset, length))
+                   ? update_(session_ptr, del_(1 + omega_edit_get_num_changes(session_ptr), offset, length))
                    : -1;
 }
 
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     return (offset <= omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ins_(++session_ptr->serial, offset, bytes, length))
+                   ? update_(session_ptr, ins_(1 + omega_edit_get_num_changes(session_ptr), offset, bytes, length))
                    : -1;
 }
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ovr_(++session_ptr->serial, offset, bytes, length))
+                   ? update_(session_ptr, ovr_(1 + omega_edit_get_num_changes(session_ptr), offset, bytes, length))
                    : -1;
 }
 
@@ -277,6 +277,16 @@ int omega_edit_visit_changes(const omega_session_t *session_ptr, omega_edit_chan
     return rc;
 }
 
+int omega_edit_visit_changes_rev(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
+                                 void *user_data) {
+    int rc = 0;
+    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
+         ++iter) {
+        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
+    }
+    return rc;
+}
+
 /*
  * The idea here is to search using tiled windows.  The window should be at least twice the size of the needle, and then
  * it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to catch
@@ -286,14 +296,14 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
                       omega_edit_match_found_cbk_t cbk, void *user_data, int64_t session_offset,
                       int64_t session_length) {
     int rc = -1;
-    if (needle_length < NEEDLE_LENGTH_LIMIT) {
+    if (needle_length < SEARCH_PATTERN_LENGTH_LIMIT) {
         rc = 0;
         session_length = (session_length) ? session_length : session_ptr->length;
         if (needle_length <= session_length) {
             data_segment_t data_segment;
             data_segment.offset = session_offset;
-            data_segment.capacity = NEEDLE_LENGTH_LIMIT << 1;
-            data_segment.data.bytes =
+            data_segment.capacity = SEARCH_PATTERN_LENGTH_LIMIT << 1;
+            data_segment.data.bytes_ptr =
                     (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - needle_length;
             int64_t skip = 0;
@@ -311,7 +321,7 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
                 }
                 skip = skip_size;
             } while (data_segment.length == data_segment.capacity);
-            if (7 < data_segment.capacity) { data_segment.data.bytes.reset(); }
+            if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
         }
     }
     return rc;

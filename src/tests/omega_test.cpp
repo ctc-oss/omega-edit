@@ -183,6 +183,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 < omega_edit_overwrite(session_ptr, 6, reinterpret_cast<const omega_byte_t *>("O"), 0));
     REQUIRE((last_change = omega_edit_get_last_change(session_ptr)));
     REQUIRE(omega_change_get_kind_as_char(last_change) == 'O');
+    REQUIRE(omega_change_get_length(last_change) == 1);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.5.txt"));
     REQUIRE(compare_files("data/model-test.expected.5.txt", "data/model-test.actual.5.txt") == 0);
     REQUIRE(0 < omega_edit_delete(session_ptr, 0, omega_edit_get_computed_file_size(session_ptr)));

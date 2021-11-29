@@ -29,9 +29,10 @@
 #define DEFAULT_VIEWPORT_MAX_CAPACITY (1024 * 1024)
 #endif//DEFAULT_VIEWPORT_MAX_CAPACITY
 
-#ifndef NEEDLE_LENGTH_LIMIT
-#define NEEDLE_LENGTH_LIMIT (DEFAULT_VIEWPORT_MAX_CAPACITY / 2)
-#endif//NEEDLE_LENGTH_LIMIT
+// Define the maximum length of a pattern for searching
+#ifndef SEARCH_PATTERN_LENGTH_LIMIT
+#define SEARCH_PATTERN_LENGTH_LIMIT (DEFAULT_VIEWPORT_MAX_CAPACITY / 2)
+#endif//SEARCH_PATTERN_LENGTH_LIMIT
 
 // Define the byte type to be used across the project
 #ifndef OMEGA_BYTE_T

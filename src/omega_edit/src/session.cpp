@@ -50,7 +50,6 @@ omega_session_t *omega_session_create(const char *file_path, omega_session_on_ch
         if (0 <= file_size && offset + length <= file_size) {
             const auto session_ptr = new omega_session_t;
 
-            session_ptr->serial = 0;
             session_ptr->file_ptr = file_ptr;
             session_ptr->file_path = (file_path) ? std::string(file_path) : std::string();
             session_ptr->viewport_max_capacity =
@@ -77,7 +76,7 @@ void omega_session_destroy(omega_session_t *session_ptr) {
     while (!session_ptr->viewports_.empty()) { omega_viewport_destroy(session_ptr->viewports_.back().get()); }
     for (auto &change_ptr : session_ptr->model_ptr_->changes) {
         if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            const_cast<omega_change_t *>(change_ptr.get())->data.bytes.reset();
+            const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr.reset();
         }
     }
     delete session_ptr;
