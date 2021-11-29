@@ -20,7 +20,6 @@
 #include "../../include/fwd_defs.h"
 #include <memory>
 
-typedef std::shared_ptr<omega_change_t> omega_change_ptr_t;
 typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
 typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
 

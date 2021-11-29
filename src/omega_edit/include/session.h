@@ -91,7 +91,7 @@ size_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
  * Destroy the given session and all associated objects (authors, changes, and viewports)
  * @param session_ptr session to destroy
  */
-void omega_session_destroy(const omega_session_t *session_ptr);
+void omega_session_destroy(omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

@@ -15,9 +15,12 @@
  **********************************************************************************************************************/
 
 #include "../include/session.h"
+#include "../include/viewport.h"
+#include "impl_/change_def.h"
 #include "impl_/internal_fun.h"
 #include "impl_/session_def.h"
 #include <algorithm>
+#include <memory>
 
 int64_t omega_session_get_viewport_max_capacity(const omega_session_t *session_ptr) {
     return session_ptr->viewport_max_capacity;
@@ -56,7 +59,7 @@ omega_session_t *omega_session_create(const char *file_path, omega_session_on_ch
             session_ptr->user_data_ptr = user_data_ptr;
             session_ptr->offset = offset;
             session_ptr->length = (length) ? std::min(length, (file_size - offset)) : (file_size - offset);
-            session_ptr->model_ptr_ = std::shared_ptr<omega_model_t>(new omega_model_t);
+            session_ptr->model_ptr_ = std::make_shared<omega_model_t>();
             initialize_model_segments_(session_ptr->model_ptr_->model_segments, session_ptr->offset,
                                        session_ptr->length);
             return session_ptr;
@@ -69,7 +72,13 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
 }
 
-void omega_session_destroy(const omega_session_t *session_ptr) {
+void omega_session_destroy(omega_session_t *session_ptr) {
     if (session_ptr->file_ptr) { fclose(session_ptr->file_ptr); }
+    while (!session_ptr->viewports_.empty()) { omega_viewport_destroy(session_ptr->viewports_.back().get()); }
+    for (auto &change_ptr : session_ptr->model_ptr_->changes) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
+            const_cast<omega_change_t *>(change_ptr.get())->data.bytes.reset();
+        }
+    }
     delete session_ptr;
 }

@@ -23,10 +23,12 @@
 #include "impl_/macros.h"
 #include "impl_/model_segment_def.h"
 #include "impl_/session_def.h"
+#include <cassert>
 #include <cstring>
+#include <memory>
 
 static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
-    auto change_ptr = std::shared_ptr<omega_change_t>(new omega_change_t);
+    auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_DELETE;
     change_ptr->offset = offset;
@@ -36,7 +38,7 @@ static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t len
 }
 
 static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
-    auto change_ptr = std::shared_ptr<omega_change_t>(new omega_change_t);
+    auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
@@ -54,7 +56,7 @@ static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega
 }
 
 static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
-    auto change_ptr = std::shared_ptr<omega_change_t>(new omega_change_t);
+    auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
@@ -72,7 +74,7 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
 }
 
 static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
-    auto result = std::shared_ptr<model_segment_t>(new model_segment_t);
+    auto result = std::make_shared<model_segment_t>();
     result->segment_kind = segment_ptr->segment_kind;
     result->computed_offset = segment_ptr->computed_offset;
     result->computed_length = segment_ptr->computed_length;
@@ -92,7 +94,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
 
     if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
         // The model is empty, and we have a change with content
-        const auto insert_segment_ptr = std::shared_ptr<model_segment_t>(new model_segment_t);
+        const auto insert_segment_ptr = std::make_shared<model_segment_t>();
         insert_segment_ptr->segment_kind = model_segment_kind_t::SEGMENT_INSERT;
         insert_segment_ptr->computed_offset = change_ptr->offset;
         insert_segment_ptr->computed_length = change_ptr->length;
@@ -153,7 +155,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                 }
                 case change_kind_t::CHANGE_OVERWRITE:// deliberate fall-through
                 case change_kind_t::CHANGE_INSERT: {
-                    const auto insert_segment_ptr = std::shared_ptr<model_segment_t>(new model_segment_t);
+                    const auto insert_segment_ptr = std::make_shared<model_segment_t>();
                     insert_segment_ptr->segment_kind = model_segment_kind_t::SEGMENT_INSERT;
                     insert_segment_ptr->computed_offset = change_ptr->offset;
                     insert_segment_ptr->computed_length = change_ptr->length;
@@ -292,7 +294,7 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
             data_segment.offset = session_offset;
             data_segment.capacity = NEEDLE_LENGTH_LIMIT << 1;
             data_segment.data.bytes =
-                    (data_segment.capacity < 8) ? nullptr : std::make_unique<omega_byte_t[]>(data_segment.capacity);
+                    (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - needle_length;
             int64_t skip = 0;
             do {
@@ -309,6 +311,7 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
                 }
                 skip = skip_size;
             } while (data_segment.length == data_segment.capacity);
+            if (7 < data_segment.capacity) { data_segment.data.bytes.reset(); }
         }
     }
     return rc;

@@ -15,11 +15,13 @@
  **********************************************************************************************************************/
 
 #include "../include/viewport.h"
+
 #include "../include/session.h"
 #include "impl_/data_segment_def.h"
 #include "impl_/internal_fun.h"
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
+#include <memory>
 
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->session_ptr;
@@ -43,13 +45,13 @@ omega_viewport_t *omega_viewport_create(omega_session_t *session_ptr, int64_t of
                                         omega_viewport_on_change_cbk_t cbk, void *user_data_ptr,
                                         omega_byte_t bit_offset) {
     if (capacity > 0 and capacity <= omega_session_get_viewport_max_capacity(session_ptr)) {
-        const auto viewport_ptr = std::shared_ptr<omega_viewport_t>(new omega_viewport_t);
+        const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
         viewport_ptr->data_segment.offset = offset;
         viewport_ptr->data_segment.capacity = capacity;
         viewport_ptr->data_segment.length = 0;
         viewport_ptr->data_segment.data.bytes =
-                (viewport_ptr->data_segment.capacity < 8) ? nullptr : std::make_unique<omega_byte_t[]>(capacity);
+                (7 < viewport_ptr->data_segment.capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         viewport_ptr->bit_offset = bit_offset;
@@ -65,10 +67,11 @@ omega_viewport_t *omega_viewport_create(omega_session_t *session_ptr, int64_t of
 }
 
 int omega_viewport_destroy(omega_viewport_t *viewport_ptr) {
-    for (auto iter = viewport_ptr->session_ptr->viewports_.begin(); iter != viewport_ptr->session_ptr->viewports_.end();
-         ++iter) {
+    for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
+         iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
-            viewport_ptr->session_ptr->viewports_.erase(iter);
+            if (7 < (*iter)->data_segment.capacity) { (*iter)->data_segment.data.bytes.reset(); }
+            viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
             return 0;
         }
     }
@@ -80,10 +83,11 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || viewport_ptr->data_segment.capacity != capacity ||
             viewport_ptr->bit_offset != bit_offset) {
+            if (7 < viewport_ptr->data_segment.capacity) { viewport_ptr->data_segment.data.bytes.reset(); }
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = capacity;
             viewport_ptr->data_segment.data.bytes =
-                    (capacity < 8) ? nullptr : std::make_unique<omega_byte_t[]>(capacity);
+                    (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
             viewport_ptr->bit_offset = bit_offset;
 
             // Update viewport and call the on change callback
