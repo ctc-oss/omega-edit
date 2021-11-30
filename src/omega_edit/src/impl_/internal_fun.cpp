@@ -58,11 +58,8 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
     out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << change_ptr->offset
                << R"(, "length": )" << change_ptr->length;
-    const omega_byte_t *bytes_ptr;
-    const auto bytes_length = omega_change_get_bytes(change_ptr, &bytes_ptr);
-    if (bytes_length) {
-        out_stream << R"(, "bytes": ")" << std::string((char const *) bytes_ptr, bytes_length) << R"(")";
-    }
+    const auto bytes = omega_change_get_bytes(change_ptr);
+    if (bytes) { out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, change_ptr->length) << R"(")"; }
     out_stream << "}";
 }
 
@@ -121,11 +118,10 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                     case model_segment_kind_t::SEGMENT_INSERT: {
                         // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
                         // segment
-                        const omega_byte_t *change_bytes;
-                        omega_change_get_bytes((*iter)->change_ptr.get(), &change_bytes);
                         memcpy(const_cast<omega_byte_t *>(get_data_segment_data_(data_segment_ptr)) +
                                        data_segment_ptr->length,
-                               change_bytes + (*iter)->change_offset + delta, amount);
+                               omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
+                               amount);
                         break;
                     }
                     default:
