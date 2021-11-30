@@ -14,36 +14,15 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_UTIL_H
-#define OMEGA_EDIT_UTIL_H
+#ifndef OMEGA_EDIT_UTILITY_H
+#define OMEGA_EDIT_UTILITY_H
 
 #include "byte.h"
 #include <cstdint>
-#include <cstdio>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * Read a segment from a file into the given buffer
- * @param from_file_ptr file to read the segment from
- * @param offset offset from the file beginning to read from
- * @param buffer pointer to the buffer to write the bytes to
- * @param capacity capacity of the buffer
- * @return number of bytes read, -1 on failure
- */
-int64_t omega_util_read_segment_from_file(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer, int64_t capacity);
-
-/**
- * Write a segment from one file into another
- * @param from_file_ptr file to read the segment from
- * @param offset offset from the file beginning to read from
- * @param byte_count number of bytes, starting at the offset, to read and write
- * @param to_file_ptr file to write the segment to, at whatever position it is currently at
- * @return 0 on success, non-zero on failure
- */
-int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
 /**
  * Shift the bits of the given buffer by a given number of bits to the left
@@ -67,4 +46,4 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
 }
 #endif
 
-#endif//OMEGA_EDIT_UTIL_H
+#endif//OMEGA_EDIT_UTILITY_H

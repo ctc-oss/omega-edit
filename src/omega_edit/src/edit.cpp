@@ -17,7 +17,6 @@
 #include "../include/edit.h"
 #include "../include/change.h"
 #include "../include/session.h"
-#include "../include/util.h"
 #include "impl_/change_def.h"
 #include "impl_/internal_fun.h"
 #include "impl_/macros.h"
@@ -26,6 +25,19 @@
 #include <cassert>
 #include <cstring>
 #include <memory>
+
+static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+    if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
+    const int64_t buff_size = 1024 * 8;
+    auto remaining = byte_count;
+    omega_byte_t buff[buff_size];
+    while (remaining) {
+        const auto count = (buff_size > remaining) ? remaining : buff_size;
+        if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) { break; }
+        remaining -= count;
+    }
+    return byte_count - remaining;
+}
 
 static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
     auto change_ptr = std::make_shared<omega_change_t>();
@@ -242,9 +254,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
             }
             switch (segment->segment_kind) {
                 case model_segment_kind_t::SEGMENT_READ: {
-                    if (omega_util_write_segment_to_file(session_ptr->file_ptr, segment->change_offset,
-                                                         segment->computed_length,
-                                                         file_ptr) != segment->computed_length) {
+                    if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
+                                               file_ptr) != segment->computed_length) {
                         return -1;
                     }
                     break;
