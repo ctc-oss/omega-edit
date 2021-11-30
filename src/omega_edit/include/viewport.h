@@ -43,9 +43,9 @@ omega_viewport_t *omega_viewport_create(omega_session_t *session_ptr, int64_t of
                                         omega_byte_t bit_offset = 0);
 
 /**
- * Given a viewport, return the author
- * @param viewport_ptr viewport to get the author from
- * @return viewport author
+ * Given a viewport, return the session pointer
+ * @param viewport_ptr viewport to get the session pointer from
+ * @return viewport session pointer
  */
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr);
 

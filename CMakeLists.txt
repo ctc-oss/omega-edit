@@ -23,7 +23,7 @@ set(SOURCE_FILES
         src/omega_edit/include/session.h src/omega_edit/src/session.cpp src/omega_edit/src/impl_/session_def.h
         src/omega_edit/include/viewport.h src/omega_edit/src/viewport.cpp src/omega_edit/src/impl_/viewport_def.h
         src/omega_edit/include/license.h src/omega_edit/src/license.cpp src/omega_edit/src/impl_/license_def.h
-        src/omega_edit/include/util.h src/omega_edit/src/util.cpp
+        src/omega_edit/include/utility.h src/omega_edit/src/utility.cpp
         src/omega_edit/include/encodings.h src/omega_edit/src/encodings.cpp
         src/omega_edit/src/impl_/internal_fun.h src/omega_edit/src/impl_/internal_fun.cpp
         src/omega_edit/src/impl_/macros.h

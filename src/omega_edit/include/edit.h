@@ -140,8 +140,8 @@ int omega_edit_visit_changes(const omega_session_t *session_ptr, omega_edit_chan
  * @param user_data user-provided data to provide back to the callback
  * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
  */
-int omega_edit_visit_changes_rev(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
-                                 void *user_data);
+int omega_edit_visit_changes_reverse(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
+                                     void *user_data);
 
 /**
  * Given a session, return the current number of active changes

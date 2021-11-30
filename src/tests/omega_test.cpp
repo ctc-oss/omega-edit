@@ -16,7 +16,7 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../omega_edit/include/util.h"
+#include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
@@ -75,27 +75,14 @@ TEST_CASE("File Compare", "[UtilTests]") {
     }
 }
 
-TEST_CASE("Write Segment", "[WriteSegmentTests]") {
-    FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "w");
-    FILE *read_file_ptr = fopen("data/test1.dat", "r");
-    auto rc = omega_util_write_segment_to_file(read_file_ptr, 10, 26, test_outfile_ptr);
-    REQUIRE(rc == 26);
-    rc = omega_util_write_segment_to_file(read_file_ptr, 0, 10, test_outfile_ptr);
-    REQUIRE(rc == 10);
-    rc = omega_util_write_segment_to_file(read_file_ptr, 36, 27, test_outfile_ptr);
-    REQUIRE(rc == 27);
-    fclose(read_file_ptr);
-    fclose(test_outfile_ptr);
-}
-
 typedef struct file_info_struct {
     size_t num_changes{};
 } file_info_t;
 
 void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
-    const omega_byte_t *bytes;
-    const auto length = omega_change_get_bytes(change_ptr, &bytes);
+    const auto bytes = omega_change_get_bytes(change_ptr);
+    const auto bytes_length = omega_change_get_length(change_ptr);
     if (0 < omega_change_get_serial(change_ptr)) {
         ++file_info_ptr->num_changes;
     } else {
@@ -109,7 +96,7 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
          << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")" << omega_change_get_kind_as_char(change_ptr)
          << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )"
          << omega_change_get_length(change_ptr);
-    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")"; }
+    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
     clog << "}" << endl;
 }
 

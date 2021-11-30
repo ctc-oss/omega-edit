@@ -30,10 +30,7 @@ static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr
                    : nullptr;
 }
 
-int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes_ptr) {
-    *bytes_ptr = change_bytes_(change_ptr);
-    return change_ptr->length;
-}
+const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) { return change_bytes_(change_ptr); }
 
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
     switch (change_ptr->kind) {

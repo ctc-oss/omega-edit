@@ -54,12 +54,11 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr);
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 
 /**
- * Given a change, return a pointer to the byte data and its length
+ * Given a change, return a pointer to the byte data
  * @param change_ptr change to get the new bytes data from
- * @param bytes_ptr address of a bytes pointer, that will be modified as a side effect, to point to the byte data
- * @return length of the byte data (0 for delete)
+ * @return pointer to the byte data
  */
-int64_t omega_change_get_bytes(const omega_change_t *change_ptr, const omega_byte_t **bytes_ptr);
+const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr);
 
 #ifdef __cplusplus
 }
