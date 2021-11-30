@@ -94,8 +94,8 @@ typedef struct file_info_struct {
 
 void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
-    const omega_byte_t *bytes;
-    const auto length = omega_change_get_bytes(change_ptr, &bytes);
+    const auto bytes = omega_change_get_bytes(change_ptr);
+    const auto bytes_length = omega_change_get_length(change_ptr);
     if (0 < omega_change_get_serial(change_ptr)) {
         ++file_info_ptr->num_changes;
     } else {
@@ -109,7 +109,7 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
          << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")" << omega_change_get_kind_as_char(change_ptr)
          << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )"
          << omega_change_get_length(change_ptr);
-    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, length) << R"(")"; }
+    if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
     clog << "}" << endl;
 }
 

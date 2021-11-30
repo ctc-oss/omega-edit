@@ -57,8 +57,8 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
     }
     assert(file_info_ptr->deletes + file_info_ptr->inserts + file_info_ptr->overwrites == omega_change_get_serial(change_ptr));
     // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
-    const omega_byte_t *bytes;
-    const auto bytes_length = omega_change_get_bytes(change_ptr, &bytes);
+    const auto bytes = omega_change_get_bytes(change_ptr);
+    const auto bytes_length = omega_change_get_length(change_ptr);
     const auto required_buffer_size = bytes_length * 2 + 1;
     if (bytes) {
         if (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size) {
@@ -74,7 +74,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
         file_info_ptr->bin_to_hex_buffer[1] = '\0';
     }
     fprintf(file_info_ptr->save_fptr, "%c,%" PRId64 ",%" PRId64 ",%s\n", change_kind,
-            omega_change_get_offset(change_ptr), omega_change_get_length(change_ptr), file_info_ptr->bin_to_hex_buffer);
+            omega_change_get_offset(change_ptr), bytes_length, file_info_ptr->bin_to_hex_buffer);
     return 0;
 }
 

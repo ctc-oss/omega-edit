@@ -250,10 +250,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                     break;
                 }
                 case model_segment_kind_t::SEGMENT_INSERT: {
-                    const omega_byte_t *change_bytes;
-                    omega_change_get_bytes(segment->change_ptr.get(), &change_bytes);
-                    if (fwrite(change_bytes + segment->change_offset, 1, segment->computed_length, file_ptr) !=
-                        segment->computed_length) {
+                    if (fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
+                               segment->computed_length, file_ptr) != segment->computed_length) {
                         return -1;
                     }
                     break;
@@ -277,8 +275,8 @@ int omega_edit_visit_changes(const omega_session_t *session_ptr, omega_edit_chan
     return rc;
 }
 
-int omega_edit_visit_changes_rev(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
-                                 void *user_data) {
+int omega_edit_visit_changes_reverse(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
+                                     void *user_data) {
     int rc = 0;
     for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
          ++iter) {
