@@ -17,7 +17,7 @@
 #include "internal_fun.h"
 #include "../../include/change.h"
 #include "../../include/session.h"
-#include "../../include/util.h"
+#include "../../include/utility.h"
 #include "../../include/viewport.h"
 #include "change_def.h"
 #include "macros.h"
@@ -29,6 +29,22 @@
 /**********************************************************************************************************************
  * Internal functions
  **********************************************************************************************************************/
+
+static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer, int64_t capacity) {
+    int64_t rc = -1;
+    if (0 == fseeko(from_file_ptr, 0, SEEK_END)) {
+        const auto len = ftello(from_file_ptr) - offset;
+        // make sure the offset does not exceed the file size
+        if (len > 0) {
+            // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
+            const auto count = (len < capacity) ? len : capacity;
+            if (0 == fseeko(from_file_ptr, offset, SEEK_SET)) {
+                if (count == fread(buffer, 1, count, from_file_ptr)) { rc = count; }
+            }
+        }
+    }
+    return rc;
+}
 
 static inline char segment_kind_as_char_(model_segment_kind_t segment_kind) {
     switch (segment_kind) {
@@ -106,7 +122,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                     case model_segment_kind_t::SEGMENT_READ: {
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
                         // writing it into the data segment
-                        if (omega_util_read_segment_from_file(
+                        if (read_segment_from_file_(
                                     session_ptr->file_ptr, (*iter)->change_offset + delta,
                                     const_cast<omega_byte_t *>(get_data_segment_data_(data_segment_ptr)) +
                                             data_segment_ptr->length,

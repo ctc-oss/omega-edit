@@ -16,7 +16,7 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../omega_edit/include/util.h"
+#include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
@@ -73,19 +73,6 @@ TEST_CASE("File Compare", "[UtilTests]") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
-}
-
-TEST_CASE("Write Segment", "[WriteSegmentTests]") {
-    FILE *test_outfile_ptr = fopen("data/test1.dat.seg", "w");
-    FILE *read_file_ptr = fopen("data/test1.dat", "r");
-    auto rc = omega_util_write_segment_to_file(read_file_ptr, 10, 26, test_outfile_ptr);
-    REQUIRE(rc == 26);
-    rc = omega_util_write_segment_to_file(read_file_ptr, 0, 10, test_outfile_ptr);
-    REQUIRE(rc == 10);
-    rc = omega_util_write_segment_to_file(read_file_ptr, 36, 27, test_outfile_ptr);
-    REQUIRE(rc == 27);
-    fclose(read_file_ptr);
-    fclose(test_outfile_ptr);
 }
 
 typedef struct file_info_struct {
