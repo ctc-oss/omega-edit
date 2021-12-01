@@ -87,7 +87,6 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
 
 static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
     auto result = std::make_shared<model_segment_t>();
-    result->segment_kind = segment_ptr->segment_kind;
     result->computed_offset = segment_ptr->computed_offset;
     result->computed_length = segment_ptr->computed_length;
     result->change_offset = segment_ptr->change_offset;
@@ -107,7 +106,6 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
     if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
         // The model is empty, and we have a change with content
         const auto insert_segment_ptr = std::make_shared<model_segment_t>();
-        insert_segment_ptr->segment_kind = model_segment_kind_t::SEGMENT_INSERT;
         insert_segment_ptr->computed_offset = change_ptr->offset;
         insert_segment_ptr->computed_length = change_ptr->length;
         insert_segment_ptr->change_offset = 0;
@@ -168,7 +166,6 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                 case change_kind_t::CHANGE_OVERWRITE:// deliberate fall-through
                 case change_kind_t::CHANGE_INSERT: {
                     const auto insert_segment_ptr = std::make_shared<model_segment_t>();
-                    insert_segment_ptr->segment_kind = model_segment_kind_t::SEGMENT_INSERT;
                     insert_segment_ptr->computed_offset = change_ptr->offset;
                     insert_segment_ptr->computed_length = change_ptr->length;
                     insert_segment_ptr->change_offset = 0;
@@ -252,7 +249,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                 ABORT(CLOG << LOCATION << " break in model continuity, expected: " << write_offset
                            << ", got: " << segment->computed_offset << std::endl;);
             }
-            switch (segment->segment_kind) {
+            switch (get_model_segment_kind_(segment.get())) {
                 case model_segment_kind_t::SEGMENT_READ: {
                     if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
                                                file_ptr) != segment->computed_length) {

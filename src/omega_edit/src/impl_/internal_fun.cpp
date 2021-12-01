@@ -80,9 +80,10 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
 }
 
 static void print_model_segment_(const model_segment_ptr_t &segment_ptr, std::ostream &out_stream) {
-    out_stream << R"({"kind": ")" << segment_kind_as_char_(segment_ptr->segment_kind) << R"(", "computed_offset": )"
-               << segment_ptr->computed_offset << R"(, "computed_length": )" << segment_ptr->computed_length
-               << R"(, "change_offset": )" << segment_ptr->change_offset << R"(, "change": )";
+    out_stream << R"({"kind": ")" << segment_kind_as_char_(get_model_segment_kind_(segment_ptr.get()))
+               << R"(", "computed_offset": )" << segment_ptr->computed_offset << R"(, "computed_length": )"
+               << segment_ptr->computed_length << R"(, "change_offset": )" << segment_ptr->change_offset
+               << R"(, "change": )";
     print_change_(segment_ptr->change_ptr.get(), out_stream);
     out_stream << "}" << std::endl;
 }
@@ -118,7 +119,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                 const auto remaining_capacity = data_segment_ptr->capacity - data_segment_ptr->length;
                 auto amount = (*iter)->computed_length - delta;
                 amount = (amount > remaining_capacity) ? remaining_capacity : amount;
-                switch ((*iter)->segment_kind) {
+                switch (get_model_segment_kind_(iter->get())) {
                     case model_segment_kind_t::SEGMENT_READ: {
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
                         // writing it into the data segment
@@ -175,13 +176,17 @@ void initialize_model_segments_(model_segments_t &model_segments, int64_t offset
         change_ptr->offset = offset;
         change_ptr->length = length;
         auto read_segment_ptr = std::shared_ptr<model_segment_t>(new model_segment_t);
-        read_segment_ptr->segment_kind = model_segment_kind_t::SEGMENT_READ;
         read_segment_ptr->change_ptr = change_ptr;
         read_segment_ptr->computed_offset = 0;
         read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset;
         read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length;
         model_segments.push_back(read_segment_ptr);
     }
+}
+
+model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segment_ptr) {
+    return (0 == model_segment_ptr->change_ptr->serial) ? model_segment_kind_t::SEGMENT_READ
+                                                        : model_segment_kind_t::SEGMENT_INSERT;
 }
 
 /**********************************************************************************************************************
