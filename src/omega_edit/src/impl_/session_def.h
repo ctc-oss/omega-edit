@@ -27,7 +27,6 @@ typedef std::vector<omega_viewport_ptr_t> viewports_t;
 struct omega_session_t {
     FILE *file_ptr{};                             ///< File being edited (open for read)
     std::string file_path;                        ///< File path being edited
-    int64_t viewport_max_capacity{};              ///< Maximum capacity of a viewport for this session
     omega_session_on_change_cbk_t on_change_cbk{};///< User defined callback called when the session gets a change
     void *user_data_ptr{};                        ///< Pointer to user-provided data associated with this session
     int64_t offset{};                             ///< Edit offset into the file being edited

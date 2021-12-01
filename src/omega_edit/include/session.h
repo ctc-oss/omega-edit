@@ -18,7 +18,6 @@
 #define OMEGA_EDIT_SESSION_H
 
 #include "byte.h"
-#include "config.h"
 #include "fwd_defs.h"
 #include <cstdint>
 #include <cstdio>
@@ -35,15 +34,12 @@ typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const ome
  * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch
  * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
- * @param viewport_max_capacity maximum allowed viewport capacity for this session
  * @param offset offset to start editing from, 0 (default) is the beginning of the file
  * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
 * @return pointer to the created session, nullptr on failure
  */
 omega_session_t *omega_session_create(const char *file_path, omega_session_on_change_cbk_t cbk = nullptr,
-                                      void *user_data_ptr = nullptr,
-                                      int64_t viewport_max_capacity = DEFAULT_VIEWPORT_MAX_CAPACITY, int64_t offset = 0,
-                                      int64_t length = 0);
+                                      void *user_data_ptr = nullptr, int64_t offset = 0, int64_t length = 0);
 
 /**
  * Given a session, return the file path being edited (if known)
@@ -51,13 +47,6 @@ omega_session_t *omega_session_create(const char *file_path, omega_session_on_ch
  * @return file path, or null if not known
  */
 const char *omega_session_get_file_path(const omega_session_t *session_ptr);
-
-/**
- * Given a session, return the maximum viewport capacity
- * @param session_ptr session to get the maximum viewport capacity from
- * @return maximum viewport capacity for the given session
- */
-int64_t omega_session_get_viewport_max_capacity(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the associated user data

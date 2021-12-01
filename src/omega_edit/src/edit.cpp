@@ -302,13 +302,13 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
                       omega_edit_match_found_cbk_t cbk, void *user_data, int64_t session_offset,
                       int64_t session_length) {
     int rc = -1;
-    if (needle_length < SEARCH_PATTERN_LENGTH_LIMIT) {
+    if (needle_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) {
         rc = 0;
         session_length = (session_length) ? session_length : session_ptr->length;
         if (needle_length <= session_length) {
             data_segment_t data_segment;
             data_segment.offset = session_offset;
-            data_segment.capacity = SEARCH_PATTERN_LENGTH_LIMIT << 1;
+            data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
             data_segment.data.bytes_ptr =
                     (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - needle_length;

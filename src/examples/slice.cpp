@@ -30,8 +30,7 @@ int main(int argc, char **argv) {
     }
     auto in_filename = argv[1];
     auto out_filename = argv[2];
-    auto session_ptr = omega_session_create(in_filename, nullptr, nullptr, DEFAULT_VIEWPORT_MAX_CAPACITY,
-                                                 stoll(argv[3]), stoll(argv[4]));
+    auto session_ptr = omega_session_create(in_filename, nullptr, nullptr, stoll(argv[3]), stoll(argv[4]));
     if (session_ptr) {
         omega_edit_save(session_ptr, out_filename);
         omega_session_destroy(session_ptr);
