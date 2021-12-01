@@ -161,8 +161,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     file_info.bin_to_hex_buffer_size = 1024;
     file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
 
-    session_ptr = omega_session_create(file_info.in_filename, session_change_cbk, &file_info,
-                                            DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    session_ptr = omega_session_create(file_info.in_filename, session_change_cbk, &file_info, 0, 0);
     clog << "File Size: " << omega_edit_get_computed_file_size(session_ptr) << endl;
     auto viewport1_ptr = omega_viewport_create(session_ptr, 0, 100, vpt_change_cbk, &view_mode);
     omega_edit_delete(session_ptr, 0, omega_edit_get_computed_file_size(session_ptr));

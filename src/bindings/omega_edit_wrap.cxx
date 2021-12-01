@@ -1596,7 +1596,7 @@ static swig_module_info swig_module = {swig_types, 11, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h" 0 0const struct omega_session_t* int (*)(long long int, long long int, void *) nullptr 0 0 int (*)(const struct omega_change_t *, void *)
+#include "../omega_edit/omega_edit.h"
 
 
 SWIGINTERN swig_type_info*
@@ -2554,9 +2554,8 @@ static SwigV8ReturnValue _wrap_omega_session_create(const SwigV8Arguments &args)
   char *arg1 = (char *) 0 ;
   omega_session_on_change_cbk_t arg2 = (omega_session_on_change_cbk_t) nullptr ;
   void *arg3 = (void *) nullptr ;
-  int64_t arg4 = (int64_t) DEFAULT_VIEWPORT_MAX_CAPACITY ;
+  int64_t arg4 = (int64_t) 0 ;
   int64_t arg5 = (int64_t) 0 ;
-  int64_t arg6 = (int64_t) 0 ;
   int res1 ;
   char *buf1 = 0 ;
   int alloc1 = 0 ;
@@ -2565,11 +2564,9 @@ static SwigV8ReturnValue _wrap_omega_session_create(const SwigV8Arguments &args)
   int res4 = 0 ;
   void *argp5 ;
   int res5 = 0 ;
-  void *argp6 ;
-  int res6 = 0 ;
   omega_session_t *result = 0 ;
   
-  if(args.Length() != 6) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_session_create.");
+  if(args.Length() != 5) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_session_create.");
   
   res1 = SWIG_AsCharPtrAndSize(args[0], &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
@@ -2608,18 +2605,7 @@ static SwigV8ReturnValue _wrap_omega_session_create(const SwigV8Arguments &args)
       arg5 = *(reinterpret_cast< int64_t * >(argp5));
     }
   }
-  {
-    res6 = SWIG_ConvertPtr(args[5], &argp6, SWIGTYPE_p_int64_t,  0 );
-    if (!SWIG_IsOK(res6)) {
-      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "omega_session_create" "', argument " "6"" of type '" "int64_t""'"); 
-    }  
-    if (!argp6) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_session_create" "', argument " "6"" of type '" "int64_t""'");
-    } else {
-      arg6 = *(reinterpret_cast< int64_t * >(argp6));
-    }
-  }
-  result = (omega_session_t *)omega_session_create((char const *)arg1,arg2,arg3,arg4,arg5,arg6);
+  result = (omega_session_t *)omega_session_create((char const *)arg1,arg2,arg3,arg4,arg5);
   jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
   
@@ -2651,34 +2637,6 @@ static SwigV8ReturnValue _wrap_omega_session_get_file_path(const SwigV8Arguments
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   result = (char *)omega_session_get_file_path((omega_session_t const *)arg1);
   jsresult = SWIG_FromCharPtr((const char *)result);
-  
-  
-  SWIGV8_RETURN(jsresult);
-  
-  goto fail;
-fail:
-  SWIGV8_RETURN(SWIGV8_UNDEFINED());
-}
-
-
-static SwigV8ReturnValue _wrap_omega_session_get_viewport_max_capacity(const SwigV8Arguments &args) {
-  SWIGV8_HANDLESCOPE();
-  
-  v8::Handle<v8::Value> jsresult;
-  omega_session_t *arg1 = (omega_session_t *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int64_t result;
-  
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_session_get_viewport_max_capacity.");
-  
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_session_get_viewport_max_capacity" "', argument " "1"" of type '" "omega_session_t const *""'"); 
-  }
-  arg1 = reinterpret_cast< omega_session_t * >(argp1);
-  result = omega_session_get_viewport_max_capacity((omega_session_t const *)arg1);
-  jsresult = SWIG_NewPointerObj((new int64_t(static_cast< const int64_t& >(result))), SWIGTYPE_p_int64_t, SWIG_POINTER_OWN |  0 );
   
   
   SWIGV8_RETURN(jsresult);
@@ -3607,7 +3565,6 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_edit_check_model", _wrap_omega_edit
 SWIGV8_AddStaticFunction(exports_obj, "omega_license_get", _wrap_omega_license_get);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_create", _wrap_omega_session_create);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_file_path", _wrap_omega_session_get_file_path);
-SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_viewport_max_capacity", _wrap_omega_session_get_viewport_max_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_user_data", _wrap_omega_session_get_user_data);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_offset", _wrap_omega_session_get_offset);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_length", _wrap_omega_session_get_length);

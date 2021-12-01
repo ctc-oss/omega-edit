@@ -104,8 +104,7 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/empty_file.txt";
-    const auto session_ptr =
-            omega_session_create(in_filename, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    const auto session_ptr = omega_session_create(in_filename, session_change_cbk, &file_info, 0, 0);
     REQUIRE(session_ptr);
     REQUIRE(strcmp(omega_session_get_file_path(session_ptr), in_filename) == 0);
     REQUIRE(omega_session_get_offset(session_ptr) == 0);
@@ -121,8 +120,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/model-test.txt";
-    const auto session_ptr =
-            omega_session_create(in_filename, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    const auto session_ptr = omega_session_create(in_filename, session_change_cbk, &file_info, 0, 0);
     REQUIRE(session_ptr);
     auto file_size = omega_edit_get_computed_file_size(session_ptr);
     REQUIRE(file_size > 0);
@@ -192,8 +190,7 @@ int pattern_found_cbk(int64_t match_offset, int64_t /*match_length*/, void *need
 TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
-    const auto session_ptr =
-            omega_session_create(nullptr, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    const auto session_ptr = omega_session_create(nullptr, session_change_cbk, &file_info, 0, 0);
     REQUIRE(session_ptr);
     REQUIRE(omega_edit_get_computed_file_size(session_ptr) == 0);
     // Hanoi test
@@ -225,8 +222,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
 
     SECTION("Open data file") {
         SECTION("Create Session") {
-            session_ptr = omega_session_create(in_filename, session_change_cbk, &file_info,
-                                               DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+            session_ptr = omega_session_create(in_filename, session_change_cbk, &file_info, 0, 0);
             REQUIRE(session_ptr);
             REQUIRE(omega_edit_get_computed_file_size(session_ptr) == 63);
             REQUIRE(0 < omega_edit_insert(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4));
@@ -294,8 +290,7 @@ TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/search-test.txt";
-    const auto session_ptr =
-            omega_session_create(in_filename, session_change_cbk, &file_info, DEFAULT_VIEWPORT_MAX_CAPACITY, 0, 0);
+    const auto session_ptr = omega_session_create(in_filename, session_change_cbk, &file_info, 0, 0);
     REQUIRE(session_ptr);
     REQUIRE(0 < omega_edit_get_computed_file_size(session_ptr));
     view_mode_t view_mode;
@@ -335,8 +330,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     omega_viewport_t *viewport_ptr;
     view_mode_t view_mode;
 
-    session_ptr = omega_session_create(file_name, nullptr, nullptr, 100, 0, 0);
-    REQUIRE(omega_session_get_viewport_max_capacity(session_ptr) == 100);
+    session_ptr = omega_session_create(file_name, nullptr, nullptr, 0, 0);
     auto viewport_count = omega_session_get_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = BIT_MODE;

@@ -22,7 +22,6 @@
 enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
 
 struct model_segment_t {
-    model_segment_kind_t segment_kind{};///< Kind of model segment (read or insert)
     int64_t computed_offset{};///< Computed offset can differ from the change because segments can moved and be split
     int64_t computed_length{};///< Computed length can differ from the change because changes can be split
     int64_t change_offset{};  ///< Change offset is the offset in the change due to a split

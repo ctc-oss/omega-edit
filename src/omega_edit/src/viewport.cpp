@@ -44,7 +44,7 @@ omega_byte_t omega_viewport_get_bit_offset(const omega_viewport_t *viewport_ptr)
 omega_viewport_t *omega_viewport_create(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
                                         omega_viewport_on_change_cbk_t cbk, void *user_data_ptr,
                                         omega_byte_t bit_offset) {
-    if (capacity > 0 and capacity <= omega_session_get_viewport_max_capacity(session_ptr)) {
+    if (capacity > 0 and capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
         viewport_ptr->data_segment.offset = offset;
@@ -79,7 +79,7 @@ int omega_viewport_destroy(omega_viewport_t *viewport_ptr) {
 }
 
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, omega_byte_t bit_offset) {
-    if (capacity > 0 && capacity <= omega_session_get_viewport_max_capacity(viewport_ptr->session_ptr)) {
+    if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || viewport_ptr->data_segment.capacity != capacity ||
             viewport_ptr->bit_offset != bit_offset) {

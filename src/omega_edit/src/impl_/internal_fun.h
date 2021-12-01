@@ -29,6 +29,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
 // Model segment functions
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream);
 void initialize_model_segments_(model_segments_t &model_segments, int64_t offset, int64_t length);
+model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segment_ptr);
 
 // Viewport functions
 int populate_viewport_(omega_viewport_t *viewport_ptr);
