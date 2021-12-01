@@ -1,4 +1,4 @@
-# Ωmega Edit Library
+# Ωedit Library
 The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports_.
 
 ## Requirements
