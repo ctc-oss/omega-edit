@@ -19,27 +19,16 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
+#include <cstddef>
 #include <cstdint>
-#include <cstdio>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** On session change callback.  This under-defined function will be called when an associated session changes. */
-typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const omega_change_t *);
-
-/**
- * Create a file editing session from a file path
- * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch
- * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
- * @param user_data_ptr pointer to user-defined data to associate with this session
- * @param offset offset to start editing from, 0 (default) is the beginning of the file
- * @param length amount of the file from the offset to edit, 0 (default) is the length of the file
-* @return pointer to the created session, nullptr on failure
- */
-omega_session_t *omega_session_create(const char *file_path, omega_session_on_change_cbk_t cbk = nullptr,
-                                      void *user_data_ptr = nullptr, int64_t offset = 0, int64_t length = 0);
+/** Callback to implement for visiting changes in a session.
+ * Return 0 to continue visiting changes and non-zero to stop.*/
+typedef int (*omega_session_change_visitor_cbk_t)(const omega_change_t *, void *);
 
 /**
  * Given a session, return the file path being edited (if known)
@@ -56,20 +45,6 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr);
 void *omega_session_get_user_data(const omega_session_t *session_ptr);
 
 /**
- * Given a session, return the offset
- * @param session_ptr session to get offset from
- * @return offset
- */
-int64_t omega_session_get_offset(const omega_session_t *session_ptr);
-
-/**
- * Given a session, return the length
- * @param session_ptr session to get length from
- * @return length
- */
-int64_t omega_session_get_length(const omega_session_t *session_ptr);
-
-/**
  * Given a session, return the number of active viewports
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports
@@ -77,10 +52,62 @@ int64_t omega_session_get_length(const omega_session_t *session_ptr);
 size_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
 
 /**
- * Destroy the given session and all associated objects (authors, changes, and viewports)
- * @param session_ptr session to destroy
+ * Given a session, return the current number of active changes
+ * @param session_ptr session to get number of active changes from
+ * @return number of active changes
  */
-void omega_session_destroy(omega_session_t *session_ptr);
+size_t omega_session_get_num_changes(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the current number of undone changes eligible for being redone
+ * @param session_ptr session to get the number of undone changes for
+ * @return number of undone changes eligible for being redone
+ */
+size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the computed file size in bytes
+ * @param session_ptr session to get the computed file size from
+ * @return computed file size in bytes, or -1 on failure
+ */
+int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, get the last change (if any)
+ * @param session_ptr session to get the last change from
+ * @return last change, or nullptr if there are no changes
+ */
+const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, get the last undone change eligible for redo (if any)
+ * @param session_ptr session to get the last undone change eligible for redo from
+ * @return last undone change eligible for redo
+ */
+const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr);
+
+/**
+ * Visit changes in the given session in chronological order (oldest first), if the callback returns an integer other
+ * than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
+ */
+int omega_session_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                void *user_data);
+
+/**
+ * Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer
+ * other than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
+ */
+int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                        void *user_data);
+
 
 #ifdef __cplusplus
 }

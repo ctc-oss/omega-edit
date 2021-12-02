@@ -18,7 +18,7 @@
 #define OMEGA_EDIT_UTILITY_H
 
 #include "byte.h"
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {

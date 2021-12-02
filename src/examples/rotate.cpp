@@ -55,10 +55,10 @@ int main(int argc, char **argv) {
     auto in_filename = argv[1];
     auto out_filename = argv[2];
     auto rotations = stol(argv[3]);
-    auto session_ptr = omega_session_create(in_filename);
+    auto session_ptr = omega_edit_create_session(in_filename);
     // Create a small viewport at the end of the file to track the last byte.
-    auto viewport_ptr = omega_viewport_create(session_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 4,
-                                              vpt_change_last_byte_cbk, &last_byte_info);
+    auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4,
+                                                   vpt_change_last_byte_cbk, &last_byte_info);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
             int64_t serial;
@@ -73,16 +73,16 @@ int main(int argc, char **argv) {
                 clog << "Error overwriting serial: " << serial << endl;
                 return -1;
             }
-            if ((serial = omega_edit_delete(session_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 1)) < 0) {
+            if ((serial = omega_edit_delete(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 1)) < 0) {
                 clog << "Error deleting serial: " << serial << endl;
                 return -1;
             }
-            omega_viewport_update(viewport_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 4);
+            omega_viewport_update(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4);
         }
     }
-    fprintf(stdout, "Saving %zu changes to %s of size %" PRId64 "\n", omega_edit_get_num_changes(session_ptr),
-            out_filename, omega_edit_get_computed_file_size(session_ptr));
+    fprintf(stdout, "Saving %zu changes to %s of size %" PRId64 "\n", omega_session_get_num_changes(session_ptr),
+            out_filename, omega_session_get_computed_file_size(session_ptr));
     omega_edit_save(session_ptr, out_filename);
-    omega_session_destroy(session_ptr);
+    omega_edit_destroy_session(session_ptr);
     return 0;
 }

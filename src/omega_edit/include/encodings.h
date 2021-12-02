@@ -18,7 +18,7 @@
 #define OMEGA_EDIT_ENCODINGS_H
 
 #include "byte.h"
-#include <cstdio>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -19,13 +19,11 @@
 
 #include "internal_fwd_defs.h"
 
-enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
-
 struct model_segment_t {
-    int64_t computed_offset{};///< Computed offset can differ from the change because segments can moved and be split
-    int64_t computed_length{};///< Computed length can differ from the change because changes can be split
-    int64_t change_offset{};  ///< Change offset is the offset in the change due to a split
-    const_omega_change_ptr_t change_ptr{};///< Parent change
+    int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
+    int64_t computed_length{};            ///< Computed length can differ from the change as segments split
+    int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
+    const_omega_change_ptr_t change_ptr{};///< Reference to parent change
 };
 
 #endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_H

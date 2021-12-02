@@ -19,11 +19,14 @@
 
 #include "../../include/fwd_defs.h"
 #include <memory>
-
-typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
-typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
+#include <vector>
 
 struct omega_model_t;
-typedef std::shared_ptr<omega_model_t> omega_model_ptr_t;
+struct data_segment_t;
+struct model_segment_t;
+
+enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
+
+typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
 
 #endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_H

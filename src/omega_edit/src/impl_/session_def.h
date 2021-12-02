@@ -17,21 +17,26 @@
 #ifndef OMEGA_EDIT_SESSION_DEF_H
 #define OMEGA_EDIT_SESSION_DEF_H
 
+#include "../../include/edit.h"
 #include "../../include/session.h"
 #include "internal_fwd_defs.h"
+#include <cstdio>
 #include <string>
 #include <vector>
 
-typedef std::vector<omega_viewport_ptr_t> viewports_t;
+/** On session change callback.  This under-defined function will be called when an associated session changes. */
+typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const omega_change_t *);
+
+typedef std::shared_ptr<omega_model_t> omega_model_ptr_t;
+typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
+typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
 
 struct omega_session_t {
     FILE *file_ptr{};                             ///< File being edited (open for read)
     std::string file_path;                        ///< File path being edited
-    omega_session_on_change_cbk_t on_change_cbk{};///< User defined callback called when the session gets a change
-    void *user_data_ptr{};                        ///< Pointer to user-provided data associated with this session
-    int64_t offset{};                             ///< Edit offset into the file being edited
-    int64_t length{};                             ///< Edit length into the file being edited
-    viewports_t viewports_{};                     ///< Collection of viewports in this session
+    omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
+    void *user_data_ptr{};                        ///< Pointer to associated user-provided data
+    omega_viewports_t viewports_{};               ///< Collection of viewports in this session
     omega_model_ptr_t model_ptr_{};               ///< Edit model (internal)
 };
 

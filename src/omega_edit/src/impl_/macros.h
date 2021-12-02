@@ -31,6 +31,7 @@
 #define CLOG std::clog
 #endif//CLOG
 
+#define DEBUG
 #ifdef DEBUG
 #define DBG(x)                                                                                                         \
     do { x } while (0)

@@ -15,60 +15,59 @@
  **********************************************************************************************************************/
 
 #include "../include/session.h"
-#include "../include/viewport.h"
 #include "impl_/change_def.h"
-#include "impl_/internal_fun.h"
+#include "impl_/model_def.h"
 #include "impl_/session_def.h"
-#include <algorithm>
-#include <memory>
 
 void *omega_session_get_user_data(const omega_session_t *session_ptr) { return session_ptr->user_data_ptr; }
 
 size_t omega_session_get_num_viewports(const omega_session_t *session_ptr) { return session_ptr->viewports_.size(); }
 
-int64_t omega_session_get_offset(const omega_session_t *session_ptr) { return session_ptr->offset; }
+int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
+    const auto computed_file_size = (session_ptr->model_ptr_->model_segments.empty())
+                                            ? 0
+                                            : session_ptr->model_ptr_->model_segments.back()->computed_offset +
+                                                      session_ptr->model_ptr_->model_segments.back()->computed_length;
+    assert(0 <= computed_file_size);
+    return computed_file_size;
+}
 
-int64_t omega_session_get_length(const omega_session_t *session_ptr) { return session_ptr->length; }
+size_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
+    return session_ptr->model_ptr_->changes.size();
+}
 
-omega_session_t *omega_session_create(const char *file_path, omega_session_on_change_cbk_t cbk, void *user_data_ptr,
-                                      int64_t offset, int64_t length) {
-    FILE *file_ptr = nullptr;
-    if (file_path) {
-        file_ptr = fopen(file_path, "r");
-        if (!file_ptr) { return nullptr; }
-    }
-    off_t file_size = 0;
-    if (file_ptr) {
-        if (0 != fseeko(file_ptr, 0L, SEEK_END)) { return nullptr; }
-        file_size = ftello(file_ptr);
-    }
-    if (0 <= file_size && offset + length <= file_size) {
-        const auto session_ptr = new omega_session_t;
+size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
+    return session_ptr->model_ptr_->changes_undone.size();
+}
 
-        session_ptr->file_ptr = file_ptr;
-        session_ptr->file_path = (file_path) ? std::string(file_path) : std::string();
-        session_ptr->on_change_cbk = cbk;
-        session_ptr->user_data_ptr = user_data_ptr;
-        session_ptr->offset = offset;
-        session_ptr->length = (length) ? std::min(length, (file_size - offset)) : (file_size - offset);
-        session_ptr->model_ptr_ = std::make_shared<omega_model_t>();
-        initialize_model_segments_(session_ptr->model_ptr_->model_segments, session_ptr->offset, session_ptr->length);
-        return session_ptr;
-    }
-    return nullptr;
+const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
+    return (session_ptr->model_ptr_->changes.empty()) ? nullptr : session_ptr->model_ptr_->changes.back().get();
+}
+
+const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr) {
+    return (session_ptr->model_ptr_->changes_undone.empty()) ? nullptr
+                                                             : session_ptr->model_ptr_->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
 }
 
-void omega_session_destroy(omega_session_t *session_ptr) {
-    if (session_ptr->file_ptr) { fclose(session_ptr->file_ptr); }
-    while (!session_ptr->viewports_.empty()) { omega_viewport_destroy(session_ptr->viewports_.back().get()); }
-    for (auto &change_ptr : session_ptr->model_ptr_->changes) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr.reset();
-        }
+int omega_session_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                void *user_data) {
+    int rc = 0;
+    for (const auto &iter : session_ptr->model_ptr_->changes) {
+        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
     }
-    delete session_ptr;
+    return rc;
+}
+
+int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                        void *user_data) {
+    int rc = 0;
+    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
+         ++iter) {
+        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
+    }
+    return rc;
 }
