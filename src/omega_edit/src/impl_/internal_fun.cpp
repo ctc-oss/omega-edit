@@ -16,6 +16,7 @@
 
 #include "internal_fun.h"
 #include "../../include/change.h"
+#include "../../include/edit.h"
 #include "../../include/session.h"
 #include "../../include/utility.h"
 #include "../../include/viewport.h"
@@ -56,20 +57,6 @@ static inline char segment_kind_as_char_(model_segment_kind_t segment_kind) {
     return '?';
 }
 
-static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
-    switch (change_ptr->kind) {
-        case change_kind_t::CHANGE_DELETE:// deliberate fall-through
-        case change_kind_t::CHANGE_INSERT:
-            // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
-            return (change_ptr->offset <= (viewport_ptr->data_segment.offset + viewport_ptr->data_segment.capacity));
-        case change_kind_t::CHANGE_OVERWRITE:
-            return ((change_ptr->offset + change_ptr->length) >= viewport_ptr->data_segment.offset) &&
-                   (change_ptr->offset <= (viewport_ptr->data_segment.offset + viewport_ptr->data_segment.capacity));
-        default:
-            ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
-    }
-}
-
 static void print_change_(const omega_change_t *change_ptr, std::ostream &out_stream) {
     out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << change_ptr->offset
@@ -93,14 +80,17 @@ static void print_model_segment_(const model_segment_ptr_t &segment_ptr, std::os
  **********************************************************************************************************************/
 
 omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr) {
-    return (data_segment_ptr->capacity < 8) ? data_segment_ptr->data.sm_bytes : data_segment_ptr->data.bytes_ptr.get();
+    return (abs(data_segment_ptr->capacity) < 8) ? data_segment_ptr->data.sm_bytes
+                                                 : data_segment_ptr->data.bytes_ptr.get();
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr) {
     const auto model_ptr = session_ptr->model_ptr_;
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
-    auto data_segment_offset = data_segment_ptr->offset;
+    assert(0 < data_segment_ptr->capacity);
+    const auto data_segment_capacity = data_segment_ptr->capacity;
+    const auto data_segment_offset = data_segment_ptr->offset;
     int64_t read_offset = 0;
 
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
@@ -111,12 +101,12 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
         }
         if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
             // We're at the first model segment that intersects with the data segment, but the model segment and the
-            // data segment offsets  are likely not aligned, so we need to compute how much of the segment to move past
+            // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
             // (the delta).
             auto delta = data_segment_offset - (*iter)->computed_offset;
             do {
                 // This is how much data remains to be filled
-                const auto remaining_capacity = data_segment_ptr->capacity - data_segment_ptr->length;
+                const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
                 auto amount = (*iter)->computed_length - delta;
                 amount = (amount > remaining_capacity) ? remaining_capacity : amount;
                 switch (get_model_segment_kind_(iter->get())) {
@@ -149,8 +139,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                 // After the first segment is written, the dela should be zero from that point on
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
-            } while (data_segment_ptr->length < data_segment_ptr->capacity &&
-                     ++iter != model_ptr->model_segments.end());
+            } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
             return 0;
         }
         read_offset += (*iter)->computed_length;
@@ -193,26 +182,6 @@ model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segmen
  * Viewport functions
  **********************************************************************************************************************/
 
-int populate_viewport_(omega_viewport_t *viewport_ptr) {
-    return populate_data_segment_(viewport_ptr->session_ptr, &viewport_ptr->data_segment);
-}
-
 void viewport_callback_(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
-    if (viewport_ptr->on_change_cbk) {
-        if (viewport_ptr->bit_offset > 0) {
-            omega_util_left_shift_buffer(const_cast<omega_byte_t *>(omega_viewport_get_data(viewport_ptr)),
-                                         viewport_ptr->data_segment.length, viewport_ptr->bit_offset);
-        }
-        (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr);
-    }
-}
-
-int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr) {
-    for (const auto &viewport : session_ptr->viewports_) {
-        if (change_affects_viewport_(viewport.get(), change_ptr)) {
-            if (populate_viewport_(viewport.get()) != 0) { return -1; }
-            viewport_callback_(viewport.get(), change_ptr);
-        }
-    }
-    return 0;
+    if (viewport_ptr->on_change_cbk) { (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr); }
 }
