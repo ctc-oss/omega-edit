@@ -20,7 +20,6 @@
 #include "../../include/fwd_defs.h"
 #include "data_segment_def.h"
 #include "model_def.h"
-#include <ostream>
 
 // Data segment functions
 omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr);
@@ -32,8 +31,6 @@ void initialize_model_segments_(model_segments_t &model_segments, int64_t offset
 model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segment_ptr);
 
 // Viewport functions
-int populate_viewport_(omega_viewport_t *viewport_ptr);
 void viewport_callback_(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr);
-int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr);
 
 #endif//OMEGA_EDIT_INTERNAL_FUN_H

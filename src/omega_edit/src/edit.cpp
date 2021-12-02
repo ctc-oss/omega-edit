@@ -22,6 +22,7 @@
 #include "impl_/macros.h"
 #include "impl_/model_segment_def.h"
 #include "impl_/session_def.h"
+#include "impl_/viewport_def.h"
 #include <cassert>
 #include <cstring>
 #include <memory>
@@ -83,6 +84,32 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
         change_ptr->data.bytes_ptr.get()[change_ptr->length] = '\0';
     }
     return change_ptr;
+}
+
+static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+    switch (change_ptr->kind) {
+        case change_kind_t::CHANGE_DELETE:// deliberate fall-through
+        case change_kind_t::CHANGE_INSERT:
+            // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
+            return (change_ptr->offset <=
+                    (viewport_ptr->data_segment.offset + omega_viewport_get_capacity(viewport_ptr)));
+        case change_kind_t::CHANGE_OVERWRITE:
+            return ((change_ptr->offset + change_ptr->length) >= viewport_ptr->data_segment.offset) &&
+                   (change_ptr->offset <=
+                    (viewport_ptr->data_segment.offset + omega_viewport_get_capacity(viewport_ptr)));
+        default:
+            ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
+    }
+}
+
+static int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr) {
+    for (const auto &viewport_ptr : session_ptr->viewports_) {
+        if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
+            viewport_ptr->data_segment.capacity = -1 * abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+            viewport_callback_(viewport_ptr.get(), change_ptr);
+        }
+    }
+    return 0;
 }
 
 static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
@@ -209,6 +236,7 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
         }
         session_ptr->model_ptr_->changes.push_back(change_ptr);
         if (0 != update_model_(session_ptr->model_ptr_.get(), change_ptr)) { return -1; }
+        update_viewports_(session_ptr, change_ptr.get());
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
         return change_ptr->serial;
     }
@@ -217,19 +245,22 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, del_(1 + omega_edit_get_num_changes(session_ptr), offset, length))
+                   ? update_(session_ptr,
+                             del_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)), offset, length))
                    : -1;
 }
 
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     return (offset <= omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ins_(1 + omega_edit_get_num_changes(session_ptr), offset, bytes, length))
+                   ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)),
+                                               offset, bytes, length))
                    : -1;
 }
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ovr_(1 + omega_edit_get_num_changes(session_ptr), offset, bytes, length))
+                   ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)),
+                                               offset, bytes, length))
                    : -1;
 }
 

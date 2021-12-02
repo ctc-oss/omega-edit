@@ -61,19 +61,20 @@ int main(int argc, char **argv) {
                                               vpt_change_last_byte_cbk, &last_byte_info);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
+            int64_t serial;
             auto last_byte = last_byte_info.last_byte;
             // Ths could be more efficient to insert the last_byte rather than insert a bogus byte, then overwrite it,
             // but the purpose of this routine is to exercise all the edit operations.
-            if (omega_edit_insert(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1) != 0) {
-                clog << "Error inserting\n";
+            if ((serial = omega_edit_insert(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) < 0) {
+                clog << "Error inserting serial: " << serial << endl;
                 return -1;
             }
-            if (omega_edit_overwrite(session_ptr, 0, &last_byte, 1) != 0) {
-                clog << "Error overwriting\n";
+            if ((serial = omega_edit_overwrite(session_ptr, 0, &last_byte, 1)) < 0) {
+                clog << "Error overwriting serial: " << serial << endl;
                 return -1;
             }
-            if (omega_edit_delete(session_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 1) != 0) {
-                clog << "Error deleting\n";
+            if ((serial = omega_edit_delete(session_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 1)) < 0) {
+                clog << "Error deleting serial: " << serial << endl;
                 return -1;
             }
             omega_viewport_update(viewport_ptr, omega_edit_get_computed_file_size(session_ptr) - 1, 4);
