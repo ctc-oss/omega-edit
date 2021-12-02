@@ -18,10 +18,10 @@
 #include "../include/edit.h"
 #include "../include/session.h"
 #include "../include/utility.h"
-#include "impl_/data_segment_def.h"
 #include "impl_/internal_fun.h"
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
+#include <cassert>
 #include <cstdlib>
 #include <memory>
 
