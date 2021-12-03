@@ -28,12 +28,16 @@ int main(int argc, char **argv) {
                 argv[0]);
         return -1;
     }
-    auto in_filename = argv[1];
-    auto out_filename = argv[2];
-    auto session_ptr = omega_session_create(in_filename, nullptr, nullptr, stoll(argv[3]), stoll(argv[4]));
+    const auto in_filename = argv[1];
+    const auto out_filename = argv[2];
+    const auto offset = stoll(argv[3]);
+    const auto length = stoll(argv[4]);
+    auto session_ptr = omega_edit_create_session(in_filename);
     if (session_ptr) {
+        if (offset) { omega_edit_delete(session_ptr, 0, offset); }
+        omega_edit_delete(session_ptr, length, omega_session_get_computed_file_size(session_ptr));
         omega_edit_save(session_ptr, out_filename);
-        omega_session_destroy(session_ptr);
+        omega_edit_destroy_session(session_ptr);
     } else {
         fprintf(stderr, "failed to create session, probably because the offset and/or length are out of range for the\n"
                         "given input file\n");

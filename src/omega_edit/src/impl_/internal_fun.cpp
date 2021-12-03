@@ -16,12 +16,9 @@
 
 #include "internal_fun.h"
 #include "../../include/change.h"
-#include "../../include/edit.h"
-#include "../../include/session.h"
-#include "../../include/utility.h"
-#include "../../include/viewport.h"
 #include "change_def.h"
 #include "macros.h"
+#include "model_def.h"
 #include "model_segment_def.h"
 #include "session_def.h"
 #include "viewport_def.h"
@@ -80,8 +77,8 @@ static void print_model_segment_(const model_segment_ptr_t &segment_ptr, std::os
  **********************************************************************************************************************/
 
 omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr) {
-    return (abs(data_segment_ptr->capacity) < 8) ? data_segment_ptr->data.sm_bytes
-                                                 : data_segment_ptr->data.bytes_ptr.get();
+    return (std::abs(data_segment_ptr->capacity) < 8) ? data_segment_ptr->data.sm_bytes
+                                                      : data_segment_ptr->data.bytes_ptr.get();
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr) {
@@ -95,8 +92,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
 
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
-            print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
-            ABORT(CLOG << LOCATION << " break in model continuity, expected: " << read_offset
+            ABORT(print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
+                  CLOG << LOCATION << " break in model continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << std::endl;);
         }
         if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
@@ -153,24 +150,6 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
 
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream) {
     for (const auto &segment : model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
-}
-
-void initialize_model_segments_(model_segments_t &model_segments, int64_t offset, int64_t length) {
-    model_segments.clear();
-    if (0 < length) {
-        // Model begins with a single READ segment spanning the original file
-        auto change_ptr = std::shared_ptr<omega_change_t>(new omega_change_t);
-        change_ptr->serial = 0;
-        change_ptr->kind = change_kind_t::CHANGE_INSERT;
-        change_ptr->offset = offset;
-        change_ptr->length = length;
-        auto read_segment_ptr = std::shared_ptr<model_segment_t>(new model_segment_t);
-        read_segment_ptr->change_ptr = change_ptr;
-        read_segment_ptr->computed_offset = 0;
-        read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset;
-        read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length;
-        model_segments.push_back(read_segment_ptr);
-    }
 }
 
 model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segment_ptr) {

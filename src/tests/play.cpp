@@ -82,7 +82,7 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
     file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
     file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "w");
-    omega_edit_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
+    omega_session_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
     fclose(file_info_ptr->save_fptr);
 }
 
@@ -119,12 +119,14 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
 void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr = nullptr) {
     if (change_ptr) {
         clog << "Change serial: " << omega_change_get_serial(change_ptr)
-             << ", kind: " << omega_change_get_kind_as_char(change_ptr) << endl;
+             << ", kind: " << omega_change_get_kind_as_char(change_ptr)
+             << ", offset: " << omega_change_get_offset(change_ptr)
+             << ", length: " << omega_change_get_length(change_ptr)
+             << endl;
     }
     clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
-         << " offset: " << omega_viewport_get_computed_offset(viewport_ptr)
-         << " bit offset: " << static_cast<int>(omega_viewport_get_bit_offset(viewport_ptr)) << endl;
+         << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
     if (omega_viewport_get_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
@@ -161,17 +163,18 @@ int main(int /*argc*/, char ** /*argv*/) {
     file_info.bin_to_hex_buffer_size = 1024;
     file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
 
-    session_ptr = omega_session_create(file_info.in_filename, session_change_cbk, &file_info, 0, 0);
-    clog << "File Size: " << omega_edit_get_computed_file_size(session_ptr) << endl;
-    auto viewport1_ptr = omega_viewport_create(session_ptr, 0, 100, vpt_change_cbk, &view_mode);
-    omega_edit_delete(session_ptr, 0, omega_edit_get_computed_file_size(session_ptr));
+    session_ptr = omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info);
+    clog << "File Size: " << omega_session_get_computed_file_size(session_ptr) << endl;
+    auto viewport1_ptr = omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk, &view_mode);
+    omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr));
+    assert(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     if (0 != omega_edit_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
     omega_edit_undo_last_change(session_ptr);
     omega_edit_insert(session_ptr, 0, (const omega_byte_t *) "++++");
     omega_edit_overwrite(session_ptr, 5, (const omega_byte_t *) "-");
     omega_edit_insert(session_ptr, 0, (const omega_byte_t *) "++++");
     if (0 != omega_edit_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
-    auto viewport2_ptr = omega_viewport_create(session_ptr, 50, 10, vpt_change_cbk, &view_mode);
+    auto viewport2_ptr = omega_edit_create_viewport(session_ptr, 50, 10, vpt_change_cbk, &view_mode);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_edit_insert(session_ptr, 71, (const omega_byte_t *) "++++");
     omega_edit_overwrite(session_ptr, 10, (const omega_byte_t *) ".");
@@ -183,10 +186,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_insert(session_ptr, 70, (const omega_byte_t *) "***");
     omega_edit_delete(session_ptr, 70, 2);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-
     omega_edit_insert(session_ptr, 10, (const omega_byte_t *) "++++");
     omega_edit_overwrite(session_ptr, 12, (const omega_byte_t *) ".");
-
     omega_edit_insert(session_ptr, 0, (const omega_byte_t *) "+++");
     omega_edit_overwrite(session_ptr, 1, (const omega_byte_t *) ".");
     omega_edit_overwrite(session_ptr, 77, (const omega_byte_t *) ".");
@@ -194,9 +195,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_insert(session_ptr, 50, (const omega_byte_t *) "***", 3);
     omega_edit_delete(session_ptr, 1, 50);
     omega_edit_undo_last_change(session_ptr);
-
-    omega_viewport_destroy(viewport2_ptr);
-    omega_edit_delete(session_ptr, 0, omega_edit_get_computed_file_size(session_ptr));
+    omega_edit_destroy_viewport(viewport2_ptr);
+    omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr));
     omega_edit_undo_last_change(session_ptr);
 
     clog << "\n\nCycle through the display modes:\n";
@@ -210,8 +210,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_save(session_ptr, "data/test1.dat.out");
     clog << "Saved " << file_info.deletes << " delete(s), " << file_info.inserts << " insert(s), "
          << file_info.overwrites << " overwrite(s) to " << file_info.save_filename << ", new file size: " << dec
-         << omega_edit_get_computed_file_size(session_ptr) << endl;
-    omega_session_destroy(session_ptr);
+         << omega_session_get_computed_file_size(session_ptr) << endl;
+    omega_edit_destroy_session(session_ptr);
     free(file_info.bin_to_hex_buffer);
     return 0;
 }

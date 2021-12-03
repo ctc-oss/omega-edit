@@ -20,6 +20,7 @@
 #include "impl_/change_def.h"
 #include "impl_/internal_fun.h"
 #include "impl_/macros.h"
+#include "impl_/model_def.h"
 #include "impl_/model_segment_def.h"
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
@@ -38,6 +39,24 @@ static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64
         remaining -= count;
     }
     return byte_count - remaining;
+}
+
+static void initialize_model_segments_(model_segments_t &model_segments, int64_t length) {
+    model_segments.clear();
+    if (0 < length) {
+        // Model begins with a single READ segment spanning the original file
+        auto change_ptr = std::make_shared<omega_change_t>();
+        change_ptr->serial = 0;
+        change_ptr->kind = change_kind_t::CHANGE_INSERT;
+        change_ptr->offset = 0;
+        change_ptr->length = length;
+        auto read_segment_ptr = std::make_unique<model_segment_t>();
+        read_segment_ptr->change_ptr = change_ptr;
+        read_segment_ptr->computed_offset = 0;
+        read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset;
+        read_segment_ptr->computed_length = read_segment_ptr->change_ptr->length;
+        model_segments.push_back(std::move(read_segment_ptr));
+    }
 }
 
 static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
@@ -105,7 +124,8 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
 static int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
-            viewport_ptr->data_segment.capacity = -1 * abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+            viewport_ptr->data_segment.capacity =
+                    -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
             viewport_callback_(viewport_ptr.get(), change_ptr);
         }
     }
@@ -113,7 +133,7 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
 }
 
 static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
-    auto result = std::make_shared<model_segment_t>();
+    auto result = std::make_unique<model_segment_t>();
     result->computed_offset = segment_ptr->computed_offset;
     result->computed_length = segment_ptr->computed_length;
     result->change_offset = segment_ptr->change_offset;
@@ -132,18 +152,18 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
 
     if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
         // The model is empty, and we have a change with content
-        const auto insert_segment_ptr = std::make_shared<model_segment_t>();
+        auto insert_segment_ptr = std::make_unique<model_segment_t>();
         insert_segment_ptr->computed_offset = change_ptr->offset;
         insert_segment_ptr->computed_length = change_ptr->length;
         insert_segment_ptr->change_offset = 0;
         insert_segment_ptr->change_ptr = change_ptr;
-        model_ptr->model_segments.push_back(insert_segment_ptr);
+        model_ptr->model_segments.push_back(std::move(insert_segment_ptr));
         return 0;
     }
     for (auto iter = model_ptr->model_segments.begin(); iter != model_ptr->model_segments.end(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
-            print_model_segments_(model_ptr, CLOG);
-            ABORT(CLOG << LOCATION << " break in model continuity, expected: " << read_offset
+            ABORT(print_model_segments_(model_ptr, CLOG);
+                  CLOG << LOCATION << " break in model continuity, expected: " << read_offset
                        << ", got: " << (*iter)->computed_offset << std::endl;);
         }
         if (change_ptr->offset >= read_offset && change_ptr->offset <= read_offset + (*iter)->computed_length) {
@@ -156,14 +176,14 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                     // The update site falls in the middle of an existing segment, so we need to split the segment at
                     // the update site.  iter points to the segment on the left of the split and split_segment_ptr
                     // points to a new duplicate segment on the right of the split.
-                    const auto split_segment_ptr = clone_model_segment_(*iter);
+                    auto split_segment_ptr = clone_model_segment_(*iter);
                     split_segment_ptr->computed_offset += delta;
                     split_segment_ptr->computed_length -= delta;
                     split_segment_ptr->change_offset += delta;
                     (*iter)->computed_length = delta;
                     // iter will now point to the new split segment inserted into the model and who's offset falls on
                     // the update site
-                    iter = model_ptr->model_segments.insert(iter + 1, split_segment_ptr);
+                    iter = model_ptr->model_segments.insert(iter + 1, std::move(split_segment_ptr));
                 }
             }
             switch (change_ptr->kind) {
@@ -192,12 +212,12 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                 }
                 case change_kind_t::CHANGE_OVERWRITE:// deliberate fall-through
                 case change_kind_t::CHANGE_INSERT: {
-                    const auto insert_segment_ptr = std::make_shared<model_segment_t>();
+                    auto insert_segment_ptr = std::make_unique<model_segment_t>();
                     insert_segment_ptr->computed_offset = change_ptr->offset;
                     insert_segment_ptr->computed_length = change_ptr->length;
                     insert_segment_ptr->change_offset = 0;
                     insert_segment_ptr->change_ptr = change_ptr;
-                    iter = model_ptr->model_segments.insert(iter, insert_segment_ptr);
+                    iter = model_ptr->model_segments.insert(iter, std::move(insert_segment_ptr));
                     for (++iter; iter != model_ptr->model_segments.end(); ++iter) {
                         (*iter)->computed_offset += change_ptr->length;
                     }
@@ -224,7 +244,7 @@ static int update_model_(omega_model_t *model_ptr, const_omega_change_ptr_t &cha
 }
 
 static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t change_ptr) {
-    const auto computed_file_size = omega_edit_get_computed_file_size(session_ptr);
+    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     if (change_ptr->offset <= computed_file_size) {
         if (change_ptr->serial < 0) {
             // This is a previously undone change that is being redone, so flip the serial number back to positive
@@ -243,32 +263,90 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
     return -1;
 }
 
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
+                                           void *user_data_ptr) {
+    FILE *file_ptr = nullptr;
+    if (file_path) {
+        file_ptr = fopen(file_path, "r");
+        if (!file_ptr) { return nullptr; }
+    }
+    off_t file_size = 0;
+    if (file_ptr) {
+        if (0 != fseeko(file_ptr, 0L, SEEK_END)) { return nullptr; }
+        file_size = ftello(file_ptr);
+    }
+    const auto session_ptr = new omega_session_t;
+    session_ptr->file_ptr = file_ptr;
+    session_ptr->file_path = (file_path) ? std::string(file_path) : std::string();
+    session_ptr->on_change_cbk = cbk;
+    session_ptr->user_data_ptr = user_data_ptr;
+    session_ptr->model_ptr_ = std::make_shared<omega_model_t>();
+    initialize_model_segments_(session_ptr->model_ptr_->model_segments, file_size);
+    return session_ptr;
+}
+
+void omega_edit_destroy_session(omega_session_t *session_ptr) {
+    if (session_ptr->file_ptr) { fclose(session_ptr->file_ptr); }
+    while (!session_ptr->viewports_.empty()) { omega_edit_destroy_viewport(session_ptr->viewports_.back().get()); }
+    for (auto &change_ptr : session_ptr->model_ptr_->changes) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
+            const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr.reset();
+        }
+    }
+    delete session_ptr;
+}
+
+omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
+                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr) {
+    if (capacity > 0 and capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
+        const auto viewport_ptr = std::make_shared<omega_viewport_t>();
+        viewport_ptr->session_ptr = session_ptr;
+        viewport_ptr->data_segment.offset = offset;
+        viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
+        viewport_ptr->data_segment.length = 0;
+        viewport_ptr->data_segment.data.bytes_ptr =
+                (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
+        viewport_ptr->on_change_cbk = cbk;
+        viewport_ptr->user_data_ptr = user_data_ptr;
+        session_ptr->viewports_.push_back(viewport_ptr);
+        viewport_callback_(viewport_ptr.get(), nullptr);
+        return viewport_ptr.get();
+    }
+    return nullptr;
+}
+
+int omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
+    for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
+         iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
+        if (viewport_ptr == iter->get()) {
+            if (7 < omega_viewport_get_capacity(iter->get())) { (*iter)->data_segment.data.bytes_ptr.reset(); }
+            viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
+            return 0;
+        }
+    }
+    return -1;
+}
+
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
-    return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr,
-                             del_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)), offset, length))
+    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+    return (0 < length && offset < computed_file_size)
+                   ? update_(session_ptr, del_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
+                                               offset, std::min(length, computed_file_size - offset)))
                    : -1;
 }
 
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
-    return (offset <= omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)),
+    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
+                   ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
                    : -1;
 }
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length) {
-    return (offset < omega_edit_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_edit_get_num_changes(session_ptr)),
+    return (0 <= length && offset < omega_session_get_computed_file_size(session_ptr))
+                   ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
                    : -1;
-}
-
-int64_t omega_edit_get_computed_file_size(const omega_session_t *session_ptr) {
-    return (session_ptr->model_ptr_->model_segments.empty())
-                   ? 0
-                   : session_ptr->model_ptr_->model_segments.back()->computed_offset +
-                             session_ptr->model_ptr_->model_segments.back()->computed_length;
 }
 
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
@@ -282,6 +360,9 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
             }
             switch (get_model_segment_kind_(segment.get())) {
                 case model_segment_kind_t::SEGMENT_READ: {
+                    if (!session_ptr->file_ptr) {
+                        ABORT(CLOG << LOCATION << " attempt to read segment from null file pointer" << std::endl;);
+                    }
                     if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
                                                file_ptr) != segment->computed_length) {
                         return -1;
@@ -306,24 +387,6 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
     return -1;
 }
 
-int omega_edit_visit_changes(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk, void *user_data) {
-    int rc = 0;
-    for (const auto &iter : session_ptr->model_ptr_->changes) {
-        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
-    }
-    return rc;
-}
-
-int omega_edit_visit_changes_reverse(const omega_session_t *session_ptr, omega_edit_change_visitor_cbk_t cbk,
-                                     void *user_data) {
-    int rc = 0;
-    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
-         ++iter) {
-        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
-    }
-    return rc;
-}
-
 /*
  * The idea here is to search using tiled windows.  The window should be at least twice the size of the needle, and then
  * it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to catch
@@ -335,7 +398,8 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
     int rc = -1;
     if (needle_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) {
         rc = 0;
-        session_length = (session_length) ? session_length : session_ptr->length;
+        session_length =
+                (session_length) ? session_length : omega_session_get_computed_file_size(session_ptr) - session_offset;
         if (needle_length <= session_length) {
             data_segment_t data_segment;
             data_segment.offset = session_offset;
@@ -364,29 +428,17 @@ int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *ne
     return rc;
 }
 
-size_t omega_edit_get_num_changes(const omega_session_t *session_ptr) {
-    return session_ptr->model_ptr_->changes.size();
-}
-
-size_t omega_edit_get_num_undone_changes(const omega_session_t *session_ptr) {
-    return session_ptr->model_ptr_->changes_undone.size();
-}
-
-const omega_change_t *omega_edit_get_last_change(const omega_session_t *session_ptr) {
-    return (session_ptr->model_ptr_->changes.empty()) ? nullptr : session_ptr->model_ptr_->changes.back().get();
-}
-
-const omega_change_t *omega_edit_get_last_undo(const omega_session_t *session_ptr) {
-    return (session_ptr->model_ptr_->changes_undone.empty()) ? nullptr
-                                                             : session_ptr->model_ptr_->changes_undone.back().get();
-}
-
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     if (!session_ptr->model_ptr_->changes.empty()) {
         const auto change_ptr = session_ptr->model_ptr_->changes.back();
 
         session_ptr->model_ptr_->changes.pop_back();
-        initialize_model_segments_(session_ptr->model_ptr_->model_segments, session_ptr->offset, session_ptr->length);
+        int64_t length = 0;
+        if (session_ptr->file_ptr) {
+            if (0 != fseeko(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+            length = ftello(session_ptr->file_ptr);
+        }
+        initialize_model_segments_(session_ptr->model_ptr_->model_segments, length);
         for (auto iter = session_ptr->model_ptr_->changes.begin(); iter != session_ptr->model_ptr_->changes.end();
              ++iter) {
             if (0 > update_model_(session_ptr->model_ptr_.get(), *iter)) { return -1; }

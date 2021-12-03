@@ -21,11 +21,10 @@
 #include "data_segment_def.h"
 
 struct omega_viewport_t {
-    omega_session_t *session_ptr{};///< Author who owns this viewport instance
-    data_segment_t data_segment{}; ///< Viewport data
-    omega_byte_t bit_offset{};     ///< Bit offset between 0 and 7 (inclusive) for this viewport (bit-shift left)
+    omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
+    data_segment_t data_segment{};                 ///< Viewport data
     omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
-    void *user_data_ptr{};                         ///< Pointer to user-provided data associated with this viewport
+    void *user_data_ptr{};                         ///< Pointer to associated user-provided data
 };
 
 #endif//OMEGA_EDIT_VIEWPORT_DEF_H

@@ -37,8 +37,8 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
     const auto bytes_length = omega_change_get_length(change_ptr);
     // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
     clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
-         << omega_edit_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
-         << omega_edit_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
+         << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
+         << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
          << omega_change_get_serial(change_ptr) << R"(, "kind": ")" << omega_change_get_kind_as_char(change_ptr)
          << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )" << bytes_length;
     if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
 
-    session_ptr = omega_session_create(file_info.in_filename, session_change_cbk, &file_info);
+    session_ptr = omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info);
 
     // Report stats
     int deletes = 0;
@@ -106,9 +106,9 @@ int main(int argc, char **argv) {
 
     // Report
     clog << "Replayed " << deletes << " delete(s), " << inserts << " insert(s), " << overwrites
-         << " overwrite(s), new file size: " << omega_edit_get_computed_file_size(session_ptr) << endl;
+         << " overwrite(s), new file size: " << omega_session_get_computed_file_size(session_ptr) << endl;
 
     // Cleanup
-    omega_session_destroy(session_ptr);
+    omega_edit_destroy_session(session_ptr);
     return 0;
 }

@@ -14,21 +14,36 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_LICENSE_DEF_H
-#define OMEGA_EDIT_LICENSE_DEF_H
+#include "../include/utility.h"
 
-const char omega_edit_license[] = "Copyright 2021 Concurrent Technologies Corporation\n"
-                                  "\n"
-                                  "Licensed under the Apache License, Version 2.0 (the \"License\");\n"
-                                  "you may not use this file except in compliance with the License.\n"
-                                  "You may obtain a copy of the License at\n"
-                                  "\n"
-                                  "    http://www.apache.org/licenses/LICENSE-2.0\n"
-                                  "\n"
-                                  "Unless required by applicable law or agreed to in writing, software\n"
-                                  "distributed under the License is distributed on an \"AS IS\" BASIS,\n"
-                                  "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
-                                  "See the License for the specific language governing permissions and\n"
-                                  "limitations under the License.\n";
+int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
+    if (shift_left > 0 && shift_left < 8) {
+        omega_byte_t shift_right = 8 - shift_left;
+        omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
+        omega_byte_t bits1 = 0;
+        for (int64_t i = len - 1; i >= 0; --i) {
+            const unsigned char bits2 = buffer[i] & mask;
+            buffer[i] <<= shift_left;
+            buffer[i] |= bits1 >> shift_right;
+            bits1 = bits2;
+        }
+        return 0;
+    }
+    return -1;
+}
 
-#endif//OMEGA_EDIT_LICENSE_DEF_H
+int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right) {
+    if (shift_right > 0 && shift_right < 8) {
+        omega_byte_t shift_left = 8 - shift_right;
+        omega_byte_t mask = (1 << shift_right) - 1;
+        omega_byte_t bits1 = 0;
+        for (int64_t i = len - 1; i >= 0; --i) {
+            const unsigned char bits2 = buffer[i] & mask;
+            buffer[i] >>= shift_right;
+            buffer[i] |= bits1 << shift_left;
+            bits1 = bits2;
+        }
+        return 0;
+    }
+    return -1;
+}
