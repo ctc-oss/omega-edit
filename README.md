@@ -1,4 +1,5 @@
 # Ωedit Library
+<img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64 style="float: left">
 The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports_.
 
 ## Requirements
