@@ -17,7 +17,7 @@ If you are using just the command line you will need these things installed:
 ### Core Library C/C++
 
 #### cmake commands
-:exclamation: These commands should be built at root level of the repo :exclamation:
+:exclamation: These commands should be executed at root level of the repository :exclamation:
 
 Run Build:
 
@@ -50,7 +50,7 @@ cd ../../../
 #### Emscripten transpile
 :exclamation: Install [emscripten](https://emscripten.org) on your system :exclamation:
 
-From the top level of the repo:
+From the top level of the repository:
 
 ```bash
 mkdir build-em
