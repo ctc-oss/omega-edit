@@ -280,7 +280,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     session_ptr->file_path = (file_path) ? std::string(file_path) : std::string();
     session_ptr->on_change_cbk = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
-    session_ptr->model_ptr_ = std::make_shared<omega_model_t>();
+    session_ptr->model_ptr_ = std::make_unique<omega_model_t>();
     initialize_model_segments_(session_ptr->model_ptr_->model_segments, file_size);
     return session_ptr;
 }
