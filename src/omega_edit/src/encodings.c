@@ -29,7 +29,7 @@ size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
 }
 
 size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length) {
-    const auto dst_length = src_length >> 1;
+    const size_t dst_length = src_length >> 1;
     size_t i = 0, j = 0;
 
     while (i < dst_length) {

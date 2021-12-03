@@ -18,6 +18,7 @@
 #include "impl_/change_def.h"
 #include "impl_/model_def.h"
 #include "impl_/session_def.h"
+#include <cassert>
 
 void *omega_session_get_user_data(const omega_session_t *session_ptr) { return session_ptr->user_data_ptr; }
 

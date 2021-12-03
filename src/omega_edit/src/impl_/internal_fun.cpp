@@ -77,8 +77,8 @@ static void print_model_segment_(const model_segment_ptr_t &segment_ptr, std::os
  **********************************************************************************************************************/
 
 omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr) {
-    return (abs(data_segment_ptr->capacity) < 8) ? data_segment_ptr->data.sm_bytes
-                                                 : data_segment_ptr->data.bytes_ptr.get();
+    return (std::abs(data_segment_ptr->capacity) < 8) ? data_segment_ptr->data.sm_bytes
+                                                      : data_segment_ptr->data.bytes_ptr.get();
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr) {

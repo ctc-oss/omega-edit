@@ -32,7 +32,7 @@ const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewpo
 int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
     // Negative capacities are only used internally for tracking dirty reads.  The capacity is always positive to the
     // public.
-    return abs(viewport_ptr->data_segment.capacity);
+    return std::abs(viewport_ptr->data_segment.capacity);
 }
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
@@ -48,7 +48,6 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) { return viewport_ptr->data_segment.offset; }
 
 void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr) { return viewport_ptr->user_data_ptr; }
-
 
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity) {
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {

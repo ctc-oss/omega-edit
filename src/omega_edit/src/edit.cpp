@@ -124,7 +124,8 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
 static int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
-            viewport_ptr->data_segment.capacity = -1 * abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+            viewport_ptr->data_segment.capacity =
+                    -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
             viewport_callback_(viewport_ptr.get(), change_ptr);
         }
     }
