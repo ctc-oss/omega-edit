@@ -82,7 +82,7 @@ omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr) {
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr) {
-    const auto model_ptr = session_ptr->model_ptr_;
+    const auto &model_ptr = session_ptr->model_ptr_;
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
     assert(0 < data_segment_ptr->capacity);

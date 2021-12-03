@@ -27,7 +27,7 @@
 /** On session change callback.  This under-defined function will be called when an associated session changes. */
 typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const omega_change_t *);
 
-typedef std::shared_ptr<omega_model_t> omega_model_ptr_t;
+typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
 typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
 typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
 
