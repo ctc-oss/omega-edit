@@ -43,7 +43,7 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
  * @param user_data_ptr pointer to user-defined data to associate with this session
   @return pointer to the created session, nullptr on failure
  */
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk = nullptr,
+omega_session_t *omega_edit_create_session(const char *file_path = nullptr, omega_session_on_change_cbk_t cbk = nullptr,
                                            void *user_data_ptr = nullptr);
 
 /**
@@ -62,7 +62,7 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @return pointer to the new viewport, nullptr on failure
  */
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr);
+                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr = nullptr);
 
 /**
  * Destroy a given viewport
