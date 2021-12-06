@@ -85,11 +85,11 @@ int main(int argc, char **argv) {
                 ++deletes;
                 break;
             case 'I':
-                omega_edit_insert(session_ptr, offset, bytes, length);
+                omega_edit_insert_bytes(session_ptr, offset, bytes, length);
                 ++inserts;
                 break;
             case 'O':
-                omega_edit_overwrite(session_ptr, offset, bytes, 0);
+                omega_edit_overwrite_bytes(session_ptr, offset, bytes, 0);
                 ++overwrites;
                 break;
             default:
