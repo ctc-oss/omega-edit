@@ -15,15 +15,21 @@
  **********************************************************************************************************************/
 #include "../omega_edit/omega_edit.h"
 #include <iostream>
+#include <string>
 
 void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *) {
-    std::clog << "[" << omega_viewport_get_data(viewport_ptr) << "]" << std::endl;
+    std::clog << "["
+              << std::string((const char *) omega_viewport_get_data(viewport_ptr),
+                             omega_viewport_get_length(viewport_ptr))
+              << "]" << std::endl;
 }
 
 int main() {
     auto session_ptr = omega_edit_create_session();
     omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk);
-    omega_edit_insert(session_ptr, 0, (omega_byte_t *)"Hello World!");
+    omega_edit_insert(session_ptr, 0, "Hello Weird!!!!");
+    omega_edit_overwrite(session_ptr, 7, "orl");
+    omega_edit_delete(session_ptr, 11, 3);
     omega_edit_save(session_ptr, "hello.txt");
     omega_edit_destroy_session(session_ptr);
     return 0;

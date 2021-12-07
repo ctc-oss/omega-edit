@@ -65,11 +65,11 @@ int main(int argc, char **argv) {
             auto last_byte = last_byte_info.last_byte;
             // Ths could be more efficient to insert the last_byte rather than insert a bogus byte, then overwrite it,
             // but the purpose of this routine is to exercise all the edit operations.
-            if ((serial = omega_edit_insert(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) < 0) {
+            if ((serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) < 0) {
                 clog << "Error inserting serial: " << serial << endl;
                 return -1;
             }
-            if ((serial = omega_edit_overwrite(session_ptr, 0, &last_byte, 1)) < 0) {
+            if ((serial = omega_edit_overwrite_bytes(session_ptr, 0, &last_byte, 1)) < 0) {
                 clog << "Error overwriting serial: " << serial << endl;
                 return -1;
             }

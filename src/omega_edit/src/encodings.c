@@ -17,12 +17,12 @@
 #include "../include/encodings.h"
 
 size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
-    static const char HEXCONVTAB[] = "0123456789abcdef";
+    static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
     size_t j = 0;
 
     for (size_t i = 0; i < src_length; ++i) {
-        dst[j++] = HEXCONVTAB[src[i] >> 4];
-        dst[j++] = HEXCONVTAB[src[i] & 15];
+        dst[j++] = HEX_CONVERSION_TABLE[src[i] >> 4];
+        dst[j++] = HEX_CONVERSION_TABLE[src[i] & 15];
     }
     dst[j] = '\0';
     return j;

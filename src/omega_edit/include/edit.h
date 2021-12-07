@@ -38,8 +38,10 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
 
 /**
  * Create a file editing session from a file path
- * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch
- * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to this session
+ * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from
+ * scratch
+ * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to
+ * this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
   @return pointer to the created session, nullptr on failure
  */
@@ -94,19 +96,39 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path);
 
 /**
- * Given a session, find needles and call the match found callback as needles are found
- * @param session_ptr session to find the needles in
- * @param needle pointer to the needle to find
- * @param needle_length length of the needle
- * @param cbk the callback to call as needles are found in the session
+ * Given a session, find patterns and call the match found callback as patterns are found
+ * @param session_ptr session to find the patterns in
+ * @param pattern pointer to the pattern to find (as a sequence of bytes)
+ * @param cbk the callback to call as patterns are found in the session
  * @param user_data user data to send back into the callback
+ * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
+ * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
  * @return 0 if all needles have been found, or the non-zero return from the user callback
  */
-int omega_edit_search(const omega_session_t *session_ptr, const omega_byte_t *needle, int64_t needle_length,
-                      omega_edit_match_found_cbk_t cbk, void *user_data = nullptr, int64_t session_offset = 0,
-                      int64_t session_length = 0);
+int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
+                            omega_edit_match_found_cbk_t cbk, void *user_data = nullptr, int64_t pattern_length = 0,
+                            int64_t session_offset = 0, int64_t session_length = 0);
+
+/**
+ * Given a session, find patterns and call the match found callback as patterns are found
+ * @param session_ptr session to find the patterns in
+ * @param pattern pointer to the pattern to find (as a C string)
+ * @param cbk the callback to call as patterns are found in the session
+ * @param user_data user data to send back into the callback
+ * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
+ * bytes)
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @return 0 if all needles have been found, or the non-zero return from the user callback
+ */
+inline int omega_edit_search(const omega_session_t *session_ptr, const char *pattern, omega_edit_match_found_cbk_t cbk,
+                             void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
+                             int64_t session_length = 0) {
+    return omega_edit_search_bytes(session_ptr, (const omega_byte_t *) pattern, cbk, user_data, pattern_length,
+                                   session_offset, session_length);
+}
 
 /**
  * Delete a number of bytes at the given offset
@@ -125,18 +147,45 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
  * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, negative value otherwise
  */
-int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length = 0);
+int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
+                                int64_t length = 0);
+
+/**
+ * Insert a C string at the given offset
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param cstr C string to insert at the given offset
+ * @param length length of the C string to insert (if 0, strlen will be used to calculate the length of null-terminated
+ * bytes)
+ * @return positive change serial number on success, negative value otherwise
+ */
+inline int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length = 0) {
+    return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+}
 
 /**
  * Overwrite bytes at the given offset with the given new bytes
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
  * @param bytes new bytes to overwrite the old bytes with
- * @param length number of bytes to overwrite (if 0, strlen will be used to calculate the length of null-terminated bytes)
+ * @param length number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, negative value otherwise
  */
-int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
-                             int64_t length = 0);
+int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
+                                   int64_t length = 0);
+
+/**
+ * Overwrite bytes at the given offset with the given new C string
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param cstr new C string to overwrite the old bytes with
+ * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
+ * @return positive change serial number on success, negative value otherwise
+ */
+inline int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
+                                    int64_t length = 0) {
+    return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+}
 
 /**
  * Checks the internal session model for errors

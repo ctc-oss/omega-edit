@@ -18,7 +18,7 @@
 #define OMEGA_EDIT_UTILITY_H
 
 #include "byte.h"
-#include <stdint.h>
+#include <stdint.h> /* NOLINT - this is a C header, do not use <cstdint> as suggested by clang-tidy */
 
 #ifdef __cplusplus
 extern "C" {
