@@ -1,6 +1,6 @@
 # Ωedit Library
 <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64 style="float: left">
-The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports_.
+The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports.
 
 ## Requirements
 This repo is built using CLion, if using CLion everything will work seamlessly, though Visual Studio Code also works well. (cmake)
@@ -61,7 +61,7 @@ make
 
 #### Node bindings using SWIG
 
-Generate the API wrapper source code
+Generate the API wrapper source code:
 
 ```bash
 swig -javascript -node -v -c++ src/bindings/omega_edit.i
@@ -69,17 +69,20 @@ swig -javascript -node -v -c++ src/bindings/omega_edit.i
 
 #### Build the bindings using node-gyp
 
-Prepare
+Prepare:
+
 ```bash
 yarn install
 ```
 
-Configure
+Configure:
+
 ```bash
 yarn run gyp-configure
 ```
 
-Build
+Build:
+
 ```bash
 yarn run gyp-build
 ```
@@ -88,37 +91,44 @@ yarn run gyp-build
 
 The run scripts allow for easy execution of the commands stated above.
 
-cmake build
+cmake build:
+
 ```bash
 ./run cmake-build
 ```
 
-cmake debug
+cmake debug:
+
 ```bash
 ./run cmake-debug
 ```
 
-cmake test
+cmake test:
+
 ```bash
 ./run cmake-test
 ```
 
-swig compile
+swig compile:
+
 ```bash
 ./run swig-compile
 ```
 
-gyp configure
+gyp configure:
+
 ```bash
 ./run gyp-configure
 ```
 
-gyp build
+gyp build:
+
 ```bash
 ./run gyp-build
 ```
 
-emscripten transpile
+emscripten transpile:
+
 ```bash
 ./run transpile
 ```
