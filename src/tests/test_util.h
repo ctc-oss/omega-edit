@@ -17,8 +17,10 @@
 #ifndef OMEGA_EDIT_TEST_UTIL_H
 #define OMEGA_EDIT_TEST_UTIL_H
 
+#include "../omega_edit/include/byte.h"
 #include <cstdio>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 
 using namespace std;

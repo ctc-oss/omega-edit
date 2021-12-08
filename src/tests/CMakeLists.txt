@@ -7,3 +7,5 @@ target_link_libraries(play omega_edit)
 
 add_executable(replay replay.cpp)
 target_link_libraries(replay omega_edit)
+
+add_executable(generate_file generate_file.cpp test_util.h)
