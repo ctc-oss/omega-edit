@@ -35,7 +35,10 @@ static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64
     omega_byte_t buff[buff_size];
     while (remaining) {
         const auto count = (buff_size > remaining) ? remaining : buff_size;
-        if (count != fread(buff, 1, count, from_file_ptr) || count != fwrite(buff, 1, count, to_file_ptr)) { break; }
+        if (count != static_cast<int64_t>(fread(buff, 1, count, from_file_ptr)) ||
+            count != static_cast<int64_t>(fwrite(buff, 1, count, to_file_ptr))) {
+            break;
+        }
         remaining -= count;
     }
     return byte_count - remaining;
@@ -266,7 +269,7 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
                                            void *user_data_ptr) {
     FILE *file_ptr = nullptr;
-    if (file_path) {
+    if (file_path && file_path[0] != '\0') {
         file_ptr = fopen(file_path, "r");
         if (!file_ptr) { return nullptr; }
     }
@@ -277,7 +280,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     }
     const auto session_ptr = new omega_session_t;
     session_ptr->file_ptr = file_ptr;
-    session_ptr->file_path = (file_path) ? std::string(file_path) : std::string();
+    session_ptr->file_path = (file_path && file_path[0] != '\0') ? std::string(file_path) : std::string();
     session_ptr->on_change_cbk = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
     session_ptr->model_ptr_ = std::make_unique<omega_model_t>();
@@ -372,8 +375,9 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                     break;
                 }
                 case model_segment_kind_t::SEGMENT_INSERT: {
-                    if (fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
-                               segment->computed_length, file_ptr) != segment->computed_length) {
+                    if (static_cast<int64_t>(
+                                fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
+                                       segment->computed_length, file_ptr)) != segment->computed_length) {
                         return -1;
                     }
                     break;

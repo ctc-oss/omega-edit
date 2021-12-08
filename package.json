@@ -10,10 +10,10 @@
     "url": "https://github.com/scholarsmate/omega-edit/issues"
   },
   "author": "Shane Dell, Davin Shearer, John Wass",
-  "license": "Apache",
+  "license": "Apache-2.0",
   "dependencies": {
     "ansi-regex": "^5.0.1",
-    "node-gyp": "^8.2.0"
+    "node-gyp": "^8.4.1"
   },
   "scripts": {
     "gyp-build": "yarn run node-gyp build",
@@ -23,7 +23,7 @@
     "gyp-install": "yarn run node-gyp install",
     "gyp-list": "yarn run node-gyp list",
     "gyp-remove": "yarn run node-gyp remove",
-    "swig-compile": "swig -javascript -node -v -c++ -outdir src/bindings/javascript src/bindings/omega_edit.i",
+    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
     "package": "yarn pre-package && yarn publish"
   }

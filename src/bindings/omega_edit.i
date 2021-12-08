@@ -21,6 +21,8 @@
 /* Includes the header in the wrapper code */
 #include "../omega_edit/omega_edit.h"
 %}
+%include <stdint.i>
+
 /* Parse the header file to generate wrappers */
 %include "../omega_edit/include/change.h"
 %include "../omega_edit/include/edit.h"

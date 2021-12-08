@@ -15,7 +15,7 @@
 */
 
 /*
- * Uses Omega Edit to copy a file.  Example:
+ * Uses Omega Edit to copy a file.  Example from src/examples:
  * node ./omega_copy.js ../tests/data/test1.dat test1.dat.copy
  * Verify the file contents are identical:
  * cmp ../tests/data/test1.dat test1.dat.copy
@@ -23,8 +23,10 @@
 omega_edit = require('../../build/Release/omega_edit')
 input_filename = process.argv[2]
 output_filename = process.argv[3]
-session = omega_edit.create_session(input_filename)
-console.log(omega_edit.get_computed_file_size(session))
-omega_edit.save_session(session, output_filename)
-omega_edit.destroy_session(session)
+session = omega_edit.omega_edit_create_session(input_filename, null, null)
+console.assert(session != null, {errorMsg: "session creation failed"})
+console.log(omega_edit.omega_session_get_computed_file_size(session))
+rc = omega_edit.omega_edit_save(session, output_filename)
+console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
+omega_edit.omega_edit_destroy_session(session)
 console.log("finished!")
