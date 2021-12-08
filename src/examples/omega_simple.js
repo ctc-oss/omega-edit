@@ -16,24 +16,22 @@
 
 /*
  * Uses Omega Edit to extract and save a segment from a file.  Example from src/examples::
- * node ./omega_slice.js ../../LICENSE.txt LICENSE.34-15.txt 34 15
- * cat LICENSE.2-3.txt
- * Apache License
+ * node ./omega_simple.js
+ * finished!
+ * Verify the results:
+ * cat hello-js.txt
+ * Hello World!
  */
 omega_edit = require('../../build/Release/omega_edit')
-input_filename = process.argv[2]
-output_filename = process.argv[3]
-offset = parseInt(process.argv[4])
-length = parseInt(process.argv[5])
-session = omega_edit.omega_edit_create_session(input_filename, null, null)
+session = omega_edit.omega_edit_create_session("", null, null)
 console.assert(session != null, {errorMsg: "session creation failed"})
-if (offset) {
-    rc = omega_edit.omega_edit_delete(session, 0, offset)
-    console.assert(rc > 0, {rc: rc, errorMsg: "delete failed"})
-}
-rc = omega_edit.omega_edit_delete(session, length, omega_edit.omega_session_get_computed_file_size(session))
+rc = omega_edit.omega_edit_insert(session, 0, "Hello Weird!!!!", 15);
+console.assert(rc > 0, {rc: rc, errorMsg: "insert failed"})
+rc = omega_edit.omega_edit_overwrite(session, 7, "orl", 3);
+console.assert(rc > 0, {rc: rc, errorMsg: "overwrite failed"})
+rc = omega_edit.omega_edit_delete(session, 11, 3);
 console.assert(rc > 0, {rc: rc, errorMsg: "delete failed"})
-rc = omega_edit.omega_edit_save(session, output_filename)
+rc = omega_edit.omega_edit_save(session, "hello-js.txt")
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 omega_edit.omega_edit_destroy_session(session)
 console.log("finished!")

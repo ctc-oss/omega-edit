@@ -14,8 +14,10 @@ function cmake-test {
     cmake-build
     cmake --build cmake-build --target omega_test -- -j 6
     pushd .
+    # shellcheck disable=SC2164
     cd cmake-build/src/tests/
     ./omega_test -d yes --order lex
+    # shellcheck disable=SC2164
     popd
 }
 
@@ -32,12 +34,18 @@ function gyp-build {
     yarn run gyp-build
 }
 
+function gyp-rebuild {
+    yarn run gyp-rebuild
+}
+
 function transpile {
   mkdir -p build-em
   pushd .
+  # shellcheck disable=SC2164
   cd build-em
   emcmake cmake ..
   make
+  # shellcheck disable=SC2164
   popd
 }
 
