@@ -18,8 +18,6 @@
 
 %module(directors="1") omega_edit
 
-%feature("director") BinaryOp;
-
 %{
 /* Includes the header in the wrapper code */
 #include "../omega_edit/omega_edit.h"
@@ -33,6 +31,7 @@
 %include "../omega_edit/include/session.h"
 %include "../omega_edit/include/viewport.h"
 
+%feature("director") SessionOnChangeDirector;
 %inline %{
 /*
  * Session On Change Director
@@ -42,7 +41,6 @@ struct SessionOnChangeDirector {
   virtual ~SessionOnChangeDirector() {}
 };
 %}
-
 %{
 // could be changed to a thread-local variable in order to make thread-safe
 static SessionOnChangeDirector *session_on_change_director_ptr = nullptr;
@@ -52,7 +50,6 @@ static void handle_session_change_helper(const omega_session_t * session_ptr, co
     }
 }
 %}
-
 %inline %{
 omega_session_t *omega_edit_create_session_wrapper(const char *file_path = nullptr,
     SessionOnChangeDirector *director_ptr = nullptr, void *user_data_ptr = nullptr) {
@@ -61,6 +58,7 @@ omega_session_t *omega_edit_create_session_wrapper(const char *file_path = nullp
 }
 %}
 
+%feature("director") ViewportOnChangeDirector;
 %inline %{
 /*
  * Viewport On Change Director
@@ -70,7 +68,6 @@ struct ViewportOnChangeDirector {
   virtual ~ViewportOnChangeDirector() {}
 };
 %}
-
 %{
 // could be changed to a thread-local variable in order to make thread-safe
 static ViewportOnChangeDirector *viewport_on_change_director_ptr = nullptr;
@@ -78,7 +75,6 @@ static void handle_viewport_change_helper(const omega_viewport_t * viewport_ptr,
     viewport_on_change_director_ptr->handle_viewport_change(viewport_ptr, change_ptr);
 }
 %}
-
 %inline %{
 omega_viewport_t *omega_edit_create_viewport_wrapper(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
     ViewportOnChangeDirector *director_ptr, void *user_data_ptr = nullptr) {
@@ -87,6 +83,7 @@ omega_viewport_t *omega_edit_create_viewport_wrapper(omega_session_t *session_pt
 }
 %}
 
+%feature("director") MatchFoundDirector;
 %inline %{
 /*
  * Match Found Director
@@ -96,14 +93,12 @@ struct MatchFoundDirector {
   virtual ~MatchFoundDirector() {}
 };
 %}
-
 %{
 static MatchFoundDirector *match_found_director_ptr = nullptr;
 static int handle_match_found_helper(int64_t match_offset, int64_t match_length, void *user_data) {
     return match_found_director_ptr->handle_match_found(match_offset, match_length, user_data);
 }
 %}
-
 %inline %{
 static int omega_edit_search_bytes_wrapper(const omega_session_t *session_ptr, const omega_byte_t *pattern,
                             MatchFoundDirector *director_ptr, void *user_data = nullptr, int64_t pattern_length = 0,
