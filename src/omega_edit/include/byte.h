@@ -19,6 +19,14 @@
 
 #include "config.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef OMEGA_BYTE_T omega_byte_t;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif//OMEGA_EDIT_BYTE_H
