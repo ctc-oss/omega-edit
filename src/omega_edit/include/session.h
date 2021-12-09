@@ -108,7 +108,6 @@ int omega_session_visit_changes(const omega_session_t *session_ptr, omega_sessio
 int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                         void *user_data);
 
-
 #ifdef __cplusplus
 }
 #endif

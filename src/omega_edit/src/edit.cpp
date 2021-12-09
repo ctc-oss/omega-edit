@@ -26,6 +26,7 @@
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
 #include <cassert>
+#include <functional>
 #include <memory>
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
@@ -393,6 +394,10 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
     return -1;
 }
 
+// Manage a raw const pointer with custom deleter
+template<typename T>
+using deleted_unique_const_ptr = std::unique_ptr<const T, std::function<void(const T *)>>;
+
 /*
  * The idea here is to search using tiled windows.  The window should be at least twice the size of the pattern, and
  * then it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to
@@ -416,7 +421,8 @@ int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte
                     (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - pattern_length;
             int64_t skip = 0;
-            auto const skip_table = create_skip_table(pattern, pattern_length);
+            const auto skip_table_ptr = deleted_unique_const_ptr<skip_table_t>(
+                    create_skip_table(pattern, pattern_length), destroy_skip_table);
             do {
                 data_segment.offset += skip;
                 populate_data_segment_(session_ptr, &data_segment);
@@ -424,7 +430,7 @@ int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte
                 auto haystack_length = data_segment.length;
                 const omega_byte_t *found;
                 int64_t delta = 0;
-                while ((found = string_search(haystack + delta, haystack_length - delta, skip_table, pattern,
+                while ((found = string_search(haystack + delta, haystack_length - delta, skip_table_ptr.get(), pattern,
                                               pattern_length))) {
                     delta = found - haystack;
                     if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) { return rc; }
