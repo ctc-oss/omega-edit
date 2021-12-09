@@ -9,11 +9,15 @@ jobs:
   build:
     name: Unit Tests
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Build
       run: cmake -S . -B cmake-build-debug
     - name: Create omega_test
@@ -26,32 +30,43 @@ jobs:
   MinGW-Build:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - { sys: mingw64, env: x86_64 }
-          - { sys: mingw32, env: i686 }
+        - { sys: mingw64, env: x86_64 }
+        - { sys: mingw32, env: i686 }
+        - { sys: clang64, env: clang-x86_64 }
     defaults:
       run:
         shell: msys2 {0}
     steps:
-      - name: Install MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.sys }}
-          update: true
-          install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
-            base-devel
-            cmake
-            doxygen
-            swig
-            git
-      - uses: actions/checkout@v2
-      - name: Build
-        run: cmake -S . -B cmake-build-debug
-      - name: Create omega_test
-        run: cmake --build cmake-build-debug --target omega_test
-      - name: Run tests
-        run: |
-          cd cmake-build-debug/src/tests/
-          ./omega_test -d yes --order lex
+    - name: Build Platform
+      run: uname -a
+    - name: Install MinGW
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.sys }}
+        update: true
+        install: >-
+          mingw-w64-${{ matrix.env }}-toolchain
+          base-devel
+          doxygen
+          swig
+          git
+          make
+        pacboy: >-
+          toolchain:p
+          cmake:p
+          ninja:p
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Build
+      run: cmake -S . -B cmake-build-debug
+    - name: Create omega_test
+      run: cmake --build cmake-build-debug --target omega_test
+    - name: Run tests
+      run: |
+        cd cmake-build-debug/src/tests/
+        ./omega_test -d yes --order lex
