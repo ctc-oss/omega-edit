@@ -26,6 +26,7 @@ set(SOURCE_FILES
         src/omega_edit/include/utility.h src/omega_edit/src/utility.c
         src/omega_edit/include/encodings.h src/omega_edit/src/encodings.c
         src/omega_edit/src/impl_/internal_fun.h src/omega_edit/src/impl_/internal_fun.cpp
+        src/omega_edit/src/impl_/search.h src/omega_edit/src/impl_/search.cpp
         src/omega_edit/src/impl_/macros.h
         src/omega_edit/src/impl_/internal_fwd_defs.h
         src/omega_edit/src/impl_/data_def.h

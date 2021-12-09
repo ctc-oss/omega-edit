@@ -22,10 +22,10 @@
 #include "impl_/macros.h"
 #include "impl_/model_def.h"
 #include "impl_/model_segment_def.h"
+#include "impl_/search.h"
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
 #include <cassert>
-#include <cstring>
 #include <memory>
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
@@ -416,15 +416,17 @@ int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte
                     (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - pattern_length;
             int64_t skip = 0;
+            auto const skip_table = create_skip_table(pattern, pattern_length);
             do {
                 data_segment.offset += skip;
                 populate_data_segment_(session_ptr, &data_segment);
                 auto haystack = get_data_segment_data_(&data_segment);
                 auto haystack_length = data_segment.length;
-                void *found;
+                const omega_byte_t *found;
                 int64_t delta = 0;
-                while ((found = memmem(haystack + delta, haystack_length - delta, pattern, pattern_length))) {
-                    delta = static_cast<omega_byte_t *>(found) - static_cast<omega_byte_t *>(haystack);
+                while ((found = string_search(haystack + delta, haystack_length - delta, skip_table, pattern,
+                                              pattern_length))) {
+                    delta = found - haystack;
                     if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) { return rc; }
                     ++delta;
                 }
