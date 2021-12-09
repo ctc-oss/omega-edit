@@ -47,10 +47,10 @@ jobs:
         update: true
         install: >-
           mingw-w64-${{ matrix.env }}-toolchain
+          mingw-w64-${{ matrix.env }}-graphviz
           base-devel
           cmake
           doxygen
-          graphvis
           swig
           git
           make
