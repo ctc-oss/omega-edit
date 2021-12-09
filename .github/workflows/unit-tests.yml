@@ -48,14 +48,13 @@ jobs:
         install: >-
           mingw-w64-${{ matrix.env }}-toolchain
           base-devel
+          cmake
           doxygen
+          graphvis
           swig
           git
           make
-        pacboy: >-
-          toolchain:p
-          cmake:p
-          ninja:p
+          ninja
     - name: Checkout
       uses: actions/checkout@v2
       with:
