@@ -1561,26 +1561,29 @@ fail: ;
 
 /* -------- TYPES TABLE (BEGIN) -------- */
 
-#define SWIGTYPE_p_char swig_types[0]
-#define SWIGTYPE_p_f_long_long_long_long_p_void__int swig_types[1]
-#define SWIGTYPE_p_f_p_q_const__omega_change_t_p_void__int swig_types[2]
-#define SWIGTYPE_p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void swig_types[3]
-#define SWIGTYPE_p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void swig_types[4]
-#define SWIGTYPE_p_int swig_types[5]
-#define SWIGTYPE_p_long_long swig_types[6]
-#define SWIGTYPE_p_omega_byte_t swig_types[7]
-#define SWIGTYPE_p_omega_change_t swig_types[8]
-#define SWIGTYPE_p_omega_session_t swig_types[9]
-#define SWIGTYPE_p_omega_viewport_t swig_types[10]
-#define SWIGTYPE_p_short swig_types[11]
-#define SWIGTYPE_p_signed_char swig_types[12]
-#define SWIGTYPE_p_unsigned_char swig_types[13]
-#define SWIGTYPE_p_unsigned_int swig_types[14]
-#define SWIGTYPE_p_unsigned_long_long swig_types[15]
-#define SWIGTYPE_p_unsigned_short swig_types[16]
-#define SWIGTYPE_p_void swig_types[17]
-static swig_type_info *swig_types[19];
-static swig_module_info swig_module = {swig_types, 18, 0, 0, 0, 0};
+#define SWIGTYPE_p_MatchFoundDirector swig_types[0]
+#define SWIGTYPE_p_SessionOnChangeDirector swig_types[1]
+#define SWIGTYPE_p_ViewportOnChangeDirector swig_types[2]
+#define SWIGTYPE_p_char swig_types[3]
+#define SWIGTYPE_p_f_long_long_long_long_p_void__int swig_types[4]
+#define SWIGTYPE_p_f_p_q_const__omega_change_t_p_void__int swig_types[5]
+#define SWIGTYPE_p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void swig_types[6]
+#define SWIGTYPE_p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void swig_types[7]
+#define SWIGTYPE_p_int swig_types[8]
+#define SWIGTYPE_p_long_long swig_types[9]
+#define SWIGTYPE_p_omega_byte_t swig_types[10]
+#define SWIGTYPE_p_omega_change_t swig_types[11]
+#define SWIGTYPE_p_omega_session_t swig_types[12]
+#define SWIGTYPE_p_omega_viewport_t swig_types[13]
+#define SWIGTYPE_p_short swig_types[14]
+#define SWIGTYPE_p_signed_char swig_types[15]
+#define SWIGTYPE_p_unsigned_char swig_types[16]
+#define SWIGTYPE_p_unsigned_int swig_types[17]
+#define SWIGTYPE_p_unsigned_long_long swig_types[18]
+#define SWIGTYPE_p_unsigned_short swig_types[19]
+#define SWIGTYPE_p_void swig_types[20]
+static swig_type_info *swig_types[22];
+static swig_module_info swig_module = {swig_types, 21, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -1839,9 +1842,84 @@ SWIG_From_size_t  (size_t value)
 }
 
 
+/*
+ * Session On Change Director
+ */
+struct SessionOnChangeDirector {
+  virtual void handle_session_change(const omega_session_t *, const omega_change_t *) = 0;
+  virtual ~SessionOnChangeDirector() {}
+};
+
+
+// could be changed to a thread-local variable in order to make thread-safe
+static SessionOnChangeDirector *session_on_change_director_ptr = nullptr;
+static void handle_session_change_helper(const omega_session_t * session_ptr, const omega_change_t * change_ptr) {
+    if (session_on_change_director_ptr) {
+        session_on_change_director_ptr->handle_session_change(session_ptr, change_ptr);
+    }
+}
+
+
+omega_session_t *omega_edit_create_session_wrapper(const char *file_path = nullptr,
+    SessionOnChangeDirector *director_ptr = nullptr, void *user_data_ptr = nullptr) {
+    session_on_change_director_ptr = director_ptr;
+    return omega_edit_create_session(file_path, handle_session_change_helper, user_data_ptr);
+}
+
+
+/*
+ * Viewport On Change Director
+ */
+struct ViewportOnChangeDirector {
+  virtual void handle_viewport_change(const omega_viewport_t *, const omega_change_t *) = 0;
+  virtual ~ViewportOnChangeDirector() {}
+};
+
+
+// could be changed to a thread-local variable in order to make thread-safe
+static ViewportOnChangeDirector *viewport_on_change_director_ptr = nullptr;
+static void handle_viewport_change_helper(const omega_viewport_t * viewport_ptr, const omega_change_t * change_ptr) {
+    viewport_on_change_director_ptr->handle_viewport_change(viewport_ptr, change_ptr);
+}
+
+
+omega_viewport_t *omega_edit_create_viewport_wrapper(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
+    ViewportOnChangeDirector *director_ptr, void *user_data_ptr = nullptr) {
+    viewport_on_change_director_ptr = director_ptr;
+    return omega_edit_create_viewport(session_ptr, offset, capacity, handle_viewport_change_helper, user_data_ptr);
+}
+
+
+/*
+ * Match Found Director
+ */
+struct MatchFoundDirector {
+  virtual int handle_match_found(int64_t match_offset, int64_t match_length, void *user_data) = 0;
+  virtual ~MatchFoundDirector() {}
+};
+
+
+static MatchFoundDirector *match_found_director_ptr = nullptr;
+static int handle_match_found_helper(int64_t match_offset, int64_t match_length, void *user_data) {
+    return match_found_director_ptr->handle_match_found(match_offset, match_length, user_data);
+}
+
+
+static int omega_edit_search_bytes_wrapper(const omega_session_t *session_ptr, const omega_byte_t *pattern,
+                            MatchFoundDirector *director_ptr, void *user_data = nullptr, int64_t pattern_length = 0,
+                            int64_t session_offset = 0, int64_t session_length = 0) {
+    match_found_director_ptr = director_ptr;
+    return omega_edit_search_bytes(session_ptr, pattern, handle_match_found_helper, user_data, pattern_length,
+                                   session_offset, session_length);
+}
+
+
 #define SWIGV8_INIT omega_edit_initialize
 
 
+SWIGV8_ClientData _exports_SessionOnChangeDirector_clientData;
+SWIGV8_ClientData _exports_ViewportOnChangeDirector_clientData;
+SWIGV8_ClientData _exports_MatchFoundDirector_clientData;
 
 
 static SwigV8ReturnValue _wrap_omega_change_get_offset(const SwigV8Arguments &args) {
@@ -3236,8 +3314,1062 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_SessionOnChangeDirector_handle_session_change(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  SessionOnChangeDirector *arg1 = (SessionOnChangeDirector *) 0 ;
+  omega_session_t *arg2 = (omega_session_t *) 0 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  
+  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_SessionOnChangeDirector_handle_session_change.");
+  
+  res1 = SWIG_ConvertPtr(args.Holder(), &argp1,SWIGTYPE_p_SessionOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "SessionOnChangeDirector_handle_session_change" "', argument " "1"" of type '" "SessionOnChangeDirector *""'"); 
+  }
+  arg1 = reinterpret_cast< SessionOnChangeDirector * >(argp1);
+  res2 = SWIG_ConvertPtr(args[0], &argp2,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "SessionOnChangeDirector_handle_session_change" "', argument " "2"" of type '" "omega_session_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_session_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[1], &argp3,SWIGTYPE_p_omega_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "SessionOnChangeDirector_handle_session_change" "', argument " "3"" of type '" "omega_change_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< omega_change_t * >(argp3);
+  (arg1)->handle_session_change((omega_session_t const *)arg2,(omega_change_t const *)arg3);
+  jsresult = SWIGV8_UNDEFINED();
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+static void _wrap_delete_SessionOnChangeDirector(v8::Persistent<v8::Value> object, void *parameter) {
+  SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+  static void _wrap_delete_SessionOnChangeDirector(v8::Isolate *isolate, v8::Persistent<v8::Value> object, void *parameter) {
+    SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+    static void _wrap_delete_SessionOnChangeDirector(v8::Isolate *isolate, v8::Persistent< v8::Object> *object, SWIGV8_Proxy *proxy) {
+#elif (V8_MAJOR_VERSION-0) < 5
+      static void _wrap_delete_SessionOnChangeDirector(const v8::WeakCallbackData<v8::Object, SWIGV8_Proxy> &data) {
+        v8::Local<v8::Object> object = data.GetValue();
+        SWIGV8_Proxy *proxy = data.GetParameter();
+#else
+        static void _wrap_delete_SessionOnChangeDirector(const v8::WeakCallbackInfo<SWIGV8_Proxy> &data) {
+          SWIGV8_Proxy *proxy = data.GetParameter();
+#endif
+          
+          if(proxy->swigCMemOwn && proxy->swigCObject) {
+            SessionOnChangeDirector * arg1 = (SessionOnChangeDirector *)proxy->swigCObject;
+            delete arg1;
+          }
+          delete proxy;
+          
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+          object.Dispose();
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+          object.Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x032100)
+          object->Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+          object->Dispose();
+#elif (V8_MAJOR_VERSION-0) < 5
+          object.Clear();
+#endif
+        }
+
+
+static SwigV8ReturnValue _wrap_new_veto_SessionOnChangeDirector(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIG_exception(SWIG_ERROR, "Class SessionOnChangeDirector can not be instantiated");
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_session_wrapper__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  char *arg1 = (char *) 0 ;
+  SessionOnChangeDirector *arg2 = (SessionOnChangeDirector *) 0 ;
+  void *arg3 = (void *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  int res3 ;
+  omega_session_t *result = 0 ;
+  
+  res1 = SWIG_AsCharPtrAndSize(args[0], &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_create_session_wrapper" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_SessionOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_create_session_wrapper" "', argument " "2"" of type '" "SessionOnChangeDirector *""'"); 
+  }
+  arg2 = reinterpret_cast< SessionOnChangeDirector * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_create_session_wrapper" "', argument " "3"" of type '" "void *""'"); 
+  }
+  result = (omega_session_t *)omega_edit_create_session_wrapper((char const *)arg1,arg2,arg3);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_session_wrapper__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  char *arg1 = (char *) 0 ;
+  SessionOnChangeDirector *arg2 = (SessionOnChangeDirector *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  omega_session_t *result = 0 ;
+  
+  res1 = SWIG_AsCharPtrAndSize(args[0], &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_create_session_wrapper" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_SessionOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_create_session_wrapper" "', argument " "2"" of type '" "SessionOnChangeDirector *""'"); 
+  }
+  arg2 = reinterpret_cast< SessionOnChangeDirector * >(argp2);
+  result = (omega_session_t *)omega_edit_create_session_wrapper((char const *)arg1,arg2);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_session_wrapper__SWIG_2(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  char *arg1 = (char *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  omega_session_t *result = 0 ;
+  
+  res1 = SWIG_AsCharPtrAndSize(args[0], &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_create_session_wrapper" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  result = (omega_session_t *)omega_edit_create_session_wrapper((char const *)arg1);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_session_wrapper__SWIG_3(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *result = 0 ;
+  
+  result = (omega_session_t *)omega_edit_create_session_wrapper();
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_session_t, 0 |  0 );
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_omega_edit_create_session_wrapper(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 3) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_session_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_session_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 2) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_session_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_session_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 1) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_session_wrapper__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_session_wrapper__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 0) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_session_wrapper__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_session_wrapper__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function omega_edit_create_session_wrapper.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_ViewportOnChangeDirector_handle_viewport_change(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  ViewportOnChangeDirector *arg1 = (ViewportOnChangeDirector *) 0 ;
+  omega_viewport_t *arg2 = (omega_viewport_t *) 0 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  
+  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_ViewportOnChangeDirector_handle_viewport_change.");
+  
+  res1 = SWIG_ConvertPtr(args.Holder(), &argp1,SWIGTYPE_p_ViewportOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ViewportOnChangeDirector_handle_viewport_change" "', argument " "1"" of type '" "ViewportOnChangeDirector *""'"); 
+  }
+  arg1 = reinterpret_cast< ViewportOnChangeDirector * >(argp1);
+  res2 = SWIG_ConvertPtr(args[0], &argp2,SWIGTYPE_p_omega_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ViewportOnChangeDirector_handle_viewport_change" "', argument " "2"" of type '" "omega_viewport_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_viewport_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[1], &argp3,SWIGTYPE_p_omega_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ViewportOnChangeDirector_handle_viewport_change" "', argument " "3"" of type '" "omega_change_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< omega_change_t * >(argp3);
+  (arg1)->handle_viewport_change((omega_viewport_t const *)arg2,(omega_change_t const *)arg3);
+  jsresult = SWIGV8_UNDEFINED();
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+static void _wrap_delete_ViewportOnChangeDirector(v8::Persistent<v8::Value> object, void *parameter) {
+  SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+  static void _wrap_delete_ViewportOnChangeDirector(v8::Isolate *isolate, v8::Persistent<v8::Value> object, void *parameter) {
+    SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+    static void _wrap_delete_ViewportOnChangeDirector(v8::Isolate *isolate, v8::Persistent< v8::Object> *object, SWIGV8_Proxy *proxy) {
+#elif (V8_MAJOR_VERSION-0) < 5
+      static void _wrap_delete_ViewportOnChangeDirector(const v8::WeakCallbackData<v8::Object, SWIGV8_Proxy> &data) {
+        v8::Local<v8::Object> object = data.GetValue();
+        SWIGV8_Proxy *proxy = data.GetParameter();
+#else
+        static void _wrap_delete_ViewportOnChangeDirector(const v8::WeakCallbackInfo<SWIGV8_Proxy> &data) {
+          SWIGV8_Proxy *proxy = data.GetParameter();
+#endif
+          
+          if(proxy->swigCMemOwn && proxy->swigCObject) {
+            ViewportOnChangeDirector * arg1 = (ViewportOnChangeDirector *)proxy->swigCObject;
+            delete arg1;
+          }
+          delete proxy;
+          
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+          object.Dispose();
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+          object.Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x032100)
+          object->Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+          object->Dispose();
+#elif (V8_MAJOR_VERSION-0) < 5
+          object.Clear();
+#endif
+        }
+
+
+static SwigV8ReturnValue _wrap_new_veto_ViewportOnChangeDirector(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIG_exception(SWIG_ERROR, "Class ViewportOnChangeDirector can not be instantiated");
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_viewport_wrapper__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  ViewportOnChangeDirector *arg4 = (ViewportOnChangeDirector *) 0 ;
+  void *arg5 = (void *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  long long val2 ;
+  int ecode2 = 0 ;
+  long long val3 ;
+  int ecode3 = 0 ;
+  void *argp4 = 0 ;
+  int res4 = 0 ;
+  int res5 ;
+  omega_viewport_t *result = 0 ;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "1"" of type '" "omega_session_t *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  ecode2 = SWIG_AsVal_long_SS_long(args[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "2"" of type '" "int64_t""'");
+  } 
+  arg2 = static_cast< int64_t >(val2);
+  ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "3"" of type '" "int64_t""'");
+  } 
+  arg3 = static_cast< int64_t >(val3);
+  res4 = SWIG_ConvertPtr(args[3], &argp4,SWIGTYPE_p_ViewportOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "4"" of type '" "ViewportOnChangeDirector *""'"); 
+  }
+  arg4 = reinterpret_cast< ViewportOnChangeDirector * >(argp4);
+  res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "5"" of type '" "void *""'"); 
+  }
+  result = (omega_viewport_t *)omega_edit_create_viewport_wrapper(arg1,arg2,arg3,arg4,arg5);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_viewport_t, 0 |  0 );
+  
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_create_viewport_wrapper__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  ViewportOnChangeDirector *arg4 = (ViewportOnChangeDirector *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  long long val2 ;
+  int ecode2 = 0 ;
+  long long val3 ;
+  int ecode3 = 0 ;
+  void *argp4 = 0 ;
+  int res4 = 0 ;
+  omega_viewport_t *result = 0 ;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "1"" of type '" "omega_session_t *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  ecode2 = SWIG_AsVal_long_SS_long(args[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "2"" of type '" "int64_t""'");
+  } 
+  arg2 = static_cast< int64_t >(val2);
+  ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "3"" of type '" "int64_t""'");
+  } 
+  arg3 = static_cast< int64_t >(val3);
+  res4 = SWIG_ConvertPtr(args[3], &argp4,SWIGTYPE_p_ViewportOnChangeDirector, 0 |  0 );
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_create_viewport_wrapper" "', argument " "4"" of type '" "ViewportOnChangeDirector *""'"); 
+  }
+  arg4 = reinterpret_cast< ViewportOnChangeDirector * >(argp4);
+  result = (omega_viewport_t *)omega_edit_create_viewport_wrapper(arg1,arg2,arg3,arg4);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_viewport_t, 0 |  0 );
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_omega_edit_create_viewport_wrapper(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 5) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_viewport_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_viewport_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_create_viewport_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_create_viewport_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function omega_edit_create_viewport_wrapper.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_MatchFoundDirector_handle_match_found(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  MatchFoundDirector *arg1 = (MatchFoundDirector *) 0 ;
+  int64_t arg2 ;
+  int64_t arg3 ;
+  void *arg4 = (void *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  long long val2 ;
+  int ecode2 = 0 ;
+  long long val3 ;
+  int ecode3 = 0 ;
+  int res4 ;
+  int result;
+  
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_MatchFoundDirector_handle_match_found.");
+  
+  res1 = SWIG_ConvertPtr(args.Holder(), &argp1,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "MatchFoundDirector_handle_match_found" "', argument " "1"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg1 = reinterpret_cast< MatchFoundDirector * >(argp1);
+  ecode2 = SWIG_AsVal_long_SS_long(args[0], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "MatchFoundDirector_handle_match_found" "', argument " "2"" of type '" "int64_t""'");
+  } 
+  arg2 = static_cast< int64_t >(val2);
+  ecode3 = SWIG_AsVal_long_SS_long(args[1], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "MatchFoundDirector_handle_match_found" "', argument " "3"" of type '" "int64_t""'");
+  } 
+  arg3 = static_cast< int64_t >(val3);
+  res4 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg4), 0, 0);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "MatchFoundDirector_handle_match_found" "', argument " "4"" of type '" "void *""'"); 
+  }
+  result = (int)(arg1)->handle_match_found(arg2,arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+static void _wrap_delete_MatchFoundDirector(v8::Persistent<v8::Value> object, void *parameter) {
+  SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+  static void _wrap_delete_MatchFoundDirector(v8::Isolate *isolate, v8::Persistent<v8::Value> object, void *parameter) {
+    SWIGV8_Proxy *proxy = static_cast<SWIGV8_Proxy *>(parameter);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+    static void _wrap_delete_MatchFoundDirector(v8::Isolate *isolate, v8::Persistent< v8::Object> *object, SWIGV8_Proxy *proxy) {
+#elif (V8_MAJOR_VERSION-0) < 5
+      static void _wrap_delete_MatchFoundDirector(const v8::WeakCallbackData<v8::Object, SWIGV8_Proxy> &data) {
+        v8::Local<v8::Object> object = data.GetValue();
+        SWIGV8_Proxy *proxy = data.GetParameter();
+#else
+        static void _wrap_delete_MatchFoundDirector(const v8::WeakCallbackInfo<SWIGV8_Proxy> &data) {
+          SWIGV8_Proxy *proxy = data.GetParameter();
+#endif
+          
+          if(proxy->swigCMemOwn && proxy->swigCObject) {
+            MatchFoundDirector * arg1 = (MatchFoundDirector *)proxy->swigCObject;
+            delete arg1;
+          }
+          delete proxy;
+          
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031710)
+          object.Dispose();
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031900)
+          object.Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x032100)
+          object->Dispose(isolate);
+#elif (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < SWIGV8_SETWEAK_VERSION)
+          object->Dispose();
+#elif (V8_MAJOR_VERSION-0) < 5
+          object.Clear();
+#endif
+        }
+
+
+static SwigV8ReturnValue _wrap_new_veto_MatchFoundDirector(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIG_exception(SWIG_ERROR, "Class MatchFoundDirector can not be instantiated");
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_search_bytes_wrapper__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_byte_t *arg2 = (omega_byte_t *) 0 ;
+  MatchFoundDirector *arg3 = (MatchFoundDirector *) 0 ;
+  void *arg4 = (void *) 0 ;
+  int64_t arg5 ;
+  int64_t arg6 ;
+  int64_t arg7 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int res4 ;
+  long long val5 ;
+  int ecode5 = 0 ;
+  long long val6 ;
+  int ecode6 = 0 ;
+  long long val7 ;
+  int ecode7 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_byte_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "3"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg3 = reinterpret_cast< MatchFoundDirector * >(argp3);
+  res4 = SWIG_ConvertPtr(args[3],SWIG_as_voidptrptr(&arg4), 0, 0);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "4"" of type '" "void *""'"); 
+  }
+  ecode5 = SWIG_AsVal_long_SS_long(args[4], &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "5"" of type '" "int64_t""'");
+  } 
+  arg5 = static_cast< int64_t >(val5);
+  ecode6 = SWIG_AsVal_long_SS_long(args[5], &val6);
+  if (!SWIG_IsOK(ecode6)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "6"" of type '" "int64_t""'");
+  } 
+  arg6 = static_cast< int64_t >(val6);
+  ecode7 = SWIG_AsVal_long_SS_long(args[6], &val7);
+  if (!SWIG_IsOK(ecode7)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "7"" of type '" "int64_t""'");
+  } 
+  arg7 = static_cast< int64_t >(val7);
+  result = (int)omega_edit_search_bytes_wrapper((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4,arg5,arg6,arg7);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_search_bytes_wrapper__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_byte_t *arg2 = (omega_byte_t *) 0 ;
+  MatchFoundDirector *arg3 = (MatchFoundDirector *) 0 ;
+  void *arg4 = (void *) 0 ;
+  int64_t arg5 ;
+  int64_t arg6 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int res4 ;
+  long long val5 ;
+  int ecode5 = 0 ;
+  long long val6 ;
+  int ecode6 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_byte_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "3"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg3 = reinterpret_cast< MatchFoundDirector * >(argp3);
+  res4 = SWIG_ConvertPtr(args[3],SWIG_as_voidptrptr(&arg4), 0, 0);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "4"" of type '" "void *""'"); 
+  }
+  ecode5 = SWIG_AsVal_long_SS_long(args[4], &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "5"" of type '" "int64_t""'");
+  } 
+  arg5 = static_cast< int64_t >(val5);
+  ecode6 = SWIG_AsVal_long_SS_long(args[5], &val6);
+  if (!SWIG_IsOK(ecode6)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "6"" of type '" "int64_t""'");
+  } 
+  arg6 = static_cast< int64_t >(val6);
+  result = (int)omega_edit_search_bytes_wrapper((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4,arg5,arg6);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_search_bytes_wrapper__SWIG_2(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_byte_t *arg2 = (omega_byte_t *) 0 ;
+  MatchFoundDirector *arg3 = (MatchFoundDirector *) 0 ;
+  void *arg4 = (void *) 0 ;
+  int64_t arg5 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int res4 ;
+  long long val5 ;
+  int ecode5 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_byte_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "3"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg3 = reinterpret_cast< MatchFoundDirector * >(argp3);
+  res4 = SWIG_ConvertPtr(args[3],SWIG_as_voidptrptr(&arg4), 0, 0);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "4"" of type '" "void *""'"); 
+  }
+  ecode5 = SWIG_AsVal_long_SS_long(args[4], &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "5"" of type '" "int64_t""'");
+  } 
+  arg5 = static_cast< int64_t >(val5);
+  result = (int)omega_edit_search_bytes_wrapper((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4,arg5);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_search_bytes_wrapper__SWIG_3(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_byte_t *arg2 = (omega_byte_t *) 0 ;
+  MatchFoundDirector *arg3 = (MatchFoundDirector *) 0 ;
+  void *arg4 = (void *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int res4 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_byte_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "3"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg3 = reinterpret_cast< MatchFoundDirector * >(argp3);
+  res4 = SWIG_ConvertPtr(args[3],SWIG_as_voidptrptr(&arg4), 0, 0);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "4"" of type '" "void *""'"); 
+  }
+  result = (int)omega_edit_search_bytes_wrapper((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_edit_search_bytes_wrapper__SWIG_4(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+{
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_byte_t *arg2 = (omega_byte_t *) 0 ;
+  MatchFoundDirector *arg3 = (MatchFoundDirector *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int result;
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+  }
+  arg2 = reinterpret_cast< omega_byte_t * >(argp2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_MatchFoundDirector, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_edit_search_bytes_wrapper" "', argument " "3"" of type '" "MatchFoundDirector *""'"); 
+  }
+  arg3 = reinterpret_cast< MatchFoundDirector * >(argp3);
+  result = (int)omega_edit_search_bytes_wrapper((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap___wrap_omega_edit_search_bytes_wrapper(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  OverloadErrorHandler errorHandler;
+  
+  
+  if(args.Length() == 7) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_search_bytes_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_search_bytes_wrapper__SWIG_0(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 6) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_search_bytes_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_search_bytes_wrapper__SWIG_1(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 5) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_search_bytes_wrapper__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_search_bytes_wrapper__SWIG_2(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 4) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_search_bytes_wrapper__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_search_bytes_wrapper__SWIG_3(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  if(args.Length() == 3) {
+    errorHandler.err.Clear();
+#if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
+    jsresult = _wrap_omega_edit_search_bytes_wrapper__SWIG_4(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      SWIGV8_ESCAPE(jsresult);
+    }
+#else
+    _wrap_omega_edit_search_bytes_wrapper__SWIG_4(args, errorHandler);
+    if(errorHandler.err.IsEmpty()) {
+      return;
+    }
+#endif
+  }
+  
+  
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function omega_edit_search_bytes_wrapper.");
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
+static swig_type_info _swigt__p_MatchFoundDirector = {"_p_MatchFoundDirector", "MatchFoundDirector *|p_MatchFoundDirector", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_SessionOnChangeDirector = {"_p_SessionOnChangeDirector", "SessionOnChangeDirector *|p_SessionOnChangeDirector", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_ViewportOnChangeDirector = {"_p_ViewportOnChangeDirector", "ViewportOnChangeDirector *|p_ViewportOnChangeDirector", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_long_long_long_long_p_void__int = {"_p_f_long_long_long_long_p_void__int", "int (*)(long long,long long,void *)|omega_edit_match_found_cbk_t", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_q_const__omega_change_t_p_void__int = {"_p_f_p_q_const__omega_change_t_p_void__int", "int (*)(omega_change_t const *,void *)|omega_session_change_visitor_cbk_t", 0, 0, (void*)0, 0};
@@ -3258,6 +4390,9 @@ static swig_type_info _swigt__p_unsigned_short = {"_p_unsigned_short", "unsigned
 static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
+  &_swigt__p_MatchFoundDirector,
+  &_swigt__p_SessionOnChangeDirector,
+  &_swigt__p_ViewportOnChangeDirector,
   &_swigt__p_char,
   &_swigt__p_f_long_long_long_long_p_void__int,
   &_swigt__p_f_p_q_const__omega_change_t_p_void__int,
@@ -3278,6 +4413,9 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_void,
 };
 
+static swig_cast_info _swigc__p_MatchFoundDirector[] = {  {&_swigt__p_MatchFoundDirector, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_SessionOnChangeDirector[] = {  {&_swigt__p_SessionOnChangeDirector, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_ViewportOnChangeDirector[] = {  {&_swigt__p_ViewportOnChangeDirector, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_long_long_long_long_p_void__int[] = {  {&_swigt__p_f_long_long_long_long_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__omega_change_t_p_void__int[] = {  {&_swigt__p_f_p_q_const__omega_change_t_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
@@ -3298,6 +4436,9 @@ static swig_cast_info _swigc__p_unsigned_short[] = {  {&_swigt__p_unsigned_short
 static swig_cast_info _swigc__p_void[] = {  {&_swigt__p_void, 0, 0, 0},{0, 0, 0, 0}};
 
 static swig_cast_info *swig_cast_initial[] = {
+  _swigc__p_MatchFoundDirector,
+  _swigc__p_SessionOnChangeDirector,
+  _swigc__p_ViewportOnChangeDirector,
   _swigc__p_char,
   _swigc__p_f_long_long_long_long_p_void__int,
   _swigc__p_f_p_q_const__omega_change_t_p_void__int,
@@ -3629,16 +4770,58 @@ void SWIGV8_INIT (v8::Handle<v8::Object> exports, v8::Handle<v8::Object> /*modul
   
 
   /* create class templates */
-  
+  /* Name: _exports_SessionOnChangeDirector, Type: p_SessionOnChangeDirector, Dtor: _wrap_delete_SessionOnChangeDirector */
+v8::Handle<v8::FunctionTemplate> _exports_SessionOnChangeDirector_class = SWIGV8_CreateClassTemplate("_exports_SessionOnChangeDirector");
+SWIGV8_SET_CLASS_TEMPL(_exports_SessionOnChangeDirector_clientData.class_templ, _exports_SessionOnChangeDirector_class);
+_exports_SessionOnChangeDirector_clientData.dtor = _wrap_delete_SessionOnChangeDirector;
+if (SWIGTYPE_p_SessionOnChangeDirector->clientdata == 0) {
+  SWIGTYPE_p_SessionOnChangeDirector->clientdata = &_exports_SessionOnChangeDirector_clientData;
+}
+/* Name: _exports_ViewportOnChangeDirector, Type: p_ViewportOnChangeDirector, Dtor: _wrap_delete_ViewportOnChangeDirector */
+v8::Handle<v8::FunctionTemplate> _exports_ViewportOnChangeDirector_class = SWIGV8_CreateClassTemplate("_exports_ViewportOnChangeDirector");
+SWIGV8_SET_CLASS_TEMPL(_exports_ViewportOnChangeDirector_clientData.class_templ, _exports_ViewportOnChangeDirector_class);
+_exports_ViewportOnChangeDirector_clientData.dtor = _wrap_delete_ViewportOnChangeDirector;
+if (SWIGTYPE_p_ViewportOnChangeDirector->clientdata == 0) {
+  SWIGTYPE_p_ViewportOnChangeDirector->clientdata = &_exports_ViewportOnChangeDirector_clientData;
+}
+/* Name: _exports_MatchFoundDirector, Type: p_MatchFoundDirector, Dtor: _wrap_delete_MatchFoundDirector */
+v8::Handle<v8::FunctionTemplate> _exports_MatchFoundDirector_class = SWIGV8_CreateClassTemplate("_exports_MatchFoundDirector");
+SWIGV8_SET_CLASS_TEMPL(_exports_MatchFoundDirector_clientData.class_templ, _exports_MatchFoundDirector_class);
+_exports_MatchFoundDirector_clientData.dtor = _wrap_delete_MatchFoundDirector;
+if (SWIGTYPE_p_MatchFoundDirector->clientdata == 0) {
+  SWIGTYPE_p_MatchFoundDirector->clientdata = &_exports_MatchFoundDirector_clientData;
+}
+
 
   /* register wrapper functions */
-  
+  SWIGV8_AddMemberFunction(_exports_SessionOnChangeDirector_class, "handle_session_change", _wrap_SessionOnChangeDirector_handle_session_change);
+SWIGV8_AddMemberFunction(_exports_ViewportOnChangeDirector_class, "handle_viewport_change", _wrap_ViewportOnChangeDirector_handle_viewport_change);
+SWIGV8_AddMemberFunction(_exports_MatchFoundDirector_class, "handle_match_found", _wrap_MatchFoundDirector_handle_match_found);
+
 
   /* setup inheritances */
   
 
   /* class instances */
-  
+  /* Class: SessionOnChangeDirector (_exports_SessionOnChangeDirector) */
+v8::Handle<v8::FunctionTemplate> _exports_SessionOnChangeDirector_class_0 = SWIGV8_CreateClassTemplate("SessionOnChangeDirector");
+_exports_SessionOnChangeDirector_class_0->SetCallHandler(_wrap_new_veto_SessionOnChangeDirector);
+_exports_SessionOnChangeDirector_class_0->Inherit(_exports_SessionOnChangeDirector_class);
+_exports_SessionOnChangeDirector_class_0->SetHiddenPrototype(true);
+v8::Handle<v8::Object> _exports_SessionOnChangeDirector_obj = _exports_SessionOnChangeDirector_class_0->GetFunction();
+/* Class: ViewportOnChangeDirector (_exports_ViewportOnChangeDirector) */
+v8::Handle<v8::FunctionTemplate> _exports_ViewportOnChangeDirector_class_0 = SWIGV8_CreateClassTemplate("ViewportOnChangeDirector");
+_exports_ViewportOnChangeDirector_class_0->SetCallHandler(_wrap_new_veto_ViewportOnChangeDirector);
+_exports_ViewportOnChangeDirector_class_0->Inherit(_exports_ViewportOnChangeDirector_class);
+_exports_ViewportOnChangeDirector_class_0->SetHiddenPrototype(true);
+v8::Handle<v8::Object> _exports_ViewportOnChangeDirector_obj = _exports_ViewportOnChangeDirector_class_0->GetFunction();
+/* Class: MatchFoundDirector (_exports_MatchFoundDirector) */
+v8::Handle<v8::FunctionTemplate> _exports_MatchFoundDirector_class_0 = SWIGV8_CreateClassTemplate("MatchFoundDirector");
+_exports_MatchFoundDirector_class_0->SetCallHandler(_wrap_new_veto_MatchFoundDirector);
+_exports_MatchFoundDirector_class_0->Inherit(_exports_MatchFoundDirector_class);
+_exports_MatchFoundDirector_class_0->SetHiddenPrototype(true);
+v8::Handle<v8::Object> _exports_MatchFoundDirector_obj = _exports_MatchFoundDirector_class_0->GetFunction();
+
 
   /* add static class functions and variables */
   SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_offset", _wrap_omega_change_get_offset);
@@ -3679,10 +4862,16 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_data", _wrap_omega_vie
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_offset", _wrap_omega_viewport_get_offset);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_user_data", _wrap_omega_viewport_get_user_data);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_update", _wrap_omega_viewport_update);
+SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_session_wrapper", _wrap___wrap_omega_edit_create_session_wrapper);
+SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_viewport_wrapper", _wrap___wrap_omega_edit_create_viewport_wrapper);
+SWIGV8_AddStaticFunction(exports_obj, "omega_edit_search_bytes_wrapper", _wrap___wrap_omega_edit_search_bytes_wrapper);
 
 
   /* register classes */
-  
+  exports_obj->Set(SWIGV8_SYMBOL_NEW("SessionOnChangeDirector"), _exports_SessionOnChangeDirector_obj);
+exports_obj->Set(SWIGV8_SYMBOL_NEW("ViewportOnChangeDirector"), _exports_ViewportOnChangeDirector_obj);
+exports_obj->Set(SWIGV8_SYMBOL_NEW("MatchFoundDirector"), _exports_MatchFoundDirector_obj);
+
 
   /* create and register namespace objects */
   
