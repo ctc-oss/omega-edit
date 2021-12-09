@@ -22,3 +22,36 @@ jobs:
       run: |
         cd cmake-build-debug/src/tests/
         ./omega_test -d yes --order lex
+
+  MinGW-Build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - { sys: mingw64, env: x86_64 }
+          - { sys: mingw32, env: i686 }
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Install MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          update: true
+          install: >-
+            mingw-w64-${{ matrix.env }}-toolchain
+            base-devel
+            cmake
+            doxygen
+            swig
+            git
+      - uses: actions/checkout@v2
+      - name: Build
+        run: cmake -S . -B cmake-build-debug
+      - name: Create omega_test
+        run: cmake --build cmake-build-debug --target omega_test
+      - name: Run tests
+        run: |
+          cd cmake-build-debug/src/tests/
+          ./omega_test -d yes --order lex
