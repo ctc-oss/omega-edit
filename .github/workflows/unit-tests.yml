@@ -40,8 +40,6 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - name: Build Platform
-      run: uname -a
     - name: Install MinGW
       uses: msys2/setup-msys2@v2
       with:
