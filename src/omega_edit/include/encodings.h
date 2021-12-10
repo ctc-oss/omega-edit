@@ -18,10 +18,12 @@
 #define OMEGA_EDIT_ENCODINGS_H
 
 #include "byte.h"
-#include <stddef.h>
 
 #ifdef __cplusplus
+#include <cstddef>
 extern "C" {
+#else
+#include <stddef.h>
 #endif
 
 /**
