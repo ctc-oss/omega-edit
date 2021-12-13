@@ -57,10 +57,17 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 
 /**
  * Given a change, return a pointer to the byte data
- * @param change_ptr change to get the new bytes data from
+ * @param change_ptr change to get the bytes data from
  * @return pointer to the byte data
  */
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr);
+
+/**
+ * Given a change, determine if this change is undone
+ * @param change_ptr change to determine if it has been undone or not
+ * @return non-zero if the change is undone, and zero otherwise
+ */
+int omega_change_is_undone(const omega_change_t *change_ptr);
 
 #ifdef __cplusplus
 }

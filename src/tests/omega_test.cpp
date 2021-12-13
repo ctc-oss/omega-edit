@@ -18,7 +18,7 @@
 
 #include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
-#include "../omega_edit/include/string.h"
+#include "../omega_edit/include/string.h" //NOLINT
 #include "catch.hpp"
 #include "test_util.h"
 
@@ -144,7 +144,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.3.dat"));
     REQUIRE(compare_files("data/model-test.expected.3.dat", "data/model-test.actual.3.dat") == 0);
     auto num_changes = file_info.num_changes;
-    REQUIRE(0 < omega_edit_undo_last_change(session_ptr));
+    REQUIRE(num_changes * -1 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
     auto last_undone_change = omega_session_get_last_undo(session_ptr);
     REQUIRE(last_undone_change);
@@ -245,14 +245,18 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(10 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(20 == omega_session_get_computed_file_size(session_ptr));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 10, "*****+*****"));
+    REQUIRE(!omega_change_is_undone(omega_session_get_last_change(session_ptr)));
     REQUIRE(11 == omega_session_get_num_changes(session_ptr));
     REQUIRE(11 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(31 == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 < omega_edit_undo_last_change(session_ptr));
+    REQUIRE(-11 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(10 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(-11 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
-    REQUIRE(0 < omega_edit_redo_last_undo(session_ptr));
+    REQUIRE(omega_change_is_undone(omega_session_get_last_undo(session_ptr)));
+    int64_t rc;
+    REQUIRE(0 < (rc = omega_edit_redo_last_undo(session_ptr)));
+    REQUIRE(!omega_change_is_undone(omega_session_get_change(session_ptr, rc)));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.7.dat"));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
@@ -270,9 +274,12 @@ TEST_CASE("Check initialization", "[InitTests]") {
             session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info);
             REQUIRE(session_ptr);
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 63);
+            REQUIRE(nullptr == omega_session_get_last_change(session_ptr));
             REQUIRE(nullptr == omega_session_get_change(session_ptr, 0));
             int64_t rc;
             REQUIRE(0 < (rc = omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4)));
+            REQUIRE(nullptr != omega_session_get_last_change(session_ptr));
+            REQUIRE(!omega_change_is_undone(omega_session_get_last_change(session_ptr)));
             auto change_ptr = omega_session_get_change(session_ptr, rc);
             REQUIRE(change_ptr);
             REQUIRE('I' == omega_change_get_kind_as_char(change_ptr));
@@ -293,7 +300,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(0 < omega_edit_delete(session_ptr, 9, 5));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 66);
             auto num_changes_before_undo = omega_session_get_num_changes(session_ptr);
-            REQUIRE(0 < omega_edit_undo_last_change(session_ptr));
+            REQUIRE(num_changes_before_undo * -1 == omega_edit_undo_last_change(session_ptr));
             REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
             REQUIRE(omega_session_get_num_changes(session_ptr) == num_changes_before_undo - 1);
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 71);
@@ -356,9 +363,18 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>(needle), needle_length));
     REQUIRE(0 < omega_edit_delete(session_ptr, 16, needle_length));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 16, reinterpret_cast<const omega_byte_t *>(needle)));
-    REQUIRE(0 < omega_edit_undo_last_change(session_ptr));
+    REQUIRE(-3 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(-3 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
+    REQUIRE('I' == omega_change_get_kind_as_char(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+    REQUIRE(nullptr != omega_change_get_bytes(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+    REQUIRE(!omega_change_get_string(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))).empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
-    REQUIRE(0 < omega_edit_undo_last_change(session_ptr));
+    REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(omega_change_is_undone(omega_session_get_last_undo(session_ptr)));
+    REQUIRE(-2 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
+    REQUIRE('D' == omega_change_get_kind_as_char(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+    REQUIRE(nullptr == omega_change_get_bytes(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+    REQUIRE(omega_change_get_string(omega_session_get_change(session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))).empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 2);
     REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 16, reinterpret_cast<const omega_byte_t *>(needle)));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);

@@ -44,3 +44,7 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
             ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
     }
 }
+
+int omega_change_is_undone(const omega_change_t *change_ptr) {
+    return (0 < change_ptr->serial) ? 0 : 1;
+}
