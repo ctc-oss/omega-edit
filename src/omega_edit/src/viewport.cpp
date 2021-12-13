@@ -36,7 +36,7 @@ int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
 }
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
-    if (0 < viewport_ptr->data_segment.capacity) { return viewport_ptr->data_segment.length; }
+    if (!omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
     auto const remaining_file_size =
             std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
@@ -67,11 +67,15 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
 
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
     auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
-    if (viewport_ptr->data_segment.capacity < 0) {
+    if (omega_viewport_has_changes(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
-        mut_viewport_ptr->data_segment.capacity *= -1;
+        mut_viewport_ptr->data_segment.capacity = std::abs(viewport_ptr->data_segment.capacity);
         if (populate_data_segment_(viewport_ptr->session_ptr, &mut_viewport_ptr->data_segment) != 0) { return nullptr; }
         assert(omega_viewport_get_length(viewport_ptr) == viewport_ptr->data_segment.length);
     }
     return get_data_segment_data_(&mut_viewport_ptr->data_segment);
+}
+
+int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
+    return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
 }
