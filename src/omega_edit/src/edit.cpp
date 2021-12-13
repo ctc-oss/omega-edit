@@ -336,7 +336,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
     return (0 < length && offset < computed_file_size)
                    ? update_(session_ptr, del_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, std::min(length, computed_file_size - offset)))
-                   : -1;
+                   : 0;
 }
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
@@ -344,7 +344,7 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
     return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
                    ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
-                   : -1;
+                   : 0;
 }
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
@@ -352,7 +352,7 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
     return (0 <= length && offset < omega_session_get_computed_file_size(session_ptr))
                    ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
-                   : -1;
+                   : 0;
 }
 
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
@@ -467,13 +467,13 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         session_ptr->model_ptr_->changes_undone.push_back(change_ptr);
         update_viewports_(session_ptr, undone_change_ptr);
         if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, undone_change_ptr); }
-        return undone_change_ptr->serial * -1;
+        return undone_change_ptr->serial;
     }
-    return -1;
+    return 0;
 }
 
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
-    int64_t rc = -1;
+    int64_t rc = 0;
     if (!session_ptr->model_ptr_->changes_undone.empty()) {
         rc = update_(session_ptr, session_ptr->model_ptr_->changes_undone.back());
         session_ptr->model_ptr_->changes_undone.pop_back();

@@ -80,14 +80,14 @@ int omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
 /**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
- * @return positive serial number of the undone change if successful, -1 otherwise
+ * @return negative serial number of the undone change if successful, zero otherwise
  */
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
 
 /**
  * Redoes the last undo (if available)
  * @param session_ptr session to redo the last undo for
- * @return positive serial number of the redone change if successful, -1 otherwise
+ * @return positive serial number of the redone change if successful, zero otherwise
  */
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 
@@ -139,7 +139,7 @@ inline int omega_edit_search(const omega_session_t *session_ptr, const char *pat
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
  * @param length number of bytes to delete
- * @return positive change serial number on success, negative value otherwise
+ * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
 
@@ -149,7 +149,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
  * @param offset location offset to make the change
  * @param bytes bytes to insert at the given offset
  * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return positive change serial number on success, negative value otherwise
+ * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length = 0);
@@ -161,7 +161,7 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
  * @param cstr C string to insert at the given offset
  * @param length length of the C string to insert (if 0, strlen will be used to calculate the length of null-terminated
  * bytes)
- * @return positive change serial number on success, negative value otherwise
+ * @return positive change serial number on success, zero otherwise
  */
 inline int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length = 0) {
     return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
@@ -173,7 +173,7 @@ inline int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, c
  * @param offset location offset to make the change
  * @param bytes new bytes to overwrite the old bytes with
  * @param length number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return positive change serial number on success, negative value otherwise
+ * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length = 0);
@@ -184,7 +184,7 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * @param offset location offset to make the change
  * @param cstr new C string to overwrite the old bytes with
  * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return positive change serial number on success, negative value otherwise
+ * @return positive change serial number on success, zero otherwise
  */
 inline int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
                                     int64_t length = 0) {

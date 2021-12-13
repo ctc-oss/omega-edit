@@ -74,6 +74,15 @@ int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omeg
 }
 
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
-    return (0 < change_serial && change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) ?
-        session_ptr->model_ptr_->changes[change_serial - 1].get() : nullptr;
+    if (0 < change_serial) {// Positive serials are active changes
+        if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {
+            return session_ptr->model_ptr_->changes[change_serial - 1].get();
+        }
+    } else if (change_serial < 0) {// Negative serials are undone changes
+        for (auto iter = session_ptr->model_ptr_->changes_undone.rbegin();
+             iter != session_ptr->model_ptr_->changes_undone.rend(); ++iter) {
+            if ((*iter)->serial == change_serial) { return iter->get(); }
+        }
+    }
+    return nullptr;
 }
