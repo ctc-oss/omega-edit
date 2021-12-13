@@ -309,7 +309,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
         viewport_ptr->data_segment.data.bytes_ptr =
-                (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
+                (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity + 1) : nullptr;
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         session_ptr->viewports_.push_back(viewport_ptr);
@@ -319,7 +319,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
     return nullptr;
 }
 
-int omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
+int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {

@@ -131,12 +131,13 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                     default:
                         ABORT(CLOG << LOCATION << " Unhandled model segment kind" << std::endl;);
                 }
-                // Add the amount written to the viewport length
+                // Add the amount written to the data segment length
                 data_segment_ptr->length += amount;
                 // After the first segment is written, the dela should be zero from that point on
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
             } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
+            get_data_segment_data_(data_segment_ptr)[data_segment_ptr->length] = '\0';
             return 0;
         }
         read_offset += (*iter)->computed_length;

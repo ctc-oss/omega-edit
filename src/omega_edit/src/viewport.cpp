@@ -57,7 +57,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr =
-                    (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity) : nullptr;
+                    (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity + 1) : nullptr;
             viewport_callback_(viewport_ptr, nullptr);
         }
         return 0;
