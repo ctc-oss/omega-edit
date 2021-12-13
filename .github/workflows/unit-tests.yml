@@ -9,11 +9,15 @@ jobs:
   build:
     name: Unit Tests
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Build
       run: cmake -S . -B cmake-build-debug
     - name: Create omega_test

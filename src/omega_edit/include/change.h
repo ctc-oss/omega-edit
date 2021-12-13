@@ -19,10 +19,12 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
-#include <cstdint>
 
 #ifdef __cplusplus
+#include <cstdint>
 extern "C" {
+#else
+#include <stdint.h>
 #endif
 
 /**

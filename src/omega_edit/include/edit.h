@@ -19,11 +19,14 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
-#include <cstddef>
-#include <cstdint>
 
 #ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
 extern "C" {
+#else
+#include <stddef.h>
+#include <stdint.h>
 #endif
 
 /** Callback to implement when pattern matches are found in a session.

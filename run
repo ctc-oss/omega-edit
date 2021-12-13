@@ -49,4 +49,5 @@ function transpile {
   popd
 }
 
+# shellcheck disable=SC2068
 $@
