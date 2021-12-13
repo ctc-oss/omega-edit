@@ -101,6 +101,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
             // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
             // (the delta).
             auto delta = data_segment_offset - (*iter)->computed_offset;
+            auto data_segment_buffer = const_cast<omega_byte_t *>(get_data_segment_data_(data_segment_ptr));
             do {
                 // This is how much data remains to be filled
                 const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
@@ -110,11 +111,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                     case model_segment_kind_t::SEGMENT_READ: {
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
                         // writing it into the data segment
-                        if (read_segment_from_file_(
-                                    session_ptr->file_ptr, (*iter)->change_offset + delta,
-                                    const_cast<omega_byte_t *>(get_data_segment_data_(data_segment_ptr)) +
-                                            data_segment_ptr->length,
-                                    amount) != amount) {
+                        if (read_segment_from_file_(session_ptr->file_ptr, (*iter)->change_offset + delta,
+                                                    data_segment_buffer + data_segment_ptr->length, amount) != amount) {
                             return -1;
                         }
                         break;
@@ -122,8 +120,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                     case model_segment_kind_t::SEGMENT_INSERT: {
                         // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
                         // segment
-                        memcpy(const_cast<omega_byte_t *>(get_data_segment_data_(data_segment_ptr)) +
-                                       data_segment_ptr->length,
+                        memcpy(data_segment_buffer + data_segment_ptr->length,
                                omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
                                amount);
                         break;
@@ -137,7 +134,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *d
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
             } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
-            get_data_segment_data_(data_segment_ptr)[data_segment_ptr->length] = '\0';
+            data_segment_buffer[data_segment_ptr->length] = '\0';
             return 0;
         }
         read_offset += (*iter)->computed_length;
