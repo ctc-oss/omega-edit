@@ -3212,6 +3212,34 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_omega_viewport_has_changes(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_viewport_t *arg1 = (omega_viewport_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_viewport_has_changes.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_viewport_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_viewport_has_changes" "', argument " "1"" of type '" "omega_viewport_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_viewport_t * >(argp1);
+  result = (int)omega_viewport_has_changes((omega_viewport_t const *)arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_omega_viewport_get_offset(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -4859,6 +4887,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_session", _wrap_omega_
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_capacity", _wrap_omega_viewport_get_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_length", _wrap_omega_viewport_get_length);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_data", _wrap_omega_viewport_get_data);
+SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_has_changes", _wrap_omega_viewport_has_changes);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_offset", _wrap_omega_viewport_get_offset);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_user_data", _wrap_omega_viewport_get_user_data);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_update", _wrap_omega_viewport_update);
