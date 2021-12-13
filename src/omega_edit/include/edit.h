@@ -75,7 +75,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
  * @param viewport_ptr viewport to destroy
  * @return 0 of the viewport was successfully destroyed, and non-zero otherwise
  */
-int omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
+int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a session, undo the last change
