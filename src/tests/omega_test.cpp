@@ -17,6 +17,7 @@
 #define CATCH_CONFIG_MAIN
 
 #include "../omega_edit/include/utility.h"
+#include "../omega_edit/include/encodings.h"
 #include "../omega_edit/omega_edit.h"
 #include "../omega_edit/include/string.h" //NOLINT
 #include "catch.hpp"
@@ -74,6 +75,17 @@ TEST_CASE("File Compare", "[UtilTests]") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
+}
+
+TEST_CASE("Encoding", "[EncodingTest]") {
+    auto in_string = string("Hello World!");
+    auto in = reinterpret_cast<const omega_byte_t *>(in_string.c_str());
+    char encoded_buffer[1024];
+    omega_byte_t decoded_buffer[1024];
+    omega_bin2hex(in, encoded_buffer, in_string.size());
+    REQUIRE(0 == strcmp(encoded_buffer, "48656c6c6f20576f726c6421"));
+    omega_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
+    REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
 typedef struct file_info_struct {
