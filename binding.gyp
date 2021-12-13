@@ -4,6 +4,7 @@
       "target_name": "omega_edit",
       "sources": [
         "src/omega_edit/src/edit.cpp",
+        "src/omega_edit/src/impl_/search.cpp",
         "src/omega_edit/src/impl_/internal_fun.cpp",
         "src/omega_edit/src/session.cpp",
         "src/omega_edit/src/change.cpp",

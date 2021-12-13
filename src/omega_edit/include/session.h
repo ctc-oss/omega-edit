@@ -111,6 +111,13 @@ int omega_session_visit_changes(const omega_session_t *session_ptr, omega_sessio
 int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                         void *user_data);
 
+/**
+ * Given a change serial, get the change
+ * @param change_serial change serial of the change to get
+ * @return change with the matching serial, or nullptr on failure
+ */
+const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial);
+
 #ifdef __cplusplus
 }
 #endif
