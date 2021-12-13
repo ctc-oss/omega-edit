@@ -56,6 +56,13 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr);
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr);
 
 /**
+ * Given a viewport, determine if it contains changes since the last omega_viewport_get_data call
+ * @param viewport_ptr viewport to determine if changes are present
+ * @return 0 if there are no changes present, and non-zero otherwise
+ */
+int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr);
+
+/**
  * Given a viewport, return the viewport offset
  * @param viewport_ptr viewport to get the viewport offset from
  * @return viewport offset
