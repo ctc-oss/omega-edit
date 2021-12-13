@@ -72,3 +72,8 @@ int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omeg
     }
     return rc;
 }
+
+const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
+    return (0 < change_serial && change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) ?
+        session_ptr->model_ptr_->changes[change_serial - 1].get() : nullptr;
+}

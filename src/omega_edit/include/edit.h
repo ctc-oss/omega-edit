@@ -67,7 +67,8 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @return pointer to the new viewport, nullptr on failure
  */
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr = nullptr);
+                                             omega_viewport_on_change_cbk_t cbk = nullptr,
+                                             void *user_data_ptr = nullptr);
 
 /**
  * Destroy a given viewport

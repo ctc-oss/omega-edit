@@ -18,6 +18,7 @@
 
 #include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/string.h"
 #include "catch.hpp"
 #include "test_util.h"
 
@@ -156,7 +157,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.4.dat"));
     REQUIRE(compare_files("data/model-test.expected.4.dat", "data/model-test.actual.4.dat") == 0);
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
-    REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("-")));
+    REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 0, "-"));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);
     REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, file_size - 1, reinterpret_cast<const omega_byte_t *>("+"), 1));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>("XxXxXxX"), 7));
@@ -196,7 +197,14 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(session_ptr);
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == 0);
     // Hanoi test
-    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("00")));
+    int64_t change_serial;
+    REQUIRE(0 < (change_serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("00"))));
+    auto change_ptr = omega_session_get_change(session_ptr, change_serial);
+    REQUIRE(change_ptr);
+    REQUIRE('I' == omega_change_get_kind_as_char(change_ptr));
+    REQUIRE(0 == omega_change_get_offset(change_ptr));
+    REQUIRE(2 == omega_change_get_length(change_ptr));
+    REQUIRE(omega_change_get_string(change_ptr) == "00");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(2 == omega_session_get_computed_file_size(session_ptr));
@@ -236,7 +244,7 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(10 == omega_session_get_num_changes(session_ptr));
     REQUIRE(10 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(20 == omega_session_get_computed_file_size(session_ptr));
-    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("*****+*****")));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 10, "*****+*****"));
     REQUIRE(11 == omega_session_get_num_changes(session_ptr));
     REQUIRE(11 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(31 == omega_session_get_computed_file_size(session_ptr));
@@ -262,11 +270,19 @@ TEST_CASE("Check initialization", "[InitTests]") {
             session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info);
             REQUIRE(session_ptr);
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 63);
-            REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4));
+            REQUIRE(nullptr == omega_session_get_change(session_ptr, 0));
+            int64_t rc;
+            REQUIRE(0 < (rc = omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("++++"), 4)));
+            auto change_ptr = omega_session_get_change(session_ptr, rc);
+            REQUIRE(change_ptr);
+            REQUIRE('I' == omega_change_get_kind_as_char(change_ptr));
+            REQUIRE(10 == omega_change_get_offset(change_ptr));
+            REQUIRE(4 == omega_change_get_length(change_ptr));
+            REQUIRE(nullptr == omega_session_get_change(session_ptr, rc + 1));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 67);
-            REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 12, reinterpret_cast<const omega_byte_t *>("."), 1));
+            REQUIRE(0 < (rc = omega_edit_overwrite_bytes(session_ptr, 12, reinterpret_cast<const omega_byte_t *>("."), 1)));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 67);
-            REQUIRE(0 < omega_edit_insert(session_ptr, 0, "+++"));
+            REQUIRE(0 < (rc = omega_edit_insert(session_ptr, 0, "+++")));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 70);
             REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 1, reinterpret_cast<const omega_byte_t *>(".")));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 70);
@@ -307,8 +323,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
                 break;
             case CHAR_MODE:
                 clog << "CHAR MODE [";
-                clog << string((const char *) omega_viewport_get_data(viewport_ptr),
-                               omega_viewport_get_length(viewport_ptr));
+                clog << omega_viewport_get_string(viewport_ptr);
                 clog << "]\n";
                 break;
             default:// flow through
