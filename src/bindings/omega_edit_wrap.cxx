@@ -1684,6 +1684,13 @@ SWIG_From_char  (char c)
 }
 
 
+SWIGINTERNINLINE
+v8::Handle<v8::Value> SWIG_From_int  (int value)
+{
+  return SWIGV8_INT32_NEW(value);
+}
+
+
 SWIGINTERN int
 SWIG_AsCharPtrAndSize(v8::Handle<v8::Value> valRef, char** cptr, size_t* psize, int *alloc)
 {
@@ -1796,13 +1803,6 @@ int SWIG_AsVal_long_SS_long (v8::Handle<v8::Value> obj, long long* val)
   return SWIG_OK;
 }
 #endif
-
-
-SWIGINTERNINLINE
-v8::Handle<v8::Value> SWIG_From_int  (int value)
-{
-  return SWIGV8_INT32_NEW(value);
-}
 
 
 SWIGINTERNINLINE v8::Handle<v8::Value> 
@@ -2094,6 +2094,34 @@ static SwigV8ReturnValue _wrap_omega_change_get_bytes(const SwigV8Arguments &arg
   arg1 = reinterpret_cast< omega_change_t * >(argp1);
   result = (omega_byte_t *)omega_change_get_bytes((omega_change_t const *)arg1);
   jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_byte_t, 0 |  0 );
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_change_is_undone(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_change_t *arg1 = (omega_change_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_change_is_undone.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_change_is_undone" "', argument " "1"" of type '" "omega_change_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_change_t * >(argp1);
+  result = (int)omega_change_is_undone((omega_change_t const *)arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
   
   
   SWIGV8_RETURN(jsresult);
@@ -5094,6 +5122,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_length", _wrap_omega_cha
 SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_serial", _wrap_omega_change_get_serial);
 SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_kind_as_char", _wrap_omega_change_get_kind_as_char);
 SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_bytes", _wrap_omega_change_get_bytes);
+SWIGV8_AddStaticFunction(exports_obj, "omega_change_is_undone", _wrap_omega_change_is_undone);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_session", _wrap_omega_edit_create_session);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_destroy_session", _wrap_omega_edit_destroy_session);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_viewport", _wrap_omega_edit_create_viewport);
