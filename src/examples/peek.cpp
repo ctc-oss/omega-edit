@@ -15,6 +15,7 @@
  **********************************************************************************************************************/
 
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/string.h" //NOLINT
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -58,8 +59,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
                 write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 break;
             case CHAR_MODE:
-                clog << string((const char *) omega_viewport_get_data(viewport_ptr),
-                               omega_viewport_get_length(viewport_ptr));
+                clog << omega_viewport_get_string(viewport_ptr);
                 break;
             default:// flow through
             case BYTE_MODE:
