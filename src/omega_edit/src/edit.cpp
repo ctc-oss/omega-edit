@@ -22,11 +22,9 @@
 #include "impl_/macros.h"
 #include "impl_/model_def.h"
 #include "impl_/model_segment_def.h"
-#include "impl_/search.h"
 #include "impl_/session_def.h"
 #include "impl_/viewport_def.h"
 #include <cassert>
-#include <functional>
 #include <memory>
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {

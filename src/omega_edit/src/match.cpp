@@ -20,6 +20,7 @@
 #include "impl_/internal_fun.h"
 #include "impl_/search.h"
 #include <cstring>
+#include <functional>
 #include <memory>
 
 // Manage a raw const pointer with custom deleter
