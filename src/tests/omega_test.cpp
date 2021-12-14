@@ -16,10 +16,11 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../omega_edit/include/utility.h"
 #include "../omega_edit/include/encodings.h"
-#include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/match.h"
 #include "../omega_edit/include/string.h" //NOLINT
+#include "../omega_edit/include/utility.h"
+#include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
 
@@ -92,7 +93,7 @@ typedef struct file_info_struct {
     size_t num_changes{};
 } file_info_t;
 
-void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
+static inline void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
     const auto bytes = omega_change_get_bytes(change_ptr);
     const auto bytes_length = omega_change_get_length(change_ptr);
@@ -193,13 +194,6 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(compare_files("data/model-test.dat", "data/model-test.actual.6.dat") == 0);
     omega_edit_destroy_session(session_ptr);
-}
-
-int pattern_found_cbk(int64_t match_offset, int64_t /*match_length*/, void *needles_found_ptr) {
-    (*(int *) (needles_found_ptr))++;
-    clog << "Pattern found at offset " << match_offset << ", total found so far: " << (*(int *) (needles_found_ptr))
-         << endl;
-    return 0;
 }
 
 TEST_CASE("Hanoi insert", "[ModelTests]") {
@@ -327,7 +321,7 @@ struct view_mode_t {
     enum display_mode_t display_mode = CHAR_MODE;
 };
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
     if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
@@ -356,6 +350,13 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
     }
 }
 
+static inline int pattern_found_cbk(int64_t match_offset, int64_t /*match_length*/, void *needles_found_ptr) {
+    (*(int *) (needles_found_ptr))++;
+    clog << "Pattern found at offset " << match_offset << ", total found so far: " << (*(int *) (needles_found_ptr))
+         << endl;
+    return 0;
+}
+
 TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
@@ -371,6 +372,14 @@ TEST_CASE("Search", "[SearchTests]") {
     int needles_found = 0;
     REQUIRE(0 == omega_edit_search_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found,
                                          needle_length));
+    REQUIRE(needles_found == 5);
+    auto match_context = omega_match_create_context(session_ptr, needle);
+    REQUIRE(match_context);
+    needles_found = 0;
+    while(omega_match_next(match_context)) {
+        pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context), &needles_found);
+    }
+    omega_match_destroy_context(match_context);
     REQUIRE(needles_found == 5);
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>(needle), needle_length));
     REQUIRE(0 < omega_edit_delete(session_ptr, 16, needle_length));
@@ -394,6 +403,14 @@ TEST_CASE("Search", "[SearchTests]") {
     needles_found = 0;
     REQUIRE(0 == omega_edit_search(session_ptr, needle, pattern_found_cbk, &needles_found));
     REQUIRE(needles_found == 6);
+    match_context = omega_match_create_context(session_ptr, needle);
+    REQUIRE(match_context);
+    needles_found = 0;
+    while(omega_match_next(match_context)) {
+        pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context), &needles_found);
+    }
+    REQUIRE(needles_found == 6);
+    omega_match_destroy_context(match_context);
     omega_edit_destroy_session(session_ptr);
     REQUIRE(compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat") == 0);
 }

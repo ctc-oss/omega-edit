@@ -21,6 +21,7 @@
 %{
 /* Includes the header in the wrapper code */
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/match.h"
 #include "../omega_edit/include/string.h"
 %}
 %include <stdint.i>
@@ -30,6 +31,7 @@
 %include "../omega_edit/include/change.h"
 %include "../omega_edit/include/edit.h"
 %include "../omega_edit/include/license.h"
+%include "../omega_edit/include/match.h"
 %include "../omega_edit/include/session.h"
 %include "../omega_edit/include/string.h"
 %include "../omega_edit/include/viewport.h"

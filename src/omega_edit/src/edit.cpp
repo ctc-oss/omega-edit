@@ -418,7 +418,7 @@ int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte
             data_segment.offset = session_offset;
             data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
             data_segment.data.bytes_ptr =
-                    (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity) : nullptr;
+                    (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity + 1) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - pattern_length;
             int64_t skip = 0;
             const auto skip_table_ptr = deleted_unique_const_ptr<skip_table_t>(

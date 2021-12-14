@@ -31,7 +31,7 @@ set(SOURCE_FILES
         src/omega_edit/src/impl_/data_def.h src/omega_edit/src/impl_/data_segment_def.h
         src/omega_edit/src/impl_/model_def.h src/omega_edit/src/impl_/model_segment_def.h
         src/omega_edit/src/impl_/macros.h
-        src/omega_edit/src/impl_/internal_fwd_defs.h)
+        src/omega_edit/src/impl_/internal_fwd_defs.h src/omega_edit/include/match.h src/omega_edit/src/match.cpp)
 
 # Create the library archive for static linking
 add_library(omega_edit STATIC ${SOURCE_FILES})
