@@ -20,6 +20,7 @@
  * cmp or diff.
  */
 #include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/utility.h"
 #include <cinttypes>
 #include <iostream>
 #include <string>
@@ -54,6 +55,10 @@ int main(int argc, char **argv) {
     }
     last_byte_info_t last_byte_info{};
     auto in_filename = argv[1];
+    if (!omega_util_file_exists(in_filename)) {
+        fprintf(stderr, "ERROR: Input file '%s' does not exist (cwd: %s)\n", in_filename, omega_util_get_current_dir());
+        return -1;
+    }
     auto out_filename = argv[2];
     auto rotations = stol(argv[3]);
     auto session_ptr = omega_edit_create_session(in_filename);

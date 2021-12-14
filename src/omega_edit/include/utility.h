@@ -27,6 +27,19 @@ extern "C" {
 #endif
 
 /**
+ * Gets the current working directory
+ * @return current working directory
+ */
+const char *omega_util_get_current_dir();
+
+/**
+ * Check if the given file name exists
+ * @param file_name file name to check existence for
+ * @return zero if the file does not exist, non-zero otherwise
+ */
+int omega_util_file_exists(const char *file_name);
+
+/**
  * Shift the bits of the given buffer by a given number of bits to the left
  * @param buffer pointer to the start of the buffer
  * @param len length of the buffer

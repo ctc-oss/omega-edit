@@ -15,6 +15,30 @@
  **********************************************************************************************************************/
 
 #include "../include/utility.h"
+#include <stdio.h>
+
+#ifdef WINDOWS
+#include <direct.h>
+#define GetCurrentDir_ _getcwd
+#else
+#include <unistd.h>
+#define GetCurrentDir_ getcwd
+#endif
+
+const char *omega_util_get_current_dir() {
+    static char buff[FILENAME_MAX]; //create string buffer to hold path
+    GetCurrentDir_(buff, FILENAME_MAX );
+    return buff;
+}
+
+int omega_util_file_exists(const char *file_name) {
+    FILE *file_ptr = fopen(file_name, "r");
+    if (file_ptr) {
+        fclose(file_ptr);
+        return 1;
+    }
+    return 0;
+}
 
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
     if (shift_left > 0 && shift_left < 8) {
