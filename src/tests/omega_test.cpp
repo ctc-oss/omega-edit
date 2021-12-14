@@ -20,6 +20,7 @@
 #include "../omega_edit/include/match.h"
 #include "../omega_edit/include/string.h" //NOLINT
 #include "../omega_edit/include/utility.h"
+#include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
@@ -304,6 +305,27 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(0 < omega_edit_insert(session_ptr, 15, "+"));
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 71);
             REQUIRE(0 < omega_edit_delete(session_ptr, 9, 5));
+            REQUIRE(7 == omega_session_get_num_changes(session_ptr));
+            auto visit_change_context = omega_visit_change_create_context(session_ptr);
+            REQUIRE(visit_change_context);
+            string change_sequence;
+            while (omega_visit_change_next(visit_change_context)) {
+                change_ptr = omega_visit_change_context_get_change(visit_change_context);
+                change_sequence += omega_change_get_kind_as_char(change_ptr);
+            }
+            omega_visit_change_destroy_context(visit_change_context);
+            REQUIRE(change_sequence == "IOIOOID");
+            visit_change_context = omega_visit_change_create_context(session_ptr, 1);
+            REQUIRE(visit_change_context);
+            auto reverse_change_sequence = change_sequence;
+            std::reverse(reverse_change_sequence.begin(), reverse_change_sequence.end());
+            change_sequence = "";
+            while (omega_visit_change_next(visit_change_context)) {
+                change_ptr = omega_visit_change_context_get_change(visit_change_context);
+                change_sequence += omega_change_get_kind_as_char(change_ptr);
+            }
+            omega_visit_change_destroy_context(visit_change_context);
+            REQUIRE(change_sequence == reverse_change_sequence);
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 66);
             auto num_changes_before_undo = omega_session_get_num_changes(session_ptr);
             REQUIRE(num_changes_before_undo * -1 == omega_edit_undo_last_change(session_ptr));

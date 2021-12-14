@@ -35,6 +35,7 @@
 %include "../omega_edit/include/session.h"
 %include "../omega_edit/include/string.h"
 %include "../omega_edit/include/viewport.h"
+%include "../omega_edit/include/visit.h"
 
 %feature("director") SessionOnChangeDirector;
 %inline %{
