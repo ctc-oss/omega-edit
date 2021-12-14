@@ -58,7 +58,8 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
                 write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 break;
             case CHAR_MODE:
-                clog << string((const char *) omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
+                clog << string((const char *) omega_viewport_get_data(viewport_ptr),
+                               omega_viewport_get_length(viewport_ptr));
                 break;
             default:// flow through
             case BYTE_MODE:
@@ -69,7 +70,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
 }
 
 inline display_mode_t char_to_display_mode(char c) {
-    switch(c) {
+    switch (c) {
         case 'b':
             return display_mode_t::BIT_MODE;
         case 'c':

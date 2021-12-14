@@ -54,25 +54,6 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
 }
 
-int omega_session_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
-                                void *user_data) {
-    int rc = 0;
-    for (const auto &iter : session_ptr->model_ptr_->changes) {
-        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
-    }
-    return rc;
-}
-
-int omega_session_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
-                                        void *user_data) {
-    int rc = 0;
-    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
-         ++iter) {
-        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
-    }
-    return rc;
-}
-
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
     if (0 < change_serial) {// Positive serials are active changes
         if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {

@@ -38,16 +38,5 @@ function gyp-rebuild {
     yarn run gyp-rebuild
 }
 
-function transpile {
-  mkdir -p build-em
-  pushd .
-  # shellcheck disable=SC2164
-  cd build-em
-  emcmake cmake ..
-  make
-  # shellcheck disable=SC2164
-  popd
-}
-
 # shellcheck disable=SC2068
 $@

@@ -10,7 +10,6 @@ If you are using just the command line you will need these things installed:
 - CMake (https://cmake.org/download/)
 - NodeJS v10
 - Swig
-- emscripten
 
 ## Building
 
@@ -45,18 +44,6 @@ Run tests:
 cd cmake-build-debug/src/tests/
 ./omega_test -d yes --order lex
 cd ../../../
-```
-
-#### Emscripten transpile
-:exclamation: Install [emscripten](https://emscripten.org) on your system :exclamation:
-
-From the top level of the repository:
-
-```bash
-mkdir build-em
-cd build-em
-emcmake cmake ..
-make
 ```
 
 #### Node bindings using SWIG
@@ -125,10 +112,4 @@ gyp build:
 
 ```bash
 ./run gyp-build
-```
-
-emscripten transpile:
-
-```bash
-./run transpile
 ```

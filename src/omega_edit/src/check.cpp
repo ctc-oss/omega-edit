@@ -14,60 +14,21 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "../include/utility.h"
-#include <stdio.h>
+#include "impl_/change_def.h"
+#include "impl_/internal_fun.h"
+#include "impl_/macros.h"
+#include "impl_/model_def.h"
+#include "impl_/session_def.h"
 
-#ifdef WINDOWS
-#include <direct.h>
-#define GetCurrentDir_ _getcwd
-#else
-#include <unistd.h>
-#define GetCurrentDir_ getcwd
-#endif
-
-const char *omega_util_get_current_dir() {
-    static char buff[FILENAME_MAX]; //create string buffer to hold path
-    GetCurrentDir_(buff, FILENAME_MAX );
-    return buff;
-}
-
-int omega_util_file_exists(const char *file_name) {
-    FILE *file_ptr = fopen(file_name, "r");
-    if (file_ptr) {
-        fclose(file_ptr);
-        return 1;
+int omega_check_model(const omega_session_t *session_ptr) {
+    int64_t expected_offset = 0;
+    for (const auto &segment : session_ptr->model_ptr_->model_segments) {
+        if (expected_offset != segment->computed_offset ||
+            (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
+            print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
+            return -1;
+        }
+        expected_offset += segment->computed_length;
     }
     return 0;
-}
-
-int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
-    if (shift_left > 0 && shift_left < 8) {
-        omega_byte_t shift_right = 8 - shift_left;
-        omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
-        omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
-            const unsigned char bits2 = buffer[i] & mask;
-            buffer[i] <<= shift_left;
-            buffer[i] |= bits1 >> shift_right;
-            bits1 = bits2;
-        }
-        return 0;
-    }
-    return -1;
-}
-
-int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right) {
-    if (shift_right > 0 && shift_right < 8) {
-        omega_byte_t shift_left = 8 - shift_right;
-        omega_byte_t mask = (1 << shift_right) - 1;
-        omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
-            const unsigned char bits2 = buffer[i] & mask;
-            buffer[i] >>= shift_right;
-            buffer[i] |= bits1 << shift_left;
-            bits1 = bits2;
-        }
-        return 0;
-    }
-    return -1;
 }
