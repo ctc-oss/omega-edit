@@ -48,7 +48,8 @@ int main(int argc, char **argv) {
                 "This program edits the input file by rotating the byte at the end of the file to become the byte at\n"
                 "the front of the file.  It will do these rotations using deletes, inserts, and overwrites.  It is\n"
                 "not designed to be very efficient, but rather to exercise some of the core features of Omega Edit.\n\n"
-                "USAGE: %s infile outfile num_rotations\n", argv[0]);
+                "USAGE: %s infile outfile num_rotations\n",
+                argv[0]);
         return -1;
     }
     last_byte_info_t last_byte_info{};
@@ -57,15 +58,16 @@ int main(int argc, char **argv) {
     auto rotations = stol(argv[3]);
     auto session_ptr = omega_edit_create_session(in_filename);
     // Create a small viewport at the end of the file to track the last byte.
-    auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4,
-                                                   vpt_change_last_byte_cbk, &last_byte_info);
+    auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1,
+                                                   4, vpt_change_last_byte_cbk, &last_byte_info);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
             int64_t serial;
             auto last_byte = last_byte_info.last_byte;
             // Ths could be more efficient to insert the last_byte rather than insert a bogus byte, then overwrite it,
             // but the purpose of this routine is to exercise all the edit operations.
-            if ((serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) < 0) {
+            if ((serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) <
+                0) {
                 clog << "Error inserting serial: " << serial << endl;
                 return -1;
             }
@@ -73,7 +75,8 @@ int main(int argc, char **argv) {
                 clog << "Error overwriting serial: " << serial << endl;
                 return -1;
             }
-            if ((serial = omega_edit_delete(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 1)) < 0) {
+            if ((serial = omega_edit_delete(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 1)) <
+                0) {
                 clog << "Error deleting serial: " << serial << endl;
                 return -1;
             }

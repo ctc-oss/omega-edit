@@ -20,6 +20,7 @@
  */
 
 #include "../omega_edit/include/encodings.h"
+#include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
 #include <cassert>
 #include <cinttypes>
@@ -55,7 +56,8 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
         default:
             abort();
     }
-    assert(file_info_ptr->deletes + file_info_ptr->inserts + file_info_ptr->overwrites == omega_change_get_serial(change_ptr));
+    assert(file_info_ptr->deletes + file_info_ptr->inserts + file_info_ptr->overwrites ==
+           omega_change_get_serial(change_ptr));
     // NOTE: This is for demonstration purposes only.  This is not a production-quality format.
     const auto bytes = omega_change_get_bytes(change_ptr);
     const auto bytes_length = omega_change_get_length(change_ptr);
@@ -82,7 +84,7 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
     file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
     file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "w");
-    omega_session_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
+    omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
     fclose(file_info_ptr->save_fptr);
 }
 
@@ -121,8 +123,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
         clog << "Change serial: " << omega_change_get_serial(change_ptr)
              << ", kind: " << omega_change_get_kind_as_char(change_ptr)
              << ", offset: " << omega_change_get_offset(change_ptr)
-             << ", length: " << omega_change_get_length(change_ptr)
-             << endl;
+             << ", length: " << omega_change_get_length(change_ptr) << endl;
     }
     clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)

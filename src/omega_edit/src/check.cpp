@@ -14,19 +14,21 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "test_util.h"
-#include <cstdio>
+#include "impl_/change_def.h"
+#include "impl_/internal_fun.h"
+#include "impl_/macros.h"
+#include "impl_/model_def.h"
+#include "impl_/session_def.h"
 
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "USAGE: %s num_bytes outfile\n", argv[0]);
-        return -1;
+int omega_check_model(const omega_session_t *session_ptr) {
+    int64_t expected_offset = 0;
+    for (const auto &segment : session_ptr->model_ptr_->model_segments) {
+        if (expected_offset != segment->computed_offset ||
+            (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
+            print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
+            return -1;
+        }
+        expected_offset += segment->computed_length;
     }
-    auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-                      ")!@#$%^&*(ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσςΤτΥυΦφΧχΨψΩω";
-    auto const fill_length = static_cast<int64_t>(strlen(fill));
-    auto const file_name = argv[2];
-    auto test_infile_ptr = fill_file(file_name, std::strtoll(argv[1], 0, 10), fill, fill_length);
-    fclose(test_infile_ptr);
     return 0;
 }

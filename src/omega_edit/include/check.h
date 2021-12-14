@@ -14,19 +14,24 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "test_util.h"
-#include <cstdio>
+#ifndef OMEGA_EDIT_CHECK_H
+#define OMEGA_EDIT_CHECK_H
 
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        fprintf(stderr, "USAGE: %s num_bytes outfile\n", argv[0]);
-        return -1;
-    }
-    auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-                      ")!@#$%^&*(ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσςΤτΥυΦφΧχΨψΩω";
-    auto const fill_length = static_cast<int64_t>(strlen(fill));
-    auto const file_name = argv[2];
-    auto test_infile_ptr = fill_file(file_name, std::strtoll(argv[1], 0, 10), fill, fill_length);
-    fclose(test_infile_ptr);
-    return 0;
+#include "fwd_defs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Checks the internal session model for errors
+ * @param session_ptr session whose model to check for errors
+ * @return 0 if the model is error free and non-zero otherwise
+ */
+int omega_check_model(const omega_session_t *session_ptr);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif//OMEGA_EDIT_CHECK_H

@@ -29,10 +29,6 @@ extern "C" {
 #include <stdint.h>
 #endif
 
-/** Callback to implement when pattern matches are found in a session.
- * Return 0 to continue matching and non-zero to stop.*/
-typedef int (*omega_edit_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void *user_data);
-
 /** On session change callback.  This under-defined function will be called when an associated session changes. */
 typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const omega_change_t *);
 
@@ -99,40 +95,6 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
  */
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path);
 
-/**
- * Given a session, find patterns and call the match found callback as patterns are found
- * @param session_ptr session to find the patterns in
- * @param pattern pointer to the pattern to find (as a sequence of bytes)
- * @param cbk the callback to call as patterns are found in the session
- * @param user_data user data to send back into the callback
- * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
- * bytes)
- * @param session_offset start searching at this offset within the session
- * @param session_length search from the starting offset within the session up to this many bytes
- * @return 0 if all needles have been found, or the non-zero return from the user callback
- */
-int omega_edit_search_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
-                            omega_edit_match_found_cbk_t cbk, void *user_data = nullptr, int64_t pattern_length = 0,
-                            int64_t session_offset = 0, int64_t session_length = 0);
-
-/**
- * Given a session, find patterns and call the match found callback as patterns are found
- * @param session_ptr session to find the patterns in
- * @param pattern pointer to the pattern to find (as a C string)
- * @param cbk the callback to call as patterns are found in the session
- * @param user_data user data to send back into the callback
- * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
- * bytes)
- * @param session_offset start searching at this offset within the session
- * @param session_length search from the starting offset within the session up to this many bytes
- * @return 0 if all needles have been found, or the non-zero return from the user callback
- */
-inline int omega_edit_search(const omega_session_t *session_ptr, const char *pattern, omega_edit_match_found_cbk_t cbk,
-                             void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
-                             int64_t session_length = 0) {
-    return omega_edit_search_bytes(session_ptr, (const omega_byte_t *) pattern, cbk, user_data, pattern_length,
-                                   session_offset, session_length);
-}
 
 /**
  * Delete a number of bytes at the given offset
@@ -190,13 +152,6 @@ inline int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset
                                     int64_t length = 0) {
     return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
 }
-
-/**
- * Checks the internal session model for errors
- * @param session_ptr session whose model to check for errors
- * @return 0 if the model is error free and non-zero otherwise
- */
-int omega_edit_check_model(const omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

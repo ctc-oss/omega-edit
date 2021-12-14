@@ -58,6 +58,32 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
  */
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr);
 
+/** Callback to implement for visiting changes in a session.
+ * Return 0 to continue visiting changes and non-zero to stop.*/
+typedef int (*omega_session_change_visitor_cbk_t)(const omega_change_t *, void *);
+
+/**
+ * Visit changes in the given session in chronological order (oldest first), if the callback returns an integer other
+ * than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
+ */
+int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data);
+
+/**
+ * Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer
+ * other than 0, visitation will stop and the return value of the callback will be this function's return value
+ * @param session_ptr session to visit changes in
+ * @param cbk user-provided function to call for each change
+ * @param user_data user-provided data to provide back to the callback
+ * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
+ */
+int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                void *user_data);
+
+
 #ifdef __cplusplus
 }
 #endif
