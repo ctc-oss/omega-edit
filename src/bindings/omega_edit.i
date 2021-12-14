@@ -26,6 +26,7 @@
 #include "../omega_edit/include/string.h"
 #include "../omega_edit/include/visit.h"
 %}
+
 %include <stdint.i>
 %include <std_string.i>
 
