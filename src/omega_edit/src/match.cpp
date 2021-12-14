@@ -61,7 +61,10 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
                 while ((found = string_search(haystack + delta, haystack_length - delta, skip_table_ptr.get(), pattern,
                                               pattern_length))) {
                     delta = found - haystack;
-                    if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) { return rc; }
+                    if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) {
+                        if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
+                        return rc;
+                    }
                     ++delta;
                 }
                 skip = skip_size;
@@ -127,6 +130,7 @@ int omega_match_next(omega_match_context_t *match_context_ptr) {
         const auto found = string_search(haystack, data_segment.length, match_context_ptr->skip_table_ptr,
                                          match_context_ptr->pattern, match_context_ptr->pattern_length);
         if (found) {
+            if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
             match_context_ptr->match_offset = data_segment.offset + (found - haystack);
             return 1;
         }
