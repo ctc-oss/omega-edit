@@ -3019,6 +3019,34 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_omega_match_context_get_length(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_match_context_t *arg1 = (omega_match_context_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int64_t result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_context_get_length.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_context_get_length" "', argument " "1"" of type '" "omega_match_context_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_match_context_t * >(argp1);
+  result = (int64_t)omega_match_context_get_length((omega_match_context_t const *)arg1);
+  jsresult = SWIG_From_long_SS_long(static_cast< long long >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_omega_match_next(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -5360,6 +5388,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_license_get", _wrap_omega_license_g
 SWIGV8_AddStaticFunction(exports_obj, "omega_match_create_context_bytes", _wrap_omega_match_create_context_bytes);
 SWIGV8_AddStaticFunction(exports_obj, "omega_match_create_context", _wrap_omega_match_create_context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_match_context_get_offset", _wrap_omega_match_context_get_offset);
+SWIGV8_AddStaticFunction(exports_obj, "omega_match_context_get_length", _wrap_omega_match_context_get_length);
 SWIGV8_AddStaticFunction(exports_obj, "omega_match_next", _wrap_omega_match_next);
 SWIGV8_AddStaticFunction(exports_obj, "omega_match_destroy_context", _wrap_omega_match_destroy_context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_file_path", _wrap_omega_session_get_file_path);
