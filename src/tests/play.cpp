@@ -19,6 +19,7 @@
  * saved to a file where they can be replayed.
  */
 
+#include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
 #include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
@@ -169,12 +170,12 @@ int main(int /*argc*/, char ** /*argv*/) {
     auto viewport1_ptr = omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk, &view_mode);
     omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr));
     assert(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
-    if (0 != omega_edit_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
+    if (0 != omega_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
     omega_edit_undo_last_change(session_ptr);
     omega_edit_insert_bytes(session_ptr, 0, (const omega_byte_t *) "++++");
     omega_edit_overwrite_bytes(session_ptr, 5, (const omega_byte_t *) "-");
     omega_edit_insert(session_ptr, 0, "++++");
-    if (0 != omega_edit_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
+    if (0 != omega_check_model(session_ptr)) { clog << __LINE__ << " session model has errors\n"; }
     auto viewport2_ptr = omega_edit_create_viewport(session_ptr, 50, 10, vpt_change_cbk, &view_mode);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_edit_insert(session_ptr, 71, "++++", 4);

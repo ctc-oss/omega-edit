@@ -19,19 +19,11 @@
 
 #include "fwd_defs.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Checks the internal session model for errors
  * @param session_ptr session whose model to check for errors
  * @return 0 if the model is error free and non-zero otherwise
  */
 int omega_check_model(const omega_session_t *session_ptr);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif//OMEGA_EDIT_CHECK_H
