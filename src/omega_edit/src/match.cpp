@@ -20,6 +20,7 @@
 #include "impl_/internal_fun.h"
 #include "impl_/search.h"
 #include <cstring>
+#include <memory>
 
 struct omega_match_context_t {
     const skip_table_t *skip_table_ptr;

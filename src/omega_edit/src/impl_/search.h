@@ -16,6 +16,7 @@
 
 #ifndef OMEGA_EDIT_SEARCH_H
 #define OMEGA_EDIT_SEARCH_H
+
 #include "../../include/byte.h"
 #include <cstddef>
 

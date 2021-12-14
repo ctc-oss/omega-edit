@@ -14,35 +14,52 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "../include/change.h"
-#include "impl_/change_def.h"
-#include "impl_/macros.h"
+#ifndef OMEGA_EDIT_VISIT_H
+#define OMEGA_EDIT_VISIT_H
 
-int64_t omega_change_get_offset(const omega_change_t *change_ptr) { return change_ptr->offset; }
+#include "fwd_defs.h"
 
-int64_t omega_change_get_length(const omega_change_t *change_ptr) { return change_ptr->length; }
+#ifdef __cplusplus
+#include <cstddef>
+#include <cstdint>
+extern "C" {
+#endif
 
-int64_t omega_change_get_serial(const omega_change_t *change_ptr) { return change_ptr->serial; }
+/**
+ * Opaque visit change context
+ */
+struct omega_visit_change_context_t;
 
-static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
-    return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
-                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr.get() : change_ptr->data.sm_bytes)
-                   : nullptr;
+/**
+ * Create a change visitor context
+ * @param session_ptr session to visit changes
+ * @param reverse non-zero to reverse the visitation chronology (newest change to oldest change)
+ * @return change visitor context
+ */
+omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse = 0);
+
+/**
+ * Given a change visitor context, find the next change
+ * @param change_context_ptr change visitor context to find the next change in
+ * @return non-zero if a change is found, zero otherwise
+ */
+int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr);
+
+/**
+ * Given a change visitor context, get a pointer to the change
+ * @param change_context_ptr change visitor context to get the change from
+ * @return pointer to the change, or nullptr if no change is found
+ */
+const omega_change_t *omega_visit_change_context_get_change(const omega_visit_change_context_t *change_context_ptr);
+
+/**
+ * Destroy the given change visitor context
+ * @param change_context_ptr change visitor context to destroy
+ */
+void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr);
+
+#ifdef __cplusplus
 }
+#endif
 
-const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) { return change_bytes_(change_ptr); }
-
-char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
-    switch (change_ptr->kind) {
-        case change_kind_t::CHANGE_DELETE:
-            return 'D';
-        case change_kind_t::CHANGE_INSERT:
-            return 'I';
-        case change_kind_t::CHANGE_OVERWRITE:
-            return 'O';
-        default:
-            ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
-    }
-}
-
-int omega_change_is_undone(const omega_change_t *change_ptr) { return (0 < change_ptr->serial) ? 0 : 1; }
+#endif//OMEGA_EDIT_VISIT_H

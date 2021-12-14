@@ -21,11 +21,9 @@
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
-#include <cstddef>
 #include <cstdint>
 extern "C" {
 #else
-#include <stddef.h>
 #include <stdint.h>
 #endif
 
@@ -42,7 +40,7 @@ struct omega_match_context_t;
 * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
- * @return match_context
+ * @return match context
  */
 omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                         int64_t pattern_length = 0, int64_t session_offset = 0,
@@ -56,7 +54,7 @@ omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *s
 * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
- * @return match_context
+ * @return match context
  */
 inline omega_match_context_t *omega_match_create_context(const omega_session_t *session_ptr, const char *pattern,
                                                          int64_t pattern_length = 0, int64_t session_offset = 0,

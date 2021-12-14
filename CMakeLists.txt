@@ -21,6 +21,8 @@ set(SOURCE_FILES
         src/omega_edit/include/string.h
         src/omega_edit/include/change.h src/omega_edit/src/change.cpp src/omega_edit/src/impl_/change_def.h
         src/omega_edit/include/edit.h src/omega_edit/src/edit.cpp
+        src/omega_edit/include/match.h src/omega_edit/src/match.cpp
+        src/omega_edit/include/visit.h src/omega_edit/src/visit.cpp
         src/omega_edit/include/session.h src/omega_edit/src/session.cpp src/omega_edit/src/impl_/session_def.h
         src/omega_edit/include/viewport.h src/omega_edit/src/viewport.cpp src/omega_edit/src/impl_/viewport_def.h
         src/omega_edit/include/license.h src/omega_edit/src/license.c
@@ -31,7 +33,7 @@ set(SOURCE_FILES
         src/omega_edit/src/impl_/data_def.h src/omega_edit/src/impl_/data_segment_def.h
         src/omega_edit/src/impl_/model_def.h src/omega_edit/src/impl_/model_segment_def.h
         src/omega_edit/src/impl_/macros.h
-        src/omega_edit/src/impl_/internal_fwd_defs.h src/omega_edit/include/match.h src/omega_edit/src/match.cpp)
+        src/omega_edit/src/impl_/internal_fwd_defs.h)
 
 # Create the library archive for static linking
 add_library(omega_edit STATIC ${SOURCE_FILES})
