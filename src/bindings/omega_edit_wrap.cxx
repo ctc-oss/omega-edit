@@ -1608,7 +1608,7 @@ static swig_module_info swig_module = {swig_types, 23, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h" int (*)(long long int, long long int, void *) nullptr 0 0 0 int (*)(long long int, long long int, void *)
+#include "../omega_edit/omega_edit.h"
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/match.h"
 #include "../omega_edit/include/string.h"
