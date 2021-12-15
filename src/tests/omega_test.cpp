@@ -18,10 +18,8 @@
 
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
-#include "../omega_edit/include/match.h"
 #include "../omega_edit/include/stl_string_adaptor.hpp"
 #include "../omega_edit/include/utility.h"
-#include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
 #include "catch.hpp"
 #include "test_util.h"
@@ -486,12 +484,11 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 2);
     REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 16, reinterpret_cast<const omega_byte_t *>(needle)));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     needles_found = 0;
     REQUIRE(0 == omega_match(session_ptr, needle, pattern_found_cbk, &needles_found));
     REQUIRE(needles_found == 2);
     needles_found = 0;
-    REQUIRE(0 == omega_match(session_ptr, needle, pattern_found_cbk, &needles_found, 0, 0, 0, 1));
+    REQUIRE(0 == omega_match_string(session_ptr, needle, pattern_found_cbk, &needles_found, 0, 0, 1));
     REQUIRE(needles_found == 6);
     match_context = omega_match_create_context(session_ptr, needle);
     REQUIRE(match_context);
@@ -510,6 +507,22 @@ TEST_CASE("Search", "[SearchTests]") {
     }
     REQUIRE(needles_found == 6);
     omega_match_destroy_context(match_context);
+    // Demonstrate how to do a case-insensitive search and replace (with a larger replacement)
+    match_context = omega_match_create_context_string(session_ptr, "needle", 0, 0, 1);
+    REQUIRE(match_context);
+    needles_found = 0;
+    while (omega_match_next(match_context)) {
+        auto pattern_offset = omega_match_context_get_offset(match_context);
+        auto pattern_length = omega_match_context_get_length(match_context);
+        // Remove the search pattern
+        omega_edit_delete(session_ptr, pattern_offset, pattern_length);
+        // Insert the replacement string
+        omega_edit_insert_string(session_ptr, pattern_offset, "Needles");
+        ++needles_found;
+    }
+    REQUIRE(needles_found == 6);
+    omega_match_destroy_context(match_context);
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat") == 0);
 }

@@ -28,7 +28,9 @@
 #include "include/change.h"
 #include "include/edit.h"
 #include "include/license.h"
+#include "include/match.h"
 #include "include/session.h"
 #include "include/viewport.h"
+#include "include/visit.h"
 
 #endif//OMEGA_OMEGA_EDIT_H

@@ -21,7 +21,6 @@
 
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
-#include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
 #include <cassert>
 #include <cinttypes>

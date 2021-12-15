@@ -21,6 +21,7 @@
 
 #include "change.h"
 #include "edit.h"
+#include "match.h"
 #include "viewport.h"
 #include <string>
 
@@ -67,6 +68,40 @@ inline int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t of
  */
 inline int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset, const std::string &str) {
     return omega_edit_overwrite(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
+}
+
+/**
+ * Given a session, find patterns and call the match found callback as patterns are found
+ * @param session_ptr session to find the patterns in
+ * @param pattern pattern string to find
+ * @param cbk the callback to call as patterns are found in the session
+ * @param user_data user data to send back into the callback
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
+ * @return 0 if all needles have been found, or the non-zero return from the user callback
+ */
+inline int omega_match_string(const omega_session_t *session_ptr, const std::string &pattern,
+                              omega_match_found_cbk_t cbk, void *user_data = nullptr, int64_t session_offset = 0,
+                              int64_t session_length = 0, int case_insensitive = 0) {
+    return omega_match(session_ptr, pattern.c_str(), cbk, user_data, static_cast<int64_t>(pattern.length()),
+                       session_offset, session_length, case_insensitive);
+}
+
+/**
+ * Create a match context
+ * @param session_ptr session to find patterns in
+ * @param pattern pattern string to find
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
+ * @return match context
+ */
+inline omega_match_context_t *omega_match_create_context_string(const omega_session_t *session_ptr,
+                                                                const std::string &pattern, int64_t session_offset = 0,
+                                                                int64_t session_length = 0, int case_insensitive = 0) {
+    return omega_match_create_context(session_ptr, pattern.c_str(), static_cast<int64_t>(pattern.length()),
+                                      session_offset, session_length, case_insensitive);
 }
 
 #endif//__cplusplus
