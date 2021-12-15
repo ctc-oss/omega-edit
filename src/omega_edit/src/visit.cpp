@@ -18,6 +18,24 @@
 #include "impl_/model_def.h"
 #include "impl_/session_def.h"
 
+int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
+    int rc = 0;
+    for (const auto &iter : session_ptr->model_ptr_->changes) {
+        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
+    }
+    return rc;
+}
+
+int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                void *user_data) {
+    int rc = 0;
+    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
+         ++iter) {
+        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
+    }
+    return rc;
+}
+
 struct omega_visit_change_context_t {
     const omega_session_t *session_ptr{};
     const omega_change_t *change_ptr{};
@@ -80,22 +98,4 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
     delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
     delete change_context_ptr;
-}
-
-int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
-    int rc = 0;
-    for (const auto &iter : session_ptr->model_ptr_->changes) {
-        if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
-    }
-    return rc;
-}
-
-int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
-                                void *user_data) {
-    int rc = 0;
-    for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
-         ++iter) {
-        if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
-    }
-    return rc;
 }
