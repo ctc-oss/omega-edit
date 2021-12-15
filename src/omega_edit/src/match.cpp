@@ -19,7 +19,6 @@
 #include "../include/utility.h"
 #include "impl_/data_segment_def.hpp"
 #include "impl_/internal_fun.hpp"
-#include "impl_/macros.hpp"
 #include "impl_/search.h"
 #include <cctype>
 #include <cstring>
@@ -62,7 +61,6 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
                     (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity + 1) : nullptr;
             const auto skip_size = 1 + data_segment.capacity - pattern_length;
             int64_t skip = 0;
-            CLOG << LOCATION << " pattern: " << pattern_data_ptr << std::endl;
             const auto skip_table_ptr = deleted_unique_const_ptr<omega_search_skip_table_t>(
                     omega_search_create_skip_table(pattern_data_ptr, pattern_length), omega_search_destroy_skip_table);
             do {
