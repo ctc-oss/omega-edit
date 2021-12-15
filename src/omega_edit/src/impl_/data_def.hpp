@@ -14,27 +14,29 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_SESSION_DEF_H
-#define OMEGA_EDIT_SESSION_DEF_H
+#ifndef OMEGA_EDIT_DATA_DEF_HPP
+#define OMEGA_EDIT_DATA_DEF_HPP
 
-#include "../../include/edit.h"
-#include "../../include/session.h"
-#include "internal_fwd_defs.h"
-#include <cstdio>
-#include <string>
-#include <vector>
+#include "../../include/byte.h"
+#include <memory>
 
-typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
-typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
-typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
+typedef std::unique_ptr<omega_byte_t[]> data_ptr_t;
 
-struct omega_session_t {
-    FILE *file_ptr{};                             ///< File being edited (open for read)
-    std::string file_path;                        ///< File path being edited
-    omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
-    void *user_data_ptr{};                        ///< Pointer to associated user-provided data
-    omega_viewports_t viewports_{};               ///< Collection of viewports in this session
-    omega_model_ptr_t model_ptr_{};               ///< Edit model (internal)
+/**
+ * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
+ * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
+ * whose address will be stored in the bytes field.
+ */
+union omega_data_t {
+    data_ptr_t bytes_ptr{};  ///< Hold bytes of length greater than 7
+    omega_byte_t sm_bytes[8];///< Hold bytes of length less than 8
+    ~omega_data_t(){};       // NOLINT This destructor is required, but don't use =default
 };
 
-#endif//OMEGA_EDIT_SESSION_DEF_H
+static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+
+inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
+    return (capacity < sizeof(omega_data_t)) ? data_ptr->sm_bytes : data_ptr->bytes_ptr.get();
+}
+
+#endif//OMEGA_EDIT_DATA_DEF_HPP

@@ -19,12 +19,12 @@
 #include <cstring>
 #include <vector>
 
-struct skip_table_t : public std::vector<size_t> {
-    skip_table_t(size_t vec_size, size_t fill) : std::vector<size_t>(vec_size, fill) {}
+struct omega_search_skip_table_t : public std::vector<size_t> {
+    omega_search_skip_table_t(size_t vec_size, size_t fill) : std::vector<size_t>(vec_size, fill) {}
 };
 
-const skip_table_t *create_skip_table(const unsigned char *needle, size_t needle_length) {
-    auto skip_table_ptr = new skip_table_t(UCHAR_MAX + 1, needle_length);
+const omega_search_skip_table_t *omega_search_create_skip_table(const unsigned char *needle, size_t needle_length) {
+    auto skip_table_ptr = new omega_search_skip_table_t(UCHAR_MAX + 1, needle_length);
     if (needle_length >= 1) {
         const auto needle_length_minus_1 = needle_length - 1;
         for (size_t i = 0; i < needle_length_minus_1; ++i) { (*skip_table_ptr)[needle[i]] = needle_length_minus_1 - i; }
@@ -35,9 +35,9 @@ const skip_table_t *create_skip_table(const unsigned char *needle, size_t needle
 /*
  * Boyer-Moore-Horspool with additional tuning (https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.14.7176)
  */
-const unsigned char *string_search(const unsigned char *haystack, size_t haystack_length,
-                                   const skip_table_t *skip_table_ptr, const unsigned char *needle,
-                                   size_t needle_length) {
+const unsigned char *omega_search(const unsigned char *haystack, size_t haystack_length,
+                                  const omega_search_skip_table_t *skip_table_ptr, const unsigned char *needle,
+                                  size_t needle_length) {
     if (needle_length > haystack_length) { return nullptr; }
     if (needle_length == 1) {
         auto *result = (const unsigned char *) std::memchr(haystack, *needle, haystack_length);
@@ -56,4 +56,4 @@ const unsigned char *string_search(const unsigned char *haystack, size_t haystac
     return nullptr;
 }
 
-void destroy_skip_table(const skip_table_t *skip_table_ptr) { delete skip_table_ptr; }
+void omega_search_destroy_skip_table(const omega_search_skip_table_t *skip_table_ptr) { delete skip_table_ptr; }

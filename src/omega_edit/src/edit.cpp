@@ -17,13 +17,13 @@
 #include "../include/edit.h"
 #include "../include/change.h"
 #include "../include/session.h"
-#include "impl_/change_def.h"
-#include "impl_/internal_fun.h"
-#include "impl_/macros.h"
-#include "impl_/model_def.h"
-#include "impl_/model_segment_def.h"
-#include "impl_/session_def.h"
-#include "impl_/viewport_def.h"
+#include "impl_/change_def.hpp"
+#include "impl_/internal_fun.hpp"
+#include "impl_/macros.hpp"
+#include "impl_/model_def.hpp"
+#include "impl_/model_segment_def.hpp"
+#include "impl_/session_def.hpp"
+#include "impl_/viewport_def.hpp"
 #include <cassert>
 #include <memory>
 
@@ -43,7 +43,7 @@ static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64
     return byte_count - remaining;
 }
 
-static void initialize_model_segments_(model_segments_t &model_segments, int64_t length) {
+static void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) {
     model_segments.clear();
     if (0 < length) {
         // Model begins with a single READ segment spanning the original file
@@ -52,7 +52,7 @@ static void initialize_model_segments_(model_segments_t &model_segments, int64_t
         change_ptr->kind = change_kind_t::CHANGE_INSERT;
         change_ptr->offset = 0;
         change_ptr->length = length;
-        auto read_segment_ptr = std::make_unique<model_segment_t>();
+        auto read_segment_ptr = std::make_unique<omega_model_segment_t>();
         read_segment_ptr->change_ptr = change_ptr;
         read_segment_ptr->computed_offset = 0;
         read_segment_ptr->change_offset = read_segment_ptr->change_ptr->offset;
@@ -128,14 +128,14 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-            viewport_callback_(viewport_ptr.get(), change_ptr);
+            omega_viewport_execute_callback(viewport_ptr.get(), change_ptr);
         }
     }
     return 0;
 }
 
-static model_segment_ptr_t clone_model_segment_(const model_segment_ptr_t &segment_ptr) {
-    auto result = std::make_unique<model_segment_t>();
+static omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_ptr_t &segment_ptr) {
+    auto result = std::make_unique<omega_model_segment_t>();
     result->computed_offset = segment_ptr->computed_offset;
     result->computed_length = segment_ptr->computed_length;
     result->change_offset = segment_ptr->change_offset;
@@ -154,7 +154,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
 
     if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
         // The model is empty, and we have a change with content
-        auto insert_segment_ptr = std::make_unique<model_segment_t>();
+        auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
         insert_segment_ptr->computed_offset = change_ptr->offset;
         insert_segment_ptr->computed_length = change_ptr->length;
         insert_segment_ptr->change_offset = 0;
@@ -214,7 +214,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                 }
                 case change_kind_t::CHANGE_OVERWRITE:// deliberate fall-through
                 case change_kind_t::CHANGE_INSERT: {
-                    auto insert_segment_ptr = std::make_unique<model_segment_t>();
+                    auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
                     insert_segment_ptr->computed_offset = change_ptr->offset;
                     insert_segment_ptr->computed_length = change_ptr->length;
                     insert_segment_ptr->change_offset = 0;
@@ -311,7 +311,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         session_ptr->viewports_.push_back(viewport_ptr);
-        viewport_callback_(viewport_ptr.get(), nullptr);
+        omega_viewport_execute_callback(viewport_ptr.get(), nullptr);
         return viewport_ptr.get();
     }
     return nullptr;
@@ -362,7 +362,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                 ABORT(CLOG << LOCATION << " break in model continuity, expected: " << write_offset
                            << ", got: " << segment->computed_offset << std::endl;);
             }
-            switch (get_model_segment_kind_(segment.get())) {
+            switch (omega_model_segment_get_kind(segment.get())) {
                 case model_segment_kind_t::SEGMENT_READ: {
                     if (!session_ptr->file_ptr) {
                         ABORT(CLOG << LOCATION << " attempt to read segment from null file pointer" << std::endl;);

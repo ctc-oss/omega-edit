@@ -40,6 +40,10 @@ int omega_util_file_exists(const char *file_name) {
     return 0;
 }
 
+void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform) {
+    for (int64_t i = 0; i < len; ++i) { buffer[i] = transform(buffer[i]); }
+}
+
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
     if (shift_left > 0 && shift_left < 8) {
         omega_byte_t shift_right = 8 - shift_left;

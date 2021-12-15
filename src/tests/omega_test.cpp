@@ -19,7 +19,7 @@
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
 #include "../omega_edit/include/match.h"
-#include "../omega_edit/include/stl_string_adaptor.h"
+#include "../omega_edit/include/stl_string_adaptor.hpp"
 #include "../omega_edit/include/utility.h"
 #include "../omega_edit/include/visit.h"
 #include "../omega_edit/omega_edit.h"
@@ -89,6 +89,21 @@ TEST_CASE("File Compare", "[UtilTests]") {
         // Different files with different contents
         REQUIRE(compare_files("data/test1.dat", "data/test2.dat") == 1);
     }
+}
+
+static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
+static inline omega_byte_t to_upper(omega_byte_t byte) { return toupper(byte); }
+
+TEST_CASE("Transformer", "[TransformerTest]") {
+    omega_byte_t bytes[32];
+    strcpy(reinterpret_cast<char *>(bytes), "Hello World!");
+    const auto bytes_length = static_cast<int64_t>(strlen(reinterpret_cast<const char *>(bytes)));
+    omega_util_byte_transformer(bytes, bytes_length, to_upper);
+    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "HELLO WORLD!");
+    omega_util_byte_transformer(bytes, bytes_length, to_lower);
+    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "hello world!");
+    omega_util_byte_transformer(bytes, 1, to_upper);
+    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "Hello world!");
 }
 
 TEST_CASE("Encoding", "[EncodingTest]") {
@@ -285,8 +300,8 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     omega_edit_destroy_session(session_ptr);
 }
 
-int change_visitor_cbk (const omega_change_t * change_ptr, void *user_data) {
-    auto * string_ptr = reinterpret_cast<string *>(user_data);
+int change_visitor_cbk(const omega_change_t *change_ptr, void *user_data) {
+    auto *string_ptr = reinterpret_cast<string *>(user_data);
     *string_ptr += omega_change_get_kind_as_char(change_ptr);
     return 0;
 }
@@ -417,13 +432,24 @@ TEST_CASE("Search", "[SearchTests]") {
     view_mode_t view_mode;
     view_mode.display_mode = CHAR_MODE;
     omega_edit_create_viewport(session_ptr, 0, 1024, vpt_change_cbk, &view_mode);
-    auto needle = "needle";
-    auto needle_length = strlen(needle);
     int needles_found = 0;
-    REQUIRE(0 ==
-            omega_match_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found, needle_length));
+    auto needle = "NeEdLe";
+    auto needle_length = strlen(needle);
+    REQUIRE(0 == omega_match_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found));
+    REQUIRE(needles_found == 0);
+    REQUIRE(0 == omega_match_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found,
+                                   needle_length, 0, 0, 1));
     REQUIRE(needles_found == 5);
     auto match_context = omega_match_create_context(session_ptr, needle);
+    REQUIRE(match_context);
+    needles_found = 0;
+    while (omega_match_next(match_context)) {
+        pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
+                          &needles_found);
+    }
+    omega_match_destroy_context(match_context);
+    REQUIRE(needles_found == 0);
+    match_context = omega_match_create_context(session_ptr, needle, 0, 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
     while (omega_match_next(match_context)) {
@@ -463,8 +489,19 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     needles_found = 0;
     REQUIRE(0 == omega_match(session_ptr, needle, pattern_found_cbk, &needles_found));
+    REQUIRE(needles_found == 2);
+    needles_found = 0;
+    REQUIRE(0 == omega_match(session_ptr, needle, pattern_found_cbk, &needles_found, 0, 0, 0, 1));
     REQUIRE(needles_found == 6);
     match_context = omega_match_create_context(session_ptr, needle);
+    REQUIRE(match_context);
+    needles_found = 0;
+    while (omega_match_next(match_context)) {
+        pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
+                          &needles_found);
+    }
+    REQUIRE(needles_found == 2);
+    match_context = omega_match_create_context(session_ptr, needle, 0, 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
     while (omega_match_next(match_context)) {

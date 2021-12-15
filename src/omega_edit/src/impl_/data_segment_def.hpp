@@ -14,17 +14,25 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_VIEWPORT_DEF_H
-#define OMEGA_EDIT_VIEWPORT_DEF_H
+#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
+#define OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
 
-#include "../../include/viewport.h"
-#include "data_segment_def.h"
+#include "data_def.hpp"
+#include <cstdint>
+#include <cstdlib>
 
-struct omega_viewport_t {
-    omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
-    data_segment_t data_segment{};                 ///< Viewport data
-    omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
-    void *user_data_ptr{};                         ///< Pointer to associated user-provided data
+/**
+ * A segment of data
+ */
+struct omega_data_segment_t {
+    int64_t offset{};   ///< Data offset as changes have been made
+    int64_t length{};   ///< Populated data length (in bytes)
+    int64_t capacity{}; ///< Data capacity (in bytes)
+    omega_data_t data{};///< Copy of the data itself
 };
 
-#endif//OMEGA_EDIT_VIEWPORT_DEF_H
+inline omega_byte_t *omega_data_segment_get_data(omega_data_segment_t *data_segment_ptr) {
+    return omega_data_get_data(&data_segment_ptr->data, std::abs(data_segment_ptr->capacity));
+}
+
+#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_HPP

@@ -18,9 +18,9 @@
 #include "../include/edit.h"
 #include "../include/session.h"
 #include "../include/utility.h"
-#include "impl_/internal_fun.h"
-#include "impl_/session_def.h"
-#include "impl_/viewport_def.h"
+#include "impl_/internal_fun.hpp"
+#include "impl_/session_def.hpp"
+#include "impl_/viewport_def.hpp"
 #include <cassert>
 #include <cstdlib>
 #include <memory>
@@ -58,7 +58,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr =
                     (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity + 1) : nullptr;
-            viewport_callback_(viewport_ptr, nullptr);
+            omega_viewport_execute_callback(viewport_ptr, nullptr);
         }
         return 0;
     }
@@ -73,7 +73,7 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
         if (populate_data_segment_(viewport_ptr->session_ptr, &mut_viewport_ptr->data_segment) != 0) { return nullptr; }
         assert(omega_viewport_get_length(viewport_ptr) == viewport_ptr->data_segment.length);
     }
-    return get_data_segment_data_(&mut_viewport_ptr->data_segment);
+    return omega_data_segment_get_data(&mut_viewport_ptr->data_segment);
 }
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {

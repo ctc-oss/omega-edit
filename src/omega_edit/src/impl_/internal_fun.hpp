@@ -14,29 +14,18 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_MACROS_H
-#define OMEGA_EDIT_MACROS_H
+#ifndef OMEGA_EDIT_INTERNAL_FUN_HPP
+#define OMEGA_EDIT_INTERNAL_FUN_HPP
 
-#include "../../include/config.h"
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
+#include "../../include/byte.h"
+#include "../../include/fwd_defs.h"
+#include "internal_fwd_defs.hpp"
+#include <iosfwd>
 
-#define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
-#define ABORT(x)                                                                                                       \
-    do { x abort(); } while (0)
+// Data segment functions
+int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr);
 
-#ifndef CLOG
-#define CLOG std::clog
-#endif//CLOG
+// Model segment functions
+void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream);
 
-#define DEBUG
-#ifdef DEBUG
-#define DBG(x)                                                                                                         \
-    do { x } while (0)
-#else//DEBUG
-#define DBG(x)
-#endif//DEBUG
-
-#endif//OMEGA_EDIT_MACROS_H
+#endif//OMEGA_EDIT_INTERNAL_FUN_HPP

@@ -14,20 +14,27 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_H
-#define OMEGA_EDIT_DATA_SEGMENT_DEF_H
+#ifndef OMEGA_EDIT_SESSION_DEF_HPP
+#define OMEGA_EDIT_SESSION_DEF_HPP
 
-#include "data_def.h"
-#include <cstdint>
+#include "../../include/edit.h"
+#include "../../include/session.h"
+#include "internal_fwd_defs.hpp"
+#include <cstdio>
+#include <string>
+#include <vector>
 
-/**
- * A segment of data
- */
-struct data_segment_t {
-    int64_t offset{};  ///< Data offset as changes have been made
-    int64_t length{};  ///< Populated data length (in bytes)
-    int64_t capacity{};///< Data capacity (in bytes)
-    data_t data{};     ///< Copy of the data itself
+typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
+typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
+typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
+
+struct omega_session_t {
+    FILE *file_ptr{};                             ///< File being edited (open for read)
+    std::string file_path;                        ///< File path being edited
+    omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
+    void *user_data_ptr{};                        ///< Pointer to associated user-provided data
+    omega_viewports_t viewports_{};               ///< Collection of viewports in this session
+    omega_model_ptr_t model_ptr_{};               ///< Edit model (internal)
 };
 
-#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_H
+#endif//OMEGA_EDIT_SESSION_DEF_HPP

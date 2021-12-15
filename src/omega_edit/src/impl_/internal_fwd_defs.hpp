@@ -14,19 +14,16 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_INTERNAL_FWD_DEFS_H
-#define OMEGA_EDIT_INTERNAL_FWD_DEFS_H
+#ifndef OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
+#define OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
 
 #include "../../include/fwd_defs.h"
 #include <memory>
-#include <vector>
 
 struct omega_model_t;
-struct data_segment_t;
-struct model_segment_t;
-
-enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
+struct omega_data_segment_t;
+struct omega_model_segment_t;
 
 typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
 
-#endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_H
+#endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP

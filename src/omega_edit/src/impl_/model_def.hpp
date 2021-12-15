@@ -14,20 +14,22 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_CHANGE_DEF_H
-#define OMEGA_EDIT_CHANGE_DEF_H
+#ifndef OMEGA_EDIT_MODEL_DEF_HPP
+#define OMEGA_EDIT_MODEL_DEF_HPP
 
-#include "data_def.h"
-#include <cstdint>
+#include "internal_fwd_defs.hpp"
+#include "model_segment_def.hpp"
+#include <memory>
+#include <vector>
 
-enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
+typedef std::unique_ptr<omega_model_segment_t> omega_model_segment_ptr_t;
+typedef std::vector<omega_model_segment_ptr_t> omega_model_segments_t;
+typedef std::vector<const_omega_change_ptr_t> omega_changes_t;
 
-struct omega_change_t {
-    int64_t serial{};    ///< Serial number of the change (increasing)
-    change_kind_t kind{};///< Change kind
-    int64_t offset{};    ///< Offset at the time of the change
-    int64_t length{};    ///< Number of bytes at the time of the change
-    data_t data{};       ///< Bytes to insert or overwrite
+struct omega_model_t {
+    omega_changes_t changes{};              ///< Collection of changes for this session, ordered by time
+    omega_changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
+    omega_model_segments_t model_segments{};///< Model segment vector
 };
 
-#endif//OMEGA_EDIT_CHANGE_DEF_H
+#endif//OMEGA_EDIT_MODEL_DEF_HPP

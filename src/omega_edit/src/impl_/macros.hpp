@@ -14,22 +14,29 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_MODEL_DEF_H
-#define OMEGA_EDIT_MODEL_DEF_H
+#ifndef OMEGA_EDIT_MACROS_HPP
+#define OMEGA_EDIT_MACROS_HPP
 
-#include "internal_fwd_defs.h"
-#include "model_segment_def.h"
-#include <memory>
-#include <vector>
+#include "../../include/config.h"
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
-typedef std::unique_ptr<model_segment_t> model_segment_ptr_t;
-typedef std::vector<model_segment_ptr_t> model_segments_t;
-typedef std::vector<const_omega_change_ptr_t> changes_t;
+#define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
+#define ABORT(x)                                                                                                       \
+    do { x abort(); } while (0)
 
-struct omega_model_t {
-    changes_t changes{};              ///< Collection of changes for this session, ordered by time
-    changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
-    model_segments_t model_segments{};///< Model segment vector
-};
+#ifndef CLOG
+#define CLOG std::clog
+#endif//CLOG
 
-#endif//OMEGA_EDIT_MODEL_DEF_H
+#define DEBUG
+#ifdef DEBUG
+#define DBG(x)                                                                                                         \
+    do { x } while (0)
+#else//DEBUG
+#define DBG(x)
+#endif//DEBUG
+
+#endif//OMEGA_EDIT_MACROS_HPP

@@ -14,11 +14,12 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "impl_/change_def.h"
-#include "impl_/internal_fun.h"
-#include "impl_/macros.h"
-#include "impl_/model_def.h"
-#include "impl_/session_def.h"
+#include "../include/check.h"
+#include "impl_/change_def.hpp"
+#include "impl_/internal_fun.hpp"
+#include "impl_/macros.hpp"
+#include "impl_/model_def.hpp"
+#include "impl_/session_def.hpp"
 
 int omega_check_model(const omega_session_t *session_ptr) {
     int64_t expected_offset = 0;
