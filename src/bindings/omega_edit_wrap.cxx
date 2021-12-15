@@ -1611,7 +1611,7 @@ static swig_module_info swig_module = {swig_types, 23, 0, 0, 0, 0};
 #include "../omega_edit/omega_edit.h"
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/match.h"
-#include "../omega_edit/include/string.h"
+#include "../omega_edit/include/stl_string_adaptor.h"
 #include "../omega_edit/include/visit.h"
 
 

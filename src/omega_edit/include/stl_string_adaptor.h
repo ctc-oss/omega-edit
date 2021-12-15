@@ -14,8 +14,8 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_STRING_H
-#define OMEGA_EDIT_STRING_H
+#ifndef OMEGA_EDIT_STL_STRING_ADAPTOR_H
+#define OMEGA_EDIT_STL_STRING_ADAPTOR_H
 
 #ifdef __cplusplus
 
@@ -71,4 +71,4 @@ inline int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t
 
 #endif//__cplusplus
 
-#endif//OMEGA_EDIT_STRING_H
+#endif//OMEGA_EDIT_STL_STRING_ADAPTOR_H

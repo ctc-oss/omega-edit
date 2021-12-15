@@ -26,8 +26,8 @@
 #endif
 
 const char *omega_util_get_current_dir() {
-    static char buff[FILENAME_MAX]; //create string buffer to hold path
-    GetCurrentDir_(buff, FILENAME_MAX );
+    static char buff[FILENAME_MAX];//create string buffer to hold path
+    GetCurrentDir_(buff, FILENAME_MAX);
     return buff;
 }
 
