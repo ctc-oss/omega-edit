@@ -32,6 +32,17 @@
 
 using namespace std;
 
+TEST_CASE("Size Tests", "[SizeTests]") {
+    REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
+    REQUIRE(4 == sizeof(int));
+    REQUIRE(8 == sizeof(long));
+    REQUIRE(8 == sizeof(int64_t));//explicit 8-bytes
+    REQUIRE(8 == sizeof(double));
+    REQUIRE(8 == sizeof(long long));
+    REQUIRE(8 == sizeof(size_t));//for 64-bit builds
+    REQUIRE(8 == sizeof(void *));//for 64-bit builds
+}
+
 TEST_CASE("License check", "[LicenseCheck]") {
     const auto license = omega_license_get();
     REQUIRE(license);
@@ -274,6 +285,12 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+int change_visitor_cbk (const omega_change_t * change_ptr, void *user_data) {
+    auto * string_ptr = reinterpret_cast<string *>(user_data);
+    *string_ptr += omega_change_get_kind_as_char(change_ptr);
+    return 0;
+}
+
 TEST_CASE("Check initialization", "[InitTests]") {
     omega_session_t *session_ptr;
     file_info_t file_info;
@@ -313,23 +330,29 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(7 == omega_session_get_num_changes(session_ptr));
             auto visit_change_context = omega_visit_change_create_context(session_ptr);
             REQUIRE(visit_change_context);
+            string forward_change_sequence;
+            while (omega_visit_change_next(visit_change_context)) {
+                change_ptr = omega_visit_change_context_get_change(visit_change_context);
+                forward_change_sequence += omega_change_get_kind_as_char(change_ptr);
+            }
+            omega_visit_change_destroy_context(visit_change_context);
+            REQUIRE(forward_change_sequence == "IOIOOID");
+            visit_change_context = omega_visit_change_create_context(session_ptr, 1);
+            REQUIRE(visit_change_context);
+            auto reverse_change_sequence = forward_change_sequence;
+            std::reverse(reverse_change_sequence.begin(), reverse_change_sequence.end());
             string change_sequence;
             while (omega_visit_change_next(visit_change_context)) {
                 change_ptr = omega_visit_change_context_get_change(visit_change_context);
                 change_sequence += omega_change_get_kind_as_char(change_ptr);
             }
             omega_visit_change_destroy_context(visit_change_context);
-            REQUIRE(change_sequence == "IOIOOID");
-            visit_change_context = omega_visit_change_create_context(session_ptr, 1);
-            REQUIRE(visit_change_context);
-            auto reverse_change_sequence = change_sequence;
-            std::reverse(reverse_change_sequence.begin(), reverse_change_sequence.end());
+            REQUIRE(change_sequence == reverse_change_sequence);
             change_sequence = "";
-            while (omega_visit_change_next(visit_change_context)) {
-                change_ptr = omega_visit_change_context_get_change(visit_change_context);
-                change_sequence += omega_change_get_kind_as_char(change_ptr);
-            }
-            omega_visit_change_destroy_context(visit_change_context);
+            omega_visit_changes(session_ptr, change_visitor_cbk, &change_sequence);
+            REQUIRE(change_sequence == forward_change_sequence);
+            change_sequence = "";
+            omega_visit_changes_reverse(session_ptr, change_visitor_cbk, &change_sequence);
             REQUIRE(change_sequence == reverse_change_sequence);
             REQUIRE(omega_session_get_computed_file_size(session_ptr) == 66);
             auto num_changes_before_undo = omega_session_get_num_changes(session_ptr);
