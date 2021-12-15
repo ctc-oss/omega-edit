@@ -14,23 +14,34 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_DEF_H
-#define OMEGA_EDIT_DATA_DEF_H
+#ifndef OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
+#define OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
 
-#include "../../include/byte.h"
-#include <memory>
+#include "../../include/change.h"
+#include "internal_fwd_defs.hpp"
 
-typedef std::unique_ptr<omega_byte_t[]> data_ptr_t;
+enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
 
-/**
- * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
- * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
- * whose address will be stored in the bytes field.
- */
-union data_t {
-    data_ptr_t bytes_ptr{};  ///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[8];///< Hold bytes of length less than 8
-    ~data_t(){};             // NOLINT This destructor is required, but don't use =default
+struct omega_model_segment_t {
+    int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
+    int64_t computed_length{};            ///< Computed length can differ from the change as segments split
+    int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
+    const_omega_change_ptr_t change_ptr{};///< Reference to parent change
 };
 
-#endif//OMEGA_EDIT_DATA_DEF_H
+inline model_segment_kind_t omega_model_segment_get_kind(const omega_model_segment_t *model_segment_ptr) {
+    return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get())) ? model_segment_kind_t::SEGMENT_READ
+                                                                               : model_segment_kind_t::SEGMENT_INSERT;
+}
+
+inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_kind) {
+    switch (segment_kind) {
+        case model_segment_kind_t::SEGMENT_READ:
+            return 'R';
+        case model_segment_kind_t::SEGMENT_INSERT:
+            return 'I';
+    }
+    return '?';
+}
+
+#endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP

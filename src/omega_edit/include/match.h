@@ -41,11 +41,12 @@ typedef int (*omega_match_found_cbk_t)(int64_t match_offset, int64_t match_lengt
  * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return 0 if all needles have been found, or the non-zero return from the user callback
  */
 int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern, omega_match_found_cbk_t cbk,
                       void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
-                      int64_t session_length = 0);
+                      int64_t session_length = 0, int case_insensitive = 0);
 
 /**
  * Given a session, find patterns and call the match found callback as patterns are found
@@ -57,13 +58,14 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
  * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return 0 if all needles have been found, or the non-zero return from the user callback
  */
 inline int omega_match(const omega_session_t *session_ptr, const char *pattern, omega_match_found_cbk_t cbk,
                        void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
-                       int64_t session_length = 0) {
+                       int64_t session_length = 0, int case_insensitive = 0) {
     return omega_match_bytes(session_ptr, (const omega_byte_t *) pattern, cbk, user_data, pattern_length,
-                             session_offset, session_length);
+                             session_offset, session_length, case_insensitive);
 }
 
 /**
@@ -79,11 +81,12 @@ struct omega_match_context_t;
 * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return match context
  */
 omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                         int64_t pattern_length = 0, int64_t session_offset = 0,
-                                                        int64_t session_length = 0);
+                                                        int64_t session_length = 0, int case_insensitive = 0);
 
 /**
  * Create a match context
@@ -93,13 +96,14 @@ omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *s
 * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return match context
  */
 inline omega_match_context_t *omega_match_create_context(const omega_session_t *session_ptr, const char *pattern,
                                                          int64_t pattern_length = 0, int64_t session_offset = 0,
-                                                         int64_t session_length = 0) {
+                                                         int64_t session_length = 0, int case_insensitive = 0) {
     return omega_match_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length, session_offset,
-                                            session_length);
+                                            session_length, case_insensitive);
 }
 
 /**

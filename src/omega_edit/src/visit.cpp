@@ -15,8 +15,8 @@
  **********************************************************************************************************************/
 
 #include "../include/visit.h"
-#include "impl_/model_def.h"
-#include "impl_/session_def.h"
+#include "impl_/model_def.hpp"
+#include "impl_/session_def.hpp"
 
 int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
     int rc = 0;
@@ -41,8 +41,8 @@ struct omega_visit_change_context_t {
     const omega_change_t *change_ptr{};
     bool reverse{};
     union {
-        changes_t::const_iterator *iter_ptr;
-        changes_t::const_reverse_iterator *riter_ptr;
+        omega_changes_t::const_iterator *iter_ptr;
+        omega_changes_t::const_reverse_iterator *riter_ptr;
     } change_iter{};
     ~omega_visit_change_context_t() {}// NOLINT This destructor is required, but don't use =default
 };
@@ -60,7 +60,7 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
     if (change_context_ptr->session_ptr->model_ptr_->changes.empty()) { return 0; }
     if (change_context_ptr->reverse) {
         if (!change_context_ptr->change_iter.riter_ptr) {
-            change_context_ptr->change_iter.riter_ptr = new changes_t::const_reverse_iterator;
+            change_context_ptr->change_iter.riter_ptr = new omega_changes_t::const_reverse_iterator;
             *change_context_ptr->change_iter.riter_ptr = change_context_ptr->session_ptr->model_ptr_->changes.rbegin();
         } else {
             ++*change_context_ptr->change_iter.riter_ptr;
@@ -71,7 +71,7 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
                        : 1;
     }
     if (!change_context_ptr->change_iter.iter_ptr) {
-        change_context_ptr->change_iter.iter_ptr = new changes_t::const_iterator;
+        change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
         *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->model_ptr_->changes.cbegin();
     } else {
         ++*change_context_ptr->change_iter.iter_ptr;

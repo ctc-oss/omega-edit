@@ -14,23 +14,20 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_INTERNAL_FUN_H
-#define OMEGA_EDIT_INTERNAL_FUN_H
+#ifndef OMEGA_EDIT_CHANGE_DEF_HPP
+#define OMEGA_EDIT_CHANGE_DEF_HPP
 
-#include "../../include/byte.h"
-#include "../../include/fwd_defs.h"
-#include "internal_fwd_defs.h"
-#include <iosfwd>
+#include "data_def.hpp"
+#include <cstdint>
 
-// Data segment functions
-omega_byte_t *get_data_segment_data_(data_segment_t *data_segment_ptr);
-int populate_data_segment_(const omega_session_t *session_ptr, data_segment_t *data_segment_ptr);
+enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
 
-// Model segment functions
-void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream);
-model_segment_kind_t get_model_segment_kind_(const model_segment_t *model_segment_ptr);
+struct omega_change_t {
+    int64_t serial{};    ///< Serial number of the change (increasing)
+    change_kind_t kind{};///< Change kind
+    int64_t offset{};    ///< Offset at the time of the change
+    int64_t length{};    ///< Number of bytes at the time of the change
+    omega_data_t data{}; ///< Bytes to insert or overwrite
+};
 
-// Viewport functions
-void viewport_callback_(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr);
-
-#endif//OMEGA_EDIT_INTERNAL_FUN_H
+#endif//OMEGA_EDIT_CHANGE_DEF_HPP

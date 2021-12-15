@@ -14,16 +14,21 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_MODEL_SEGMENT_DEF_H
-#define OMEGA_EDIT_MODEL_SEGMENT_DEF_H
+#ifndef OMEGA_EDIT_VIEWPORT_DEF_HPP
+#define OMEGA_EDIT_VIEWPORT_DEF_HPP
 
-#include "internal_fwd_defs.h"
+#include "../../include/viewport.h"
+#include "data_segment_def.hpp"
 
-struct model_segment_t {
-    int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
-    int64_t computed_length{};            ///< Computed length can differ from the change as segments split
-    int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
-    const_omega_change_ptr_t change_ptr{};///< Reference to parent change
+struct omega_viewport_t {
+    omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
+    omega_data_segment_t data_segment{};           ///< Viewport data
+    omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
+    void *user_data_ptr{};                         ///< Pointer to associated user-provided data
 };
 
-#endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_H
+inline void omega_viewport_execute_callback(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+    if (viewport_ptr->on_change_cbk) { (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr); }
+}
+
+#endif//OMEGA_EDIT_VIEWPORT_DEF_HPP

@@ -95,7 +95,6 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
  */
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path);
 
-
 /**
  * Delete a number of bytes at the given offset
  * @param session_ptr session to make the change in

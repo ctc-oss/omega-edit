@@ -15,8 +15,8 @@
  **********************************************************************************************************************/
 
 #include "../include/change.h"
-#include "impl_/change_def.h"
-#include "impl_/macros.h"
+#include "impl_/change_def.hpp"
+#include "impl_/macros.hpp"
 
 int64_t omega_change_get_offset(const omega_change_t *change_ptr) { return change_ptr->offset; }
 
