@@ -1610,9 +1610,7 @@ static swig_module_info swig_module = {swig_types, 23, 0, 0, 0, 0};
 /* Includes the header in the wrapper code */
 #include "../omega_edit/omega_edit.h"
 #include "../omega_edit/include/check.h"
-#include "../omega_edit/include/match.hpp"
 #include "../omega_edit/include/stl_string_adaptor.hpp"
-#include "../omega_edit/include/visit.h"
 
 
 #include <stdint.h>		// Use the C99 official header
@@ -1968,8 +1966,8 @@ static int omega_edit_search_bytes_wrapper(const omega_session_t *session_ptr, c
     OmegaMatchFoundDirector *director_ptr, void *user_data = nullptr,int64_t pattern_length = 0,
     int64_t session_offset = 0, int64_t session_length = 0, int case_insensitive = 0) {
     match_found_director_ptr = director_ptr;
-    return omega_edit_search_bytes(session_ptr, pattern, handle_match_found_helper, user_data, pattern_length,
-                                   session_offset, session_length, case_insensitive);
+    return omega_match_bytes(session_ptr, pattern, handle_match_found_helper, user_data, pattern_length,
+        session_offset, session_length, case_insensitive);
 }
 
 
