@@ -33,8 +33,10 @@ union omega_data_t {
     ~omega_data_t(){};       // NOLINT This destructor is required, but don't use =default
 };
 
+static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+
 inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
-    return (capacity < 8) ? data_ptr->sm_bytes : data_ptr->bytes_ptr.get();
+    return (capacity < sizeof(omega_data_t)) ? data_ptr->sm_bytes : data_ptr->bytes_ptr.get();
 }
 
 #endif//OMEGA_EDIT_DATA_DEF_HPP
