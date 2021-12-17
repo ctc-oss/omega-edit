@@ -22,74 +22,7 @@
 #include "impl_/search.h"
 #include <cctype>
 #include <cstring>
-#include <functional>
 #include <memory>
-
-static inline omega_byte_t to_lower_(omega_byte_t byte) { return std::tolower(byte); }
-
-// Manage a raw const pointer with custom deleter
-template<typename T>
-using deleted_unique_const_ptr = std::unique_ptr<const T, std::function<void(const T *)>>;
-
-/*
- * The idea here is to search using tiled windows.  The window should be at least twice the size of the pattern, and
- * then it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to
- * catch patterns that were on the window boundary.
- */
-int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern, omega_match_found_cbk_t cbk,
-                      void *user_data, int64_t pattern_length, int64_t session_offset, int64_t session_length,
-                      int case_insensitive) {
-    int rc = -1;
-    pattern_length =
-            (pattern_length) ? pattern_length : static_cast<int64_t>(strlen(reinterpret_cast<const char *>(pattern)));
-    if (pattern_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) {
-        rc = 0;
-        session_length =
-                (session_length) ? session_length : omega_session_get_computed_file_size(session_ptr) - session_offset;
-        if (pattern_length <= session_length) {
-            omega_data_t pattern_data;
-            pattern_data.bytes_ptr = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
-            const auto pattern_data_ptr = omega_data_get_data(&pattern_data, pattern_length);
-            memcpy(pattern_data_ptr, pattern, pattern_length);
-            if (case_insensitive) { omega_util_byte_transformer(pattern_data_ptr, pattern_length, to_lower_); }
-            pattern_data_ptr[pattern_length] = '\0';
-            omega_data_segment_t data_segment;
-            data_segment.offset = session_offset;
-            data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
-            data_segment.data.bytes_ptr =
-                    (7 < data_segment.capacity) ? new omega_byte_t[data_segment.capacity + 1] : nullptr;
-            const auto skip_size = 1 + data_segment.capacity - pattern_length;
-            int64_t skip = 0;
-            const auto skip_table_ptr = deleted_unique_const_ptr<omega_search_skip_table_t>(
-                    omega_search_create_skip_table(pattern_data_ptr, pattern_length), omega_search_destroy_skip_table);
-            do {
-                data_segment.offset += skip;
-                populate_data_segment_(session_ptr, &data_segment);
-                const auto segment_data_ptr = omega_data_segment_get_data(&data_segment);
-                if (case_insensitive) { omega_util_byte_transformer(segment_data_ptr, data_segment.length, to_lower_); }
-                const omega_byte_t *found;
-                int64_t delta = 0;
-                while ((found = omega_search(segment_data_ptr + delta, data_segment.length - delta,
-                                             skip_table_ptr.get(), pattern_data_ptr, pattern_length))) {
-                    delta = found - segment_data_ptr;
-                    // TODO: What happens if the callback makes a change?  The data segment might not match the model.
-                    // TODO: Reimplement this function using the context version since that one should always match the model
-                    // TODO: Put in a test for this.
-                    if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) {
-                        if (7 < pattern_length) { delete[] pattern_data.bytes_ptr; }
-                        if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
-                        return rc;
-                    }
-                    ++delta;
-                }
-                skip = skip_size;
-            } while (data_segment.length == data_segment.capacity);
-            if (7 < pattern_length) { delete[] pattern_data.bytes_ptr; }
-            if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
-        }
-    }
-    return rc;
-}
 
 struct omega_match_context_t {
     const omega_search_skip_table_t *skip_table_ptr{};
@@ -101,6 +34,8 @@ struct omega_match_context_t {
     bool case_insensitive = false;
     omega_data_t pattern;
 };
+
+static inline omega_byte_t to_lower_(omega_byte_t byte) { return std::tolower(byte); }
 
 omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
                                                         int64_t pattern_length, int64_t session_offset,
@@ -135,7 +70,12 @@ int64_t omega_match_context_get_length(const omega_match_context_t *match_contex
     return match_context_ptr->pattern_length;
 }
 
-int omega_match_next(omega_match_context_t *match_context_ptr) {
+/*
+ * The idea here is to search using tiled windows.  The window should be at least twice the size of the pattern, and
+ * then it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to
+ * catch patterns that were on the window boundary.
+ */
+int omega_match_find(omega_match_context_t *match_context_ptr) {
     omega_data_segment_t data_segment;
     data_segment.offset = (match_context_ptr->match_offset == match_context_ptr->session_length)
                                   ? match_context_ptr->session_offset
@@ -171,4 +111,21 @@ void omega_match_destroy_context(omega_match_context_t *match_context_ptr) {
     omega_search_destroy_skip_table(match_context_ptr->skip_table_ptr);
     if (7 < match_context_ptr->pattern_length) { delete[] match_context_ptr->pattern.bytes_ptr; }
     delete match_context_ptr;
+}
+
+int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern, omega_match_found_cbk_t cbk,
+                      void *user_data, int64_t pattern_length, int64_t session_offset, int64_t session_length,
+                      int case_insensitive) {
+    int rc = -1;
+    auto match_context_ptr = omega_match_create_context_bytes(session_ptr, pattern, pattern_length, session_offset,
+                                                              session_length, case_insensitive);
+    if (match_context_ptr) {
+        rc = 0;
+        while (0 == rc && omega_match_find(match_context_ptr)) {
+            rc = cbk(omega_match_context_get_offset(match_context_ptr),
+                     omega_match_context_get_length(match_context_ptr), user_data);
+        }
+        omega_match_destroy_context(match_context_ptr);
+    }
+    return rc;
 }
