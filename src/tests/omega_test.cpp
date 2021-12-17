@@ -527,8 +527,6 @@ TEST_CASE("Search", "[SearchTests]") {
     replacement_info.replacement = "<*>";
     omega_match_string(session_ptr, "needle", pattern_replace_cbk, &replacement_info);
     REQUIRE(4 == replacement_info.replacements);
-
-    // Demonstrate how to do a case-insensitive search and replace (with a larger replacement)
     match_context = omega_match_create_context_string(session_ptr, "needle", 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
@@ -543,7 +541,6 @@ TEST_CASE("Search", "[SearchTests]") {
     }
     REQUIRE(2 == needles_found);
     omega_match_destroy_context(match_context);
-
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat") == 0);

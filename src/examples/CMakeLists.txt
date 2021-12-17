@@ -1,3 +1,6 @@
+add_executable(replace replace.cpp)
+target_link_libraries(replace omega_edit)
+
 add_executable(rotate rotate.cpp)
 target_link_libraries(rotate omega_edit)
 
