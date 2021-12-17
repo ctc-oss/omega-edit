@@ -420,6 +420,20 @@ static inline int pattern_found_cbk(int64_t match_offset, int64_t /*match_length
     return 0;
 }
 
+struct replacement_info_t {
+    omega_session_t *session_ptr{};
+    int replacements;
+    string replacement{};
+};
+
+static inline int pattern_replace_cbk(int64_t match_offset, int64_t match_length, void *user_data) {
+    auto replacement_info_ptr = reinterpret_cast<replacement_info_t *>(user_data);
+    omega_edit_delete(replacement_info_ptr->session_ptr, match_offset, match_length);
+    omega_edit_insert_string(replacement_info_ptr->session_ptr, match_offset, replacement_info_ptr->replacement);
+    ++replacement_info_ptr->replacements;
+    return 0;
+}
+
 TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
@@ -434,28 +448,28 @@ TEST_CASE("Search", "[SearchTests]") {
     auto needle = "NeEdLe";
     auto needle_length = strlen(needle);
     REQUIRE(0 == omega_match_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found));
-    REQUIRE(needles_found == 0);
+    REQUIRE(0 == needles_found);
     REQUIRE(0 == omega_match_bytes(session_ptr, (omega_byte_t *) needle, pattern_found_cbk, &needles_found,
                                    needle_length, 0, 0, 1));
-    REQUIRE(needles_found == 5);
+    REQUIRE(5 == needles_found);
     auto match_context = omega_match_create_context(session_ptr, needle);
     REQUIRE(match_context);
     needles_found = 0;
-    while (omega_match_next(match_context)) {
+    while (omega_match_find(match_context)) {
         pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
                           &needles_found);
     }
     omega_match_destroy_context(match_context);
-    REQUIRE(needles_found == 0);
+    REQUIRE(0 == needles_found);
     match_context = omega_match_create_context(session_ptr, needle, 0, 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
-    while (omega_match_next(match_context)) {
+    while (omega_match_find(match_context)) {
         pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
                           &needles_found);
     }
     omega_match_destroy_context(match_context);
-    REQUIRE(needles_found == 5);
+    REQUIRE(5 == needles_found);
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>(needle), needle_length));
     REQUIRE(0 < omega_edit_delete(session_ptr, 16, needle_length));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 16, reinterpret_cast<const omega_byte_t *>(needle)));
@@ -486,41 +500,46 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);
     needles_found = 0;
     REQUIRE(0 == omega_match(session_ptr, needle, pattern_found_cbk, &needles_found));
-    REQUIRE(needles_found == 2);
+    REQUIRE(2 == needles_found);
     needles_found = 0;
     REQUIRE(0 == omega_match_string(session_ptr, needle, pattern_found_cbk, &needles_found, 0, 0, 1));
-    REQUIRE(needles_found == 6);
+    REQUIRE(6 == needles_found);
     match_context = omega_match_create_context(session_ptr, needle);
     REQUIRE(match_context);
     needles_found = 0;
-    while (omega_match_next(match_context)) {
+    while (omega_match_find(match_context)) {
         pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
                           &needles_found);
     }
-    REQUIRE(needles_found == 2);
+    REQUIRE(2 == needles_found);
     match_context = omega_match_create_context(session_ptr, needle, 0, 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
-    while (omega_match_next(match_context)) {
+    while (omega_match_find(match_context)) {
         pattern_found_cbk(omega_match_context_get_offset(match_context), omega_match_context_get_length(match_context),
                           &needles_found);
     }
     REQUIRE(needles_found == 6);
     omega_match_destroy_context(match_context);
-    // Demonstrate how to do a case-insensitive search and replace (with a larger replacement)
+    replacement_info_t replacement_info;
+    replacement_info.session_ptr = session_ptr;
+    replacement_info.replacements = 0;
+    replacement_info.replacement = "<*>";
+    omega_match_string(session_ptr, "needle", pattern_replace_cbk, &replacement_info);
+    REQUIRE(4 == replacement_info.replacements);
     match_context = omega_match_create_context_string(session_ptr, "needle", 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
-    while (omega_match_next(match_context)) {
+    while (omega_match_find(match_context)) {
         auto pattern_offset = omega_match_context_get_offset(match_context);
         auto pattern_length = omega_match_context_get_length(match_context);
         // Remove the search pattern
         omega_edit_delete(session_ptr, pattern_offset, pattern_length);
         // Insert the replacement string
-        omega_edit_insert_string(session_ptr, pattern_offset, "Needles");
+        omega_edit_insert_string(session_ptr, pattern_offset, "Noodles");
         ++needles_found;
     }
-    REQUIRE(needles_found == 6);
+    REQUIRE(2 == needles_found);
     omega_match_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     omega_edit_destroy_session(session_ptr);

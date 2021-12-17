@@ -32,43 +32,6 @@ extern "C" {
 typedef int (*omega_match_found_cbk_t)(int64_t match_offset, int64_t match_length, void *user_data);
 
 /**
- * Given a session, find patterns and call the match found callback as patterns are found
- * @param session_ptr session to find the patterns in
- * @param pattern pointer to the pattern to find (as a sequence of bytes)
- * @param cbk the callback to call as patterns are found in the session
- * @param user_data user data to send back into the callback
- * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
- * bytes)
- * @param session_offset start searching at this offset within the session
- * @param session_length search from the starting offset within the session up to this many bytes
- * @param case_insensitive zero for case sensitive match and non-zero otherwise
- * @return 0 if all needles have been found, or the non-zero return from the user callback
- */
-int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern, omega_match_found_cbk_t cbk,
-                      void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
-                      int64_t session_length = 0, int case_insensitive = 0);
-
-/**
- * Given a session, find patterns and call the match found callback as patterns are found
- * @param session_ptr session to find the patterns in
- * @param pattern pointer to the pattern to find (as a C string)
- * @param cbk the callback to call as patterns are found in the session
- * @param user_data user data to send back into the callback
- * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
- * bytes)
- * @param session_offset start searching at this offset within the session
- * @param session_length search from the starting offset within the session up to this many bytes
- * @param case_insensitive zero for case sensitive match and non-zero otherwise
- * @return 0 if all needles have been found, or the non-zero return from the user callback
- */
-inline int omega_match(const omega_session_t *session_ptr, const char *pattern, omega_match_found_cbk_t cbk,
-                       void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
-                       int64_t session_length = 0, int case_insensitive = 0) {
-    return omega_match_bytes(session_ptr, (const omega_byte_t *) pattern, cbk, user_data, pattern_length,
-                             session_offset, session_length, case_insensitive);
-}
-
-/**
  * Opaque match context
  */
 struct omega_match_context_t;
@@ -125,13 +88,50 @@ int64_t omega_match_context_get_length(const omega_match_context_t *match_contex
  * @param match_context_ptr match context to find the next match in
  * @return non-zero if a match is found, zero otherwise
  */
-int omega_match_next(omega_match_context_t *match_context_ptr);
+int omega_match_find(omega_match_context_t *match_context_ptr);
 
 /**
  * Destroy the given search context
  * @param match_context_ptr match context to destroy
  */
 void omega_match_destroy_context(omega_match_context_t *match_context_ptr);
+
+/**
+ * Given a session, find patterns and call the match found callback as patterns are found
+ * @param session_ptr session to find the patterns in
+ * @param pattern pointer to the pattern to find (as a sequence of bytes)
+ * @param cbk the callback to call as patterns are found in the session
+ * @param user_data user data to send back into the callback
+ * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
+ * bytes)
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
+ * @return 0 if all needles have been found, or the non-zero return from the user callback
+ */
+int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern, omega_match_found_cbk_t cbk,
+                      void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
+                      int64_t session_length = 0, int case_insensitive = 0);
+
+/**
+ * Given a session, find patterns and call the match found callback as patterns are found
+ * @param session_ptr session to find the patterns in
+ * @param pattern pointer to the pattern to find (as a C string)
+ * @param cbk the callback to call as patterns are found in the session
+ * @param user_data user data to send back into the callback
+ * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
+ * bytes)
+ * @param session_offset start searching at this offset within the session
+ * @param session_length search from the starting offset within the session up to this many bytes
+ * @param case_insensitive zero for case sensitive match and non-zero otherwise
+ * @return 0 if all needles have been found, or the non-zero return from the user callback
+ */
+inline int omega_match(const omega_session_t *session_ptr, const char *pattern, omega_match_found_cbk_t cbk,
+                       void *user_data = nullptr, int64_t pattern_length = 0, int64_t session_offset = 0,
+                       int64_t session_length = 0, int case_insensitive = 0) {
+    return omega_match_bytes(session_ptr, (const omega_byte_t *) pattern, cbk, user_data, pattern_length,
+                             session_offset, session_length, case_insensitive);
+}
 
 #ifdef __cplusplus
 }
