@@ -82,9 +82,9 @@ static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
-        change_ptr->data.bytes_ptr = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
-        memcpy(change_ptr->data.bytes_ptr.get(), bytes, change_ptr->length);
-        change_ptr->data.bytes_ptr.get()[change_ptr->length] = '\0';
+        change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
+        memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
+        change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
     }
     return change_ptr;
 }
@@ -100,9 +100,9 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
-        change_ptr->data.bytes_ptr = std::make_unique<omega_byte_t[]>(change_ptr->length + 1);
-        memcpy(change_ptr->data.bytes_ptr.get(), bytes, change_ptr->length);
-        change_ptr->data.bytes_ptr.get()[change_ptr->length] = '\0';
+        change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
+        memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
+        change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
     }
     return change_ptr;
 }
@@ -292,7 +292,7 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     while (!session_ptr->viewports_.empty()) { omega_edit_destroy_viewport(session_ptr->viewports_.back().get()); }
     for (auto &change_ptr : session_ptr->model_ptr_->changes) {
         if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr.reset();
+            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
         }
     }
     delete session_ptr;
@@ -306,8 +306,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.offset = offset;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
-        viewport_ptr->data_segment.data.bytes_ptr =
-                (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity + 1) : nullptr;
+        viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         session_ptr->viewports_.push_back(viewport_ptr);
@@ -321,7 +320,7 @@ int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
-            if (7 < omega_viewport_get_capacity(iter->get())) { (*iter)->data_segment.data.bytes_ptr.reset(); }
+            if (7 < omega_viewport_get_capacity(iter->get())) { delete[](*iter)->data_segment.data.bytes_ptr; }
             viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
             return 0;
         }

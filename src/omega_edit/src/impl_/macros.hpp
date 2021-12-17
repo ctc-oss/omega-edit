@@ -22,10 +22,10 @@
 #include <cstring>
 #include <iostream>
 
-#define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define SOURCE_FILENAME (std::strrchr(__FILE__, '/') ? std::strrchr(__FILE__, '/') + 1 : __FILE__)
 #define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
 #define ABORT(x)                                                                                                       \
-    do { x abort(); } while (0)
+    do { x std::abort(); } while (0)
 
 #ifndef CLOG
 #define CLOG std::clog
