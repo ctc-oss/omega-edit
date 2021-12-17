@@ -53,11 +53,10 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity) {
-            if (7 < omega_viewport_get_capacity(viewport_ptr)) { viewport_ptr->data_segment.data.bytes_ptr.reset(); }
+            if (7 < omega_viewport_get_capacity(viewport_ptr)) { delete[] viewport_ptr->data_segment.data.bytes_ptr; }
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
-            viewport_ptr->data_segment.data.bytes_ptr =
-                    (7 < capacity) ? std::make_unique<omega_byte_t[]>(capacity + 1) : nullptr;
+            viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
             omega_viewport_execute_callback(viewport_ptr, nullptr);
         }
         return 0;

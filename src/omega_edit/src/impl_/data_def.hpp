@@ -18,9 +18,7 @@
 #define OMEGA_EDIT_DATA_DEF_HPP
 
 #include "../../include/byte.h"
-#include <memory>
-
-typedef std::unique_ptr<omega_byte_t[]> data_ptr_t;
+#include <cstdint>
 
 /**
  * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
@@ -28,15 +26,14 @@ typedef std::unique_ptr<omega_byte_t[]> data_ptr_t;
  * whose address will be stored in the bytes field.
  */
 union omega_data_t {
-    data_ptr_t bytes_ptr{};  ///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[8];///< Hold bytes of length less than 8
-    ~omega_data_t(){};       // NOLINT This destructor is required, but don't use =default
+    omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
+    omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
 };
 
 static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
 
 inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
-    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr.get();
+    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
 }
 
 #endif//OMEGA_EDIT_DATA_DEF_HPP

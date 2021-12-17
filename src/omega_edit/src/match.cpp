@@ -48,8 +48,7 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
                 (session_length) ? session_length : omega_session_get_computed_file_size(session_ptr) - session_offset;
         if (pattern_length <= session_length) {
             omega_data_t pattern_data;
-            pattern_data.bytes_ptr =
-                    (7 < pattern_length) ? std::make_unique<omega_byte_t[]>(pattern_length + 1) : nullptr;
+            pattern_data.bytes_ptr = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
             const auto pattern_data_ptr = omega_data_get_data(&pattern_data, pattern_length);
             memcpy(pattern_data_ptr, pattern, pattern_length);
             if (case_insensitive) { omega_util_byte_transformer(pattern_data_ptr, pattern_length, to_lower_); }
@@ -58,7 +57,7 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
             data_segment.offset = session_offset;
             data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
             data_segment.data.bytes_ptr =
-                    (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity + 1) : nullptr;
+                    (7 < data_segment.capacity) ? new omega_byte_t[data_segment.capacity + 1] : nullptr;
             const auto skip_size = 1 + data_segment.capacity - pattern_length;
             int64_t skip = 0;
             const auto skip_table_ptr = deleted_unique_const_ptr<omega_search_skip_table_t>(
@@ -73,17 +72,20 @@ int omega_match_bytes(const omega_session_t *session_ptr, const omega_byte_t *pa
                 while ((found = omega_search(segment_data_ptr + delta, data_segment.length - delta,
                                              skip_table_ptr.get(), pattern_data_ptr, pattern_length))) {
                     delta = found - segment_data_ptr;
+                    // TODO: What happens if the callback makes a change?  The data segment might not match the model.
+                    // TODO: Reimplement this function using the context version since that one should always match the model
+                    // TODO: Put in a test for this.
                     if ((rc = cbk(data_segment.offset + delta, pattern_length, user_data)) != 0) {
-                        if (7 < pattern_length) { pattern_data.bytes_ptr.reset(); }
-                        if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
+                        if (7 < pattern_length) { delete[] pattern_data.bytes_ptr; }
+                        if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
                         return rc;
                     }
                     ++delta;
                 }
                 skip = skip_size;
             } while (data_segment.length == data_segment.capacity);
-            if (7 < pattern_length) { pattern_data.bytes_ptr.reset(); }
-            if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
+            if (7 < pattern_length) { delete[] pattern_data.bytes_ptr; }
+            if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
         }
     }
     return rc;
@@ -114,8 +116,7 @@ omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *s
         match_context_ptr->session_length = session_length;
         match_context_ptr->match_offset = session_length;
         match_context_ptr->case_insensitive = case_insensitive;
-        match_context_ptr->pattern.bytes_ptr =
-                (7 < pattern_length) ? std::make_unique<omega_byte_t[]>(pattern_length + 1) : nullptr;
+        match_context_ptr->pattern.bytes_ptr = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
         const auto pattern_data_ptr = omega_data_get_data(&match_context_ptr->pattern, pattern_length);
         memcpy(pattern_data_ptr, pattern, pattern_length);
         if (case_insensitive) { omega_util_byte_transformer(pattern_data_ptr, pattern_length, to_lower_); }
@@ -140,8 +141,7 @@ int omega_match_next(omega_match_context_t *match_context_ptr) {
                                   ? match_context_ptr->session_offset
                                   : match_context_ptr->match_offset + 1;
     data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
-    data_segment.data.bytes_ptr =
-            (7 < data_segment.capacity) ? std::make_unique<omega_byte_t[]>(data_segment.capacity + 1) : nullptr;
+    data_segment.data.bytes_ptr = (7 < data_segment.capacity) ? new omega_byte_t[data_segment.capacity + 1] : nullptr;
     const auto pattern_length = match_context_ptr->pattern_length;
     const auto pattern = omega_data_get_data(&match_context_ptr->pattern, pattern_length);
     const auto skip_size = 1 + data_segment.capacity - pattern_length;
@@ -156,19 +156,19 @@ int omega_match_next(omega_match_context_t *match_context_ptr) {
         const auto found = omega_search(segment_data_ptr, data_segment.length, match_context_ptr->skip_table_ptr,
                                         pattern, pattern_length);
         if (found) {
-            if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
+            if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
             match_context_ptr->match_offset = data_segment.offset + (found - segment_data_ptr);
             return 1;
         }
         skip = skip_size;
     } while (data_segment.length == data_segment.capacity);
-    if (7 < data_segment.capacity) { data_segment.data.bytes_ptr.reset(); }
+    if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
     match_context_ptr->match_offset = match_context_ptr->session_length;
     return 0;
 }
 
 void omega_match_destroy_context(omega_match_context_t *match_context_ptr) {
     omega_search_destroy_skip_table(match_context_ptr->skip_table_ptr);
-    if (7 < match_context_ptr->pattern_length) { match_context_ptr->pattern.bytes_ptr.reset(); }
+    if (7 < match_context_ptr->pattern_length) { delete[] match_context_ptr->pattern.bytes_ptr; }
     delete match_context_ptr;
 }
