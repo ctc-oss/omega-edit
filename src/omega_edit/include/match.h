@@ -86,9 +86,10 @@ int64_t omega_match_context_get_length(const omega_match_context_t *match_contex
 /**
  * Given a match context, find the next match
  * @param match_context_ptr match context to find the next match in
+ * @param advance_context advance the internal matching context by this many bytes
  * @return non-zero if a match is found, zero otherwise
  */
-int omega_match_find(omega_match_context_t *match_context_ptr);
+int omega_match_find(omega_match_context_t *match_context_ptr, int64_t advance_context = 1);
 
 /**
  * Destroy the given search context
