@@ -19,8 +19,9 @@
  * multiple of the file size, then the output file ought to be identical to the input file and can be verified using
  * cmp or diff.
  */
-#include "../omega_edit/omega_edit.h"
 #include "../omega_edit/include/utility.h"
+#include "../omega_edit/omega_edit.h"
+#include <cassert>
 #include <cinttypes>
 #include <iostream>
 #include <string>
@@ -62,9 +63,11 @@ int main(int argc, char **argv) {
     auto out_filename = argv[2];
     auto rotations = stol(argv[3]);
     auto session_ptr = omega_edit_create_session(in_filename);
+    assert(session_ptr);
     // Create a small viewport at the end of the file to track the last byte.
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1,
                                                    4, vpt_change_last_byte_cbk, &last_byte_info);
+    assert(viewport_ptr);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
             int64_t serial;

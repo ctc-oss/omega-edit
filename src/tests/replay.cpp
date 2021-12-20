@@ -74,7 +74,12 @@ int main(int argc, char **argv) {
         omega_byte_t bytes[1024];
         omega_byte_t hex_bytes[2048];
         // NOTE: This is for demonstration purposes only.  This is not production safe parsing.
-        fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes); //NOLINT
+        const auto rc =
+                fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes);//NOLINT
+        if (rc != 4) {
+            cerr << "error reading change" << endl;
+            abort();
+        }
         if (hex_bytes[0] != 'x' &&
             length != omega_hex2bin((const char *) hex_bytes, bytes, strlen((const char *) hex_bytes))) {
             clog << "ERROR decoding: '" << hex_bytes << "'\n";
@@ -97,7 +102,7 @@ int main(int argc, char **argv) {
                 abort();
         }
         if (0 != omega_check_model(session_ptr)) {
-            clog << "session model has errors" << endl;
+            cerr << "session model has errors" << endl;
             abort();
         }
     }

@@ -27,8 +27,7 @@
 
 const char *omega_util_get_current_dir() {
     static char buff[FILENAME_MAX];//create string buffer to hold path
-    GetCurrentDir_(buff, FILENAME_MAX);
-    return buff;
+    return (GetCurrentDir_(buff, FILENAME_MAX)) ? buff : NULL;
 }
 
 int omega_util_file_exists(const char *file_name) {
