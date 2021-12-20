@@ -15,8 +15,11 @@
  **********************************************************************************************************************/
 
 #include "../include/encodings.h"
+#include <assert.h>
 
 size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
+    assert(src);
+    assert(dst);
     static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
     size_t j = 0;
 
@@ -29,6 +32,8 @@ size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
 }
 
 size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length) {
+    assert(src);
+    assert(dst);
     const size_t dst_length = src_length >> 1;
     size_t i = 0, j = 0;
 

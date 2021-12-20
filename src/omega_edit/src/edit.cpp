@@ -391,10 +391,24 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
     return -1;
 }
 
+int omega_edit_clear_changes(omega_session_t *session_ptr) {
+    int64_t length = 0;
+    if (session_ptr->file_ptr) {
+        if (0 != fseeko(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+        length = ftello(session_ptr->file_ptr);
+    }
+    initialize_model_segments_(session_ptr->model_ptr_->model_segments, length);
+    session_ptr->model_ptr_->changes.clear();
+    for (const auto &viewport_ptr : session_ptr->viewports_) {
+        viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+        omega_viewport_execute_callback(viewport_ptr.get(), nullptr);
+    }
+    return 0;
+}
+
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     if (!session_ptr->model_ptr_->changes.empty()) {
         const auto change_ptr = session_ptr->model_ptr_->changes.back();
-
         session_ptr->model_ptr_->changes.pop_back();
         int64_t length = 0;
         if (session_ptr->file_ptr) {

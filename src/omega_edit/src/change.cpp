@@ -17,22 +17,37 @@
 #include "../include/change.h"
 #include "impl_/change_def.hpp"
 #include "impl_/macros.hpp"
+#include <cassert>
 
-int64_t omega_change_get_offset(const omega_change_t *change_ptr) { return change_ptr->offset; }
+int64_t omega_change_get_offset(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->offset;
+}
 
-int64_t omega_change_get_length(const omega_change_t *change_ptr) { return change_ptr->length; }
+int64_t omega_change_get_length(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->length;
+}
 
-int64_t omega_change_get_serial(const omega_change_t *change_ptr) { return change_ptr->serial; }
+int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->serial;
+}
 
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
+    assert(change_ptr);
     return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
                    ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr : change_ptr->data.sm_bytes)
                    : nullptr;
 }
 
-const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) { return change_bytes_(change_ptr); }
+const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_bytes_(change_ptr);
+}
 
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
+    assert(change_ptr);
     switch (change_ptr->kind) {
         case change_kind_t::CHANGE_DELETE:
             return 'D';
@@ -45,4 +60,7 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
     }
 }
 
-int omega_change_is_undone(const omega_change_t *change_ptr) { return (0 < change_ptr->serial) ? 0 : 1; }
+int omega_change_is_undone(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return (0 < change_ptr->serial) ? 0 : 1;
+}
