@@ -17,8 +17,10 @@
 #include "../include/visit.h"
 #include "impl_/model_def.hpp"
 #include "impl_/session_def.hpp"
+#include <cassert>
 
 int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
+    assert(session_ptr);
     int rc = 0;
     for (const auto &iter : session_ptr->model_ptr_->changes) {
         if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
@@ -28,6 +30,7 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
 
 int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                 void *user_data) {
+    assert(session_ptr);
     int rc = 0;
     for (auto iter = session_ptr->model_ptr_->changes.rbegin(); iter != session_ptr->model_ptr_->changes.rend();
          ++iter) {
@@ -48,7 +51,9 @@ struct omega_visit_change_context_t {
 };
 
 omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse) {
+    assert(session_ptr);
     auto *change_context_ptr = new omega_visit_change_context_t;
+    assert(change_context_ptr);
     change_context_ptr->session_ptr = session_ptr;
     change_context_ptr->change_ptr = nullptr;
     change_context_ptr->reverse = (0 != reverse);
@@ -57,10 +62,14 @@ omega_visit_change_context_t *omega_visit_change_create_context(const omega_sess
 }
 
 int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
+    assert(change_context_ptr);
+    assert(change_context_ptr->session_ptr);
+    assert(change_context_ptr->session_ptr->model_ptr_);
     if (change_context_ptr->session_ptr->model_ptr_->changes.empty()) { return 0; }
     if (change_context_ptr->reverse) {
         if (!change_context_ptr->change_iter.riter_ptr) {
             change_context_ptr->change_iter.riter_ptr = new omega_changes_t::const_reverse_iterator;
+            assert(change_context_ptr->change_iter.riter_ptr);
             *change_context_ptr->change_iter.riter_ptr = change_context_ptr->session_ptr->model_ptr_->changes.rbegin();
         } else {
             ++*change_context_ptr->change_iter.riter_ptr;
@@ -72,6 +81,7 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
     }
     if (!change_context_ptr->change_iter.iter_ptr) {
         change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
+        assert(change_context_ptr->change_iter.iter_ptr);
         *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->model_ptr_->changes.cbegin();
     } else {
         ++*change_context_ptr->change_iter.iter_ptr;
@@ -82,6 +92,9 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
 }
 
 const omega_change_t *omega_visit_change_context_get_change(const omega_visit_change_context_t *change_context_ptr) {
+    assert(change_context_ptr);
+    assert(change_context_ptr->session_ptr);
+    assert(change_context_ptr->session_ptr->model_ptr_);
     if (change_context_ptr->reverse) {
         return (!change_context_ptr->change_iter.riter_ptr ||
                 *change_context_ptr->change_iter.riter_ptr ==
@@ -96,6 +109,7 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
 }
 
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
+    assert(change_context_ptr);
     delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
     delete change_context_ptr;
 }

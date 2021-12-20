@@ -15,6 +15,7 @@
  **********************************************************************************************************************/
 
 #include "../include/utility.h"
+#include <assert.h>
 #include <stdio.h>
 
 #ifdef WINDOWS
@@ -40,10 +41,12 @@ int omega_util_file_exists(const char *file_name) {
 }
 
 void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform) {
+    assert(buffer);
     for (int64_t i = 0; i < len; ++i) { buffer[i] = transform(buffer[i]); }
 }
 
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
+    assert(buffer);
     if (shift_left > 0 && shift_left < 8) {
         omega_byte_t shift_right = 8 - shift_left;
         omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
@@ -60,6 +63,7 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
 }
 
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right) {
+    assert(buffer);
     if (shift_right > 0 && shift_right < 8) {
         omega_byte_t shift_left = 8 - shift_right;
         omega_byte_t mask = (1 << shift_right) - 1;

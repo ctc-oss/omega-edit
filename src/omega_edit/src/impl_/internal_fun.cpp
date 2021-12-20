@@ -29,6 +29,8 @@
  **********************************************************************************************************************/
 
 static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer, int64_t capacity) {
+    assert(from_file_ptr);
+    assert(buffer);
     int64_t rc = -1;
     if (0 == fseeko(from_file_ptr, 0, SEEK_END)) {
         const auto len = ftello(from_file_ptr) - offset;
@@ -45,6 +47,9 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
+    assert(data_segment_ptr);
     const auto &model_ptr = session_ptr->model_ptr_;
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
@@ -110,6 +115,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
  **********************************************************************************************************************/
 
 static void print_change_(const omega_change_t *change_ptr, std::ostream &out_stream) {
+    assert(change_ptr);
     out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << change_ptr->offset
                << R"(, "length": )" << change_ptr->length;
@@ -128,5 +134,6 @@ static void print_model_segment_(const omega_model_segment_ptr_t &segment_ptr, s
 }
 
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream) {
+    assert(model_ptr);
     for (const auto &segment : model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
 }

@@ -26,16 +26,19 @@
 #include <memory>
 
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
     return viewport_ptr->session_ptr;
 }
 
 int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
     // Negative capacities are only used internally for tracking dirty reads.  The capacity is always positive to the
     // public.
+    assert(viewport_ptr);
     return std::abs(viewport_ptr->data_segment.capacity);
 }
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
     if (!omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
     auto const remaining_file_size =
@@ -45,11 +48,18 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
     return (capacity < remaining_file_size) ? capacity : remaining_file_size;
 }
 
-int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) { return viewport_ptr->data_segment.offset; }
+int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_ptr->data_segment.offset;
+}
 
-void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr) { return viewport_ptr->user_data_ptr; }
+void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_ptr->user_data_ptr;
+}
 
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity) {
+    assert(viewport_ptr);
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity) {
@@ -65,6 +75,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
 }
 
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
     auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
     if (omega_viewport_has_changes(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
@@ -76,5 +87,6 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
 }
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
     return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
 }

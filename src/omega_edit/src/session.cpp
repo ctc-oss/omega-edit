@@ -20,11 +20,19 @@
 #include "impl_/session_def.hpp"
 #include <cassert>
 
-void *omega_session_get_user_data(const omega_session_t *session_ptr) { return session_ptr->user_data_ptr; }
+void *omega_session_get_user_data(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->user_data_ptr;
+}
 
-size_t omega_session_get_num_viewports(const omega_session_t *session_ptr) { return session_ptr->viewports_.size(); }
+size_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->viewports_.size();
+}
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     const auto computed_file_size = (session_ptr->model_ptr_->model_segments.empty())
                                             ? 0
                                             : session_ptr->model_ptr_->model_segments.back()->computed_offset +
@@ -34,27 +42,38 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
 }
 
 size_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     return session_ptr->model_ptr_->changes.size();
 }
 
 size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     return session_ptr->model_ptr_->changes_undone.size();
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     return (session_ptr->model_ptr_->changes.empty()) ? nullptr : session_ptr->model_ptr_->changes.back().get();
 }
 
 const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     return (session_ptr->model_ptr_->changes_undone.empty()) ? nullptr
                                                              : session_ptr->model_ptr_->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
+    assert(session_ptr);
     return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
 }
 
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
     if (0 < change_serial) {// Positive serials are active changes
         if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {
             return session_ptr->model_ptr_->changes[change_serial - 1].get();

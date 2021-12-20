@@ -28,7 +28,7 @@ extern "C" {
 
 /**
  * Gets the current working directory
- * @return current working directory
+ * @return current working directory or NULL on error
  */
 const char *omega_util_get_current_dir();
 

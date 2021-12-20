@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and                                                *
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
-#include "../omega_edit/omega_edit.h"
+#include "../omega_edit/include/stl_string_adaptor.hpp"
 #include <iostream>
-#include <string>
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *) {
-    std::clog << "["
-              << std::string((const char *) omega_viewport_get_data(viewport_ptr),
-                             omega_viewport_get_length(viewport_ptr))
-              << "]" << std::endl;
+using namespace std;
+
+inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *) {
+    clog << "[" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
 }
 
 int main() {
-    auto session_ptr = omega_edit_create_session();
+    const auto session_ptr = omega_edit_create_session();
     omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk);
     omega_edit_insert(session_ptr, 0, "Hello Weird!!!!");
     omega_edit_overwrite(session_ptr, 7, "orl");

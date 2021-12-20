@@ -17,7 +17,6 @@
 #ifndef OMEGA_EDIT_SEARCH_H
 #define OMEGA_EDIT_SEARCH_H
 
-
 #ifdef __cplusplus
 #include <cstddef>
 extern "C" {

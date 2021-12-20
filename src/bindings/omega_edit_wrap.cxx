@@ -2334,6 +2334,34 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_omega_edit_clear_changes(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  v8::Handle<v8::Value> jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_clear_changes.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_edit_clear_changes" "', argument " "1"" of type '" "omega_session_t *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  result = (int)omega_edit_clear_changes(arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_omega_edit_undo_last_change(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -5775,6 +5803,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_session", _wrap_omega_e
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_destroy_session", _wrap_omega_edit_destroy_session);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_create_viewport", _wrap_omega_edit_create_viewport);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_destroy_viewport", _wrap_omega_edit_destroy_viewport);
+SWIGV8_AddStaticFunction(exports_obj, "omega_edit_clear_changes", _wrap_omega_edit_clear_changes);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_undo_last_change", _wrap_omega_edit_undo_last_change);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_redo_last_undo", _wrap_omega_edit_redo_last_undo);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_save", _wrap_omega_edit_save);

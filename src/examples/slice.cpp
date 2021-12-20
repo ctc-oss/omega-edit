@@ -15,17 +15,17 @@
  **********************************************************************************************************************/
 
 #include "../omega_edit/omega_edit.h"
+#include <iostream>
 #include <string>
 
 using namespace std;
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        fprintf(stderr,
-                "This program extracts a slice from the infile and writes it to the outfile using an Omega Edit\n"
+        cerr << "This program extracts a slice from the infile and writes it to the outfile using an Omega Edit "
                 "session.\n\n"
-                "USAGE: %s infile outfile offset length\n",
-                argv[0]);
+                "USAGE: "
+             << argv[0] << " infile outfile offset length" << endl;
         return -1;
     }
     const auto in_filename = argv[1];
@@ -39,8 +39,10 @@ int main(int argc, char **argv) {
         omega_edit_save(session_ptr, out_filename);
         omega_edit_destroy_session(session_ptr);
     } else {
-        fprintf(stderr, "failed to create session, probably because the offset and/or length are out of range for the\n"
-                        "given input file\n");
+        cerr << "failed to create session, probably because the offset and/or length are out of range for the given "
+                "input file"
+             << endl;
+        return -1;
     }
     return 0;
 }

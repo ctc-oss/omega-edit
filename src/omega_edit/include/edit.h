@@ -74,6 +74,13 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
 int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr);
 
 /**
+ * Given a session, clear all active changes
+ * @param session_ptr session to clear all changes for
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_clear_changes(omega_session_t *session_ptr);
+
+/**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
  * @return negative serial number of the undone change if successful, zero otherwise

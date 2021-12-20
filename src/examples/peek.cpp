@@ -82,11 +82,9 @@ inline display_mode_t char_to_display_mode(char c) {
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        fprintf(stderr,
-                "This program displays a slice from the infile using an Omega Edit viewport.  The display modes are\n"
-                "'c' for character mode, 'b' for bit mode, and 'B' for byte mode\n\n"
-                "USAGE: %s display_mode infile offset length\n",
-                argv[0]);
+        cerr << "This program displays a slice from the infile using an Omega Edit viewport.  The display modes are "
+                "'c' for character mode, 'b' for bit mode, and 'B' for byte mode\n\nUSAGE: "
+             << argv[0] << " display_mode infile offset length" << endl;
         return -1;
     }
     auto in_filename = argv[2];
@@ -99,8 +97,9 @@ int main(int argc, char **argv) {
         omega_edit_create_viewport(session_ptr, offset, length, vpt_change_cbk, &view_mode);
         omega_edit_destroy_session(session_ptr);
     } else {
-        fprintf(stderr, "failed to create session, probably because the offset and/or length are out of range for the\n"
-                        "given input file\n");
+        cerr << "failed to create session, probably because the offset and/or length are out of range for the given "
+                "input file"
+             << endl;
     }
     return 0;
 }

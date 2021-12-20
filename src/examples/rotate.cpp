@@ -22,7 +22,6 @@
 #include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
 #include <cassert>
-#include <cinttypes>
 #include <iostream>
 #include <string>
 
@@ -46,22 +45,22 @@ void vpt_change_last_byte_cbk(const omega_viewport_t *viewport_ptr, const omega_
 
 int main(int argc, char **argv) {
     if (argc != 4) {
-        fprintf(stderr,
-                "This program edits the input file by rotating the byte at the end of the file to become the byte at\n"
-                "the front of the file.  It will do these rotations using deletes, inserts, and overwrites.  It is\n"
-                "not designed to be very efficient, but rather to exercise some of the core features of Omega Edit.\n\n"
-                "USAGE: %s infile outfile num_rotations\n",
-                argv[0]);
+        cerr << "This program edits the input file by rotating the byte at the end of the file to become the byte at "
+                "the front of the file.  It will do these rotations using deletes, inserts, and overwrites.  It is "
+                "not designed to be very efficient, but rather to exercise some of the core features of Omega "
+                "Edit.\n\nUSAGE: "
+             << argv[0] << " infile outfile num_rotations" << endl;
         return -1;
     }
     last_byte_info_t last_byte_info{};
-    auto in_filename = argv[1];
+    const auto in_filename = argv[1];
     if (!omega_util_file_exists(in_filename)) {
-        fprintf(stderr, "ERROR: Input file '%s' does not exist (cwd: %s)\n", in_filename, omega_util_get_current_dir());
+        cerr << "Error: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir() << ")"
+             << endl;
         return -1;
     }
-    auto out_filename = argv[2];
-    auto rotations = stol(argv[3]);
+    const auto out_filename = argv[2];
+    const auto rotations = stol(argv[3]);
     auto session_ptr = omega_edit_create_session(in_filename);
     assert(session_ptr);
     // Create a small viewport at the end of the file to track the last byte.
@@ -70,29 +69,26 @@ int main(int argc, char **argv) {
     assert(viewport_ptr);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
-            int64_t serial;
-            auto last_byte = last_byte_info.last_byte;
+            const auto last_byte = last_byte_info.last_byte;
             // Ths could be more efficient to insert the last_byte rather than insert a bogus byte, then overwrite it,
             // but the purpose of this routine is to exercise all the edit operations.
-            if ((serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) <
-                0) {
-                clog << "Error inserting serial: " << serial << endl;
+            if (0 >= omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("+"), 1)) {
+                cerr << "Error inserting" << endl;
                 return -1;
             }
-            if ((serial = omega_edit_overwrite_bytes(session_ptr, 0, &last_byte, 1)) < 0) {
-                clog << "Error overwriting serial: " << serial << endl;
+            if (0 >= omega_edit_overwrite_bytes(session_ptr, 0, &last_byte, 1)) {
+                cerr << "Error overwriting" << endl;
                 return -1;
             }
-            if ((serial = omega_edit_delete(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 1)) <
-                0) {
-                clog << "Error deleting serial: " << serial << endl;
+            if (0 >= omega_edit_delete(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 1)) {
+                cerr << "Error deleting" << endl;
                 return -1;
             }
             omega_viewport_update(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4);
         }
     }
-    fprintf(stdout, "Saving %zu changes to %s of size %" PRId64 "\n", omega_session_get_num_changes(session_ptr),
-            out_filename, omega_session_get_computed_file_size(session_ptr));
+    clog << "Saving " << omega_session_get_num_changes(session_ptr) << " changes to " << out_filename << " of size "
+         << omega_session_get_computed_file_size(session_ptr) << endl;
     omega_edit_save(session_ptr, out_filename);
     omega_edit_destroy_session(session_ptr);
     return 0;
