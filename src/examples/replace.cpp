@@ -24,16 +24,20 @@ int main(int arc, char **argv) {
         return -1;
     }
     int64_t replacements = 0;
+    const std::string replace = argv[4];
     auto session_ptr = omega_edit_create_session(argv[1]);
+    assert(session_ptr);
     auto match_context_ptr = omega_match_create_context_string(session_ptr, argv[3]);
-    while (omega_match_find(match_context_ptr)) {
-        auto pattern_offset = omega_match_context_get_offset(match_context_ptr);
-        auto pattern_length = omega_match_context_get_length(match_context_ptr);
-        // Remove the search pattern
-        omega_edit_delete(session_ptr, pattern_offset, pattern_length);
-        // Insert the replacement string
-        omega_edit_insert_string(session_ptr, pattern_offset, argv[4]);
-        ++replacements;
+    assert(match_context_ptr);
+    auto pattern_length = omega_match_context_get_length(match_context_ptr);
+    if (omega_match_find(match_context_ptr)) {
+        const auto advance_context = static_cast<int64_t>(replace.length());
+        do {
+            const auto pattern_offset = omega_match_context_get_offset(match_context_ptr);
+            omega_edit_delete(session_ptr, pattern_offset, pattern_length);
+            omega_edit_insert_string(session_ptr, pattern_offset, replace);
+            ++replacements;
+        } while (omega_match_find(match_context_ptr, advance_context));
     }
     omega_match_destroy_context(match_context_ptr);
     omega_edit_save(session_ptr, argv[2]);
