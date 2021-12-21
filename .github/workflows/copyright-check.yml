@@ -1,5 +1,5 @@
 ---
-name: License Header Check
+name: Copyright checks
 on:
   push:
     branches:
@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: C/C++ source and header check
+      - name: C/C++ and Javascript copyright checks
         run: |
           ! grep -R -L --exclude-dir=vendor \
-            --include='*.c' --include='*.cpp' --include='*.h' --include='*.hpp' \
+            --include='*.c' --include='*.cpp' --include='*.h' --include='*.hpp'  --include='*.js' \
             'Copyright (c) 2021 Concurrent Technologies Corporation' *
