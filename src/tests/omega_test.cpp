@@ -16,12 +16,12 @@
 
 #define CATCH_CONFIG_MAIN
 
+#include "../../vendor/catch.hpp"
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
 #include "../omega_edit/include/stl_string_adaptor.hpp"
 #include "../omega_edit/include/utility.h"
 #include "../omega_edit/omega_edit.h"
-#include "catch.hpp"
 #include "test_util.h"
 
 #include <cstdio>
