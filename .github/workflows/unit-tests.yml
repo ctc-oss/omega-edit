@@ -6,23 +6,42 @@ on:
       - '**'
 
 jobs:
-  build:
-    name: Unit Tests
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+  macos-debug:
+    name: MacOS Tests
+    runs-on: macos-latest
     steps:
-    - name: Checkout
+    - name: Checkout Source
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Build
+    - name: Setup Debug Build
       run: cmake -S . -B cmake-build-debug
-    - name: Create omega_test
-      run: cmake --build cmake-build-debug --target omega_test
-    - name: Run tests
+    - name: Build Debug Build
+      run: cmake --build cmake-build-debug
+    - name: Run Tests
       run: |
         cd cmake-build-debug/src/tests/
         ./omega_test -d yes --order lex
+
+  linux-debug:
+    name: Linux Tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Valgrind
+      run: sudo apt install -y valgrind
+    - name: Checkout Source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Debug Build
+      run: cmake -S . -B cmake-build-debug
+    - name: Build Debug Build
+      run: cmake --build cmake-build-debug
+    - name: Run Tests
+      run: |
+        cd cmake-build-debug/src/tests/
+        ./omega_test -d yes --order lex
+    - name: Run Tests Under Valgrind
+      run: |
+       cd cmake-build-debug/src/tests/
+       valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
