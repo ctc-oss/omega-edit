@@ -65,7 +65,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
-            omega_viewport_execute_callback(viewport_ptr, nullptr);
+            omega_viewport_execute_on_change(viewport_ptr, nullptr);
         }
         return 0;
     }
@@ -87,4 +87,12 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
+}
+
+void omega_viewport_execute_on_change(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+    assert(viewport_ptr);
+    assert(viewport_ptr->session_ptr);
+    if (!omega_session_viewport_on_change_callbacks_paused(viewport_ptr->session_ptr) && viewport_ptr->on_change_cbk) {
+        (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr);
+    }
 }

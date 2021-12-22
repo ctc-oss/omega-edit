@@ -126,7 +126,7 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-            omega_viewport_execute_callback(viewport_ptr.get(), change_ptr);
+            omega_viewport_execute_on_change(viewport_ptr.get(), change_ptr);
         }
     }
     return 0;
@@ -308,7 +308,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         session_ptr->viewports_.push_back(viewport_ptr);
-        omega_viewport_execute_callback(viewport_ptr.get(), nullptr);
+        omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
         return viewport_ptr.get();
     }
     return nullptr;
@@ -406,7 +406,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     session_ptr->model_ptr_->changes.clear();
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-        omega_viewport_execute_callback(viewport_ptr.get(), nullptr);
+        omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
     }
     return 0;
 }
