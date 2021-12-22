@@ -7,7 +7,7 @@ on:
 
 jobs:
   macos-debug:
-    name: Build Debug
+    name: MacOS Tests
     runs-on: macos-latest
     steps:
     - name: Checkout Source
@@ -24,7 +24,7 @@ jobs:
         ./omega_test -d yes --order lex
 
   linux-debug:
-    name: Run Valgrind
+    name: Linux Tests
     runs-on: ubuntu-latest
     steps:
     - name: Install Valgrind
