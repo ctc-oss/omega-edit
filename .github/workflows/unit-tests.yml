@@ -32,8 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-debug
     steps:
-     - name: Install Valgrind
-       run: apt install -y valgrind
      - name: Run Tests Under Valgrind
        run: |
          cd cmake-build-debug/src/tests/
