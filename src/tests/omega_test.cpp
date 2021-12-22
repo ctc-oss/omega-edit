@@ -489,9 +489,9 @@ TEST_CASE("Search", "[SearchTests]") {
         const auto advance_context = static_cast<int64_t>(replace.length());
         do {
             const auto pattern_offset = omega_match_context_get_offset(match_context);
-            omega_session_pause_viewport_callbacks(session_ptr);
+            omega_session_pause_viewport_on_change_callbacks(session_ptr);
             omega_edit_delete(session_ptr, pattern_offset, pattern_length);
-            omega_session_resume_viewport_callbacks(session_ptr);
+            omega_session_resume_viewport_on_change_callbacks(session_ptr);
             omega_edit_insert_string(session_ptr, pattern_offset, replace);
             ++needles_found;
         } while (omega_match_find(match_context, advance_context));
@@ -520,7 +520,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
     view_mode.display_mode = CHAR_MODE;
-    omega_viewport_execute_callback(viewport_ptr, nullptr);
+    omega_viewport_execute_on_change(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
         REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40)));
     }
@@ -529,14 +529,14 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode.display_mode = BIT_MODE;
     REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20));
     view_mode.display_mode = BYTE_MODE;
-    omega_viewport_execute_callback(viewport_ptr, nullptr);
+    omega_viewport_execute_on_change(viewport_ptr, nullptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));
     viewport_count = omega_session_get_num_viewports(session_ptr);
     view_mode.display_mode = CHAR_MODE;
-    omega_session_pause_viewport_callbacks(session_ptr);
-    omega_viewport_execute_callback(viewport_ptr, nullptr);
-    omega_session_resume_viewport_callbacks(session_ptr);
-    omega_viewport_execute_callback(viewport_ptr, nullptr);
+    omega_session_pause_viewport_on_change_callbacks(session_ptr);
+    omega_viewport_execute_on_change(viewport_ptr, nullptr);
+    omega_session_resume_viewport_on_change_callbacks(session_ptr);
+    omega_viewport_execute_on_change(viewport_ptr, nullptr);
     omega_edit_destroy_viewport(viewport_ptr);
     REQUIRE(viewport_count - 1 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_session(session_ptr);

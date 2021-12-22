@@ -91,23 +91,23 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial);
 
 /**
- * Determine if the viewport callbacks have been paused or not
- * @param session_ptr session to determine if callbacks are paused on
- * @return non-zero if viewport callbacks are paused and zero if they are not
+ * Determine if the viewport on-change callbacks have been paused or not
+ * @param session_ptr session to determine if viewport on-change callbacks are paused on
+ * @return non-zero if viewport on-change callbacks are paused and zero if they are not
  */
-int omega_session_viewport_callbacks_paused(const omega_session_t *session_ptr);
+int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr);
 
 /**
- * Pause viewport callbacks for the given session
- * @param session_ptr session to pause viewport callbacks on
+ * Pause viewport on-change callbacks for the given session
+ * @param session_ptr session to pause viewport on-change callbacks on
  */
-void omega_session_pause_viewport_callbacks(omega_session_t *session_ptr);
+void omega_session_pause_viewport_on_change_callbacks(omega_session_t *session_ptr);
 
 /**
- * Resume viewport callbacks for the given session
- * @param session_ptr session to resume viewport callbacks on
+ * Resume viewport on-change callbacks for the given session
+ * @param session_ptr session to resume viewport on-change callbacks on
  */
-void omega_session_resume_viewport_callbacks(omega_session_t *session_ptr);
+void omega_session_resume_viewport_on_change_callbacks(omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }
