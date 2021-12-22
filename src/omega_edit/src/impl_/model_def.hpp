@@ -24,7 +24,7 @@ typedef std::unique_ptr<omega_model_segment_t> omega_model_segment_ptr_t;
 typedef std::vector<omega_model_segment_ptr_t> omega_model_segments_t;
 typedef std::vector<const_omega_change_ptr_t> omega_changes_t;
 
-struct omega_model_t {
+struct omega_model_struct {
     omega_changes_t changes{};              ///< Collection of changes for this session, ordered by time
     omega_changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
     omega_model_segments_t model_segments{};///< Model segment vector

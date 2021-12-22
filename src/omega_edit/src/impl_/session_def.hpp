@@ -16,7 +16,7 @@
 #define OMEGA_EDIT_SESSION_DEF_HPP
 
 #include "../../include/edit.h"
-#include "../../include/session.h"
+#include "../../include/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
 #include <cstdio>
 #include <string>

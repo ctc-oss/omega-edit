@@ -15,6 +15,7 @@
 #include "../include/edit.h"
 #include "../include/change.h"
 #include "../include/session.h"
+#include "../include/viewport.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.hpp"
