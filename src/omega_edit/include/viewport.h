@@ -83,6 +83,14 @@ void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr);
  */
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity);
 
+/**
+ * Execute the viewport callback with the given change if a viewport on-change callback is defined and if the session
+ * where this viewport lives does not currently have viewport change callbacks paused
+ * @param viewport_ptr viewport for which to execute its on-change callback
+ * @param change_ptr change responsible for the viewport change (if any)
+ */
+void omega_viewport_execute_callback(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr);
+
 #ifdef __cplusplus
 }
 #endif

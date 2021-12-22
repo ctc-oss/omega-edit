@@ -26,12 +26,4 @@ struct omega_viewport_struct {
     void *user_data_ptr{};                         ///< Pointer to associated user-provided data
 };
 
-inline void omega_viewport_execute_callback(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
-    assert(viewport_ptr);
-    assert(viewport_ptr->session_ptr);
-    if (!omega_session_viewport_callbacks_paused(viewport_ptr->session_ptr) && viewport_ptr->on_change_cbk) {
-        (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr);
-    }
-}
-
 #endif//OMEGA_EDIT_VIEWPORT_DEF_HPP
