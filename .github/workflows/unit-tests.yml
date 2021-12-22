@@ -6,13 +6,9 @@ on:
       - '**'
 
 jobs:
-  build-debug:
+  macos-debug:
     name: Build Debug
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
     steps:
     - name: Checkout Source
       uses: actions/checkout@v2
@@ -27,12 +23,25 @@ jobs:
         cd cmake-build-debug/src/tests/
         ./omega_test -d yes --order lex
 
-  valgrind:
+  linux-debug:
     name: Run Valgrind
     runs-on: ubuntu-latest
-    needs: build-debug
     steps:
-     - name: Run Tests Under Valgrind
-       run: |
-         cd cmake-build-debug/src/tests/
-         valgrind --leak-check=full --error-exitcode=1 ./omega_test -d yes --order lex
+    - name: Install Valgrind
+      run: sudo apt install -y valgrind
+    - name: Checkout Source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Debug Build
+      run: cmake -S . -B cmake-build-debug
+    - name: Build Debug Build
+      run: cmake --build cmake-build-debug
+    - name: Run Tests
+      run: |
+        cd cmake-build-debug/src/tests/
+        ./omega_test -d yes --order lex
+    - name: Run Tests Under Valgrind
+      run: |
+       cd cmake-build-debug/src/tests/
+       valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
