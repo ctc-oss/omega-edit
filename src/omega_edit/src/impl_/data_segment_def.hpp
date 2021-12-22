@@ -16,13 +16,14 @@
 #define OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
 
 #include "data_def.hpp"
+#include "internal_fwd_defs.hpp"
 #include <cstdint>
 #include <cstdlib>
 
 /**
  * A segment of data
  */
-struct omega_data_segment_t {
+struct omega_data_segment_struct {
     int64_t offset{};   ///< Data offset as changes have been made
     int64_t length{};   ///< Populated data length (in bytes)
     int64_t capacity{}; ///< Data capacity (in bytes)

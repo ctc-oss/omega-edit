@@ -15,9 +15,9 @@
 #ifndef OMEGA_EDIT_VIEWPORT_DEF_HPP
 #define OMEGA_EDIT_VIEWPORT_DEF_HPP
 
-#include "../../include/viewport.h"
+#include "../../include/fwd_defs.h"
 #include "data_segment_def.hpp"
-#include <cassert>
+#include "internal_fwd_defs.hpp"
 
 struct omega_viewport_struct {
     omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
