@@ -37,7 +37,7 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
     return rc;
 }
 
-struct omega_visit_change_context_t {
+struct omega_visit_change_context_struct {
     const omega_session_t *session_ptr{};
     const omega_change_t *change_ptr{};
     bool reverse{};
@@ -45,7 +45,7 @@ struct omega_visit_change_context_t {
         omega_changes_t::const_iterator *iter_ptr;
         omega_changes_t::const_reverse_iterator *riter_ptr;
     } change_iter{};
-    ~omega_visit_change_context_t() {}// NOLINT This destructor is required, but don't use =default
+    ~omega_visit_change_context_struct() {}// NOLINT This destructor is required, but don't use =default
 };
 
 omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse) {

@@ -12,3 +12,6 @@ target_link_libraries(peek omega_edit)
 
 add_executable(simple simple.cpp)
 target_link_libraries(simple omega_edit)
+
+add_executable(simple_c simple_c.c)
+target_link_libraries(simple_c omega_edit)

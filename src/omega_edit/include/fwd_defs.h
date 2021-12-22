@@ -19,9 +19,9 @@
 extern "C" {
 #endif
 
-struct omega_session_t;
-struct omega_change_t;
-struct omega_viewport_t;
+typedef struct omega_session_struct omega_session_t;
+typedef struct omega_change_struct omega_change_t;
+typedef struct omega_viewport_struct omega_viewport_t;
 
 #ifdef __cplusplus
 }

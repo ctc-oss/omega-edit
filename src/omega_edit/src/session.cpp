@@ -18,6 +18,8 @@
 #include "impl_/session_def.hpp"
 #include <cassert>
 
+enum session_flags { pause_viewport_callbacks = 0x01 };
+
 void *omega_session_get_user_data(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->user_data_ptr;
@@ -83,4 +85,19 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
         }
     }
     return nullptr;
+}
+
+int omega_session_viewport_callbacks_paused(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return (session_ptr->flags_ & pause_viewport_callbacks) ? 1 : 0;
+}
+
+void omega_session_pause_viewport_callbacks(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    session_ptr->flags_ |= pause_viewport_callbacks;
+}
+
+void omega_session_resume_viewport_callbacks(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    session_ptr->flags_ &= ~(pause_viewport_callbacks);
 }
