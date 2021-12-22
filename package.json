@@ -1,6 +1,6 @@
 {
   "name": "omega-edit",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "main": "build/Release/omega_edit",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
