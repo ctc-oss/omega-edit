@@ -88,29 +88,3 @@ omega_viewport_t *omega_edit_create_viewport_wrapper(omega_session_t *session_pt
     return omega_edit_create_viewport(session_ptr, offset, capacity, handle_viewport_change_helper, user_data_ptr);
 }
 %}
-
-%feature("director") OmegaMatchFoundDirector;
-%inline %{
-/*
- * Match Found Director
- */
-struct OmegaMatchFoundDirector {
-  virtual int handle_match_found(int64_t match_offset, int64_t match_length, void *user_data) = 0;
-  virtual ~OmegaMatchFoundDirector() {}
-};
-%}
-%{
-static OmegaMatchFoundDirector *match_found_director_ptr = nullptr;
-static int handle_match_found_helper(int64_t match_offset, int64_t match_length, void *user_data) {
-    return match_found_director_ptr->handle_match_found(match_offset, match_length, user_data);
-}
-%}
-%inline %{
-static int omega_edit_search_bytes_wrapper(const omega_session_t *session_ptr, const omega_byte_t *pattern,
-    OmegaMatchFoundDirector *director_ptr, void *user_data = nullptr,int64_t pattern_length = 0,
-    int64_t session_offset = 0, int64_t session_length = 0, int case_insensitive = 0) {
-    match_found_director_ptr = director_ptr;
-    return omega_match_bytes(session_ptr, pattern, handle_match_found_helper, user_data, pattern_length,
-        session_offset, session_length, case_insensitive);
-}
-%}

@@ -17,8 +17,9 @@
 
 #include "../../include/viewport.h"
 #include "data_segment_def.hpp"
+#include <cassert>
 
-struct omega_viewport_t {
+struct omega_viewport_struct {
     omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
     omega_data_segment_t data_segment{};           ///< Viewport data
     omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
@@ -26,7 +27,11 @@ struct omega_viewport_t {
 };
 
 inline void omega_viewport_execute_callback(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
-    if (viewport_ptr->on_change_cbk) { (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr); }
+    assert(viewport_ptr);
+    assert(viewport_ptr->session_ptr);
+    if (!omega_session_viewport_callbacks_paused(viewport_ptr->session_ptr) && viewport_ptr->on_change_cbk) {
+        (*viewport_ptr->on_change_cbk)(viewport_ptr, change_ptr);
+    }
 }
 
 #endif//OMEGA_EDIT_VIEWPORT_DEF_HPP

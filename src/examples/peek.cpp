@@ -85,9 +85,9 @@ int main(int argc, char **argv) {
              << argv[0] << " display_mode infile offset length" << endl;
         return -1;
     }
-    auto in_filename = argv[2];
-    auto offset = stoll(argv[3]);
-    auto length = stoll(argv[4]);
+    const auto in_filename = argv[2];
+    const auto offset = stoll(argv[3]);
+    const auto length = stoll(argv[4]);
     view_mode_t view_mode;
     view_mode.display_mode = char_to_display_mode(argv[1][0]);
     auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr);

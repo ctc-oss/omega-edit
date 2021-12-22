@@ -18,6 +18,7 @@
 
 #include "../omega_edit/include/check.h"
 #include "../omega_edit/include/encodings.h"
+#include "../omega_edit/include/scoped_ptr.hpp"
 #include "../omega_edit/omega_edit.h"
 #include <cinttypes>
 #include <cstring>
@@ -46,19 +47,17 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        fprintf(stderr,
-                "Reads changes from stdin, applies them to the infile and saves the results to the outfile.\n\n"
-                "USAGE: %s infile outfile\n",
-                argv[0]);
+        cerr << "Reads changes from stdin, applies them to the infile and saves the results to the outfile.\n\n"
+                "USAGE: "
+             << argv[0] << " infile outfile" << endl;
         return -1;
     }
-    omega_session_t *session_ptr;
     file_info_t file_info;
 
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
-
-    session_ptr = omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info);
+    auto session_ptr = omega_scoped_ptr<omega_session_t>(
+            omega_edit_create_session(file_info.in_filename, nullptr, nullptr), omega_edit_destroy_session);
 
     // Report stats
     int deletes = 0;
@@ -85,34 +84,32 @@ int main(int argc, char **argv) {
         }
         switch (change_type) {
             case 'D':
-                omega_edit_delete(session_ptr, offset, length);
+                omega_edit_delete(session_ptr.get(), offset, length);
                 ++deletes;
                 break;
             case 'I':
-                omega_edit_insert_bytes(session_ptr, offset, bytes, length);
+                omega_edit_insert_bytes(session_ptr.get(), offset, bytes, length);
                 ++inserts;
                 break;
             case 'O':
-                omega_edit_overwrite_bytes(session_ptr, offset, bytes, 0);
+                omega_edit_overwrite_bytes(session_ptr.get(), offset, bytes, 0);
                 ++overwrites;
                 break;
             default:
                 abort();
         }
-        if (0 != omega_check_model(session_ptr)) {
+        if (0 != omega_check_model(session_ptr.get())) {
             cerr << "session model has errors" << endl;
             abort();
         }
     }
 
     // Save the session
-    omega_edit_save(session_ptr, out_filename);
+    omega_edit_save(session_ptr.get(), out_filename);
 
     // Report
     clog << "Replayed " << deletes << " delete(s), " << inserts << " insert(s), " << overwrites
-         << " overwrite(s), new file size: " << omega_session_get_computed_file_size(session_ptr) << endl;
+         << " overwrite(s), new file size: " << omega_session_get_computed_file_size(session_ptr.get()) << endl;
 
-    // Cleanup
-    omega_edit_destroy_session(session_ptr);
     return 0;
 }

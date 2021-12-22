@@ -51,7 +51,7 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
 /**
  * Opaque visit change context
  */
-struct omega_visit_change_context_t;
+typedef struct omega_visit_change_context_struct omega_visit_change_context_t;
 
 /**
  * Create a change visitor context
@@ -59,7 +59,7 @@ struct omega_visit_change_context_t;
  * @param reverse non-zero to reverse the visitation chronology (newest change to oldest change)
  * @return change visitor context
  */
-omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse = 0);
+omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse);
 
 /**
  * Given a change visitor context, find the next change

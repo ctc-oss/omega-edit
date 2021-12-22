@@ -12,20 +12,21 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_CHANGE_DEF_HPP
-#define OMEGA_EDIT_CHANGE_DEF_HPP
+#include "../omega_edit/omega_edit.h"
+#include <stdio.h>
 
-#include "data_def.hpp"
-#include <cstdint>
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+    char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
+    fprintf(stdout, "%c: [%s]\n", change_kind, omega_viewport_get_data(viewport_ptr));
+}
 
-enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
-
-struct omega_change_struct {
-    int64_t serial{};    ///< Serial number of the change (increasing)
-    change_kind_t kind{};///< Change kind
-    int64_t offset{};    ///< Offset at the time of the change
-    int64_t length{};    ///< Number of bytes at the time of the change
-    omega_data_t data{}; ///< Bytes to insert or overwrite
-};
-
-#endif//OMEGA_EDIT_CHANGE_DEF_HPP
+int main() {
+    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL);
+    omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk, NULL);
+    omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
+    omega_edit_overwrite(session_ptr, 7, "orl", 0);
+    omega_edit_delete(session_ptr, 11, 3);
+    omega_edit_save(session_ptr, "hello.txt");
+    omega_edit_destroy_session(session_ptr);
+    return 0;
+}

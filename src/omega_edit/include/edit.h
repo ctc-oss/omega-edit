@@ -42,8 +42,8 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
  * @param user_data_ptr pointer to user-defined data to associate with this session
   @return pointer to the created session, nullptr on failure
  */
-omega_session_t *omega_edit_create_session(const char *file_path = nullptr, omega_session_on_change_cbk_t cbk = nullptr,
-                                           void *user_data_ptr = nullptr);
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
+                                           void *user_data_ptr);
 
 /**
  * Destroy the given session and all associated objects (authors, changes, and viewports)
@@ -61,15 +61,14 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @return pointer to the new viewport, nullptr on failure
  */
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_on_change_cbk_t cbk = nullptr,
-                                             void *user_data_ptr = nullptr);
+                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr);
 
 /**
  * Destroy a given viewport
  * @param viewport_ptr viewport to destroy
  * @return 0 of the viewport was successfully destroyed, and non-zero otherwise
  */
-int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr);
+void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
 
 /**
  * Given a session, clear all active changes
@@ -118,7 +117,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
  * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
-                                int64_t length = 0);
+                                int64_t length);
 
 /**
  * Insert a C string at the given offset
@@ -129,9 +128,7 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
  * bytes)
  * @return positive change serial number on success, zero otherwise
  */
-inline int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length = 0) {
-    return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
-}
+int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new bytes
@@ -142,7 +139,7 @@ inline int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, c
  * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
-                                   int64_t length = 0);
+                                   int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new C string
@@ -152,10 +149,7 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
  */
-inline int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
-                                    int64_t length = 0) {
-    return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
-}
+int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
 
 #ifdef __cplusplus
 }

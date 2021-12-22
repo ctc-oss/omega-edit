@@ -13,45 +13,35 @@
  **********************************************************************************************************************/
 
 /*
- * Uses Omega Edit to extract and save a segment from a file.  Example from src/examples::
- * node ./omega_simple.js
- * R: []
- * I: [Hello Weird!!!!]
- * O: [Hello World!!!!]
- * D: [Hello World!]
- * finished!
- * Verify the results:
- * cat hello-js.txt
- * Hello World!
+ * This application can be used to test out how to do search and replace with Omega Edit.
  */
-function on_viewport_change(viewport, change) {
-    change_kind = (change) ? omega_edit.omega_change_get_kind_as_char(change) : 'R'
-    console.log(change_kind + ": [" + omega_edit.omega_viewport_get_string(viewport) + "]")
-}
 
 omega_edit = require('../../build/Release/omega_edit')
-session = omega_edit.omega_edit_create_session("", null, null)
+in_filename = process.argv[2]
+out_filename = process.argv[3]
+pattern = process.argv[4]
+replacement = process.argv[5]
+session = omega_edit.omega_edit_create_session(in_filename, null, null)
 console.assert(session != null, {errorMsg: "session creation failed"})
-viewport = omega_edit.omega_edit_create_viewport(session, 0, 100, null, null)
-if (omega_edit.omega_viewport_has_changes(viewport)) {
-    on_viewport_change(viewport)
+match_context = omega_edit.omega_match_create_context_string(session, pattern)
+console.assert(match_context != null, {errorMsg: "match context creation failed"})
+replacements = 0
+if (omega_edit.omega_match_find(match_context, 1)) {
+    do {
+        pattern_offset = omega_edit.omega_match_context_get_offset(match_context)
+        if (pattern.length == replacement.length) {
+            omega_edit.omega_edit_overwrite_string(session, pattern_offset, replacement)
+        } else {
+            omega_edit.omega_session_pause_viewport_callbacks(session)
+            omega_edit.omega_edit_delete(session, pattern_offset, pattern.length)
+            omega_edit.omega_session_resume_viewport_callbacks(session)
+            omega_edit.omega_edit_insert_string(session, pattern_offset, replacement)
+        }
+        ++replacements
+    } while (omega_edit.omega_match_find(match_context, replacement.length));
 }
-rc = omega_edit.omega_edit_insert(session, 0, "Hello Weird!!!!", 15);
-console.assert(rc > 0, {rc: rc, errorMsg: "insert failed"})
-if (omega_edit.omega_viewport_has_changes(viewport)) {
-    on_viewport_change(viewport, omega_edit.omega_session_get_change(session, rc))
-}
-rc = omega_edit.omega_edit_overwrite(session, 7, "orl", 3)
-console.assert(rc > 0, {rc: rc, errorMsg: "overwrite failed"})
-if (omega_edit.omega_viewport_has_changes(viewport)) {
-    on_viewport_change(viewport, omega_edit.omega_session_get_change(session, rc))
-}
-rc = omega_edit.omega_edit_delete(session, 11, 3)
-console.assert(rc > 0, {rc: rc, errorMsg: "delete failed"})
-if (omega_edit.omega_viewport_has_changes(viewport)) {
-    on_viewport_change(viewport, omega_edit.omega_session_get_change(session, rc))
-}
-rc = omega_edit.omega_edit_save(session, "hello-js.txt")
+omega_edit.omega_match_destroy_context(match_context)
+rc = omega_edit.omega_edit_save(session, out_filename)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
+console.log("Replaced " + replacements + " instances using " + omega_edit.omega_session_get_num_changes(session) + " changes.")
 omega_edit.omega_edit_destroy_session(session);
-console.log("finished!")

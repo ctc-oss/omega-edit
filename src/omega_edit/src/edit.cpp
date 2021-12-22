@@ -314,16 +314,15 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
     return nullptr;
 }
 
-int omega_edit_destroy_viewport(const omega_viewport_t *viewport_ptr) {
+void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
             if (7 < omega_viewport_get_capacity(iter->get())) { delete[](*iter)->data_segment.data.bytes_ptr; }
             viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
-            return 0;
+            break;
         }
     }
-    return -1;
 }
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
@@ -342,12 +341,20 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
                    : 0;
 }
 
+int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
+    return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+}
+
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
     return (0 <= length && offset < omega_session_get_computed_file_size(session_ptr))
                    ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
                    : 0;
+}
+
+int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
+    return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
 }
 
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {

@@ -28,7 +28,7 @@ extern "C" {
 /**
  * Opaque match context
  */
-struct omega_match_context_t;
+typedef struct omega_match_context_t omega_match_context_t;
 
 /**
  * Create a match context
@@ -43,8 +43,8 @@ struct omega_match_context_t;
  * @return match context
  */
 omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
-                                                        int64_t pattern_length = 0, int64_t session_offset = 0,
-                                                        int64_t session_length = 0, int case_insensitive = 0);
+                                                        int64_t pattern_length, int64_t session_offset,
+                                                        int64_t session_length, int case_insensitive);
 
 /**
  * Create a match context
@@ -59,8 +59,8 @@ omega_match_context_t *omega_match_create_context_bytes(const omega_session_t *s
  * @return match context
  */
 inline omega_match_context_t *omega_match_create_context(const omega_session_t *session_ptr, const char *pattern,
-                                                         int64_t pattern_length = 0, int64_t session_offset = 0,
-                                                         int64_t session_length = 0, int case_insensitive = 0) {
+                                                         int64_t pattern_length, int64_t session_offset,
+                                                         int64_t session_length, int case_insensitive) {
     return omega_match_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length, session_offset,
                                             session_length, case_insensitive);
 }
@@ -85,7 +85,7 @@ int64_t omega_match_context_get_length(const omega_match_context_t *match_contex
  * @param advance_context advance the internal matching context by this many bytes
  * @return non-zero if a match is found, zero otherwise
  */
-int omega_match_find(omega_match_context_t *match_context_ptr, int64_t advance_context = 1);
+int omega_match_find(omega_match_context_t *match_context_ptr, int64_t advance_context);
 
 /**
  * Destroy the given search context

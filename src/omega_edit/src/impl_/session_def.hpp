@@ -26,13 +26,14 @@ typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
 typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
 typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
 
-struct omega_session_t {
+struct omega_session_struct {
     FILE *file_ptr{};                             ///< File being edited (open for read)
-    std::string file_path;                        ///< File path being edited
+    std::string file_path{};                      ///< File path being edited
     omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
     void *user_data_ptr{};                        ///< Pointer to associated user-provided data
     omega_viewports_t viewports_{};               ///< Collection of viewports in this session
     omega_model_ptr_t model_ptr_{};               ///< Edit model (internal)
+    int8_t flags_{};                              ///< Internal state flags
 };
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP
