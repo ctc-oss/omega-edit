@@ -15,6 +15,7 @@
 #ifndef OMEGA_EDIT_CHANGE_DEF_HPP
 #define OMEGA_EDIT_CHANGE_DEF_HPP
 
+#include "../../include/fwd_defs.h"
 #include "data_def.hpp"
 #include <cstdint>
 
