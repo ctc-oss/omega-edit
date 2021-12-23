@@ -28,7 +28,6 @@
 #include <iostream>
 
 using namespace std;
-#define OMEGA_BUILD_32_BIT
 
 TEST_CASE("Size Tests", "[SizeTests]") {
     REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
