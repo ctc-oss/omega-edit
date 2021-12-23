@@ -6,10 +6,12 @@ The goal of this project is to provide an open source library for building edito
 This repo is built using CLion, if using CLion everything will work seamlessly, though Visual Studio Code also works well. (cmake)
 
 If you are using just the command line you will need these things installed:
-- C++ Compiler
+- C/C++ compiler (such as clang, gcc, or mingw)
 - CMake (https://cmake.org/download/)
+- make or ninja
 - NodeJS v10
-- Swig
+
+If developing the Ωedit API, you'll need SWIG installed as well.
 
 ## Building
 
@@ -18,27 +20,19 @@ If you are using just the command line you will need these things installed:
 #### cmake commands
 :exclamation: These commands should be executed at root level of the repository :exclamation:
 
-Run Build:
+Configure debug build:
 
 ```bash
 cmake -S . -B cmake-build-debug
 ```
 
-Run Debug:
+Run debug build:
 
 ```bash
-cmake -S . -B cmake-build-debug \
-  -DCMAKE_BUILD_TYPE=Debug -DCMAKE_DEPENDS_USE_COMPILER=FALSE \
-  -G "CodeBlocks - Unix Makefiles" .
+cmake --build cmake-build-debug
 ```
 
-Build omega_test:
-
-```bash
-cmake --build cmake-build-debug --target omega_test -- -j 6
-```
-
-Run tests:
+Run unit tests:
 
 ```bash
 cd cmake-build-debug/src/tests/
@@ -46,70 +40,33 @@ cd cmake-build-debug/src/tests/
 cd ../../../
 ```
 
-#### Node bindings using SWIG
+#### Build Node bindings using npm
 
-Generate the API wrapper source code:
+Setup Node virtual environment:
+
+```bash
+nodeenv --node=10.24.1 venv
+```
+
+Activate the Node virtual environment:
+
+```bash
+source ./venv/bin/activate
+```
+
+In the activated environment, build the bindings, and run an example:
+
+```bash
+node ci
+node src/examples/omega_simple.js
+```
+
+## Development
+
+#### Regenerate Node bindings using SWIG (as required)
+
+If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
 
 ```bash
 swig -javascript -node -v -c++ src/bindings/omega_edit.i
-```
-
-#### Build the bindings using node-gyp
-
-Prepare:
-
-```bash
-yarn install
-```
-
-Configure:
-
-```bash
-yarn run gyp-configure
-```
-
-Build:
-
-```bash
-yarn run gyp-build
-```
-
-## Convenience run script
-
-The run scripts allow for easy execution of the commands stated above.
-
-cmake build:
-
-```bash
-./run cmake-build
-```
-
-cmake debug:
-
-```bash
-./run cmake-debug
-```
-
-cmake test:
-
-```bash
-./run cmake-test
-```
-
-swig compile:
-
-```bash
-./run swig-compile
-```
-
-gyp configure:
-
-```bash
-./run gyp-configure
-```
-
-gyp build:
-
-```bash
-./run gyp-build
 ```
