@@ -2148,6 +2148,44 @@ fail:
 }
 
 
+#if (V8_MAJOR_VERSION-0) < 5
+static SwigV8ReturnValue _wrap_OMEGA_VIEWPORT_CAPACITY_LIMIT(v8::Local<v8::String> property, const SwigV8PropertyCallbackInfo &info) {
+#else
+  static SwigV8ReturnValue _wrap_OMEGA_VIEWPORT_CAPACITY_LIMIT(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+#endif
+    SWIGV8_HANDLESCOPE();
+    
+    v8::Handle<v8::Value> jsresult;
+    
+    jsresult = SWIG_From_int(static_cast< int >((1024*1024)));
+    
+    SWIGV8_RETURN_INFO(jsresult, info);
+    
+    goto fail;
+  fail:
+    SWIGV8_RETURN_INFO(SWIGV8_UNDEFINED(), info);
+  }
+
+
+#if (V8_MAJOR_VERSION-0) < 5
+static SwigV8ReturnValue _wrap_OMEGA_SEARCH_PATTERN_LENGTH_LIMIT(v8::Local<v8::String> property, const SwigV8PropertyCallbackInfo &info) {
+#else
+  static SwigV8ReturnValue _wrap_OMEGA_SEARCH_PATTERN_LENGTH_LIMIT(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+#endif
+    SWIGV8_HANDLESCOPE();
+    
+    v8::Handle<v8::Value> jsresult;
+    
+    jsresult = SWIG_From_int(static_cast< int >(((1024*1024)/2)));
+    
+    SWIGV8_RETURN_INFO(jsresult, info);
+    
+    goto fail;
+  fail:
+    SWIGV8_RETURN_INFO(SWIGV8_UNDEFINED(), info);
+  }
+
+
 static SwigV8ReturnValue _wrap_omega_edit_create_session(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -5237,7 +5275,9 @@ if (SWIGTYPE_p_OmegaViewportOnChangeDirector->clientdata == 0) {
 
 
   /* register wrapper functions */
-  SWIGV8_AddMemberFunction(_exports_SessionOnChangeDirector_class, "handle_session_change", _wrap_SessionOnChangeDirector_handle_session_change);
+  SWIGV8_AddStaticVariable(exports_obj, "OMEGA_VIEWPORT_CAPACITY_LIMIT", _wrap_OMEGA_VIEWPORT_CAPACITY_LIMIT, JS_veto_set_variable);
+SWIGV8_AddStaticVariable(exports_obj, "OMEGA_SEARCH_PATTERN_LENGTH_LIMIT", _wrap_OMEGA_SEARCH_PATTERN_LENGTH_LIMIT, JS_veto_set_variable);
+SWIGV8_AddMemberFunction(_exports_SessionOnChangeDirector_class, "handle_session_change", _wrap_SessionOnChangeDirector_handle_session_change);
 SWIGV8_AddMemberFunction(_exports_OmegaViewportOnChangeDirector_class, "handle_viewport_change", _wrap_OmegaViewportOnChangeDirector_handle_viewport_change);
 
 

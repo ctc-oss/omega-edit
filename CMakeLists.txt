@@ -38,7 +38,7 @@ set(SOURCE_FILES
         src/omega_edit/src/impl_/internal_fwd_defs.hpp)
 
 # Create the library archive for static linking
-add_library(omega_edit SHARED ${SOURCE_FILES})
+add_library(omega_edit STATIC ${SOURCE_FILES})
 
 # Generate documentation using Doxygen
 find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)

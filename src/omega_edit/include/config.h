@@ -15,6 +15,12 @@
 #ifndef OMEGA_EDIT_CONFIG_H
 #define OMEGA_EDIT_CONFIG_H
 
+#ifdef __cplusplus
+#include <cstdint>
+#else
+#include <stdint.h>
+#endif//__cplusplus
+
 /***********************************************************************************************************************
  * CONFIGURATION
  **********************************************************************************************************************/
@@ -36,5 +42,13 @@
 #ifndef OMEGA_BYTE_T
 #define OMEGA_BYTE_T unsigned char
 #endif//OMEGA_BYTE_T
+
+#if INTPTR_MAX == INT64_MAX
+#define OMEGA_BUILD_64_BIT
+#elif INTPTR_MAX == INT32_MAX
+#define OMEGA_BUILD_32_BIT
+#else
+#error Unknown pointer size or missing size macros!
+#endif
 
 #endif//OMEGA_EDIT_CONFIG_H
