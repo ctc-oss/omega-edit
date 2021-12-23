@@ -5,7 +5,6 @@ cmake-build*/
 .DS_Store
 Release
 yarn.lock
-package-lock.json
 venv/
 
 # log files
