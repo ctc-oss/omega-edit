@@ -24,14 +24,18 @@ jobs:
         run: |
           cd cmake-build-debug/src/tests/
           ./omega_test -d yes --order lex
-      - name: Build Node v10 Bindings
+      - name: Create Node v10 Virtual Environment
+        run: nodeenv --node=10.24.1 venv
+      - name: Prepare To Build Node v10 Bindings
         run: |
-          nodeenv --node=10.24.1 venv
           source ./venv/bin/activate
           yarn install
+        continue-on-error: true
+      - name: Build Node v10 Bindings
+        run: |
+          source ./venv/bin/activate
           yarn run gyp-configure
           yarn run gyp-build
-        continue-on-error: true
       - name: Test Node v10 Bindings
         run: |
           source ./venv/bin/activate
@@ -59,14 +63,18 @@ jobs:
         run: |
           cd cmake-build-debug/src/tests/
           valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
-      - name: Build Node v10 Bindings
+      - name: Create Node v10 Virtual Environment
+        run: nodeenv --node=10.24.1 venv
+      - name: Prepare To Build Node v10 Bindings
         run: |
-          nodeenv --node=10.24.1 venv
           source ./venv/bin/activate
           yarn install
+        continue-on-error: true
+      - name: Build Node v10 Bindings
+        run: |
+          source ./venv/bin/activate
           yarn run gyp-configure
           yarn run gyp-build
-        continue-on-error: true
       - name: Test Node v10 Bindings
         run: |
           source ./venv/bin/activate
