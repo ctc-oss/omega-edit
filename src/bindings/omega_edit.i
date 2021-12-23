@@ -29,6 +29,7 @@
 /* Parse the header file to generate wrappers */
 %include "../omega_edit/include/change.h"
 %include "../omega_edit/include/check.h"
+%include "../omega_edit/include/config.h"
 %include "../omega_edit/include/edit.h"
 %include "../omega_edit/include/license.h"
 %include "../omega_edit/include/match.h"
