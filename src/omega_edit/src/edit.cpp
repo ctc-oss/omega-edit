@@ -309,6 +309,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->on_change_cbk = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         session_ptr->viewports_.push_back(viewport_ptr);
+        omega_data_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
         return viewport_ptr.get();
     }
