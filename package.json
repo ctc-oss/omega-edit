@@ -14,7 +14,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "ansi-regex": "^5.0.1",
-    "node-gyp": "^8.4.1"
+    "node-gyp": "^8.4.1",
+    "yarn": "^1.22.17"
   },
   "scripts": {
     "gyp-build": "yarn run node-gyp build",

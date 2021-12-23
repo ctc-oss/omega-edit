@@ -6,6 +6,7 @@ cmake-build*/
 Release
 yarn.lock
 package-lock.json
+venv/
 
 # log files
 *.log
