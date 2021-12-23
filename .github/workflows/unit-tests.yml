@@ -39,6 +39,7 @@ jobs:
         run: cmake --build cmake-build-debug
       - name: Build Bindings
         run: |
+          yarn install
           yarn run gyp-configure
           yarn run gyp-build
       - name: Run Tests
