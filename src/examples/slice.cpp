@@ -28,8 +28,8 @@ int main(int argc, char **argv) {
     }
     const auto in_filename = argv[1];
     const auto out_filename = argv[2];
-    const auto offset = stoll(argv[3]);
-    const auto length = stoll(argv[4]);
+    const auto offset = static_cast<int64_t>(stoll(argv[3]));
+    const auto length = static_cast<int64_t>(stoll(argv[4]));
     auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr);
     if (session_ptr) {
         if (offset) { omega_edit_delete(session_ptr, 0, offset); }

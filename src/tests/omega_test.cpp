@@ -33,15 +33,9 @@ TEST_CASE("Size Tests", "[SizeTests]") {
     REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
     REQUIRE(4 == sizeof(int));
     REQUIRE(8 == sizeof(int64_t));//explicit 8-bytes
-    REQUIRE(8 == sizeof(double));
     REQUIRE(8 == sizeof(long long));
     REQUIRE(8 == sizeof(size_t));
     REQUIRE(8 == sizeof(void *));
-#ifdef OMEGA_BUILD_32_BIT
-    REQUIRE(4 == sizeof(long));
-#else
-    REQUIRE(8 == sizeof(long));
-#endif//OMEGA_BUILD_32_BIT
 }
 
 TEST_CASE("License check", "[LicenseCheck]") {
