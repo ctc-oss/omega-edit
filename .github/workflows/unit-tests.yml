@@ -10,38 +10,46 @@ jobs:
     name: MacOS Tests
     runs-on: macos-latest
     steps:
-    - name: Checkout Source
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Setup Debug Build
-      run: cmake -S . -B cmake-build-debug
-    - name: Build Debug Build
-      run: cmake --build cmake-build-debug
-    - name: Run Tests
-      run: |
-        cd cmake-build-debug/src/tests/
-        ./omega_test -d yes --order lex
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Debug Build
+        run: cmake -S . -B cmake-build-debug
+      - name: Build Debug Build
+        run: cmake --build cmake-build-debug
+      - name: Run Tests
+        run: |
+          cd cmake-build-debug/src/tests/
+          ./omega_test -d yes --order lex
 
   linux-debug:
     name: Linux Tests
     runs-on: ubuntu-latest
     steps:
-    - name: Install Valgrind
-      run: sudo apt install -y valgrind
-    - name: Checkout Source
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-    - name: Setup Debug Build
-      run: cmake -S . -B cmake-build-debug
-    - name: Build Debug Build
-      run: cmake --build cmake-build-debug
-    - name: Run Tests
-      run: |
-        cd cmake-build-debug/src/tests/
-        ./omega_test -d yes --order lex
-    - name: Run Tests Under Valgrind
-      run: |
-       cd cmake-build-debug/src/tests/
-       valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
+      - name: Install Prerequisites
+        run: sudo apt install -y valgrind yarn
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Debug Build
+        run: cmake -S . -B cmake-build-debug
+      - name: Build Debug Build
+        run: cmake --build cmake-build-debug
+      - name: Build Bindings
+        run: |
+          yarn run gyp-configure
+          yarn run gyp-build
+      - name: Run Tests
+        run: |
+          cd cmake-build-debug/src/tests/
+          ./omega_test -d yes --order lex
+      - name: Run Tests Under Valgrind
+        run: |
+          cd cmake-build-debug/src/tests/
+          valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
+      - name: Run Javascript Tests
+        run: |
+          cd cmake-build-debug/src/examples
+          node ./omega_simple.js
