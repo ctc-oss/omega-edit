@@ -1,0 +1,39 @@
+# CLion remote docker environment (How to build docker container, run and stop it)
+#
+# Build:
+#   docker build -t build/centos-7/cpp-env:1.0 -f Dockerfile.centos7-cpp-env .
+
+FROM centos:7
+
+RUN yum -y update && yum-config-manager --enable rhel-server-rhscl-7-rpms
+RUN yum -y update && yum -y install devtoolset-7 \
+  openssh-server \
+  make \
+  autoconf \
+  automake \
+  dos2unix \
+  ninja-build \
+  build-essential \
+  gcc \
+  gcc-c++ \
+  gdb \
+  clang \
+  rsync \
+  tar \
+  python \
+  doxygen \
+  graphviz \
+  swig \
+  wget \
+ && yum clean all
+
+# Install a version of cmake >= 3.16
+RUN version=3.21.4; \
+    wget -O cmake-$version-Linux-x86_64.sh https://github.com/Kitware/CMake/releases/download/v$version/cmake-$version-Linux-x86_64.sh \
+ && sh cmake-$version-Linux-x86_64.sh -- --skip-license --prefix=/usr \
+ && rm -f cmake-$version-Linux-x86_64.sh
+
+# Enable the SCL for all bash scripts.
+ENV BASH_ENV=/opt/app-root/etc/scl_enable \
+    ENV=/opt/app-root/etc/scl_enable \
+    PROMPT_COMMAND=". /opt/app-root/etc/scl_enable"
