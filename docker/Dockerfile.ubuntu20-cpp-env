@@ -1,4 +1,4 @@
-# Build and run:
+# Build:
 #   docker build -t build/ubuntu-20.04/cpp-env:1.0 -f Dockerfile.ubuntu20-cpp-env .
 
 FROM ubuntu:20.04

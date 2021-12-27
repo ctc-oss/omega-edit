@@ -1,5 +1,3 @@
-# CLion remote docker environment (How to build docker container, run and stop it)
-#
 # Build:
 #   docker build -t build/centos-8/cpp-env:1.0 -f Dockerfile.centos8-cpp-env .
 
