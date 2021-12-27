@@ -18,6 +18,7 @@
 #include "../../include/edit.h"
 #include "../../include/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
+#include "model_def.hpp"
 #include <cstdio>
 #include <string>
 #include <vector>
