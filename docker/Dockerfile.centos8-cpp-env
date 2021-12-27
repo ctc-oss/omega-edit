@@ -1,0 +1,27 @@
+# CLion remote docker environment (How to build docker container, run and stop it)
+#
+# Build:
+#   docker build -t build/centos-8/cpp-env:1.0 -f Dockerfile.centos8-cpp-env .
+
+FROM centos:8
+
+RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set-enabled powertools && yum -y install \
+  openssh-server \
+  make \
+  autoconf \
+  automake \
+  dos2unix \
+  gcc \
+  gcc-c++ \
+  gdb \
+  clang \
+  cmake \
+  rsync \
+  tar \
+  python39 \
+  doxygen \
+  graphviz \
+  swig \
+  ninja-build \
+  wget \
+ && yum clean all

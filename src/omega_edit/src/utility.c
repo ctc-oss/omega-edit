@@ -40,7 +40,8 @@ int omega_util_file_exists(const char *file_name) {
 
 void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform) {
     assert(buffer);
-    for (int64_t i = 0; i < len; ++i) { buffer[i] = transform(buffer[i]); }
+    int64_t i;
+    for (i = 0; i < len; ++i) { buffer[i] = transform(buffer[i]); }
 }
 
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
@@ -49,7 +50,8 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
         omega_byte_t shift_right = 8 - shift_left;
         omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
         omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
+        int64_t i;
+        for (i = len - 1; i >= 0; --i) {
             const unsigned char bits2 = buffer[i] & mask;
             buffer[i] <<= shift_left;
             buffer[i] |= bits1 >> shift_right;
@@ -66,7 +68,8 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
         omega_byte_t shift_left = 8 - shift_right;
         omega_byte_t mask = (1 << shift_right) - 1;
         omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
+        int64_t i;
+        for (i = len - 1; i >= 0; --i) {
             const unsigned char bits2 = buffer[i] & mask;
             buffer[i] >>= shift_right;
             buffer[i] |= bits1 << shift_left;

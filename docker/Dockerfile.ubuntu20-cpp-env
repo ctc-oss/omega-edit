@@ -1,0 +1,28 @@
+# Build and run:
+#   docker build -t build/ubuntu-20.04/cpp-env:1.0 -f Dockerfile.ubuntu20-cpp-env .
+
+FROM ubuntu:20.04
+
+RUN DEBIAN_FRONTEND="noninteractive" apt-get update && apt-get -y install tzdata
+RUN apt-get update && apt-get -y install \
+  build-essential \
+  gcc \
+  g++ \
+  gdb \
+  clang \
+  make \
+  ninja-build \
+  cmake \
+  autoconf \
+  automake \
+  locales-all \
+  dos2unix \
+  rsync \
+  tar \
+  python \
+  python-dev \
+  doxygen \
+  graphviz \
+  swig \
+  wget \
+  && apt-get clean
