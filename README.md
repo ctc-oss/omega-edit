@@ -13,7 +13,7 @@ If you are using just the command line you will need these things installed:
 - C/C++ compiler (such as clang, gcc, or mingw)
 - CMake (https://cmake.org/download/)
 - make or ninja
-- nodeenv
+- nvm or nodeenv
 
 If developing the Ωedit API, you'll need SWIG installed as well.
 
