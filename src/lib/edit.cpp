@@ -142,6 +142,24 @@ static omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_
     return result;
 }
 
+static inline void free_session_changes_(omega_session_t *session_ptr) {
+    for (auto &change_ptr : session_ptr->model_ptr_->changes) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
+            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        }
+    }
+    session_ptr->model_ptr_->changes.clear();
+}
+
+static inline void free_session_changes_undone_(omega_session_t *session_ptr) {
+    for (auto &change_ptr : session_ptr->model_ptr_->changes_undone) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
+            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        }
+    }
+    session_ptr->model_ptr_->changes_undone.clear();
+}
+
 /* --------------------------------------------------------------------------------------------------------------------
  The objective here is to model the edits using segments.  Essentially creating a contiguous model of the file by
  keeping track of what to do.  The verbs here are READ, INSERT, and OVERWRITE.  We don't need to model DELETE because
@@ -151,14 +169,16 @@ static omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_
 static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr_t &change_ptr) {
     int64_t read_offset = 0;
 
-    if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
-        // The model is empty, and we have a change with content
-        auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
-        insert_segment_ptr->computed_offset = change_ptr->offset;
-        insert_segment_ptr->computed_length = change_ptr->length;
-        insert_segment_ptr->change_offset = 0;
-        insert_segment_ptr->change_ptr = change_ptr;
-        model_ptr->model_segments.push_back(std::move(insert_segment_ptr));
+    if (model_ptr->model_segments.empty()) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            // The model is empty, and we have a change with content
+            auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
+            insert_segment_ptr->computed_offset = change_ptr->offset;
+            insert_segment_ptr->computed_length = change_ptr->length;
+            insert_segment_ptr->change_offset = 0;
+            insert_segment_ptr->change_ptr = change_ptr;
+            model_ptr->model_segments.push_back(std::move(insert_segment_ptr));
+        }
         return 0;
     }
     for (auto iter = model_ptr->model_segments.begin(); iter != model_ptr->model_segments.end(); ++iter) {
@@ -253,7 +273,7 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
             undone_change_ptr->serial *= -1;
         } else if (!session_ptr->model_ptr_->changes_undone.empty()) {
             // This is not a redo change, so any changes undone are now invalid and must be cleared
-            session_ptr->model_ptr_->changes_undone.clear();
+            free_session_changes_undone_(session_ptr);
         }
         session_ptr->model_ptr_->changes.push_back(change_ptr);
         if (0 != update_model_(session_ptr->model_ptr_.get(), change_ptr)) { return -1; }
@@ -289,11 +309,8 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
     if (session_ptr->file_ptr) { fclose(session_ptr->file_ptr); }
     while (!session_ptr->viewports_.empty()) { omega_edit_destroy_viewport(session_ptr->viewports_.back().get()); }
-    for (auto &change_ptr : session_ptr->model_ptr_->changes) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
-        }
-    }
+    free_session_changes_(session_ptr);
+    free_session_changes_undone_(session_ptr);
     delete session_ptr;
 }
 
@@ -349,7 +366,7 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    return (0 <= length && offset < omega_session_get_computed_file_size(session_ptr))
+    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
                    ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
                    : 0;
@@ -405,7 +422,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
         length = ftello(session_ptr->file_ptr);
     }
     initialize_model_segments_(session_ptr->model_ptr_->model_segments, length);
-    session_ptr->model_ptr_->changes.clear();
+    free_session_changes_(session_ptr);
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
         omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);

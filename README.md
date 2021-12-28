@@ -1,6 +1,7 @@
 # Ωedit Library
 ![Build Status](https://github.com/scholarsmate/omega-edit/workflows/Unit%20Tests/badge.svg)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_shield)
+[![codecov](https://codecov.io/gh/scholarsmate/omega-edit/branch/master/graph/badge.svg)](https://codecov.io/gh/scholarsmate/omega-edit)
 
 <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64 style="float: left">
 The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports.
@@ -12,7 +13,7 @@ If you are using just the command line you will need these things installed:
 - C/C++ compiler (such as clang, gcc, or mingw)
 - CMake (https://cmake.org/download/)
 - make or ninja
-- nodeenv
+- nvm or nodeenv
 
 If developing the Ωedit API, you'll need SWIG installed as well.
 
