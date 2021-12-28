@@ -50,6 +50,5 @@ if(DOXYGEN_FOUND)
 endif(DOXYGEN_FOUND)
 
 # Add additional subdirectories with CMakeLists.txt to the build
-add_subdirectory(src/bindings)
 add_subdirectory(src/tests)
 add_subdirectory(src/examples)
