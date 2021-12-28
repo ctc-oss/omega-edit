@@ -86,6 +86,17 @@ TEST_CASE("File Compare", "[UtilTests]") {
     }
 }
 
+TEST_CASE("File Exists", "[UtilTests]") {
+    REQUIRE(omega_util_file_exists("data/test1.dat"));
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+}
+
+TEST_CASE("Current Directory", "[UtilTests]") {
+    using Catch::Matchers::Contains;
+    using Catch::Matchers::EndsWith;
+    REQUIRE_THAT(omega_util_get_current_dir(), Contains("src") && EndsWith("tests"));
+}
+
 static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
 static inline omega_byte_t to_upper(omega_byte_t byte) { return toupper(byte); }
 
