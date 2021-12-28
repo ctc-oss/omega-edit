@@ -19,3 +19,11 @@ comment:
   layout: "reach,diff,flags,files,footer"
   behavior: default
   require_changes: no
+
+ignore:
+  - vendor
+  - src/bindings
+  - src/examples
+  - src/tests/play.cpp
+  - src/tests/replay.cpp
+  - src/tests/generate_file.cpp
