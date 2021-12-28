@@ -46,7 +46,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Debug Build
-        run: cmake -S . -B cmake-build-debug
+        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
       - name: Build Debug Build
         run: cmake --build cmake-build-debug
       - name: Run Tests
@@ -56,7 +56,7 @@ jobs:
       - name: Run Tests Under Valgrind
         run: |
           cd cmake-build-debug/src/tests/
-          valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./omega_test -d yes --order lex
+          valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
       - name: Create Node v10 Virtual Environment
         run: nodeenv --node=10.24.1 venv
       - name: Prepare To Build Node v10 Bindings
