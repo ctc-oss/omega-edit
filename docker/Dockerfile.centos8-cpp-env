@@ -21,5 +21,6 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
   graphviz \
   swig \
   ninja-build \
+  valgrind \
   wget \
  && yum clean all
