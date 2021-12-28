@@ -19,7 +19,7 @@
 
 #include "change.h"
 #include "edit.h"
-#include "match.h"
+#include "search.h"
 #include "viewport.h"
 #include <string>
 
@@ -69,20 +69,21 @@ inline int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t
 }
 
 /**
- * Create a match context
+ * Create a search context
  * @param session_ptr session to find patterns in
  * @param pattern pattern string to find
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
  * will track the computed session length
- * @param case_insensitive zero for case sensitive match and non-zero otherwise
- * @return match context
+ * @param case_insensitive zero for case sensitive matching and non-zero otherwise
+ * @return search context
  */
-inline omega_match_context_t *omega_match_create_context_string(const omega_session_t *session_ptr,
-                                                                const std::string &pattern, int64_t session_offset = 0,
-                                                                int64_t session_length = 0, int case_insensitive = 0) {
-    return omega_match_create_context(session_ptr, pattern.c_str(), static_cast<int64_t>(pattern.length()),
-                                      session_offset, session_length, case_insensitive);
+inline omega_search_context_t *
+omega_search_create_context_string(const omega_session_t *session_ptr,
+                                                                 const std::string &pattern, int64_t session_offset = 0,
+                                                                 int64_t session_length = 0, int case_insensitive = 0) {
+    return omega_search_create_context(session_ptr, pattern.c_str(), static_cast<int64_t>(pattern.length()),
+                                       session_offset, session_length, case_insensitive);
 }
 
 #endif//__cplusplus

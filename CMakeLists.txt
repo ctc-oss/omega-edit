@@ -24,7 +24,7 @@ set(SOURCE_FILES
         src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
         src/include/omega_edit/check.h src/lib/check.cpp
         src/include/omega_edit/edit.h src/lib/edit.cpp
-        src/include/omega_edit/match.h src/lib/match.cpp
+        src/include/omega_edit/search.h src/lib/search.cpp
         src/include/omega_edit/visit.h src/lib/visit.cpp
         src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
         src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
@@ -32,7 +32,7 @@ set(SOURCE_FILES
         src/include/omega_edit/utility.h src/lib/utility.c
         src/include/omega_edit/encodings.h src/lib/encodings.c
         src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
-        src/lib/impl_/search.h src/lib/impl_/search.cpp
+        src/lib/impl_/find.h src/lib/impl_/find.cpp
         src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
         src/lib/impl_/model_def.hpp src/lib/impl_/model_segment_def.hpp
         src/lib/impl_/macros.hpp

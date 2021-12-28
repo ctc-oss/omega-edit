@@ -23,12 +23,12 @@ pattern = process.argv[4]
 replacement = process.argv[5]
 session = omega_edit.omega_edit_create_session(in_filename, null, null)
 console.assert(session != null, {errorMsg: "session creation failed"})
-match_context = omega_edit.omega_match_create_context_string(session, pattern)
-console.assert(match_context != null, {errorMsg: "match context creation failed"})
+search_context = omega_edit.omega_search_create_context_string(session, pattern)
+console.assert(search_context != null, {errorMsg: "match context creation failed"})
 replacements = 0
-if (omega_edit.omega_match_find(match_context, 1)) {
+if (omega_edit.omega_search_next_match(search_context, 1)) {
     do {
-        pattern_offset = omega_edit.omega_match_context_get_offset(match_context)
+        pattern_offset = omega_edit.omega_search_context_get_offset(search_context)
         if (pattern.length == replacement.length) {
             omega_edit.omega_edit_overwrite_string(session, pattern_offset, replacement)
         } else {
@@ -38,9 +38,9 @@ if (omega_edit.omega_match_find(match_context, 1)) {
             omega_edit.omega_edit_insert_string(session, pattern_offset, replacement)
         }
         ++replacements
-    } while (omega_edit.omega_match_find(match_context, replacement.length));
+    } while (omega_edit.omega_search_next_match(search_context, replacement.length));
 }
-omega_edit.omega_match_destroy_context(match_context)
+omega_edit.omega_search_destroy_context(search_context)
 rc = omega_edit.omega_edit_save(session, out_filename)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 console.log("Replaced " + replacements + " instances using " + omega_edit.omega_session_get_num_changes(session) + " changes.")

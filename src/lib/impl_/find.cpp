@@ -12,20 +12,20 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "search.h"
+#include "find.h"
 #include <cassert>
 #include <climits>
 #include <cstring>
 #include <vector>
 
-struct omega_search_skip_table_t : public std::vector<size_t> {
-    omega_search_skip_table_t(size_t vec_size, size_t fill) : std::vector<size_t>(vec_size, fill) {}
+struct omega_find_skip_table_t : public std::vector<size_t> {
+    omega_find_skip_table_t(size_t vec_size, size_t fill) : std::vector<size_t>(vec_size, fill) {}
 };
 
-const omega_search_skip_table_t *omega_search_create_skip_table(const unsigned char *needle, size_t needle_length) {
+const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char *needle, size_t needle_length) {
     assert(needle);
     assert(needle_length > 0);
-    auto skip_table_ptr = new omega_search_skip_table_t(UCHAR_MAX + 1, needle_length);
+    auto skip_table_ptr = new omega_find_skip_table_t(UCHAR_MAX + 1, needle_length);
     assert(skip_table_ptr);
     if (needle_length >= 1) {
         const auto needle_length_minus_1 = needle_length - 1;
@@ -37,9 +37,9 @@ const omega_search_skip_table_t *omega_search_create_skip_table(const unsigned c
 /*
  * Boyer-Moore-Horspool with additional tuning (https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.14.7176)
  */
-const unsigned char *omega_search(const unsigned char *haystack, size_t haystack_length,
-                                  const omega_search_skip_table_t *skip_table_ptr, const unsigned char *needle,
-                                  size_t needle_length) {
+const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_length,
+                                const omega_find_skip_table_t *skip_table_ptr, const unsigned char *needle,
+                                size_t needle_length) {
     assert(haystack);
     assert(skip_table_ptr);
     assert(needle);
@@ -62,7 +62,7 @@ const unsigned char *omega_search(const unsigned char *haystack, size_t haystack
     return nullptr;
 }
 
-void omega_search_destroy_skip_table(const omega_search_skip_table_t *skip_table_ptr) {
+void omega_find_destroy_skip_table(const omega_find_skip_table_t *skip_table_ptr) {
     assert(skip_table_ptr);
     delete skip_table_ptr;
 }
