@@ -12,54 +12,26 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/encodings.h"
-#include <assert.h>
+#ifndef OMEGA_EDIT_DATA_DEF_HPP
+#define OMEGA_EDIT_DATA_DEF_HPP
 
-size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
-    static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
-    size_t i, j = 0;
+#include "../../include/omega_edit/byte.h"
+#include <cstdint>
 
-    for (i = 0; i < src_length; ++i) {
-        dst[j++] = HEX_CONVERSION_TABLE[src[i] >> 4];
-        dst[j++] = HEX_CONVERSION_TABLE[src[i] & 15];
-    }
-    dst[j] = '\0';
-    return j;
+/**
+ * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
+ * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
+ * whose address will be stored in the bytes field.
+ */
+typedef union omega_data_union {
+    omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
+    omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
+} omega_data_t;
+
+static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+
+inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
+    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
 }
 
-size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
-    const size_t dst_length = src_length >> 1;
-    size_t i = 0, j = 0;
-
-    while (i < dst_length) {
-        omega_byte_t c = src[j++], d;
-
-        if (c >= '0' && c <= '9') {
-            d = (c - '0') << 4;
-        } else if (c >= 'a' && c <= 'f') {
-            d = (c - 'a' + 10) << 4;
-        } else if (c >= 'A' && c <= 'F') {
-            d = (c - 'A' + 10) << 4;
-        } else {
-            return 0;
-        }
-        c = src[j++];
-
-        if (c >= '0' && c <= '9') {
-            d |= c - '0';
-        } else if (c >= 'a' && c <= 'f') {
-            d |= c - 'a' + 10;
-        } else if (c >= 'A' && c <= 'F') {
-            d |= c - 'A' + 10;
-        } else {
-            return 0;
-        }
-        dst[i++] = d;
-    }
-    dst[i] = '\0';
-    return i;
-}
+#endif//OMEGA_EDIT_DATA_DEF_HPP

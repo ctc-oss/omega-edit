@@ -13,7 +13,7 @@
  **********************************************************************************************************************/
 
 #include "internal_fun.hpp"
-#include "../../include/change.h"
+#include "../../include/omega_edit/change.h"
 #include "change_def.hpp"
 #include "macros.hpp"
 #include "model_def.hpp"

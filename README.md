@@ -1,4 +1,7 @@
 # Ωedit Library
+![Build Status](https://github.com/scholarsmate/omega-edit/workflows/Unit%20Tests/badge.svg)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_shield)
+
 <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64 style="float: left">
 The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports.
 
@@ -13,12 +16,11 @@ If you are using just the command line you will need these things installed:
 
 If developing the Ωedit API, you'll need SWIG installed as well.
 
-## Building
+## Build the core library (C/C++)
 
-### Core Library C/C++
+### cmake commands
 
-#### cmake commands
-:exclamation: These commands should be executed at root level of the repository :exclamation:
+:exclamation: These commands should be executed at the root level of the repository :exclamation:
 
 Configure debug build:
 
@@ -40,9 +42,19 @@ cd cmake-build-debug/src/tests/
 cd ../../../
 ```
 
-#### Build Node bindings using npm
+## Build Node bindings
 
-Setup Node virtual environment:
+The SWIG bindings are generated for Node v10, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
+
+#### **OPTION 1:** Use nvm ([Node Version Manager](https://github.com/nvm-sh/nvm))
+
+Using Node v10 in nvm looks like this:
+
+```bash
+nvm use 10
+```
+
+#### **OPTION 2:** Setup a Node v10 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
 
 ```bash
 nodeenv --node=10.24.1 venv
@@ -54,7 +66,9 @@ Activate the Node virtual environment:
 source ./venv/bin/activate
 ```
 
-In the activated environment, build the bindings, and run an example:
+#### Building and testing
+
+Using Node v10 (by whatever method), build the bindings, and run an example:
 
 ```bash
 node ci
@@ -63,10 +77,14 @@ node src/examples/omega_simple.js
 
 ## Development
 
-#### Regenerate Node bindings using SWIG (as required)
+### Regenerate Node bindings using SWIG (as required)
 
 If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
 
 ```bash
 swig -javascript -node -v -c++ src/bindings/omega_edit.i
 ```
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_large)

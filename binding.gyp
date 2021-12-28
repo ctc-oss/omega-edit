@@ -3,18 +3,18 @@
     {
       "target_name": "omega_edit",
       "sources": [
-        "src/omega_edit/src/change.cpp",
-        "src/omega_edit/src/check.cpp",
-        "src/omega_edit/src/edit.cpp",
-        "src/omega_edit/src/encodings.c",
-        "src/omega_edit/src/license.c",
-        "src/omega_edit/src/match.cpp",
-        "src/omega_edit/src/session.cpp",
-        "src/omega_edit/src/utility.c",
-        "src/omega_edit/src/viewport.cpp",
-        "src/omega_edit/src/visit.cpp",
-        "src/omega_edit/src/impl_/internal_fun.cpp",
-        "src/omega_edit/src/impl_/search.cpp",
+        "src/lib/change.cpp",
+        "src/lib/check.cpp",
+        "src/lib/edit.cpp",
+        "src/lib/encodings.c",
+        "src/lib/license.c",
+        "src/lib/match.cpp",
+        "src/lib/session.cpp",
+        "src/lib/utility.c",
+        "src/lib/viewport.cpp",
+        "src/lib/visit.cpp",
+        "src/lib/impl_/internal_fun.cpp",
+        "src/lib/impl_/search.cpp",
         "src/bindings/omega_edit_wrap.cxx"
       ]
     }

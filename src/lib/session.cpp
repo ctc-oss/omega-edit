@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/session.h"
+#include "../include/omega_edit/session.h"
 #include "impl_/change_def.hpp"
 #include "impl_/model_def.hpp"
 #include "impl_/session_def.hpp"

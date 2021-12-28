@@ -1606,9 +1606,9 @@ static swig_module_info swig_module = {swig_types, 21, 0, 0, 0, 0};
 
 
 /* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h"
-#include "../omega_edit/include/check.h"
-#include "../omega_edit/include/stl_string_adaptor.hpp"
+#include "../include/omega_edit.h"
+#include "../include/omega_edit/check.h"
+#include "../include/omega_edit/stl_string_adaptor.hpp"
 
 
 #include <stdint.h>		// Use the C99 official header

@@ -12,21 +12,18 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_CHANGE_DEF_HPP
-#define OMEGA_EDIT_CHANGE_DEF_HPP
+#ifndef OMEGA_EDIT_VIEWPORT_DEF_HPP
+#define OMEGA_EDIT_VIEWPORT_DEF_HPP
 
-#include "../../include/fwd_defs.h"
-#include "data_def.hpp"
-#include <cstdint>
+#include "../../include/omega_edit/fwd_defs.h"
+#include "data_segment_def.hpp"
+#include "internal_fwd_defs.hpp"
 
-enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
-
-struct omega_change_struct {
-    int64_t serial{};    ///< Serial number of the change (increasing)
-    change_kind_t kind{};///< Change kind
-    int64_t offset{};    ///< Offset at the time of the change
-    int64_t length{};    ///< Number of bytes at the time of the change
-    omega_data_t data{}; ///< Bytes to insert or overwrite
+struct omega_viewport_struct {
+    omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
+    omega_data_segment_t data_segment{};           ///< Viewport data
+    omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
+    void *user_data_ptr{};                         ///< Pointer to associated user-provided data
 };
 
-#endif//OMEGA_EDIT_CHANGE_DEF_HPP
+#endif//OMEGA_EDIT_VIEWPORT_DEF_HPP

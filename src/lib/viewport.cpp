@@ -12,10 +12,10 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/viewport.h"
-#include "../include/edit.h"
-#include "../include/session.h"
-#include "../include/utility.h"
+#include "../include/omega_edit/viewport.h"
+#include "../include/omega_edit/edit.h"
+#include "../include/omega_edit/session.h"
+#include "../include/omega_edit/utility.h"
 #include "impl_/internal_fun.hpp"
 #include "impl_/session_def.hpp"
 #include "impl_/viewport_def.hpp"

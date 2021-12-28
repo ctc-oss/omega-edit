@@ -12,10 +12,10 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/edit.h"
-#include "../include/change.h"
-#include "../include/session.h"
-#include "../include/viewport.h"
+#include "../include/omega_edit/edit.h"
+#include "../include/omega_edit/change.h"
+#include "../include/omega_edit/session.h"
+#include "../include/omega_edit/viewport.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.hpp"

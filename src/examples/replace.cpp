@@ -16,11 +16,11 @@
  * This application can be used to test out how to do search and replace with Omega Edit.  It also demonstrates how a
  * smart pointer can be used to manage session and match context pointers as safe alternative to explict destruction.
  */
-#include "../omega_edit/include/scoped_ptr.hpp"
-#include "../omega_edit/include/stl_string_adaptor.hpp"
-#include "../omega_edit/include/utility.h"
-#include "../omega_edit/omega_edit.h"
 #include <iostream>
+#include <omega_edit.h>
+#include <omega_edit/scoped_ptr.hpp>
+#include <omega_edit/stl_string_adaptor.hpp>
+#include <omega_edit/utility.h>
 
 using namespace std;
 

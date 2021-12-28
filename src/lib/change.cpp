@@ -12,29 +12,53 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_SESSION_DEF_HPP
-#define OMEGA_EDIT_SESSION_DEF_HPP
+#include "../include/omega_edit/change.h"
+#include "impl_/change_def.hpp"
+#include "impl_/macros.hpp"
+#include <cassert>
 
-#include "../../include/edit.h"
-#include "../../include/fwd_defs.h"
-#include "internal_fwd_defs.hpp"
-#include "model_def.hpp"
-#include <cstdio>
-#include <string>
-#include <vector>
+int64_t omega_change_get_offset(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->offset;
+}
 
-typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
-typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
-typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
+int64_t omega_change_get_length(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->length;
+}
 
-struct omega_session_struct {
-    FILE *file_ptr{};                             ///< File being edited (open for read)
-    std::string file_path{};                      ///< File path being edited
-    omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
-    void *user_data_ptr{};                        ///< Pointer to associated user-provided data
-    omega_viewports_t viewports_{};               ///< Collection of viewports in this session
-    omega_model_ptr_t model_ptr_{};               ///< Edit model (internal)
-    int8_t flags_{};                              ///< Internal state flags
-};
+int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_ptr->serial;
+}
 
-#endif//OMEGA_EDIT_SESSION_DEF_HPP
+static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
+                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr : change_ptr->data.sm_bytes)
+                   : nullptr;
+}
+
+const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return change_bytes_(change_ptr);
+}
+
+char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    switch (change_ptr->kind) {
+        case change_kind_t::CHANGE_DELETE:
+            return 'D';
+        case change_kind_t::CHANGE_INSERT:
+            return 'I';
+        case change_kind_t::CHANGE_OVERWRITE:
+            return 'O';
+        default:
+            ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
+    }
+}
+
+int omega_change_is_undone(const omega_change_t *change_ptr) {
+    assert(change_ptr);
+    return (0 < change_ptr->serial) ? 0 : 1;
+}

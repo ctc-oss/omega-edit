@@ -12,26 +12,29 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_DEF_HPP
-#define OMEGA_EDIT_DATA_DEF_HPP
+#ifndef OMEGA_EDIT_MACROS_HPP
+#define OMEGA_EDIT_MACROS_HPP
 
-#include "../../include/byte.h"
-#include <cstdint>
+#include "../../include/omega_edit/config.h"
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 
-/**
- * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
- * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
- * whose address will be stored in the bytes field.
- */
-typedef union omega_data_union {
-    omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
-} omega_data_t;
+#define SOURCE_FILENAME (std::strrchr(__FILE__, '/') ? std::strrchr(__FILE__, '/') + 1 : __FILE__)
+#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
+#define ABORT(x)                                                                                                       \
+    do { x std::abort(); } while (0)
 
-static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+#ifndef CLOG
+#define CLOG std::clog
+#endif//CLOG
 
-inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
-    return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
-}
+#define DEBUG
+#ifdef DEBUG
+#define DBG(x)                                                                                                         \
+    do { x } while (0)
+#else//DEBUG
+#define DBG(x)
+#endif//DEBUG
 
-#endif//OMEGA_EDIT_DATA_DEF_HPP
+#endif//OMEGA_EDIT_MACROS_HPP

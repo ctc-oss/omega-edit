@@ -12,23 +12,18 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_OMEGA_EDIT_H
-#define OMEGA_OMEGA_EDIT_H
+#ifndef OMEGA_EDIT_INTERNAL_FUN_HPP
+#define OMEGA_EDIT_INTERNAL_FUN_HPP
 
-/**
- * At the heart of Omega Edit, is the file editing session (session_t) which manages everything concerning the editing
- * of a given file.  Once a session is created, it needs to have one or more authors (author_t).  Each author can create
- * a series of changes (change_t) and can have a series of viewports (viewport_t).  Any changes that affect viewports in
- * the associated session will be kept up-to-date and when a viewport is changed, a user-defined callback function will
- * be called with the updated viewport and the change that triggered the update.
- */
+#include "../../include/omega_edit/byte.h"
+#include "../../include/omega_edit/fwd_defs.h"
+#include "internal_fwd_defs.hpp"
+#include <iosfwd>
 
-#include "include/change.h"
-#include "include/edit.h"
-#include "include/license.h"
-#include "include/match.h"
-#include "include/session.h"
-#include "include/viewport.h"
-#include "include/visit.h"
+// Data segment functions
+int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr);
 
-#endif//OMEGA_OMEGA_EDIT_H
+// Model segment functions
+void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream);
+
+#endif//OMEGA_EDIT_INTERNAL_FUN_HPP
