@@ -51,11 +51,9 @@ TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto buff_len = (int64_t) strlen((const char *) buffer);
 
     // Shift the buffer 3 bits to the right
-    auto rc = omega_util_right_shift_buffer(buffer, buff_len, 3);
-    REQUIRE(rc == 0);
+    REQUIRE(0 == omega_util_right_shift_buffer(buffer, buff_len, 3));
     // Shift the buffer 5 bits to the right
-    rc = omega_util_right_shift_buffer(buffer, buff_len, 5);
-    REQUIRE(rc == 0);
+    REQUIRE(0 == omega_util_right_shift_buffer(buffer, buff_len, 5));
     // We shifted a total of 8 bits (one byte) to the right, so compare the buffer against the fill plus one byte
     REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
 
@@ -64,13 +62,15 @@ TEST_CASE("Buffer Shift", "[BufferShift]") {
     REQUIRE(strcmp((const char *) fill, (const char *) buffer) == 0);
 
     // Shift the buffer 6 bits to the left
-    rc = omega_util_left_shift_buffer(buffer, buff_len, 6);
-    REQUIRE(rc == 0);
+    REQUIRE(0 == omega_util_left_shift_buffer(buffer, buff_len, 6));
     // Shift the buffer 2 bits to the left
-    rc = omega_util_left_shift_buffer(buffer, buff_len, 2);
-    REQUIRE(0 == rc);
+    REQUIRE(0 == omega_util_left_shift_buffer(buffer, buff_len, 2));
     // We shifted a total of 8 bits (one byte) to the left, so compare the buffer against the fill plus one byte
     REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+
+    // Negative tests.  Shifting 8 or more bits in either direction should be an error.
+    REQUIRE(-1 == omega_util_left_shift_buffer(buffer, buff_len, 8));
+    REQUIRE(-1 == omega_util_right_shift_buffer(buffer, buff_len, 8));
 
     free(buffer);
 }
@@ -160,9 +160,16 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     REQUIRE(session_ptr);
     REQUIRE(strcmp(omega_session_get_file_path(session_ptr), in_filename) == 0);
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("0"), 0));
-    file_size += 1;
-    REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
+    REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
+    auto change_serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("1234567890"), 0);
+    REQUIRE(0 < change_serial);
+    file_size += 10;
+    REQUIRE(file_size == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE((change_serial * -1) == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    change_serial = omega_edit_overwrite_string(session_ptr, 0, "abcdefghhijklmnopqrstuvwxyz");
+    REQUIRE(0 < change_serial);
+    REQUIRE(27 == omega_session_get_computed_file_size(session_ptr));
     omega_edit_destroy_session(session_ptr);
 }
 

@@ -151,14 +151,16 @@ static omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_
 static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr_t &change_ptr) {
     int64_t read_offset = 0;
 
-    if (model_ptr->model_segments.empty() && change_ptr->kind != change_kind_t::CHANGE_DELETE) {
-        // The model is empty, and we have a change with content
-        auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
-        insert_segment_ptr->computed_offset = change_ptr->offset;
-        insert_segment_ptr->computed_length = change_ptr->length;
-        insert_segment_ptr->change_offset = 0;
-        insert_segment_ptr->change_ptr = change_ptr;
-        model_ptr->model_segments.push_back(std::move(insert_segment_ptr));
+    if (model_ptr->model_segments.empty()) {
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            // The model is empty, and we have a change with content
+            auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
+            insert_segment_ptr->computed_offset = change_ptr->offset;
+            insert_segment_ptr->computed_length = change_ptr->length;
+            insert_segment_ptr->change_offset = 0;
+            insert_segment_ptr->change_ptr = change_ptr;
+            model_ptr->model_segments.push_back(std::move(insert_segment_ptr));
+        }
         return 0;
     }
     for (auto iter = model_ptr->model_segments.begin(); iter != model_ptr->model_segments.end(); ++iter) {
@@ -349,7 +351,7 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    return (0 <= length && offset < omega_session_get_computed_file_size(session_ptr))
+    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
                    ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
                                                offset, bytes, length))
                    : 0;
