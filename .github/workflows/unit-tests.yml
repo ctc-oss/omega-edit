@@ -23,13 +23,14 @@ jobs:
       - name: Run Tests
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex
-      - name: Create Node v10 Virtual Environment
-        run: nodeenv --node=10.24.1 venv
-      - name: Prepare To Build Node v10 Bindings
+      - name: Create Node v12 Virtual Environment
+        run: nodeenv --node=12.22.8 venv
+      - name: Prepare To Build Node v12 Bindings
         run: |
           source ./venv/bin/activate
           npm ci
-      - name: Test Node v10 Bindings
+          mv module/omega_edit* module/omega_edit.node
+      - name: Test Node v12 Bindings
         run: |
           source ./venv/bin/activate
           node ./src/examples/omega_simple.js
@@ -57,13 +58,14 @@ jobs:
       - name: Run Tests Under Valgrind
         working-directory: cmake-build-debug/src/tests/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
-      - name: Create Node v10 Virtual Environment
-        run: nodeenv --node=10.24.1 venv
-      - name: Prepare To Build Node v10 Bindings
+      - name: Create Node v12 Virtual Environment
+        run: nodeenv --node=12.22.8 venv
+      - name: Prepare To Build Node v12 Bindings
         run: |
           source ./venv/bin/activate
           npm ci
-      - name: Test Node v10 Bindings
+          mv module/omega_edit* module/omega_edit.node
+      - name: Test Node v12 Bindings
         run: |
           source ./venv/bin/activate
           node ./src/examples/omega_simple.js

@@ -12,8 +12,6 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/*
- * List all the functions exported by the OmegaEdit library
- */
-omega_edit = require('../../module/omega_edit')
-console.log(Object.keys(omega_edit))
+// Export module for operating system
+omega_edit = require("./omega_edit_" + process.platform)
+module.exports = omega_edit

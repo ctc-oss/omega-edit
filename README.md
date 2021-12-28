@@ -23,6 +23,9 @@ Studio Code also works well.
 - CMake (https://cmake.org/download/)
 - make or ninja
 - nvm or nodeenv
+- node-gyp (to run `package.json` scripts)
+  - `npm install -g node-gyp`
+- swig (http://www.swig.org/svn.html)
 
 If developing the Ωedit API, you'll need SWIG installed as well.
 
@@ -54,21 +57,20 @@ cd ../../../
 
 ## Build Node bindings
 
-The SWIG bindings are generated for Node v10, so we need to setup the environment accordingly.  There are several
-reasonable ways to do this, here are two of those options:
+The SWIG bindings are generated for Node v12, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
 
 #### **OPTION 1:** Use nvm ([Node Version Manager](https://github.com/nvm-sh/nvm))
 
-Using Node v10 in nvm looks like this:
+Using Node v12 in nvm looks like this:
 
 ```bash
-nvm use 10
+nvm use 12
 ```
 
-#### **OPTION 2:** Setup a Node v10 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
+#### **OPTION 2:** Setup a Node v12 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
 
 ```bash
-nodeenv --node=10.24.1 venv
+nodeenv --node=12.22.8 venv
 ```
 
 Activate the Node virtual environment:
@@ -79,7 +81,7 @@ source ./venv/bin/activate
 
 #### Building and testing
 
-Using Node v10 (by whatever method), build the bindings, and run an example:
+Using Node v12 (by whatever method), build the bindings, and run an example:
 
 ```bash
 node ci
