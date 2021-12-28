@@ -445,17 +445,17 @@ TEST_CASE("Search", "[SearchTests]") {
     int needles_found = 0;
     auto needle = "NeEdLe";
     auto needle_length = strlen(needle);
-    auto match_context = omega_match_create_context_string(session_ptr, needle);
+    auto match_context = omega_search_create_context_string(session_ptr, needle);
     REQUIRE(match_context);
-    while (omega_match_find(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(0 == needles_found);
-    omega_match_destroy_context(match_context);
+    omega_search_destroy_context(match_context);
     needles_found = 0;
-    match_context = omega_match_create_context_string(session_ptr, needle, 0, 0, 1);
+    match_context = omega_search_create_context_string(session_ptr, needle, 0, 0, 1);
     REQUIRE(match_context);
-    while (omega_match_find(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(5 == needles_found);
-    omega_match_destroy_context(match_context);
+    omega_search_destroy_context(match_context);
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>(needle), needle_length));
     REQUIRE(0 < omega_edit_delete(session_ptr, 16, needle_length));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 16, needle));
@@ -485,35 +485,35 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 16, needle));
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 0);
     needles_found = 0;
-    match_context = omega_match_create_context_string(session_ptr, needle);
+    match_context = omega_search_create_context_string(session_ptr, needle);
     REQUIRE(match_context);
-    while (omega_match_find(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(2 == needles_found);
-    omega_match_destroy_context(match_context);
+    omega_search_destroy_context(match_context);
     needles_found = 0;
-    match_context = omega_match_create_context_string(session_ptr, needle, 0, 0, 1);
+    match_context = omega_search_create_context_string(session_ptr, needle, 0, 0, 1);
     REQUIRE(match_context);
-    while (omega_match_find(match_context, 1)) { ++needles_found; }
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(6 == needles_found);
-    omega_match_destroy_context(match_context);
-    match_context = omega_match_create_context_string(session_ptr, "needle", 0, 0, 1);
+    omega_search_destroy_context(match_context);
+    match_context = omega_search_create_context_string(session_ptr, "needle", 0, 0, 1);
     REQUIRE(match_context);
     needles_found = 0;
     const std::string replace = "Noodles";
-    auto pattern_length = omega_match_context_get_length(match_context);
-    if (omega_match_find(match_context, 1)) {
+    auto pattern_length = omega_search_context_get_length(match_context);
+    if (omega_search_next_match(match_context, 1)) {
         const auto advance_context = static_cast<int64_t>(replace.length());
         do {
-            const auto pattern_offset = omega_match_context_get_offset(match_context);
+            const auto pattern_offset = omega_search_context_get_offset(match_context);
             omega_session_pause_viewport_on_change_callbacks(session_ptr);
             omega_edit_delete(session_ptr, pattern_offset, pattern_length);
             omega_session_resume_viewport_on_change_callbacks(session_ptr);
             omega_edit_insert_string(session_ptr, pattern_offset, replace);
             ++needles_found;
-        } while (omega_match_find(match_context, advance_context));
+        } while (omega_search_next_match(match_context, advance_context));
     }
     REQUIRE(6 == needles_found);
-    omega_match_destroy_context(match_context);
+    omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));

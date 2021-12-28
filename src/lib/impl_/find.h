@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_SEARCH_H
-#define OMEGA_EDIT_SEARCH_H
+#ifndef OMEGA_EDIT_FIND_H
+#define OMEGA_EDIT_FIND_H
 
 #ifdef __cplusplus
 #include <cstddef>
@@ -22,37 +22,37 @@ extern "C" {
 #include <stddef.h>
 #endif
 
-struct omega_search_skip_table_t;
+struct omega_find_skip_table_t;
 
 /**
- * Preprocess the needle to create a skip table for use in the omega_search function
+ * Preprocess the needle to create a skip table for use in the omega_find function
  * @param needle needle to process
  * @param needle_length length of the needle to process
- * @return skip table for use in the omega_search function
+ * @return skip table for use in the omega_find function
  */
-const omega_search_skip_table_t *omega_search_create_skip_table(const unsigned char *needle, size_t needle_length);
+const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char *needle, size_t needle_length);
 
 /**
  * Finds the first offset in the haystack where the needle is found, otherwise, return haystack_length
  * @param haystack haystack to search in
  * @param haystack_length length of haystack
- * @param skip_table_ptr skip table for this needle, created using the omega_search_create_skip_table function
+ * @param skip_table_ptr skip table for this needle, created using the omega_find_create_skip_table function
  * @param needle needle to find
  * @param needle_length length of needle to find
  * @return first offset in the haystack where the needle was found, or haystack length
  */
-const unsigned char *omega_search(const unsigned char *haystack, size_t haystack_length,
-                                  const omega_search_skip_table_t *skip_table_ptr, const unsigned char *needle,
-                                  size_t needle_length);
+const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_length,
+                                const omega_find_skip_table_t *skip_table_ptr, const unsigned char *needle,
+                                size_t needle_length);
 
 /**
- * Destroys a skip table created by omega_search_create_skip_table
+ * Destroys a skip table created by omega_find_create_skip_table
  * @param skip_table_ptr skip table to destroy
  */
-void omega_search_destroy_skip_table(const omega_search_skip_table_t *skip_table_ptr);
+void omega_find_destroy_skip_table(const omega_find_skip_table_t *skip_table_ptr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif//OMEGA_EDIT_SEARCH_H
+#endif//OMEGA_EDIT_FIND_H

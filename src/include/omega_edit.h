@@ -26,7 +26,7 @@
 #include "omega_edit/change.h"
 #include "omega_edit/edit.h"
 #include "omega_edit/license.h"
-#include "omega_edit/match.h"
+#include "omega_edit/search.h"
 #include "omega_edit/session.h"
 #include "omega_edit/viewport.h"
 #include "omega_edit/visit.h"

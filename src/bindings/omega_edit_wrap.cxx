@@ -1571,7 +1571,7 @@ fail: ;
 #define SWIGTYPE_p_long_long swig_types[7]
 #define SWIGTYPE_p_omega_byte_t swig_types[8]
 #define SWIGTYPE_p_omega_change_t swig_types[9]
-#define SWIGTYPE_p_omega_match_context_t swig_types[10]
+#define SWIGTYPE_p_omega_search_context_t swig_types[10]
 #define SWIGTYPE_p_omega_session_t swig_types[11]
 #define SWIGTYPE_p_omega_viewport_t swig_types[12]
 #define SWIGTYPE_p_omega_visit_change_context_struct swig_types[13]
@@ -2754,7 +2754,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context_bytes(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_create_context_bytes(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
@@ -2776,42 +2776,42 @@ static SwigV8ReturnValue _wrap_omega_match_create_context_bytes(const SwigV8Argu
   int ecode5 = 0 ;
   int val6 ;
   int ecode6 = 0 ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
-  if(args.Length() != 6) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_create_context_bytes.");
+  if(args.Length() != 6) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_create_context_bytes.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context_bytes" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context_bytes" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_byte_t, 0 |  0 );
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context_bytes" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context_bytes" "', argument " "2"" of type '" "omega_byte_t const *""'"); 
   }
   arg2 = reinterpret_cast< omega_byte_t * >(argp2);
   ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_match_create_context_bytes" "', argument " "3"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_search_create_context_bytes" "', argument " "3"" of type '" "int64_t""'");
   } 
   arg3 = static_cast< int64_t >(val3);
   ecode4 = SWIG_AsVal_long_SS_long(args[3], &val4);
   if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_match_create_context_bytes" "', argument " "4"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_search_create_context_bytes" "', argument " "4"" of type '" "int64_t""'");
   } 
   arg4 = static_cast< int64_t >(val4);
   ecode5 = SWIG_AsVal_long_SS_long(args[4], &val5);
   if (!SWIG_IsOK(ecode5)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_match_create_context_bytes" "', argument " "5"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_search_create_context_bytes" "', argument " "5"" of type '" "int64_t""'");
   } 
   arg5 = static_cast< int64_t >(val5);
   ecode6 = SWIG_AsVal_int(args[5], &val6);
   if (!SWIG_IsOK(ecode6)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_match_create_context_bytes" "', argument " "6"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_search_create_context_bytes" "', argument " "6"" of type '" "int""'");
   } 
   arg6 = static_cast< int >(val6);
-  result = (omega_match_context_t *)omega_match_create_context_bytes((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4,arg5,arg6);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context_bytes((omega_session_t const *)arg1,(omega_byte_t const *)arg2,arg3,arg4,arg5,arg6);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   
   
@@ -2827,7 +2827,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_create_context(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
@@ -2850,42 +2850,42 @@ static SwigV8ReturnValue _wrap_omega_match_create_context(const SwigV8Arguments 
   int ecode5 = 0 ;
   int val6 ;
   int ecode6 = 0 ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
-  if(args.Length() != 6) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_create_context.");
+  if(args.Length() != 6) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_create_context.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   res2 = SWIG_AsCharPtrAndSize(args[1], &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context" "', argument " "2"" of type '" "char const *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context" "', argument " "2"" of type '" "char const *""'");
   }
   arg2 = reinterpret_cast< char * >(buf2);
   ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_match_create_context" "', argument " "3"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_search_create_context" "', argument " "3"" of type '" "int64_t""'");
   } 
   arg3 = static_cast< int64_t >(val3);
   ecode4 = SWIG_AsVal_long_SS_long(args[3], &val4);
   if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_match_create_context" "', argument " "4"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_search_create_context" "', argument " "4"" of type '" "int64_t""'");
   } 
   arg4 = static_cast< int64_t >(val4);
   ecode5 = SWIG_AsVal_long_SS_long(args[4], &val5);
   if (!SWIG_IsOK(ecode5)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_match_create_context" "', argument " "5"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_search_create_context" "', argument " "5"" of type '" "int64_t""'");
   } 
   arg5 = static_cast< int64_t >(val5);
   ecode6 = SWIG_AsVal_int(args[5], &val6);
   if (!SWIG_IsOK(ecode6)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_match_create_context" "', argument " "6"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "omega_search_create_context" "', argument " "6"" of type '" "int""'");
   } 
   arg6 = static_cast< int >(val6);
-  result = (omega_match_context_t *)omega_match_create_context((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4,arg5,arg6);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4,arg5,arg6);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   
@@ -2901,23 +2901,23 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_context_get_offset(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_context_get_offset(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
-  omega_match_context_t *arg1 = (omega_match_context_t *) 0 ;
+  omega_search_context_t *arg1 = (omega_search_context_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int64_t result;
   
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_context_get_offset.");
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_context_get_offset.");
   
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_context_get_offset" "', argument " "1"" of type '" "omega_match_context_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_context_get_offset" "', argument " "1"" of type '" "omega_search_context_t const *""'"); 
   }
-  arg1 = reinterpret_cast< omega_match_context_t * >(argp1);
-  result = (int64_t)omega_match_context_get_offset((omega_match_context_t const *)arg1);
+  arg1 = reinterpret_cast< omega_search_context_t * >(argp1);
+  result = (int64_t)omega_search_context_get_offset((omega_search_context_t const *)arg1);
   jsresult = SWIG_From_long_SS_long(static_cast< long long >(result));
   
   
@@ -2929,23 +2929,23 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_context_get_length(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_context_get_length(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
-  omega_match_context_t *arg1 = (omega_match_context_t *) 0 ;
+  omega_search_context_t *arg1 = (omega_search_context_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int64_t result;
   
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_context_get_length.");
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_context_get_length.");
   
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_context_get_length" "', argument " "1"" of type '" "omega_match_context_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_context_get_length" "', argument " "1"" of type '" "omega_search_context_t const *""'"); 
   }
-  arg1 = reinterpret_cast< omega_match_context_t * >(argp1);
-  result = (int64_t)omega_match_context_get_length((omega_match_context_t const *)arg1);
+  arg1 = reinterpret_cast< omega_search_context_t * >(argp1);
+  result = (int64_t)omega_search_context_get_length((omega_search_context_t const *)arg1);
   jsresult = SWIG_From_long_SS_long(static_cast< long long >(result));
   
   
@@ -2957,11 +2957,11 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_find(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_next_match(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
-  omega_match_context_t *arg1 = (omega_match_context_t *) 0 ;
+  omega_search_context_t *arg1 = (omega_search_context_t *) 0 ;
   int64_t arg2 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -2969,19 +2969,19 @@ static SwigV8ReturnValue _wrap_omega_match_find(const SwigV8Arguments &args) {
   int ecode2 = 0 ;
   int result;
   
-  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_find.");
+  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_next_match.");
   
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_find" "', argument " "1"" of type '" "omega_match_context_t *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_next_match" "', argument " "1"" of type '" "omega_search_context_t *""'"); 
   }
-  arg1 = reinterpret_cast< omega_match_context_t * >(argp1);
+  arg1 = reinterpret_cast< omega_search_context_t * >(argp1);
   ecode2 = SWIG_AsVal_long_SS_long(args[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "omega_match_find" "', argument " "2"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "omega_search_next_match" "', argument " "2"" of type '" "int64_t""'");
   } 
   arg2 = static_cast< int64_t >(val2);
-  result = (int)omega_match_find(arg1,arg2);
+  result = (int)omega_search_next_match(arg1,arg2);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   
@@ -2994,22 +2994,22 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_destroy_context(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_search_destroy_context(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
-  omega_match_context_t *arg1 = (omega_match_context_t *) 0 ;
+  omega_search_context_t *arg1 = (omega_search_context_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   
-  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_match_destroy_context.");
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_search_destroy_context.");
   
-  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_destroy_context" "', argument " "1"" of type '" "omega_match_context_t *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_destroy_context" "', argument " "1"" of type '" "omega_search_context_t *""'"); 
   }
-  arg1 = reinterpret_cast< omega_match_context_t * >(argp1);
-  omega_match_destroy_context(arg1);
+  arg1 = reinterpret_cast< omega_search_context_t * >(argp1);
+  omega_search_destroy_context(arg1);
   jsresult = SWIGV8_UNDEFINED();
   
   
@@ -3522,7 +3522,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+static SwigV8ReturnValue _wrap_omega_search_create_context_string__SWIG_0(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
 {
   SWIGV8_HANDLESCOPE();
   
@@ -3541,41 +3541,41 @@ static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_0(const S
   int ecode4 = 0 ;
   int val5 ;
   int ecode5 = 0 ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   {
     std::string *ptr = (std::string *)0;
     res2 = SWIG_AsPtr_std_string(args[1], &ptr);
     if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     if (!ptr) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     arg2 = ptr;
   }
   ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_match_create_context_string" "', argument " "3"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_search_create_context_string" "', argument " "3"" of type '" "int64_t""'");
   } 
   arg3 = static_cast< int64_t >(val3);
   ecode4 = SWIG_AsVal_long_SS_long(args[3], &val4);
   if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_match_create_context_string" "', argument " "4"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_search_create_context_string" "', argument " "4"" of type '" "int64_t""'");
   } 
   arg4 = static_cast< int64_t >(val4);
   ecode5 = SWIG_AsVal_int(args[4], &val5);
   if (!SWIG_IsOK(ecode5)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_match_create_context_string" "', argument " "5"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "omega_search_create_context_string" "', argument " "5"" of type '" "int""'");
   } 
   arg5 = static_cast< int >(val5);
-  result = (omega_match_context_t *)omega_match_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3,arg4,arg5);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3,arg4,arg5);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   if (SWIG_IsNewObj(res2)) delete arg2;
   
@@ -3590,7 +3590,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+static SwigV8ReturnValue _wrap_omega_search_create_context_string__SWIG_1(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
 {
   SWIGV8_HANDLESCOPE();
   
@@ -3606,36 +3606,36 @@ static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_1(const S
   int ecode3 = 0 ;
   long long val4 ;
   int ecode4 = 0 ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   {
     std::string *ptr = (std::string *)0;
     res2 = SWIG_AsPtr_std_string(args[1], &ptr);
     if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     if (!ptr) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     arg2 = ptr;
   }
   ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_match_create_context_string" "', argument " "3"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_search_create_context_string" "', argument " "3"" of type '" "int64_t""'");
   } 
   arg3 = static_cast< int64_t >(val3);
   ecode4 = SWIG_AsVal_long_SS_long(args[3], &val4);
   if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_match_create_context_string" "', argument " "4"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "omega_search_create_context_string" "', argument " "4"" of type '" "int64_t""'");
   } 
   arg4 = static_cast< int64_t >(val4);
-  result = (omega_match_context_t *)omega_match_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3,arg4);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3,arg4);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   if (SWIG_IsNewObj(res2)) delete arg2;
   
@@ -3649,7 +3649,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_2(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+static SwigV8ReturnValue _wrap_omega_search_create_context_string__SWIG_2(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
 {
   SWIGV8_HANDLESCOPE();
   
@@ -3662,31 +3662,31 @@ static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_2(const S
   int res2 = SWIG_OLDOBJ ;
   long long val3 ;
   int ecode3 = 0 ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   {
     std::string *ptr = (std::string *)0;
     res2 = SWIG_AsPtr_std_string(args[1], &ptr);
     if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     if (!ptr) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     arg2 = ptr;
   }
   ecode3 = SWIG_AsVal_long_SS_long(args[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_match_create_context_string" "', argument " "3"" of type '" "int64_t""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_search_create_context_string" "', argument " "3"" of type '" "int64_t""'");
   } 
   arg3 = static_cast< int64_t >(val3);
-  result = (omega_match_context_t *)omega_match_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2,arg3);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   if (SWIG_IsNewObj(res2)) delete arg2;
   
@@ -3699,7 +3699,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_3(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
+static SwigV8ReturnValue _wrap_omega_search_create_context_string__SWIG_3(const SwigV8Arguments &args, V8ErrorHandler &SWIGV8_ErrorHandler)
 {
   SWIGV8_HANDLESCOPE();
   
@@ -3709,26 +3709,26 @@ static SwigV8ReturnValue _wrap_omega_match_create_context_string__SWIG_3(const S
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 = SWIG_OLDOBJ ;
-  omega_match_context_t *result = 0 ;
+  omega_search_context_t *result = 0 ;
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_match_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_search_create_context_string" "', argument " "1"" of type '" "omega_session_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   {
     std::string *ptr = (std::string *)0;
     res2 = SWIG_AsPtr_std_string(args[1], &ptr);
     if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     if (!ptr) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_match_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_search_create_context_string" "', argument " "2"" of type '" "std::string const &""'"); 
     }
     arg2 = ptr;
   }
-  result = (omega_match_context_t *)omega_match_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2);
-  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_match_context_t, 0 |  0 );
+  result = (omega_search_context_t *)omega_search_create_context_string((omega_session_t const *)arg1,(std::string const &)*arg2);
+  jsresult = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_omega_search_context_t, 0 |  0 );
   
   if (SWIG_IsNewObj(res2)) delete arg2;
   
@@ -3740,7 +3740,7 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap___wrap_omega_search_create_context_string(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   v8::Handle<v8::Value> jsresult;
@@ -3750,12 +3750,12 @@ static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const Sw
   if(args.Length() == 5) {
     errorHandler.err.Clear();
 #if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_omega_match_create_context_string__SWIG_0(args, errorHandler);
+    jsresult = _wrap_omega_search_create_context_string__SWIG_0(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       SWIGV8_ESCAPE(jsresult);
     }
 #else
-    _wrap_omega_match_create_context_string__SWIG_0(args, errorHandler);
+    _wrap_omega_search_create_context_string__SWIG_0(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       return;
     }
@@ -3766,12 +3766,12 @@ static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const Sw
   if(args.Length() == 4) {
     errorHandler.err.Clear();
 #if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_omega_match_create_context_string__SWIG_1(args, errorHandler);
+    jsresult = _wrap_omega_search_create_context_string__SWIG_1(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       SWIGV8_ESCAPE(jsresult);
     }
 #else
-    _wrap_omega_match_create_context_string__SWIG_1(args, errorHandler);
+    _wrap_omega_search_create_context_string__SWIG_1(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       return;
     }
@@ -3782,12 +3782,12 @@ static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const Sw
   if(args.Length() == 3) {
     errorHandler.err.Clear();
 #if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_omega_match_create_context_string__SWIG_2(args, errorHandler);
+    jsresult = _wrap_omega_search_create_context_string__SWIG_2(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       SWIGV8_ESCAPE(jsresult);
     }
 #else
-    _wrap_omega_match_create_context_string__SWIG_2(args, errorHandler);
+    _wrap_omega_search_create_context_string__SWIG_2(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       return;
     }
@@ -3798,12 +3798,12 @@ static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const Sw
   if(args.Length() == 2) {
     errorHandler.err.Clear();
 #if (V8_MAJOR_VERSION-0) < 4 && (SWIG_V8_VERSION < 0x031903)
-    jsresult = _wrap_omega_match_create_context_string__SWIG_3(args, errorHandler);
+    jsresult = _wrap_omega_search_create_context_string__SWIG_3(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       SWIGV8_ESCAPE(jsresult);
     }
 #else
-    _wrap_omega_match_create_context_string__SWIG_3(args, errorHandler);
+    _wrap_omega_search_create_context_string__SWIG_3(args, errorHandler);
     if(errorHandler.err.IsEmpty()) {
       return;
     }
@@ -3811,7 +3811,7 @@ static SwigV8ReturnValue _wrap___wrap_omega_match_create_context_string(const Sw
   }
   
   
-  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function omega_match_create_context_string.");
+  SWIG_exception_fail(SWIG_ERROR, "Illegal arguments for function omega_search_create_context_string.");
   
   goto fail;
 fail:
@@ -4865,7 +4865,7 @@ static swig_type_info _swigt__p_int = {"_p_int", "intptr_t *|int *|int_least32_t
 static swig_type_info _swigt__p_long_long = {"_p_long_long", "int_least64_t *|int_fast64_t *|int64_t *|long long *|intmax_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_byte_t = {"_p_omega_byte_t", "omega_byte_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_change_t = {"_p_omega_change_t", "omega_change_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_omega_match_context_t = {"_p_omega_match_context_t", "omega_match_context_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_omega_search_context_t = {"_p_omega_search_context_t", "omega_search_context_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_session_t = {"_p_omega_session_t", "omega_session_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_viewport_t = {"_p_omega_viewport_t", "omega_viewport_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_visit_change_context_struct = {"_p_omega_visit_change_context_struct", "omega_visit_change_context_t *|omega_visit_change_context_struct *", 0, 0, (void*)0, 0};
@@ -4888,7 +4888,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_long_long,
   &_swigt__p_omega_byte_t,
   &_swigt__p_omega_change_t,
-  &_swigt__p_omega_match_context_t,
+  &_swigt__p_omega_search_context_t,
   &_swigt__p_omega_session_t,
   &_swigt__p_omega_viewport_t,
   &_swigt__p_omega_visit_change_context_struct,
@@ -4911,7 +4911,7 @@ static swig_cast_info _swigc__p_int[] = {  {&_swigt__p_int, 0, 0, 0},{0, 0, 0, 0
 static swig_cast_info _swigc__p_long_long[] = {  {&_swigt__p_long_long, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_byte_t[] = {  {&_swigt__p_omega_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_change_t[] = {  {&_swigt__p_omega_change_t, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_omega_match_context_t[] = {  {&_swigt__p_omega_match_context_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_omega_search_context_t[] = {  {&_swigt__p_omega_search_context_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_session_t[] = {  {&_swigt__p_omega_session_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_viewport_t[] = {  {&_swigt__p_omega_viewport_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_visit_change_context_struct[] = {  {&_swigt__p_omega_visit_change_context_struct, 0, 0, 0},{0, 0, 0, 0}};
@@ -4934,7 +4934,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_long_long,
   _swigc__p_omega_byte_t,
   _swigc__p_omega_change_t,
-  _swigc__p_omega_match_context_t,
+  _swigc__p_omega_search_context_t,
   _swigc__p_omega_session_t,
   _swigc__p_omega_viewport_t,
   _swigc__p_omega_visit_change_context_struct,
@@ -5321,12 +5321,12 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_edit_insert", _wrap_omega_edit_inse
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_overwrite_bytes", _wrap_omega_edit_overwrite_bytes);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_overwrite", _wrap_omega_edit_overwrite);
 SWIGV8_AddStaticFunction(exports_obj, "omega_license_get", _wrap_omega_license_get);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_create_context_bytes", _wrap_omega_match_create_context_bytes);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_create_context", _wrap_omega_match_create_context);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_context_get_offset", _wrap_omega_match_context_get_offset);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_context_get_length", _wrap_omega_match_context_get_length);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_find", _wrap_omega_match_find);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_destroy_context", _wrap_omega_match_destroy_context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_create_context_bytes", _wrap_omega_search_create_context_bytes);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_create_context", _wrap_omega_search_create_context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_context_get_offset", _wrap_omega_search_context_get_offset);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_context_get_length", _wrap_omega_search_context_get_length);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_next_match", _wrap_omega_search_next_match);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_destroy_context", _wrap_omega_search_destroy_context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_file_path", _wrap_omega_session_get_file_path);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_user_data", _wrap_omega_session_get_user_data);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_num_viewports", _wrap_omega_session_get_num_viewports);
@@ -5343,7 +5343,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_string", _wrap_omega_cha
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_string", _wrap_omega_viewport_get_string);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_insert_string", _wrap_omega_edit_insert_string);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_overwrite_string", _wrap_omega_edit_overwrite_string);
-SWIGV8_AddStaticFunction(exports_obj, "omega_match_create_context_string", _wrap___wrap_omega_match_create_context_string);
+SWIGV8_AddStaticFunction(exports_obj, "omega_search_create_context_string", _wrap___wrap_omega_search_create_context_string);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_session", _wrap_omega_viewport_get_session);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_capacity", _wrap_omega_viewport_get_capacity);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_length", _wrap_omega_viewport_get_length);

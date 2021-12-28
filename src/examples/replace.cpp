@@ -39,13 +39,13 @@ int main(int arc, char **argv) {
     const string replacement = argv[4];
     auto session_ptr = omega_scoped_ptr<omega_session_t>(omega_edit_create_session(in_filename, nullptr, nullptr),
                                                          omega_edit_destroy_session);
-    auto match_context_ptr = omega_scoped_ptr<omega_match_context_t>(
-            omega_match_create_context_string(session_ptr.get(), argv[3]), omega_match_destroy_context);
-    const auto pattern_length = omega_match_context_get_length(match_context_ptr.get());
-    if (omega_match_find(match_context_ptr.get(), 1)) {
+    auto match_context_ptr = omega_scoped_ptr<omega_search_context_t>(
+            omega_search_create_context_string(session_ptr.get(), argv[3]), omega_search_destroy_context);
+    const auto pattern_length = omega_search_context_get_length(match_context_ptr.get());
+    if (omega_search_next_match(match_context_ptr.get(), 1)) {
         const auto replacement_length = static_cast<int64_t>(replacement.length());
         do {
-            const auto pattern_offset = omega_match_context_get_offset(match_context_ptr.get());
+            const auto pattern_offset = omega_search_context_get_offset(match_context_ptr.get());
             if (pattern_length == replacement_length) {
                 // pattern length matches the replacement length, so a single overwrite is sufficient
                 if (0 >= omega_edit_overwrite_string(session_ptr.get(), pattern_offset, replacement)) {
@@ -67,7 +67,8 @@ int main(int arc, char **argv) {
                 }
             }
             ++replacements;
-        } while (omega_match_find(match_context_ptr.get(), replacement_length));//advance find by the replacement length
+        } while (omega_search_next_match(match_context_ptr.get(),
+                                         replacement_length));//advance find by the replacement length
     }
     if (0 != omega_edit_save(session_ptr.get(), argv[2])) {
         cerr << "Error saving session to " << argv[2] << endl;

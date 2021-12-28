@@ -32,7 +32,7 @@
 %include "../include/omega_edit/config.h"
 %include "../include/omega_edit/edit.h"
 %include "../include/omega_edit/license.h"
-%include "../include/omega_edit/match.h"
+%include "../include/omega_edit/search.h"
 %include "../include/omega_edit/session.h"
 %include "../include/omega_edit/stl_string_adaptor.hpp"
 %include "../include/omega_edit/viewport.h"
