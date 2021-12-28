@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/utility.h"
+#include "../include/omega_edit/utility.h"
 #include <assert.h>
 #include <stdio.h>
 

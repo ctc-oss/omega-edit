@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../omega_edit/include/stl_string_adaptor.hpp"
 #include <iostream>
+#include <omega_edit/stl_string_adaptor.hpp>
 
 using namespace std;
 

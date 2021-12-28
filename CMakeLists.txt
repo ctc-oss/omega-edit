@@ -15,27 +15,30 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Define the library source files
 set(SOURCE_FILES
-        src/omega_edit/include/config.h
-        src/omega_edit/include/fwd_defs.h
-        src/omega_edit/include/byte.h
-        src/omega_edit/include/scoped_ptr.hpp
-        src/omega_edit/include/stl_string_adaptor.hpp
-        src/omega_edit/include/change.h src/omega_edit/src/change.cpp src/omega_edit/src/impl_/change_def.hpp
-        src/omega_edit/include/check.h src/omega_edit/src/check.cpp
-        src/omega_edit/include/edit.h src/omega_edit/src/edit.cpp
-        src/omega_edit/include/match.h src/omega_edit/src/match.cpp
-        src/omega_edit/include/visit.h src/omega_edit/src/visit.cpp
-        src/omega_edit/include/session.h src/omega_edit/src/session.cpp src/omega_edit/src/impl_/session_def.hpp
-        src/omega_edit/include/viewport.h src/omega_edit/src/viewport.cpp src/omega_edit/src/impl_/viewport_def.hpp
-        src/omega_edit/include/license.h src/omega_edit/src/license.c
-        src/omega_edit/include/utility.h src/omega_edit/src/utility.c
-        src/omega_edit/include/encodings.h src/omega_edit/src/encodings.c
-        src/omega_edit/src/impl_/internal_fun.hpp src/omega_edit/src/impl_/internal_fun.cpp
-        src/omega_edit/src/impl_/search.h src/omega_edit/src/impl_/search.cpp
-        src/omega_edit/src/impl_/data_def.hpp src/omega_edit/src/impl_/data_segment_def.hpp
-        src/omega_edit/src/impl_/model_def.hpp src/omega_edit/src/impl_/model_segment_def.hpp
-        src/omega_edit/src/impl_/macros.hpp
-        src/omega_edit/src/impl_/internal_fwd_defs.hpp)
+        src/include/omega_edit.h
+        src/include/omega_edit/config.h
+        src/include/omega_edit/fwd_defs.h
+        src/include/omega_edit/byte.h
+        src/include/omega_edit/scoped_ptr.hpp
+        src/include/omega_edit/stl_string_adaptor.hpp
+        src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
+        src/include/omega_edit/check.h src/lib/check.cpp
+        src/include/omega_edit/edit.h src/lib/edit.cpp
+        src/include/omega_edit/match.h src/lib/match.cpp
+        src/include/omega_edit/visit.h src/lib/visit.cpp
+        src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
+        src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
+        src/include/omega_edit/license.h src/lib/license.c
+        src/include/omega_edit/utility.h src/lib/utility.c
+        src/include/omega_edit/encodings.h src/lib/encodings.c
+        src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
+        src/lib/impl_/search.h src/lib/impl_/search.cpp
+        src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
+        src/lib/impl_/model_def.hpp src/lib/impl_/model_segment_def.hpp
+        src/lib/impl_/macros.hpp
+        src/lib/impl_/internal_fwd_defs.hpp)
+
+include_directories(src/include)
 
 # Create the library archive for static linking
 add_library(omega_edit STATIC ${SOURCE_FILES})

@@ -18,25 +18,25 @@
 
 %{
 /* Includes the header in the wrapper code */
-#include "../omega_edit/omega_edit.h"
-#include "../omega_edit/include/check.h"
-#include "../omega_edit/include/stl_string_adaptor.hpp"
+#include "../include/omega_edit.h"
+#include "../include/omega_edit/check.h"
+#include "../include/omega_edit/stl_string_adaptor.hpp"
 %}
 
 %include <stdint.i>
 %include <std_string.i>
 
 /* Parse the header file to generate wrappers */
-%include "../omega_edit/include/change.h"
-%include "../omega_edit/include/check.h"
-%include "../omega_edit/include/config.h"
-%include "../omega_edit/include/edit.h"
-%include "../omega_edit/include/license.h"
-%include "../omega_edit/include/match.h"
-%include "../omega_edit/include/session.h"
-%include "../omega_edit/include/stl_string_adaptor.hpp"
-%include "../omega_edit/include/viewport.h"
-%include "../omega_edit/include/visit.h"
+%include "../include/omega_edit/change.h"
+%include "../include/omega_edit/check.h"
+%include "../include/omega_edit/config.h"
+%include "../include/omega_edit/edit.h"
+%include "../include/omega_edit/license.h"
+%include "../include/omega_edit/match.h"
+%include "../include/omega_edit/session.h"
+%include "../include/omega_edit/stl_string_adaptor.hpp"
+%include "../include/omega_edit/viewport.h"
+%include "../include/omega_edit/visit.h"
 
 %feature("director") SessionOnChangeDirector;
 %inline %{

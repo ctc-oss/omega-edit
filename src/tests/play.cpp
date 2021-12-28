@@ -17,15 +17,15 @@
  * saved to a file where they can be replayed.
  */
 
-#include "../omega_edit/include/check.h"
-#include "../omega_edit/include/encodings.h"
-#include "../omega_edit/include/scoped_ptr.hpp"
-#include "../omega_edit/include/stl_string_adaptor.hpp"
-#include "../omega_edit/omega_edit.h"
 #include <cassert>
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>
+#include <omega_edit.h>
+#include <omega_edit/check.h>
+#include <omega_edit/encodings.h>
+#include <omega_edit/scoped_ptr.hpp>
+#include <omega_edit/stl_string_adaptor.hpp>
 
 using namespace std;
 

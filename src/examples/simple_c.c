@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../omega_edit/omega_edit.h"
+#include <omega_edit.h>
 #include <stdio.h>
 
 void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {

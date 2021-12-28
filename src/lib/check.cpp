@@ -12,16 +12,26 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
-#define OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
+#include "../include/omega_edit/check.h"
+#include "impl_/change_def.hpp"
+#include "impl_/internal_fun.hpp"
+#include "impl_/macros.hpp"
+#include "impl_/model_def.hpp"
+#include "impl_/session_def.hpp"
+#include <cassert>
 
-#include "../../include/fwd_defs.h"
-#include <memory>
-
-typedef struct omega_model_struct omega_model_t;
-typedef struct omega_data_segment_struct omega_data_segment_t;
-typedef struct omega_model_segment_struct omega_model_segment_t;
-
-typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
-
-#endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
+int omega_check_model(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    assert(session_ptr->model_ptr_);
+    int64_t expected_offset = 0;
+    for (const auto &segment : session_ptr->model_ptr_->model_segments) {
+        assert(segment->change_ptr);
+        if (expected_offset != segment->computed_offset ||
+            (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
+            print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
+            return -1;
+        }
+        expected_offset += segment->computed_length;
+    }
+    return 0;
+}

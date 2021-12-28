@@ -12,18 +12,34 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_INTERNAL_FUN_HPP
-#define OMEGA_EDIT_INTERNAL_FUN_HPP
+#ifndef OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
+#define OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
 
-#include "../../include/byte.h"
-#include "../../include/fwd_defs.h"
+#include "../../include/omega_edit/change.h"
 #include "internal_fwd_defs.hpp"
-#include <iosfwd>
 
-// Data segment functions
-int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr);
+enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
 
-// Model segment functions
-void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream);
+struct omega_model_segment_struct {
+    int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
+    int64_t computed_length{};            ///< Computed length can differ from the change as segments split
+    int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
+    const_omega_change_ptr_t change_ptr{};///< Reference to parent change
+};
 
-#endif//OMEGA_EDIT_INTERNAL_FUN_HPP
+inline model_segment_kind_t omega_model_segment_get_kind(const omega_model_segment_t *model_segment_ptr) {
+    return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get())) ? model_segment_kind_t::SEGMENT_READ
+                                                                               : model_segment_kind_t::SEGMENT_INSERT;
+}
+
+inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_kind) {
+    switch (segment_kind) {
+        case model_segment_kind_t::SEGMENT_READ:
+            return 'R';
+        case model_segment_kind_t::SEGMENT_INSERT:
+            return 'I';
+    }
+    return '?';
+}
+
+#endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP

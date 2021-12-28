@@ -12,9 +12,9 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/match.h"
-#include "../include/session.h"
-#include "../include/utility.h"
+#include "../include/omega_edit/match.h"
+#include "../include/omega_edit/session.h"
+#include "../include/omega_edit/utility.h"
 #include "impl_/data_segment_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/search.h"

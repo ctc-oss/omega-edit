@@ -17,10 +17,10 @@
  * multiple of the file size, then the output file ought to be identical to the input file and can be verified using
  * cmp or diff.
  */
-#include "../omega_edit/include/utility.h"
-#include "../omega_edit/omega_edit.h"
 #include <cassert>
 #include <iostream>
+#include <omega_edit.h>
+#include <omega_edit/utility.h>
 #include <string>
 
 using namespace std;
