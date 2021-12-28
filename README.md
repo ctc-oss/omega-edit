@@ -14,6 +14,9 @@ If you are using just the command line you will need these things installed:
 - CMake (https://cmake.org/download/)
 - make or ninja
 - nvm or nodeenv
+- node-gyp (to run `package.json` scripts)
+  - `npm install -g node-gyp`
+- swig (http://www.swig.org/svn.html)
 
 If developing the Ωedit API, you'll need SWIG installed as well.
 

@@ -2,7 +2,7 @@
   "name": "omega-edit",
   "description": "OmegaEdit open source library for building editors that can handle massive files",
   "version": "0.6.0",
-  "main": "build/Release/omega_edit",
+  "main": "module/index.js",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
     "type": "git"
@@ -12,18 +12,14 @@
   },
   "author": "Shane Dell, Davin Shearer, John Wass",
   "license": "Apache-2.0",
-  "dependencies": {
-    "node-gyp": "^8.4.1",
-    "yarn": "^1.22.17"
-  },
   "scripts": {
-    "gyp-build": "yarn run node-gyp build",
-    "gyp-clean": "yarn run node-gyp clean",
-    "gyp-configure": "yarn run node-gyp configure",
-    "gyp-rebuild": "yarn run node-gyp rebuild",
-    "gyp-install": "yarn run node-gyp install",
-    "gyp-list": "yarn run node-gyp list",
-    "gyp-remove": "yarn run node-gyp remove",
+    "gyp-build": "node-gyp build",
+    "gyp-clean": "node-gyp clean",
+    "gyp-configure": "node-gyp configure",
+    "gyp-rebuild": "node-gyp rebuild",
+    "gyp-install": "node-gyp install",
+    "gyp-list": "node-gyp list",
+    "gyp-remove": "node-gyp remove",
     "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
     "package": "yarn pre-package && yarn publish"

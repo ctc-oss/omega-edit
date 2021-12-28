@@ -3,4 +3,4 @@
 !LICENSE.txt
 !package.json
 !README.md
-!build/Release/omega_edit.node
+!module/*

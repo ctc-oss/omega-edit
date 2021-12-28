@@ -12,3 +12,6 @@ venv/
 
 # IDE files
 .idea/
+
+# Ignore addon files
+**/*.node
