@@ -1,16 +1,24 @@
 # Ωedit Library
+
 <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64 style="float: left">
 
 ![Build Status](https://github.com/scholarsmate/omega-edit/workflows/Unit%20Tests/badge.svg)
-[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_shield)
+![CodeQL](https://github.com/scholarsmate/omega-edit/workflows/CodeQL/badge.svg)
 [![codecov](https://codecov.io/gh/scholarsmate/omega-edit/branch/main/graph/badge.svg)](https://codecov.io/gh/scholarsmate/omega-edit)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_shield)
 
-The goal of this project is to provide an open source library for building editors that can handle massive files, multiple authors, and multiple viewports.
+The goal of this project is to provide an open source library for building editors that can handle massive files,
+multiple authors, and multiple viewports.
 
 ## Requirements
-This repo is built using CLion, if using CLion everything will work seamlessly, though Visual Studio Code also works well. (cmake)
 
-If you are using just the command line you will need these things installed:
+### IDE
+
+The Ωedit project is built primarily using CLion.  If using CLion everything should build seamlessly, though Visual
+Studio Code also works well.
+
+### Command line tools
+
 - C/C++ compiler (such as clang, gcc, or mingw)
 - CMake (https://cmake.org/download/)
 - make or ninja
@@ -46,7 +54,8 @@ cd ../../../
 
 ## Build Node bindings
 
-The SWIG bindings are generated for Node v10, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
+The SWIG bindings are generated for Node v10, so we need to setup the environment accordingly.  There are several
+reasonable ways to do this, here are two of those options:
 
 #### **OPTION 1:** Use nvm ([Node Version Manager](https://github.com/nvm-sh/nvm))
 
@@ -87,6 +96,6 @@ If any header files have been added, removed, or changed, regenerate the API wra
 swig -javascript -node -v -c++ src/bindings/omega_edit.i
 ```
 
-
 ## License
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_large)
