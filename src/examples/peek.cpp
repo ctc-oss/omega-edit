@@ -12,10 +12,10 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../omega_edit/include/stl_string_adaptor.hpp"
-#include "../omega_edit/omega_edit.h"
 #include <iomanip>
 #include <iostream>
+#include <omega_edit.h>
+#include <omega_edit/stl_string_adaptor.hpp>
 #include <string>
 
 using namespace std;
