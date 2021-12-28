@@ -21,9 +21,8 @@ jobs:
       - name: Build Debug Build
         run: cmake --build cmake-build-debug
       - name: Run Tests
-        run: |
-          cd cmake-build-debug/src/tests/
-          ./omega_test -d yes --order lex
+        working-directory: cmake-build-debug/src/tests/
+        run: ./omega_test -d yes --order lex
       - name: Create Node v10 Virtual Environment
         run: nodeenv --node=10.24.1 venv
       - name: Prepare To Build Node v10 Bindings
@@ -50,13 +49,14 @@ jobs:
       - name: Build Debug Build
         run: cmake --build cmake-build-debug
       - name: Run Tests
-        run: |
-          cd cmake-build-debug/src/tests/
-          ./omega_test -d yes --order lex
+        working-directory: cmake-build-debug/src/tests/
+        run: ./omega_test -d yes --order lex
+      - name: Collect code coverage
+        working-directory: cmake-build-debug/src/tests/
+        run: bash <(curl -s https://codecov.io/bash)
       - name: Run Tests Under Valgrind
-        run: |
-          cd cmake-build-debug/src/tests/
-          valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
+        working-directory: cmake-build-debug/src/tests/
+        run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
       - name: Create Node v10 Virtual Environment
         run: nodeenv --node=10.24.1 venv
       - name: Prepare To Build Node v10 Bindings
