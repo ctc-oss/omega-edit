@@ -16,5 +16,5 @@
  * Uses Omega Edit to display its license.  Example from src/examples:
  * node ./omega_license.js
  */
-omega_edit = require('../../module/omega_edit_' + + process.platform)
+omega_edit = require('../../module/omega_edit')
 console.log(omega_edit.omega_license_get())

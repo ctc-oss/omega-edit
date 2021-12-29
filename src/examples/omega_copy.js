@@ -18,7 +18,7 @@
  * Verify the file contents are identical:
  * cmp ../tests/data/test1.dat test1.dat.copy
  */
-omega_edit = require('../../module/omega_edit_' + process.platform)
+omega_edit = require('../../module/omega_edit')
 input_filename = process.argv[2]
 output_filename = process.argv[3]
 session = omega_edit.omega_edit_create_session(input_filename, null, null)

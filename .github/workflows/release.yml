@@ -43,8 +43,8 @@ jobs:
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@master
         with:
-          name: ${{ NODE_FILE }}
-          path: module/${{ NODE_FILE }}
+          name: ${{ env.NODE_FILE }}
+          path: module/${{ env.NODE_FILE }}
   release:
     name: Release package
     runs-on: ubuntu-20.04
