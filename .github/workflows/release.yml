@@ -17,28 +17,19 @@ jobs:
       - uses: actions/setup-node@v1.4.6
         with:
           node-version: 12
-      - run: yarn global add node-gyp
-      - name: Setup SWIG
-        run: |
-          git clone https://github.com/swig/swig.git
-          cd swig
-          ./autogen.sh
-          ./configure --prefix=/usr/local/
-          make
-          make install
       - name: Create addon file
-        run: yarn pre-package
+        run: yarn ci
       - name: Export addon file name
         run: |
           NODE_FILE=""
 
           if [[ ${{ matrix.os }} == *"macos"* ]]; then
             NODE_FILE="omega_edit_darwin.node"
-          elif [[ ${{ matrix.os }} == *"windows"* ]]; then
-            NODE_FILE="omega_edit_win32.node"
           else
             NODE_FILE="omega_edit_linux.node"
           fi
+
+          mv module/omega_edit_* module/$NODE_FILE
 
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@master
@@ -48,6 +39,7 @@ jobs:
   release:
     name: Release package
     runs-on: ubuntu-20.04
+    needs: build
     steps:
       - uses: actions/checkout@v2.3.5
       - uses: actions/setup-node@v1.4.6
