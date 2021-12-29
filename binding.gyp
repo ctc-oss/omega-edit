@@ -1,7 +1,7 @@
 {
   "targets": [
     {
-      "target_name": "omega_edit",
+      "target_name": "omega_edit_<(OS)",
       "sources": [
         "src/lib/change.cpp",
         "src/lib/check.cpp",
@@ -16,7 +16,18 @@
         "src/lib/impl_/find.cpp",
         "src/lib/impl_/internal_fun.cpp",
         "src/bindings/omega_edit_wrap.cxx"
+      ],
+    },
+    {
+      "target_name": "copy_binary",
+      "type":"none",
+      "dependencies" : [ "omega_edit_<(OS)" ],
+      "copies": [
+        {
+          'destination': '<(module_root_dir)/module/',
+          'files': ['<(module_root_dir)/build/Release/omega_edit_<(OS).node']
+        }
       ]
-    }
+    },
   ]
 }

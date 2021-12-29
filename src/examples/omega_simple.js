@@ -29,7 +29,7 @@ function on_viewport_change(viewport, change) {
     console.log(change_kind + ": [" + omega_edit.omega_viewport_get_string(viewport) + "]")
 }
 
-omega_edit = require('../../build/Release/omega_edit')
+omega_edit = require('../../module/omega_edit')
 session = omega_edit.omega_edit_create_session("", null, null)
 console.assert(session != null, {errorMsg: "session creation failed"})
 viewport = omega_edit.omega_edit_create_viewport(session, 0, 100, null, null)

@@ -12,3 +12,10 @@ venv/
 
 # IDE files
 .idea/
+
+# Ignore addon files
+**/*.node
+
+# Ignore packaged files
+**/*.tar.gz
+**/*.tgz

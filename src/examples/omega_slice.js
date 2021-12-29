@@ -18,7 +18,7 @@
  * cat LICENSE.2-3.txt
  * Apache License
  */
-omega_edit = require('../../build/Release/omega_edit')
+omega_edit = require('../../module/omega_edit')
 input_filename = process.argv[2]
 output_filename = process.argv[3]
 offset = parseInt(process.argv[4])
