@@ -9,14 +9,14 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [macos-11, windows-2019, ubuntu-20.04]
+        os: [macos-11, ubuntu-20.04]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: action/checkout@v2.3.5
       - uses: actions/setup-node@v1.4.6
         with:
-          node-version: 14
+          node-version: 12
       - run: yarn global add node-gyp
       - name: Setup SWIG
         run: |
@@ -47,9 +47,6 @@ jobs:
           path: module/${{ NODE_FILE }}
   release:
     name: Release package
-    strategy:
-      matrix:
-        node-file: ["omega_edit_win32.node", "omega_edit_darwin.node", "omega_edit_linux.node"]
     runs-on: ubuntu-20.04
     steps:
       - uses: action/checkout@v2.3.5
@@ -58,7 +55,7 @@ jobs:
           node-version: 14
       - uses: actions/download-artifact@master
         with:
-          name: "omega_edit_win32.node"
-          path: "module/omega_edit_win32.node"
+          name: "omega_edit_darwin.node"
+          path: "module/omega_edit_darwin.node"
       - run: ls -la
       - run: ls -la module/
