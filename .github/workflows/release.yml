@@ -46,7 +46,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v1.4.6
         with:
-          node-version: 14
+          node-version: 12
       - name: Export package.json version
         run: |
           PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
@@ -74,6 +74,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./omega-edit-${{ env.PKG_VERSION }}.tar.gzmy-artifact.zip
+          asset_path: ./omega-edit-${{ env.PKG_VERSION }}.tar.gz
           asset_name: omega-edit-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
