@@ -5,6 +5,8 @@ on:
     tags:
       - 'v*.*.*'
 env:
+  node_version: 14
+  electron_version: 13.6.3
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
     PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
@@ -23,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v1.4.6
         with:
-          node-version: 12
+          node-version: ${{ env.node_version }}
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -63,7 +65,7 @@ jobs:
         uses: actions/setup-node@v1.4.6
         with:
           registry-url: 'https://registry.npmjs.org'
-          node-version: 12
+          node-version: ${{ env.node_version }}
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
