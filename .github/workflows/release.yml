@@ -33,7 +33,7 @@ jobs:
 
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
       - name: Upload ${{ env.NODE_FILE }}
-        uses: actions/upload-artifact@2.3.0
+        uses: actions/upload-artifact@v2.3.1
         with:
           name: ${{ env.NODE_FILE }}
           path: module/${{ env.NODE_FILE }}
