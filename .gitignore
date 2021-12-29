@@ -15,3 +15,7 @@ venv/
 
 # Ignore addon files
 **/*.node
+
+# Ignore packaged files
+**/*.tar.gz
+**/*.tgz

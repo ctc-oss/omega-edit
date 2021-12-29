@@ -14,7 +14,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
-      - uses: actions/setup-node@v1.4.6
+      - name: Setup Node
+        uses: actions/setup-node@v1.4.6
         with:
           node-version: 12
       - name: Create addon file
@@ -31,7 +32,8 @@ jobs:
           fi
 
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
-      - uses: actions/upload-artifact@master
+      - name: Upload ${{ env.NODE_FILE }}
+        uses: actions/upload-artifact@2.3.1
         with:
           name: ${{ env.NODE_FILE }}
           path: module/${{ env.NODE_FILE }}
@@ -41,12 +43,36 @@ jobs:
     needs: build
     steps:
       - uses: actions/checkout@v2.3.5
-      - uses: actions/setup-node@v1.4.6
+      - name: Setup Node
+        uses: actions/setup-node@v1.4.6
         with:
           node-version: 14
-      - uses: actions/download-artifact@master
+      - name: Export package.json version
+        run: |
+          PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
+          echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
+
+      - name: Download node files
+        uses: actions/download-artifact@v2.1.0
         with:
-          name: "omega_edit_darwin.node"
-          path: "module/omega_edit_darwin.node"
-      - run: ls -la
-      - run: ls -la module/
+          path: module/
+      - name: Create release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ secret.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Create release tarball
+        run: yarn pack --filename omega-edit-${{ env.PKG_VERSION }}.tar.gz
+      - name: Upload release tarball
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secret.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./omega-edit-${{ env.PKG_VERSION }}.tar.gzmy-artifact.zip
+          asset_name: omega-edit-${{ env.PKG_VERSION }}.tar.gz
+          asset_content_type: application/tar+gzip
