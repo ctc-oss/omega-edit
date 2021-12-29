@@ -25,11 +25,10 @@ jobs:
 
           if [[ ${{ matrix.os }} == *"macos"* ]]; then
             NODE_FILE="omega_edit_darwin.node"
+            mv module/omega_edit_mac.node module/$NODE_FILE
           else
             NODE_FILE="omega_edit_linux.node"
           fi
-
-          mv module/omega_edit_* module/$NODE_FILE
 
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@master
