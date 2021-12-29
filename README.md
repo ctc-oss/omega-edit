@@ -57,20 +57,20 @@ cd ../../../
 
 ## Build Node bindings
 
-The SWIG bindings are generated for Node v12, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
+The SWIG bindings are generated for Node v14, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
 
 #### **OPTION 1:** Use nvm ([Node Version Manager](https://github.com/nvm-sh/nvm))
 
-Using Node v12 in nvm looks like this:
+Using Node v14 in nvm looks like this:
 
 ```bash
-nvm use 12
+nvm use 14
 ```
 
-#### **OPTION 2:** Setup a Node v12 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
+#### **OPTION 2:** Setup a Node v14 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
 
 ```bash
-nodeenv --node=12.22.8 venv
+nodeenv --node=14.16.0 venv
 ```
 
 Activate the Node virtual environment:
