@@ -16,7 +16,7 @@
  * This application can be used to test out how to do search and replace with Omega Edit.
  */
 
-omega_edit = require('../../build/Release/omega_edit')
+omega_edit = require('../../module/omega_edit_' + process.platform)
 in_filename = process.argv[2]
 out_filename = process.argv[3]
 pattern = process.argv[4]

@@ -15,5 +15,5 @@
 /*
  * List all the functions exported by the OmegaEdit library
  */
-omega_edit = require('../../build/Release/omega_edit')
+omega_edit = require('../../module/omega_edit_' + + process.platform)
 console.log(Object.keys(omega_edit))
