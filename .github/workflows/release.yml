@@ -27,7 +27,7 @@ jobs:
           make
           make install
       - name: Create addon file
-        run: yarn ci
+        run: yarn pre-package
       - name: Export addon file name
         run: |
           NODE_FILE=""

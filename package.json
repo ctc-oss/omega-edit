@@ -22,7 +22,6 @@
     "gyp-remove": "node-gyp remove",
     "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
-    "package": "yarn pre-package && yarn publish",
-    "ci": "yarn pre-package"
+    "package": "yarn pre-package && yarn publish"
   }
 }
