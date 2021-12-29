@@ -1,0 +1,64 @@
+---
+name: Automatic Release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-11, windows-2019, ubuntu-20.04]
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: action/checkout@v2.3.5
+      - uses: actions/setup-node@v1.4.6
+        with:
+          node-version: 14
+      - run: yarn global add node-gyp
+      - name: Setup SWIG
+        run: |
+          git clone https://github.com/swig/swig.git
+          cd swig
+          ./autogen.sh
+          ./configure --prefix=/usr/local/
+          make
+          make install
+      - name: Create addon file
+        run: yarn ci
+      - name: Export addon file name
+        run: |
+          NODE_FILE=""
+
+          if [[ ${{ matrix.os }} == *"macos"* ]]; then
+            NODE_FILE="omega_edit_darwin.node"
+          elif [[ ${{ matrix.os }} == *"windows"* ]]; then
+            NODE_FILE="omega_edit_win32.node"
+          else
+            NODE_FILE="omega_edit_linux.node"
+          fi
+
+          echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
+      - uses: actions/upload-artifact@master
+        with:
+          name: ${{ NODE_FILE }}
+          path: module/${{ NODE_FILE }}
+  release:
+    name: Release package
+    strategy:
+      matrix:
+        node-file: ["omega_edit_win32.node", "omega_edit_darwin.node", "omega_edit_linux.node"]
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: action/checkout@v2.3.5
+      - uses: actions/setup-node@v1.4.6
+        with:
+          node-version: 14
+      - uses: actions/download-artifact@master
+        with:
+          name: "omega_edit_win32.node"
+          path: "module/omega_edit_win32.node"
+      - run: ls -la
+      - run: ls -la module/
