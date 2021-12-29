@@ -1,7 +1,7 @@
 {
   "name": "omega-edit",
   "description": "OmegaEdit open source library for building editors that can handle massive files",
-  "version": "0.6.2-2",
+  "version": "0.6.2",
   "main": "module/index.js",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
