@@ -48,7 +48,7 @@ set(SOURCE_FILES
 include_directories(src/include)
 
 # Generate version header file
-configure_file(version.c.in src/lib/version.c)
+configure_file(config/version.c.in src/lib/version.c)
 
 # Create the library archive for static linking
 add_library(omega_edit STATIC ${SOURCE_FILES} src/lib/version.c)
