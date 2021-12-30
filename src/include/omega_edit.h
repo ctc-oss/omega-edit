@@ -28,6 +28,7 @@
 #include "omega_edit/license.h"
 #include "omega_edit/search.h"
 #include "omega_edit/session.h"
+#include "omega_edit/version.h"
 #include "omega_edit/viewport.h"
 #include "omega_edit/visit.h"
 

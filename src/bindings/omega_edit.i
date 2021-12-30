@@ -35,6 +35,7 @@
 %include "../include/omega_edit/search.h"
 %include "../include/omega_edit/session.h"
 %include "../include/omega_edit/stl_string_adaptor.hpp"
+%include "../include/omega_edit/version.h"
 %include "../include/omega_edit/viewport.h"
 %include "../include/omega_edit/visit.h"
 

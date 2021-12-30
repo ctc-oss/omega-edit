@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 # Project information
 project(omega_edit
-        VERSION 0.6.0
+        VERSION 0.6.2
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL https://github.com/scholarsmate/omega-edit
         LANGUAGES C CXX)
@@ -10,8 +10,14 @@ project(omega_edit
 # Use C++14
 set(CMAKE_CXX_STANDARD 14)
 
-# Get verbose output from the makefile (useful for debugging the build)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# Parse version information
+string(TOUPPER ${PROJECT_NAME} PREFIX)
+string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" ${PROJECT_NAME}_VERSION_MAJOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+)\\.[0-9]+.*" "\\1" ${PROJECT_NAME}_VERSION_MINOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ${PROJECT_NAME}_VERSION_PATCH "${PROJECT_VERSION}")
+foreach(level MAJOR MINOR PATCH)
+    set(PROJECT_VERSION_${level} ${${PROJECT_NAME}_VERSION_${level}})
+endforeach()
 
 # Define the library source files
 set(SOURCE_FILES
@@ -19,6 +25,7 @@ set(SOURCE_FILES
         src/include/omega_edit/config.h
         src/include/omega_edit/fwd_defs.h
         src/include/omega_edit/byte.h
+        src/include/omega_edit/version.h
         src/include/omega_edit/scoped_ptr.hpp
         src/include/omega_edit/stl_string_adaptor.hpp
         src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
@@ -40,8 +47,11 @@ set(SOURCE_FILES
 
 include_directories(src/include)
 
+# Generate version header file
+configure_file(version.c.in src/lib/version.c)
+
 # Create the library archive for static linking
-add_library(omega_edit STATIC ${SOURCE_FILES})
+add_library(omega_edit STATIC ${SOURCE_FILES} src/lib/version.c)
 
 # Generate documentation using Doxygen
 find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)

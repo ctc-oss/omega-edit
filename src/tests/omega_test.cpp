@@ -37,6 +37,14 @@ TEST_CASE("Size Tests", "[SizeTests]") {
     REQUIRE(8 == sizeof(void *));
 }
 
+TEST_CASE("Version check", "[VersionCheck]") {
+    const auto major = omega_version_major();
+    const auto minor = omega_version_minor();
+    const auto patch = omega_version_patch();
+    const auto version = (major << 24) + (minor << 16) + patch;
+    REQUIRE(version == omega_version());
+}
+
 TEST_CASE("License check", "[LicenseCheck]") {
     const auto license = omega_license_get();
     REQUIRE(license);
