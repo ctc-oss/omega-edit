@@ -16,12 +16,16 @@
     "gyp-build": "node-gyp build",
     "gyp-clean": "node-gyp clean",
     "gyp-configure": "node-gyp configure",
-    "gyp-rebuild": "node-gyp rebuild",
     "gyp-install": "node-gyp install",
     "gyp-list": "node-gyp list",
+    "gyp-rebuild": "node-gyp rebuild",
     "gyp-remove": "node-gyp remove",
-    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
+    "package": "yarn pre-package && yarn publish",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
-    "package": "yarn pre-package && yarn publish"
+    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
+    "test": "mocha src/tests-js"
+  },
+  "devDependencies": {
+    "mocha": "^9.1.3"
   }
 }

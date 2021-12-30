@@ -12,24 +12,36 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_OMEGA_EDIT_H
-#define OMEGA_OMEGA_EDIT_H
+const assert = require('assert')
 
-/**
- * At the heart of Omega Edit, is the file editing session (session_t) which manages everything concerning the editing
- * of a given file.  Once a session is created, it needs to have one or more authors (author_t).  Each author can create
- * a series of changes (change_t) and can have a series of viewports (viewport_t).  Any changes that affect viewports in
- * the associated session will be kept up-to-date and when a viewport is changed, a user-defined callback function will
- * be called with the updated viewport and the change that triggered the update.
- */
+describe('Ωedit Javascript Unit Tests', function () {
 
-#include "omega_edit/change.h"
-#include "omega_edit/edit.h"
-#include "omega_edit/license.h"
-#include "omega_edit/search.h"
-#include "omega_edit/session.h"
-#include "omega_edit/version.h"
-#include "omega_edit/viewport.h"
-#include "omega_edit/visit.h"
+    it('loads the module', function () {
+        omega_edit = require("../../module")
+        //console.log(omega_edit)
+        assert.ok(omega_edit)
+    });
 
-#endif//OMEGA_OMEGA_EDIT_H
+    it('has a non-zero version number', function () {
+        version = omega_edit.omega_version()
+        //console.log(version)
+        assert.ok(0 < version)
+    });
+
+    it('has a copyright', function () {
+        copyright = omega_edit.omega_license_get()
+        //console.log(copyright)
+        //console.log(copyright.length)
+        assert.ok(500 < copyright.length)
+        assert.ok(copyright.includes("Concurrent Technologies Corporation"))
+    });
+
+    it('creates and destroys a session', function () {
+        session = omega_edit.omega_edit_create_session("", null, null)
+        assert.ok(session)
+        assert.ok(0 == omega_edit.omega_session_get_num_changes(session))
+        assert.ok(0 == omega_edit.omega_session_get_computed_file_size(session))
+        omega_edit.omega_edit_destroy_session(session)
+    });
+
+});
