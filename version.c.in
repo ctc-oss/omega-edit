@@ -14,7 +14,7 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include <omega_edit/version.h>
+#include "omega_edit/version.h"
 
 #define OMEGA_EDIT_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
 #define OMEGA_EDIT_VERSION_MINOR @PROJECT_VERSION_MINOR@
