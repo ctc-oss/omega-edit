@@ -3558,6 +3558,82 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_omega_version_major(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  int result;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_version_major.");
+  
+  result = (int)omega_version_major();
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_version_minor(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  int result;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_version_minor.");
+  
+  result = (int)omega_version_minor();
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_version_patch(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  int result;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_version_patch.");
+  
+  result = (int)omega_version_patch();
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_version(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  int result;
+  
+  if(args.Length() != 0) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_version.");
+  
+  result = (int)omega_version();
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_omega_viewport_get_session(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -4993,6 +5069,10 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_string", _wrap_omega_v
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_insert_string", _wrap_omega_edit_insert_string, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_overwrite_string", _wrap_omega_edit_overwrite_string, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_search_create_context_string", _wrap___wrap_omega_search_create_context_string, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_version_major", _wrap_omega_version_major, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_version_minor", _wrap_omega_version_minor, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_version_patch", _wrap_omega_version_patch, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_version", _wrap_omega_version, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_session", _wrap_omega_viewport_get_session, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_capacity", _wrap_omega_viewport_get_capacity, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_length", _wrap_omega_viewport_get_length, context);

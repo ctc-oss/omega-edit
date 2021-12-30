@@ -2,16 +2,16 @@ cmake_minimum_required(VERSION 3.16)
 
 # Project information
 project(omega_edit
-        VERSION 0.6.0
+        VERSION 0.6.2
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL https://github.com/scholarsmate/omega-edit
         LANGUAGES C CXX)
 
-# Use C++14
-set(CMAKE_CXX_STANDARD 14)
-
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON)
+
+# Use C++14
+set(CMAKE_CXX_STANDARD 14)
 
 # Define the library source files
 set(SOURCE_FILES
@@ -25,6 +25,7 @@ set(SOURCE_FILES
         src/include/omega_edit/check.h src/lib/check.cpp
         src/include/omega_edit/edit.h src/lib/edit.cpp
         src/include/omega_edit/search.h src/lib/search.cpp
+        src/include/omega_edit/version.h src/lib/version.c
         src/include/omega_edit/visit.h src/lib/visit.cpp
         src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
         src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
@@ -42,6 +43,17 @@ include_directories(src/include)
 
 # Create the library archive for static linking
 add_library(omega_edit STATIC ${SOURCE_FILES})
+
+# Parse version information
+string(TOUPPER ${PROJECT_NAME} PREFIX)
+string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" ${PREFIX}_VERSION_MAJOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+)\\.[0-9]+.*" "\\1" ${PREFIX}_VERSION_MINOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ${PREFIX}_VERSION_PATCH "${PROJECT_VERSION}")
+
+# Send version information into libomega_edit through macro definitions
+foreach(level MAJOR MINOR PATCH)
+    target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PREFIX}_VERSION_${level}})
+endforeach()
 
 # Generate documentation using Doxygen
 find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)

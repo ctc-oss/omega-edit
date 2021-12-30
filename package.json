@@ -19,9 +19,14 @@
     "gyp-rebuild": "node-gyp rebuild --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-install": "node-gyp install --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-list": "node-gyp list",
+    "gyp-rebuild": "node-gyp rebuild",
     "gyp-remove": "node-gyp remove",
-    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
+    "package": "yarn pre-package && yarn pack",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
-    "package": "yarn pre-package && yarn pack"
+    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
+    "test": "mocha src/tests-js"
+  },
+  "devDependencies": {
+    "mocha": "^9.1.3"
   }
 }
