@@ -14,11 +14,20 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include "omega_edit/version.h"
+#include "../include/omega_edit/version.h"
 
-#define OMEGA_EDIT_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
-#define OMEGA_EDIT_VERSION_MINOR @PROJECT_VERSION_MINOR@
-#define OMEGA_EDIT_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#ifndef OMEGA_EDIT_VERSION_MAJOR
+#define OMEGA_EDIT_VERSION_MAJOR 0
+#endif
+
+#ifndef OMEGA_EDIT_VERSION_MINOR
+#define OMEGA_EDIT_VERSION_MINOR 0
+#endif
+
+#ifndef OMEGA_EDIT_VERSION_PATCH
+#define OMEGA_EDIT_VERSION_PATCH 0
+#endif
+
 #define OMEGA_EDIT_VERSION (((OMEGA_EDIT_VERSION_MAJOR) << 24) + ((OMEGA_EDIT_VERSION_MINOR) << 16) + (OMEGA_EDIT_VERSION_PATCH))
 
 int omega_version_major() { return OMEGA_EDIT_VERSION_MAJOR; }

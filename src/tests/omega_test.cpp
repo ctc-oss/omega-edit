@@ -42,6 +42,7 @@ TEST_CASE("Version check", "[VersionCheck]") {
     const auto minor = omega_version_minor();
     const auto patch = omega_version_patch();
     const auto version = (major << 24) + (minor << 16) + patch;
+    REQUIRE(0 < omega_version());
     REQUIRE(version == omega_version());
 }
 

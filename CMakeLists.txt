@@ -7,17 +7,11 @@ project(omega_edit
         HOMEPAGE_URL https://github.com/scholarsmate/omega-edit
         LANGUAGES C CXX)
 
+# Get verbose output from the makefile (useful for debugging the build)
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 # Use C++14
 set(CMAKE_CXX_STANDARD 14)
-
-# Parse version information
-string(TOUPPER ${PROJECT_NAME} PREFIX)
-string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" ${PROJECT_NAME}_VERSION_MAJOR "${PROJECT_VERSION}")
-string(REGEX REPLACE "^[0-9]+\\.([0-9]+)\\.[0-9]+.*" "\\1" ${PROJECT_NAME}_VERSION_MINOR "${PROJECT_VERSION}")
-string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ${PROJECT_NAME}_VERSION_PATCH "${PROJECT_VERSION}")
-foreach(level MAJOR MINOR PATCH)
-    set(PROJECT_VERSION_${level} ${${PROJECT_NAME}_VERSION_${level}})
-endforeach()
 
 # Define the library source files
 set(SOURCE_FILES
@@ -25,13 +19,13 @@ set(SOURCE_FILES
         src/include/omega_edit/config.h
         src/include/omega_edit/fwd_defs.h
         src/include/omega_edit/byte.h
-        src/include/omega_edit/version.h
         src/include/omega_edit/scoped_ptr.hpp
         src/include/omega_edit/stl_string_adaptor.hpp
         src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
         src/include/omega_edit/check.h src/lib/check.cpp
         src/include/omega_edit/edit.h src/lib/edit.cpp
         src/include/omega_edit/search.h src/lib/search.cpp
+        src/include/omega_edit/version.h src/lib/version.c
         src/include/omega_edit/visit.h src/lib/visit.cpp
         src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
         src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
@@ -47,11 +41,19 @@ set(SOURCE_FILES
 
 include_directories(src/include)
 
-# Generate version header file
-configure_file(config/version.c.in src/lib/version.c)
-
 # Create the library archive for static linking
-add_library(omega_edit STATIC ${SOURCE_FILES} src/lib/version.c)
+add_library(omega_edit STATIC ${SOURCE_FILES})
+
+# Parse version information
+string(TOUPPER ${PROJECT_NAME} PREFIX)
+string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+.*" "\\1" ${PREFIX}_VERSION_MAJOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+)\\.[0-9]+.*" "\\1" ${PREFIX}_VERSION_MINOR "${PROJECT_VERSION}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" ${PREFIX}_VERSION_PATCH "${PROJECT_VERSION}")
+
+# Send version information into libomega_edit through macro definitions
+foreach(level MAJOR MINOR PATCH)
+    target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PREFIX}_VERSION_${level}})
+endforeach()
 
 # Generate documentation using Doxygen
 find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
