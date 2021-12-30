@@ -12,29 +12,29 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/* clang-format off */
+package org.ctc.omegaedit
 
-%module omega_edit
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.http.scaladsl.Http
+import scala.util.{Success,Failure}
 
-%{
-/* Includes the header in the wrapper code */
-#include "../../include/omega_edit.h"
-#include "../../include/omega_edit/check.h"
-#include "../../include/omega_edit/stl_string_adaptor.hpp"
-%}
+object API {
+  val host = "localhost"
+  val port = 9000
+  implicit val system = ActorSystem(Behaviors.empty, "omega_edit")
+  implicit val executor = system.executionContext
 
-%include <stdint.i>
-%include <std_string.i>
-
-/* Parse the header file to generate wrappers */
-%include "../../include/omega_edit/change.h"
-%include "../../include/omega_edit/check.h"
-%include "../../include/omega_edit/config.h"
-%include "../../include/omega_edit/edit.h"
-%include "../../include/omega_edit/license.h"
-%include "../../include/omega_edit/search.h"
-%include "../../include/omega_edit/session.h"
-%include "../../include/omega_edit/stl_string_adaptor.hpp"
-%include "../../include/omega_edit/version.h"
-%include "../../include/omega_edit/viewport.h"
-%include "../../include/omega_edit/visit.h"
+  // Method to start up to API
+  def main(args: Array[String]): Unit = {
+    val futureBinding = Http().newServerAt(host, port).bind(Routes.getRoutes)
+    futureBinding.onComplete {
+      case Success(binding) =>
+        val address = binding.localAddress
+        system.log.info("Server online at http://{}:{}/", address.getHostString, address.getPort)
+      case Failure(ex) =>
+        system.log.error("Failed to bind HTTP endpoint, terminating system", ex)
+        system.terminate()
+    }
+  }
+}

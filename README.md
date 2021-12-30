@@ -1,3 +1,16 @@
+<!--
+  Copyright (c) 2021 Concurrent Technologies Corporation.                                                       
+
+  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at                                                    
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software is distributed under the License is       
+  distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
+  implied.  See the License for the specific language governing permissions and limitations under the License.  
+-->
+
 <div align="center">
 <p>
     <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
@@ -5,9 +18,6 @@
 
 <h1>Ωedit Library</h1>
 
-</div>
-
-<div align="center">
 
 ![Build Status](https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg)
 ![CodeQL](https://github.com/ctc-oss/omega-edit/workflows/CodeQL/badge.svg)
@@ -23,6 +33,9 @@ The goal of this project is to provide an open source library for building edito
 multiple authors, and multiple viewports.
 
 ## Requirements
+### Development requirements:
+
+- **swig** to generate language bindings (http://www.swig.org/svn.html)
 
 ### IDE
 
@@ -41,6 +54,7 @@ Studio Code also works well.
 - **sphinx** to generate user documentation (https://www.sphinx-doc.org)
   - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
+- **scala/sbt/java**
 
 ### Development requirements:
 
@@ -105,14 +119,67 @@ node ci
 node src/examples/omega_simple.js
 ```
 
+## Creating Java Native/Shared Library - Manual
+
+### Create C++ binary
+
+```bash
+cmake -S . -B cmake-build-debug
+cmake --build cmake-build-debug
+```
+
+### Create wrapper binary
+
+```bash
+g++ -std=c++11 -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+```
+
+### Create libray file
+
+```bash
+g++ -std=c++11 -dynamiclib -o lib/libomega_edit.dylib cmake-build-debug/libomega_edit.a lib/omega_edit_wrap.o -lc
+```
+
+## Running API
+
+For the Scala code the `build.sbt` runs everything listed above automatically. This is to ensure the environment is setup so that the API can run without errors.
+
+Command to start up API:
+
+```
+sbt run
+```
+
+If you navigate to `http://localhost:9000/no_params?methodName=omega_license_get` in the browser you get the license text.
+
+## Packaging omega-edit
+
+Package file follows naming pattern `omega_edit-$omegaEditVer`, eg `omega_edit-1.0.0-0.1.0-SNAPSHOT.zip`.
+The `libomega_edit.*` files that are stored in `lib` are added the package when the command is ran.
+
+```
+sbt universal:packageBin
+```
+
 ## Development
+
+Currently the repo holds bindings for both java and node
+
+
+### Regenerate Java bindings using SWIG (as required)
+
+If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
+
+```bash
+swig -v -c++ -java -outdir src/bindings/java src/bindings/java/omega_edit.i
+```
 
 ### Regenerate Node bindings using SWIG (as required)
 
 If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
 
 ```bash
-swig -javascript -node -v -c++ src/bindings/omega_edit.i
+swig -javascript -node -v -c++ -outdir src/bindings/node src/bindings/node/omega_edit.i
 ```
 
 ## License
