@@ -35,7 +35,7 @@ jobs:
           npm ci
           mv module/omega_edit* module/omega_edit.node
       - name: Test Node v14 Bindings
-        run: node ./src/examples/omega_simple.js
+        run: yarn test
 
   linux-debug:
     name: Linux Tests
@@ -69,4 +69,4 @@ jobs:
           npm ci
           mv module/omega_edit* module/omega_edit.node
       - name: Test Node v14 Bindings
-        run: node ./src/examples/omega_simple.js
+        run: yarn test

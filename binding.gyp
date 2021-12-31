@@ -35,7 +35,7 @@
       "dependencies" : [ "omega_edit_<(OS)" ],
       "copies": [
         {
-          'destination': '<(module_root_dir)/module/',
+          'destination': '<(module_root_dir)/module/omega_edit',
           'files': ['<(module_root_dir)/build/Release/omega_edit_<(OS).node']
         }
       ]

@@ -2,7 +2,7 @@
   "name": "omega-edit",
   "description": "OmegaEdit open source library for building editors that can handle massive files",
   "version": "0.6.2",
-  "main": "module/index.js",
+  "main": "module/omega_edit/index.js",
   "repository": {
     "url": "https://github.com/scholarsmate/omega-edit",
     "type": "git"
@@ -16,10 +16,9 @@
     "gyp-build": "node-gyp build --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-clean": "node-gyp clean --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-configure": "node-gyp configure --target=13.6.3 --dist-url=https://electronjs.org/headers",
-    "gyp-rebuild": "node-gyp rebuild --target=13.6.3 --dist-url=https://electronjs.org/headers",
+    "gyp-rebuild": "node-gyp rebuild",
     "gyp-install": "node-gyp install --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-list": "node-gyp list",
-    "gyp-rebuild": "node-gyp rebuild",
     "gyp-remove": "node-gyp remove",
     "package": "yarn pre-package && yarn pack",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",

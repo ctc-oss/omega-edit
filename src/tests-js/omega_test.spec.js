@@ -17,7 +17,7 @@ const assert = require('assert')
 describe('Ωedit Javascript Unit Tests', function () {
 
     it('loads the module', function () {
-        omega_edit = require("../../module")
+        omega_edit = require("../../module/omega_edit")
         //console.log(omega_edit)
         assert.ok(omega_edit)
     });
@@ -39,8 +39,8 @@ describe('Ωedit Javascript Unit Tests', function () {
     it('creates and destroys a session', function () {
         session = omega_edit.omega_edit_create_session("", null, null)
         assert.ok(session)
-        assert.ok(0 == omega_edit.omega_session_get_num_changes(session))
-        assert.ok(0 == omega_edit.omega_session_get_computed_file_size(session))
+        assert.ok(0 === omega_edit.omega_session_get_num_changes(session))
+        assert.ok(0 === omega_edit.omega_session_get_computed_file_size(session))
         omega_edit.omega_edit_destroy_session(session)
     });
 
