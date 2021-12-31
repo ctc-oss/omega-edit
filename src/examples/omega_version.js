@@ -19,6 +19,6 @@
  * node ./omega_version.js
  */
 
-omega_edit = require('../../module')
+omega_edit = require('../../module/omega_edit')
 console.log("omega edit version: " + omega_edit.omega_version_major() + "." + omega_edit.omega_version_minor() + "." + omega_edit.omega_version_patch())
 console.log("omega edit version number: " + omega_edit.omega_version())
