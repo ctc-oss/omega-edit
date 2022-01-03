@@ -31,11 +31,9 @@ jobs:
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex
       - name: Prepare To Build Node v14 Bindings
-        run: |
-          npm ci
-          mv module/omega_edit* module/omega_edit.node
+        run: npm ci
       - name: Test Node v14 Bindings
-        run: node ./src/examples/omega_simple.js
+        run: yarn test
 
   linux-debug:
     name: Linux Tests
@@ -65,8 +63,6 @@ jobs:
         working-directory: cmake-build-debug/src/tests/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
       - name: Prepare To Build Node v14 Bindings
-        run: |
-          npm ci
-          mv module/omega_edit* module/omega_edit.node
+        run: npm ci
       - name: Test Node v14 Bindings
-        run: node ./src/examples/omega_simple.js
+        run: yarn test

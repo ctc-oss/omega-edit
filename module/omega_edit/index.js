@@ -13,5 +13,6 @@
  **********************************************************************************************************************/
 
 // Export module for operating system
-omega_edit = require("./omega_edit_" + process.platform)
+gyp_os = ("darwin" === process.platform) ? "mac" : process.platform
+omega_edit = require("./omega_edit_" + gyp_os)
 module.exports = omega_edit
