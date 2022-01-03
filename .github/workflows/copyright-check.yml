@@ -14,4 +14,4 @@ jobs:
         run: |
           ! grep -R -L --exclude-dir=vendor \
             --include='*.c' --include='*.cpp' --include='*.h' --include='*.hpp'  --include='*.js' \
-            'Copyright (c) 2021 Concurrent Technologies Corporation' *
+            'Copyright (c) 2021-2022 Concurrent Technologies Corporation' *
