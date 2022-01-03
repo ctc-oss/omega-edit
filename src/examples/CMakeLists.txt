@@ -1,3 +1,6 @@
+get_target_property(OMEGA_EDIT_PUBLIC_HEADER_DIR omega_edit INTERFACE_INCLUDE_DIRECTORIES)
+include_directories(${OMEGA_EDIT_PUBLIC_HEADER_DIR})
+
 add_executable(replace replace.cpp)
 target_link_libraries(replace omega_edit)
 
