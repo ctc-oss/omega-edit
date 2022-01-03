@@ -6,7 +6,7 @@
 ![CodeQL](https://github.com/scholarsmate/omega-edit/workflows/CodeQL/badge.svg)
 [![codecov](https://codecov.io/gh/scholarsmate/omega-edit/branch/main/graph/badge.svg)](https://codecov.io/gh/scholarsmate/omega-edit)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fscholarsmate%2Fomega-edit?ref=badge_shield)
-[![Release](https://shields.io/github/v/release/scholarsmate/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://shields.io/github/v/release/scholarsmate/omega-edit?display_name=tag&include_prereleases&sort=semver)
+[![Release](https://shields.io/github/v/release/scholarsmate/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/scholarsmate/omega-edit/releases)
 
 The goal of this project is to provide an open source library for building editors that can handle massive files,
 multiple authors, and multiple viewports.
