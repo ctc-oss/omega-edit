@@ -52,9 +52,9 @@ foreach(level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}})
 endforeach()
 
-# Generate documentation using Doxygen
 option(BUILD_DOCS "build documentation" ON)
 if(BUILD_DOCS)
+    # Generate API documentation using Doxygen
     find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
     if(DOXYGEN_FOUND)
         set(DOXYGEN_GENERATE_HTML YES)
@@ -67,29 +67,34 @@ if(BUILD_DOCS)
         # Add the cmake folder so the FindSphinx module is found
         set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
         find_package(Sphinx REQUIRED)
-        set(DOXYGEN_INDEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/xml)
-        set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
-        set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/sphinx)
-        set(SPHINX_INDEX_FILE ${SPHINX_BUILD}/index.html)
-        add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
-                COMMAND ${SPHINX_EXECUTABLE} -b html
-                # Tell Breathe where to find the Doxygen output
-                -Dbreathe_projects.omega_edit=${DOXYGEN_INDEX_DIR}
-                ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                DEPENDS
-                # Other docs files you want to track should go here (or in some variable)
-                ${SPHINX_SOURCE}/index.rst
-                ${DOXYGEN_INDEX_DIR}/index.xml
-                MAIN_DEPENDENCY ${SPHINX_SOURCE}/conf.py
-                COMMENT "Generating documentation with Sphinx")
-        # Nice named target so we can run the job easily
-        add_custom_target(sphinx ALL DEPENDS ${SPHINX_INDEX_FILE})
-        add_dependencies(sphinx docs)
-        include(GNUInstallDirs)
-        install(DIRECTORY ${SPHINX_BUILD} DESTINATION ${CMAKE_INSTALL_DOCDIR})
+        if(SPHINX_FOUND)
+            # Generate user documentation using Sphinx
+            set(DOXYGEN_INDEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/xml)
+            set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
+            set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/sphinx)
+            set(SPHINX_INDEX_FILE ${SPHINX_BUILD}/index.html)
+            add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
+                    COMMAND ${SPHINX_EXECUTABLE} -b html
+                    # Tell Breathe where to find the Doxygen output
+                    -Dbreathe_projects.omega_edit=${DOXYGEN_INDEX_DIR}
+                    ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                    DEPENDS
+                    # Other docs files you want to track should go here (or in some variable)
+                    ${SPHINX_SOURCE}/index.rst
+                    ${DOXYGEN_INDEX_DIR}/index.xml
+                    MAIN_DEPENDENCY ${SPHINX_SOURCE}/conf.py
+                    COMMENT "Generating documentation with Sphinx")
+            # Nice named target so we can run the job easily
+            add_custom_target(sphinx ALL DEPENDS ${SPHINX_INDEX_FILE})
+            add_dependencies(sphinx docs)
+            include(GNUInstallDirs)
+            install(DIRECTORY ${SPHINX_BUILD} DESTINATION ${CMAKE_INSTALL_DOCDIR})
+        else(SPHINX_FOUND)
+            message("Sphinx need to be installed to generate user documentation")
+        endif(SPHINX_FOUND)
     else(DOXYGEN_FOUND)
-        message("Doxygen need to be installed to generate documentation")
+        message("Doxygen need to be installed to generate API documentation")
     endif(DOXYGEN_FOUND)
 endif(BUILD_DOCS)
 
