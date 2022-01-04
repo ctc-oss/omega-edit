@@ -28,6 +28,10 @@
 
 using namespace std;
 
+using Catch::Matchers::Contains;
+using Catch::Matchers::EndsWith;
+using Catch::Matchers::Equals;
+
 TEST_CASE("Size Tests", "[SizeTests]") {
     REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
     REQUIRE(4 == sizeof(int));
@@ -100,9 +104,25 @@ TEST_CASE("File Exists", "[UtilTests]") {
 }
 
 TEST_CASE("Current Directory", "[UtilTests]") {
-    using Catch::Matchers::Contains;
-    using Catch::Matchers::EndsWith;
-    REQUIRE_THAT(omega_util_get_current_dir(), Contains("src") && EndsWith("tests"));
+    REQUIRE_THAT(omega_util_get_current_dir(nullptr), Contains("src") && EndsWith("tests"));
+}
+
+TEST_CASE("Directory Name", "[UtilTests]") {
+    // Unix-style paths
+    auto test_1 = "/this/is/a/directory/filename.extension";
+    char buffer[FILENAME_MAX];
+    auto result = omega_util_dirname(test_1, nullptr);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals("/this/is/a/directory"));
+    // DOS/Windows-style paths
+    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    result = omega_util_dirname(test_2, buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory"));
+    // Missing directory test
+    auto test_3 = "filename.extension";
+    result = omega_util_dirname(test_3, buffer);
+    REQUIRE(!result);
 }
 
 static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
@@ -169,7 +189,8 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     REQUIRE(strcmp(omega_session_get_file_path(session_ptr), in_filename) == 0);
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
-    auto change_serial = omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("1234567890"), 0);
+    auto change_serial =
+            omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("1234567890"), 0);
     REQUIRE(0 < change_serial);
     file_size += 10;
     REQUIRE(file_size == omega_session_get_computed_file_size(session_ptr));

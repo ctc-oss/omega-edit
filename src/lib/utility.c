@@ -20,22 +20,51 @@
 #include <direct.h>
 #define GetCurrentDir_ _getcwd
 #else
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #define GetCurrentDir_ getcwd
 #endif
 
-const char *omega_util_get_current_dir() {
+const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
-    return (GetCurrentDir_(buff, FILENAME_MAX)) ? buff : NULL;
+    if (!buffer) { buffer = buff; }
+    buffer[0] = '\0';
+    return (GetCurrentDir_(buffer, FILENAME_MAX)) ? buffer : NULL;
 }
 
 int omega_util_file_exists(const char *file_name) {
+    assert(file_name);
     FILE *file_ptr = fopen(file_name, "r");
     if (file_ptr) {
         fclose(file_ptr);
         return 1;
     }
     return 0;
+}
+
+char omega_util_directory_separator() {
+#if defined _WIN32 || defined __CYGWIN__
+    return '\\';
+#else
+    return '/';
+#endif
+}
+
+char *omega_util_dirname(char const *file_name, char *buffer) {
+    static char buff[FILENAME_MAX];//create string buffer to hold path
+    assert(file_name);
+    if (!buffer) { buffer = buff; }
+    const char *last_slash = strrchr(file_name, '/');
+    if (!last_slash) { last_slash = strrchr(file_name, '\\'); }
+    if (last_slash) {
+        const size_t num_bytes = last_slash - file_name;
+        memcpy(buffer, file_name, num_bytes);
+        buffer[num_bytes] = '\0';
+        return buffer;
+    }
+    buffer[0] = '\0';
+    return NULL;
 }
 
 void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform) {
