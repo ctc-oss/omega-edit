@@ -26,9 +26,10 @@ extern "C" {
 
 /**
  * Gets the current working directory
+ * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return current working directory or NULL on error
  */
-const char *omega_util_get_current_dir();
+const char *omega_util_get_current_dir(char *buffer);
 
 /**
  * Check if the given file name exists
@@ -36,6 +37,20 @@ const char *omega_util_get_current_dir();
  * @return zero if the file does not exist, non-zero otherwise
  */
 int omega_util_file_exists(const char *file_name);
+
+/**
+ * Returns the directory separator character used on the host system
+ * @return directory separator character used on the host system
+ */
+char omega_util_directory_separator();
+
+/**
+ * Given a file_name, return the associated directory
+ * @param file_name file path
+ * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
+ * @return associated directory or NULL if no directory was found
+ */
+char *omega_util_dirname(char const *file_name, char *buffer);
 
 /**
  * Byte transform function pointer

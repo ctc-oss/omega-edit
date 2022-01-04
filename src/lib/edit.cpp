@@ -23,8 +23,10 @@
 #include "impl_/model_segment_def.hpp"
 #include "impl_/session_def.hpp"
 #include "impl_/viewport_def.hpp"
+#include "omega_edit/utility.h"
 #include <cassert>
 #include <memory>
+#include <unistd.h>
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
@@ -377,42 +379,79 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 }
 
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
-    auto file_ptr = fopen(file_path, "w");
-    if (file_ptr) {
-        int64_t write_offset = 0;
-        for (const auto &segment : session_ptr->model_ptr_->model_segments) {
-            if (write_offset != segment->computed_offset) {
-                ABORT(CLOG << LOCATION << " break in model continuity, expected: " << write_offset
-                           << ", got: " << segment->computed_offset << std::endl;);
-            }
-            switch (omega_model_segment_get_kind(segment.get())) {
-                case model_segment_kind_t::SEGMENT_READ: {
-                    if (!session_ptr->file_ptr) {
-                        ABORT(CLOG << LOCATION << " attempt to read segment from null file pointer" << std::endl;);
-                    }
-                    if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
-                                               file_ptr) != segment->computed_length) {
-                        return -1;
-                    }
-                    break;
-                }
-                case model_segment_kind_t::SEGMENT_INSERT: {
-                    if (static_cast<int64_t>(
-                                fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
-                                       segment->computed_length, file_ptr)) != segment->computed_length) {
-                        return -1;
-                    }
-                    break;
-                }
-                default:
-                    ABORT(CLOG << LOCATION << " Unhandled segment kind" << std::endl;);
-            }
-            write_offset += segment->computed_length;
-        }
-        fclose(file_ptr);
-        return 0;
+    char temp_filename[FILENAME_MAX];
+    if (!omega_util_dirname(file_path, temp_filename)) {
+        CLOG << LOCATION << " omega_util_dirname failed" << std::endl;
+        return -1;
     }
-    return -1;
+    const auto temp_filename_str = std::string(temp_filename);
+    auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                                             : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                                        temp_filename_str.c_str(), omega_util_directory_separator());
+    if (count < 0 || FILENAME_MAX <= count) {
+        CLOG << LOCATION << " snprintf failed" << std::endl;
+        return -1;
+    }
+    auto temp_fd = mkstemp(temp_filename);
+    if (temp_fd < 0) {
+        CLOG << LOCATION << " mkstemp failed: " << strerror(errno) << ", temp filename: " << temp_filename << std::endl;
+        return -1;
+    }
+    auto temp_fptr = fdopen(temp_fd, "w");
+    if (!temp_fptr) {
+        CLOG << LOCATION << " fdopen failed: " << strerror(errno) << std::endl;
+        close(temp_fd);
+        unlink(temp_filename);
+        return -1;
+    }
+    int64_t write_offset = 0;
+    for (const auto &segment : session_ptr->model_ptr_->model_segments) {
+        if (write_offset != segment->computed_offset) {
+            ABORT(CLOG << LOCATION << " break in model continuity, expected: " << write_offset
+                       << ", got: " << segment->computed_offset << std::endl;);
+        }
+        switch (omega_model_segment_get_kind(segment.get())) {
+            case model_segment_kind_t::SEGMENT_READ: {
+                if (!session_ptr->file_ptr) {
+                    ABORT(CLOG << LOCATION << " attempt to read segment from null file pointer" << std::endl;);
+                }
+                if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
+                                           temp_fptr) != segment->computed_length) {
+                    fclose(temp_fptr);
+                    unlink(temp_filename);
+                    CLOG << LOCATION << " write_segment_to_file_ failed" << std::endl;
+                    return -1;
+                }
+                break;
+            }
+            case model_segment_kind_t::SEGMENT_INSERT: {
+                if (static_cast<int64_t>(
+                            fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
+                                   segment->computed_length, temp_fptr)) != segment->computed_length) {
+                    fclose(temp_fptr);
+                    unlink(temp_filename);
+                    CLOG << LOCATION << " fwrite failed" << std::endl;
+                    return -1;
+                }
+                break;
+            }
+            default:
+                ABORT(CLOG << LOCATION << " Unhandled segment kind" << std::endl;);
+        }
+        write_offset += segment->computed_length;
+    }
+    fclose(temp_fptr);
+    if (omega_util_file_exists(file_path)) {
+        if (unlink(file_path)) {
+            CLOG << LOCATION << " unlink failed: " << strerror(errno) << std::endl;
+            return -1;
+        }
+    }
+    if (rename(temp_filename, file_path)) {
+        CLOG << LOCATION << " rename failed: " << strerror(errno) << std::endl;
+        return -1;
+    }
+    return 0;
 }
 
 int omega_edit_clear_changes(omega_session_t *session_ptr) {

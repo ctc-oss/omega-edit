@@ -53,8 +53,8 @@ int main(int argc, char **argv) {
     last_byte_info_t last_byte_info{};
     const auto in_filename = argv[1];
     if (!omega_util_file_exists(in_filename)) {
-        cerr << "Error: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir() << ")"
-             << endl;
+        cerr << "Error: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir(nullptr)
+             << ")" << endl;
         return -1;
     }
     const auto out_filename = argv[2];

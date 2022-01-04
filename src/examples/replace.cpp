@@ -31,8 +31,8 @@ int main(int arc, char **argv) {
     }
     const auto in_filename = argv[1];
     if (!omega_util_file_exists(in_filename)) {
-        cerr << "ERROR: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir() << ")"
-             << endl;
+        cerr << "ERROR: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir(nullptr)
+             << ")" << endl;
         return -1;
     }
     int64_t replacements = 0;
