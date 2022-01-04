@@ -398,6 +398,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
     auto temp_fptr = fdopen(temp_fd, "w");
     if (!temp_fptr) {
         CLOG << LOCATION << " fdopen failed: " << strerror(errno) << std::endl;
+        close(temp_fd);
+        unlink(temp_filename);
         return -1;
     }
     int64_t write_offset = 0;
@@ -414,6 +416,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                 if (write_segment_to_file_(session_ptr->file_ptr, segment->change_offset, segment->computed_length,
                                            temp_fptr) != segment->computed_length) {
                     fclose(temp_fptr);
+                    unlink(temp_filename);
                     CLOG << LOCATION << " write_segment_to_file_ failed" << std::endl;
                     return -1;
                 }
@@ -424,6 +427,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
                             fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
                                    segment->computed_length, temp_fptr)) != segment->computed_length) {
                     fclose(temp_fptr);
+                    unlink(temp_filename);
                     CLOG << LOCATION << " fwrite failed" << std::endl;
                     return -1;
                 }
