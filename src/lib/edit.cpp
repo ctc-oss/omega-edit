@@ -384,8 +384,10 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
         CLOG << LOCATION << " omega_util_dirname failed" << std::endl;
         return -1;
     }
-    auto count = snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX.tmp", temp_filename,
-                          omega_util_directory_separator());
+    const auto temp_filename_str = std::string(temp_filename);
+    auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                                             : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                                        temp_filename_str.c_str(), omega_util_directory_separator());
     if (count < 0 || FILENAME_MAX <= count) {
         CLOG << LOCATION << " snprintf failed" << std::endl;
         return -1;

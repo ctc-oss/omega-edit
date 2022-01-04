@@ -123,6 +123,11 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     auto test_3 = "filename.extension";
     result = omega_util_dirname(test_3, buffer);
     REQUIRE(!result);
+    // relative path
+    auto test_4 = "relative/filename.extension";
+    result = omega_util_dirname(test_4, buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("relative"));
 }
 
 static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
