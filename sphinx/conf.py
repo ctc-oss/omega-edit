@@ -31,15 +31,15 @@ author = 'Concurrent Technologies Corporation'
 
 extensions = [
     'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.autosectionlabel',
-    'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
     'sphinx.ext.ifconfig',
+    'sphinx.ext.inheritance_diagram',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.todo',
     'sphinx.ext.viewcode',
     'sphinx_sitemap',
-    'sphinx.ext.inheritance_diagram',
     'breathe'
 ]
 
