@@ -4,11 +4,11 @@
   "version": "0.6.2",
   "main": "module/omega_edit/index.js",
   "repository": {
-    "url": "https://github.com/scholarsmate/omega-edit",
+    "url": "https://github.com/ctc-oss/omega-edit",
     "type": "git"
   },
   "bugs": {
-    "url": "https://github.com/scholarsmate/omega-edit/issues"
+    "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
   "author": "Shane Dell, Davin Shearer, John Wass",
   "license": "Apache-2.0",
