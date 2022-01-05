@@ -1,11 +1,13 @@
-<div align="center">
+<div style="text-align: center">
 <p>
     <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
+
 <h1>Ωedit Library</h1>
+
 </div>
 
-<div align="center">
+<div style="text-align: center">
 
 ![Build Status](https://github.com/scholarsmate/omega-edit/workflows/Unit%20Tests/badge.svg)
 ![CodeQL](https://github.com/scholarsmate/omega-edit/workflows/CodeQL/badge.svg)
