@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
     }
     clog << "Saving " << omega_session_get_num_changes(session_ptr) << " changes to " << out_filename << " of size "
          << omega_session_get_computed_file_size(session_ptr) << endl;
-    omega_edit_save(session_ptr, out_filename);
+    omega_edit_save(session_ptr, out_filename, 0);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }

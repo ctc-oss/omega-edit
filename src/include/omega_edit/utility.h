@@ -32,6 +32,14 @@ extern "C" {
 const char *omega_util_get_current_dir(char *buffer);
 
 /**
+ * Touch the given file, optionally creating it f it does not exist
+ * @param file_name flle name to touch
+ * @param create if non-zero, create the file name if it does not exist
+ * @return zero on success, non-zero on failure
+ */
+int omega_util_touch(const char *file_name, int create);
+
+/**
  * Check if the given file name exists
  * @param file_name file name to check existence for
  * @return zero if the file does not exist, non-zero otherwise
@@ -45,12 +53,32 @@ int omega_util_file_exists(const char *file_name);
 char omega_util_directory_separator();
 
 /**
- * Given a file_name, return the associated directory
+ * Given a file name, return the associated directory
  * @param file_name file path
  * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
- * @return associated directory or NULL if no directory was found
+ * @return associated directory
  */
 char *omega_util_dirname(char const *file_name, char *buffer);
+
+/**
+ * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
+ * @param file_name file path
+ * @param suffix optional file suffix that if it matches the basename suffix, it is removed from the result
+ * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
+ * @return associated basename, possibly without the suffix
+ */
+char *omega_util_basename(char const *file_name, char const *suffix, char *buffer);
+
+/**
+ * Given a file name, return the associated file extension, with or without the dot prefix
+ * @param file_name file path
+ * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
+ * @param include_dot if zero, do not include the dot prefix, non-zero to include the dot prefix
+ * @return associated file extension or NULL if no extension exists
+ */
+char *omega_util_file_extension(char const *file_name, char *buffer, int include_dot);
+
+char *omega_util_available_filename(char const *file_name, char *buffer);
 
 /**
  * Byte transform function pointer
@@ -70,7 +98,7 @@ void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_b
  * @param buffer pointer to the start of the buffer
  * @param len length of the buffer
  * @param shift_left number of bits (greater than 0 and less than 8) to shift to the left
- * @return 0 on success, non-zero on failure
+ * @return zero on success, non-zero on failure
  */
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left);
 
@@ -79,7 +107,7 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
  * @param buffer pointer to the start of the buffer
  * @param len length of the buffer
  * @param shift_right number of bits (greater than 0 and less than 8) to shift to the right
- * @return 0 on success, non-zero on failure
+ * @return zero on success, non-zero on failure
  */
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
 

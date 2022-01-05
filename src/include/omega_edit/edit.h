@@ -92,12 +92,15 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 
 /**
- * Save the given session (the edited file) to the given file path
+ * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
+ * if overwrite is non zero.  If the file exists and overwrite is zero, a new file name will be used as determined by
+ * omega_util_available_filename.
  * @param session_ptr session to save
  * @param file_path file path to save to
+ * @param overwrite set to non-zero if overwriting an existing file is okay, and zero otherwise
  * @return 0 on success, non-zero otherwise
  */
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path);
+int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite);
 
 /**
  * Delete a number of bytes at the given offset

@@ -14,7 +14,7 @@
 
 #include "../include/omega_edit/change.h"
 #include "impl_/change_def.hpp"
-#include "impl_/macros.hpp"
+#include "impl_/macros.h"
 #include <cassert>
 
 int64_t omega_change_get_offset(const omega_change_t *change_ptr) {

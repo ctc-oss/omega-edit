@@ -12,22 +12,23 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_MACROS_HPP
-#define OMEGA_EDIT_MACROS_HPP
+#ifndef OMEGA_EDIT_MACROS_H
+#define OMEGA_EDIT_MACROS_H
 
 #include "../../include/omega_edit/config.h"
+
+#ifdef __cplusplus
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#else
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 #define SOURCE_FILENAME (std::strrchr(__FILE__, '/') ? std::strrchr(__FILE__, '/') + 1 : __FILE__)
-#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
 #define ABORT(x)                                                                                                       \
     do { x std::abort(); } while (0)
-
-#ifndef CLOG
-#define CLOG std::clog
-#endif//CLOG
 
 #define DEBUG
 #ifdef DEBUG
@@ -37,4 +38,11 @@
 #define DBG(x)
 #endif//DEBUG
 
-#endif//OMEGA_EDIT_MACROS_HPP
+#ifdef __cplusplus
+#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
+#ifndef CLOG
+#define CLOG std::clog
+#endif//CLOG
+#endif
+
+#endif//OMEGA_EDIT_MACROS_H
