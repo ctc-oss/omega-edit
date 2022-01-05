@@ -1,4 +1,4 @@
-<div style="text-align: center">
+<div align="center">
 <p>
     <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
@@ -7,7 +7,7 @@
 
 </div>
 
-<div style="text-align: center">
+<div align="center">
 
 ![Build Status](https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg)
 ![CodeQL](https://github.com/ctc-oss/omega-edit/workflows/CodeQL/badge.svg)
