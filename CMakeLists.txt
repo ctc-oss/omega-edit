@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.16)
 project(omega_edit
         VERSION 0.6.2
         DESCRIPTION "Apache open source library for building editors"
-        HOMEPAGE_URL https://github.com/scholarsmate/omega-edit
+        HOMEPAGE_URL https://github.com/ctc-oss/omega-edit
         LANGUAGES C CXX)
 
 # Get verbose output from the makefile (useful for debugging the build)
