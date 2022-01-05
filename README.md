@@ -29,15 +29,20 @@ Studio Code also works well.
 
 ### Command line tools
 
-- C/C++ compiler (such as clang, gcc, or mingw)
-- CMake (https://cmake.org/download/)
-- make or ninja
-- nvm or nodeenv
-- node-gyp (to run `package.json` scripts)
+- **C/C++ compiler** (such as clang, gcc, or mingw)
+- **CMake** (https://cmake.org/download/)
+- **make** or **ninja** for running the build scripts
+- **nvm** or **nodeenv** for using specific versions of node.js
+- **node-gyp** (to run `package.json` scripts)
   - `npm install -g node-gyp`
-- swig (http://www.swig.org/svn.html)
+- **doxygen** to generate API documentation (https://www.doxygen.nl)
+- **sphinx** to generate user documentation (https://www.sphinx-doc.org)
+  - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
+  - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
 
-If developing the Ωedit API, you'll need SWIG installed as well.
+### Development requirements:
+
+- **swig** to generate language bindings (http://www.swig.org/svn.html)
 
 ## Build the core library (C/C++)
 
