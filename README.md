@@ -1,6 +1,6 @@
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=64>
+    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/scholarsmate/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 <h1>Ωedit Library</h1>
 </div>
