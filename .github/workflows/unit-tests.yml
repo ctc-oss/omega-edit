@@ -59,6 +59,8 @@ jobs:
       - name: Collect code coverage
         working-directory: cmake-build-debug/src/tests/
         run: bash <(curl -s https://codecov.io/bash)
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run Tests Under Valgrind
         working-directory: cmake-build-debug/src/tests/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
