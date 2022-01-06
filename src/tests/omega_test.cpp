@@ -102,9 +102,21 @@ TEST_CASE("File Compare", "[UtilTests]") {
 TEST_CASE("File Exists", "[UtilTests]") {
     REQUIRE(omega_util_file_exists("data/test1.dat"));
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    auto available_filename = omega_util_available_filename("data/test1.dat", nullptr);
-    REQUIRE(available_filename);
-    REQUIRE_THAT(available_filename, Equals("data/test1-copy-1.dat"));
+}
+
+TEST_CASE("File Touch", "[UtilTests]") {
+    REQUIRE(omega_util_file_exists("data/test1.dat"));
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals("data/test1-copy-1.dat"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
+    omega_util_touch("data/IDonTExist.DaT", 0);
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    omega_util_touch("data/IDonTExist.DaT", 1);
+    REQUIRE(omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist-copy-1.DaT"));
+    unlink("data/IDonTExist.DaT");
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
 }
 
 TEST_CASE("Current Directory", "[UtilTests]") {
@@ -223,6 +235,8 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     REQUIRE(0 == strcmp(encoded_buffer, "48656c6c6f20576f726c6421"));
     omega_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
+    omega_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
+    REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
 typedef struct file_info_struct {
@@ -287,7 +301,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 1));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
     REQUIRE(0 != compare_files("data/model-test.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
@@ -297,7 +311,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.2.dat", 1));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.2.dat", 0));
     REQUIRE(0 == compare_files("data/model-test.expected.2.dat", "data/model-test.actual.2.dat"));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>("xxx"), 0));
     file_size += 3;
@@ -622,6 +636,16 @@ TEST_CASE("Search", "[SearchTests]") {
     }
     REQUIRE(6 == needles_found);
     omega_search_destroy_context(match_context);
+    // Single byte search
+    match_context = omega_search_create_context_string(session_ptr, "o", 0, 0, 1);
+    REQUIRE(match_context);
+    needles_found = 0;
+    pattern_length = omega_search_context_get_length(match_context);
+    REQUIRE(pattern_length == 1);
+    while (omega_search_next_match(match_context, 1)) {
+        ++needles_found;
+    }
+    REQUIRE(12 == needles_found);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));
