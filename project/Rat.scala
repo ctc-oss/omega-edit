@@ -27,6 +27,7 @@ object Rat {
     // json files
     file("package.json"),
     file("package-lock.json"),
+    file(".devcontainer/devcontainer.json"),
 
     // cmake build folder
     file("cmake-build-debug"),
@@ -54,7 +55,14 @@ object Rat {
     file("src/bindings/node/omega_edit_wrap.h"),
 
     // omega-edit logo picture
-    file("images/OmegaEditLogo.png")
+    file("images/OmegaEditLogo.png"),
+
+    // node generated files
+    file("node_modules"),
+    file("module/omega_edit/omega_edit_mac.node"),
+    file("module/omega_edit/omega_edit_darwin.node"),
+    file("module/omega_edit/omega_edit_linux.node")
+    
   )
 
   lazy val HPP_LICENSE_NAME = "HPP License"
