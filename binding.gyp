@@ -26,7 +26,7 @@
         "src/lib/visit.cpp",
         "src/lib/impl_/find.cpp",
         "src/lib/impl_/internal_fun.cpp",
-        "src/bindings/omega_edit_wrap.cxx"
+        "src/bindings/node/omega_edit_wrap.cxx"
       ],
     },
     {

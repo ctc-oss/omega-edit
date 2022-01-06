@@ -112,7 +112,7 @@ node src/examples/omega_simple.js
 If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
 
 ```bash
-swig -javascript -node -v -c++ src/bindings/omega_edit.i
+swig -javascript -node -v -c++ src/bindings/node/omega_edit.i
 ```
 
 ## License

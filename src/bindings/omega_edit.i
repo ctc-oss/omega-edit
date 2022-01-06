@@ -14,7 +14,7 @@
 
 /* clang-format off */
 
-%module(directors="1") omega_edit
+%module omega_edit
 
 %{
 /* Includes the header in the wrapper code */
@@ -38,55 +38,3 @@
 %include "../include/omega_edit/version.h"
 %include "../include/omega_edit/viewport.h"
 %include "../include/omega_edit/visit.h"
-
-%feature("director") SessionOnChangeDirector;
-%inline %{
-/*
- * Session On Change Director
- */
-struct SessionOnChangeDirector {
-  virtual void handle_session_change(const omega_session_t *, const omega_change_t *) = 0;
-  virtual ~SessionOnChangeDirector() {}
-};
-%}
-%{
-// could be changed to a thread-local variable in order to make thread-safe
-static SessionOnChangeDirector *session_on_change_director_ptr = nullptr;
-static void handle_session_change_helper(const omega_session_t * session_ptr, const omega_change_t * change_ptr) {
-    if (session_on_change_director_ptr) {
-        session_on_change_director_ptr->handle_session_change(session_ptr, change_ptr);
-    }
-}
-%}
-%inline %{
-omega_session_t *omega_edit_create_session_wrapper(const char *file_path = nullptr,
-    SessionOnChangeDirector *director_ptr = nullptr, void *user_data_ptr = nullptr) {
-    session_on_change_director_ptr = director_ptr;
-    return omega_edit_create_session(file_path, handle_session_change_helper, user_data_ptr);
-}
-%}
-
-%feature("director") OmegaViewportOnChangeDirector;
-%inline %{
-/*
- * Viewport On Change Director
- */
-struct OmegaViewportOnChangeDirector {
-  virtual void handle_viewport_change(const omega_viewport_t *, const omega_change_t *) = 0;
-  virtual ~OmegaViewportOnChangeDirector() {}
-};
-%}
-%{
-// could be changed to a thread-local variable in order to make thread-safe
-static OmegaViewportOnChangeDirector *viewport_on_change_director_ptr = nullptr;
-static void handle_viewport_change_helper(const omega_viewport_t * viewport_ptr, const omega_change_t * change_ptr) {
-    viewport_on_change_director_ptr->handle_viewport_change(viewport_ptr, change_ptr);
-}
-%}
-%inline %{
-omega_viewport_t *omega_edit_create_viewport_wrapper(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-    OmegaViewportOnChangeDirector *director_ptr, void *user_data_ptr = nullptr) {
-    viewport_on_change_director_ptr = director_ptr;
-    return omega_edit_create_viewport(session_ptr, offset, capacity, handle_viewport_change_helper, user_data_ptr);
-}
-%}
