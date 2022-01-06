@@ -70,7 +70,7 @@ int main(int arc, char **argv) {
         } while (omega_search_next_match(match_context_ptr.get(),
                                          replacement_length));//advance find by the replacement length
     }
-    if (0 != omega_edit_save(session_ptr.get(), argv[2])) {
+    if (0 != omega_edit_save(session_ptr.get(), argv[2], 0)) {
         cerr << "Error saving session to " << argv[2] << endl;
         return -1;
     }

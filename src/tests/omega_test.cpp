@@ -21,6 +21,7 @@
 #include <omega_edit/encodings.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <omega_edit/utility.h>
+#include "../lib/impl_/macros.h"
 
 #include <cstdio>
 #include <cstring>
@@ -103,6 +104,21 @@ TEST_CASE("File Exists", "[UtilTests]") {
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
 }
 
+TEST_CASE("File Touch", "[UtilTests]") {
+    REQUIRE(omega_util_file_exists("data/test1.dat"));
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals("data/test1-copy-1.dat"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
+    omega_util_touch("data/IDonTExist.DaT", 0);
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    omega_util_touch("data/IDonTExist.DaT", 1);
+    REQUIRE(omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist-copy-1.DaT"));
+    unlink("data/IDonTExist.DaT");
+    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
+}
+
 TEST_CASE("Current Directory", "[UtilTests]") {
     REQUIRE_THAT(omega_util_get_current_dir(nullptr), Contains("src") && EndsWith("tests"));
 }
@@ -122,12 +138,77 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     // Missing directory test
     auto test_3 = "filename.extension";
     result = omega_util_dirname(test_3, buffer);
-    REQUIRE(!result);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("."));
     // relative path
     auto test_4 = "relative/filename.extension";
     result = omega_util_dirname(test_4, buffer);
     REQUIRE(result);
     REQUIRE_THAT(buffer, Equals("relative"));
+}
+
+TEST_CASE("Base File Name", "[UtilTests]") {
+    // Unix-style paths
+    auto test_1 = "/this/is/a/directory/filename.extension";
+    char buffer[FILENAME_MAX];
+    auto result = omega_util_basename(test_1, nullptr, nullptr);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals("filename.extension"));
+    // DOS/Windows-style paths
+    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    result = omega_util_basename(test_2, nullptr, buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("filename.extension"));
+    auto test_3 = "filename.extension";
+    result = omega_util_basename(test_3, nullptr, buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("filename.extension"));
+    result = omega_util_basename(test_3, ".extension", buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("filename"));
+    result = omega_util_basename(test_3, ".ext", buffer);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("filename.extension"));
+    auto test_4 = "/this/is/a/directory/";
+    result = omega_util_basename(test_4, nullptr, buffer);
+    REQUIRE(!result);
+}
+
+TEST_CASE("File Extension", "[UtilTests]") {
+    // Unix-style paths
+    auto test_1 = "/this/is/a/directory/filename.extension";
+    char buffer[FILENAME_MAX];
+    auto result = omega_util_file_extension(test_1, nullptr, 0);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals("extension"));
+    result = omega_util_file_extension(test_1, nullptr, 1);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals(".extension"));
+    // DOS/Windows-style paths
+    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    result = omega_util_file_extension(test_2, buffer, 0);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("extension"));
+    auto test_3 = "filename_no_extension";
+    result = omega_util_file_extension(test_3, buffer, 0);
+    REQUIRE(!result);
+    auto test_4 = "filename_empty_extension.";
+    result = omega_util_file_extension(test_4, buffer, 0);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals(""));
+    result = omega_util_file_extension(test_4, buffer, 1);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals("."));
+    auto test_5 = "/..";
+    result = omega_util_file_extension(test_5, buffer, 0);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals(""));
+    result = omega_util_file_extension(test_5, buffer, 1);
+    REQUIRE(result);
+    REQUIRE_THAT(result, Equals("."));
+    auto test_6 = "/this.is.a.directory/filename_no_extension";
+    result = omega_util_file_extension(test_6, buffer, 1);
+    REQUIRE(!result);
 }
 
 static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
@@ -153,6 +234,8 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     omega_bin2hex(in, encoded_buffer, in_string.size());
     REQUIRE(0 == strcmp(encoded_buffer, "48656c6c6f20576f726c6421"));
     omega_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
+    REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
+    omega_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
@@ -218,18 +301,22 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
     REQUIRE(0 != compare_files("data/model-test.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/model-test.actual.1.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
+    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-copy-1.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
+    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-copy-2.dat"));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.2.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.2.dat", 0));
     REQUIRE(0 == compare_files("data/model-test.expected.2.dat", "data/model-test.actual.2.dat"));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>("xxx"), 0));
     file_size += 3;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.3.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.3.dat", 1));
     REQUIRE(0 == compare_files("data/model-test.expected.3.dat", "data/model-test.actual.3.dat"));
     auto num_changes = file_info.num_changes;
     REQUIRE(num_changes * -1 == omega_edit_undo_last_change(session_ptr));
@@ -242,7 +329,7 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(file_info.num_changes == num_changes - 1);
     file_size -= 3;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.4.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.4.dat", 1));
     REQUIRE(0 == compare_files("data/model-test.expected.4.dat", "data/model-test.actual.4.dat"));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 0, "-"));
@@ -260,12 +347,12 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE((last_change = omega_session_get_last_change(session_ptr)));
     REQUIRE('O' == omega_change_get_kind_as_char(last_change));
     REQUIRE(1 == omega_change_get_length(last_change));
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.5.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.5.dat", 1));
     REQUIRE(0 == compare_files("data/model-test.expected.5.dat", "data/model-test.actual.5.dat"));
     REQUIRE(0 < omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
     while (file_info.num_changes) { omega_edit_undo_last_change(session_ptr); }
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.6.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.6.dat", 1));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == compare_files("data/model-test.dat", "data/model-test.actual.6.dat"));
     omega_edit_destroy_session(session_ptr);
@@ -341,7 +428,7 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(!omega_change_is_undone(omega_session_get_change(session_ptr, rc)));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 == omega_check_model(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.7.dat"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.7.dat", 1));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == compare_files("data/model-test.expected.7.dat", "data/model-test.actual.7.dat"));
     omega_edit_destroy_session(session_ptr);
@@ -422,11 +509,11 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
             REQUIRE(omega_session_get_num_changes(session_ptr) == num_changes_before_undo - 1);
             REQUIRE(71 == omega_session_get_computed_file_size(session_ptr));
-            REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.dat.out"));
+            REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.dat.out", 1));
             REQUIRE(6 == omega_session_get_num_changes(session_ptr));
             REQUIRE(0 == omega_edit_clear_changes(session_ptr));
             REQUIRE(0 == omega_session_get_num_changes(session_ptr));
-            REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.reset.dat"));
+            REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.reset.dat", 1));
             REQUIRE(0 == compare_files("data/test1.dat", "data/test1.reset.dat"));
             omega_edit_destroy_session(session_ptr);
         }
@@ -549,7 +636,18 @@ TEST_CASE("Search", "[SearchTests]") {
     }
     REQUIRE(6 == needles_found);
     omega_search_destroy_context(match_context);
-    REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat"));
+    // Single byte search
+    match_context = omega_search_create_context_string(session_ptr, "o", 0, 0, 1);
+    REQUIRE(match_context);
+    needles_found = 0;
+    pattern_length = omega_search_context_get_length(match_context);
+    REQUIRE(pattern_length == 1);
+    while (omega_search_next_match(match_context, 1)) {
+        ++needles_found;
+    }
+    REQUIRE(12 == needles_found);
+    omega_search_destroy_context(match_context);
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));
 }

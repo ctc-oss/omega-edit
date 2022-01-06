@@ -15,7 +15,7 @@
 #include "internal_fun.hpp"
 #include "../../include/omega_edit/change.h"
 #include "change_def.hpp"
-#include "macros.hpp"
+#include "macros.h"
 #include "model_def.hpp"
 #include "model_segment_def.hpp"
 #include "session_def.hpp"

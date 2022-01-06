@@ -209,7 +209,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     vpt_change_cbk(viewport1_ptr);
 
-    omega_edit_save(session_ptr.get(), "data/test1.dat.out");
+    omega_edit_save(session_ptr.get(), "data/test1.dat.out", 0);
     clog << "Saved " << file_info.deletes << " delete(s), " << file_info.inserts << " insert(s), "
          << file_info.overwrites << " overwrite(s) to " << file_info.save_filename << ", new file size: " << dec
          << omega_session_get_computed_file_size(session_ptr.get()) << endl;

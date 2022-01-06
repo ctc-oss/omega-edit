@@ -18,7 +18,7 @@
 #include "../include/omega_edit/viewport.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
-#include "impl_/macros.hpp"
+#include "impl_/macros.h"
 #include "impl_/model_def.hpp"
 #include "impl_/model_segment_def.hpp"
 #include "impl_/session_def.hpp"
@@ -378,12 +378,9 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
     return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
 }
 
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
+int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite) {
     char temp_filename[FILENAME_MAX];
-    if (!omega_util_dirname(file_path, temp_filename)) {
-        CLOG << LOCATION << " omega_util_dirname failed" << std::endl;
-        return -1;
-    }
+    omega_util_dirname(file_path, temp_filename);
     const auto temp_filename_str = std::string(temp_filename);
     auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
                                              : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
@@ -442,9 +439,13 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path) {
     }
     fclose(temp_fptr);
     if (omega_util_file_exists(file_path)) {
-        if (unlink(file_path)) {
-            CLOG << LOCATION << " unlink failed: " << strerror(errno) << std::endl;
-            return -1;
+        if (overwrite) {
+            if (unlink(file_path)) {
+                CLOG << LOCATION << " unlink failed: " << strerror(errno) << std::endl;
+                return -1;
+            }
+        } else {
+            if (!(file_path = omega_util_available_filename(file_path, nullptr))) { return -1; }
         }
     }
     if (rename(temp_filename, file_path)) {

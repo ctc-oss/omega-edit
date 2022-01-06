@@ -28,7 +28,8 @@
 #define OMEGA_EDIT_VERSION_PATCH 0
 #endif
 
-#define OMEGA_EDIT_VERSION (((OMEGA_EDIT_VERSION_MAJOR) << 24) + ((OMEGA_EDIT_VERSION_MINOR) << 16) + (OMEGA_EDIT_VERSION_PATCH))
+#define OMEGA_EDIT_VERSION                                                                                             \
+    (((OMEGA_EDIT_VERSION_MAJOR) << 24) + ((OMEGA_EDIT_VERSION_MINOR) << 16) + (OMEGA_EDIT_VERSION_PATCH))
 
 int omega_version_major() { return OMEGA_EDIT_VERSION_MAJOR; }
 int omega_version_minor() { return OMEGA_EDIT_VERSION_MINOR; }
