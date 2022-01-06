@@ -646,6 +646,7 @@ TEST_CASE("Search", "[SearchTests]") {
         ++needles_found;
     }
     REQUIRE(12 == needles_found);
+    omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));
