@@ -1,5 +1,5 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       *
+ * Copyright (c) 2021-2022-2022 Concurrent Technologies Corporation.                                                       *
  *                                                                                                                    *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
@@ -12,8 +12,5 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.9.0")
-addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.8.1")
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.17")
 addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.4.3")
+addSbtPlugin("com.mariussoutier.sbt" % "sbt-unpack" % "0.9.5")

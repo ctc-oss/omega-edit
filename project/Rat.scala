@@ -70,7 +70,7 @@ object Rat {
   lazy val HPP_LICENSE_TEXT =
 """
 This file has been merged from multiple headers. Please don't edit it directly
-Copyright (c) 2021 Two Blue Cubes Ltd. All rights reserved.
+Copyright (c) 2021-2022 Two Blue Cubes Ltd. All rights reserved.
 
 Distributed under the Boost Software License, Version 1.0. (See accompanying
 file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)

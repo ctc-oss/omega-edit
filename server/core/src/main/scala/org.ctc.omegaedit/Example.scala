@@ -1,7 +1,7 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       *
+ * Copyright (c) 2021-2022-2022 Concurrent Technologies Corporation.                                                       *
  *                                                                                                                    *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
+ * Licensed under the Apache License, Version 2.0 (the "License"): you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
  *                                                                                                                    *
  *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
@@ -14,27 +14,17 @@
 
 package org.ctc.omegaedit
 
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
-import akka.http.scaladsl.Http
-import scala.util.{Success,Failure}
+import jnr.ffi.LibraryLoader
+import org.scijava.nativelib._
 
-object API {
-  val host = "localhost"
-  val port = 9000
-  implicit val system = ActorSystem(Behaviors.empty, "omega_edit")
-  implicit val executor = system.executionContext
+trait omega_edit {
+  def omega_license_get(): String
+}
 
-  // Method to start up to API
+object Example {
   def main(args: Array[String]): Unit = {
-    val futureBinding = Http().newServerAt(host, port).bind(Routes.getRoutes)
-    futureBinding.onComplete {
-      case Success(binding) =>
-        val address = binding.localAddress
-        system.log.info("Server online at http://{}:{}/", address.getHostString, address.getPort)
-      case Failure(ex) =>
-        system.log.error("Failed to bind HTTP endpoint, terminating system", ex)
-        system.terminate()
-    }
+    NativeLoader.getJniExtractor().extractJni("omega_edit", "lib")
+    lazy val omega_edit = LibraryLoader.create(classOf[omega_edit]).load("omega_edit")
+    println(omega_edit.omega_license_get)
   }
 }

@@ -1,5 +1,5 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+ * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                            *
  *                                                                                                                    *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
@@ -54,11 +54,13 @@ lazy val commonSettings = {
     scalacOptions ++= Seq("-Ypartial-unification"),
     startYear := Some(2021),
     Compile / run / unmanagedJars += file("lib/omega_edit.jar"),
-    Compile / mainClass := Some("org.ctc.omegaedit.API"),
+    Compile / mainClass := Some("org.ctc.omegaedit.Example"),
     Compile / run / javaOptions += s"-Djava.library.path=$libPath",
-    Compile / run / fork := true
+    Compile / run / fork := true,
   )
 }
+
+lazy val commonPlugins = Seq(UnpackPlugin)
 
 lazy val ratSettings = Seq(
   ratLicenses := Seq(
@@ -70,8 +72,6 @@ lazy val ratSettings = Seq(
   ratExcludes := Rat.excludes,
   ratFailBinaries := true,
 )
-
-lazy val commonPlugins = Seq(BuildInfoPlugin, JavaAppPackaging, UniversalPlugin)//, ScalaNativePlugin)
 
 lazy val `omega-edit` = project
   .in(file("."))
@@ -86,28 +86,11 @@ lazy val core = project
   .settings(
     name := "omega-edit",
     libraryDependencies ++= {
-      lazy val AkkaVersion = "2.6.18"
-      lazy val AkkaHttpVersion = "10.2.7"
       Seq(
-        "com.typesafe.akka" %% "akka-actor-typed"   % AkkaVersion,
-        "com.typesafe.akka" %% "akka-stream"        % AkkaVersion,
-        "com.typesafe.akka" %% "akka-http"          % AkkaHttpVersion,
-        "com.typesafe.akka" %% "akka-slf4j"         % AkkaVersion,
-        "ch.qos.logback"    %  "logback-classic"    % "1.2.9",
-        "com.github.jnr"    %  "jnr-ffi"            % "2.2.10"
+        "ch.qos.logback"  %  "logback-classic"    % "1.2.9",
+        "com.github.jnr"  % "jnr-ffi"             % "2.2.10",
+        "org.scijava"     % "native-lib-loader"   % "2.4.0",
       )
-    },
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "org.ctc.omegaedit",
-    packageName := s"${name.value}",
-    Universal / mappings ++= {
-      val configDir = baseDirectory.value/"../"/"../"/"lib"
-      for {
-        file <- (configDir ** "libomega_edit.*").get
-        relative <- file.relativeTo(configDir.getParentFile)
-        mapping = file -> relative.getPath
-      } yield mapping
-    },
-    Universal / javaOptions += s"-Djava.library.path=$libPath:../$libPath"
+    }
   )
   .enablePlugins(commonPlugins: _*)
