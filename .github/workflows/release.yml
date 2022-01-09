@@ -90,19 +90,31 @@ jobs:
       - name: Compile lib file
         run: ./compile.sh compile-lib ${{ matrix.os }}
 
-      - name: Upload lib file - Mac
-        if: "${{ matrix.os }} == macos-11"
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: libomega_edit.dylib
-          path: lib/libomega_edit.dylib
+      - name: Export filenames
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-11" ]]; then
+            LIB_FILENAME="libomega_edit.dylib"
+            JAR_FILENAME="omega-edit-mac.jar"
+          elif [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+            LIB_FILENAME="libomega_edit.so"
+            JAR_FILENAME="omega-edit-linux.jar"
+          else
+            LIB_FILENAME="libomega_edit.dll"
+            JAR_FILENAME="omega-edit-windows.jar"
+          fi
 
-      - name: Upload lib file - Linux
+          echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
+          echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
+
+      - name: Create JAR file
+        run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+
+      - name: Upload lib file
         if: "${{ matrix.os }} == ubuntu-20.04"
         uses: actions/upload-artifact@v2.3.1
         with:
-          name: libomega_edit.so
-          path: lib/libomega_edit.so
+          name: ${{ env.JAR_FILENAME }}
+          path: ${{ env.JAR_FILENAME }}
 
   release:
     name: Release
@@ -185,36 +197,42 @@ jobs:
       ##########################
       ## Java release process ##
       ##########################
-      - name: Download mac lib file
+      - name: Download mac jar file
         uses: actions/download-artifact@v2.1.0
         with:
-          name: libomega_edit.dylib
-          path: lib/libomega_edit.dylib
+          name: omega-edit-mac.jar
+          path: omega-edit-mac.jar
 
-      - name: Download linux lib file
+      - name: Download linux jar file
         uses: actions/download-artifact@v2.1.0
         with:
-          name: libomega_edit.so
-          path: lib/libomega_edit.so
+          name: omega-edit-linux.jar
+          path: omega-edit-linux.jar
 
-      - name: Move out lib files
+      - name: Move out jar files
         run: |
-          cd lib/
-          mv libomega_edit.dylib libomega_edit.dylib_dir
-          mv libomega_edit.so libomega_edit.so_dir
-          mv libomega_edit.dylib_dir/libomega_edit.dylib .
-          mv libomega_edit.so_dir/libomega_edit.so .
-          rm -rf libomega_edit.dylib_dir libomega_edit.so_dir
+          mv omega-edit-mac.jar omega-edit-mac.jar_dir
+          mv omega-edit-linux.jar omega-edit-linux.jar_dir
+          mv omega-edit-mac.jar_dir/omega-edit-mac.jar .
+          mv omega-edit-linux.jar_dir/omega-edit-linux.jar .
+          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir
 
-      - name: Create java backend package
-        run: sbt universal:packageBin
-
-      - name: Upload java release package
+      - name: Upload mac jar file
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: server/core/target/universal/omega-edit-${{env.PKG_VERSION}}.zip
-          asset_name: omega-edit-java-${{env.PKG_VERSION}}.zip
-          asset_content_type: application/tar+gzip
+          asset_path: omega-edit-mac.jar
+          asset_name: omega-edit-mac.jar
+          asset_content_type: application/java-archive
+
+      - name: Upload linux jar file
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: omega-edit-linux.jar
+          asset_name: omega-edit-linux.jar
+          asset_content_type: application/java-archive

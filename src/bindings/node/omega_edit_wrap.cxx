@@ -1581,13 +1581,6 @@ int SWIG_AsVal_long_SS_long (SWIGV8_VALUE obj, long long* val)
 #endif
 
 
-SWIGINTERNINLINE SWIGV8_VALUE 
-SWIG_FromCharPtr(const char *cptr)
-{ 
-  return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
-}
-
-
 SWIGINTERN
 int SWIG_AsVal_int (SWIGV8_VALUE valRef, int* val)
 {
@@ -1597,6 +1590,13 @@ int SWIG_AsVal_int (SWIGV8_VALUE valRef, int* val)
   if(val) *val = SWIGV8_INTEGER_VALUE(valRef);
 
   return SWIG_OK;
+}
+
+
+SWIGINTERNINLINE SWIGV8_VALUE 
+SWIG_FromCharPtr(const char *cptr)
+{ 
+  return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
 }
 
 
@@ -2150,14 +2150,17 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
   SWIGV8_VALUE jsresult;
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   char *arg2 = (char *) 0 ;
+  int arg3 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
   char *buf2 = 0 ;
   int alloc2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
   int result;
   
-  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
@@ -2169,10 +2172,16 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_edit_save" "', argument " "2"" of type '" "char const *""'");
   }
   arg2 = reinterpret_cast< char * >(buf2);
-  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2);
+  ecode3 = SWIG_AsVal_int(args[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_edit_save" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = static_cast< int >(val3);
+  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  
   
   SWIGV8_RETURN(jsresult);
   
