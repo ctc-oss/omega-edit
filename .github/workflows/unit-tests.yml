@@ -121,8 +121,10 @@ jobs:
         run: ./omega_test -d yes --order lex
       - name: Prepare To Build Node v14 Bindings
         run: npm ci
+        shell: cmd
       - name: Test Node v14 Bindings
         run: yarn test
+        shell: cmd
 
   scala-test:
     strategy:
