@@ -33,6 +33,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
+        submodules: true
       - name: Setup Node
         uses: actions/setup-node@v1.4.6
         with:
@@ -67,7 +68,7 @@ jobs:
           name: ${{ env.NODE_FILE }}
           path: module/omega_edit/${{ env.NODE_FILE }}
 
-  scala-build:
+  scala-build-linux-mac:
     strategy:
       matrix:
         os: [macos-11, ubuntu-20.04]
@@ -75,6 +76,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
+        submodules: true
       - uses: actions/setup-java@v2.5.0
         with:
           distribution: 'adopt'
@@ -116,13 +118,79 @@ jobs:
           name: ${{ env.JAR_FILENAME }}
           path: ${{ env.JAR_FILENAME }}
 
+  scala-build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - { sys: mingw64, env: x86_64 }
+          - { sys: mingw32, env: i686 }
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v2.3.5
+        submodules: true
+      - name: Install MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.sys }}
+          update: true
+          install: >-
+            mingw-w64-${{ matrix.env }}-toolchain
+            base-devel
+            cmake
+            swig
+            git
+
+      - uses: actions/setup-java@v2.5.0
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+
+      - name: Export git tag and package.json version
+        run: ${{ env.export_cmd }}
+
+      - name: Check if git tag matches package version
+        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+        shell: bash
+
+      - name: Build C++ code
+        run: |
+          cmake -S . -B cmake-build-debug
+          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++|g" CMakeLists.txt
+          cmake --build cmake-build-debug
+
+      - name: Generate library file
+        run: |
+          g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+          g++ -shared -o lib/libomega_edit.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
+
+      - name: Export filenames
+        run: |
+          LIB_FILENAME="libomega_edit.dll"
+          JAR_FILENAME="omega-edit-windows.jar"
+          echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
+          echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
+
+      - name: Create JAR file
+        run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+
+      - name: Upload lib file
+        if: "${{ matrix.os }} == ubuntu-20.04"
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: ${{ env.JAR_FILENAME }}
+          path: ${{ env.JAR_FILENAME }}
+
   release:
     name: Release
     runs-on: ubuntu-20.04
-    needs: [node-build, scala-build]
+    needs: [node-build, scala-build-linux-mac, scala-build-windows]
     steps:
       - uses: actions/checkout@v2.3.5
-
+        submodules: true
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
 
