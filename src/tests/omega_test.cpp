@@ -14,7 +14,7 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../../vendor/catch.hpp"
+#include "../../vendor/catch2/catch.hpp"
 #include "test_util.h"
 #include <omega_edit.h>
 #include <omega_edit/check.h>
@@ -107,16 +107,21 @@ TEST_CASE("File Exists", "[UtilTests]") {
 TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE(omega_util_file_exists("data/test1.dat"));
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals("data/test1-copy-1.dat"));
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
+    const char dir_sep = omega_util_directory_separator();
+    auto expected = std::string("data") + dir_sep + "test1-1.dat";
+    REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals(expected));
+    expected = std::string("data") + dir_sep + "IDonTExist.DaT";
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
     omega_util_touch("data/IDonTExist.DaT", 0);
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
     omega_util_touch("data/IDonTExist.DaT", 1);
     REQUIRE(omega_util_file_exists("data/IDonTExist.DaT"));
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist-copy-1.DaT"));
+    expected = std::string("data") + dir_sep + "IDonTExist-1.DaT";
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
     unlink("data/IDonTExist.DaT");
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals("data/IDonTExist.DaT"));
+    expected = std::string("data") + dir_sep + "IDonTExist.DaT";
+    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
 }
 
 TEST_CASE("Current Directory", "[UtilTests]") {
@@ -129,22 +134,27 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     char buffer[FILENAME_MAX];
     auto result = omega_util_dirname(test_1, nullptr);
     REQUIRE(result);
-    REQUIRE_THAT(result, Equals("/this/is/a/directory"));
+    REQUIRE_THAT(result, Equals("/this/is/a/directory/"));
     // DOS/Windows-style paths
     auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
     result = omega_util_dirname(test_2, buffer);
     REQUIRE(result);
+    CLOG << LOCATION << "result: " << result << std::endl;
+#ifdef OMEGA_BUILD_WINDOWS
     REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory"));
+#else
+    REQUIRE_THAT(buffer, Equals(""));
+#endif
     // Missing directory test
     auto test_3 = "filename.extension";
     result = omega_util_dirname(test_3, buffer);
     REQUIRE(result);
-    REQUIRE_THAT(buffer, Equals("."));
+    REQUIRE_THAT(buffer, Equals(""));
     // relative path
     auto test_4 = "relative/filename.extension";
     result = omega_util_dirname(test_4, buffer);
     REQUIRE(result);
-    REQUIRE_THAT(buffer, Equals("relative"));
+    REQUIRE_THAT(buffer, Equals("relative/"));
 }
 
 TEST_CASE("Base File Name", "[UtilTests]") {
@@ -158,7 +168,11 @@ TEST_CASE("Base File Name", "[UtilTests]") {
     auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
     result = omega_util_basename(test_2, nullptr, buffer);
     REQUIRE(result);
+#ifdef OMEGA_BUILD_WINDOWS
     REQUIRE_THAT(buffer, Equals("filename.extension"));
+#else
+    REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory\\filename.extension"));
+#endif
     auto test_3 = "filename.extension";
     result = omega_util_basename(test_3, nullptr, buffer);
     REQUIRE(result);
@@ -171,43 +185,35 @@ TEST_CASE("Base File Name", "[UtilTests]") {
     REQUIRE_THAT(buffer, Equals("filename.extension"));
     auto test_4 = "/this/is/a/directory/";
     result = omega_util_basename(test_4, nullptr, buffer);
-    REQUIRE(!result);
+    REQUIRE(result);
+    REQUIRE_THAT(buffer, Equals("directory"));
 }
 
 TEST_CASE("File Extension", "[UtilTests]") {
     // Unix-style paths
     auto test_1 = "/this/is/a/directory/filename.extension";
     char buffer[FILENAME_MAX];
-    auto result = omega_util_file_extension(test_1, nullptr, 0);
-    REQUIRE(result);
-    REQUIRE_THAT(result, Equals("extension"));
-    result = omega_util_file_extension(test_1, nullptr, 1);
+    auto result = omega_util_file_extension(test_1, nullptr);
     REQUIRE(result);
     REQUIRE_THAT(result, Equals(".extension"));
     // DOS/Windows-style paths
     auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
-    result = omega_util_file_extension(test_2, buffer, 0);
+    result = omega_util_file_extension(test_2, buffer);
     REQUIRE(result);
-    REQUIRE_THAT(buffer, Equals("extension"));
+    REQUIRE_THAT(buffer, Equals(".extension"));
     auto test_3 = "filename_no_extension";
-    result = omega_util_file_extension(test_3, buffer, 0);
+    result = omega_util_file_extension(test_3, buffer);
     REQUIRE(!result);
     auto test_4 = "filename_empty_extension.";
-    result = omega_util_file_extension(test_4, buffer, 0);
-    REQUIRE(result);
-    REQUIRE_THAT(result, Equals(""));
-    result = omega_util_file_extension(test_4, buffer, 1);
+    result = omega_util_file_extension(test_4, buffer);
     REQUIRE(result);
     REQUIRE_THAT(result, Equals("."));
     auto test_5 = "/..";
-    result = omega_util_file_extension(test_5, buffer, 0);
-    REQUIRE(result);
-    REQUIRE_THAT(result, Equals(""));
-    result = omega_util_file_extension(test_5, buffer, 1);
+    result = omega_util_file_extension(test_5, buffer);
     REQUIRE(result);
     REQUIRE_THAT(result, Equals("."));
     auto test_6 = "/this.is.a.directory/filename_no_extension";
-    result = omega_util_file_extension(test_6, buffer, 1);
+    result = omega_util_file_extension(test_6, buffer);
     REQUIRE(!result);
 }
 
@@ -305,9 +311,9 @@ TEST_CASE("Model Test", "[ModelTests]") {
     REQUIRE(0 != compare_files("data/model-test.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
-    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-copy-1.dat"));
+    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-1.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0));
-    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-copy-2.dat"));
+    REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-2.dat"));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);

@@ -15,6 +15,7 @@
 #include "../include/omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <assert.h>
+#include <cwalk.h>
 #include <stdio.h>
 
 #ifdef WINDOWS
@@ -66,46 +67,34 @@ int omega_util_file_exists(const char *file_name) {
 }
 
 char omega_util_directory_separator() {
-#if defined _WIN32 || defined __CYGWIN__
+#if OMEGA_BUILD_WINDOWS
     return '\\';
 #else
     return '/';
 #endif
 }
 
-char *omega_util_dirname(char const *file_name, char *buffer) {
+char *omega_util_dirname(char const *path, char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold directory name
-    assert(file_name);
+    assert(path);
     if (!buffer) { buffer = buff; }
-    const char *last_slash = strrchr(file_name, '/');
-    if (!last_slash) { last_slash = strrchr(file_name, '\\'); }
-    if (last_slash) {
-        const size_t num_bytes = last_slash - file_name;
-        memcpy(buffer, file_name, num_bytes);
-        buffer[num_bytes] = '\0';
-    } else {
-        buffer[0] = '.';
-        buffer[1] = '\0';
-    }
+    size_t dirname_len;
+    cwk_path_get_dirname(path, &dirname_len);
+    memcpy(buffer, path, dirname_len);
+    buffer[dirname_len] = '\0';
     return buffer;
 }
 
-char *omega_util_basename(char const *file_name, char const *suffix, char *buffer) {
+char *omega_util_basename(char const *path, char const *suffix, char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold basename
-    size_t basename_len = 0;
-    assert(file_name);
+    assert(path);
     if (!buffer) { buffer = buff; }
-    const char *last_slash = strrchr(file_name, '/');
-    if (!last_slash) { last_slash = strrchr(file_name, '\\'); }
-    if (last_slash) {
-        const char *basename = last_slash + 1;
-        basename_len = strlen(basename);
-        if (basename_len < 1) { return NULL; }
-        memcpy(buffer, basename, basename_len + 1);
-    } else {
-        basename_len = strlen(file_name);
-        memcpy(buffer, file_name, basename_len + 1);
-    }
+    const char *basename;
+    size_t basename_len;
+    cwk_path_get_basename(path, &basename, &basename_len);
+    if (!basename) { return NULL; }
+    memcpy(buffer, basename, basename_len);
+    buffer[basename_len] = '\0';
     if (suffix) {
         const size_t suffix_len = strlen(suffix);
         if (suffix_len < basename_len && 0 == strncmp(buffer + basename_len - suffix_len, suffix, suffix_len)) {
@@ -115,42 +104,49 @@ char *omega_util_basename(char const *file_name, char const *suffix, char *buffe
     return buffer;
 }
 
-char *omega_util_file_extension(char const *file_name, char *buffer, int include_dot) {
+char *omega_util_file_extension(char const *path, char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold extension
     char file_name_buff[FILENAME_MAX];
-    file_name = omega_util_basename(file_name, NULL, file_name_buff);
-    assert(file_name);
+    path = omega_util_basename(path, NULL, file_name_buff);
+    assert(path);
     if (!buffer) { buffer = buff; }
-    const char *last_dot = strrchr(file_name, '.');
-    if (last_dot) {
-        const char *extension = (include_dot) ? last_dot : last_dot + 1;
-        const size_t extension_len = strlen(extension);
-        memcpy(buffer, extension, extension_len + 1);
+    const char *extension;
+    size_t extension_len;
+    if (cwk_path_get_extension(path, &extension, &extension_len)) {
+        memcpy(buffer, extension, extension_len);
+        buffer[extension_len] = '\0';
         return buffer;
     }
     buffer[0] = '\0';
     return NULL;
 }
 
-char *omega_util_available_filename(char const *file_name, char *buffer) {
+char *omega_util_normalize_path(char const *path, char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
-    assert(file_name);
+    assert(path);
     if (!buffer) { buffer = buff; }
-    if (!omega_util_file_exists(file_name)) {
-        memcpy(buffer, file_name, strlen(file_name) + 1);
+    cwk_path_normalize(path, buffer, FILENAME_MAX);
+    return buffer;
+}
+
+char *omega_util_available_filename(char const *path, char *buffer) {
+    static char buff[FILENAME_MAX];//create string buffer to hold path
+    assert(path);
+    if (!buffer) { buffer = buff; }
+    if (!omega_util_file_exists(path)) {
+        memcpy(buffer, path, strlen(path) + 1);
         return buffer;
     }
     int i = 0;
-    const char *dirname = omega_util_dirname(file_name, NULL);
-    const char *extension = omega_util_file_extension(file_name, NULL, 1);
-    const char *basename = omega_util_basename(file_name, extension, NULL);
+    const char *dirname = omega_util_dirname(path, NULL);
+    const char *extension = omega_util_file_extension(path, NULL);
+    const char *basename = omega_util_basename(path, extension, NULL);
     do {
         if (i == 99) {
-            // stop after 99 copies
+            // stop after 99 filenames exist
             return NULL;
         }
-        snprintf(buffer, FILENAME_MAX, "%s%c%s-copy-%d%s", dirname, omega_util_directory_separator(), basename, ++i,
-                 extension);
+        snprintf(buffer, FILENAME_MAX, "%s%s-%d%s", dirname, basename, ++i, extension);
     } while (omega_util_file_exists(buffer));
     return buffer;
 }

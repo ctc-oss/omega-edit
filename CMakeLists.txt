@@ -110,5 +110,8 @@ if(BUILD_DOCS)
 endif(BUILD_DOCS)
 
 # Add additional subdirectories with CMakeLists.txt to the build
+add_subdirectory(vendor/cwalk)
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
+
+target_link_libraries(omega_edit cwalk)

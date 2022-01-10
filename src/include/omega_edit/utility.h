@@ -54,31 +54,49 @@ char omega_util_directory_separator();
 
 /**
  * Given a file name, return the associated directory
- * @param file_name file path
- * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
+ * @param path file path
+ * @param buffer pointer to memory to hold the directory name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return associated directory
  */
-char *omega_util_dirname(char const *file_name, char *buffer);
+char *omega_util_dirname(char const *path, char *buffer);
 
 /**
  * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
- * @param file_name file path
+ * @param path file path
  * @param suffix optional file suffix that if it matches the basename suffix, it is removed from the result
- * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
+ * @param buffer pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return associated basename, possibly without the suffix
  */
-char *omega_util_basename(char const *file_name, char const *suffix, char *buffer);
+char *omega_util_basename(char const *path, char const *suffix, char *buffer);
 
 /**
  * Given a file name, return the associated file extension, with or without the dot prefix
- * @param file_name file path
- * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
- * @param include_dot if zero, do not include the dot prefix, non-zero to include the dot prefix
+ * @param path file path
+ * @param buffer pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return associated file extension or NULL if no extension exists
  */
-char *omega_util_file_extension(char const *file_name, char *buffer, int include_dot);
+char *omega_util_file_extension(char const *path, char *buffer);
 
-char *omega_util_available_filename(char const *file_name, char *buffer);
+/**
+ * Creates a normalized version of the given path.
+ * The following will be true for the normalized path:
+ *   ”../” will be resolved.
+ *   ”./” will be removed.
+ *   double separators will be fixed with a single separator.
+ *   separator suffixes will be removed.
+ * @param path path to normalize
+ * @param buffer
+ * @return normalized path
+ */
+char *omega_util_normalize_path(char const *path, char *buffer);
+
+/**
+ * Creates a available filename from the given path.
+ * @param path
+ * @param buffer
+ * @return
+ */
+char *omega_util_available_filename(char const *path, char *buffer);
 
 /**
  * Byte transform function pointer
