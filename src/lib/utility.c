@@ -67,7 +67,7 @@ int omega_util_file_exists(const char *file_name) {
 }
 
 char omega_util_directory_separator() {
-#if OMEGA_BUILD_WINDOWS
+#ifdef OMEGA_BUILD_WINDOWS
     return '\\';
 #else
     return '/';
