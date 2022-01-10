@@ -136,11 +136,9 @@ jobs:
           msystem: ${{ matrix.sys }}
           update: true
           install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
             base-devel
+            gcc
             cmake
-            graphviz
-            doxygen
             swig
             git
 
@@ -156,11 +154,15 @@ jobs:
         run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
         shell: bash
 
-      - name: Generate binary file
-        run: "g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
+      - name: Build C++ code
+        run: |
+          cmake -S . -B cmake-build-debug
+          cmake --build cmake-build-debug
 
-      - name: Compile lib file
-        run: "g++ -shared -o lib/libomega_edit.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
+      - name: Generate library file
+        run: |
+          g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+          g++ -shared -o lib/libomega_edit.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
 
       - name: Export filenames
         run: |
@@ -182,7 +184,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-20.04
-    needs: [node-build, scala-build]
+    needs: [node-build, scala-build-linux-mac, scala-build-windows]
     steps:
       - uses: actions/checkout@v2.3.5
 

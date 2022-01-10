@@ -112,3 +112,9 @@ endif(BUILD_DOCS)
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
+
+# Add linker option for windows
+if(WIN32)
+    SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--add-stdcall-alias")
+    add_link_options("-Wl,--add-stdcall-alias")
+endif(WIN32)

@@ -78,7 +78,8 @@ jobs:
         run: npm ci
       - name: Test Node v14 Bindings
         run: yarn test
-  MinGW-Build:
+  windows-node-test:
+    name: Windows Tests
     runs-on: windows-latest
     strategy:
       matrix:
@@ -94,24 +95,31 @@ jobs:
           msystem: ${{ matrix.sys }}
           update: true
           install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
             base-devel
+            gcc
             cmake
             swig
             git
 
-      - name: Setup Graphviz
-        uses: ts-graphviz/setup-graphviz@v1
-
-      - uses: actions/checkout@v2
-      - name: Build
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v1.4.6
+        with:
+          node-version: ${{ env.node_version }}
+      - name: Setup Debug Build
         run: cmake -S . -B cmake-build-debug
-      - name: Create omega_test
-        run: cmake --build cmake-build-debug --target omega_test
-      - name: Run tests
-        run: |
-          cd cmake-build-debug/src/tests/
-          ./omega_test -d yes --order lex
+      - name: Build Debug Build
+        run: cmake --build cmake-build-debug
+      - name: Run Tests
+        working-directory: cmake-build-debug/src/tests/
+        run: ./omega_test -d yes --order lex
+      - name: Prepare To Build Node v14 Bindings
+        run: npm ci
+      - name: Test Node v14 Bindings
+        run: yarn test
 
   scala-test:
     strategy:
