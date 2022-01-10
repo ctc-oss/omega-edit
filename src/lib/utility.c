@@ -18,12 +18,11 @@
 #include <cwalk.h>
 #include <stdio.h>
 
-#ifdef WINDOWS
+#ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
 #define GetCurrentDir_ _getcwd
 #else
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/fcntl.h>
 #include <unistd.h>
