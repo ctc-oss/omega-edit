@@ -20,21 +20,23 @@
 
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
-#define GetCurrentDir_ _getcwd
+#include <io.h>
+#include <sys/utime.h>
+#define utime _utime
+#define getcwd _getcwd
 #else
 #include <errno.h>
 #include <string.h>
 #include <sys/fcntl.h>
 #include <unistd.h>
 #include <utime.h>
-#define GetCurrentDir_ getcwd
 #endif
 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     buffer[0] = '\0';
-    return (GetCurrentDir_(buffer, FILENAME_MAX)) ? buffer : NULL;
+    return (getcwd(buffer, FILENAME_MAX)) ? buffer : NULL;
 }
 
 int omega_util_touch(const char *file_name, int create) {
