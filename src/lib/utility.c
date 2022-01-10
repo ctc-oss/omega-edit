@@ -24,6 +24,10 @@
 #include <sys/utime.h>
 #define utime _utime
 #define getcwd _getcwd
+#define open _open
+#define close _close
+#define O_RDWR _O_RDWR
+#define O_CREAT _O_CREAT
 #else
 #include <errno.h>
 #include <string.h>
