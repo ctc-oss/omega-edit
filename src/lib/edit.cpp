@@ -26,7 +26,11 @@
 #include "omega_edit/utility.h"
 #include <cassert>
 #include <memory>
+#ifdef OMEGA_BUILD_WINDOWS
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
