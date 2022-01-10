@@ -12,29 +12,5 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/* clang-format off */
-
-%module omega_edit
-
-%{
-/* Includes the header in the wrapper code */
-#include "../../include/omega_edit.h"
-#include "../../include/omega_edit/check.h"
-#include "../../include/omega_edit/stl_string_adaptor.hpp"
-%}
-
-%include <stdint.i>
-%include <std_string.i>
-
-/* Parse the header file to generate wrappers */
-%include "../../include/omega_edit/change.h"
-%include "../../include/omega_edit/check.h"
-%include "../../include/omega_edit/config.h"
-%include "../../include/omega_edit/edit.h"
-%include "../../include/omega_edit/license.h"
-%include "../../include/omega_edit/search.h"
-%include "../../include/omega_edit/session.h"
-%include "../../include/omega_edit/stl_string_adaptor.hpp"
-%include "../../include/omega_edit/version.h"
-%include "../../include/omega_edit/viewport.h"
-%include "../../include/omega_edit/visit.h"
+addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
+addSbtPlugin("com.mariussoutier.sbt" % "sbt-unpack" % "0.9.5")

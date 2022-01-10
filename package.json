@@ -1,7 +1,7 @@
 {
   "name": "omega-edit",
   "description": "OmegaEdit open source library for building editors that can handle massive files",
-  "version": "0.6.2",
+  "version": "0.6.3-2",
   "main": "module/omega_edit/index.js",
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",
@@ -22,7 +22,7 @@
     "gyp-remove": "node-gyp remove",
     "package": "yarn pre-package && yarn pack",
     "pre-package": "yarn swig-compile && yarn gyp-configure && yarn gyp-build",
-    "swig-compile": "swig -javascript -node -v -c++ src/bindings/omega_edit.i",
+    "swig-compile": "swig -javascript -node -v -c++ -outdir src/bindings/node src/bindings/node/omega_edit.i",
     "test": "mocha src/tests-js"
   },
   "devDependencies": {

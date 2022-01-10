@@ -1,7 +1,7 @@
 /**********************************************************************************************************************
  * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       *
  *                                                                                                                    *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
+ * Licensed under the Apache License, Version 2.0 (the "License"): you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
  *                                                                                                                    *
  *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
@@ -12,29 +12,19 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/* clang-format off */
+package org.ctc.omegaedit
 
-%module omega_edit
+import jnr.ffi.LibraryLoader
+import org.scijava.nativelib._
 
-%{
-/* Includes the header in the wrapper code */
-#include "../../include/omega_edit.h"
-#include "../../include/omega_edit/check.h"
-#include "../../include/omega_edit/stl_string_adaptor.hpp"
-%}
+trait omega_edit {
+  def omega_license_get(): String
+}
 
-%include <stdint.i>
-%include <std_string.i>
-
-/* Parse the header file to generate wrappers */
-%include "../../include/omega_edit/change.h"
-%include "../../include/omega_edit/check.h"
-%include "../../include/omega_edit/config.h"
-%include "../../include/omega_edit/edit.h"
-%include "../../include/omega_edit/license.h"
-%include "../../include/omega_edit/search.h"
-%include "../../include/omega_edit/session.h"
-%include "../../include/omega_edit/stl_string_adaptor.hpp"
-%include "../../include/omega_edit/version.h"
-%include "../../include/omega_edit/viewport.h"
-%include "../../include/omega_edit/visit.h"
+object Example {
+  def main(args: Array[String]): Unit = {
+    NativeLoader.getJniExtractor().extractJni("omega_edit", "lib")
+    lazy val omega_edit = LibraryLoader.create(classOf[omega_edit]).load("omega_edit")
+    println(omega_edit.omega_license_get)
+  }
+}

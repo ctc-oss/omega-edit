@@ -1,3 +1,14 @@
+# Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       
+#                                                                                                               
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at                                                    
+#                                                                                                               
+#     http://www.apache.org/licenses/LICENSE-2.0                                                                
+#                                                                                                               
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
+# implied.  See the License for the specific language governing permissions and limitations under the License.  
+
 ---
 name: Automatic Release
 on:
@@ -14,7 +25,7 @@ env:
     echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
 
 jobs:
-  build:
+  node-build:
     strategy:
       matrix:
         os: [macos-11, ubuntu-20.04]
@@ -43,7 +54,7 @@ jobs:
 
           if [[ ${{ matrix.os }} == *"macos"* ]]; then
             NODE_FILE="omega_edit_darwin.node"
-            mv module/omega_edit_mac.node module/$NODE_FILE
+            mv module/omega_edit/omega_edit_mac.node module/omega_edit/$NODE_FILE
           else
             NODE_FILE="omega_edit_linux.node"
           fi
@@ -54,36 +65,67 @@ jobs:
         uses: actions/upload-artifact@v2.3.1
         with:
           name: ${{ env.NODE_FILE }}
-          path: module/${{ env.NODE_FILE }}
-  release:
-    name: Release package
-    runs-on: ubuntu-20.04
-    needs: build
+          path: module/omega_edit/${{ env.NODE_FILE }}
+
+  scala-build:
+    strategy:
+      matrix:
+        os: [macos-11, ubuntu-20.04]
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
-      - name: Setup Node
-        uses: actions/setup-node@v1.4.6
+      - uses: actions/setup-java@v2.5.0
         with:
-          registry-url: 'https://registry.npmjs.org'
-          node-version: ${{ env.node_version }}
+          distribution: 'adopt'
+          java-version: '11'
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
 
-      - name: Download node files
-        uses: actions/download-artifact@v2.1.0
-        with:
-          path: module/
+      - name: Check if git tag matches package version
+        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+        shell: bash
 
-      - name: Move out node files
+      - name: Compile lib file
+        run: ./compile.sh compile-lib ${{ matrix.os }}
+
+      - name: Export filenames
         run: |
-          cd module
-          mv omega_edit_linux.node omega_edit_linux.node_dir
-          mv omega_edit_darwin.node omega_edit_darwin.node_dir
-          mv omega_edit_linux.node_dir/omega_edit_linux.node .
-          mv omega_edit_darwin.node_dir/omega_edit_darwin.node .
-          rm -rf omega_edit_linux.node_dir omega_edit_darwin.node_dir
-      
+          if [[ "${{ matrix.os }}" == "macos-11" ]]; then
+            LIB_FILENAME="libomega_edit.dylib"
+            JAR_FILENAME="omega-edit-mac.jar"
+          elif [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+            LIB_FILENAME="libomega_edit.so"
+            JAR_FILENAME="omega-edit-linux.jar"
+          else
+            LIB_FILENAME="libomega_edit.dll"
+            JAR_FILENAME="omega-edit-windows.jar"
+          fi
+
+          echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
+          echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
+
+      - name: Create JAR file
+        run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+
+      - name: Upload lib file
+        if: "${{ matrix.os }} == ubuntu-20.04"
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: ${{ env.JAR_FILENAME }}
+          path: ${{ env.JAR_FILENAME }}
+
+  release:
+    name: Release
+    runs-on: ubuntu-20.04
+    needs: [node-build, scala-build]
+    steps:
+      - uses: actions/checkout@v2.3.5
+
+      - name: Export git tag and package.json version
+        run: ${{ env.export_cmd }}
+
       - name: Check if pre-release
         run: |
           if [[ ${{env.GIT_TAG}} == *"pre-"* || ${{env.GIT_TAG}} == *"-pre"* ]]; then
@@ -104,20 +146,93 @@ jobs:
           draft: false
           prerelease: "${{ env.PRE_RELEASE }}"
 
-      - name: Create release tarball
+      ##########################
+      ## Node release process ##
+      ##########################
+      - name: Setup Node
+        uses: actions/setup-node@v1.4.6
+        with:
+          registry-url: 'https://registry.npmjs.org'
+          node-version: ${{ env.node_version }}
+
+      - name: Download darwin node files
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega_edit_darwin.node
+          path: module/omega_edit/omega_edit_darwin.node
+
+      - name: Download linux node files
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega_edit_linux.node
+          path: module/omega_edit/omega_edit_linux.node
+
+      - name: Move out node files
+        run: |
+          cd module/omega_edit/
+          mv omega_edit_linux.node omega_edit_linux.node_dir
+          mv omega_edit_darwin.node omega_edit_darwin.node_dir
+          mv omega_edit_linux.node_dir/omega_edit_linux.node .
+          mv omega_edit_darwin.node_dir/omega_edit_darwin.node .
+          rm -rf omega_edit_linux.node_dir omega_edit_darwin.node_dir
+
+      - name: Create node release tarball
         run: yarn pack --filename omega-edit-v${{ env.PKG_VERSION }}.tar.gz
 
-      - name: Upload release tarball
+      - name: Upload node release tarball
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          asset_name: omega-edit-v${{ env.PKG_VERSION }}.tar.gz
+          asset_name: omega-edit-node-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
 
-      - name: Publish package to npm registry
+      - name: Publish node package to npm registry
         run: yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      ##########################
+      ## Java release process ##
+      ##########################
+      - name: Download mac jar file
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega-edit-mac.jar
+          path: omega-edit-mac.jar
+
+      - name: Download linux jar file
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega-edit-linux.jar
+          path: omega-edit-linux.jar
+
+      - name: Move out jar files
+        run: |
+          mv omega-edit-mac.jar omega-edit-mac.jar_dir
+          mv omega-edit-linux.jar omega-edit-linux.jar_dir
+          mv omega-edit-mac.jar_dir/omega-edit-mac.jar .
+          mv omega-edit-linux.jar_dir/omega-edit-linux.jar .
+          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir
+
+      - name: Upload mac jar file
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: omega-edit-mac.jar
+          asset_name: omega-edit-mac.jar
+          asset_content_type: application/java-archive
+
+      - name: Upload linux jar file
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: omega-edit-linux.jar
+          asset_name: omega-edit-linux.jar
+          asset_content_type: application/java-archive
