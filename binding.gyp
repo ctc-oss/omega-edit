@@ -13,7 +13,7 @@
   "targets": [
     {
       "target_name": "omega_edit_<(OS)",
-      "include_dirs": ["src/include"],
+      "include_dirs": ["src/include", "vendor/cwalk/include"],
       "defines": [
         # TODO: Programmatically set the version information
         "OMEGA_EDIT_VERSION_MAJOR=0",
