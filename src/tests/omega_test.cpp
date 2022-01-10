@@ -141,7 +141,7 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     REQUIRE(result);
     CLOG << LOCATION << "result: " << result << std::endl;
 #ifdef OMEGA_BUILD_WINDOWS
-    REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory"));
+    REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory\\"));
 #else
     REQUIRE_THAT(buffer, Equals(""));
 #endif
