@@ -54,7 +54,7 @@ TEST_CASE("Version check", "[VersionCheck]") {
 TEST_CASE("License check", "[LicenseCheck]") {
     const auto license = omega_license_get();
     REQUIRE(license);
-    REQUIRE(strlen(license) == 576);
+    REQUIRE(strlen(license) == 581);
     REQUIRE(strstr(license, "Concurrent Technologies Corporation"));
 }
 
