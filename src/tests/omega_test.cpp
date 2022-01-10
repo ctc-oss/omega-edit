@@ -107,7 +107,8 @@ TEST_CASE("File Exists", "[UtilTests]") {
 TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE(omega_util_file_exists("data/test1.dat"));
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    const char dir_sep = omega_util_directory_separator();
+    //const char dir_sep = omega_util_directory_separator();
+    const char dir_sep = '/';
     auto expected = std::string("data") + dir_sep + "test1-1.dat";
     REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals(expected));
     expected = std::string("data") + dir_sep + "IDonTExist.DaT";
@@ -136,12 +137,12 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     REQUIRE(result);
     REQUIRE_THAT(result, Equals("/this/is/a/directory/"));
     // DOS/Windows-style paths
-    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    auto test_2 = R"(C:\this\is\a\directory\filename.extension)";
     result = omega_util_dirname(test_2, buffer);
     REQUIRE(result);
     CLOG << LOCATION << "result: " << result << std::endl;
 #ifdef OMEGA_BUILD_WINDOWS
-    REQUIRE_THAT(buffer, Equals("C:\\this\\is\\a\\directory\\"));
+    REQUIRE_THAT(buffer, Equals(R"(C:\this\is\a\directory\)"));
 #else
     REQUIRE_THAT(buffer, Equals(""));
 #endif
@@ -165,7 +166,7 @@ TEST_CASE("Base File Name", "[UtilTests]") {
     REQUIRE(result);
     REQUIRE_THAT(result, Equals("filename.extension"));
     // DOS/Windows-style paths
-    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    auto test_2 = R"(C:\this\is\a\directory\filename.extension)";
     result = omega_util_basename(test_2, nullptr, buffer);
     REQUIRE(result);
 #ifdef OMEGA_BUILD_WINDOWS
@@ -197,7 +198,7 @@ TEST_CASE("File Extension", "[UtilTests]") {
     REQUIRE(result);
     REQUIRE_THAT(result, Equals(".extension"));
     // DOS/Windows-style paths
-    auto test_2 = "C:\\this\\is\\a\\directory\\filename.extension";
+    auto test_2 = R"(C:\this\is\a\directory\filename.extension)";
     result = omega_util_file_extension(test_2, buffer);
     REQUIRE(result);
     REQUIRE_THAT(buffer, Equals(".extension"));
@@ -215,6 +216,19 @@ TEST_CASE("File Extension", "[UtilTests]") {
     auto test_6 = "/this.is.a.directory/filename_no_extension";
     result = omega_util_file_extension(test_6, buffer);
     REQUIRE(!result);
+}
+
+TEST_CASE("Path Normalization", "[UtilTests]") {
+    char buffer[FILENAME_MAX];
+    buffer[0] = '\0';
+    REQUIRE_THAT(omega_util_normalize_path("/var/logs/test/../../", nullptr), Equals("/var"));
+    REQUIRE_THAT(buffer, Equals(""));
+    REQUIRE_THAT(omega_util_normalize_path("/var/logs/test/../../../../../", buffer), Equals("/"));
+    REQUIRE_THAT(omega_util_normalize_path("rel/../../", buffer), Equals(".."));
+    REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals("/var/logs/test"));
+    REQUIRE_THAT(omega_util_normalize_path("/var/././././", buffer), Equals("/var"));
+    REQUIRE_THAT(omega_util_normalize_path("/var/./logs/.//test/..//..//////", buffer), Equals("/var"));
+    REQUIRE_THAT(buffer, Equals("/var"));
 }
 
 static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
