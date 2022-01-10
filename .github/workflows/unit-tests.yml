@@ -114,10 +114,6 @@ jobs:
       - name: Fix cmake-build-debug/CMakeCache.txt for Windows
         run: |
           sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
-      - name: DEBUG>cmake-build-debug/CMakeCache.txt
-        run: |
-          cat cmake-build-debug/CMakeCache.txt | grep 'CMAKE_CXX_COMPILER'
-          cat cmake-build-debug/CMakeCache.txt | grep 'CMAKE_C_COMPILER'
       - name: Build Debug Build
         run: cmake --build cmake-build-debug
       - name: Run Tests
