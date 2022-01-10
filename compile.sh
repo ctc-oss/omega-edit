@@ -42,8 +42,8 @@ function mac {
 }
 
 function win {
-    "g++ -c -I%JAVA_HOME%\include -I%JAVA_HOME%\include\win32 src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
-    "g++ -shared -o native.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
+    "g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
+    "g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
 }
 
 function all {

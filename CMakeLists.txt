@@ -112,3 +112,8 @@ endif(BUILD_DOCS)
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
+
+#set(CMAKE_CXX_COMPILER c++)
+#set(CXX c++)
+#set(CMAKE_C_COMPILER gcc)
+#set(C gcc)
