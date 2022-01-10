@@ -227,7 +227,7 @@ TEST_CASE("Path Normalization", "[UtilTests]") {
     REQUIRE_THAT(omega_util_normalize_path("/var/logs/test/../../../../../", buffer), Equals("/"));
     REQUIRE_THAT(omega_util_normalize_path("rel/../../", buffer), Equals(".."));
 #ifdef OMEGA_BUILD_WINDOWS
-    REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals(R"(/var\\logs\\test)"));
+    REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals(R"(/var\logs\test)"));
     REQUIRE_THAT(buffer, Equals(R"(/var\logs\test)"));
 #else
     REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals("/var/logs/test"));
