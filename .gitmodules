@@ -1,4 +1,4 @@
 [submodule "vendor/cwalk"]
 	path = vendor/cwalk
-	url = git@github.com:likle/cwalk.git
+	url = https://github.com/likle/cwalk.git
 	branch = stable
