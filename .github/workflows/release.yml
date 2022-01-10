@@ -33,7 +33,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
-        submodules: true
+        with:
+          submodules: true
       - name: Setup Node
         uses: actions/setup-node@v1.4.6
         with:
@@ -76,7 +77,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
-        submodules: true
+        with:
+          submodules: true
       - uses: actions/setup-java@v2.5.0
         with:
           distribution: 'adopt'
@@ -131,7 +133,8 @@ jobs:
         shell: msys2 {0}
     steps:
       - uses: actions/checkout@v2.3.5
-        submodules: true
+        with:
+          submodules: true
       - name: Install MinGW
         uses: msys2/setup-msys2@v2
         with:
@@ -190,7 +193,8 @@ jobs:
     needs: [node-build, scala-build-linux-mac, scala-build-windows]
     steps:
       - uses: actions/checkout@v2.3.5
-        submodules: true
+        with:
+          submodules: true
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
 
