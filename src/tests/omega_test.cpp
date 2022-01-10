@@ -221,11 +221,18 @@ TEST_CASE("File Extension", "[UtilTests]") {
 TEST_CASE("Path Normalization", "[UtilTests]") {
     char buffer[FILENAME_MAX];
     buffer[0] = '\0';
+    REQUIRE_THAT(buffer, Equals(""));
     REQUIRE_THAT(omega_util_normalize_path("/var/logs/test/../../", nullptr), Equals("/var"));
     REQUIRE_THAT(buffer, Equals(""));
     REQUIRE_THAT(omega_util_normalize_path("/var/logs/test/../../../../../", buffer), Equals("/"));
     REQUIRE_THAT(omega_util_normalize_path("rel/../../", buffer), Equals(".."));
+#ifdef OMEGA_BUILD_WINDOWS
+    REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals(R"(/var\\logs\\test)"));
+    REQUIRE_THAT(buffer, Equals(R"(/var\logs\test)"));
+#else
     REQUIRE_THAT(omega_util_normalize_path("/var////logs//test/", buffer), Equals("/var/logs/test"));
+    REQUIRE_THAT(buffer, Equals("/var/logs/test"));
+#endif
     REQUIRE_THAT(omega_util_normalize_path("/var/././././", buffer), Equals("/var"));
     REQUIRE_THAT(omega_util_normalize_path("/var/./logs/.//test/..//..//////", buffer), Equals("/var"));
     REQUIRE_THAT(buffer, Equals("/var"));
