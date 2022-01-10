@@ -84,7 +84,6 @@ jobs:
       matrix:
         include:
           - { sys: mingw64, env: x86_64 }
-          - { sys: mingw32, env: i686 }
     defaults:
       run:
         shell: msys2 {0}
@@ -98,9 +97,12 @@ jobs:
             mingw-w64-${{ matrix.env }}-toolchain
             base-devel
             cmake
-            doxygen
             swig
             git
+
+      - name: Setup Graphviz
+        uses: ts-graphviz/setup-graphviz@v1
+
       - uses: actions/checkout@v2
       - name: Build
         run: cmake -S . -B cmake-build-debug
