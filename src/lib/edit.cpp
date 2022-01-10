@@ -33,7 +33,7 @@
 #endif
 
 static int64_t write_segment_to_file_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
-    if (0 != fseeko(from_file_ptr, offset, SEEK_SET)) { return -1; }
+    if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
     const int64_t buff_size = 1024 * 8;
     auto remaining = byte_count;
     omega_byte_t buff[buff_size];
@@ -299,8 +299,8 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     }
     off_t file_size = 0;
     if (file_ptr) {
-        if (0 != fseeko(file_ptr, 0L, SEEK_END)) { return nullptr; }
-        file_size = ftello(file_ptr);
+        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return nullptr; }
+        file_size = FTELL(file_ptr);
     }
     const auto session_ptr = new omega_session_t;
     session_ptr->file_ptr = file_ptr;
@@ -462,8 +462,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
 int omega_edit_clear_changes(omega_session_t *session_ptr) {
     int64_t length = 0;
     if (session_ptr->file_ptr) {
-        if (0 != fseeko(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
-        length = ftello(session_ptr->file_ptr);
+        if (0 != FSEEK(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+        length = FTELL(session_ptr->file_ptr);
     }
     initialize_model_segments_(session_ptr->model_ptr_->model_segments, length);
     free_session_changes_(session_ptr);
@@ -480,8 +480,8 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         session_ptr->model_ptr_->changes.pop_back();
         int64_t length = 0;
         if (session_ptr->file_ptr) {
-            if (0 != fseeko(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
-            length = ftello(session_ptr->file_ptr);
+            if (0 != FSEEK(session_ptr->file_ptr, 0L, SEEK_END)) { return -1; }
+            length = FTELL(session_ptr->file_ptr);
         }
         initialize_model_segments_(session_ptr->model_ptr_->model_segments, length);
         for (auto iter = session_ptr->model_ptr_->changes.begin(); iter != session_ptr->model_ptr_->changes.end();

@@ -296,7 +296,8 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     file_info.num_changes = 0;
     const auto in_filename = "data/empty_file.dat";
     auto in_file = fopen(in_filename, "r");
-    auto file_size = ftello(in_file);
+    FSEEK(in_file, 0, SEEK_END);
+    auto file_size = FTELL(in_file);
     fclose(in_file);
     REQUIRE(0 == file_size);
     const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info);

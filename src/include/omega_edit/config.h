@@ -57,4 +57,20 @@
 #error Unknown pointer size or missing size macros!
 #endif
 
+#ifndef FSEEK
+#ifdef _LARGEFILE_SOURCE
+#define FSEEK fseeko
+#else
+#define FSEEK fseek
+#endif
+#endif
+
+#ifndef FTELL
+#ifdef _LARGEFILE_SOURCE
+#define FTELL ftello
+#else
+#define FTELL ftell
+#endif
+#endif
+
 #endif//OMEGA_EDIT_CONFIG_H

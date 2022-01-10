@@ -22,22 +22,6 @@
 #include "viewport_def.hpp"
 #include <cassert>
 
-#ifndef FSEEK
-#ifdef _LARGEFILE_SOURCE
-#define FSEEK fseeko
-#else
-#define FSEEK fseek
-#endif
-#endif
-
-#ifndef FTELL
-#ifdef _LARGEFILE_SOURCE
-#define FTELL ftello
-#else
-#define FTELL ftell
-#endif
-#endif
-
 /**********************************************************************************************************************
  * Data segment functions
  **********************************************************************************************************************/
