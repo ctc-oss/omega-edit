@@ -136,8 +136,8 @@ jobs:
           msystem: ${{ matrix.sys }}
           update: true
           install: >-
+            mingw-w64-${{ matrix.env }}-toolchain
             base-devel
-            gcc
             cmake
             swig
             git
@@ -157,6 +157,7 @@ jobs:
       - name: Build C++ code
         run: |
           cmake -S . -B cmake-build-debug
+          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++|g" CMakeLists.txt
           cmake --build cmake-build-debug
 
       - name: Generate library file

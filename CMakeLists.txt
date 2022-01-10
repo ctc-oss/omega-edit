@@ -113,8 +113,7 @@ endif(BUILD_DOCS)
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
 
-# Add linker option for windows
-if(WIN32)
-    SET(CMAKE_SHARED_LINKER_FLAGS "-Wl,--add-stdcall-alias")
-    add_link_options("-Wl,--add-stdcall-alias")
-endif(WIN32)
+#set(CMAKE_CXX_COMPILER c++)
+#set(CXX c++)
+#set(CMAKE_C_COMPILER gcc)
+#set(C gcc)
