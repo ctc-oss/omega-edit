@@ -83,6 +83,7 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
+          targets: 'JAVA_HOME'
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -96,15 +97,12 @@ jobs:
 
       - name: Export filenames
         run: |
-          if [[ "${{ matrix.os }}" == "macos-11" ]]; then
+          if [[ "${{ matrix.os }}" == *"macos"* ]]; then
             LIB_FILENAME="libomega_edit.dylib"
             JAR_FILENAME="omega-edit-mac.jar"
-          elif [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+          else
             LIB_FILENAME="libomega_edit.so"
             JAR_FILENAME="omega-edit-linux.jar"
-          else
-            LIB_FILENAME="libomega_edit.dll"
-            JAR_FILENAME="omega-edit-windows.jar"
           fi
 
           echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
@@ -150,17 +148,18 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
+          targets: 'JAVA_HOME'
 
       - name: Build C++ code
         run: |
           cmake -S . -B cmake-build-debug
-          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++|g" CMakeLists.txt
+          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
           cmake --build cmake-build-debug
 
       - name: Generate library file
         run: |
-          g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-          g++ -shared -o lib/libomega_edit.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
+          g++ -c -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/win32 src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+          g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
 
       - name: Export filenames
         run: |

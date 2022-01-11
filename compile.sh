@@ -17,7 +17,7 @@ function check_os {
 
     if [[ $os == "linux" || $os == "mac" || os == "win" ]]; then
         $os
-    elif [[ $os == "macos-11" ]]; then
+    elif [[ $os == *"macos"* ]]; then
         mac
     elif [[ $os == "ubuntu-20.04" ]]; then
         linux
@@ -32,18 +32,18 @@ function gen-swig-java {
 }
 
 function linux {
-    g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-    g++ -shared -fPIC -o lib/libomega_edit.so lib/omega_edit_wrap.o -lc
+    g++ -c -fPIC -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+    g++ -shared -fPIC -o lib/libomega_edit.so cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -lc
 }
 
 function mac {
-    g++ -std=c++11 -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-    g++ -std=c++11 -dynamiclib -o lib/libomega_edit.dylib cmake-build-debug/libomega_edit.a lib/omega_edit_wrap.o -lc
+    g++ -std=c++14 -c -fPIC -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+    g++ -std=c++14 -dynamiclib -o lib/libomega_edit.dylib cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -lc
 }
 
 function win {
-    "g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
-    "g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
+    "g++ -c -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/win32 src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
+    "g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
 }
 
 function all {
