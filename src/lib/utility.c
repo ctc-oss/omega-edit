@@ -16,30 +16,29 @@
 #include "impl_/macros.h"
 #include <assert.h>
 #include <cwalk.h>
+#include <fcntl.h>
 #include <stdio.h>
-#include <sys/time.h>
 
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
-#include <fcntl.h>
 #include <io.h>
+#include <process.h>
 #include <sys/utime.h>
-#define utime _utime
-#define getcwd _getcwd
 #define OPEN _open
-#define close _close
-#define O_RDWR _O_RDWR
 #define O_CREAT _O_CREAT
+#define O_RDWR _O_RDWR
+#define close _close
+#define getcwd _getcwd
+#define utime _utime
 #else
 #include <errno.h>
-#include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
 #include <utime.h>
 #endif
 
 int omega_util_mkstemp(char *tmpl) {
-    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; //len = 62
+    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
     static uint64_t value;
     const size_t len = strlen(tmpl);
     char *template;
@@ -55,10 +54,7 @@ int omega_util_mkstemp(char *tmpl) {
     /* This is where the Xs start.  */
     template = &tmpl[len - 6];
 
-    /* Get some more or less random data.  */
-    gettimeofday(&tv, NULL);
-    value += ((uint64_t) tv.tv_usec << 16) ^ tv.tv_sec ^ getpid();
-
+    value += arc4random();
     for (count = 0; count < TMP_MAX; value += 7777, ++count) {
         uint64_t v = value;
 
