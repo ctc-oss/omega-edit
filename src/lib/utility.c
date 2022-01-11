@@ -19,6 +19,9 @@
 #include <io.h>
 #include <process.h>
 #include <sys/utime.h>
+#ifdef OPEN
+#undef OPEN
+#endif
 #define OPEN _open
 #define O_CREAT _O_CREAT
 #define O_RDWR _O_RDWR
