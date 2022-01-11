@@ -179,6 +179,7 @@ jobs:
 
       - name: Create JAR file
         run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+        shell: powershell
 
       - name: Upload lib file
         if: "${{ matrix.os }} == ubuntu-20.04"
@@ -285,9 +286,11 @@ jobs:
         run: |
           mv omega-edit-mac.jar omega-edit-mac.jar_dir
           mv omega-edit-linux.jar omega-edit-linux.jar_dir
+          mv omega-edit-windows.jar omega-edit-windows.jar_dir
           mv omega-edit-mac.jar_dir/omega-edit-mac.jar .
           mv omega-edit-linux.jar_dir/omega-edit-linux.jar .
-          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir
+          mv omega-edit-windows.jar_dir/omega-edit-windows.jar .
+          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir omega-edit-windows.jar_dir
 
       - name: Upload mac jar file
         uses: actions/upload-release-asset@v1.0.2
@@ -307,4 +310,14 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: omega-edit-linux.jar
           asset_name: omega-edit-linux.jar
+          asset_content_type: application/java-archive
+
+      - name: Upload windows jar file
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: omega-edit-windows.jar
+          asset_name: omega-edit-windows.jar
           asset_content_type: application/java-archive
