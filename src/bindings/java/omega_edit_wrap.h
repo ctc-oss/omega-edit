@@ -16,12 +16,12 @@ struct SwigDirector_SessionOnChangeDirector : public SessionOnChangeDirector, pu
 public:
     void swig_connect_director(JNIEnv *jenv, jobject jself, jclass jcls, bool swig_mem_own, bool weak_global);
     SwigDirector_SessionOnChangeDirector(JNIEnv *jenv);
-    virtual void handle_session_change(omega_session_t const *arg0,omega_change_t const *arg1);
+    virtual void handle_session_change(omega_session_t const *arg0, omega_change_t const *arg1);
     virtual ~SwigDirector_SessionOnChangeDirector();
+
 public:
-    bool swig_overrides(int n) {
-      return (n < 1 ? swig_override[n] : false);
-    }
+    bool swig_overrides(int n) { return (n < 1 ? swig_override[n] : false); }
+
 protected:
     Swig::BoolArray<1> swig_override;
 };
@@ -31,12 +31,12 @@ struct SwigDirector_OmegaViewportOnChangeDirector : public OmegaViewportOnChange
 public:
     void swig_connect_director(JNIEnv *jenv, jobject jself, jclass jcls, bool swig_mem_own, bool weak_global);
     SwigDirector_OmegaViewportOnChangeDirector(JNIEnv *jenv);
-    virtual void handle_viewport_change(omega_viewport_t const *arg0,omega_change_t const *arg1);
+    virtual void handle_viewport_change(omega_viewport_t const *arg0, omega_change_t const *arg1);
     virtual ~SwigDirector_OmegaViewportOnChangeDirector();
+
 public:
-    bool swig_overrides(int n) {
-      return (n < 1 ? swig_override[n] : false);
-    }
+    bool swig_overrides(int n) { return (n < 1 ? swig_override[n] : false); }
+
 protected:
     Swig::BoolArray<1> swig_override;
 };

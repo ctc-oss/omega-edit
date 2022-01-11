@@ -15,13 +15,14 @@
 #define CATCH_CONFIG_MAIN
 
 #include "../../vendor/catch2/catch.hpp"
+#include "../lib/impl_/macros.h"
 #include "test_util.h"
 #include <omega_edit.h>
 #include <omega_edit/check.h>
+#include <omega_edit/config.h>
 #include <omega_edit/encodings.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <omega_edit/utility.h>
-#include "../lib/impl_/macros.h"
 
 #include <cstdio>
 #include <cstring>
@@ -670,9 +671,7 @@ TEST_CASE("Search", "[SearchTests]") {
     needles_found = 0;
     pattern_length = omega_search_context_get_length(match_context);
     REQUIRE(pattern_length == 1);
-    while (omega_search_next_match(match_context, 1)) {
-        ++needles_found;
-    }
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(12 == needles_found);
     omega_search_destroy_context(match_context);
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1));

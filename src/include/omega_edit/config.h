@@ -43,7 +43,8 @@
 #define OMEGA_BYTE_T unsigned char
 #endif//OMEGA_BYTE_T
 
-#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD)) && !defined(__CYGWIN__)
+#if !defined(__CYGWIN__) &&                                                                                            \
+        (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD))
 #define OMEGA_BUILD_WINDOWS
 #else
 #define OMEGA_BUILD_UNIX

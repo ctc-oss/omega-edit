@@ -44,7 +44,7 @@ Studio Code also works well.
 
 ### Command line tools
 
-- **C/C++ compiler** (such as clang, gcc, or mingw)
+- **C/C++ compiler** (such as clang, gcc, mingw, or MSVC)
 - **CMake** (https://cmake.org/download/)
 - **make** or **ninja** for running the build scripts
 - **nvm** or **nodeenv** for using specific versions of node.js
