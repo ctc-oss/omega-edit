@@ -12,14 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/utility.h"
-#include "impl_/macros.h"
-#include <assert.h>
-#include <cwalk.h>
-#include <fcntl.h>
-#include <stdio.h>
-
 #ifdef OMEGA_BUILD_WINDOWS
+#define _CRT_RAND_S
 #include <direct.h>
 #include <io.h>
 #include <process.h>
@@ -38,6 +32,14 @@
 #include <utime.h>
 #endif
 
+#include "../include/omega_edit/utility.h"
+#include "impl_/macros.h"
+#include <assert.h>
+#include <cwalk.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+
 int omega_util_mkstemp(char *tmpl) {
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
     static uint64_t value;
@@ -54,7 +56,19 @@ int omega_util_mkstemp(char *tmpl) {
     // This is where the Xs start.
     template = &tmpl[len - 6];
 
+#ifdef OMEGA_BUILD_WINDOWS
+    unsigned int high, low;
+    if (0 != rand_s(&high)) {
+        ABORT(printf_s("rand_s function failed"););
+    }
+    if (0 != rand_s(&low)) {
+        ABORT(printf_s("rand_s function failed"););
+    }
+    value += high;
+    value += ((value << 32) + low) ^ getpid();
+#else
     value += random() ^ getpid();
+#endif
     for (count = 0; count < TMP_MAX; value += 7777, ++count) {
         uint64_t v = value;
 
