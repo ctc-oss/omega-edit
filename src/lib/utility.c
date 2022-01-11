@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <cwalk.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
@@ -25,17 +26,68 @@
 #include <sys/utime.h>
 #define utime _utime
 #define getcwd _getcwd
-#define open _open
+#define OPEN _open
 #define close _close
 #define O_RDWR _O_RDWR
 #define O_CREAT _O_CREAT
 #else
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
-#include <sys/fcntl.h>
 #include <unistd.h>
 #include <utime.h>
 #endif
+
+int omega_util_mkstemp(char *tmpl) {
+    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; //len = 62
+    static uint64_t value;
+    const size_t len = strlen(tmpl);
+    char *template;
+    struct timeval tv;
+    int count, fd;
+    int saved_errno = errno;
+
+    if (len < 6 || 0 != strcmp(&tmpl[len - 6], "XXXXXX")) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    /* This is where the Xs start.  */
+    template = &tmpl[len - 6];
+
+    /* Get some more or less random data.  */
+    gettimeofday(&tv, NULL);
+    value += ((uint64_t) tv.tv_usec << 16) ^ tv.tv_sec ^ getpid();
+
+    for (count = 0; count < TMP_MAX; value += 7777, ++count) {
+        uint64_t v = value;
+
+        /* Fill in the random bits.  */
+        template[0] = letters[v % 62];
+        v /= 62;
+        template[1] = letters[v % 62];
+        v /= 62;
+        template[2] = letters[v % 62];
+        v /= 62;
+        template[3] = letters[v % 62];
+        v /= 62;
+        template[4] = letters[v % 62];
+        v /= 62;
+        template[5] = letters[v % 62];
+
+        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
+        if (fd >= 0) {
+            errno = saved_errno;
+            return fd;
+        } else if (errno != EEXIST)
+            /* Any other error will apply to other names we might try, and there are about 2^32 of them, so give up. */
+            return -1;
+    }
+
+    /* We got out of the loop because we ran out of combinations to try.  */
+    errno = EEXIST;
+    return -1;
+}
 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
@@ -45,7 +97,7 @@ const char *omega_util_get_current_dir(char *buffer) {
 }
 
 int omega_util_touch(const char *file_name, int create) {
-    int fd = open(file_name, (create) ? O_RDWR | O_CREAT : O_RDWR, 0644);
+    int fd = OPEN(file_name, (create) ? O_RDWR | O_CREAT : O_RDWR, 0644);
     if (fd < 0) {
         if (!create && errno == ENOENT) {
             return 0;

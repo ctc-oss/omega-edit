@@ -91,6 +91,14 @@ char *omega_util_file_extension(char const *path, char *buffer);
 char *omega_util_normalize_path(char const *path, char *buffer);
 
 /**
+ * Generate a temporary file name based on tmpl.  The name constructed does not exist at the time of the call.
+ * The tmpl parameter is overwritten with the result.
+ * @param tmpl must match the rules for mk[s]temp (i.e. end in "XXXXXX")
+ * @return read-write file descriptor opened with mode 0600 modulo umask or -1 with errno set on error
+ */
+int omega_util_mkstemp(char *tmpl);
+
+/**
  * Creates a available filename from the given path.
  * @param path
  * @param buffer

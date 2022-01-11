@@ -28,6 +28,8 @@
 #include <memory>
 #ifdef OMEGA_BUILD_WINDOWS
 #include <io.h>
+#define close _close
+#define unlink _unlink
 #else
 #include <unistd.h>
 #endif
@@ -393,7 +395,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         CLOG << LOCATION << " snprintf failed" << std::endl;
         return -1;
     }
-    auto temp_fd = mkstemp(temp_filename);
+    auto temp_fd = omega_util_mkstemp(temp_filename);
     if (temp_fd < 0) {
         CLOG << LOCATION << " mkstemp failed: " << strerror(errno) << ", temp filename: " << temp_filename << std::endl;
         return -1;

@@ -57,6 +57,14 @@
 #error Unknown pointer size or missing size macros!
 #endif
 
+#ifndef OPEN
+#ifdef _LARGEFILE_SOURCE
+#define OPEN open64
+#else
+#define OPEN open
+#endif
+#endif
+
 #ifndef FSEEK
 #ifdef _LARGEFILE_SOURCE
 #define FSEEK fseeko
