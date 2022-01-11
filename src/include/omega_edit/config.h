@@ -59,7 +59,7 @@
 
 #ifndef OPEN
 #ifdef _LARGEFILE_SOURCE
-#define OPEN open64
+#define OPEN open
 #else
 #define OPEN open
 #endif

@@ -29,6 +29,7 @@
 #define O_RDWR _O_RDWR
 #define close _close
 #define getcwd _getcwd
+#define getpid _getpid
 #define utime _utime
 #else
 #include <errno.h>
@@ -42,7 +43,6 @@ int omega_util_mkstemp(char *tmpl) {
     static uint64_t value;
     const size_t len = strlen(tmpl);
     char *template;
-    struct timeval tv;
     int count, fd;
     int saved_errno = errno;
 
@@ -51,14 +51,14 @@ int omega_util_mkstemp(char *tmpl) {
         return -1;
     }
 
-    /* This is where the Xs start.  */
+    // This is where the Xs start.
     template = &tmpl[len - 6];
 
-    value += arc4random();
+    value += random() ^ getpid();
     for (count = 0; count < TMP_MAX; value += 7777, ++count) {
         uint64_t v = value;
 
-        /* Fill in the random bits.  */
+        // Fill in the random bits.
         template[0] = letters[v % 62];
         v /= 62;
         template[1] = letters[v % 62];
@@ -76,11 +76,11 @@ int omega_util_mkstemp(char *tmpl) {
             errno = saved_errno;
             return fd;
         } else if (errno != EEXIST)
-            /* Any other error will apply to other names we might try, and there are about 2^32 of them, so give up. */
+            // Any other error will apply to other names we might try, and there are about 2^32 of them, so give up.
             return -1;
     }
 
-    /* We got out of the loop because we ran out of combinations to try.  */
+    // We got out of the loop because we ran out of combinations to try.
     errno = EEXIST;
     return -1;
 }
