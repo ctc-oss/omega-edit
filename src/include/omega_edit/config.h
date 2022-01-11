@@ -43,12 +43,42 @@
 #define OMEGA_BYTE_T unsigned char
 #endif//OMEGA_BYTE_T
 
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD)) && !defined(__CYGWIN__)
+#define OMEGA_BUILD_WINDOWS
+#else
+#define OMEGA_BUILD_UNIX
+#endif
+
 #if INTPTR_MAX == INT64_MAX
 #define OMEGA_BUILD_64_BIT
 #elif INTPTR_MAX == INT32_MAX
 #define OMEGA_BUILD_32_BIT
 #else
 #error Unknown pointer size or missing size macros!
+#endif
+
+#ifndef OPEN
+#ifdef _LARGEFILE_SOURCE
+#define OPEN open
+#else
+#define OPEN open
+#endif
+#endif
+
+#ifndef FSEEK
+#ifdef _LARGEFILE_SOURCE
+#define FSEEK fseeko
+#else
+#define FSEEK fseek
+#endif
+#endif
+
+#ifndef FTELL
+#ifdef _LARGEFILE_SOURCE
+#define FTELL ftello
+#else
+#define FTELL ftell
+#endif
 #endif
 
 #endif//OMEGA_EDIT_CONFIG_H

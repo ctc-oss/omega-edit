@@ -13,7 +13,7 @@
   "targets": [
     {
       "target_name": "omega_edit_<(OS)",
-      "include_dirs": ["src/include"],
+      "include_dirs": ["src/include", "vendor/cwalk/include"],
       "defines": [
         # TODO: Programmatically set the version information
         "OMEGA_EDIT_VERSION_MAJOR=0",
@@ -24,10 +24,13 @@
       "cflags!": ["-fno-exceptions", "-Wall", "-Werror"],
       "cflags_cc!": ["-fno-exceptions", "-Wall", "-Werror"],
       "sources": [
+        "src/bindings/node/omega_edit_wrap.cxx",
         "src/lib/change.cpp",
         "src/lib/check.cpp",
         "src/lib/edit.cpp",
         "src/lib/encodings.c",
+        "src/lib/impl_/find.cpp",
+        "src/lib/impl_/internal_fun.cpp",
         "src/lib/license.c",
         "src/lib/search.cpp",
         "src/lib/session.cpp",
@@ -35,9 +38,7 @@
         "src/lib/version.c",
         "src/lib/viewport.cpp",
         "src/lib/visit.cpp",
-        "src/lib/impl_/find.cpp",
-        "src/lib/impl_/internal_fun.cpp",
-        "src/bindings/node/omega_edit_wrap.cxx"
+        "vendor/cwalk/src/cwalk.c"
       ],
     },
     {

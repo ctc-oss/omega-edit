@@ -25,7 +25,7 @@ using namespace std;
 
 // Returns 0 if the content of the 2 file pointers are the same (from where the pointers are currently) and 1 if contents are not the same
 static inline int compare_file_pointers(FILE *f1, FILE *f2) {
-    const size_t buff_size = 1024 * 8;
+    const size_t buff_size = 1024 * 4;
     omega_byte_t buf1[buff_size];
     omega_byte_t buf2[buff_size];
 

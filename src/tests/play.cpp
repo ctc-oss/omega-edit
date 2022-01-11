@@ -33,9 +33,9 @@ typedef struct file_info_struct {
     char const *in_filename = nullptr;
     char const *save_filename = nullptr;
     FILE *save_fptr = nullptr;
-    int deletes{};
-    int inserts{};
-    int overwrites{};
+    int64_t deletes{};
+    int64_t inserts{};
+    int64_t overwrites{};
     char *bin_to_hex_buffer = nullptr;
     size_t bin_to_hex_buffer_size = 0;
 } file_info_t;
@@ -69,6 +69,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
             } while (required_buffer_size > file_info_ptr->bin_to_hex_buffer_size);
             file_info_ptr->bin_to_hex_buffer =
                     (char *) realloc(file_info_ptr->bin_to_hex_buffer, file_info_ptr->bin_to_hex_buffer_size);
+            assert(file_info_ptr->bin_to_hex_buffer);
         }
         omega_bin2hex(bytes, file_info_ptr->bin_to_hex_buffer, bytes_length);
     } else {
@@ -88,9 +89,9 @@ void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t
     fclose(file_info_ptr->save_fptr);
 }
 
-enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
-    enum display_mode_t display_mode = CHAR_MODE;
+    display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
 
 inline void write_pretty_bits_byte(omega_byte_t byte) {
@@ -131,19 +132,19 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
     if (omega_viewport_get_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
-            case BIT_MODE:
+            case display_mode_t::BIT_MODE:
                 clog << " BIT MODE [";
                 write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 clog << "]";
                 break;
-            case CHAR_MODE:
+            case display_mode_t::CHAR_MODE:
                 clog << "CHAR MODE [";
                 clog << string((const char *) omega_viewport_get_data(viewport_ptr),
                                omega_viewport_get_length(viewport_ptr));
                 clog << "]";
                 break;
             default:// flow through
-            case BYTE_MODE:
+            case display_mode_t::BYTE_MODE:
                 clog << "BYTE MODE [";
                 write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 clog << "]";
@@ -157,7 +158,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     file_info_t file_info;
     view_mode_t view_mode;
 
-    view_mode.display_mode = CHAR_MODE;
+    view_mode.display_mode = display_mode_t::CHAR_MODE;
     file_info.in_filename = "data/test1.dat";
     file_info.save_filename = "data/test1.dat.sav";
     file_info.bin_to_hex_buffer_size = 1024;

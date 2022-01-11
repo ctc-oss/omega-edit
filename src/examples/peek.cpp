@@ -20,9 +20,9 @@
 
 using namespace std;
 
-enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
-    enum display_mode_t display_mode = BYTE_MODE;
+    display_mode_t display_mode = display_mode_t::BYTE_MODE;
 };
 
 inline void write_pretty_bits_byte(omega_byte_t byte) {
@@ -53,14 +53,14 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *
     if (omega_viewport_get_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
-            case BIT_MODE:
+            case display_mode_t::BIT_MODE:
                 write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 break;
-            case CHAR_MODE:
+            case display_mode_t::CHAR_MODE:
                 clog << omega_viewport_get_string(viewport_ptr);
                 break;
             default:// flow through
-            case BYTE_MODE:
+            case display_mode_t::BYTE_MODE:
                 write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 break;
         }

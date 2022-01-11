@@ -62,23 +62,28 @@ Studio Code also works well.
 
 ## Build the core library (C/C++)
 
-### cmake commands
-
 :exclamation: These commands should be executed at the root level of the repository :exclamation:
 
-Configure debug build:
+### Pulling the submodules required to build:
+
+```bash
+git submodule init
+git submodule update
+```
+
+### Configure debug build:
 
 ```bash
 cmake -S . -B cmake-build-debug
 ```
 
-Run debug build:
+### Run debug build:
 
 ```bash
 cmake --build cmake-build-debug
 ```
 
-Run unit tests:
+### Run unit tests:
 
 ```bash
 cd cmake-build-debug/src/tests/
@@ -163,7 +168,7 @@ sbt universal:packageBin
 
 ## Development
 
-Currently the repo holds bindings for both java and node
+Currently, the repo holds bindings for both java and node.
 
 
 ### Regenerate Java bindings using SWIG (as required)
