@@ -20,6 +20,7 @@
 
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
+#include <fcntl.h>
 #include <io.h>
 #include <sys/utime.h>
 #define utime _utime
