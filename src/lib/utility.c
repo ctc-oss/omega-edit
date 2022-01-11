@@ -12,6 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../include/omega_edit/config.h"
+
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
 #include <io.h>
