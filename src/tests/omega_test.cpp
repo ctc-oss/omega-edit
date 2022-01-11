@@ -548,9 +548,9 @@ TEST_CASE("Check initialization", "[InitTests]") {
     }
 }
 
-enum display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
-    enum display_mode_t display_mode = CHAR_MODE;
+    display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
 
 static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
@@ -561,18 +561,18 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const om
     if (omega_viewport_get_user_data(viewport_ptr)) {
         auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
-            case BIT_MODE:
+            case display_mode_t::BIT_MODE:
                 clog << " BIT MODE [";
                 write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 clog << "]\n";
                 break;
-            case CHAR_MODE:
+            case display_mode_t::CHAR_MODE:
                 clog << "CHAR MODE [";
                 clog << omega_viewport_get_string(viewport_ptr);
                 clog << "]\n";
                 break;
             default:// flow through
-            case BYTE_MODE:
+            case display_mode_t::BYTE_MODE:
                 clog << "BYTE MODE [";
                 write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
                 clog << "]\n";
@@ -590,7 +590,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(session_ptr);
     REQUIRE(0 < omega_session_get_computed_file_size(session_ptr));
     view_mode_t view_mode;
-    view_mode.display_mode = CHAR_MODE;
+    view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_edit_create_viewport(session_ptr, 0, 1024, vpt_change_cbk, &view_mode);
     int needles_found = 0;
     auto needle = "NeEdLe";
@@ -693,23 +693,23 @@ TEST_CASE("File Viewing", "[InitTests]") {
     session_ptr = omega_edit_create_session(file_name, nullptr, nullptr);
     auto viewport_count = omega_session_get_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
-    view_mode.display_mode = BIT_MODE;
+    view_mode.display_mode = display_mode_t::BIT_MODE;
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
-    view_mode.display_mode = CHAR_MODE;
+    view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_viewport_execute_on_change(viewport_ptr, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
         REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40)));
     }
 
     // Change the display mode from character mode to bit mode
-    view_mode.display_mode = BIT_MODE;
+    view_mode.display_mode = display_mode_t::BIT_MODE;
     REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20));
-    view_mode.display_mode = BYTE_MODE;
+    view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_viewport_execute_on_change(viewport_ptr, nullptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));
     viewport_count = omega_session_get_num_viewports(session_ptr);
-    view_mode.display_mode = CHAR_MODE;
+    view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_session_pause_viewport_on_change_callbacks(session_ptr);
     omega_viewport_execute_on_change(viewport_ptr, nullptr);
     omega_session_resume_viewport_on_change_callbacks(session_ptr);
