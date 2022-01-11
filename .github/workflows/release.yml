@@ -72,7 +72,7 @@ jobs:
   scala-build-linux-mac:
     strategy:
       matrix:
-        os: [macos-11, ubuntu-20.04]
+        os: [macos-latest, ubuntu-20.04]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -127,7 +127,6 @@ jobs:
       matrix:
         include:
           - { sys: mingw64, env: x86_64 }
-          - { sys: mingw32, env: i686 }
     defaults:
       run:
         shell: msys2 {0}
@@ -151,13 +150,6 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
-
-      - name: Export git tag and package.json version
-        run: ${{ env.export_cmd }}
-
-      - name: Check if git tag matches package version
-        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
-        shell: bash
 
       - name: Build C++ code
         run: |
