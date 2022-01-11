@@ -13,7 +13,6 @@
  **********************************************************************************************************************/
 
 #ifdef OMEGA_BUILD_WINDOWS
-#define _CRT_RAND_S
 #include <direct.h>
 #include <io.h>
 #include <process.h>
@@ -57,18 +56,12 @@ int omega_util_mkstemp(char *tmpl) {
     template = &tmpl[len - 6];
 
 #ifdef OMEGA_BUILD_WINDOWS
-    unsigned int high, low;
-    if (0 != rand_s(&high)) {
-        ABORT(printf_s("rand_s function failed"););
-    }
-    if (0 != rand_s(&low)) {
-        ABORT(printf_s("rand_s function failed"););
-    }
-    value += high;
-    value += ((value << 32) + low) ^ getpid();
+    value += rand();
+    value += ((value << 32) + rand()) ^ getpid();
 #else
     value += random() ^ getpid();
 #endif
+
     for (count = 0; count < TMP_MAX; value += 7777, ++count) {
         uint64_t v = value;
 
