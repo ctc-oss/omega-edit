@@ -13,6 +13,8 @@
  **********************************************************************************************************************/
 
 // Export module for operating system
-gyp_os = ("darwin" === process.platform) ? "mac" : process.platform
+if ("darwin" === process.platform) { gyp_os = "mac"}
+else if (process.platform.startsWith("win")) { gyp_os = "win"}
+
 omega_edit = require("./omega_edit_" + gyp_os)
 module.exports = omega_edit
