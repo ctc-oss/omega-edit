@@ -41,8 +41,8 @@
 #include <assert.h>
 #include <cwalk.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int omega_util_mkstemp(char *tmpl) {
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
