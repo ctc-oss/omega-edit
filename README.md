@@ -19,11 +19,14 @@
 <h1>Ωedit Library</h1>
 
 
+[![Release](https://shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
 ![Build Status](https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg)
 ![CodeQL](https://github.com/ctc-oss/omega-edit/workflows/CodeQL/badge.svg)
 [![codecov](https://codecov.io/gh/ctc-oss/omega-edit/branch/main/graph/badge.svg)](https://codecov.io/gh/ctc-oss/omega-edit)
+[![Total alerts](https://img.shields.io/lgtm/alerts/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/alerts/)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/context:cpp)
+[![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/context:javascript)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_shield)
-[![Release](https://shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
 
 </div>
 
