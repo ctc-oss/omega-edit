@@ -72,110 +72,110 @@ jobs:
           name: ${{ env.NODE_FILE }}
           path: module/omega_edit/${{ env.NODE_FILE }}
 
-  scala-build-linux-mac:
-    strategy:
-      matrix:
-        os: [macos-latest, ubuntu-20.04]
-    name: Build ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: true
-      - uses: actions/setup-java@v2.5.0
-        with:
-          distribution: 'adopt'
-          java-version: '11'
+  # scala-build-linux-mac:
+  #   strategy:
+  #     matrix:
+  #       os: [macos-latest, ubuntu-20.04]
+  #   name: Build ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: actions/checkout@v2.3.5
+  #       with:
+  #         submodules: true
+  #     - uses: actions/setup-java@v2.5.0
+  #       with:
+  #         distribution: 'adopt'
+  #         java-version: '11'
 
-      - name: Export git tag and package.json version
-        run: ${{ env.export_cmd }}
+  #     - name: Export git tag and package.json version
+  #       run: ${{ env.export_cmd }}
 
-      - name: Check if git tag matches package version
-        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
-        shell: bash
+  #     - name: Check if git tag matches package version
+  #       run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+  #       shell: bash
 
-      - name: Compile lib file
-        run: ./compile.sh compile-lib ${{ matrix.os }}
+  #     - name: Compile lib file
+  #       run: ./compile.sh compile-lib ${{ matrix.os }}
 
-      - name: Export filenames
-        run: |
-          if [[ "${{ matrix.os }}" == *"macos"* ]]; then
-            LIB_FILENAME="libomega_edit.dylib"
-            JAR_FILENAME="omega-edit-mac.jar"
-          else
-            LIB_FILENAME="libomega_edit.so"
-            JAR_FILENAME="omega-edit-linux.jar"
-          fi
+  #     - name: Export filenames
+  #       run: |
+  #         if [[ "${{ matrix.os }}" == *"macos"* ]]; then
+  #           LIB_FILENAME="libomega_edit.dylib"
+  #           JAR_FILENAME="omega-edit-mac.jar"
+  #         else
+  #           LIB_FILENAME="libomega_edit.so"
+  #           JAR_FILENAME="omega-edit-linux.jar"
+  #         fi
 
-          echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
-          echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
+  #         echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
+  #         echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
 
-      - name: Create JAR file
-        run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+  #     - name: Create JAR file
+  #       run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
 
-      - name: Upload lib file
-        if: "${{ matrix.os }} == ubuntu-20.04"
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: ${{ env.JAR_FILENAME }}
-          path: ${{ env.JAR_FILENAME }}
+  #     - name: Upload lib file
+  #       if: "${{ matrix.os }} == ubuntu-20.04"
+  #       uses: actions/upload-artifact@v2.3.1
+  #       with:
+  #         name: ${{ env.JAR_FILENAME }}
+  #         path: ${{ env.JAR_FILENAME }}
 
-  scala-build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        include:
-          - { sys: mingw64, env: x86_64 }
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: true
-      - name: Install MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.sys }}
-          update: true
-          install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
-            base-devel
-            cmake
-            swig
-            git
+  # scala-build-windows:
+  #   name: Build Windows
+  #   runs-on: windows-latest
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - { sys: mingw64, env: x86_64 }
+  #   defaults:
+  #     run:
+  #       shell: msys2 {0}
+  #   steps:
+  #     - uses: actions/checkout@v2.3.5
+  #       with:
+  #         submodules: true
+  #     - name: Install MinGW
+  #       uses: msys2/setup-msys2@v2
+  #       with:
+  #         msystem: ${{ matrix.sys }}
+  #         update: true
+  #         install: >-
+  #           mingw-w64-${{ matrix.env }}-toolchain
+  #           base-devel
+  #           cmake
+  #           swig
+  #           git
 
-      - uses: actions/setup-java@v2.5.0
-        with:
-          distribution: 'adopt'
-          java-version: '11'
+  #     - uses: actions/setup-java@v2.5.0
+  #       with:
+  #         distribution: 'adopt'
+  #         java-version: '11'
 
-      - name: Generate library file
-        run: ./compile.sh compile-lib win ci
+  #     - name: Generate library file
+  #       run: ./compile.sh compile-lib win ci
 
-      - name: Export filenames
-        run: |
-          LIB_FILENAME="omega_edit.dll"
-          JAR_FILENAME="omega-edit-windows.jar"
-          echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
-          echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
+  #     - name: Export filenames
+  #       run: |
+  #         LIB_FILENAME="omega_edit.dll"
+  #         JAR_FILENAME="omega-edit-windows.jar"
+  #         echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
+  #         echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
 
-      - name: Create JAR file
-        run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
-        shell: powershell
+  #     - name: Create JAR file
+  #       run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+  #       shell: powershell
 
-      - name: Upload lib file
-        if: "${{ matrix.os }} == ubuntu-20.04"
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: ${{ env.JAR_FILENAME }}
-          path: ${{ env.JAR_FILENAME }}
+  #     - name: Upload lib file
+  #       if: "${{ matrix.os }} == ubuntu-20.04"
+  #       uses: actions/upload-artifact@v2.3.1
+  #       with:
+  #         name: ${{ env.JAR_FILENAME }}
+  #         path: ${{ env.JAR_FILENAME }}
 
   release:
     name: Release
     runs-on: ubuntu-20.04
-    needs: [node-build, scala-build-linux-mac, scala-build-windows]
+    needs: [node-build] #, scala-build-linux-mac, scala-build-windows]
     steps:
       - uses: actions/checkout@v2.3.5
         with:
@@ -233,13 +233,14 @@ jobs:
       - name: Move out node files
         run: |
           cd module/omega_edit/
-
+          ls -la
           for file in omega_edit_linux.node omega_edit_mac.node omega_edit_win.node;
           do
             mv $file "${file}_dir"
             mv "${file}_dir/$file" .
             rm -rf "${file}_dir"
           done
+          ls -la
 
       - name: Create node release tarball
         run: yarn pack --filename omega-edit-v${{ env.PKG_VERSION }}.tar.gz
@@ -254,68 +255,68 @@ jobs:
           asset_name: omega-edit-node-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
 
-      - name: Publish node package to npm registry
-        run: yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
+      # - name: Publish node package to npm registry
+      #   run: yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
 
-      ##########################
-      ## Java release process ##
-      ##########################
-      - name: Download mac jar file
-        uses: actions/download-artifact@v2.1.0
-        with:
-          name: omega-edit-mac.jar
-          path: omega-edit-mac.jar
+      # ##########################
+      # ## Java release process ##
+      # ##########################
+      # - name: Download mac jar file
+      #   uses: actions/download-artifact@v2.1.0
+      #   with:
+      #     name: omega-edit-mac.jar
+      #     path: omega-edit-mac.jar
 
-      - name: Download linux jar file
-        uses: actions/download-artifact@v2.1.0
-        with:
-          name: omega-edit-linux.jar
-          path: omega-edit-linux.jar
+      # - name: Download linux jar file
+      #   uses: actions/download-artifact@v2.1.0
+      #   with:
+      #     name: omega-edit-linux.jar
+      #     path: omega-edit-linux.jar
 
-      - name: Download windows jar file
-        uses: actions/download-artifact@v2.1.0
-        with:
-          name: omega-edit-windows.jar
-          path: omega-edit-windows.jar
+      # - name: Download windows jar file
+      #   uses: actions/download-artifact@v2.1.0
+      #   with:
+      #     name: omega-edit-windows.jar
+      #     path: omega-edit-windows.jar
 
-      - name: Move out jar files
-        run: |
-          for file in omega-edit-mac.jar omega-edit-linux.jar omega-edit-windows.jar;
-          do
-            mv $file "${file}_dir"
-            mv "${file}_dir/$file" .
-            rm -rf "${file}_dir"
-          done
+      # - name: Move out jar files
+      #   run: |
+      #     for file in omega-edit-mac.jar omega-edit-linux.jar omega-edit-windows.jar;
+      #     do
+      #       mv $file "${file}_dir"
+      #       mv "${file}_dir/$file" .
+      #       rm -rf "${file}_dir"
+      #     done
 
-      - name: Upload mac jar file
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: omega-edit-mac.jar
-          asset_name: omega-edit-mac.jar
-          asset_content_type: application/java-archive
+      # - name: Upload mac jar file
+      #   uses: actions/upload-release-asset@v1.0.2
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: omega-edit-mac.jar
+      #     asset_name: omega-edit-mac.jar
+      #     asset_content_type: application/java-archive
 
-      - name: Upload linux jar file
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: omega-edit-linux.jar
-          asset_name: omega-edit-linux.jar
-          asset_content_type: application/java-archive
+      # - name: Upload linux jar file
+      #   uses: actions/upload-release-asset@v1.0.2
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: omega-edit-linux.jar
+      #     asset_name: omega-edit-linux.jar
+      #     asset_content_type: application/java-archive
 
-      - name: Upload windows jar file
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: omega-edit-windows.jar
-          asset_name: omega-edit-windows.jar
-          asset_content_type: application/java-archive
+      # - name: Upload windows jar file
+      #   uses: actions/upload-release-asset@v1.0.2
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+      #     asset_path: omega-edit-windows.jar
+      #     asset_name: omega-edit-windows.jar
+      #     asset_content_type: application/java-archive
