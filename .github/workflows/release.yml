@@ -83,7 +83,6 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
-          targets: 'JAVA_HOME'
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -148,16 +147,10 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
-          targets: 'JAVA_HOME'
-
-      - name: Build C++ code
-        run: |
-          cmake -S . -B cmake-build-debug
-          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
-          cmake --build cmake-build-debug
 
       - name: Generate library file
-        run: ./compile.sh compile-lib win
+        run: ./compile.sh compile-lib win ci
+
       - name: Export filenames
         run: |
           LIB_FILENAME="omega_edit.dll"
@@ -231,11 +224,13 @@ jobs:
       - name: Move out node files
         run: |
           cd module/omega_edit/
-          mv omega_edit_linux.node omega_edit_linux.node_dir
-          mv omega_edit_darwin.node omega_edit_darwin.node_dir
-          mv omega_edit_linux.node_dir/omega_edit_linux.node .
-          mv omega_edit_darwin.node_dir/omega_edit_darwin.node .
-          rm -rf omega_edit_linux.node_dir omega_edit_darwin.node_dir
+
+          for file in omega_edit_linux.node omega_edit_darwin.node;
+          do
+            echo mv $file "${file}_dir"
+            echo mv "${file}_dir/$file" .
+            echo rm -rf "${file}_dir"
+          done
 
       - name: Create node release tarball
         run: yarn pack --filename omega-edit-v${{ env.PKG_VERSION }}.tar.gz
@@ -270,15 +265,20 @@ jobs:
           name: omega-edit-linux.jar
           path: omega-edit-linux.jar
 
+      - name: Download windows jar file
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega-edit-windows.jar
+          path: omega-edit-windows.jar
+
       - name: Move out jar files
         run: |
-          mv omega-edit-mac.jar omega-edit-mac.jar_dir
-          mv omega-edit-linux.jar omega-edit-linux.jar_dir
-          mv omega-edit-windows.jar omega-edit-windows.jar_dir
-          mv omega-edit-mac.jar_dir/omega-edit-mac.jar .
-          mv omega-edit-linux.jar_dir/omega-edit-linux.jar .
-          mv omega-edit-windows.jar_dir/omega-edit-windows.jar .
-          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir omega-edit-windows.jar_dir
+          for file in omega-edit-mac.jar omega-edit-linux.jar omega-edit-windows.jar;
+          do
+            mv $file "${file}_dir"
+            mv "${file}_dir/$file" .
+            rm -rf "${file}_dir"
+          done
 
       - name: Upload mac jar file
         uses: actions/upload-release-asset@v1.0.2

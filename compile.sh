@@ -51,17 +51,31 @@ function win {
     g++ -shared -o lib/omega_edit.dll lib/omega_edit_wrap.o cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a -Wl,--add-stdcall-alias
 }
 
+function win-ci {
+    cmake -S . -B cmake-build-debug
+    sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
+    cmake --build cmake-build-debug
+}
+
 function all {
     os=$1
+    ci=$2
     gen-swig-java
-    cmake -S . -B cmake-build-debug
-    cmake --build cmake-build-debug
+
+    if [[ ($os == *"windows"* || $os == "win") && $ci == "ci" ]]; then
+        win-ci
+    else
+        cmake -S . -B cmake-build-debug
+        cmake --build cmake-build-debug
+    fi
+
 
     if [[ ! -z $os ]]; then check_os $os; fi
 }
 
 function compile-lib {
-    all $1
+    if [[ ! -z $2 ]]; then ci=$2; else ci=""; fi
+    all $1 $ci
 }
 
 $@
