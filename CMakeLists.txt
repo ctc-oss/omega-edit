@@ -9,7 +9,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.9.2)
 
 # Project information
 project(omega_edit
@@ -68,6 +68,7 @@ if(BUILD_DOCS)
     # Generate API documentation using Doxygen
     find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
     if(DOXYGEN_FOUND)
+        message("-- API documentation generation enabled")
         set(DOXYGEN_GENERATE_HTML YES)
         set(DOXYGEN_GENERATE_MAN YES)
         set(DOXYGEN_GENERATE_XML YES)
@@ -80,6 +81,7 @@ if(BUILD_DOCS)
         find_package(Sphinx REQUIRED)
         if(SPHINX_FOUND)
             # Generate user documentation using Sphinx
+            message("-- User documentation generation enabled")
             set(DOXYGEN_INDEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/xml)
             set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
             set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/sphinx)
