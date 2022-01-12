@@ -15,12 +15,14 @@ function check_os {
     os=$1
 
 
-    if [[ $os == "linux" || $os == "mac" || os == "win" ]]; then
+    if [[ $os == "linux" || $os == "mac" || $os == "win" ]]; then
         $os
     elif [[ $os == *"macos"* ]]; then
         mac
-    elif [[ $os == "ubuntu-20.04" ]]; then
+    elif [[ $os == *"ubuntu"* ]]; then
         linux
+    elif [[ $os == *"windows"* ]]; then
+        win
     else
         echo "$os is not a valid OS for script"
         exit 1
@@ -32,18 +34,21 @@ function gen-swig-java {
 }
 
 function linux {
-    g++ -c -fPIC -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-    g++ -shared -fPIC -o lib/libomega_edit.so cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -lc
+    includes="-I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux"
+    g++ -c -fPIC $includes src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+    g++ -shared -fPIC -o lib/libomega_edit.so lib/omega_edit_wrap.o cmake-build-debug/vendor/cwalk/libcwalk.a -lc
 }
 
 function mac {
-    g++ -std=c++14 -c -fPIC -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-    g++ -std=c++14 -dynamiclib -o lib/libomega_edit.dylib cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -lc
+    includes="-I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin "
+    g++ -std=c++14 -c -fPIC $includes src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+    g++ -std=c++14 -dynamiclib -o lib/libomega_edit.dylib lib/omega_edit_wrap.o cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a -lc
 }
 
 function win {
-    "g++ -c -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/win32 src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o"
-    "g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias"
+    JAVA_HOME=$(echo $JAVA_HOME | sed -e "s|C:|/c|" | sed -e 's|\\|/|g')
+    g++ -std=gnu++14 -c -I"${PWD}/src/include" -I"${PWD}/vendor/cwalk/include" -I"${JAVA_HOME}/include" -I"${JAVA_HOME}/include/win32" src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
+    g++ -shared -o lib/omega_edit.dll lib/omega_edit_wrap.o cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a -Wl,--add-stdcall-alias
 }
 
 function all {

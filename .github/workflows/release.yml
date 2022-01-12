@@ -157,13 +157,10 @@ jobs:
           cmake --build cmake-build-debug
 
       - name: Generate library file
-        run: |
-          g++ -c -I${PWD}/src/include -I${PWD}/vendor/cwalk/include -I${JAVA_HOME}/include -I${JAVA_HOME}/include/win32 src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-          g++ -shared -o lib/libomega_edit.dll cmake-build-debug/libomega_edit.a cmake-build-debug/vendor/cwalk/libcwalk.a lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
-
+        run: ./compile.sh compile-lib win
       - name: Export filenames
         run: |
-          LIB_FILENAME="libomega_edit.dll"
+          LIB_FILENAME="omega_edit.dll"
           JAR_FILENAME="omega-edit-windows.jar"
           echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
           echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
