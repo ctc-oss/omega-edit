@@ -25,7 +25,7 @@
  * Hello World!
  */
 function on_viewport_change(viewport, change) {
-    change_kind = (change) ? omega_edit.omega_change_get_kind_as_char(change) : 'R'
+    const change_kind = (change) ? omega_edit.omega_change_get_kind_as_char(change) : 'R';
     console.log(change_kind + ": [" + omega_edit.omega_viewport_get_string(viewport) + "]")
 }
 
