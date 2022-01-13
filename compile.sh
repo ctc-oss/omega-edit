@@ -52,8 +52,7 @@ function win {
 }
 
 function win-ci {
-    cmake -S . -B cmake-build-debug
-    sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
+    cmake -S . -B cmake-build-debug -DCMAKE_CXX_COMPILER="g++"
     cmake --build cmake-build-debug
 }
 
