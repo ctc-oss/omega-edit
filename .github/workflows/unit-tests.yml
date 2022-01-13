@@ -109,13 +109,8 @@ jobs:
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
-      - name: Setup Debug Build
-        run: cmake -S . -B cmake-build-debug
-      - name: Fix cmake-build-debug/CMakeCache.txt for Windows
-        run: |
-          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/mingw64/bin/c++|g" cmake-build-debug/CMakeCache.txt
       - name: Build Debug Build
-        run: cmake --build cmake-build-debug
+        run: ./compile.sh win-ci
       - name: Run Tests
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex

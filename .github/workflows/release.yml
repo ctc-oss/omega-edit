@@ -28,7 +28,7 @@ jobs:
   node-build:
     strategy:
       matrix:
-        os: [macos-11, ubuntu-20.04]
+        os: [macos-11, ubuntu-20.04, windows-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -42,6 +42,7 @@ jobs:
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
+        shell: bash
 
       - name: Check if git tag matches package version
         run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
@@ -55,13 +56,15 @@ jobs:
           NODE_FILE=""
 
           if [[ ${{ matrix.os }} == *"macos"* ]]; then
-            NODE_FILE="omega_edit_darwin.node"
-            mv module/omega_edit/omega_edit_mac.node module/omega_edit/$NODE_FILE
+            NODE_FILE="omega_edit_mac.node"
+          elif [[ ${{ matrix.os }} == *"windows"* ]]; then
+            NODE_FILE="omega_edit_win.node"
           else
             NODE_FILE="omega_edit_linux.node"
           fi
 
           echo "NODE_FILE=$(echo $NODE_FILE)" >> $GITHUB_ENV
+        shell: bash
 
       - name: Upload ${{ env.NODE_FILE }}
         uses: actions/upload-artifact@v2.3.1
@@ -72,7 +75,7 @@ jobs:
   scala-build-linux-mac:
     strategy:
       matrix:
-        os: [macos-11, ubuntu-20.04]
+        os: [macos-latest, ubuntu-20.04]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -96,15 +99,12 @@ jobs:
 
       - name: Export filenames
         run: |
-          if [[ "${{ matrix.os }}" == "macos-11" ]]; then
+          if [[ "${{ matrix.os }}" == *"macos"* ]]; then
             LIB_FILENAME="libomega_edit.dylib"
             JAR_FILENAME="omega-edit-mac.jar"
-          elif [[ "${{ matrix.os }}" == "ubuntu-20.04" ]]; then
+          else
             LIB_FILENAME="libomega_edit.so"
             JAR_FILENAME="omega-edit-linux.jar"
-          else
-            LIB_FILENAME="libomega_edit.dll"
-            JAR_FILENAME="omega-edit-windows.jar"
           fi
 
           echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
@@ -127,7 +127,6 @@ jobs:
       matrix:
         include:
           - { sys: mingw64, env: x86_64 }
-          - { sys: mingw32, env: i686 }
     defaults:
       run:
         shell: msys2 {0}
@@ -152,33 +151,19 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
-      - name: Export git tag and package.json version
-        run: ${{ env.export_cmd }}
-
-      - name: Check if git tag matches package version
-        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
-        shell: bash
-
-      - name: Build C++ code
-        run: |
-          cmake -S . -B cmake-build-debug
-          sed -i "s|^CMAKE_CXX_COMPILER:FILEPATH=.*|CMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++|g" CMakeLists.txt
-          cmake --build cmake-build-debug
-
       - name: Generate library file
-        run: |
-          g++ -c -I'%JAVA_HOME%/include' -I'%JAVA_HOME%/include/win32' src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-          g++ -shared -o lib/libomega_edit.dll lib/omega_edit_wrap.o -Wl,--add-stdcall-alias
+        run: ./compile.sh compile-lib win ci
 
       - name: Export filenames
         run: |
-          LIB_FILENAME="libomega_edit.dll"
+          LIB_FILENAME="omega_edit.dll"
           JAR_FILENAME="omega-edit-windows.jar"
           echo "LIB_FILENAME=$LIB_FILENAME" >> $GITHUB_ENV
           echo "JAR_FILENAME=$JAR_FILENAME" >> $GITHUB_ENV
 
       - name: Create JAR file
         run: jar -cvf ${{ env.JAR_FILENAME }} lib/${{ env.LIB_FILENAME }}
+        shell: powershell
 
       - name: Upload lib file
         if: "${{ matrix.os }} == ubuntu-20.04"
@@ -227,11 +212,11 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           node-version: ${{ env.node_version }}
 
-      - name: Download darwin node files
+      - name: Download mac node files
         uses: actions/download-artifact@v2.1.0
         with:
-          name: omega_edit_darwin.node
-          path: module/omega_edit/omega_edit_darwin.node
+          name: omega_edit_mac.node
+          path: module/omega_edit/omega_edit_mac.node
 
       - name: Download linux node files
         uses: actions/download-artifact@v2.1.0
@@ -239,14 +224,22 @@ jobs:
           name: omega_edit_linux.node
           path: module/omega_edit/omega_edit_linux.node
 
+      - name: Download windows node files
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega_edit_win.node
+          path: module/omega_edit/omega_edit_win.node
+
       - name: Move out node files
         run: |
           cd module/omega_edit/
-          mv omega_edit_linux.node omega_edit_linux.node_dir
-          mv omega_edit_darwin.node omega_edit_darwin.node_dir
-          mv omega_edit_linux.node_dir/omega_edit_linux.node .
-          mv omega_edit_darwin.node_dir/omega_edit_darwin.node .
-          rm -rf omega_edit_linux.node_dir omega_edit_darwin.node_dir
+
+          for file in omega_edit_linux.node omega_edit_mac.node omega_edit_win.node;
+          do
+            mv $file "${file}_dir"
+            mv "${file}_dir/$file" .
+            rm -rf "${file}_dir"
+          done
 
       - name: Create node release tarball
         run: yarn pack --filename omega-edit-v${{ env.PKG_VERSION }}.tar.gz
@@ -265,6 +258,7 @@ jobs:
         run: yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
 
       ##########################
       ## Java release process ##
@@ -281,13 +275,20 @@ jobs:
           name: omega-edit-linux.jar
           path: omega-edit-linux.jar
 
+      - name: Download windows jar file
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega-edit-windows.jar
+          path: omega-edit-windows.jar
+
       - name: Move out jar files
         run: |
-          mv omega-edit-mac.jar omega-edit-mac.jar_dir
-          mv omega-edit-linux.jar omega-edit-linux.jar_dir
-          mv omega-edit-mac.jar_dir/omega-edit-mac.jar .
-          mv omega-edit-linux.jar_dir/omega-edit-linux.jar .
-          rm -rf omega-edit-mac.jar_dir omega-edit-linux.jar_dir
+          for file in omega-edit-mac.jar omega-edit-linux.jar omega-edit-windows.jar;
+          do
+            mv $file "${file}_dir"
+            mv "${file}_dir/$file" .
+            rm -rf "${file}_dir"
+          done
 
       - name: Upload mac jar file
         uses: actions/upload-release-asset@v1.0.2
@@ -307,4 +308,14 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: omega-edit-linux.jar
           asset_name: omega-edit-linux.jar
+          asset_content_type: application/java-archive
+
+      - name: Upload windows jar file
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: omega-edit-windows.jar
+          asset_name: omega-edit-windows.jar
           asset_content_type: application/java-archive

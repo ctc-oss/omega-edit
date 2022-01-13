@@ -36,9 +36,6 @@ The goal of this project is to provide an open source library for building edito
 multiple authors, and multiple viewports.
 
 ## Requirements
-### Development requirements:
-
-- **swig** to generate language bindings (http://www.swig.org/svn.html)
 
 ### IDE
 

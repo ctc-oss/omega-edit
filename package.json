@@ -1,7 +1,7 @@
 {
   "name": "omega-edit",
   "description": "OmegaEdit open source library for building editors that can handle massive files",
-  "version": "0.6.3-2",
+  "version": "0.6.3-8",
   "main": "module/omega_edit/index.js",
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",
@@ -16,7 +16,7 @@
     "gyp-build": "node-gyp build --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-clean": "node-gyp clean --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-configure": "node-gyp configure --target=13.6.3 --dist-url=https://electronjs.org/headers",
-    "gyp-rebuild": "node-gyp rebuild",
+    "gyp-rebuild": "node-gyp rebuild --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-install": "node-gyp install --target=13.6.3 --dist-url=https://electronjs.org/headers",
     "gyp-list": "node-gyp list",
     "gyp-remove": "node-gyp remove",
