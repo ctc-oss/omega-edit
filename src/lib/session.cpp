@@ -32,55 +32,57 @@ size_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
-    const auto computed_file_size = (session_ptr->model_ptr_->model_segments.empty())
-                                            ? 0
-                                            : session_ptr->model_ptr_->model_segments.back()->computed_offset +
-                                                      session_ptr->model_ptr_->model_segments.back()->computed_length;
+    assert(session_ptr->models_.back());
+    const auto computed_file_size =
+            (session_ptr->models_.back()->model_segments.empty())
+                    ? 0
+                    : session_ptr->models_.back()->model_segments.back()->computed_offset +
+                              session_ptr->models_.back()->model_segments.back()->computed_length;
     assert(0 <= computed_file_size);
     return computed_file_size;
 }
 
 size_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
-    return session_ptr->model_ptr_->changes.size();
+    assert(session_ptr->models_.back());
+    return session_ptr->models_.back()->changes.size();
 }
 
 size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
-    return session_ptr->model_ptr_->changes_undone.size();
+    assert(session_ptr->models_.back());
+    return session_ptr->models_.back()->changes_undone.size();
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
-    return (session_ptr->model_ptr_->changes.empty()) ? nullptr : session_ptr->model_ptr_->changes.back().get();
+    assert(session_ptr->models_.back());
+    return (session_ptr->models_.back()->changes.empty()) ? nullptr : session_ptr->models_.back()->changes.back().get();
 }
 
 const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
-    return (session_ptr->model_ptr_->changes_undone.empty()) ? nullptr
-                                                             : session_ptr->model_ptr_->changes_undone.back().get();
+    assert(session_ptr->models_.back());
+    return (session_ptr->models_.back()->changes_undone.empty())
+                   ? nullptr
+                   : session_ptr->models_.back()->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->file_path.empty()) ? nullptr : session_ptr->file_path.c_str();
+    return (session_ptr->models_.back()->file_path.empty()) ? nullptr : session_ptr->models_.back()->file_path.c_str();
 }
 
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
+    assert(session_ptr->models_.back());
     if (0 < change_serial) {// Positive serials are active changes
         if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {
-            return session_ptr->model_ptr_->changes[change_serial - 1].get();
+            return session_ptr->models_.back()->changes[change_serial - 1].get();
         }
     } else if (change_serial < 0) {// Negative serials are undone changes
-        for (auto iter = session_ptr->model_ptr_->changes_undone.rbegin();
-             iter != session_ptr->model_ptr_->changes_undone.rend(); ++iter) {
+        for (auto iter = session_ptr->models_.back()->changes_undone.rbegin();
+             iter != session_ptr->models_.back()->changes_undone.rend(); ++iter) {
             if ((*iter)->serial == change_serial) { return iter->get(); }
         }
     }
@@ -89,15 +91,20 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
 
 int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->flags_ & pause_viewport_callbacks) ? 1 : 0;
+    return (session_ptr->session_flags_ & pause_viewport_callbacks) ? 1 : 0;
 }
 
 void omega_session_pause_viewport_on_change_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->flags_ |= pause_viewport_callbacks;
+    session_ptr->session_flags_ |= pause_viewport_callbacks;
 }
 
 void omega_session_resume_viewport_on_change_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->flags_ &= ~(pause_viewport_callbacks);
+    session_ptr->session_flags_ &= ~(pause_viewport_callbacks);
+}
+
+size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->models_.size() - 1;
 }

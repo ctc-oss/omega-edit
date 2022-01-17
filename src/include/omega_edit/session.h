@@ -109,6 +109,13 @@ void omega_session_pause_viewport_on_change_callbacks(omega_session_t *session_p
  */
 void omega_session_resume_viewport_on_change_callbacks(omega_session_t *session_ptr);
 
+/**
+* Given a session, return the current number of session checkpoints
+* @param session_ptr session to get the number of session checkpoints for
+* @return number of session checkpoints
+ */
+size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
+
 #ifdef __cplusplus
 }
 #endif

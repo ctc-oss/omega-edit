@@ -54,7 +54,7 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
         case change_kind_t::CHANGE_OVERWRITE:
             return 'O';
         default:
-            ABORT(CLOG << LOCATION << " Unhandled change kind" << std::endl;);
+            ABORT(LOG_ERROR("Unhandled change kind"););
     }
 }
 

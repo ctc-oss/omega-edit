@@ -47,9 +47,9 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
 
 int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr) noexcept {
     assert(session_ptr);
-    assert(session_ptr->model_ptr_);
+    assert(session_ptr->models_.back());
     assert(data_segment_ptr);
-    const auto &model_ptr = session_ptr->model_ptr_;
+    const auto &model_ptr = session_ptr->models_.back();
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
     assert(0 < data_segment_ptr->capacity);
@@ -59,9 +59,9 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
 
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
-            ABORT(print_model_segments_(session_ptr->model_ptr_.get(), CLOG);
-                  CLOG << LOCATION << " break in model continuity, expected: " << read_offset
-                       << ", got: " << (*iter)->computed_offset << std::endl;);
+            ABORT(print_model_segments_(session_ptr->models_.back().get(), CLOG);
+                  LOG_ERROR("break in model continuity, expected: " << read_offset
+                                                                    << ", got: " << (*iter)->computed_offset););
         }
         if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
             // We're at the first model segment that intersects with the data segment, but the model segment and the
@@ -78,7 +78,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
                     case model_segment_kind_t::SEGMENT_READ: {
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
                         // writing it into the data segment
-                        if (read_segment_from_file_(session_ptr->file_ptr, (*iter)->change_offset + delta,
+                        if (read_segment_from_file_(session_ptr->models_.back()->file_ptr,
+                                                    (*iter)->change_offset + delta,
                                                     data_segment_buffer + data_segment_ptr->length, amount) != amount) {
                             return -1;
                         }
@@ -93,7 +94,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
                         break;
                     }
                     default:
-                        ABORT(CLOG << LOCATION << " Unhandled model segment kind" << std::endl;);
+                        ABORT(LOG_ERROR("Unhandled model segment kind"););
                 }
                 // Add the amount written to the data segment length
                 data_segment_ptr->length += amount;

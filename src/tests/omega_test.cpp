@@ -141,7 +141,6 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     auto test_2 = R"(C:\this\is\a\directory\filename.extension)";
     result = omega_util_dirname(test_2, buffer);
     REQUIRE(result);
-    CLOG << LOCATION << "result: " << result << std::endl;
 #ifdef OMEGA_BUILD_WINDOWS
     REQUIRE_THAT(buffer, Equals(R"(C:\this\is\a\directory\)"));
 #else
@@ -239,19 +238,31 @@ TEST_CASE("Path Normalization", "[UtilTests]") {
     REQUIRE_THAT(buffer, Equals("/var"));
 }
 
-static inline omega_byte_t to_lower(omega_byte_t byte) { return tolower(byte); }
-static inline omega_byte_t to_upper(omega_byte_t byte) { return toupper(byte); }
+static inline omega_byte_t to_lower(omega_byte_t byte, void *) { return tolower(byte); }
+static inline omega_byte_t to_upper(omega_byte_t byte, void *) { return toupper(byte); }
 
 TEST_CASE("Transformer", "[TransformerTest]") {
     omega_byte_t bytes[32];
     strcpy(reinterpret_cast<char *>(bytes), "Hello World!");
     const auto bytes_length = static_cast<int64_t>(strlen(reinterpret_cast<const char *>(bytes)));
-    omega_util_byte_transformer(bytes, bytes_length, to_upper);
+    omega_util_apply_byte_transform(bytes, bytes_length, to_upper, nullptr);
     REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "HELLO WORLD!");
-    omega_util_byte_transformer(bytes, bytes_length, to_lower);
+    omega_util_apply_byte_transform(bytes, bytes_length, to_lower, nullptr);
     REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "hello world!");
-    omega_util_byte_transformer(bytes, 1, to_upper);
+    omega_util_apply_byte_transform(bytes, 1, to_upper, nullptr);
     REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "Hello world!");
+}
+
+TEST_CASE("File Transformer", "[TransformerTest]") {
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat", to_upper, NULL, 0,
+                                            0));
+    REQUIRE(0 == compare_files("data/test1.expected.transformed.1.dat", "data/test1.actual.transformed.1.dat"));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat", to_lower, NULL, 37,
+                                            10));
+    REQUIRE(0 == compare_files("data/test1.expected.transformed.2.dat", "data/test1.actual.transformed.2.dat"));
+    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat", to_lower, NULL, 37,
+                                            100));
+    REQUIRE(0 == omega_util_file_exists("data/test1.actual.transformed.3.dat"));
 }
 
 TEST_CASE("Encoding", "[EncodingTest]") {
@@ -292,7 +303,7 @@ static inline void session_change_cbk(const omega_session_t *session_ptr, const 
     clog << "}" << endl;
 }
 
-TEST_CASE("Empty File Test", "[EmptyFileTests]") {
+TEST_CASE("Empty File Tests", "[EmptyFileTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     const auto in_filename = "data/empty_file.dat";
@@ -319,7 +330,67 @@ TEST_CASE("Empty File Test", "[EmptyFileTests]") {
     omega_edit_destroy_session(session_ptr);
 }
 
-TEST_CASE("Model Test", "[ModelTests]") {
+typedef struct mask_info_struct {
+    omega_byte_t mask;
+    omega_mask_kind_t mask_kind;
+} mask_info_t;
+
+static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void * user_data_ptr) {
+    const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
+    return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
+}
+
+TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
+    file_info_t file_info;
+    file_info.num_changes = 0;
+    auto in_filename = "data/test1.dat";
+    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info);
+    REQUIRE(session_ptr);
+    auto file_size = omega_session_get_computed_file_size(session_ptr);
+    REQUIRE(file_size > 0);
+    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0, "./data"));
+    REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 37, "BCDEFGHIJKLMNOPQRSTUVWXY"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.1.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.1.dat"));
+    mask_info_t mask_info;
+    mask_info.mask_kind = XOR;
+    mask_info.mask = 0xFF;
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./data"));
+    REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.2.dat", 1));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./data"));
+    REQUIRE(3 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.3.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.3.dat"));
+    mask_info.mask_kind = AND;
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(4 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.4.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.4.dat"));
+    mask_info.mask_kind = OR;
+    mask_info.mask = 0x00;
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.5.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.5.dat"));
+    mask_info.mask_kind = AND;
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
+    REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
+    REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.7.dat", 1));
+    REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.7.dat"));
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Model Tests", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/model-test.dat";
