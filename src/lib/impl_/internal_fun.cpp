@@ -38,7 +38,9 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
             // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
             const auto count = (len < capacity) ? len : capacity;
             if (0 == FSEEK(from_file_ptr, offset, SEEK_SET)) {
-                if (count == static_cast<int64_t>(fread(buffer, 1, count, from_file_ptr))) { rc = count; }
+                if (count == static_cast<int64_t>(fread(buffer, sizeof(omega_byte_t), count, from_file_ptr))) {
+                    rc = count;
+                }
             }
         }
     }

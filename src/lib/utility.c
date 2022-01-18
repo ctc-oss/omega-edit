@@ -226,8 +226,8 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
     omega_byte_t buff[buff_size];
     while (remaining) {
         const int64_t count = (buff_size > remaining) ? remaining : buff_size;
-        if (count != (int64_t) fread(buff, 1, count, from_file_ptr) ||
-            count != (int64_t) fwrite(buff, 1, count, to_file_ptr)) {
+        if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
+            count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) {
             break;
         }
         remaining -= count;
@@ -306,12 +306,12 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         omega_byte_t buff[buff_size];
         while (remaining) {
             const int64_t count = (buff_size > remaining) ? remaining : buff_size;
-            if (count != (int64_t) fread(buff, 1, count, in_fp)) {
+            if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, in_fp)) {
                 LOG_ERROR("failed to read buffer");
                 break;
             }
             omega_util_apply_byte_transform(buff, count, transform, user_data_ptr);
-            if (count != (int64_t) fwrite(buff, 1, count, out_fp)) {
+            if (count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, out_fp)) {
                 LOG_ERROR("failed to write buffer");
                 break;
             }
