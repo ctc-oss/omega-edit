@@ -121,7 +121,7 @@ jobs:
           path: ${{ env.JAR_FILENAME }}
 
   scala-build-windows:
-    name: Build Windows
+    name: Build Windows 🔧
     runs-on: windows-latest
     strategy:
       matrix:
@@ -173,7 +173,7 @@ jobs:
           path: ${{ env.JAR_FILENAME }}
 
   release:
-    name: Release
+    name: Release ✨
     runs-on: ubuntu-20.04
     needs: [node-build, scala-build-linux-mac, scala-build-windows]
     steps:
