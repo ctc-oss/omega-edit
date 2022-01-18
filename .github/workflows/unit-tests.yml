@@ -47,11 +47,11 @@ jobs:
         run: npm ci
       - name: Test Node v14 Bindings
         run: yarn test
-      - name: Deploy User Documentation
-        uses: JamesIves/github-pages-deploy-action@v4.2.2
-          with:
-            branch: gh-pages # The branch the action should deploy to.
-            folder: cmake-build-debug/docs/sphinx # The folder the action should deploy.
+      - name: Upload User Documentation Arifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: site
+          path: cmake-build-debug/docs/sphinx
   linux-node-test:
     name: Linux Tests
     runs-on: ubuntu-latest
@@ -107,7 +107,6 @@ jobs:
             cmake
             swig
             git
-
       - name: Checkout Source
         uses: actions/checkout@v2
         with:
@@ -127,7 +126,6 @@ jobs:
       - name: Test Node v14 Bindings
         run: yarn test
         shell: powershell
-
   scala-test:
     strategy:
       matrix:
@@ -142,14 +140,12 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
-
       - name: Run tests
         run: sbt test
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: true
-
       - name: Build
         run: cmake -S . -B cmake-build-debug
       - name: Create omega_test
@@ -158,3 +154,21 @@ jobs:
         run: |
           cd cmake-build-debug/src/tests/
           ./omega_test -d yes --order lex
+  deploy-documentation:
+    concurrency: ci-${{ github.ref }}
+    needs: [ macos-node-test ] # The second job must depend on the first one to complete before running, and uses ubuntu-latest instead of windows.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
+        uses: actions/download-artifact@v1
+        with:
+          name: site
+      - name: Deploy User Documentation 🚀
+        uses: JamesIves/github-pages-deploy-action@v4.2.2
+        with:
+          branch: gh-pages
+          folder: 'site' # The deployment folder should match the name of the artifact. Even though our project builds into the 'build' folder the artifact name of 'site' must be placed here.
