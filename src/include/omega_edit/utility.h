@@ -101,13 +101,21 @@ char *omega_util_normalize_path(char const *path, char *buffer);
 int omega_util_mkstemp(char *tmpl);
 
 /**
- * Creates a available filename from the given path.
- * @param path
- * @param buffer
- * @return
+ * Creates a available filename from the given path
+ * @param path desired path
+ * @param buffer pointer to a buffer that can hold up to FILENAME_MAX bytes, or NULL to use an internal static buffer
+ * @return a path that is currently available (insecure as the file may exist later at the time of attempted creation)
  */
 char *omega_util_available_filename(char const *path, char *buffer);
 
+/**
+ * Write a segment from one file into another file
+ * @param from_file_ptr from file pointer, opened for read
+ * @param offset where in the from file to begin reading from
+ * @param byte_count number of bytes to read from the from file starting at the given offset
+ * @param to_file_ptr to file pointer, opened for writing and positioned to where to write the segment to
+ * @return number of bytes that where successfully written
+ */
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
 /**
@@ -128,7 +136,9 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
  */
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
 
-/** Mask types */
+/**
+ * Mask types
+ */
 typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;
 
 /**
@@ -160,6 +170,13 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
                                             omega_util_byte_transform_t transform, void *user_data_ptr, int64_t offset,
                                             int64_t length);
 
+/**
+ * Apply the given mask of the given mask kind to the given byte
+ * @param byte byte to mask
+ * @param mask mask to apply
+ * @param mask_kind mask kind (e.g., MASK_AND, MASK_OR, MASK_XOR)
+ * @return masked byte
+ */
 omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_mask_kind_t mask_kind);
 
 #ifdef __cplusplus

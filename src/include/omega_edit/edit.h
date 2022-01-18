@@ -38,8 +38,7 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
  * Create a file editing session from a file path
  * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from
  * scratch
- * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to
- * this session
+ * @param cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @return pointer to the created session, nullptr on failure
  */

@@ -85,6 +85,7 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
 
 /**
  * Given a change serial, get the change
+ * @param session_ptr session to which the change belongs
  * @param change_serial change serial of the change to get
  * @return change with the matching serial, or nullptr on failure
  */
