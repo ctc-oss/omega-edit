@@ -59,6 +59,10 @@ jobs:
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
+      - name: Install build tools
+        run: |
+          sudo apt-get -y install doxygen python3-breathe python3-sphinx python3-pip
+          sudo pip3 install sphinx_rtd_theme sphinx-sitemap
       - name: Setup Debug Build
         run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
       - name: Build Debug Build
