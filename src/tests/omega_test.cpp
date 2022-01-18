@@ -100,6 +100,25 @@ TEST_CASE("File Compare", "[UtilTests]") {
     }
 }
 
+TEST_CASE("End Of Line", "[EOLTests]") {
+    omega_byte_t buffer[1024];
+    FILE * in_fp = fopen("data/test1.dat", "rb");
+    REQUIRE(in_fp);
+    REQUIRE(0 == fseek(in_fp, 0, SEEK_END));
+    auto file_size = ftell(in_fp);
+    rewind(in_fp);
+    REQUIRE(63 == file_size);
+    REQUIRE(file_size < sizeof(buffer));
+    REQUIRE(file_size == fread(buffer, sizeof(omega_byte_t), file_size, in_fp));
+    REQUIRE(0 == fclose(in_fp));
+    FILE * out_fp = fopen("data/test1.actual.eol.1.dat", "wb");
+    REQUIRE(out_fp);
+    REQUIRE(file_size == fwrite(buffer, sizeof(omega_byte_t), file_size, out_fp));
+    REQUIRE(file_size == ftell(out_fp));
+    REQUIRE(0 == fclose(out_fp));
+    REQUIRE(0 == compare_files("data/test1.dat", "data/test1.actual.eol.1.dat"));
+}
+
 TEST_CASE("File Exists", "[UtilTests]") {
     REQUIRE(omega_util_file_exists("data/test1.dat"));
     REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
