@@ -24,59 +24,66 @@ jobs:
     name: MacOS Tests
     runs-on: macos-latest
     steps:
-      - name: Install Prerequisites
-        run: brew install ninja nodeenv yarn
-      - name: Checkout Source
+      - name: Install Prerequisites 📚
+        run: |
+          brew install ninja nodeenv yarn doxygen graphviz
+          sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
+      - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Setup Node
+      - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
-      - name: Setup Debug Build
+      - name: Setup Debug Build 📐
         run: cmake -S . -B cmake-build-debug
-      - name: Build Debug Build
+      - name: Build Debug Build 🔧
         run: cmake --build cmake-build-debug
-      - name: Run Tests
+      - name: Run Tests 📋
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex
-      - name: Prepare To Build Node v14 Bindings
+      - name: Build Node v14 Bindings 🔧
         run: npm ci
-      - name: Test Node v14 Bindings
+      - name: Test Node v14 Bindings 📋
         run: yarn test
+      - name: Upload User Documentation Arifacts 🔺
+        uses: actions/upload-artifact@v1
+        with:
+          name: site
+          path: cmake-build-debug/docs/sphinx
   linux-node-test:
     name: Linux Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Install Prerequisites
+      - name: Install Prerequisites 📚
         run: sudo apt install -y ninja-build nodeenv valgrind yarn
-      - name: Checkout Source
+      - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Setup Node
+      - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
-      - name: Setup Debug Build
+      - name: Setup Debug Build 📐
         run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
-      - name: Build Debug Build
+      - name: Build Debug Build 🔧
         run: cmake --build cmake-build-debug
-      - name: Run Tests
+      - name: Run Tests 📋
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex
-      - name: Collect code coverage
+      - name: Collect code coverage 🛻
         working-directory: cmake-build-debug/src/tests/
         run: bash <(curl -s https://codecov.io/bash)
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Run Tests Under Valgrind
+      - name: Run Tests Under Valgrind 📋
         working-directory: cmake-build-debug/src/tests/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
-      - name: Prepare To Build Node v14 Bindings
+      - name: Build Node v14 Bindings 🔧
         run: npm ci
-      - name: Test Node v14 Bindings
+      - name: Test Node v14 Bindings 📋
         run: yarn test
   windows-node-test:
     name: Windows Tests
@@ -89,7 +96,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - name: Install MinGW
+      - name: Install MinGW 📚
         uses: msys2/setup-msys2@v2
         with:
           msystem: ${{ matrix.sys }}
@@ -100,27 +107,25 @@ jobs:
             cmake
             swig
             git
-
-      - name: Checkout Source
+      - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
           submodules: true
-      - name: Setup Node
+      - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
-      - name: Build Debug Build
+      - name: Build Debug Build 🔧
         run: ./compile.sh win-ci
-      - name: Run Tests
+      - name: Run Tests 📋
         working-directory: cmake-build-debug/src/tests/
         run: ./omega_test -d yes --order lex
-      - name: Prepare To Build Node v14 Bindings
+      - name: Build Node v14 Bindings 🔧
         run: npm ci
         shell: powershell
-      - name: Test Node v14 Bindings
+      - name: Test Node v14 Bindings 📋
         run: yarn test
         shell: powershell
-
   scala-test:
     strategy:
       matrix:
@@ -135,19 +140,35 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '11'
-
-      - name: Run tests
+      - name: Run tests 📋
         run: sbt test
-      - name: Checkout
+      - name: Checkout 🛎️
         uses: actions/checkout@v2
         with:
           submodules: true
-
-      - name: Build
+      - name: Prepare The Build 🪛
         run: cmake -S . -B cmake-build-debug
-      - name: Create omega_test
+      - name: Build Tests 🔧
         run: cmake --build cmake-build-debug --target omega_test
-      - name: Run tests
+      - name: Run tests 📋
         run: |
           cd cmake-build-debug/src/tests/
           ./omega_test -d yes --order lex
+  deploy-documentation:
+    concurrency: ci-${{ github.ref }}
+    needs: [ macos-node-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source 🛎️
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
+        uses: actions/download-artifact@v1
+        with:
+          name: site
+      - name: Deploy User Documentation 🚀
+        uses: JamesIves/github-pages-deploy-action@v4.2.2
+        with:
+          branch: gh-pages
+          folder: 'site' # The deployment folder should match the name of the artifact.
