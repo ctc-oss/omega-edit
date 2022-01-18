@@ -47,6 +47,11 @@ jobs:
         run: npm ci
       - name: Test Node v14 Bindings
         run: yarn test
+      - name: Deploy User Documentation
+        uses: JamesIves/github-pages-deploy-action@v4.2.2
+          with:
+            branch: gh-pages # The branch the action should deploy to.
+            folder: cmake-build-debug/docs/sphinx # The folder the action should deploy.
   linux-node-test:
     name: Linux Tests
     runs-on: ubuntu-latest
