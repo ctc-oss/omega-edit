@@ -129,7 +129,7 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
 
 /** Mask types */
-typedef enum { AND, OR, XOR } omega_mask_kind_t;
+typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;
 
 /**
  * Byte transform function pointer

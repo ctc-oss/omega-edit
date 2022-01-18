@@ -41,8 +41,8 @@ static inline int compare_file_pointers(FILE *f1, FILE *f2) {
 }
 
 static inline int compare_files(const char *f1, const char *f2) {
-    const auto f1_ptr = fopen(f1, "r");
-    const auto f2_ptr = fopen(f2, "r");
+    const auto f1_ptr = fopen(f1, "rb");
+    const auto f2_ptr = fopen(f2, "rb");
     const auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);

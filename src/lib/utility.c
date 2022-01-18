@@ -124,7 +124,7 @@ int omega_util_touch(const char *file_name, int create) {
 
 int omega_util_file_exists(const char *file_name) {
     assert(file_name);
-    FILE *file_ptr = fopen(file_name, "r");
+    FILE *file_ptr = fopen(file_name, "rb");
     if (file_ptr) {
         fclose(file_ptr);
         return 1;
@@ -285,14 +285,14 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
     assert(out_path);
     assert(0 <= offset);
     assert(0 <= length);
-    FILE *in_fp = fopen(in_path, "r");
+    FILE *in_fp = fopen(in_path, "rb");
     assert(in_fp);
     FSEEK(in_fp, 0, SEEK_END);
     int64_t in_file_length = FTELL(in_fp);
     if (0 == length) { length = in_file_length - offset; }
     do {
         if (length < 1 || in_file_length <= offset || in_file_length < offset + length) { break; }
-        FILE *out_fp = fopen(out_path, "w");
+        FILE *out_fp = fopen(out_path, "wb");
         assert(out_fp);
         if (omega_util_write_segment_to_file(in_fp, 0, offset, out_fp) != offset ||
             0 != FSEEK(in_fp, offset, SEEK_SET)) {
@@ -342,11 +342,11 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
 
 omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_mask_kind_t mask_kind) {
     switch (mask_kind) {
-        case AND:
+        case MASK_AND:
             return byte & mask;
-        case OR:
+        case MASK_OR:
             return byte | mask;
-        case XOR:
+        case MASK_XOR:
             return byte ^ mask;
         default:
             ABORT(LOG_ERROR("unhandled mask kind"););

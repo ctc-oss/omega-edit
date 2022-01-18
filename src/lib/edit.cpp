@@ -288,7 +288,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                                            void *user_data_ptr) {
     FILE *file_ptr = nullptr;
     if (file_path && file_path[0] != '\0') {
-        file_ptr = fopen(file_path, "r");
+        file_ptr = fopen(file_path, "rb");
         if (!file_ptr) { return nullptr; }
     }
     off_t file_size = 0;
@@ -394,7 +394,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
             errno = 0;
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
                 0 == rename(out_file.c_str(), in_file.c_str())) {
-                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "r"))) { return 0; }
+                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) { return 0; }
             }
             // In a bad state (I/O failure), so abort
             ABORT(LOG_ERROR(strerror(errno)););
@@ -550,7 +550,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
     }
     auto file_size = omega_session_get_computed_file_size(session_ptr);
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-    session_ptr->models_.back()->file_ptr = fopen(checkpoint_filename, "r");
+    session_ptr->models_.back()->file_ptr = fopen(checkpoint_filename, "rb");
     session_ptr->models_.back()->file_path = checkpoint_filename;
     initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
     return 0;
