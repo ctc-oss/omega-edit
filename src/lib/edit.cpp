@@ -422,7 +422,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("mkstemp failed: " << strerror(errno) << ", temp filename: " << temp_filename);
         return -1;
     }
-    auto temp_fptr = fdopen(temp_fd, "w");
+    auto temp_fptr = fdopen(temp_fd, "wb");
     if (!temp_fptr) {
         LOG_ERROR("fdopen failed: " << strerror(errno));
         close(temp_fd);
