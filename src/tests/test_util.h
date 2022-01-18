@@ -30,8 +30,8 @@ static inline int compare_file_pointers(FILE *f1, FILE *f2) {
     omega_byte_t buf2[buff_size];
 
     do {
-        auto r1 = fread(buf1, 1, buff_size, f1);
-        auto r2 = fread(buf2, 1, buff_size, f2);
+        auto r1 = fread(buf1, sizeof(omega_byte_t), buff_size, f1);
+        auto r2 = fread(buf2, sizeof(omega_byte_t), buff_size, f2);
 
         if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
             return 1;// Files are not equal
@@ -41,8 +41,8 @@ static inline int compare_file_pointers(FILE *f1, FILE *f2) {
 }
 
 static inline int compare_files(const char *f1, const char *f2) {
-    const auto f1_ptr = fopen(f1, "r");
-    const auto f2_ptr = fopen(f2, "r");
+    const auto f1_ptr = fopen(f1, "rb");
+    const auto f2_ptr = fopen(f2, "rb");
     const auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);

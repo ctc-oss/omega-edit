@@ -84,7 +84,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
 void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
     file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
-    file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "w");
+    file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
     omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
     fclose(file_info_ptr->save_fptr);
 }

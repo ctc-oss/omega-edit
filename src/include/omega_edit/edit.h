@@ -17,6 +17,7 @@
 
 #include "byte.h"
 #include "fwd_defs.h"
+#include "utility.h"
 
 #ifdef __cplusplus
 #include <cstddef>
@@ -37,10 +38,9 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
  * Create a file editing session from a file path
  * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from
  * scratch
- * @param session_on_change_cbk user-defined callback function called whenever a content affecting change is made to
- * this session
+ * @param cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
-  @return pointer to the created session, nullptr on failure
+ * @return pointer to the created session, nullptr on failure
  */
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
                                            void *user_data_ptr);
@@ -153,6 +153,35 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * @return positive change serial number on success, zero otherwise
  */
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
+
+/**
+ * Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given
+ * length
+ * @param session_ptr session to make the change in
+ * @param transform byte transform to apply
+ * @param user_data_ptr pointer to user data that will be sent through to the given transform
+ * @param offset location offset to make the change
+ * @param length the number of bytes from the given offset to apply the mask to
+ * @param checkpoint_directory directory to store the checkpoint file
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
+                               int64_t offset, int64_t length, char const *checkpoint_directory);
+
+/**
+ * Creates a session checkpoint in the given directory.
+ * @param session_ptr session to checkpoint
+ * @param checkpoint_directory directory to create the checkpoint in
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory);
+
+/**
+ * Destroys the last checkpoint created on the given session
+ * @param session_ptr session to remove the checkpoint
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

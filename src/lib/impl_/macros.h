@@ -21,14 +21,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#else
-#include <stdlib.h>
-#include <string.h>
-#endif
-
 #define SOURCE_FILENAME (std::strrchr(__FILE__, '/') ? std::strrchr(__FILE__, '/') + 1 : __FILE__)
 #define ABORT(x)                                                                                                       \
     do { x std::abort(); } while (0)
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define ABORT(x)                                                                                                       \
+    do { x abort(); } while (0)
+#endif
 
 #define DEBUG
 #ifdef DEBUG
@@ -39,10 +42,15 @@
 #endif//DEBUG
 
 #ifdef __cplusplus
-#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ":"
+#define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ": "
 #ifndef CLOG
 #define CLOG std::clog
 #endif//CLOG
+#define LOG_ERROR(x)                                                                                                   \
+    do { CLOG << LOCATION << x << std::endl; } while (0)
+#else
+#define LOG_ERROR(x)                                                                                                   \
+    do { fprintf(stderr, "%s@%d::%s: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, (x)); } while (0)
 #endif
 
 #endif//OMEGA_EDIT_MACROS_H

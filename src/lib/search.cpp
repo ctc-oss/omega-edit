@@ -34,7 +34,7 @@ struct omega_search_context_t {
     omega_data_t pattern;
 };
 
-static inline omega_byte_t to_lower_(omega_byte_t byte) { return std::tolower(byte); }
+static inline omega_byte_t to_lower_(omega_byte_t byte, void *) { return std::tolower(byte); }
 
 omega_search_context_t *omega_search_create_context_bytes(const omega_session_t *session_ptr,
                                                           const omega_byte_t *pattern, int64_t pattern_length,
@@ -58,7 +58,7 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
         match_context_ptr->pattern.bytes_ptr = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
         const auto pattern_data_ptr = omega_data_get_data(&match_context_ptr->pattern, pattern_length);
         memcpy(pattern_data_ptr, pattern, pattern_length);
-        if (case_insensitive) { omega_util_byte_transformer(pattern_data_ptr, pattern_length, to_lower_); }
+        if (case_insensitive) { omega_util_apply_byte_transform(pattern_data_ptr, pattern_length, to_lower_, nullptr); }
         pattern_data_ptr[pattern_length] = '\0';
         match_context_ptr->skip_table_ptr = omega_find_create_skip_table(pattern_data_ptr, pattern_length);
         return match_context_ptr;
@@ -103,7 +103,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
         populate_data_segment_(search_context_ptr->session_ptr, &data_segment);
         const auto segment_data_ptr = omega_data_segment_get_data(&data_segment);
         if (search_context_ptr->case_insensitive) {
-            omega_util_byte_transformer(segment_data_ptr, data_segment.length, to_lower_);
+            omega_util_apply_byte_transform(segment_data_ptr, data_segment.length, to_lower_, nullptr);
         }
         const auto found = omega_find(segment_data_ptr, data_segment.length, search_context_ptr->skip_table_ptr,
                                       pattern, pattern_length);

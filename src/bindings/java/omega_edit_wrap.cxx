@@ -597,6 +597,70 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1overwrite(JNIEnv *jenv
 }
 
 
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1apply_1transform(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3, jlong jarg4, jlong jarg5, jstring jarg6) {
+  jint jresult = 0 ;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_util_byte_transform_t arg2 = (omega_util_byte_transform_t) 0 ;
+  void *arg3 = (void *) 0 ;
+  int64_t arg4 ;
+  int64_t arg5 ;
+  char *arg6 = (char *) 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_session_t **)&jarg1; 
+  arg2 = *(omega_util_byte_transform_t *)&jarg2; 
+  arg3 = *(void **)&jarg3; 
+  arg4 = (int64_t)jarg4; 
+  arg5 = (int64_t)jarg5; 
+  arg6 = 0;
+  if (jarg6) {
+    arg6 = (char *)jenv->GetStringUTFChars(jarg6, 0);
+    if (!arg6) return 0;
+  }
+  result = (int)omega_edit_apply_transform(arg1,arg2,arg3,arg4,arg5,(char const *)arg6);
+  jresult = (jint)result; 
+  if (arg6) jenv->ReleaseStringUTFChars(jarg6, (const char *)arg6);
+  return jresult;
+}
+
+
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1create_1checkpoint(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2) {
+  jint jresult = 0 ;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  char *arg2 = (char *) 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_session_t **)&jarg1; 
+  arg2 = 0;
+  if (jarg2) {
+    arg2 = (char *)jenv->GetStringUTFChars(jarg2, 0);
+    if (!arg2) return 0;
+  }
+  result = (int)omega_edit_create_checkpoint(arg1,(char const *)arg2);
+  jresult = (jint)result; 
+  if (arg2) jenv->ReleaseStringUTFChars(jarg2, (const char *)arg2);
+  return jresult;
+}
+
+
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1destroy_1last_1checkpoint(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+  jint jresult = 0 ;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_session_t **)&jarg1; 
+  result = (int)omega_edit_destroy_last_checkpoint(arg1);
+  jresult = (jint)result; 
+  return jresult;
+}
+
+
 SWIGEXPORT jstring JNICALL Java_omega_1editJNI_omega_1license_1get(JNIEnv *jenv, jclass jcls) {
   jstring jresult = 0 ;
   char *result = 0 ;
@@ -875,6 +939,20 @@ SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1session_1resume_1viewport_1on
   (void)jcls;
   arg1 = *(omega_session_t **)&jarg1; 
   omega_session_resume_viewport_on_change_callbacks(arg1);
+}
+
+
+SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1session_1get_1num_1checkpoints(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+  jlong jresult = 0 ;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  size_t result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_session_t **)&jarg1; 
+  result = omega_session_get_num_checkpoints((omega_session_t const *)arg1);
+  jresult = (jlong)result; 
+  return jresult;
 }
 
 
@@ -1293,17 +1371,23 @@ SWIGEXPORT jstring JNICALL Java_omega_1editJNI_omega_1util_1available_1filename(
 }
 
 
-SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1util_1byte_1transformer(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3) {
-  omega_byte_t *arg1 = (omega_byte_t *) 0 ;
+SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1util_1write_1segment_1to_1file(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3, jlong jarg4) {
+  jlong jresult = 0 ;
+  FILE *arg1 = (FILE *) 0 ;
   int64_t arg2 ;
-  omega_util_byte_transform_t arg3 = (omega_util_byte_transform_t) 0 ;
+  int64_t arg3 ;
+  FILE *arg4 = (FILE *) 0 ;
+  int64_t result;
   
   (void)jenv;
   (void)jcls;
-  arg1 = *(omega_byte_t **)&jarg1; 
+  arg1 = *(FILE **)&jarg1; 
   arg2 = (int64_t)jarg2; 
-  arg3 = *(omega_util_byte_transform_t *)&jarg3; 
-  omega_util_byte_transformer(arg1,arg2,arg3);
+  arg3 = (int64_t)jarg3; 
+  arg4 = *(FILE **)&jarg4; 
+  result = (int64_t)omega_util_write_segment_to_file(arg1,arg2,arg3,arg4);
+  jresult = (jlong)result; 
+  return jresult;
 }
 
 
@@ -1351,6 +1435,86 @@ SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1util_1right_1shift_1buffer(JN
   arg3 = *argp3; 
   result = (int)omega_util_right_shift_buffer(arg1,arg2,arg3);
   jresult = (jint)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1util_1apply_1byte_1transform(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3, jlong jarg4) {
+  omega_byte_t *arg1 = (omega_byte_t *) 0 ;
+  int64_t arg2 ;
+  omega_util_byte_transform_t arg3 = (omega_util_byte_transform_t) 0 ;
+  void *arg4 = (void *) 0 ;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_byte_t **)&jarg1; 
+  arg2 = (int64_t)jarg2; 
+  arg3 = *(omega_util_byte_transform_t *)&jarg3; 
+  arg4 = *(void **)&jarg4; 
+  omega_util_apply_byte_transform(arg1,arg2,arg3,arg4);
+}
+
+
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1util_1apply_1byte_1transform_1to_1file(JNIEnv *jenv, jclass jcls, jstring jarg1, jstring jarg2, jlong jarg3, jlong jarg4, jlong jarg5, jlong jarg6) {
+  jint jresult = 0 ;
+  char *arg1 = (char *) 0 ;
+  char *arg2 = (char *) 0 ;
+  omega_util_byte_transform_t arg3 = (omega_util_byte_transform_t) 0 ;
+  void *arg4 = (void *) 0 ;
+  int64_t arg5 ;
+  int64_t arg6 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = 0;
+  if (jarg1) {
+    arg1 = (char *)jenv->GetStringUTFChars(jarg1, 0);
+    if (!arg1) return 0;
+  }
+  arg2 = 0;
+  if (jarg2) {
+    arg2 = (char *)jenv->GetStringUTFChars(jarg2, 0);
+    if (!arg2) return 0;
+  }
+  arg3 = *(omega_util_byte_transform_t *)&jarg3; 
+  arg4 = *(void **)&jarg4; 
+  arg5 = (int64_t)jarg5; 
+  arg6 = (int64_t)jarg6; 
+  result = (int)omega_util_apply_byte_transform_to_file((char const *)arg1,(char const *)arg2,arg3,arg4,arg5,arg6);
+  jresult = (jint)result; 
+  if (arg1) jenv->ReleaseStringUTFChars(jarg1, (const char *)arg1);
+  if (arg2) jenv->ReleaseStringUTFChars(jarg2, (const char *)arg2);
+  return jresult;
+}
+
+
+SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1util_1mask_1byte(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jint jarg3) {
+  jlong jresult = 0 ;
+  omega_byte_t arg1 ;
+  omega_byte_t arg2 ;
+  omega_mask_kind_t arg3 ;
+  omega_byte_t *argp1 ;
+  omega_byte_t *argp2 ;
+  omega_byte_t result;
+  
+  (void)jenv;
+  (void)jcls;
+  argp1 = *(omega_byte_t **)&jarg1; 
+  if (!argp1) {
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null omega_byte_t");
+    return 0;
+  }
+  arg1 = *argp1; 
+  argp2 = *(omega_byte_t **)&jarg2; 
+  if (!argp2) {
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null omega_byte_t");
+    return 0;
+  }
+  arg2 = *argp2; 
+  arg3 = (omega_mask_kind_t)jarg3; 
+  result = omega_util_mask_byte(arg1,arg2,arg3);
+  *(omega_byte_t **)&jresult = new omega_byte_t((const omega_byte_t &)result); 
   return jresult;
 }
 

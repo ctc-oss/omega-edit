@@ -34,6 +34,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <utime.h>
+#ifndef O_BINARY
+#define O_BINARY (0)
+#endif
 #endif
 
 #include "../include/omega_edit/utility.h"
@@ -83,7 +86,7 @@ int omega_util_mkstemp(char *tmpl) {
         v /= 62;
         template[5] = letters[v % 62];
 
-        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
+        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
         if (fd >= 0) {
             errno = saved_errno;
             return fd;
@@ -124,7 +127,7 @@ int omega_util_touch(const char *file_name, int create) {
 
 int omega_util_file_exists(const char *file_name) {
     assert(file_name);
-    FILE *file_ptr = fopen(file_name, "r");
+    FILE *file_ptr = fopen(file_name, "rb");
     if (file_ptr) {
         fclose(file_ptr);
         return 1;
@@ -217,10 +220,21 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     return buffer;
 }
 
-void omega_util_byte_transformer(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform) {
-    assert(buffer);
-    int64_t i;
-    for (i = 0; i < len; ++i) { buffer[i] = transform(buffer[i]); }
+int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
+    assert(from_file_ptr);
+    assert(to_file_ptr);
+    if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
+    int64_t remaining = byte_count;
+    omega_byte_t buff[1024 * 8];
+    while (remaining) {
+        const int64_t count = ((int64_t) sizeof(buff) > remaining) ? remaining : (int64_t) sizeof(buff);
+        if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
+            count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) {
+            break;
+        }
+        remaining -= count;
+    }
+    return byte_count - remaining;
 }
 
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
@@ -257,4 +271,87 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
         return 0;
     }
     return -1;
+}
+
+void omega_util_apply_byte_transform(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform,
+                                     void *user_data_ptr) {
+    assert(buffer);
+    int64_t i;
+    for (i = 0; i < len; ++i) { buffer[i] = transform(buffer[i], user_data_ptr); }
+}
+
+int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out_path,
+                                            omega_util_byte_transform_t transform, void *user_data_ptr, int64_t offset,
+                                            int64_t length) {
+    assert(in_path);
+    assert(out_path);
+    assert(0 <= offset);
+    assert(0 <= length);
+    FILE *in_fp = fopen(in_path, "rb");
+    assert(in_fp);
+    FSEEK(in_fp, 0, SEEK_END);
+    int64_t in_file_length = FTELL(in_fp);
+    if (0 == length) { length = in_file_length - offset; }
+    do {
+        if (length < 1 || in_file_length <= offset || in_file_length < offset + length) { break; }
+        FILE *out_fp = fopen(out_path, "wb");
+        assert(out_fp);
+        if (omega_util_write_segment_to_file(in_fp, 0, offset, out_fp) != offset ||
+            0 != FSEEK(in_fp, offset, SEEK_SET)) {
+            LOG_ERROR("failed to write first segment bytes to file");
+            fclose(out_fp);
+            unlink(out_path);
+            break;
+        }
+        int64_t remaining = length;
+        omega_byte_t buff[1024 * 8];
+        while (remaining) {
+            const int64_t count = ((int64_t) sizeof(buff) > remaining) ? remaining : (int64_t) sizeof(buff);
+            const int64_t num_read = (int64_t) fread(buff, sizeof(omega_byte_t), count, in_fp);
+            if (count != num_read) {
+                LOG_ERROR("failed to read buffer");
+                break;
+            }
+            omega_util_apply_byte_transform(buff, count, transform, user_data_ptr);
+            const int64_t num_written = (int64_t) fwrite(buff, sizeof(omega_byte_t), count, out_fp);
+            if (count != num_written) {
+                LOG_ERROR("failed to write buffer");
+                break;
+            }
+            remaining -= count;
+        }
+        if (remaining) {
+            LOG_ERROR("there are remaining bytes");
+            fclose(out_fp);
+            unlink(out_path);
+            break;
+        }
+        offset += length;
+        length = in_file_length - offset;
+        if (offset < in_file_length && omega_util_write_segment_to_file(in_fp, offset, length, out_fp) != length) {
+            LOG_ERROR("failed to write last segment");
+            fclose(out_fp);
+            unlink(out_path);
+            break;
+        }
+        fclose(out_fp);
+        fclose(in_fp);
+        return 0;
+    } while (false);
+    fclose(in_fp);
+    LOG_ERROR("transform failed");
+    return -1;
+}
+
+omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_mask_kind_t mask_kind) {
+    switch (mask_kind) {
+        case MASK_AND:
+            return byte & mask;
+        case MASK_OR:
+            return byte | mask;
+        case MASK_XOR:
+            return byte ^ mask;
+        default:
+            ABORT(LOG_ERROR("unhandled mask kind"););
+    }
 }
