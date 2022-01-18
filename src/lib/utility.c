@@ -224,11 +224,10 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
     assert(from_file_ptr);
     assert(to_file_ptr);
     if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
-    const int64_t buff_size = 1024 * 8;
     int64_t remaining = byte_count;
-    omega_byte_t buff[buff_size];
+    omega_byte_t buff[1024 * 8];
     while (remaining) {
-        const int64_t count = (buff_size > remaining) ? remaining : buff_size;
+        const int64_t count = ((int64_t)sizeof(buff) > remaining) ? remaining : (int64_t)sizeof(buff);
         if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
             count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) {
             break;
@@ -304,11 +303,10 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
             unlink(out_path);
             break;
         }
-        const int64_t buff_size = 1024 * 8;
         int64_t remaining = length;
-        omega_byte_t buff[buff_size];
+        omega_byte_t buff[1024 * 8];
         while (remaining) {
-            const int64_t count = (buff_size > remaining) ? remaining : buff_size;
+            const int64_t count = ((int64_t)sizeof(buff) > remaining) ? remaining : (int64_t)sizeof(buff);
             const int64_t num_read = (int64_t) fread(buff, sizeof(omega_byte_t), count, in_fp);
             if (count != num_read) {
                 LOG_ERROR("failed to read buffer");
