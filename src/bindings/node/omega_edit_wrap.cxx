@@ -4190,12 +4190,12 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_AND(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+static SwigV8ReturnValue _wrap_MASK_AND(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
   SWIGV8_HANDLESCOPE();
   
   SWIGV8_VALUE jsresult;
   
-  jsresult = SWIG_From_int(static_cast< int >(AND));
+  jsresult = SWIG_From_int(static_cast< int >(MASK_AND));
   
   SWIGV8_RETURN_INFO(jsresult, info);
   
@@ -4205,12 +4205,12 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_OR(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+static SwigV8ReturnValue _wrap_MASK_OR(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
   SWIGV8_HANDLESCOPE();
   
   SWIGV8_VALUE jsresult;
   
-  jsresult = SWIG_From_int(static_cast< int >(OR));
+  jsresult = SWIG_From_int(static_cast< int >(MASK_OR));
   
   SWIGV8_RETURN_INFO(jsresult, info);
   
@@ -4220,12 +4220,12 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_XOR(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
+static SwigV8ReturnValue _wrap_MASK_XOR(v8::Local<v8::Name> property, const SwigV8PropertyCallbackInfo &info) {
   SWIGV8_HANDLESCOPE();
   
   SWIGV8_VALUE jsresult;
   
-  jsresult = SWIG_From_int(static_cast< int >(XOR));
+  jsresult = SWIG_From_int(static_cast< int >(MASK_XOR));
   
   SWIGV8_RETURN_INFO(jsresult, info);
   
@@ -5384,9 +5384,9 @@ void SWIGV8_INIT (SWIGV8_OBJECT exports_obj, SWIGV8_VALUE /*module*/, v8::Local<
   /* register wrapper functions */
   SWIGV8_AddStaticVariable(exports_obj, "OMEGA_VIEWPORT_CAPACITY_LIMIT", _wrap_OMEGA_VIEWPORT_CAPACITY_LIMIT, JS_veto_set_variable, context);
 SWIGV8_AddStaticVariable(exports_obj, "OMEGA_SEARCH_PATTERN_LENGTH_LIMIT", _wrap_OMEGA_SEARCH_PATTERN_LENGTH_LIMIT, JS_veto_set_variable, context);
-SWIGV8_AddStaticVariable(exports_obj, "AND", _wrap_AND, JS_veto_set_variable, context);
-SWIGV8_AddStaticVariable(exports_obj, "OR", _wrap_OR, JS_veto_set_variable, context);
-SWIGV8_AddStaticVariable(exports_obj, "XOR", _wrap_XOR, JS_veto_set_variable, context);
+SWIGV8_AddStaticVariable(exports_obj, "MASK_AND", _wrap_MASK_AND, JS_veto_set_variable, context);
+SWIGV8_AddStaticVariable(exports_obj, "MASK_OR", _wrap_MASK_OR, JS_veto_set_variable, context);
+SWIGV8_AddStaticVariable(exports_obj, "MASK_XOR", _wrap_MASK_XOR, JS_veto_set_variable, context);
 
 
   /* setup inheritances */
