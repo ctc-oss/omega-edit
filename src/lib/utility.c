@@ -34,6 +34,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <utime.h>
+#ifndef O_BINARY
+#define O_BINARY (0)
+#endif
 #endif
 
 #include "../include/omega_edit/utility.h"
@@ -83,7 +86,7 @@ int omega_util_mkstemp(char *tmpl) {
         v /= 62;
         template[5] = letters[v % 62];
 
-        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
+        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
         if (fd >= 0) {
             errno = saved_errno;
             return fd;
