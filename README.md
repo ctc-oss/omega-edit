@@ -67,8 +67,7 @@ Studio Code also works well.
 ### Pulling the submodules required to build:
 
 ```bash
-git submodule init
-git submodule update
+git submodule update --init
 ```
 
 ### Configure debug build:
@@ -117,7 +116,7 @@ source ./venv/bin/activate
 
 #### Building and testing
 
-Using Node v12 (by whatever method), build the bindings, and run an example:
+Using Node v14 (by whatever method), build the bindings, and run an example:
 
 ```bash
 node ci

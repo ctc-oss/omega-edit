@@ -9,7 +9,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
-cmake_minimum_required(VERSION 3.9.2)
+cmake_minimum_required(VERSION 3.15)
 
 # Project information
 project(omega_edit
@@ -112,8 +112,18 @@ if(BUILD_DOCS)
 endif(BUILD_DOCS)
 
 # Add additional subdirectories with CMakeLists.txt to the build
-add_subdirectory(vendor/cwalk)
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
 
+add_subdirectory(vendor/cwalk)
 target_link_libraries(omega_edit cwalk)
+
+include(FetchContent)
+FetchContent_Declare(
+        gRPC
+        GIT_REPOSITORY https://github.com/grpc/grpc
+        GIT_TAG        v1.43.0  # e.g v1.28.0
+)
+set(FETCHCONTENT_QUIET OFF)
+FetchContent_MakeAvailable(gRPC)
+target_link_libraries(omega_edit grpc++)

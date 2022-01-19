@@ -18,8 +18,12 @@ FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-${VARIANT}
 # Install additional packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && apt-get -y install --no-install-recommends \
+    clang \
+    cmake \
     doxygen \
+    git \
     graphviz \
+    libc++-dev \
     python3-breathe \
     python3-sphinx \
     python3-pip \
