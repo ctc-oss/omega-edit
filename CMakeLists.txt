@@ -118,3 +118,18 @@ add_subdirectory(src/tests)
 add_subdirectory(vendor/cwalk)
 
 target_link_libraries(omega_edit cwalk)
+
+option(USE_SYSTEM_GRPC "Use system installed gRPC" OFF)
+if(USE_SYSTEM_GRPC)
+    # Find system-installed gRPC
+    find_package(gRPC CONFIG REQUIRED)
+else()
+    # Build gRPC using FetchContent or add_subdirectory
+    set(BUILD_TESTING OFF)
+    set(ABSL_PROPAGATE_CXX_STD ON)
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(CMAKE_MACOSX_RPATH 1)
+    endif()
+    add_subdirectory(vendor/grpc)
+endif()
+target_link_libraries(omega_edit grpc++)

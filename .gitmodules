@@ -17,3 +17,7 @@
 	path = vendor/catch2
 	url = https://github.com/catchorg/Catch2.git
 	branch = v2.x
+[submodule "vendor/grpc"]
+	path = vendor/grpc
+	url = https://github.com/grpc/grpc.git
+    branch = v1.43.x
