@@ -54,6 +54,7 @@ set(SOURCE_FILES
 # Create the library archive for static linking
 add_library(omega_edit ${SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC src/include)
+target_include_directories(omega_edit PUBLIC third_party/catch2/single_include)
 
 # Parse version information
 string(TOUPPER ${PROJECT_NAME} PREFIX)

@@ -13,3 +13,7 @@
 	path = vendor/cwalk
 	url = https://github.com/likle/cwalk.git
 	branch = stable
+[submodule "vendor/catch2"]
+	path = vendor/catch2
+	url = https://github.com/catchorg/Catch2.git
+	branch = v2.x
