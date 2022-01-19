@@ -54,6 +54,7 @@ set(SOURCE_FILES
 # Create the library archive for static linking
 add_library(omega_edit ${SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC src/include)
+target_include_directories(omega_edit PUBLIC vendor/catch2/single_include)
 
 # Parse version information
 string(TOUPPER ${PROJECT_NAME} PREFIX)
@@ -112,8 +113,8 @@ if(BUILD_DOCS)
 endif(BUILD_DOCS)
 
 # Add additional subdirectories with CMakeLists.txt to the build
-add_subdirectory(vendor/cwalk)
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
+add_subdirectory(vendor/cwalk)
 
 target_link_libraries(omega_edit cwalk)

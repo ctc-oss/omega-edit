@@ -14,8 +14,7 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "../../vendor/catch2/catch.hpp"
-#include "../lib/impl_/macros.h"
+#include "catch2/catch.hpp"
 #include "test_util.h"
 #include <omega_edit.h>
 #include <omega_edit/check.h>
