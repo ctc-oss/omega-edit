@@ -31,7 +31,7 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
@@ -61,7 +61,7 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
@@ -110,7 +110,7 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - uses: actions/setup-java@v2.5.0
         with:
           distribution: 'adopt'
@@ -145,7 +145,7 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Prepare The Build 🪛
         run: cmake -S . -B cmake-build-debug
       - name: Build Tests 🔧
@@ -162,7 +162,7 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
         uses: actions/download-artifact@v1
         with:

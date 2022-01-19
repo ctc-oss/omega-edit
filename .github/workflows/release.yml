@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - uses: actions/setup-java@v2.5.0
         with:
           distribution: 'adopt'
@@ -133,7 +133,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - name: Install MinGW
         uses: msys2/setup-msys2@v2
         with:
@@ -179,7 +179,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
