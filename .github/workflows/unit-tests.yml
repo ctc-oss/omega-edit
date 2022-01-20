@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Prerequisites 📚
-        run: sudo apt install -y ninja-build nodeenv valgrind yarn
+        run: sudo apt install -y ninja-build nodeenv uuid-dev valgrind yarn
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
@@ -105,8 +105,8 @@ jobs:
             mingw-w64-${{ matrix.env }}-toolchain
             base-devel
             cmake
-            swig
             git
+            swig
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:

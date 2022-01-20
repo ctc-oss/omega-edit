@@ -26,10 +26,12 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     graphviz \
     libc++-dev \
     libgtest-dev \
+    mlocate \
     python3-breathe \
     python3-sphinx \
     python3-pip \
     swig \
+    uuid-dev \
     valgrind
 
 # Install python3 modules using pip
