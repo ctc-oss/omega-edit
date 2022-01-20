@@ -1,84 +1,32 @@
-# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
-# file Copyright.txt or https://cmake.org/licensing for details.
+# Copyright (c) 2021-2022 Concurrent Technologies Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 
-#[=======================================================================[.rst:
-FindLibUUID
-------------
-
-Find LibUUID include directory and library.
-
-Imported Targets
-^^^^^^^^^^^^^^^^
-
-An :ref:`imported target <Imported targets>` named
-``LibUUID::LibUUID`` is provided if LibUUID has been found.
-
-Result Variables
-^^^^^^^^^^^^^^^^
-
-This module defines the following variables:
-
-``LibUUID_FOUND``
-  True if LibUUID was found, false otherwise.
-``LibUUID_INCLUDE_DIRS``
-  Include directories needed to include LibUUID headers.
-``LibUUID_LIBRARIES``
-  Libraries needed to link to LibUUID.
-
-Cache Variables
-^^^^^^^^^^^^^^^
-
-This module uses the following cache variables:
-
-``LibUUID_LIBRARY``
-  The location of the LibUUID library file.
-``LibUUID_INCLUDE_DIR``
-  The location of the LibUUID include directory containing ``uuid/uuid.h``.
-
-The cache variables should not be used by project code.
-They may be set by end users to point at LibUUID components.
-#]=======================================================================]
-
-#-----------------------------------------------------------------------------
 if(MSYS)
-    # Note: on current version of MSYS2, linking to libuuid.dll.a doesn't
-    #       import the right symbols sometimes. Fix this by linking directly
-    #       to the DLL that provides the symbols, instead.
-    find_library(LibUUID_LIBRARY
-            NAMES msys-uuid-1.dll
-            )
+    find_library(LibUUID_LIBRARY NAMES msys-uuid-1.dll)
 elseif(CYGWIN)
-    # Note: on current version of Cygwin, linking to libuuid.dll.a doesn't
-    #       import the right symbols sometimes. Fix this by linking directly
-    #       to the DLL that provides the symbols, instead.
     set(old_suffixes ${CMAKE_FIND_LIBRARY_SUFFIXES})
     set(CMAKE_FIND_LIBRARY_SUFFIXES .dll)
-    find_library(LibUUID_LIBRARY
-            NAMES cyguuid-1.dll
-            )
+    find_library(LibUUID_LIBRARY NAMES cyguuid-1.dll)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${old_suffixes})
 else()
-    find_library(LibUUID_LIBRARY
-            NAMES libuuid.a
-            )
+    find_library(LibUUID_LIBRARY NAMES libuuid.a)
 endif()
 mark_as_advanced(LibUUID_LIBRARY)
-
-find_path(LibUUID_INCLUDE_DIR
-        NAMES uuid/uuid.h
-        )
+find_path(LibUUID_INCLUDE_DIR NAMES uuid/uuid.h)
 mark_as_advanced(LibUUID_INCLUDE_DIR)
 
-#-----------------------------------------------------------------------------
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(LibUUID
-        FOUND_VAR LibUUID_FOUND
-        REQUIRED_VARS LibUUID_LIBRARY LibUUID_INCLUDE_DIR
-        )
+find_package_handle_standard_args(LibUUID FOUND_VAR LibUUID_FOUND REQUIRED_VARS LibUUID_LIBRARY LibUUID_INCLUDE_DIR)
 set(LIBUUID_FOUND ${LibUUID_FOUND})
 
-#-----------------------------------------------------------------------------
-# Provide documented result variables and targets.
 if(LibUUID_FOUND)
     set(LibUUID_INCLUDE_DIRS ${LibUUID_INCLUDE_DIR})
     set(LibUUID_LIBRARIES ${LibUUID_LIBRARY})
