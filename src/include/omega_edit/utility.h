@@ -26,17 +26,6 @@ extern "C" {
 #include <stdio.h>
 #endif
 
-// UUID string is 36-bytes plus a tailing '\0'
-#define UUID_STRING_LEN (37)
-
-/**
- * Creates a UUID string
- * @param buffer
- * @param buffer pointer to memory to hold the cUUID (allocated to at least UUID_STRING_LEN) or could be NULL, in which case an internal static buffer will be used
- * @return UUID string
- */
-char *omega_util_create_uuid(char *buffer);
-
 /**
  * Gets the current working directory
  * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used

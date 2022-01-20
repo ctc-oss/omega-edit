@@ -16,6 +16,7 @@ add_executable(generate_file generate_file.cpp test_util.h)
 
 add_executable(omega_test omega_test.cpp test_util.h)
 target_link_libraries(omega_test omega_edit)
+target_include_directories(omega_test PRIVATE ${CMAKE_SOURCE_DIR}/vendor/catch2/single_include)
 add_custom_command(TARGET omega_test
         POST_BUILD COMMAND ${CMAKE_COMMAND}
         -E copy_directory ${CMAKE_SOURCE_DIR}/src/tests/data/ $<TARGET_FILE_DIR:omega_test>/data)

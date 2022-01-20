@@ -17,7 +17,6 @@
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
 #include <io.h>
-#include <objbase.h>
 #include <process.h>
 #include <sys/utime.h>
 #ifdef OPEN
@@ -35,7 +34,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <utime.h>
-#include <uuid/uuid.h>
 #ifndef O_BINARY
 #define O_BINARY (0)
 #endif
@@ -48,28 +46,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#ifdef OMEGA_BUILD_WINDOWS
-char *omega_util_create_uuid(char *buffer) {
-    static char buff[UUID_STRING_LEN];
-    GUID out = {0};
-    CoCreateGuid(&out);
-    if (!buffer) { buffer = buff; }
-    sprintf(buffer, "%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X", out.Data1, out.Data2, out.Data3, out.Data4[0],
-            out.Data4[1], out.Data4[2], out.Data4[3], out.Data4[4], out.Data4[5], out.Data4[6], out.Data4[7]);
-    for (; *buffer; ++buffer) *buffer = tolower(*buffer);
-    return buffer;
-}
-#else
-char *omega_util_create_uuid(char *buffer) {
-    static char buff[UUID_STRING_LEN];
-    uuid_t out;
-    if (!buffer) { buffer = buff; }
-    uuid_generate(out);
-    uuid_unparse_lower(out, buffer);
-    return buffer;
-}
-#endif
 
 int omega_util_mkstemp(char *tmpl) {
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62

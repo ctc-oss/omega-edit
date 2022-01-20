@@ -55,7 +55,6 @@ set(SOURCE_FILES
 # Create the library archive for static linking
 add_library(omega_edit ${SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC src/include)
-target_include_directories(omega_edit PUBLIC vendor/catch2/single_include)
 
 # Parse version information
 string(TOUPPER ${PROJECT_NAME} PREFIX)
@@ -70,7 +69,7 @@ if(BUILD_DOCS)
     # Generate API documentation using Doxygen
     find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
     if(DOXYGEN_FOUND)
-        message("-- API documentation generation enabled")
+        message(STATUS "API documentation generation enabled")
         set(DOXYGEN_GENERATE_HTML YES)
         set(DOXYGEN_GENERATE_MAN YES)
         set(DOXYGEN_GENERATE_XML YES)
@@ -83,7 +82,7 @@ if(BUILD_DOCS)
         find_package(Sphinx REQUIRED)
         if(SPHINX_FOUND)
             # Generate user documentation using Sphinx
-            message("-- User documentation generation enabled")
+            message(STATUS "User documentation generation enabled")
             set(DOXYGEN_INDEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/xml)
             set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
             set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/docs/sphinx)
@@ -106,10 +105,10 @@ if(BUILD_DOCS)
             include(GNUInstallDirs)
             install(DIRECTORY ${SPHINX_BUILD} DESTINATION ${CMAKE_INSTALL_DOCDIR})
         else(SPHINX_FOUND)
-            message("-- Sphinx need to be installed to generate user documentation")
+            message(STATUS "Sphinx need to be installed to generate user documentation")
         endif(SPHINX_FOUND)
     else(DOXYGEN_FOUND)
-        message("-- Doxygen need to be installed to generate API documentation")
+        message(STATUS "Doxygen need to be installed to generate API documentation")
     endif(DOXYGEN_FOUND)
 endif(BUILD_DOCS)
 
@@ -118,16 +117,19 @@ add_subdirectory(src/examples)
 add_subdirectory(src/tests)
 add_subdirectory(vendor/cwalk)
 
-target_link_libraries(omega_edit PUBLIC cwalk)
+target_link_libraries(omega_edit PRIVATE cwalk)
 
-find_package(LibUUID)
-if(LibUUID_FOUND)
-    message("-- UUID library found")
-    target_include_directories(omega_edit PRIVATE ${LibUUID_INCLUDE_DIRS})
-    target_link_libraries(omega_edit PUBLIC ${LibUUID_LIBRARIES})
-else()
-    message("-- UUID library not found")
-endif(LibUUID_FOUND)
+set(Boost_USE_STATIC_LIBS        ON)  # only find static libs
+set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
+set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
+set(Boost_USE_MULTITHREADED      ON)
+set(Boost_USE_STATIC_RUNTIME    OFF)
+find_package(Boost 1.66.0 COMPONENTS date_time filesystem system)
+if(Boost_FOUND)
+    message(STATUS "Boost found ${Boost_VERSION_STRING}")
+    target_include_directories(omega_edit PRIVATE ${Boost_INCLUDE_DIRS})
+    target_link_libraries(omega_edit PRIVATE ${Boost_LIBRARIES})
+endif(Boost_FOUND)
 
 option(USE_SYSTEM_GRPC "Use system installed gRPC" OFF)
 if(USE_SYSTEM_GRPC)

@@ -296,15 +296,6 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
-TEST_CASE("UUID Tests", "[UUIDTest]") {
-    char uuid_buffer[UUID_STRING_LEN];
-    omega_util_create_uuid(uuid_buffer);
-    REQUIRE(36 == strlen(uuid_buffer));
-    const auto uuid2 = omega_util_create_uuid(nullptr);
-    REQUIRE(36 == strlen(uuid2));
-    REQUIRE(0 != strcmp(uuid_buffer, uuid2));
-}
-
 using file_info_t = struct file_info_struct { size_t num_changes{}; };
 
 static inline void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {

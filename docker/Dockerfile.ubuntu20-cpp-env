@@ -26,6 +26,7 @@ RUN apt-get update && apt-get -y install \
   cmake \
   autoconf \
   automake \
+  libboost-all-dev \
   locales-all \
   dos2unix \
   rsync \
