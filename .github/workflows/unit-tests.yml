@@ -26,7 +26,7 @@ jobs:
     steps:
       - name: Install Prerequisites 📚
         run: |
-          brew install ninja nodeenv yarn doxygen graphviz
+          brew install boost ninja nodeenv yarn doxygen graphviz
           sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Prerequisites 📚
-        run: sudo apt install -y ninja-build nodeenv uuid-dev valgrind yarn
+        run: sudo apt install -y libboost-all-dev ninja-build nodeenv uuid-dev valgrind yarn
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
@@ -103,6 +103,7 @@ jobs:
           update: true
           install: >-
             mingw-w64-${{ matrix.env }}-toolchain
+            mingw-w64-${{ matrix.env }}-boost
             base-devel
             cmake
             git
