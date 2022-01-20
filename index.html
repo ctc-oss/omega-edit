@@ -932,6 +932,14 @@
 <section id="utility-h">
 <h2>utility.h<a class="headerlink" href="#utility-h" title="Permalink to this headline"></a></h2>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.UUID_STRING_LEN">
+<span class="target" id="utility_8h_1a1d3a12305e27647a95c3bea65f35e62f"></span><span class="sig-name descname"><span class="n"><span class="pre">UUID_STRING_LEN</span></span></span><a class="headerlink" href="#c.UUID_STRING_LEN" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv427omega_util_byte_transform_t">
@@ -967,6 +975,23 @@
 </div>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv422omega_util_create_uuidPc">
+<span id="_CPPv322omega_util_create_uuidPc"></span><span id="_CPPv222omega_util_create_uuidPc"></span><span id="omega_util_create_uuid__cP"></span><span class="target" id="utility_8h_1a2feb63432d5fad5ee75405fb693c5d7a"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_create_uuid</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv422omega_util_create_uuidPc" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Creates a UUID string </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>buffer</strong> – </p></li>
+<li><p><strong>buffer</strong> – pointer to memory to hold the cUUID (allocated to at least UUID_STRING_LEN) or could be NULL, in which case an internal static buffer will be used </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>UUID string </p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv426omega_util_get_current_dirPc">
 <span id="_CPPv326omega_util_get_current_dirPc"></span><span id="_CPPv226omega_util_get_current_dirPc"></span><span id="omega_util_get_current_dir__cP"></span><span class="target" id="utility_8h_1a87b535495b50f3d7d98a2ba41ea0d051"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_get_current_dir</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_util_get_current_dirPc" title="Permalink to this definition"></a><br /></dt>
@@ -1242,22 +1267,46 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_majorv">
 <span id="_CPPv319omega_version_majorv"></span><span id="_CPPv219omega_version_majorv"></span><span id="omega_version_major"></span><span class="target" id="version_8h_1aa500b8ee3a7735527559e7f50235f5ca"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_major</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_majorv" title="Permalink to this definition"></a><br /></dt>
-<dd></dd></dl>
+<dd><p>Get the major version of the library </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the major version of the library </p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_minorv">
 <span id="_CPPv319omega_version_minorv"></span><span id="_CPPv219omega_version_minorv"></span><span id="omega_version_minor"></span><span class="target" id="version_8h_1ac559106b5a2c4e9af518ebf5a616b8e6"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_minor</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_minorv" title="Permalink to this definition"></a><br /></dt>
-<dd></dd></dl>
+<dd><p>Get the minor version of the library </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the minor version of the library </p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_patchv">
 <span id="_CPPv319omega_version_patchv"></span><span id="_CPPv219omega_version_patchv"></span><span id="omega_version_patch"></span><span class="target" id="version_8h_1aa3fd333c708f65c6a39302948a462f7c"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_patch</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_patchv" title="Permalink to this definition"></a><br /></dt>
-<dd></dd></dl>
+<dd><p>Get the patch-level of the library </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the patch-level of the library </p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv413omega_versionv">
 <span id="_CPPv313omega_versionv"></span><span id="_CPPv213omega_versionv"></span><span id="omega_version"></span><span class="target" id="version_8h_1ae07f7ddf71657f6a8800dd58c02f026f"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv413omega_versionv" title="Permalink to this definition"></a><br /></dt>
-<dd></dd></dl>
+<dd><p>Get the integer representation of the version of the library </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>the integer representation of the version of the library </p>
+</dd>
+</dl>
+</dd></dl>
 
 </div>
 </section>
