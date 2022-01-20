@@ -272,13 +272,13 @@ TEST_CASE("Transformer", "[TransformerTest]") {
 }
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat", to_upper, NULL, 0,
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat", to_upper, nullptr, 0,
                                             0));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.1.dat", "data/test1.actual.transformed.1.dat"));
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat", to_lower, NULL, 37,
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat", to_lower, nullptr, 37,
                                             10));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.2.dat", "data/test1.actual.transformed.2.dat"));
-    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat", to_lower, NULL, 37,
+    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat", to_lower, nullptr, 37,
                                             100));
     REQUIRE(0 == omega_util_file_exists("data/test1.actual.transformed.3.dat"));
 }
@@ -296,9 +296,16 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
-typedef struct file_info_struct {
-    size_t num_changes{};
-} file_info_t;
+TEST_CASE("UUID Tests", "[UUIDTest]") {
+    char uuid_buffer[UUID_STRING_LEN];
+    omega_util_create_uuid(uuid_buffer);
+    REQUIRE(36 == strlen(uuid_buffer));
+    const auto uuid2 = omega_util_create_uuid(nullptr);
+    REQUIRE(36 == strlen(uuid2));
+    REQUIRE(0 != strcmp(uuid_buffer, uuid2));
+}
+
+using file_info_t = struct file_info_struct { size_t num_changes{}; };
 
 static inline void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);

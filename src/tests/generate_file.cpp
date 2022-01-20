@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
                       ")!@#$%^&*(ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσςΤτΥυΦφΧχΨψΩω";
     auto const fill_length = static_cast<int64_t>(strlen(fill));
     auto const file_name = argv[2];
-    auto test_infile_ptr = fill_file(file_name, std::strtoll(argv[1], 0, 10), fill, fill_length);
+    auto test_infile_ptr = fill_file(file_name, std::strtoll(argv[1], nullptr, 10), fill, fill_length);
     fclose(test_infile_ptr);
     return 0;
 }

@@ -21,10 +21,10 @@
 #include "model_def.hpp"
 #include <vector>
 
-typedef std::unique_ptr<omega_model_t> omega_model_ptr_t;
-typedef std::shared_ptr<omega_viewport_t> omega_viewport_ptr_t;
-typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
-typedef std::vector<omega_model_ptr_t> omega_models_t;
+using omega_model_ptr_t = std::unique_ptr<omega_model_t>;
+using omega_viewport_ptr_t = std::shared_ptr<omega_viewport_t>;
+using omega_viewports_t = std::vector<omega_viewport_ptr_t>;
+using omega_models_t = std::vector<omega_model_ptr_t>;
 
 struct omega_session_struct {
     omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes

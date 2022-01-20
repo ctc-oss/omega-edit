@@ -26,9 +26,7 @@
 
 using namespace std;
 
-typedef struct file_info_struct {
-    char const *in_filename = nullptr;
-} file_info_t;
+using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
 
 void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);

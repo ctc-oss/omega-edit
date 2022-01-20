@@ -393,8 +393,9 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
                                                          offset, length)) {
             errno = 0;
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
-                0 == rename(out_file.c_str(), in_file.c_str())) {
-                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) { return 0; }
+                0 == rename(out_file.c_str(), in_file.c_str()) &&
+                (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
+                return 0;
             }
             // In a bad state (I/O failure), so abort
             ABORT(LOG_ERROR(strerror(errno)););

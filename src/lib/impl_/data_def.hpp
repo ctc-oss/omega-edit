@@ -23,10 +23,10 @@
  * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
  * whose address will be stored in the bytes field.
  */
-typedef union omega_data_union {
+using omega_data_t =  union omega_data_union {
     omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
     omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
-} omega_data_t;
+};
 
 static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
 

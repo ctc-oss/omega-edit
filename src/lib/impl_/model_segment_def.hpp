@@ -38,8 +38,9 @@ inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_
             return 'R';
         case model_segment_kind_t::SEGMENT_INSERT:
             return 'I';
+        default:
+            return '?';
     }
-    return '?';
 }
 
 #endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP

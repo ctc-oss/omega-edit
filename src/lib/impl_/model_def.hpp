@@ -22,9 +22,9 @@
 #include <string>
 #include <vector>
 
-typedef std::unique_ptr<omega_model_segment_t> omega_model_segment_ptr_t;
-typedef std::vector<omega_model_segment_ptr_t> omega_model_segments_t;
-typedef std::vector<const_omega_change_ptr_t> omega_changes_t;
+using omega_model_segment_ptr_t = std::unique_ptr<omega_model_segment_t>;
+using omega_model_segments_t = std::vector<omega_model_segment_ptr_t>;
+using omega_changes_t = std::vector<const_omega_change_ptr_t>;
 
 struct omega_model_struct {
     FILE *file_ptr{};                       ///< File being edited (open for read)
