@@ -119,11 +119,10 @@ add_subdirectory(vendor/cwalk)
 
 target_link_libraries(omega_edit PUBLIC cwalk)
 
-find_path(LIBUUID_INCLUDE_DIR uuid.h PATH_SUFFIXES uuid)
-find_library(LIBUUID_LIBRARY libuuid.a)
+find_package(LibUUID)
 if(LibUUID_FOUND)
     message("-- UUID library found")
-    target_include_directories(omega_edit PRIVATE ${LIBUUID_INCLUDE_DIR})
+    target_include_directories(omega_edit PRIVATE ${LibUUID_INCLUDE_DIRS})
     target_link_libraries(omega_edit PUBLIC ${LibUUID_LIBRARIES})
 else()
     message("-- UUID library not found")
