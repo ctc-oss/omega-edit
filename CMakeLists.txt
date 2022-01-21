@@ -9,7 +9,7 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
-cmake_minimum_required(VERSION 3.9.2)
+cmake_minimum_required(VERSION 3.13)
 
 # Project information
 project(omega_edit
@@ -26,43 +26,6 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH cmake)
 
-# Define the library source files
-set(SOURCE_FILES
-        src/include/omega_edit.h
-        src/include/omega_edit/config.h
-        src/include/omega_edit/fwd_defs.h
-        src/include/omega_edit/byte.h
-        src/include/omega_edit/scoped_ptr.hpp
-        src/include/omega_edit/stl_string_adaptor.hpp
-        src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
-        src/include/omega_edit/check.h src/lib/check.cpp
-        src/include/omega_edit/edit.h src/lib/edit.cpp
-        src/include/omega_edit/search.h src/lib/search.cpp
-        src/include/omega_edit/version.h src/lib/version.c
-        src/include/omega_edit/visit.h src/lib/visit.cpp
-        src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
-        src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
-        src/include/omega_edit/license.h src/lib/license.c
-        src/include/omega_edit/utility.h src/lib/utility.c
-        src/include/omega_edit/encodings.h src/lib/encodings.c
-        src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
-        src/lib/impl_/find.h src/lib/impl_/find.cpp
-        src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
-        src/lib/impl_/model_def.hpp src/lib/impl_/model_segment_def.hpp
-        src/lib/impl_/macros.h
-        src/lib/impl_/internal_fwd_defs.hpp)
-
-# Create the library archive for static linking
-add_library(omega_edit ${SOURCE_FILES})
-target_include_directories(omega_edit PUBLIC src/include)
-
-# Parse version information
-string(TOUPPER ${PROJECT_NAME} PREFIX)
-
-# Send version information into libomega_edit through macro definitions
-foreach(level MAJOR MINOR PATCH)
-    target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}})
-endforeach()
 
 option(BUILD_DOCS "build documentation" ON)
 if(BUILD_DOCS)
@@ -112,6 +75,89 @@ if(BUILD_DOCS)
     endif(DOXYGEN_FOUND)
 endif(BUILD_DOCS)
 
+message(STATUS "Using gRPC via add_subdirectory")
+# Build gRPC using FetchContent or add_subdirectory
+set(BUILD_TESTING OFF)
+set(ABSL_PROPAGATE_CXX_STD ON)
+set(gRPC_INSTALL ON)
+set(CMAKE_INSTALL_PREFIX_SAVED "${CMAKE_INSTALL_PREFIX}")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/grpc")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(CMAKE_MACOSX_RPATH 1)
+endif()
+add_subdirectory(vendor/grpc)
+add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/protoc"
+        "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin"
+        "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_node_plugin"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/vendor/grpc"
+        COMMAND make
+        ARGS -j4 install
+        DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/vendor/grpc/Makefile"
+)
+set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX_SAVED}")
+
+# Proto file
+get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/src/protos/omega_edit.proto" ABSOLUTE)
+get_filename_component(omega_proto_path "${omega_proto}" PATH)
+
+# Generated sources
+set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.pb.cc")
+set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.pb.h")
+set(omega_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.grpc.pb.cc")
+set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.grpc.pb.h")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/src/protos")
+add_custom_command(
+        OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}"
+        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/protoc
+        ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}/src/protos"
+        --cpp_out "${CMAKE_CURRENT_BINARY_DIR}/src/protos"
+        -I "${omega_proto_path}"
+        --plugin=protoc-gen-grpc="${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin"
+        "${omega_proto}"
+        DEPENDS "${omega_proto}"
+        "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/protoc"
+        "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/grpc_cpp_plugin")
+
+# Define the library source files
+set(SOURCE_FILES
+        src/include/omega_edit.h
+        src/include/omega_edit/config.h
+        src/include/omega_edit/fwd_defs.h
+        src/include/omega_edit/byte.h
+        src/include/omega_edit/scoped_ptr.hpp
+        src/include/omega_edit/stl_string_adaptor.hpp
+        src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
+        src/include/omega_edit/check.h src/lib/check.cpp
+        src/include/omega_edit/edit.h src/lib/edit.cpp
+        src/include/omega_edit/search.h src/lib/search.cpp
+        src/include/omega_edit/version.h src/lib/version.c
+        src/include/omega_edit/visit.h src/lib/visit.cpp
+        src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
+        src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
+        src/include/omega_edit/license.h src/lib/license.c
+        src/include/omega_edit/utility.h src/lib/utility.c
+        src/include/omega_edit/encodings.h src/lib/encodings.c
+        src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
+        src/lib/impl_/find.h src/lib/impl_/find.cpp
+        src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
+        src/lib/impl_/model_def.hpp src/lib/impl_/model_segment_def.hpp
+        src/lib/impl_/macros.h
+        src/lib/impl_/internal_fwd_defs.hpp)
+
+# Create the library archive for static linking
+add_library(omega_edit ${SOURCE_FILES} "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
+#add_library(omega_edit ${SOURCE_FILES})
+target_include_directories(omega_edit PUBLIC src/include)
+target_include_directories(omega_edit PRIVATE "${omega_proto_path}")
+# Parse version information
+string(TOUPPER ${PROJECT_NAME} PREFIX)
+
+# Send version information into libomega_edit through macro definitions
+foreach(level MAJOR MINOR PATCH)
+    target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}})
+endforeach()
+
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
@@ -131,17 +177,4 @@ if(Boost_FOUND)
     target_link_libraries(omega_edit PRIVATE ${Boost_LIBRARIES})
 endif(Boost_FOUND)
 
-option(USE_SYSTEM_GRPC "Use system installed gRPC" OFF)
-if(USE_SYSTEM_GRPC)
-    # Find system-installed gRPC
-    find_package(gRPC CONFIG REQUIRED)
-else(USE_SYSTEM_GRPC)
-    # Build gRPC using FetchContent or add_subdirectory
-    set(BUILD_TESTING OFF)
-    set(ABSL_PROPAGATE_CXX_STD ON)
-    if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        set(CMAKE_MACOSX_RPATH 1)
-    endif()
-    add_subdirectory(vendor/grpc)
-endif(USE_SYSTEM_GRPC)
 target_link_libraries(omega_edit PUBLIC grpc++)

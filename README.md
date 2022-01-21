@@ -67,7 +67,7 @@ Studio Code also works well.
 ### Pulling the submodules required to build:
 
 ```bash
-git submodule update --init
+git submodule update --init --recursive
 ```
 
 ### Configure debug build:
