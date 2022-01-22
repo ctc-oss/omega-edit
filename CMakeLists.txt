@@ -15,7 +15,7 @@ cmake_minimum_required(VERSION 3.13)
 project(omega_edit
         VERSION 0.6.2
         DESCRIPTION "Apache open source library for building editors"
-        HOMEPAGE_URL https://github.com/ctc-oss/omega-edit
+        HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 
 # Get verbose output from the makefile (useful for debugging the build)
@@ -24,7 +24,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 # Use C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-list(APPEND CMAKE_MODULE_PATH cmake)
+list(APPEND CMAKE_MODULE_PATH "cmake")
 
 
 option(BUILD_DOCS "build documentation" ON)
@@ -39,34 +39,35 @@ if(BUILD_DOCS)
         set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
         set(DOXYGEN_EXTRACT_ALL YES)
         set(DOXYGEN_OUTPUT_DIRECTORY docs)
-        doxygen_add_docs(docs src/include ALL)
+        doxygen_add_docs(docs "src/include" ALL)
         # Add the cmake folder so the FindSphinx module is found
-        set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+        set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
         find_package(Sphinx REQUIRED)
         if(SPHINX_FOUND)
             # Generate user documentation using Sphinx
             message(STATUS "User documentation generation enabled")
-            set(DOXYGEN_INDEX_DIR ${CMAKE_CURRENT_BINARY_DIR}/docs/xml)
-            set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
-            set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/docs/sphinx)
-            set(SPHINX_INDEX_FILE ${SPHINX_BUILD}/index.html)
-            add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
-                    COMMAND ${SPHINX_EXECUTABLE} -b html
+            set(DOXYGEN_INDEX_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/xml")
+            set(SPHINX_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/sphinx")
+            set(SPHINX_BUILD "${CMAKE_CURRENT_BINARY_DIR}/docs/sphinx")
+            set(SPHINX_INDEX_FILE "${SPHINX_BUILD}/index.html")
+            add_custom_command(OUTPUT "${SPHINX_INDEX_FILE}"
+                    COMMAND "${SPHINX_EXECUTABLE}"
+                    ARGS -b html
                     # Tell Breathe where to find the Doxygen output
-                    -Dbreathe_projects.omega_edit=${DOXYGEN_INDEX_DIR}
-                    ${SPHINX_SOURCE} ${SPHINX_BUILD}
-                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                    -Dbreathe_projects.omega_edit="${DOXYGEN_INDEX_DIR}"
+                    "${SPHINX_SOURCE}" "${SPHINX_BUILD}"
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
                     DEPENDS
                     # Other docs files you want to track should go here (or in some variable)
-                    ${SPHINX_SOURCE}/index.rst
-                    ${DOXYGEN_INDEX_DIR}/index.xml
-                    MAIN_DEPENDENCY ${SPHINX_SOURCE}/conf.py
+                    "${SPHINX_SOURCE}/index.rst"
+                    "${DOXYGEN_INDEX_DIR}/index.xml"
+                    MAIN_DEPENDENCY "${SPHINX_SOURCE}/conf.py"
                     COMMENT "Generating documentation with Sphinx")
             # Nice named target so we can run the job easily
-            add_custom_target(sphinx ALL DEPENDS ${SPHINX_INDEX_FILE})
+            add_custom_target(sphinx ALL DEPENDS "${SPHINX_INDEX_FILE}")
             add_dependencies(sphinx docs)
             include(GNUInstallDirs)
-            install(DIRECTORY ${SPHINX_BUILD} DESTINATION ${CMAKE_INSTALL_DOCDIR})
+            install(DIRECTORY "${SPHINX_BUILD}" DESTINATION "${CMAKE_INSTALL_DOCDIR}")
         else(SPHINX_FOUND)
             message(STATUS "Sphinx need to be installed to generate user documentation")
         endif(SPHINX_FOUND)
@@ -109,7 +110,7 @@ set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.grpc.pb.h
 make_directory("${CMAKE_CURRENT_BINARY_DIR}/src/protos")
 add_custom_command(
         OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}"
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/protoc
+        COMMAND "${CMAKE_CURRENT_BINARY_DIR}/grpc/bin/protoc"
         ARGS --grpc_out "${CMAKE_CURRENT_BINARY_DIR}/src/protos"
         --cpp_out "${CMAKE_CURRENT_BINARY_DIR}/src/protos"
         -I "${omega_proto_path}"
@@ -147,15 +148,14 @@ set(SOURCE_FILES
 
 # Create the library archive for static linking
 add_library(omega_edit ${SOURCE_FILES} "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
-#add_library(omega_edit ${SOURCE_FILES})
-target_include_directories(omega_edit PUBLIC src/include)
+target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
 target_include_directories(omega_edit PRIVATE "${omega_proto_path}")
 # Parse version information
-string(TOUPPER ${PROJECT_NAME} PREFIX)
+string(TOUPPER "${PROJECT_NAME}" PREFIX)
 
 # Send version information into libomega_edit through macro definitions
 foreach(level MAJOR MINOR PATCH)
-    target_compile_definitions(omega_edit PRIVATE ${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}})
+    target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach()
 
 # Add additional subdirectories with CMakeLists.txt to the build
@@ -165,11 +165,11 @@ add_subdirectory(vendor/cwalk)
 
 target_link_libraries(omega_edit PRIVATE cwalk)
 
-set(Boost_USE_STATIC_LIBS        ON)  # only find static libs
-set(Boost_USE_DEBUG_LIBS        OFF)  # ignore debug libs and
-set(Boost_USE_RELEASE_LIBS       ON)  # only find release libs
-set(Boost_USE_MULTITHREADED      ON)
-set(Boost_USE_STATIC_RUNTIME    OFF)
+set(Boost_USE_STATIC_LIBS       ON)  # only find static libs
+set(Boost_USE_DEBUG_LIBS       OFF)  # ignore debug libs and
+set(Boost_USE_RELEASE_LIBS      ON)  # only find release libs
+set(Boost_USE_MULTITHREADED     ON)
+set(Boost_USE_STATIC_RUNTIME   OFF)
 find_package(Boost 1.66.0 COMPONENTS date_time filesystem system)
 if(Boost_FOUND)
     message(STATUS "Boost found ${Boost_VERSION_STRING}")
