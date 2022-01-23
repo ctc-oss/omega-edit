@@ -14,8 +14,8 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "catch2/catch.hpp"
 #include "test_util.h"
+#include <catch2/catch.hpp>
 #include <omega_edit.h>
 #include <omega_edit/check.h>
 #include <omega_edit/config.h>
@@ -101,7 +101,7 @@ TEST_CASE("File Compare", "[UtilTests]") {
 
 TEST_CASE("End Of Line", "[EOLTests]") {
     omega_byte_t buffer[1024];
-    FILE * in_fp = fopen("data/test1.dat", "rb");
+    FILE *in_fp = fopen("data/test1.dat", "rb");
     REQUIRE(in_fp);
     REQUIRE(0 == fseek(in_fp, 0, SEEK_END));
     auto file_size = ftell(in_fp);
@@ -110,7 +110,7 @@ TEST_CASE("End Of Line", "[EOLTests]") {
     REQUIRE(file_size < sizeof(buffer));
     REQUIRE(file_size == fread(buffer, sizeof(omega_byte_t), file_size, in_fp));
     REQUIRE(0 == fclose(in_fp));
-    FILE * out_fp = fopen("data/test1.actual.eol.1.dat", "wb");
+    FILE *out_fp = fopen("data/test1.actual.eol.1.dat", "wb");
     REQUIRE(out_fp);
     REQUIRE(file_size == fwrite(buffer, sizeof(omega_byte_t), file_size, out_fp));
     REQUIRE(file_size == ftell(out_fp));
@@ -144,9 +144,7 @@ TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
 }
 
-TEST_CASE("Current Directory", "[UtilTests]") {
-    REQUIRE_THAT(omega_util_get_current_dir(nullptr), Contains("src") && EndsWith("tests"));
-}
+TEST_CASE("Current Directory", "[UtilTests]") { REQUIRE_THAT(omega_util_get_current_dir(nullptr), EndsWith("bin")); }
 
 TEST_CASE("Directory Name", "[UtilTests]") {
     // Unix-style paths
@@ -272,14 +270,14 @@ TEST_CASE("Transformer", "[TransformerTest]") {
 }
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat", to_upper, nullptr, 0,
-                                            0));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat",
+                                                         to_upper, nullptr, 0, 0));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.1.dat", "data/test1.actual.transformed.1.dat"));
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat", to_lower, nullptr, 37,
-                                            10));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat",
+                                                         to_lower, nullptr, 37, 10));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.2.dat", "data/test1.actual.transformed.2.dat"));
-    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat", to_lower, nullptr, 37,
-                                            100));
+    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat",
+                                                         to_lower, nullptr, 37, 100));
     REQUIRE(0 == omega_util_file_exists("data/test1.actual.transformed.3.dat"));
 }
 
@@ -351,7 +349,7 @@ typedef struct mask_info_struct {
     omega_mask_kind_t mask_kind;
 } mask_info_t;
 
-static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void * user_data_ptr) {
+static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void *user_data_ptr) {
     const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
     return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
 }
@@ -364,7 +362,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(session_ptr);
     auto file_size = omega_session_get_computed_file_size(session_ptr);
     REQUIRE(file_size > 0);
-    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 !=
+            omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0, "./data"));
@@ -396,7 +395,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0,
+                                             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
     REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
