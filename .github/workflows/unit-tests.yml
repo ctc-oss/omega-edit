@@ -116,6 +116,7 @@ jobs:
           install: >-
             mingw-w64-${{ matrix.env }}-toolchain
             mingw-w64-${{ matrix.env }}-boost
+            mingw-w64-${{ matrix.env }}-python-pip
             base-devel
             cmake
             git
