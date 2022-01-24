@@ -43,7 +43,7 @@ jobs:
       - name: Install Conan 💪
         run: pip install conan pytest && conan --version
       - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug
+        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
       - name: Build Debug Build 🔧
         run: cmake --build cmake-build-debug
       - name: Run Tests 📋
@@ -168,7 +168,7 @@ jobs:
       - name: Install Conan 💪
         run: pip install conan pytest && conan --version
       - name: Prepare The Build 🪛
-        run: cmake -S . -B cmake-build-debug
+        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
       - name: Build Tests 🔧
         run: cmake --build cmake-build-debug --target omega_test
       - name: Run tests 📋

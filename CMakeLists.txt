@@ -19,7 +19,7 @@ project(omega_edit
         LANGUAGES C CXX)
 
 # Get verbose output from the makefile (useful for debugging the build)
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
 # Use C++14
 set(CMAKE_CXX_STANDARD 14)
@@ -35,14 +35,15 @@ if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
             TLS_VERIFY ON)
 endif()
 include(${CMAKE_BINARY_DIR}/conan.cmake)
+conan_cmake_autodetect(settings)
 conan_cmake_configure(
         REQUIRES boost/1.77.0 catch2/2.13.8 cwalk/1.2.5 grpc/1.43.0
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
+        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True"
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_cpp_plugin* -> ./build_tools"
         IMPORTS "bin, grpc_node_plugin* -> ./build_tools")
-conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE .
         BUILD missing
         REMOTE conancenter
