@@ -113,6 +113,7 @@ add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES} "${omega_proto_srcs}" "${omega
 target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
 target_include_directories(omega_edit PRIVATE "${omega_proto_path}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
+target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_GRPC}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_PROTOBUF}")
 # Parse version information
