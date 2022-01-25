@@ -33,6 +33,8 @@ if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
             "${CMAKE_BINARY_DIR}/conan.cmake"
             EXPECTED_HASH SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484
             TLS_VERIFY ON)
+else()
+    message(STATUS "${CMAKE_BINARY_DIR}/conan.cmake exists")
 endif()
 include(${CMAKE_BINARY_DIR}/conan.cmake)
 conan_cmake_autodetect(settings)
