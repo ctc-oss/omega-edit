@@ -115,9 +115,9 @@
 </li>
       <li><a href="index.html#_CPPv428omega_edit_create_checkpointP15omega_session_tPKc">omega_edit_create_checkpoint (C++ function)</a>
 </li>
-      <li><a href="index.html#_CPPv425omega_edit_create_sessionPKc29omega_session_on_change_cbk_tPv">omega_edit_create_session (C++ function)</a>
+      <li><a href="index.html#_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv">omega_edit_create_session (C++ function)</a>
 </li>
-      <li><a href="index.html#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t30omega_viewport_on_change_cbk_tPv">omega_edit_create_viewport (C++ function)</a>
+      <li><a href="index.html#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPv">omega_edit_create_viewport (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv417omega_edit_deleteP15omega_session_t7int64_t7int64_t">omega_edit_delete (C++ function)</a>
 </li>
@@ -171,6 +171,28 @@
 </li>
       <li><a href="index.html#_CPPv434omega_session_change_visitor_cbk_t">omega_session_change_visitor_cbk_t (C++ type)</a>
 </li>
+      <li><a href="index.html#_CPPv425omega_session_event_cbk_t">omega_session_event_cbk_t (C++ type)</a>
+</li>
+      <li><a href="index.html#_CPPv421omega_session_event_t">omega_session_event_t (C++ enum)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE">omega_session_event_t::SESSION_EVT_CLEAR (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE">omega_session_event_t::SESSION_EVT_CREATE (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE">omega_session_event_t::SESSION_EVT_CREATE_CHECKPOINT (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE">omega_session_event_t::SESSION_EVT_DESTROY_CHECKPOINT (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE">omega_session_event_t::SESSION_EVT_EDIT (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE">omega_session_event_t::SESSION_EVT_SAVE (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME">omega_session_event_t::SESSION_EVT_TRANSFORM (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE">omega_session_event_t::SESSION_EVT_UNDEFINED (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE">omega_session_event_t::SESSION_EVT_UNDO (C++ enumerator)</a>
+</li>
       <li><a href="index.html#_CPPv424omega_session_get_changePK15omega_session_t7int64_t">omega_session_get_change (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv436omega_session_get_computed_file_sizePK15omega_session_t">omega_session_get_computed_file_size (C++ function)</a>
@@ -179,12 +201,12 @@
 </li>
       <li><a href="index.html#_CPPv429omega_session_get_last_changePK15omega_session_t">omega_session_get_last_change (C++ function)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="index.html#_CPPv427omega_session_get_last_undoPK15omega_session_t">omega_session_get_last_undo (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv429omega_session_get_num_changesPK15omega_session_t">omega_session_get_num_changes (C++ function)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="index.html#_CPPv433omega_session_get_num_checkpointsPK15omega_session_t">omega_session_get_num_checkpoints (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv436omega_session_get_num_undone_changesPK15omega_session_t">omega_session_get_num_undone_changes (C++ function)</a>
@@ -193,7 +215,7 @@
 </li>
       <li><a href="index.html#_CPPv427omega_session_get_user_dataPK15omega_session_t">omega_session_get_user_data (C++ function)</a>
 </li>
-      <li><a href="index.html#_CPPv429omega_session_on_change_cbk_t">omega_session_on_change_cbk_t (C++ type)</a>
+      <li><a href="index.html#_CPPv420omega_session_notifyPK15omega_session_t21omega_session_event_tPK14omega_change_t">omega_session_notify (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv448omega_session_pause_viewport_on_change_callbacksP15omega_session_t">omega_session_pause_viewport_on_change_callbacks (C++ function)</a>
 </li>
@@ -247,7 +269,21 @@
 </li>
       <li><a href="index.html#c.OMEGA_VIEWPORT_CAPACITY_LIMIT">OMEGA_VIEWPORT_CAPACITY_LIMIT (C macro)</a>
 </li>
-      <li><a href="index.html#_CPPv432omega_viewport_execute_on_changeP16omega_viewport_tPK14omega_change_t">omega_viewport_execute_on_change (C++ function)</a>
+      <li><a href="index.html#_CPPv426omega_viewport_event_cbk_t">omega_viewport_event_cbk_t (C++ type)</a>
+</li>
+      <li><a href="index.html#_CPPv422omega_viewport_event_t">omega_viewport_event_t (C++ enum)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE">omega_viewport_event_t::VIEWPORT_EVT_CLEAR (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE">omega_viewport_event_t::VIEWPORT_EVT_CREATE (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE">omega_viewport_event_t::VIEWPORT_EVT_EDIT (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME">omega_viewport_event_t::VIEWPORT_EVT_TRANSFORM (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE">omega_viewport_event_t::VIEWPORT_EVT_UNDEFINED (C++ enumerator)</a>
+</li>
+      <li><a href="index.html#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE">omega_viewport_event_t::VIEWPORT_EVT_UNDO (C++ enumerator)</a>
 </li>
       <li><a href="index.html#_CPPv427omega_viewport_get_capacityPK16omega_viewport_t">omega_viewport_get_capacity (C++ function)</a>
 </li>
@@ -263,7 +299,7 @@
 </li>
       <li><a href="index.html#_CPPv426omega_viewport_has_changesPK16omega_viewport_t">omega_viewport_has_changes (C++ function)</a>
 </li>
-      <li><a href="index.html#_CPPv430omega_viewport_on_change_cbk_t">omega_viewport_on_change_cbk_t (C++ type)</a>
+      <li><a href="index.html#_CPPv421omega_viewport_notifyPK16omega_viewport_t22omega_viewport_event_tPK14omega_change_t">omega_viewport_notify (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv416omega_viewport_t">omega_viewport_t (C++ type)</a>
 </li>
