@@ -380,8 +380,8 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv415omega_edit_savePK15omega_session_tPKci">
-<span id="_CPPv315omega_edit_savePK15omega_session_tPKci"></span><span id="_CPPv215omega_edit_savePK15omega_session_tPKci"></span><span id="omega_edit_save__omega_session_tCP.cCP.i"></span><span class="target" id="edit_8h_1a6c6fd92d43d45f38f68e14628e3091a3"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">overwrite</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv415omega_edit_savePK15omega_session_tPKci" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv415omega_edit_savePK15omega_session_tPKciPc">
+<span id="_CPPv315omega_edit_savePK15omega_session_tPKciPc"></span><span id="_CPPv215omega_edit_savePK15omega_session_tPKciPc"></span><span id="omega_edit_save__omega_session_tCP.cCP.i.cP"></span><span class="target" id="edit_8h_1a1b19717ca651eafa4f9ff79c01b8232c"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">file_path</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">overwrite</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">saved_file_path</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv415omega_edit_savePK15omega_session_tPKciPc" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new file name will be used as determined by omega_util_available_filename. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -389,6 +389,7 @@
 <li><p><strong>session_ptr</strong> – session to save </p></li>
 <li><p><strong>file_path</strong> – file path to save to </p></li>
 <li><p><strong>overwrite</strong> – set to non-zero if overwriting an existing file is okay, and zero otherwise </p></li>
+<li><p><strong>saved_file_path</strong> – if overwrite is not set and the target file_path exists, a new file path will be created, and if this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes) </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1242,46 +1243,22 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_majorv">
 <span id="_CPPv319omega_version_majorv"></span><span id="_CPPv219omega_version_majorv"></span><span id="omega_version_major"></span><span class="target" id="version_8h_1aa500b8ee3a7735527559e7f50235f5ca"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_major</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_majorv" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Get the major version of the library </p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>the major version of the library </p>
-</dd>
-</dl>
-</dd></dl>
+<dd></dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_minorv">
 <span id="_CPPv319omega_version_minorv"></span><span id="_CPPv219omega_version_minorv"></span><span id="omega_version_minor"></span><span class="target" id="version_8h_1ac559106b5a2c4e9af518ebf5a616b8e6"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_minor</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_minorv" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Get the minor version of the library </p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>the minor version of the library </p>
-</dd>
-</dl>
-</dd></dl>
+<dd></dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv419omega_version_patchv">
 <span id="_CPPv319omega_version_patchv"></span><span id="_CPPv219omega_version_patchv"></span><span id="omega_version_patch"></span><span class="target" id="version_8h_1aa3fd333c708f65c6a39302948a462f7c"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version_patch</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_version_patchv" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Get the patch-level of the library </p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>the patch-level of the library </p>
-</dd>
-</dl>
-</dd></dl>
+<dd></dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv413omega_versionv">
 <span id="_CPPv313omega_versionv"></span><span id="_CPPv213omega_versionv"></span><span id="omega_version"></span><span class="target" id="version_8h_1ae07f7ddf71657f6a8800dd58c02f026f"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_version</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv413omega_versionv" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Get the integer representation of the version of the library </p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns</dt>
-<dd class="field-odd"><p>the integer representation of the version of the library </p>
-</dd>
-</dl>
-</dd></dl>
+<dd></dd></dl>
 
 </div>
 </section>
