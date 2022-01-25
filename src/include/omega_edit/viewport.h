@@ -89,7 +89,8 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
  * @param viewport_ptr viewport for which to execute its on-change callback
  * @param change_ptr change responsible for the viewport change (if any)
  */
-void omega_viewport_execute_on_change(omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr);
+void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                           const omega_change_t *change_ptr);
 
 #ifdef __cplusplus
 }

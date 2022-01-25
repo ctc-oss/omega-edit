@@ -300,27 +300,32 @@ typedef struct file_info_struct {
     size_t num_changes{};
 } file_info_t;
 
-static inline void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
+static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
     // Not all session changes are the result of a standard change like delete / insert / overwrite
-    if (change_ptr) {
-        auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
-        const auto bytes = omega_change_get_bytes(change_ptr);
-        const auto bytes_length = omega_change_get_length(change_ptr);
-        if (0 < omega_change_get_serial(change_ptr)) {
-            ++file_info_ptr->num_changes;
-        } else {
-            --file_info_ptr->num_changes; /* this is in UNDO */
+    switch (session_event) {
+        case SESSION_EVT_EDIT:
+        case SESSION_EVT_UNDO: {
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
+            const auto bytes = omega_change_get_bytes(change_ptr);
+            const auto bytes_length = omega_change_get_length(change_ptr);
+            if (0 < omega_change_get_serial(change_ptr)) {
+                ++file_info_ptr->num_changes;
+            } else {
+                --file_info_ptr->num_changes; /* this is in UNDO */
+            }
+            auto file_path = omega_session_get_file_path(session_ptr);
+            file_path = (file_path) ? file_path : "NO FILENAME";
+            clog << dec << R"({ "filename" : ")" << file_path << R"(", "num_changes" : )"
+                 << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
+                 << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
+                 << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")"
+                 << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )"
+                 << omega_change_get_offset(change_ptr) << R"(, "length": )" << omega_change_get_length(change_ptr);
+            if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
+            clog << "}" << endl;
         }
-        auto file_path = omega_session_get_file_path(session_ptr);
-        file_path = (file_path) ? file_path : "NO FILENAME";
-        clog << dec << R"({ "filename" : ")" << file_path << R"(", "num_changes" : )"
-             << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
-             << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
-             << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")"
-             << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
-             << R"(, "length": )" << omega_change_get_length(change_ptr);
-        if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
-        clog << "}" << endl;
+        default:
+            break;
     }
 }
 
@@ -657,7 +662,7 @@ struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
 
-static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const omega_change_t *change_ptr) {
     if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
@@ -799,7 +804,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    omega_viewport_execute_on_change(viewport_ptr, nullptr);
+    omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
         REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40)));
     }
@@ -808,14 +813,14 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20));
     view_mode.display_mode = display_mode_t::BYTE_MODE;
-    omega_viewport_execute_on_change(viewport_ptr, nullptr);
+    omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));
     viewport_count = omega_session_get_num_viewports(session_ptr);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_session_pause_viewport_on_change_callbacks(session_ptr);
-    omega_viewport_execute_on_change(viewport_ptr, nullptr);
+    omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     omega_session_resume_viewport_on_change_callbacks(session_ptr);
-    omega_viewport_execute_on_change(viewport_ptr, nullptr);
+    omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     omega_edit_destroy_viewport(viewport_ptr);
     REQUIRE(viewport_count - 1 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_session(session_ptr);

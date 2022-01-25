@@ -31,11 +31,13 @@ extern "C" {
 /** On session change callback.  This under-defined function will be called when an associated session changes. */
 // TODO: Session change events can now be session creation, checkpoints, session clearing, transformations, session
 //  saving, in addition to changes, so we might want to consider adding a session change event type to the callback
-typedef void (*omega_session_on_change_cbk_t)(const omega_session_t *, const omega_change_t *);
+typedef void (*omega_session_event_cbk_t)(const omega_session_t *, omega_session_event_t session_event,
+                                          const omega_change_t *);
 
 /** On viewport change callback.  This under-defined function will be called when an associated viewport changes. */
 // TODO: Like session changes, there are events other than standard changes that could change the state of a viewport
-typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const omega_change_t *);
+typedef void (*omega_viewport_event_cbk_t)(const omega_viewport_t *, omega_viewport_event_t viewport_event,
+                                           const omega_change_t *);
 
 /**
  * Create a file editing session from a file path
@@ -45,8 +47,7 @@ typedef void (*omega_viewport_on_change_cbk_t)(const omega_viewport_t *, const o
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @return pointer to the created session, nullptr on failure
  */
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
-                                           void *user_data_ptr);
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr);
 
 /**
  * Destroy the given session and all associated objects (authors, changes, and viewports)
@@ -64,7 +65,7 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @return pointer to the new viewport, nullptr on failure
  */
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr);
+                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr);
 
 /**
  * Destroy a given viewport
