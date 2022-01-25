@@ -466,11 +466,12 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1redo_1last_1undo(JNIEn
 }
 
 
-SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jint jarg3) {
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jint jarg3, jstring jarg4) {
   jint jresult = 0 ;
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   char *arg2 = (char *) 0 ;
   int arg3 ;
+  char *arg4 = (char *) 0 ;
   int result;
   
   (void)jenv;
@@ -482,9 +483,15 @@ SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jcla
     if (!arg2) return 0;
   }
   arg3 = (int)jarg3; 
-  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3);
+  arg4 = 0;
+  if (jarg4) {
+    arg4 = (char *)jenv->GetStringUTFChars(jarg4, 0);
+    if (!arg4) return 0;
+  }
+  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4);
   jresult = (jint)result; 
   if (arg2) jenv->ReleaseStringUTFChars(jarg2, (const char *)arg2);
+  if (arg4) jenv->ReleaseStringUTFChars(jarg4, (const char *)arg4);
   return jresult;
 }
 

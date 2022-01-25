@@ -41,7 +41,7 @@ if (omega_edit.omega_search_next_match(search_context, 1)) {
     } while (omega_edit.omega_search_next_match(search_context, replacement.length));
 }
 omega_edit.omega_search_destroy_context(search_context)
-rc = omega_edit.omega_edit_save(session, out_filename)
+rc = omega_edit.omega_edit_save(session, out_filename, 1, null)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 console.log("Replaced " + replacements + " instances using " + omega_edit.omega_session_get_num_changes(session) + " changes.")
 omega_edit.omega_edit_destroy_session(session);

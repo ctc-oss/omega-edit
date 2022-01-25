@@ -2155,6 +2155,7 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   char *arg2 = (char *) 0 ;
   int arg3 ;
+  char *arg4 = (char *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -2162,9 +2163,12 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
   int alloc2 = 0 ;
   int val3 ;
   int ecode3 = 0 ;
+  int res4 ;
+  char *buf4 = 0 ;
+  int alloc4 = 0 ;
   int result;
   
-  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
+  if(args.Length() != 4) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
@@ -2181,11 +2185,17 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
     SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_edit_save" "', argument " "3"" of type '" "int""'");
   } 
   arg3 = static_cast< int >(val3);
-  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3);
+  res4 = SWIG_AsCharPtrAndSize(args[3], &buf4, NULL, &alloc4);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_save" "', argument " "4"" of type '" "char *""'");
+  }
+  arg4 = reinterpret_cast< char * >(buf4);
+  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   
+  if (alloc4 == SWIG_NEWOBJ) delete[] buf4;
   
   SWIGV8_RETURN(jsresult);
   
