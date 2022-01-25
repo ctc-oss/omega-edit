@@ -30,14 +30,21 @@ struct last_byte_info_t {
     omega_byte_t last_byte{};
 };
 
-void vpt_change_last_byte_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *) {
-    auto last_byte_info = static_cast<last_byte_info_t *>(omega_viewport_get_user_data(viewport_ptr));
-    auto length = omega_viewport_get_length(viewport_ptr);
-    if (length) {
-        last_byte_info->has_last_byte = true;
-        last_byte_info->last_byte = omega_viewport_get_data(viewport_ptr)[length - 1];
-    } else {
-        last_byte_info->has_last_byte = false;
+void vpt_change_last_byte_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const omega_change_t *) {
+    switch (viewport_event) {
+        case VIEWPORT_EVT_CREATE:
+        case VIEWPORT_EVT_EDIT: {
+            auto last_byte_info = static_cast<last_byte_info_t *>(omega_viewport_get_user_data(viewport_ptr));
+            auto length = omega_viewport_get_length(viewport_ptr);
+            if (length) {
+                last_byte_info->has_last_byte = true;
+                last_byte_info->last_byte = omega_viewport_get_data(viewport_ptr)[length - 1];
+            } else {
+                last_byte_info->has_last_byte = false;
+            }
+        }
+        default:
+            break;
     }
 }
 

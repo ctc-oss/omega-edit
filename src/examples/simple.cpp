@@ -17,9 +17,17 @@
 
 using namespace std;
 
-inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
-    char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
-    clog << change_kind << ": [" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
+inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                           const omega_change_t *change_ptr) {
+    switch (viewport_event) {
+        case VIEWPORT_EVT_CREATE:
+        case VIEWPORT_EVT_EDIT: {
+            char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
+            clog << change_kind << ": [" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
+        }
+        default:
+            break;
+    }
 }
 
 int main() {
