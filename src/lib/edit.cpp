@@ -394,7 +394,14 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
             errno = 0;
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
                 0 == rename(out_file.c_str(), in_file.c_str())) {
-                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) { return 0; }
+                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
+                    for (const auto &viewport_ptr : session_ptr->viewports_) {
+                        viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                        omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
+                    }
+                    if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, nullptr); }
+                    return 0;
+                }
             }
             // In a bad state (I/O failure), so abort
             ABORT(LOG_ERROR(strerror(errno)););
@@ -405,7 +412,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
     return -1;
 }
 
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite) {
+int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
     omega_util_dirname(file_path, temp_filename);
     const auto temp_filename_str = std::string(temp_filename);
@@ -480,6 +487,9 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("rename failed: " << strerror(errno));
         return -1;
     }
+    if (saved_file_path) {
+        strcpy(saved_file_path, file_path);
+    }
     return 0;
 }
 
@@ -495,6 +505,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
         viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
         omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
     }
+    if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, nullptr); }
     return 0;
 }
 
@@ -544,7 +555,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
     }
     int checkpoint_fd = omega_util_mkstemp(checkpoint_filename);
     close(checkpoint_fd);
-    if (0 != omega_edit_save(session_ptr, checkpoint_filename, 1)) {
+    if (0 != omega_edit_save(session_ptr, checkpoint_filename, 1, nullptr)) {
         LOG_ERROR("failed to save checkpoint file");
         return -1;
     }
@@ -553,6 +564,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
     session_ptr->models_.back()->file_ptr = fopen(checkpoint_filename, "rb");
     session_ptr->models_.back()->file_path = checkpoint_filename;
     initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+    if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, nullptr); }
     return 0;
 }
 
@@ -564,6 +576,7 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
         session_ptr->models_.pop_back();
+        if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, nullptr); }
         return 0;
     }
     return -1;

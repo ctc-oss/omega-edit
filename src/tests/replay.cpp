@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     }
 
     // Save the session
-    omega_edit_save(session_ptr.get(), out_filename, 0);
+    omega_edit_save(session_ptr.get(), out_filename, 0, nullptr);
 
     // Report
     clog << "Replayed " << deletes << " delete(s), " << inserts << " insert(s), " << overwrites

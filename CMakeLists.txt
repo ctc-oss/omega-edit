@@ -21,7 +21,7 @@ project(omega_edit
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# Use C++14
+# Use C++14gir branch
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
