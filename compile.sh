@@ -52,7 +52,7 @@ function win {
 }
 
 function win-ci {
-    cmake -S . -B cmake-build-debug -DCMAKE_CXX_COMPILER="g++"
+    cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER="g++"
     cmake --build cmake-build-debug
 }
 
@@ -64,7 +64,7 @@ function all {
     if [[ ($os == *"windows"* || $os == "win") && $ci == "ci" ]]; then
         win-ci
     else
-        cmake -S . -B cmake-build-debug
+        cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
         cmake --build cmake-build-debug
     fi
 
