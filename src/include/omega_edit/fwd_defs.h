@@ -19,6 +19,33 @@
 extern "C" {
 #endif
 
+/**
+ * Enumeration of session events
+ */
+typedef enum {
+    SESSION_EVT_UNDEFINED = 0,
+    SESSION_EVT_CREATE = 1,
+    SESSION_EVT_EDIT = 2,
+    SESSION_EVT_UNDO = 4,
+    SESSION_EVT_CLEAR = 8,
+    SESSION_EVT_TRANSFORM = 16,
+    SESSION_EVT_CREATE_CHECKPOINT = 32,
+    SESSION_EVT_DESTROY_CHECKPOINT = 64,
+    SESSION_EVT_SAVE = 128
+} omega_session_event_t;
+
+/**
+ * Enumeration of viewport events
+ */
+typedef enum {
+    VIEWPORT_EVT_UNDEFINED = 0,
+    VIEWPORT_EVT_CREATE = 1,
+    VIEWPORT_EVT_EDIT = 2,
+    VIEWPORT_EVT_UNDO = 4,
+    VIEWPORT_EVT_CLEAR = 8,
+    VIEWPORT_EVT_TRANSFORM = 16
+} omega_viewport_event_t;
+
 typedef struct omega_session_struct omega_session_t;
 typedef struct omega_change_struct omega_change_t;
 typedef struct omega_viewport_struct omega_viewport_t;

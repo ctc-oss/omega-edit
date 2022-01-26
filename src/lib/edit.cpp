@@ -119,7 +119,8 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-            omega_viewport_execute_on_change(viewport_ptr.get(), change_ptr);
+            omega_viewport_notify(viewport_ptr.get(), (0 < change_ptr->serial) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
+                                  change_ptr);
         }
     }
     return 0;
@@ -278,14 +279,13 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
         session_ptr->models_.back()->changes.push_back(change_ptr);
         if (0 != update_model_(session_ptr->models_.back().get(), change_ptr)) { return -1; }
         update_viewports_(session_ptr, change_ptr.get());
-        if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, change_ptr.get()); }
+        omega_session_notify(session_ptr, SESSION_EVT_EDIT, change_ptr.get());
         return change_ptr->serial;
     }
     return -1;
 }
 
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_on_change_cbk_t cbk,
-                                           void *user_data_ptr) {
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr) {
     FILE *file_ptr = nullptr;
     if (file_path && file_path[0] != '\0') {
         file_ptr = fopen(file_path, "rb");
@@ -297,13 +297,14 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
         file_size = FTELL(file_ptr);
     }
     const auto session_ptr = new omega_session_t;
-    session_ptr->on_change_cbk = cbk;
+    session_ptr->event_handler = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
     session_ptr->models_.back()->file_ptr = file_ptr;
     session_ptr->models_.back()->file_path =
             (file_path && file_path[0] != '\0') ? std::string(file_path) : std::string();
     initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+    omega_session_notify(session_ptr, SESSION_EVT_CREATE, nullptr);
     return session_ptr;
 }
 
@@ -318,12 +319,11 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
         if (0 != unlink(session_ptr->models_.back()->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
         session_ptr->models_.pop_back();
     }
-
     delete session_ptr;
 }
 
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_on_change_cbk_t cbk, void *user_data_ptr) {
+                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr) {
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
@@ -331,11 +331,11 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
         viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
-        viewport_ptr->on_change_cbk = cbk;
+        viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         omega_data_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
-        omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
+        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);
         return session_ptr->viewports_.back().get();
     }
     return nullptr;
@@ -395,8 +395,15 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
                 0 == rename(out_file.c_str(), in_file.c_str()) &&
                 (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
+                for (const auto &viewport_ptr : session_ptr->viewports_) {
+                    viewport_ptr->data_segment.capacity =
+                            -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                    omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
+                }
+                omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
                 return 0;
             }
+
             // In a bad state (I/O failure), so abort
             ABORT(LOG_ERROR(strerror(errno)););
         }
@@ -406,7 +413,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
     return -1;
 }
 
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite) {
+int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
     omega_util_dirname(file_path, temp_filename);
     const auto temp_filename_str = std::string(temp_filename);
@@ -481,6 +488,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("rename failed: " << strerror(errno));
         return -1;
     }
+    if (saved_file_path) { strcpy(saved_file_path, file_path); }
+    omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);
     return 0;
 }
 
@@ -494,8 +503,9 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     free_session_changes_(session_ptr);
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-        omega_viewport_execute_on_change(viewport_ptr.get(), nullptr);
+        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
     }
+    omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);
     return 0;
 }
 
@@ -520,7 +530,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 
         session_ptr->models_.back()->changes_undone.push_back(change_ptr);
         update_viewports_(session_ptr, undone_change_ptr);
-        if (session_ptr->on_change_cbk) { session_ptr->on_change_cbk(session_ptr, undone_change_ptr); }
+        omega_session_notify(session_ptr, SESSION_EVT_UNDO, undone_change_ptr);
         return undone_change_ptr->serial;
     }
     return 0;
@@ -545,7 +555,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
     }
     int checkpoint_fd = omega_util_mkstemp(checkpoint_filename);
     close(checkpoint_fd);
-    if (0 != omega_edit_save(session_ptr, checkpoint_filename, 1)) {
+    if (0 != omega_edit_save(session_ptr, checkpoint_filename, 1, nullptr)) {
         LOG_ERROR("failed to save checkpoint file");
         return -1;
     }
@@ -554,6 +564,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
     session_ptr->models_.back()->file_ptr = fopen(checkpoint_filename, "rb");
     session_ptr->models_.back()->file_path = checkpoint_filename;
     initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+    omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
     return 0;
 }
 
@@ -565,6 +576,7 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
         session_ptr->models_.pop_back();
+        omega_session_notify(session_ptr, SESSION_EVT_DESTROY_CHECKPOINT, nullptr);
         return 0;
     }
     return -1;

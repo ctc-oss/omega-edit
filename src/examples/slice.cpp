@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
     if (session_ptr) {
         if (offset) { omega_edit_delete(session_ptr, 0, offset); }
         omega_edit_delete(session_ptr, length, omega_session_get_computed_file_size(session_ptr));
-        omega_edit_save(session_ptr, out_filename, 0);
+        omega_edit_save(session_ptr, out_filename, 0, nullptr);
         omega_edit_destroy_session(session_ptr);
     } else {
         cerr << "failed to create session, probably because the offset and/or length are out of range for the given "

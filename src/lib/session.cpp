@@ -108,3 +108,9 @@ size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->models_.size() - 1;
 }
+
+void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                          const omega_change_t *change_ptr) {
+    assert(session_ptr);
+    if (session_ptr->event_handler) { (*session_ptr->event_handler)(session_ptr, session_event, change_ptr); }
+}

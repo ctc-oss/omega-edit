@@ -19,11 +19,12 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc CreateSession(SessionRequest) returns (SessionReply);
-  rpc DestroySession(ObjectId) returns (Status);
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply);
+  rpc SaveSession(SaveSessionRequest) returns (SaveSessionReply);
+  rpc DestroySession(ObjectId) returns (ObjectId);
   rpc SubmitChange(ChangeRequest) returns (ChangeReply);
-  rpc CreateViewport(ViewportRequest) returns (ViewportReply);
-  rpc GetViewportData(ObjectId) returns (DataReply);
+  rpc CreateViewport(CreateViewportRequest) returns (CreateViewportReply);
+  rpc GetViewportData(ViewportDataRequest) returns (ViewportDataReply);
   rpc GetChangeDetails(SessionChange) returns (ChangeDetailsReply);
 }
 
@@ -37,8 +38,9 @@ message ObjectId {
 }
 
 enum ChangeKind {
-  CHANGE_DELETE = 0;
-  CHANGE_INSERT = 1;
+  UNDEFINED_CHANGE = 0;
+  CHANGE_DELETE = 1;
+  CHANGE_INSERT = 2;
   CHANGE_OVERWRITE = 3;
 }
 
@@ -50,47 +52,53 @@ message ChangeRequest {
   bytes data = 5;
 }
 
-// The RPC framework might already provide status and if so, we can use that instead
-message Status {
-  enum StatusKind {
-    OK = 0;
-    ERROR = 1;
-  }
-  StatusKind kind = 1;
-  string message = 2;
-}
-
 message ChangeReply {
-  Status status = 1;
-  ObjectId session_id = 2;
-  ObjectId change_id = 3;
+  ObjectId session_id = 1;
+  ObjectId change_id = 2;
 }
 
-message ViewportRequest {
+message CreateViewportRequest {
   ObjectId session_id = 1;
   int64 capacity = 2;
   int64 offset = 3;
 }
 
-message ViewportReply {
-  Status status = 1;
-  ObjectId session_id = 2;
-  ObjectId viewport_id = 3;
+message CreateViewportReply {
+  ObjectId session_id = 1;
+  ObjectId viewport_id = 2;
 }
 
-message DataReply {
-  Status status = 1;
-  int64 length = 2;
-  bytes data = 3;
+message ViewportDataRequest {
+  ObjectId session_id = 1;
+  ObjectId viewport_id = 2;
 }
 
-message SessionRequest {
+message ViewportDataReply {
+  ObjectId session_id = 1;
+  ObjectId viewport_id = 2;
+  int64 length = 3;
+  bytes data = 4;
+}
+message CreateSessionRequest {
   string file_path = 1;
 }
 
-message SessionReply {
-  Status status = 1;
-  ObjectId session_id = 2;
+message CreateSessionReply {
+  ObjectId session_id = 1;
+}
+
+message SaveSessionRequest {
+  ObjectId session_id = 1;
+  string file_path = 2;
+}
+
+message SaveSessionReply {
+  ObjectId session_id = 1;
+  string file_path = 2;
+}
+
+message DestroySessionReply {
+  ObjectId session_id = 1;
 }
 
 message SubscribeOnChangeViewportRequest {
@@ -109,8 +117,7 @@ message ViewportChange {
 }
 
 message ChangeDetailsReply {
-  Status status = 1;
-  Change change = 2;
+  Change change = 1;
 }
 
 message Change {
