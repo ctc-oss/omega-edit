@@ -1342,26 +1342,28 @@ fail: ;
 #define SWIGTYPE_p_char swig_types[1]
 #define SWIGTYPE_p_f_omega_byte_t_p_void__omega_byte_t swig_types[2]
 #define SWIGTYPE_p_f_p_q_const__omega_change_t_p_void__int swig_types[3]
-#define SWIGTYPE_p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void swig_types[4]
-#define SWIGTYPE_p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void swig_types[5]
+#define SWIGTYPE_p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void swig_types[4]
+#define SWIGTYPE_p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void swig_types[5]
 #define SWIGTYPE_p_int swig_types[6]
 #define SWIGTYPE_p_long_long swig_types[7]
 #define SWIGTYPE_p_omega_byte_t swig_types[8]
 #define SWIGTYPE_p_omega_change_t swig_types[9]
 #define SWIGTYPE_p_omega_mask_kind_t swig_types[10]
 #define SWIGTYPE_p_omega_search_context_t swig_types[11]
-#define SWIGTYPE_p_omega_session_t swig_types[12]
-#define SWIGTYPE_p_omega_viewport_t swig_types[13]
-#define SWIGTYPE_p_omega_visit_change_context_struct swig_types[14]
-#define SWIGTYPE_p_short swig_types[15]
-#define SWIGTYPE_p_signed_char swig_types[16]
-#define SWIGTYPE_p_unsigned_char swig_types[17]
-#define SWIGTYPE_p_unsigned_int swig_types[18]
-#define SWIGTYPE_p_unsigned_long_long swig_types[19]
-#define SWIGTYPE_p_unsigned_short swig_types[20]
-#define SWIGTYPE_p_void swig_types[21]
-static swig_type_info *swig_types[23];
-static swig_module_info swig_module = {swig_types, 22, 0, 0, 0, 0};
+#define SWIGTYPE_p_omega_session_event_t swig_types[12]
+#define SWIGTYPE_p_omega_session_t swig_types[13]
+#define SWIGTYPE_p_omega_viewport_event_t swig_types[14]
+#define SWIGTYPE_p_omega_viewport_t swig_types[15]
+#define SWIGTYPE_p_omega_visit_change_context_struct swig_types[16]
+#define SWIGTYPE_p_short swig_types[17]
+#define SWIGTYPE_p_signed_char swig_types[18]
+#define SWIGTYPE_p_unsigned_char swig_types[19]
+#define SWIGTYPE_p_unsigned_int swig_types[20]
+#define SWIGTYPE_p_unsigned_long_long swig_types[21]
+#define SWIGTYPE_p_unsigned_short swig_types[22]
+#define SWIGTYPE_p_void swig_types[23]
+static swig_type_info *swig_types[25];
+static swig_module_info swig_module = {swig_types, 24, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -1910,7 +1912,7 @@ static SwigV8ReturnValue _wrap_omega_edit_create_session(const SwigV8Arguments &
   
   SWIGV8_VALUE jsresult;
   char *arg1 = (char *) 0 ;
-  omega_session_on_change_cbk_t arg2 = (omega_session_on_change_cbk_t) 0 ;
+  omega_session_event_cbk_t arg2 = (omega_session_event_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   int res1 ;
   char *buf1 = 0 ;
@@ -1926,9 +1928,9 @@ static SwigV8ReturnValue _wrap_omega_edit_create_session(const SwigV8Arguments &
   }
   arg1 = reinterpret_cast< char * >(buf1);
   {
-    int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void);
+    int res = SWIG_ConvertFunctionPtr(args[1], (void**)(&arg2), SWIGTYPE_p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "omega_edit_create_session" "', argument " "2"" of type '" "omega_session_on_change_cbk_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "omega_edit_create_session" "', argument " "2"" of type '" "omega_session_event_cbk_t""'"); 
     }
   }
   res3 = SWIG_ConvertPtr(args[2],SWIG_as_voidptrptr(&arg3), 0, 0);
@@ -1983,7 +1985,7 @@ static SwigV8ReturnValue _wrap_omega_edit_create_viewport(const SwigV8Arguments 
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  omega_viewport_on_change_cbk_t arg4 = (omega_viewport_on_change_cbk_t) 0 ;
+  omega_viewport_event_cbk_t arg4 = (omega_viewport_event_cbk_t) 0 ;
   void *arg5 = (void *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -2012,9 +2014,9 @@ static SwigV8ReturnValue _wrap_omega_edit_create_viewport(const SwigV8Arguments 
   } 
   arg3 = static_cast< int64_t >(val3);
   {
-    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void);
+    int res = SWIG_ConvertFunctionPtr(args[3], (void**)(&arg4), SWIGTYPE_p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void);
     if (!SWIG_IsOK(res)) {
-      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "omega_edit_create_viewport" "', argument " "4"" of type '" "omega_viewport_on_change_cbk_t""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res), "in method '" "omega_edit_create_viewport" "', argument " "4"" of type '" "omega_viewport_event_cbk_t""'"); 
     }
   }
   res5 = SWIG_ConvertPtr(args[4],SWIG_as_voidptrptr(&arg5), 0, 0);
@@ -2155,6 +2157,7 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   char *arg2 = (char *) 0 ;
   int arg3 ;
+  char *arg4 = (char *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -2162,9 +2165,12 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
   int alloc2 = 0 ;
   int val3 ;
   int ecode3 = 0 ;
+  int res4 ;
+  char *buf4 = 0 ;
+  int alloc4 = 0 ;
   int result;
   
-  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
+  if(args.Length() != 4) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_edit_save.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
@@ -2181,11 +2187,17 @@ static SwigV8ReturnValue _wrap_omega_edit_save(const SwigV8Arguments &args) {
     SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "omega_edit_save" "', argument " "3"" of type '" "int""'");
   } 
   arg3 = static_cast< int >(val3);
-  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3);
+  res4 = SWIG_AsCharPtrAndSize(args[3], &buf4, NULL, &alloc4);
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "omega_edit_save" "', argument " "4"" of type '" "char *""'");
+  }
+  arg4 = reinterpret_cast< char * >(buf4);
+  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4);
   jsresult = SWIG_From_int(static_cast< int >(result));
   
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   
+  if (alloc4 == SWIG_NEWOBJ) delete[] buf4;
   
   SWIGV8_RETURN(jsresult);
   
@@ -3247,6 +3259,56 @@ static SwigV8ReturnValue _wrap_omega_session_get_num_checkpoints(const SwigV8Arg
   arg1 = reinterpret_cast< omega_session_t * >(argp1);
   result = omega_session_get_num_checkpoints((omega_session_t const *)arg1);
   jsresult = SWIG_From_size_t(static_cast< size_t >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_session_notify(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_session_event_t arg2 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_session_notify.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_session_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_session_notify" "', argument " "1"" of type '" "omega_session_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_session_t * >(argp1);
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_omega_session_event_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_session_notify" "', argument " "2"" of type '" "omega_session_event_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_session_notify" "', argument " "2"" of type '" "omega_session_event_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< omega_session_event_t * >(argp2));
+    }
+  }
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_omega_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_session_notify" "', argument " "3"" of type '" "omega_change_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< omega_change_t * >(argp3);
+  omega_session_notify((omega_session_t const *)arg1,arg2,(omega_change_t const *)arg3);
+  jsresult = SWIGV8_UNDEFINED();
+  
   
   
   SWIGV8_RETURN(jsresult);
@@ -4732,30 +4794,44 @@ fail:
 }
 
 
-static SwigV8ReturnValue _wrap_omega_viewport_execute_on_change(const SwigV8Arguments &args) {
+static SwigV8ReturnValue _wrap_omega_viewport_notify(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
   SWIGV8_VALUE jsresult;
   omega_viewport_t *arg1 = (omega_viewport_t *) 0 ;
-  omega_change_t *arg2 = (omega_change_t *) 0 ;
+  omega_viewport_event_t arg2 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  void *argp2 = 0 ;
+  void *argp2 ;
   int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
   
-  if(args.Length() != 2) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_viewport_execute_on_change.");
+  if(args.Length() != 3) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_viewport_notify.");
   
   res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_viewport_t, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_viewport_execute_on_change" "', argument " "1"" of type '" "omega_viewport_t *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_viewport_notify" "', argument " "1"" of type '" "omega_viewport_t const *""'"); 
   }
   arg1 = reinterpret_cast< omega_viewport_t * >(argp1);
-  res2 = SWIG_ConvertPtr(args[1], &argp2,SWIGTYPE_p_omega_change_t, 0 |  0 );
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_viewport_execute_on_change" "', argument " "2"" of type '" "omega_change_t const *""'"); 
+  {
+    res2 = SWIG_ConvertPtr(args[1], &argp2, SWIGTYPE_p_omega_viewport_event_t,  0 );
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "omega_viewport_notify" "', argument " "2"" of type '" "omega_viewport_event_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "omega_viewport_notify" "', argument " "2"" of type '" "omega_viewport_event_t""'");
+    } else {
+      arg2 = *(reinterpret_cast< omega_viewport_event_t * >(argp2));
+    }
   }
-  arg2 = reinterpret_cast< omega_change_t * >(argp2);
-  omega_viewport_execute_on_change(arg1,(omega_change_t const *)arg2);
+  res3 = SWIG_ConvertPtr(args[2], &argp3,SWIGTYPE_p_omega_change_t, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "omega_viewport_notify" "', argument " "3"" of type '" "omega_change_t const *""'"); 
+  }
+  arg3 = reinterpret_cast< omega_change_t * >(argp3);
+  omega_viewport_notify((omega_viewport_t const *)arg1,arg2,(omega_change_t const *)arg3);
   jsresult = SWIGV8_UNDEFINED();
   
   
@@ -4980,15 +5056,17 @@ static swig_type_info _swigt__p_FILE = {"_p_FILE", "FILE *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_omega_byte_t_p_void__omega_byte_t = {"_p_f_omega_byte_t_p_void__omega_byte_t", "omega_util_byte_transform_t|omega_byte_t (*)(omega_byte_t,void *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_q_const__omega_change_t_p_void__int = {"_p_f_p_q_const__omega_change_t_p_void__int", "int (*)(omega_change_t const *,void *)|omega_session_change_visitor_cbk_t", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void = {"_p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void", "omega_session_on_change_cbk_t|void (*)(omega_session_t const *,omega_change_t const *)", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void = {"_p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void", "void (*)(omega_viewport_t const *,omega_change_t const *)|omega_viewport_on_change_cbk_t", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void = {"_p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void", "void (*)(omega_session_t const *,omega_session_event_t,omega_change_t const *)|omega_session_event_cbk_t", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void = {"_p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void", "void (*)(omega_viewport_t const *,omega_viewport_event_t,omega_change_t const *)|omega_viewport_event_cbk_t", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int = {"_p_int", "intptr_t *|int *|int_least32_t *|int_fast32_t *|int32_t *|int_fast16_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_long_long = {"_p_long_long", "int_least64_t *|int_fast64_t *|int64_t *|long long *|intmax_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_byte_t = {"_p_omega_byte_t", "omega_byte_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_change_t = {"_p_omega_change_t", "omega_change_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_mask_kind_t = {"_p_omega_mask_kind_t", "enum omega_mask_kind_t *|omega_mask_kind_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_search_context_t = {"_p_omega_search_context_t", "omega_search_context_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_omega_session_event_t = {"_p_omega_session_event_t", "omega_session_event_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_session_t = {"_p_omega_session_t", "omega_session_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_omega_viewport_event_t = {"_p_omega_viewport_event_t", "omega_viewport_event_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_viewport_t = {"_p_omega_viewport_t", "omega_viewport_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_omega_visit_change_context_struct = {"_p_omega_visit_change_context_struct", "omega_visit_change_context_t *|omega_visit_change_context_struct *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_short = {"_p_short", "short *|int_least16_t *|int16_t *", 0, 0, (void*)0, 0};
@@ -5004,15 +5082,17 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_char,
   &_swigt__p_f_omega_byte_t_p_void__omega_byte_t,
   &_swigt__p_f_p_q_const__omega_change_t_p_void__int,
-  &_swigt__p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void,
-  &_swigt__p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void,
+  &_swigt__p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void,
+  &_swigt__p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void,
   &_swigt__p_int,
   &_swigt__p_long_long,
   &_swigt__p_omega_byte_t,
   &_swigt__p_omega_change_t,
   &_swigt__p_omega_mask_kind_t,
   &_swigt__p_omega_search_context_t,
+  &_swigt__p_omega_session_event_t,
   &_swigt__p_omega_session_t,
+  &_swigt__p_omega_viewport_event_t,
   &_swigt__p_omega_viewport_t,
   &_swigt__p_omega_visit_change_context_struct,
   &_swigt__p_short,
@@ -5028,15 +5108,17 @@ static swig_cast_info _swigc__p_FILE[] = {  {&_swigt__p_FILE, 0, 0, 0},{0, 0, 0,
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_omega_byte_t_p_void__omega_byte_t[] = {  {&_swigt__p_f_omega_byte_t_p_void__omega_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_q_const__omega_change_t_p_void__int[] = {  {&_swigt__p_f_p_q_const__omega_change_t_p_void__int, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void[] = {  {&_swigt__p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void[] = {  {&_swigt__p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void[] = {  {&_swigt__p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void[] = {  {&_swigt__p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_int[] = {  {&_swigt__p_int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_long_long[] = {  {&_swigt__p_long_long, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_byte_t[] = {  {&_swigt__p_omega_byte_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_change_t[] = {  {&_swigt__p_omega_change_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_mask_kind_t[] = {  {&_swigt__p_omega_mask_kind_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_search_context_t[] = {  {&_swigt__p_omega_search_context_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_omega_session_event_t[] = {  {&_swigt__p_omega_session_event_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_session_t[] = {  {&_swigt__p_omega_session_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_omega_viewport_event_t[] = {  {&_swigt__p_omega_viewport_event_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_viewport_t[] = {  {&_swigt__p_omega_viewport_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_omega_visit_change_context_struct[] = {  {&_swigt__p_omega_visit_change_context_struct, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_short[] = {  {&_swigt__p_short, 0, 0, 0},{0, 0, 0, 0}};
@@ -5052,15 +5134,17 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_char,
   _swigc__p_f_omega_byte_t_p_void__omega_byte_t,
   _swigc__p_f_p_q_const__omega_change_t_p_void__int,
-  _swigc__p_f_p_q_const__omega_session_t_p_q_const__omega_change_t__void,
-  _swigc__p_f_p_q_const__omega_viewport_t_p_q_const__omega_change_t__void,
+  _swigc__p_f_p_q_const__omega_session_t_omega_session_event_t_p_q_const__omega_change_t__void,
+  _swigc__p_f_p_q_const__omega_viewport_t_omega_viewport_event_t_p_q_const__omega_change_t__void,
   _swigc__p_int,
   _swigc__p_long_long,
   _swigc__p_omega_byte_t,
   _swigc__p_omega_change_t,
   _swigc__p_omega_mask_kind_t,
   _swigc__p_omega_search_context_t,
+  _swigc__p_omega_session_event_t,
   _swigc__p_omega_session_t,
+  _swigc__p_omega_viewport_event_t,
   _swigc__p_omega_viewport_t,
   _swigc__p_omega_visit_change_context_struct,
   _swigc__p_short,
@@ -5439,6 +5523,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_session_viewport_on_change_callback
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_pause_viewport_on_change_callbacks", _wrap_omega_session_pause_viewport_on_change_callbacks, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_resume_viewport_on_change_callbacks", _wrap_omega_session_resume_viewport_on_change_callbacks, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_session_get_num_checkpoints", _wrap_omega_session_get_num_checkpoints, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_session_notify", _wrap_omega_session_notify, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_change_get_string", _wrap_omega_change_get_string, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_string", _wrap_omega_viewport_get_string, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_edit_insert_string", _wrap_omega_edit_insert_string, context);
@@ -5472,7 +5557,7 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_has_changes", _wrap_omega_
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_offset", _wrap_omega_viewport_get_offset, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_get_user_data", _wrap_omega_viewport_get_user_data, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_update", _wrap_omega_viewport_update, context);
-SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_execute_on_change", _wrap_omega_viewport_execute_on_change, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_notify", _wrap_omega_viewport_notify, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_changes", _wrap_omega_visit_changes, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_changes_reverse", _wrap_omega_visit_changes_reverse, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_create_context", _wrap_omega_visit_change_create_context, context);

@@ -362,7 +362,7 @@ SWIGEXPORT jint JNICALL Java_omega_1editJNI_OMEGA_1SEARCH_1PATTERN_1LENGTH_1LIMI
 SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1create_1session(JNIEnv *jenv, jclass jcls, jstring jarg1, jlong jarg2, jlong jarg3) {
   jlong jresult = 0 ;
   char *arg1 = (char *) 0 ;
-  omega_session_on_change_cbk_t arg2 = (omega_session_on_change_cbk_t) 0 ;
+  omega_session_event_cbk_t arg2 = (omega_session_event_cbk_t) 0 ;
   void *arg3 = (void *) 0 ;
   omega_session_t *result = 0 ;
   
@@ -373,7 +373,7 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1create_1session(JNIEnv
     arg1 = (char *)jenv->GetStringUTFChars(jarg1, 0);
     if (!arg1) return 0;
   }
-  arg2 = *(omega_session_on_change_cbk_t *)&jarg2; 
+  arg2 = *(omega_session_event_cbk_t *)&jarg2; 
   arg3 = *(void **)&jarg3; 
   result = (omega_session_t *)omega_edit_create_session((char const *)arg1,arg2,arg3);
   *(omega_session_t **)&jresult = result; 
@@ -397,7 +397,7 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1create_1viewport(JNIEn
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   int64_t arg2 ;
   int64_t arg3 ;
-  omega_viewport_on_change_cbk_t arg4 = (omega_viewport_on_change_cbk_t) 0 ;
+  omega_viewport_event_cbk_t arg4 = (omega_viewport_event_cbk_t) 0 ;
   void *arg5 = (void *) 0 ;
   omega_viewport_t *result = 0 ;
   
@@ -406,7 +406,7 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1create_1viewport(JNIEn
   arg1 = *(omega_session_t **)&jarg1; 
   arg2 = (int64_t)jarg2; 
   arg3 = (int64_t)jarg3; 
-  arg4 = *(omega_viewport_on_change_cbk_t *)&jarg4; 
+  arg4 = *(omega_viewport_event_cbk_t *)&jarg4; 
   arg5 = *(void **)&jarg5; 
   result = (omega_viewport_t *)omega_edit_create_viewport(arg1,arg2,arg3,arg4,arg5);
   *(omega_viewport_t **)&jresult = result; 
@@ -466,11 +466,12 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1edit_1redo_1last_1undo(JNIEn
 }
 
 
-SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jint jarg3) {
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jclass jcls, jlong jarg1, jstring jarg2, jint jarg3, jstring jarg4) {
   jint jresult = 0 ;
   omega_session_t *arg1 = (omega_session_t *) 0 ;
   char *arg2 = (char *) 0 ;
   int arg3 ;
+  char *arg4 = (char *) 0 ;
   int result;
   
   (void)jenv;
@@ -482,9 +483,15 @@ SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1edit_1save(JNIEnv *jenv, jcla
     if (!arg2) return 0;
   }
   arg3 = (int)jarg3; 
-  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3);
+  arg4 = 0;
+  if (jarg4) {
+    arg4 = (char *)jenv->GetStringUTFChars(jarg4, 0);
+    if (!arg4) return 0;
+  }
+  result = (int)omega_edit_save((omega_session_t const *)arg1,(char const *)arg2,arg3,arg4);
   jresult = (jint)result; 
   if (arg2) jenv->ReleaseStringUTFChars(jarg2, (const char *)arg2);
+  if (arg4) jenv->ReleaseStringUTFChars(jarg4, (const char *)arg4);
   return jresult;
 }
 
@@ -953,6 +960,26 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1session_1get_1num_1checkpoin
   result = omega_session_get_num_checkpoints((omega_session_t const *)arg1);
   jresult = (jlong)result; 
   return jresult;
+}
+
+
+SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1session_1notify(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3) {
+  omega_session_t *arg1 = (omega_session_t *) 0 ;
+  omega_session_event_t arg2 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
+  omega_session_event_t *argp2 ;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_session_t **)&jarg1; 
+  argp2 = *(omega_session_event_t **)&jarg2; 
+  if (!argp2) {
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null omega_session_event_t");
+    return ;
+  }
+  arg2 = *argp2; 
+  arg3 = *(omega_change_t **)&jarg3; 
+  omega_session_notify((omega_session_t const *)arg1,arg2,(omega_change_t const *)arg3);
 }
 
 
@@ -1683,15 +1710,23 @@ SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1viewport_1update(JNIEnv *jenv
 }
 
 
-SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1viewport_1execute_1on_1change(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2) {
+SWIGEXPORT void JNICALL Java_omega_1editJNI_omega_1viewport_1notify(JNIEnv *jenv, jclass jcls, jlong jarg1, jlong jarg2, jlong jarg3) {
   omega_viewport_t *arg1 = (omega_viewport_t *) 0 ;
-  omega_change_t *arg2 = (omega_change_t *) 0 ;
+  omega_viewport_event_t arg2 ;
+  omega_change_t *arg3 = (omega_change_t *) 0 ;
+  omega_viewport_event_t *argp2 ;
   
   (void)jenv;
   (void)jcls;
   arg1 = *(omega_viewport_t **)&jarg1; 
-  arg2 = *(omega_change_t **)&jarg2; 
-  omega_viewport_execute_on_change(arg1,(omega_change_t const *)arg2);
+  argp2 = *(omega_viewport_event_t **)&jarg2; 
+  if (!argp2) {
+    SWIG_JavaThrowException(jenv, SWIG_JavaNullPointerException, "Attempt to dereference null omega_viewport_event_t");
+    return ;
+  }
+  arg2 = *argp2; 
+  arg3 = *(omega_change_t **)&jarg3; 
+  omega_viewport_notify((omega_viewport_t const *)arg1,arg2,(omega_change_t const *)arg3);
 }
 
 

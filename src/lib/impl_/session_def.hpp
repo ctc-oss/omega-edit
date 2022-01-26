@@ -27,11 +27,11 @@ typedef std::vector<omega_viewport_ptr_t> omega_viewports_t;
 typedef std::vector<omega_model_ptr_t> omega_models_t;
 
 struct omega_session_struct {
-    omega_session_on_change_cbk_t on_change_cbk{};///< User callback when the session changes
-    void *user_data_ptr{};                        ///< Pointer to associated user-provided data
-    omega_viewports_t viewports_{};               ///< Collection of viewports in this session
-    omega_models_t models_{};                     ///< Edit models (internal)
-    int8_t session_flags_{};                      ///< Internal state flags
+    omega_session_event_cbk_t event_handler{};///< User callback when the session changes
+    void *user_data_ptr{};                    ///< Pointer to associated user-provided data
+    omega_viewports_t viewports_{};           ///< Collection of viewports in this session
+    omega_models_t models_{};                 ///< Edit models (internal)
+    int8_t session_flags_{};                  ///< Internal state flags
 };
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

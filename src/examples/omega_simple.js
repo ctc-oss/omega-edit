@@ -51,7 +51,7 @@ console.assert(rc > 0, {rc: rc, errorMsg: "delete failed"})
 if (omega_edit.omega_viewport_has_changes(viewport)) {
     on_viewport_change(viewport, omega_edit.omega_session_get_change(session, rc))
 }
-rc = omega_edit.omega_edit_save(session, "hello-js.txt")
+rc = omega_edit.omega_edit_save(session, "hello-js.txt", 1, null)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 omega_edit.omega_edit_destroy_session(session);
 console.log("finished!")

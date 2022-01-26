@@ -81,12 +81,20 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
     return 0;
 }
 
-void session_change_cbk(const omega_session_t *session_ptr, const omega_change_t *) {
-    auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
-    file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
-    file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
-    omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
-    fclose(file_info_ptr->save_fptr);
+void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                        const omega_change_t *) {
+    switch (session_event) {
+        case SESSION_EVT_UNDO:
+        case SESSION_EVT_EDIT: {
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
+            file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
+            file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
+            omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
+            fclose(file_info_ptr->save_fptr);
+        }
+        default:
+            break;
+    }
 }
 
 enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
@@ -119,38 +127,47 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr = nullptr) {
-    if (change_ptr) {
-        clog << "Change serial: " << omega_change_get_serial(change_ptr)
-             << ", kind: " << omega_change_get_kind_as_char(change_ptr)
-             << ", offset: " << omega_change_get_offset(change_ptr)
-             << ", length: " << omega_change_get_length(change_ptr) << endl;
-    }
-    clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
-         << " length: " << omega_viewport_get_length(viewport_ptr)
-         << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
-    if (omega_viewport_get_user_data(viewport_ptr)) {
-        auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
-        switch (view_mode_ptr->display_mode) {
-            case display_mode_t::BIT_MODE:
-                clog << " BIT MODE [";
-                write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
-                clog << "]";
-                break;
-            case display_mode_t::CHAR_MODE:
-                clog << "CHAR MODE [";
-                clog << string((const char *) omega_viewport_get_data(viewport_ptr),
-                               omega_viewport_get_length(viewport_ptr));
-                clog << "]";
-                break;
-            default:// flow through
-            case display_mode_t::BYTE_MODE:
-                clog << "BYTE MODE [";
-                write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
-                clog << "]";
-                break;
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED, const omega_change_t *change_ptr = nullptr) {
+    switch (viewport_event) {
+        case VIEWPORT_EVT_CREATE:
+        case VIEWPORT_EVT_EDIT: {
+            if (change_ptr) {
+                clog << "Change serial: " << omega_change_get_serial(change_ptr)
+                     << ", kind: " << omega_change_get_kind_as_char(change_ptr)
+                     << ", offset: " << omega_change_get_offset(change_ptr)
+                     << ", length: " << omega_change_get_length(change_ptr) << endl;
+            }
+            clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
+                 << " length: " << omega_viewport_get_length(viewport_ptr)
+                 << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
+            if (omega_viewport_get_user_data(viewport_ptr)) {
+                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
+                switch (view_mode_ptr->display_mode) {
+                    case display_mode_t::BIT_MODE:
+                        clog << " BIT MODE [";
+                        write_pretty_bits(omega_viewport_get_data(viewport_ptr),
+                                          omega_viewport_get_length(viewport_ptr));
+                        clog << "]";
+                        break;
+                    case display_mode_t::CHAR_MODE:
+                        clog << "CHAR MODE [";
+                        clog << string((const char *) omega_viewport_get_data(viewport_ptr),
+                                       omega_viewport_get_length(viewport_ptr));
+                        clog << "]";
+                        break;
+                    default:// flow through
+                    case display_mode_t::BYTE_MODE:
+                        clog << "BYTE MODE [";
+                        write_pretty_bytes(omega_viewport_get_data(viewport_ptr),
+                                           omega_viewport_get_length(viewport_ptr));
+                        clog << "]";
+                        break;
+                }
+                clog << endl;
+            }
         }
-        clog << endl;
+        default:
+            break;
     }
 }
 
@@ -210,7 +227,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     vpt_change_cbk(viewport1_ptr);
 
-    omega_edit_save(session_ptr.get(), "data/test1.dat.out", 0);
+    omega_edit_save(session_ptr.get(), "data/test1.dat.out", 1, nullptr);
     clog << "Saved " << file_info.deletes << " delete(s), " << file_info.inserts << " insert(s), "
          << file_info.overwrites << " overwrite(s) to " << file_info.save_filename << ", new file size: " << dec
          << omega_session_get_computed_file_size(session_ptr.get()) << endl;

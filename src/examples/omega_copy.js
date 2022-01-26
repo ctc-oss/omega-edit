@@ -24,7 +24,7 @@ output_filename = process.argv[3]
 session = omega_edit.omega_edit_create_session(input_filename, null, null)
 console.assert(session != null, {errorMsg: "session creation failed"})
 console.log(omega_edit.omega_session_get_computed_file_size(session))
-rc = omega_edit.omega_edit_save(session, output_filename)
+rc = omega_edit.omega_edit_save(session, output_filename, 1, null)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 omega_edit.omega_edit_destroy_session(session)
 console.log("finished!")

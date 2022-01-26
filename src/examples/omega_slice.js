@@ -31,7 +31,7 @@ if (offset) {
 }
 rc = omega_edit.omega_edit_delete(session, length, omega_edit.omega_session_get_computed_file_size(session))
 console.assert(rc > 0, {rc: rc, errorMsg: "delete failed"})
-rc = omega_edit.omega_edit_save(session, output_filename)
+rc = omega_edit.omega_edit_save(session, output_filename, 1, null)
 console.assert(rc === 0, {rc: rc, errorMsg: "save failed"})
 omega_edit.omega_edit_destroy_session(session)
 console.log("finished!")

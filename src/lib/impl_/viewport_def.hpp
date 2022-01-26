@@ -20,10 +20,10 @@
 #include "internal_fwd_defs.hpp"
 
 struct omega_viewport_struct {
-    omega_session_t *session_ptr{};                ///< Session that owns this viewport instance
-    omega_data_segment_t data_segment{};           ///< Viewport data
-    omega_viewport_on_change_cbk_t on_change_cbk{};///< User callback when the viewport changes
-    void *user_data_ptr{};                         ///< Pointer to associated user-provided data
+    omega_session_t *session_ptr{};            ///< Session that owns this viewport instance
+    omega_data_segment_t data_segment{};       ///< Viewport data
+    omega_viewport_event_cbk_t event_handler{};///< User callback when the viewport changes
+    void *user_data_ptr{};                     ///< Pointer to associated user-provided data
 };
 
 #endif//OMEGA_EDIT_VIEWPORT_DEF_HPP
