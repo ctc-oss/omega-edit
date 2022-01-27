@@ -62,21 +62,21 @@ else()
 endif()
 
 # Proto file
-get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/src/protos/omega_edit.proto" ABSOLUTE)
+get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/src/rpc/protos/omega_edit.proto" ABSOLUTE)
 get_filename_component(omega_proto_path "${omega_proto}" PATH)
 
 # Generated sources
-set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.pb.cc")
-set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.pb.h")
-set(omega_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.grpc.pb.cc")
-set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/protos/omega_edit.grpc.pb.h")
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/src/protos")
+set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.pb.cc")
+set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.pb.h")
+set(omega_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.grpc.pb.cc")
+set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.grpc.pb.h")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos")
 
 add_custom_command(
         OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}"
         COMMAND ${protoc}
-        ARGS --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/src/protos
-        --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/protos
+        ARGS --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos
+        --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos
         --plugin=protoc-gen-grpc=${grpc_plugin}
         -I ${omega_proto_path}
         ${omega_proto}
@@ -119,6 +119,7 @@ target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_GRPC}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
 
@@ -127,12 +128,12 @@ foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
 
+target_link_libraries(omega_edit PRIVATE CONAN_PKG::cwalk)
+target_link_libraries(omega_edit PRIVATE CONAN_PKG::grpc)
+
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
-
-target_link_libraries(omega_edit PRIVATE CONAN_PKG::cwalk)
-target_link_libraries(omega_edit PRIVATE CONAN_PKG::grpc)
 
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
