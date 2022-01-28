@@ -35,6 +35,10 @@ git st<!--
 The goal of this project is to provide an open source library for building editors that can handle massive files,
 multiple authors, and multiple viewports.
 
+## User documentation
+
+User documentation is published to https://ctc-oss.github.io/omega-edit/.
+
 ## Requirements
 
 ### IDE
