@@ -1578,6 +1578,34 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv425omega_visit_change_at_endPK28omega_visit_change_context_t">
+<span id="_CPPv325omega_visit_change_at_endPK28omega_visit_change_context_t"></span><span id="_CPPv225omega_visit_change_at_endPK28omega_visit_change_context_t"></span><span id="omega_visit_change_at_end__omega_visit_change_context_tCP"></span><span class="target" id="visit_8h_1a570cc72948c818298adbe686b30117f6"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_at_end</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv428omega_visit_change_context_t" title="omega_visit_change_context_t"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_context_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv425omega_visit_change_at_endPK28omega_visit_change_context_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Return non-zero if we are at the end of the change visitations </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>change_context_ptr</strong> – change visitor context to see if we’re at the end of </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if we are at the end of the change visitations and zero if there are changes remaining to visit </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv424omega_visit_change_beginP28omega_visit_change_context_t">
+<span id="_CPPv324omega_visit_change_beginP28omega_visit_change_context_t"></span><span id="_CPPv224omega_visit_change_beginP28omega_visit_change_context_t"></span><span id="omega_visit_change_begin__omega_visit_change_context_tP"></span><span class="target" id="visit_8h_1ab36045982eaee00acd4b40c62dfb7440"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_begin</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv428omega_visit_change_context_t" title="omega_visit_change_context_t"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_context_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_visit_change_beginP28omega_visit_change_context_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Set the change visitor context to the beginning of the changes </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>change_context_ptr</strong> – change visitor context to set to the beginning </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if there are no changes to visit and zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv423omega_visit_change_nextP28omega_visit_change_context_t">
 <span id="_CPPv323omega_visit_change_nextP28omega_visit_change_context_t"></span><span id="_CPPv223omega_visit_change_nextP28omega_visit_change_context_t"></span><span id="omega_visit_change_next__omega_visit_change_context_tP"></span><span class="target" id="visit_8h_1abfd18302719e2216f77d2c8673ef3bc7"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_next</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv428omega_visit_change_context_t" title="omega_visit_change_context_t"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">change_context_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv423omega_visit_change_nextP28omega_visit_change_context_t" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Given a change visitor context, find the next change </p>
