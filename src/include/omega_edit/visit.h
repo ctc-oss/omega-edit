@@ -62,6 +62,20 @@ typedef struct omega_visit_change_context_struct omega_visit_change_context_t;
 omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse);
 
 /**
+ * Return non-zero if we are at the end of the change visitations
+ * @param change_context_ptr change visitor context to see if we're at the end of
+ * @return non-zero if we are at the end of the change visitations and zero if there are changes remaining to visit
+ */
+int omega_visit_change_at_end(const omega_visit_change_context_t *change_context_ptr);
+
+/**
+ * Set the change visitor context to the beginning of the changes
+ * @param change_context_ptr change visitor context to set to the beginning
+ * @return non-zero if there are no changes to visit and zero otherwise
+ */
+int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr);
+
+/**
  * Given a change visitor context, find the next change
  * @param change_context_ptr change visitor context to find the next change in
  * @return non-zero if a change is found, zero otherwise

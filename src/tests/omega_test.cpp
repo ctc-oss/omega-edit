@@ -101,7 +101,7 @@ TEST_CASE("File Compare", "[UtilTests]") {
 
 TEST_CASE("End Of Line", "[EOLTests]") {
     omega_byte_t buffer[1024];
-    FILE * in_fp = fopen("data/test1.dat", "rb");
+    FILE *in_fp = fopen("data/test1.dat", "rb");
     REQUIRE(in_fp);
     REQUIRE(0 == fseek(in_fp, 0, SEEK_END));
     auto file_size = ftell(in_fp);
@@ -110,7 +110,7 @@ TEST_CASE("End Of Line", "[EOLTests]") {
     REQUIRE(file_size < sizeof(buffer));
     REQUIRE(file_size == fread(buffer, sizeof(omega_byte_t), file_size, in_fp));
     REQUIRE(0 == fclose(in_fp));
-    FILE * out_fp = fopen("data/test1.actual.eol.1.dat", "wb");
+    FILE *out_fp = fopen("data/test1.actual.eol.1.dat", "wb");
     REQUIRE(out_fp);
     REQUIRE(file_size == fwrite(buffer, sizeof(omega_byte_t), file_size, out_fp));
     REQUIRE(file_size == ftell(out_fp));
@@ -272,14 +272,14 @@ TEST_CASE("Transformer", "[TransformerTest]") {
 }
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat", to_upper, nullptr, 0,
-                                            0));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.1.dat",
+                                                         to_upper, nullptr, 0, 0));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.1.dat", "data/test1.actual.transformed.1.dat"));
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat", to_lower, nullptr, 37,
-                                            10));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.2.dat",
+                                                         to_lower, nullptr, 37, 10));
     REQUIRE(0 == compare_files("data/test1.expected.transformed.2.dat", "data/test1.actual.transformed.2.dat"));
-    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat", to_lower, nullptr, 37,
-                                            100));
+    REQUIRE(0 != omega_util_apply_byte_transform_to_file("data/test1.dat", "data/test1.actual.transformed.3.dat",
+                                                         to_lower, nullptr, 37, 100));
     REQUIRE(0 == omega_util_file_exists("data/test1.actual.transformed.3.dat"));
 }
 
@@ -300,7 +300,8 @@ typedef struct file_info_struct {
     size_t num_changes{};
 } file_info_t;
 
-static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
+static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                                      const omega_change_t *change_ptr) {
     // Not all session changes are the result of a standard change like delete / insert / overwrite
     switch (session_event) {
         case SESSION_EVT_EDIT:
@@ -361,7 +362,7 @@ typedef struct mask_info_struct {
     omega_mask_kind_t mask_kind;
 } mask_info_t;
 
-static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void * user_data_ptr) {
+static inline omega_byte_t byte_mask_transform(omega_byte_t byte, void *user_data_ptr) {
     const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
     return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
 }
@@ -374,7 +375,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(session_ptr);
     auto file_size = omega_session_get_computed_file_size(session_ptr);
     REQUIRE(file_size > 0);
-    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 !=
+            omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0, "./data"));
@@ -406,7 +408,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0,
+                                             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
     REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
@@ -617,7 +620,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
             auto visit_change_context = omega_visit_change_create_context(session_ptr, 0);
             REQUIRE(visit_change_context);
             string forward_change_sequence;
-            while (omega_visit_change_next(visit_change_context)) {
+            for (omega_visit_change_begin(visit_change_context); !omega_visit_change_at_end(visit_change_context);
+                 omega_visit_change_next(visit_change_context)) {
                 change_ptr = omega_visit_change_context_get_change(visit_change_context);
                 forward_change_sequence += omega_change_get_kind_as_char(change_ptr);
             }
@@ -628,7 +632,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
             auto reverse_change_sequence = forward_change_sequence;
             std::reverse(reverse_change_sequence.begin(), reverse_change_sequence.end());
             string change_sequence;
-            while (omega_visit_change_next(visit_change_context)) {
+            for (omega_visit_change_begin(visit_change_context); !omega_visit_change_at_end(visit_change_context);
+                 omega_visit_change_next(visit_change_context)) {
                 change_ptr = omega_visit_change_context_get_change(visit_change_context);
                 change_sequence += omega_change_get_kind_as_char(change_ptr);
             }
@@ -662,7 +667,8 @@ struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
 
-static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const omega_change_t *change_ptr) {
+static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                                  const omega_change_t *change_ptr) {
     if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
