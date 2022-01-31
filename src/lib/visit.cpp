@@ -40,7 +40,7 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
 struct omega_visit_change_context_struct {
     const omega_session_t *session_ptr{};
     const omega_change_t *change_ptr{};
-    bool at_end;
+    bool at_end{};
     bool reverse{};
     union {
         omega_changes_t::const_iterator *iter_ptr;

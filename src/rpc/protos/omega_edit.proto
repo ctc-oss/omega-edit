@@ -16,16 +16,16 @@ syntax = "proto3";
 
 package omega_edit;
 
-option cc_enable_arenas = true;
+//option cc_enable_arenas = true;
 
 service Editor {
-  rpc CreateSession(CreateSessionRequest) returns (CreateSessionReply);
-  rpc SaveSession(SaveSessionRequest) returns (SaveSessionReply);
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
-  rpc SubmitChange(ChangeRequest) returns (ChangeReply);
-  rpc CreateViewport(CreateViewportRequest) returns (CreateViewportReply);
-  rpc GetViewportData(ViewportDataRequest) returns (ViewportDataReply);
-  rpc GetChangeDetails(SessionChange) returns (ChangeDetailsReply);
+  rpc SubmitChange(ChangeRequest) returns (ChangeResponse);
+  rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
+  rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
+  rpc GetChangeDetails(SessionChange) returns (ChangeDetailsResponse);
 }
 
 service NotificationStreams {
@@ -52,9 +52,9 @@ message ChangeRequest {
   bytes data = 5;
 }
 
-message ChangeReply {
+message ChangeResponse {
   ObjectId session_id = 1;
-  ObjectId change_id = 2;
+  int64 change_id = 2;
 }
 
 message CreateViewportRequest {
@@ -63,7 +63,7 @@ message CreateViewportRequest {
   int64 offset = 3;
 }
 
-message CreateViewportReply {
+message CreateViewportResponse {
   ObjectId session_id = 1;
   ObjectId viewport_id = 2;
 }
@@ -73,7 +73,7 @@ message ViewportDataRequest {
   ObjectId viewport_id = 2;
 }
 
-message ViewportDataReply {
+message ViewportDataResponse {
   ObjectId session_id = 1;
   ObjectId viewport_id = 2;
   int64 length = 3;
@@ -83,7 +83,7 @@ message CreateSessionRequest {
   string file_path = 1;
 }
 
-message CreateSessionReply {
+message CreateSessionResponse {
   ObjectId session_id = 1;
 }
 
@@ -92,12 +92,12 @@ message SaveSessionRequest {
   string file_path = 2;
 }
 
-message SaveSessionReply {
+message SaveSessionResponse {
   ObjectId session_id = 1;
   string file_path = 2;
 }
 
-message DestroySessionReply {
+message DestroySessionResponse {
   ObjectId session_id = 1;
 }
 
@@ -116,7 +116,7 @@ message ViewportChange {
   SessionChange session_change = 2;
 }
 
-message ChangeDetailsReply {
+message ChangeDetailsResponse {
   Change change = 1;
 }
 

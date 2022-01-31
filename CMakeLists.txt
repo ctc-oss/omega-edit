@@ -39,51 +39,15 @@ endif()
 include(${CMAKE_BINARY_DIR}/conan.cmake)
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES boost/1.77.0 catch2/2.13.8 cwalk/1.2.5 grpc/1.43.0
-        OPTIONS boost:header_only=True
+        REQUIRES catch2/2.13.8 cwalk/1.2.5
         GENERATORS cmake cmake_find_package
-        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True"
-        IMPORTS "bin, protoc* -> ./build_tools"
-        IMPORTS "bin, grpc_cpp_plugin* -> ./build_tools"
-        IMPORTS "bin, grpc_node_plugin* -> ./build_tools")
+        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_install(PATH_OR_REFERENCE .
         BUILD missing
         REMOTE conancenter
         SETTINGS ${settings})
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup(TARGETS)
-
-if(MSVC)
-    set(protoc build_tools/protoc.exe)
-    set(grpc_plugin build_tools/grpc_cpp_plugin.exe)
-else()
-    set(protoc build_tools/protoc)
-    set(grpc_plugin build_tools/grpc_cpp_plugin)
-endif()
-
-# Proto file
-get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/src/rpc/protos/omega_edit.proto" ABSOLUTE)
-get_filename_component(omega_proto_path "${omega_proto}" PATH)
-
-# Generated sources
-set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.pb.cc")
-set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.pb.h")
-set(omega_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.grpc.pb.cc")
-set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/omega_edit.grpc.pb.h")
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos")
-
-add_custom_command(
-        OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}"
-        COMMAND ${protoc}
-        ARGS --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos
-        --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos
-        --plugin=protoc-gen-grpc=${grpc_plugin}
-        -I ${omega_proto_path}
-        ${omega_proto}
-        DEPENDS ${omega_proto}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Running gRPC C++ protocol buffer compiler on ${omega_proto}"
-        VERBATIM)
 
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
@@ -112,13 +76,11 @@ set(OMEGA_EDIT_SOURCE_FILES
         src/lib/impl_/internal_fwd_defs.hpp)
 
 # Create the library archive for static linking
-add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES} "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
+add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
 target_include_directories(omega_edit PRIVATE "${omega_proto_path}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_GRPC}")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_PROTOBUF}")
 
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
@@ -129,11 +91,11 @@ foreach (level MAJOR MINOR PATCH)
 endforeach ()
 
 target_link_libraries(omega_edit PRIVATE CONAN_PKG::cwalk)
-target_link_libraries(omega_edit PRIVATE CONAN_PKG::grpc)
 
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
+add_subdirectory(src/rpc)
 
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
