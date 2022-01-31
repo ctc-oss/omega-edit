@@ -37,6 +37,9 @@ using omega_edit::CreateSessionResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::VersionResponse;
+
+using google::protobuf::Empty;
 
 class OmegaEditServiceImpl final : public omega_edit::Editor::Service {
 private:
@@ -70,8 +73,7 @@ public:
         assert(session_to_id_.empty());
     }
 
-    Status GetOmegaVersion(::grpc::ServerContext *context, const ::google::protobuf::Empty *request,
-                           ::omega_edit::VersionResponse *response) override {
+    Status GetOmegaVersion(ServerContext *context, const Empty *request, VersionResponse *response) override {
         (void) context;
         (void) request;
         response->set_major(omega_version_major());
