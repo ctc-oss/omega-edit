@@ -27,16 +27,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
 
 # Let Conan do it's magic.
-if(NOT EXISTS "${CMAKE_BINARY_DIR}/conan.cmake")
+if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
     message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
     file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake"
-            "${CMAKE_BINARY_DIR}/conan.cmake"
+            "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake"
             EXPECTED_HASH SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484
             TLS_VERIFY ON)
 else()
-    message(STATUS "${CMAKE_BINARY_DIR}/conan.cmake exists")
+    message(STATUS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake exists")
 endif()
-include(${CMAKE_BINARY_DIR}/conan.cmake)
+include(${CMAKE_CURRENT_BINARY_DIR}/conan.cmake)
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
         REQUIRES catch2/2.13.8 cwalk/1.2.5
@@ -47,7 +47,7 @@ conan_cmake_install(PATH_OR_REFERENCE .
         REMOTE conancenter
         SETTINGS ${settings})
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS)
+conan_basic_setup()
 
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
@@ -90,7 +90,7 @@ foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
 
-target_link_libraries(omega_edit PRIVATE CONAN_PKG::cwalk)
+target_link_libraries(omega_edit PRIVATE ${CONAN_LIBS_CWALK})
 
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)

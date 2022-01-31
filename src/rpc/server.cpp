@@ -14,7 +14,6 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
-#include <boost/lexical_cast.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
@@ -52,7 +51,7 @@ private:
         return session_id;
     }
 
-    void destroy_session_(const std::string &session_id) {
+    void destroy_session_(const std::string &session_id)  {
         const auto id_to_session_iter = id_to_session_.find(session_id);
         if (id_to_session_iter != id_to_session_.end()) {
             auto session_ptr = id_to_session_iter->second;
