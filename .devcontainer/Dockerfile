@@ -33,4 +33,5 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # Install python3 modules using pip
 RUN pip3 install \
     sphinx_rtd_theme \
-    sphinx-sitemap
+    sphinx-sitemap \
+    conan

@@ -65,6 +65,7 @@ add_custom_command(
         --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/protos
         --plugin=protoc-gen-grpc=${grpc_plugin}
         -I ${omega_proto_path}
+        -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
         ${omega_proto}
         DEPENDS ${omega_proto}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

@@ -51,7 +51,7 @@ private:
         return session_id;
     }
 
-    void destroy_session_(const std::string &session_id)  {
+    void destroy_session_(const std::string &session_id) {
         const auto id_to_session_iter = id_to_session_.find(session_id);
         if (id_to_session_iter != id_to_session_.end()) {
             auto session_ptr = id_to_session_iter->second;
@@ -68,6 +68,16 @@ public:
     ~OmegaEditServiceImpl() override {
         while (!id_to_session_.empty()) { destroy_session_(id_to_session_.begin()->first); }
         assert(session_to_id_.empty());
+    }
+
+    Status GetOmegaVersion(::grpc::ServerContext *context, const ::google::protobuf::Empty *request,
+                           ::omega_edit::VersionResponse *response) override {
+        (void) context;
+        (void) request;
+        response->set_major(omega_version_major());
+        response->set_minor(omega_version_minor());
+        response->set_patch(omega_version_patch());
+        return Status::OK;
     }
 
     Status CreateSession(ServerContext *context, const CreateSessionRequest *request,

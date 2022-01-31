@@ -14,11 +14,14 @@
 
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package omega_edit;
 
 //option cc_enable_arenas = true;
 
 service Editor {
+  rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
@@ -31,6 +34,12 @@ service Editor {
 service NotificationStreams {
   rpc SubscribeOnChangeSession(ObjectId) returns (stream SessionChange);
   rpc SubscribeOnChangeViewport(SubscribeOnChangeViewportRequest) returns (stream ViewportChange);
+}
+
+message VersionResponse {
+  int32 major = 1;
+  int32 minor = 2;
+  int32 patch = 3;
 }
 
 message ObjectId {
