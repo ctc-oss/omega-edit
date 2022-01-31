@@ -1782,6 +1782,34 @@ SWIGEXPORT jlong JNICALL Java_omega_1editJNI_omega_1visit_1change_1create_1conte
 }
 
 
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1visit_1change_1at_1end(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+  jint jresult = 0 ;
+  omega_visit_change_context_t *arg1 = (omega_visit_change_context_t *) 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_visit_change_context_t **)&jarg1; 
+  result = (int)omega_visit_change_at_end((omega_visit_change_context_struct const *)arg1);
+  jresult = (jint)result; 
+  return jresult;
+}
+
+
+SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1visit_1change_1begin(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+  jint jresult = 0 ;
+  omega_visit_change_context_t *arg1 = (omega_visit_change_context_t *) 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  arg1 = *(omega_visit_change_context_t **)&jarg1; 
+  result = (int)omega_visit_change_begin(arg1);
+  jresult = (jint)result; 
+  return jresult;
+}
+
+
 SWIGEXPORT jint JNICALL Java_omega_1editJNI_omega_1visit_1change_1next(JNIEnv *jenv, jclass jcls, jlong jarg1) {
   jint jresult = 0 ;
   omega_visit_change_context_t *arg1 = (omega_visit_change_context_t *) 0 ;

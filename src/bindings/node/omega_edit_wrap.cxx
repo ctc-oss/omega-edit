@@ -4967,6 +4967,62 @@ fail:
 }
 
 
+static SwigV8ReturnValue _wrap_omega_visit_change_at_end(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  omega_visit_change_context_t *arg1 = (omega_visit_change_context_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_visit_change_at_end.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_visit_change_context_struct, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_visit_change_at_end" "', argument " "1"" of type '" "omega_visit_change_context_t const *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_visit_change_context_t * >(argp1);
+  result = (int)omega_visit_change_at_end((omega_visit_change_context_struct const *)arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
+static SwigV8ReturnValue _wrap_omega_visit_change_begin(const SwigV8Arguments &args) {
+  SWIGV8_HANDLESCOPE();
+  
+  SWIGV8_VALUE jsresult;
+  omega_visit_change_context_t *arg1 = (omega_visit_change_context_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int result;
+  
+  if(args.Length() != 1) SWIG_exception_fail(SWIG_ERROR, "Illegal number of arguments for _wrap_omega_visit_change_begin.");
+  
+  res1 = SWIG_ConvertPtr(args[0], &argp1,SWIGTYPE_p_omega_visit_change_context_struct, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "omega_visit_change_begin" "', argument " "1"" of type '" "omega_visit_change_context_t *""'"); 
+  }
+  arg1 = reinterpret_cast< omega_visit_change_context_t * >(argp1);
+  result = (int)omega_visit_change_begin(arg1);
+  jsresult = SWIG_From_int(static_cast< int >(result));
+  
+  
+  SWIGV8_RETURN(jsresult);
+  
+  goto fail;
+fail:
+  SWIGV8_RETURN(SWIGV8_UNDEFINED());
+}
+
+
 static SwigV8ReturnValue _wrap_omega_visit_change_next(const SwigV8Arguments &args) {
   SWIGV8_HANDLESCOPE();
   
@@ -5561,6 +5617,8 @@ SWIGV8_AddStaticFunction(exports_obj, "omega_viewport_notify", _wrap_omega_viewp
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_changes", _wrap_omega_visit_changes, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_changes_reverse", _wrap_omega_visit_changes_reverse, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_create_context", _wrap_omega_visit_change_create_context, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_at_end", _wrap_omega_visit_change_at_end, context);
+SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_begin", _wrap_omega_visit_change_begin, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_next", _wrap_omega_visit_change_next, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_context_get_change", _wrap_omega_visit_change_context_get_change, context);
 SWIGV8_AddStaticFunction(exports_obj, "omega_visit_change_destroy_context", _wrap_omega_visit_change_destroy_context, context);

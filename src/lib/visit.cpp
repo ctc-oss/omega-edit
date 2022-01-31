@@ -40,6 +40,7 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
 struct omega_visit_change_context_struct {
     const omega_session_t *session_ptr{};
     const omega_change_t *change_ptr{};
+    bool at_end;
     bool reverse{};
     union {
         omega_changes_t::const_iterator *iter_ptr;
@@ -56,10 +57,16 @@ omega_visit_change_context_t *omega_visit_change_create_context(const omega_sess
     change_context_ptr->change_ptr = nullptr;
     change_context_ptr->reverse = (0 != reverse);
     change_context_ptr->change_iter.iter_ptr = nullptr;
+    change_context_ptr->at_end = true;
     return change_context_ptr;
 }
 
-int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
+int omega_visit_change_at_end(const omega_visit_change_context_t *change_context_ptr) {
+    assert(change_context_ptr);
+    return (change_context_ptr->at_end) ? 1 : 0;
+}
+
+int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr) {
     assert(change_context_ptr);
     assert(change_context_ptr->session_ptr);
     assert(change_context_ptr->session_ptr->models_.back());
@@ -68,27 +75,39 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
         if (!change_context_ptr->change_iter.riter_ptr) {
             change_context_ptr->change_iter.riter_ptr = new omega_changes_t::const_reverse_iterator;
             assert(change_context_ptr->change_iter.riter_ptr);
-            *change_context_ptr->change_iter.riter_ptr =
-                    change_context_ptr->session_ptr->models_.back()->changes.rbegin();
-        } else {
-            ++*change_context_ptr->change_iter.riter_ptr;
         }
-        return (*change_context_ptr->change_iter.riter_ptr ==
-                change_context_ptr->session_ptr->models_.back()->changes.rend())
-                       ? 0
-                       : 1;
-    }
-    if (!change_context_ptr->change_iter.iter_ptr) {
-        change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
-        assert(change_context_ptr->change_iter.iter_ptr);
-        *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->models_.back()->changes.cbegin();
+        *change_context_ptr->change_iter.riter_ptr = change_context_ptr->session_ptr->models_.back()->changes.rbegin();
+        change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
+                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
     } else {
-        ++*change_context_ptr->change_iter.iter_ptr;
+        if (!change_context_ptr->change_iter.iter_ptr) {
+            change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
+            assert(change_context_ptr->change_iter.iter_ptr);
+        }
+        *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->models_.back()->changes.cbegin();
+        change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
+                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
     }
-    return (*change_context_ptr->change_iter.iter_ptr ==
-            change_context_ptr->session_ptr->models_.back()->changes.cend())
-                   ? 0
-                   : 1;
+    return omega_visit_change_at_end(change_context_ptr);
+}
+
+int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
+    assert(change_context_ptr);
+    assert(change_context_ptr->session_ptr);
+    assert(change_context_ptr->session_ptr->models_.back());
+    if (change_context_ptr->session_ptr->models_.back()->changes.empty()) { return 0; }
+    if (change_context_ptr->reverse) {
+        assert(change_context_ptr->change_iter.riter_ptr);
+        ++*change_context_ptr->change_iter.riter_ptr;
+        change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
+                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
+    } else {
+        assert(change_context_ptr->change_iter.iter_ptr);
+        ++*change_context_ptr->change_iter.iter_ptr;
+        change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
+                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
+    }
+    return omega_visit_change_at_end(change_context_ptr);
 }
 
 const omega_change_t *omega_visit_change_context_get_change(const omega_visit_change_context_t *change_context_ptr) {
