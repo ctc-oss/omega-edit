@@ -296,7 +296,8 @@ TEST_CASE("Encoding", "[EncodingTest]") {
 
 using file_info_t = struct file_info_struct { size_t num_changes{}; };
 
-static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
+static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                                      const omega_change_t *change_ptr) {
     // Not all session changes are the result of a standard change like delete / insert / overwrite
     switch (session_event) {
         case SESSION_EVT_EDIT:
@@ -403,7 +404,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0,
+                                             "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
     REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
@@ -614,7 +616,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
             auto visit_change_context = omega_visit_change_create_context(session_ptr, 0);
             REQUIRE(visit_change_context);
             string forward_change_sequence;
-            while (omega_visit_change_next(visit_change_context)) {
+            for (omega_visit_change_begin(visit_change_context); !omega_visit_change_at_end(visit_change_context);
+                 omega_visit_change_next(visit_change_context)) {
                 change_ptr = omega_visit_change_context_get_change(visit_change_context);
                 forward_change_sequence += omega_change_get_kind_as_char(change_ptr);
             }
@@ -625,7 +628,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
             auto reverse_change_sequence = forward_change_sequence;
             std::reverse(reverse_change_sequence.begin(), reverse_change_sequence.end());
             string change_sequence;
-            while (omega_visit_change_next(visit_change_context)) {
+            for (omega_visit_change_begin(visit_change_context); !omega_visit_change_at_end(visit_change_context);
+                 omega_visit_change_next(visit_change_context)) {
                 change_ptr = omega_visit_change_context_get_change(visit_change_context);
                 change_sequence += omega_change_get_kind_as_char(change_ptr);
             }
@@ -659,7 +663,8 @@ struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
 
-static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const omega_change_t *change_ptr) {
+static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                                  const omega_change_t *change_ptr) {
     if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
