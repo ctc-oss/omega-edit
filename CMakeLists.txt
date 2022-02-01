@@ -95,7 +95,11 @@ target_link_libraries(omega_edit PRIVATE ${CONAN_LIBS_CWALK})
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
-add_subdirectory(src/rpc)
+
+option(BUILD_RPC "build RPC server and client" OFF)
+if (BUILD_RPC)
+    add_subdirectory(src/rpc)
+endif(BUILD_RPC)
 
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
