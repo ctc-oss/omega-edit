@@ -24,6 +24,7 @@ inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_
         case VIEWPORT_EVT_EDIT: {
             char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
             clog << change_kind << ": [" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
+            break;
         }
         default:
             break;
