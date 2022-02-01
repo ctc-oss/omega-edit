@@ -30,8 +30,8 @@ conan_cmake_configure(
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
-        IMPORTS "bin, grpc_cpp_plugin* -> ./build_tools"
-        IMPORTS "bin, grpc_node_plugin* -> ./build_tools")
+        IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
+        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_install(PATH_OR_REFERENCE .
         BUILD missing
         REMOTE conancenter
@@ -41,10 +41,12 @@ conan_basic_setup()
 
 if(MSVC)
     set(protoc build_tools/protoc.exe)
-    set(grpc_plugin build_tools/grpc_cpp_plugin.exe)
+    set(grpc_cpp_plugin build_tools/grpc_cpp_plugin.exe)
+    set(grpc_node_plugin build_tools/grpc_node_plugin.exe)
 else()
     set(protoc build_tools/protoc)
-    set(grpc_plugin build_tools/grpc_cpp_plugin)
+    set(grpc_cpp_plugin build_tools/grpc_cpp_plugin)
+    set(grpc_node_plugin build_tools/grpc_node_plugin)
 endif()
 
 # Proto file
@@ -52,31 +54,52 @@ get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/protos/omega_edi
 get_filename_component(omega_proto_path "${omega_proto}" PATH)
 
 # Generated sources
-set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos/omega_edit.pb.cc")
-set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos/omega_edit.pb.h")
-set(omega_grpc_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos/omega_edit.grpc.pb.cc")
-set(omega_grpc_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos/omega_edit.grpc.pb.h")
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos_cpp")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos_js")
+
+set(omega_proto_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.pb.cc")
+set(omega_proto_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.pb.h")
+set(omega_grpc_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.grpc.pb.cc")
+set(omega_grpc_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.grpc.pb.h")
+
+set(omega_grpc_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos_js/omega_edit_grpc_pb.js")
+set(omega_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos_js/omega_edit_pb.js")
 
 add_custom_command(
-        OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}"
+        OUTPUT "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}"
         COMMAND ${protoc}
-        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protos
-        --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/protos
-        --plugin=protoc-gen-grpc=${grpc_plugin}
-        -I ${omega_proto_path}
-        -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
+        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protos_cpp
+        --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/protos_cpp
+        --plugin=protoc-gen-grpc=${grpc_cpp_plugin}
+        -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
         ${omega_proto}
         DEPENDS ${omega_proto}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Running gRPC C++ protocol buffer compiler on ${omega_proto}"
         VERBATIM)
 
+add_custom_command(
+        OUTPUT "${omega_grpc_js_pb}" "${omega_js_pb}"
+        COMMAND ${protoc}
+        ARGS --js_out=${CMAKE_CURRENT_BINARY_DIR}/protos_js
+        --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/protos_js
+        --plugin=protoc-gen-grpc=${grpc_node_plugin}
+        -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
+        ${omega_proto}
+        DEPENDS ${omega_proto}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
+        VERBATIM)
+
 add_executable(server server.cpp "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
 target_link_libraries(server PRIVATE omega_edit)
 target_link_libraries(server PRIVATE ${CONAN_LIBS_GRPC})
+target_link_libraries(server PRIVATE ${CONAN_LIBS_PROTOBUF})
 
-target_include_directories(server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/protos/")
+add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
+add_dependencies(server client)
+
+target_include_directories(server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/")
 target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
 target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_GRPC}")
 target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_PROTOBUF}")

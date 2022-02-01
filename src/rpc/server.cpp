@@ -38,6 +38,14 @@ using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
 using omega_edit::VersionResponse;
+using omega_edit::CreateViewportRequest;
+using omega_edit::CreateViewportResponse;
+using omega_edit::ViewportDataRequest;
+using omega_edit::ViewportDataResponse;
+using omega_edit::SessionChange;
+using omega_edit::ViewportChange;
+using omega_edit::ChangeDetailsResponse;
+using omega_edit::ChangeKind;
 
 using google::protobuf::Empty;
 
@@ -45,6 +53,8 @@ class OmegaEditServiceImpl final : public omega_edit::Editor::Service {
 private:
     std::map<omega_session_t *, std::string> session_to_id_{};
     std::map<std::string, omega_session_t *> id_to_session_{};
+    std::map<omega_viewport_t *, std::string> viewport_to_id_{};
+    std::map<std::string, omega_viewport_t *> id_to_viewport_{};
 
     std::string add_session_(omega_session_t *session_ptr) {
         const auto uuid = boost::uuids::random_generator()();
@@ -62,6 +72,25 @@ private:
             session_to_id_.erase(session_to_id_iter);
             id_to_session_.erase(id_to_session_iter);
             omega_edit_destroy_session(session_ptr);
+        }
+    }
+
+    std::string add_viewport_(omega_viewport_t *viewport_ptr) {
+        const auto uuid = boost::uuids::random_generator()();
+        auto viewport_id = boost::uuids::to_string(uuid);
+        viewport_to_id_.insert(std::make_pair(viewport_ptr, viewport_id));
+        id_to_viewport_.insert(std::make_pair(viewport_id, viewport_ptr));
+        return viewport_id;
+    }
+
+    void destroy_viewport_(const std::string &viewport_id) {
+        const auto id_to_viewport_iter = id_to_viewport_.find(viewport_id);
+        if (id_to_viewport_iter != id_to_viewport_.end()) {
+            auto viewport_ptr = id_to_viewport_iter->second;
+            const auto viewport_to_id_iter = viewport_to_id_.find(viewport_ptr);
+            viewport_to_id_.erase(viewport_to_id_iter);
+            id_to_viewport_.erase(id_to_viewport_iter);
+            omega_edit_destroy_viewport(viewport_ptr);
         }
     }
 
@@ -122,7 +151,7 @@ public:
                 break;
         }
         response->mutable_session_id()->set_id(session_id);
-        response->set_change_id(change_serial);
+        response->set_serial(change_serial);
         return Status::OK;
     }
 
@@ -133,7 +162,78 @@ public:
         response->set_id(session_id);
         return Status::OK;
     }
+
+    Status CreateViewport(ServerContext* context, const CreateViewportRequest* request, CreateViewportResponse* response) override {
+        (void) context;
+        const auto &session_id = request->session_id().id();
+        auto session_ptr = id_to_session_[session_id];
+        auto offset = request->offset();
+        auto capacity = request->capacity();
+        auto viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, nullptr, nullptr);
+        auto viewport_id = add_viewport_(viewport_ptr);
+        response->mutable_session_id()->set_id(session_id);
+        response->mutable_viewport_id()->set_id(viewport_id);
+        return Status::OK;
+    }
+
+    Status GetViewportData(ServerContext* context, const ViewportDataRequest* request, ViewportDataResponse* response) override {
+        (void) context;
+        const auto &session_id = request->session_id().id();
+        const auto &viewport_id = request->viewport_id().id();
+        auto viewport_ptr = id_to_viewport_[viewport_id];
+        response->set_length(omega_viewport_get_length(viewport_ptr));
+        response->set_data(omega_viewport_get_string(viewport_ptr));
+        response->mutable_session_id()->set_id(session_id);
+        response->mutable_viewport_id()->set_id(viewport_id);
+        return Status::OK;
+    }
+
+    Status GetChangeDetails(ServerContext* context, const SessionChange* request, ChangeDetailsResponse* response) override {
+        (void) context;
+        const auto &session_id = request->session_id().id();
+        const auto session_ptr = id_to_session_[session_id];
+        const auto serial = request->serial();
+        auto change_ptr = omega_session_get_change(session_ptr, serial);
+        response->mutable_change()->set_serial(serial);
+        response->mutable_change()->set_offset(omega_change_get_offset(change_ptr));
+        response->mutable_change()->set_length(omega_change_get_length(change_ptr));
+        const auto kind = omega_change_get_kind_as_char(change_ptr);
+        switch (kind) {
+            case 'D':
+                response->mutable_change()->set_kind(ChangeKind::CHANGE_DELETE);
+                break;
+            case 'I':
+                response->mutable_change()->set_kind(ChangeKind::CHANGE_INSERT);
+                response->mutable_change()->set_data(omega_change_get_string(change_ptr));
+                break;
+            case 'O':
+                response->mutable_change()->set_kind(ChangeKind::CHANGE_OVERWRITE);
+                response->mutable_change()->set_data(omega_change_get_string(change_ptr));
+                break;
+            default:
+                // TODO: Handle error
+                break;
+        }
+        return Status::OK;
+    }
+
+    Status SubscribeOnChangeSession(::grpc::ServerContext* context, const ::omega_edit::ObjectId* request, ::grpc::ServerWriter<SessionChange>* writer) override {
+        (void) context;
+        (void) request;
+        (void) writer;
+        return Status::OK;
+    }
+
+    Status SubscribeOnChangeViewport(::grpc::ServerContext* context, const ::omega_edit::SubscribeOnChangeViewportRequest* request, ::grpc::ServerWriter<ViewportChange>* writer) override {
+        (void) context;
+        (void) request;
+        (void) writer;
+        return Status::OK;
+    }
+
 };
+
+
 
 void RunServer() {
     std::string server_address("0.0.0.0:50042");

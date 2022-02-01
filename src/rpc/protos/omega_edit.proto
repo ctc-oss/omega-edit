@@ -29,9 +29,7 @@ service Editor {
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
   rpc GetChangeDetails(SessionChange) returns (ChangeDetailsResponse);
-}
-
-service NotificationStreams {
+  // Event streams
   rpc SubscribeOnChangeSession(ObjectId) returns (stream SessionChange);
   rpc SubscribeOnChangeViewport(SubscribeOnChangeViewportRequest) returns (stream ViewportChange);
 }
@@ -63,7 +61,7 @@ message ChangeRequest {
 
 message ChangeResponse {
   ObjectId session_id = 1;
-  int64 change_id = 2;
+  int64 serial = 2;
 }
 
 message CreateViewportRequest {
@@ -88,6 +86,7 @@ message ViewportDataResponse {
   int64 length = 3;
   bytes data = 4;
 }
+
 message CreateSessionRequest {
   string file_path = 1;
 }
@@ -117,7 +116,7 @@ message SubscribeOnChangeViewportRequest {
 
 message SessionChange {
   ObjectId session_id = 1;
-  ObjectId change_id = 2;
+  int64 serial = 2;
 }
 
 message ViewportChange {
