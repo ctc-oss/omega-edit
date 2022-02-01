@@ -161,7 +161,7 @@ sbt run
 
 If you navigate to `http://localhost:9000/no_params?methodName=omega_license_get` in the browser you get the license text.
 
-## Packaging omega-edit
+## Packaging Ωedit
 
 Package file follows naming pattern `omega_edit-$omegaEditVer`, eg `omega_edit-1.0.0-0.1.0-SNAPSHOT.zip`.
 The `libomega_edit.*` files that are stored in `lib` are added the package when the command is ran.
@@ -174,7 +174,6 @@ sbt universal:packageBin
 
 Currently, the repo holds bindings for both java and node.
 
-
 ### Regenerate Node and Java bindings using SWIG (as required)
 
 If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
@@ -183,6 +182,9 @@ If any header files have been added, removed, or changed, regenerate the API wra
 swig -javascript -node -v -c++ -outdir src/bindings/node src/bindings/node/omega_edit.i
 swig -v -c++ -java -outdir src/bindings/java src/bindings/java/omega_edit.i
 ```
+## Versioning
+
+Ωedit follows [Semantic Versioning](http://semver.org/).
 
 ## License
 
