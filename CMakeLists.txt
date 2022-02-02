@@ -96,7 +96,7 @@ target_link_libraries(omega_edit PRIVATE ${CONAN_LIBS_CWALK})
 add_subdirectory(src/examples)
 add_subdirectory(src/tests)
 
-option(BUILD_RPC "build RPC server and client" OFF)
+option(BUILD_RPC "build RPC server and client" ON)
 if (BUILD_RPC)
     add_subdirectory(src/rpc)
 endif(BUILD_RPC)

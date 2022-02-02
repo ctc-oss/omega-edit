@@ -91,7 +91,7 @@ add_custom_command(
         COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
         VERBATIM)
 
-add_executable(server server.cpp "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
+add_executable(server server.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
 target_link_libraries(server PRIVATE omega_edit)
 target_link_libraries(server PRIVATE ${CONAN_LIBS_GRPC})
 target_link_libraries(server PRIVATE ${CONAN_LIBS_PROTOBUF})
