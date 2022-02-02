@@ -14,6 +14,7 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
+#include "worker_queue/worker_queue.hpp"
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
@@ -24,30 +25,58 @@
 #include <omega_edit.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <string>
+#include <cassert>
 
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
+using grpc::ServerWriter;
 using grpc::Status;
 
+using omega_edit::ChangeDetailsResponse;
+using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
+using omega_edit::CreateViewportRequest;
+using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SessionChange;
 using omega_edit::VersionResponse;
-using omega_edit::CreateViewportRequest;
-using omega_edit::CreateViewportResponse;
+using omega_edit::ViewportChange;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
-using omega_edit::SessionChange;
-using omega_edit::ViewportChange;
-using omega_edit::ChangeDetailsResponse;
-using omega_edit::ChangeKind;
 
 using google::protobuf::Empty;
+
+
+class SessionEventQueue final : public omega_edit::IWorkerQueue {
+public:
+    SessionEventQueue(ServerWriter<SessionChange> *writer) : omega_edit::IWorkerQueue(), writer_(writer) {}
+    SessionEventQueue(const SessionEventQueue &) = delete;
+    SessionEventQueue operator=(const SessionEventQueue &) = delete;
+
+    void HandleItem(std::shared_ptr<void> item) override {
+        std::cout << "Not implemented" << std::endl;
+    }
+
+    ServerWriter<SessionChange> *GetWriter() const { return writer_; }
+
+    void SetWriter(ServerWriter<SessionChange> *writer) { writer_ = writer; }
+
+private:
+    ServerWriter<SessionChange> *writer_ = nullptr;
+};
+
+class OmegaEditServiceImpl;
+
+void session_event_callback(const omega_session_t * session_ptr, omega_session_event_t session_event, const omega_change_t * change_ptr) {
+    assert(session_ptr);
+    // TODO: Implement
+}
 
 class OmegaEditServiceImpl final : public omega_edit::Editor::Service {
 private:
@@ -67,7 +96,7 @@ private:
     void destroy_session_(const std::string &session_id) {
         const auto id_to_session_iter = id_to_session_.find(session_id);
         if (id_to_session_iter != id_to_session_.end()) {
-            auto session_ptr = id_to_session_iter->second;
+            const auto session_ptr = id_to_session_iter->second;
             const auto session_to_id_iter = session_to_id_.find(session_ptr);
             session_to_id_.erase(session_to_id_iter);
             id_to_session_.erase(id_to_session_iter);
@@ -96,6 +125,8 @@ private:
 
 public:
     OmegaEditServiceImpl() = default;
+    OmegaEditServiceImpl(const OmegaEditServiceImpl &) = delete;
+    OmegaEditServiceImpl &operator=(const OmegaEditServiceImpl &) = delete;
 
     ~OmegaEditServiceImpl() override {
         while (!id_to_session_.empty()) { destroy_session_(id_to_session_.begin()->first); }
@@ -115,7 +146,7 @@ public:
                          CreateSessionResponse *response) override {
         (void) context;
         const auto &file_path = request->file_path();
-        auto session_ptr = omega_edit_create_session(file_path.c_str(), nullptr, nullptr);
+        auto session_ptr = omega_edit_create_session(file_path.c_str(), session_event_callback, this);
         response->mutable_session_id()->set_id(this->add_session_(session_ptr));
         return Status::OK;
     }
@@ -163,7 +194,8 @@ public:
         return Status::OK;
     }
 
-    Status CreateViewport(ServerContext* context, const CreateViewportRequest* request, CreateViewportResponse* response) override {
+    Status CreateViewport(ServerContext *context, const CreateViewportRequest *request,
+                          CreateViewportResponse *response) override {
         (void) context;
         const auto &session_id = request->session_id().id();
         auto session_ptr = id_to_session_[session_id];
@@ -176,7 +208,8 @@ public:
         return Status::OK;
     }
 
-    Status GetViewportData(ServerContext* context, const ViewportDataRequest* request, ViewportDataResponse* response) override {
+    Status GetViewportData(ServerContext *context, const ViewportDataRequest *request,
+                           ViewportDataResponse *response) override {
         (void) context;
         const auto &session_id = request->session_id().id();
         const auto &viewport_id = request->viewport_id().id();
@@ -188,7 +221,8 @@ public:
         return Status::OK;
     }
 
-    Status GetChangeDetails(ServerContext* context, const SessionChange* request, ChangeDetailsResponse* response) override {
+    Status GetChangeDetails(ServerContext *context, const SessionChange *request,
+                            ChangeDetailsResponse *response) override {
         (void) context;
         const auto &session_id = request->session_id().id();
         const auto session_ptr = id_to_session_[session_id];
@@ -217,22 +251,30 @@ public:
         return Status::OK;
     }
 
-    Status SubscribeOnChangeSession(::grpc::ServerContext* context, const ::omega_edit::ObjectId* request, ::grpc::ServerWriter<SessionChange>* writer) override {
+    Status SubscribeOnChangeSession(::grpc::ServerContext *context, const ::omega_edit::ObjectId *request,
+                                    ::grpc::ServerWriter<SessionChange> *writer) override {
+        (void) context;
+        (void) writer;
+        const auto &session_id = request->id();
+
+        // TODO: The problem here is that we need to be able to write a stream of messages over the course of an
+        //  editing session, so this needs to be long lived, and not busy waiting.  If we create a thread and return
+        //  from this function, the channel will be closed.  If we don't return, the main thread will be blocked.  We
+        //  need to switch over to an asynchronous service model for us to be able to return, and have a background
+        //  thread writing events into the channel.
+
+        return Status::OK;
+    }
+
+    Status SubscribeOnChangeViewport(::grpc::ServerContext *context,
+                                     const ::omega_edit::SubscribeOnChangeViewportRequest *request,
+                                     ::grpc::ServerWriter<ViewportChange> *writer) override {
         (void) context;
         (void) request;
         (void) writer;
         return Status::OK;
     }
-
-    Status SubscribeOnChangeViewport(::grpc::ServerContext* context, const ::omega_edit::SubscribeOnChangeViewportRequest* request, ::grpc::ServerWriter<ViewportChange>* writer) override {
-        (void) context;
-        (void) request;
-        (void) writer;
-        return Status::OK;
-    }
-
 };
-
 
 
 void RunServer() {
