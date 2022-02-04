@@ -42,17 +42,12 @@ namespace omega_edit {
 
     void IWorkerQueue::ExitThread() {
         if (thread_) {
-
-            // Create a new ThreadMsg
             const auto thread_item_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::EXIT_THREAD, nullptr);
-
-            // Put exit thread message into the queue
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 queue_.push(thread_item_ptr);
                 cv_.notify_one();
             }
-
             thread_->join();
             thread_ = nullptr;
         }
@@ -63,7 +58,7 @@ namespace omega_edit {
 
         const auto thread_message_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::USER_ITEM, item);
 
-        // Add user data to queue and notify worker thread
+        // Add user data to queue and notify worker thread (Process_)
         std::unique_lock<std::mutex> lk(mutex_);
         queue_.push(thread_message_ptr);
         cv_.notify_one();
@@ -73,7 +68,7 @@ namespace omega_edit {
         while (true) {
             std::shared_ptr<thread_item_t> thread_item_ptr;
             {
-                // Wait for a message to be added to the queue
+                // Wait for a message to be added to the queue (Push)
                 std::unique_lock<std::mutex> lk(mutex_);
                 while (queue_.empty()) { cv_.wait(lk); }
                 if (queue_.empty()) { continue; }
