@@ -17,8 +17,8 @@
       "defines": [
         # TODO: Programmatically set the version information
         "OMEGA_EDIT_VERSION_MAJOR=0",
-        "OMEGA_EDIT_VERSION_MINOR=6",
-        "OMEGA_EDIT_VERSION_PATCH=2",
+        "OMEGA_EDIT_VERSION_MINOR=7",
+        "OMEGA_EDIT_VERSION_PATCH=0",
         "NAPI_DISABLE_CPP_EXCEPTIONS",
       ],
       "cflags!": ["-fno-exceptions", "-Wall", "-Werror"],
