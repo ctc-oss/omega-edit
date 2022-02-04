@@ -203,7 +203,6 @@ public:
         auto capacity = request->capacity();
         auto viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, nullptr, nullptr);
         auto viewport_id = add_viewport_(viewport_ptr);
-        response->mutable_session_id()->set_id(session_id);
         response->mutable_viewport_id()->set_id(viewport_id);
         return Status::OK;
     }
@@ -211,12 +210,10 @@ public:
     Status GetViewportData(ServerContext *context, const ViewportDataRequest *request,
                            ViewportDataResponse *response) override {
         (void) context;
-        const auto &session_id = request->session_id().id();
         const auto &viewport_id = request->viewport_id().id();
         auto viewport_ptr = id_to_viewport_[viewport_id];
         response->set_length(omega_viewport_get_length(viewport_ptr));
         response->set_data(omega_viewport_get_string(viewport_ptr));
-        response->mutable_session_id()->set_id(session_id);
         response->mutable_viewport_id()->set_id(viewport_id);
         return Status::OK;
     }
@@ -275,7 +272,6 @@ public:
         return Status::OK;
     }
 };
-
 
 void RunServer() {
     std::string server_address("0.0.0.0:50042");

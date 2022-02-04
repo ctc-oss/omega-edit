@@ -71,20 +71,17 @@ message CreateViewportRequest {
 }
 
 message CreateViewportResponse {
-  ObjectId session_id = 1;
-  ObjectId viewport_id = 2;
+  ObjectId viewport_id = 1;
 }
 
 message ViewportDataRequest {
-  ObjectId session_id = 1;
-  ObjectId viewport_id = 2;
+  ObjectId viewport_id = 1;
 }
 
 message ViewportDataResponse {
-  ObjectId session_id = 1;
-  ObjectId viewport_id = 2;
-  int64 length = 3;
-  bytes data = 4;
+  ObjectId viewport_id = 1;
+  int64 length = 2;
+  bytes data = 3;
 }
 
 message CreateSessionRequest {
@@ -110,8 +107,7 @@ message DestroySessionResponse {
 }
 
 message SubscribeOnChangeViewportRequest {
-  ObjectId session_id = 1;
-  ObjectId viewport_id = 2;
+  ObjectId viewport_id = 1;
 }
 
 enum SessionChangeKind {
@@ -142,10 +138,9 @@ enum ViewportChangeKind {
 }
 
 message ViewportChange {
-  ObjectId session_id = 1;
-  ObjectId viewport_id = 2;
-  ViewportChangeKind viewport_change_kind = 3;
-  int64 serial = 4;
+  ObjectId viewport_id = 1;
+  ViewportChangeKind viewport_change_kind = 2;
+  int64 serial = 3;
 }
 
 message ChangeDetailsResponse {

@@ -91,6 +91,8 @@ add_custom_command(
         COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
         VERBATIM)
 
+include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/" "${CONAN_INCLUDE_DIRS_BOOST}" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+
 add_executable(server server.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
 target_link_libraries(server PRIVATE omega_edit)
 target_link_libraries(server PRIVATE ${CONAN_LIBS_GRPC})
@@ -99,9 +101,8 @@ target_link_libraries(server PRIVATE ${CONAN_LIBS_PROTOBUF})
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
-target_include_directories(server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/")
-target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
-target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_GRPC}")
-target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+add_executable(server_cbk server_cbk.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
+target_link_libraries(server_cbk PRIVATE omega_edit)
+target_link_libraries(server_cbk PRIVATE ${CONAN_LIBS_GRPC})
+target_link_libraries(server_cbk PRIVATE ${CONAN_LIBS_PROTOBUF})
 
-include_directories("${CONAN_INCLUDE_DIRS_BOOST}")
