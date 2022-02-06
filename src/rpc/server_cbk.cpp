@@ -270,7 +270,21 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
     }
 }
 
-// TODO: Callback for viewport events!!!
+void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                             const omega_change_t *change_ptr) {
+    assert(viewport_ptr);
+    const auto session_manager_ptr = reinterpret_cast<SessionManager *>(omega_viewport_get_user_data(viewport_ptr));
+    const auto viewport_id = session_manager_ptr->get_viewport_id(viewport_ptr);
+    const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
+    if (viewport_event_writer_ptr) {
+        // This session is subscribed, so populate the RPC message and push it onto the worker queue
+        const auto viewport_change_ptr = std::make_shared<ViewportChange>();
+        viewport_change_ptr->mutable_viewport_id()->set_id(viewport_id);
+        viewport_change_ptr->set_viewport_change_kind(omega_viewport_event_to_rpc_event(viewport_event));
+        if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
+        viewport_event_writer_ptr->Push(viewport_change_ptr);
+    }
+}
 
 class OmegaEditServiceImpl final : public omega_edit::Editor::CallbackService {
 private:
@@ -395,7 +409,8 @@ public:
         auto session_ptr = session_manager_.get_session_ptr(session_id);
         auto offset = request->offset();
         auto capacity = request->capacity();
-        auto viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, nullptr, nullptr);
+        auto viewport_ptr =
+                omega_edit_create_viewport(session_ptr, offset, capacity, viewport_event_callback, &session_manager_);
         auto viewport_id = session_manager_.add_viewport(viewport_ptr);
         response->mutable_viewport_id()->set_id(viewport_id);
         auto *reactor = context->DefaultReactor();
