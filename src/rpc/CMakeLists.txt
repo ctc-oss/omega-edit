@@ -26,7 +26,7 @@ endif()
 include(${CMAKE_CURRENT_BINARY_DIR}/conan.cmake)
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES boost/1.77.0 grpc/1.43.0
+        REQUIRES boost/1.78.0 grpc/1.43.0
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
@@ -91,7 +91,8 @@ add_custom_command(
         COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
         VERBATIM)
 
-include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/" "${CONAN_INCLUDE_DIRS_BOOST}" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
+include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
 
 add_executable(server server.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
 target_link_libraries(server PRIVATE omega_edit)
