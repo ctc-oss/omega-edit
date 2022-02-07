@@ -98,13 +98,14 @@ SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omeg
 SET(WORKER_QUEUE_SOURCE_FILES "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp")
 
 add_executable(server server.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server omega_edit)
-target_link_libraries(server ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
 add_executable(server_cbk server_cbk.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server_cbk omega_edit)
-target_link_libraries(server_cbk ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server_cbk PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+
+add_executable(server_test server_test.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+target_link_libraries(server_test PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
