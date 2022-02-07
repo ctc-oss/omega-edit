@@ -95,15 +95,13 @@ message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
 
 add_executable(server server.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
-target_link_libraries(server PRIVATE omega_edit)
-target_link_libraries(server PRIVATE ${CONAN_LIBS_GRPC})
-target_link_libraries(server PRIVATE ${CONAN_LIBS_PROTOBUF})
+target_link_libraries(server omega_edit)
+target_link_libraries(server ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
 add_executable(server_cbk server_cbk.cpp "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp" "${omega_proto_srcs}" "${omega_proto_hdrs}" "${omega_grpc_srcs}" "${omega_grpc_hdrs}")
-target_link_libraries(server_cbk PRIVATE omega_edit)
-target_link_libraries(server_cbk PRIVATE ${CONAN_LIBS_GRPC})
-target_link_libraries(server_cbk PRIVATE ${CONAN_LIBS_PROTOBUF})
+target_link_libraries(server_cbk omega_edit)
+target_link_libraries(server_cbk ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
