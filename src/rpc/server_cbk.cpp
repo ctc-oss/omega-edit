@@ -127,6 +127,7 @@ private:
 
 public:
     std::string add_session(omega_session_t *session_ptr) {
+        assert(session_ptr);
         const auto uuid = boost::uuids::random_generator()();
         auto session_id = boost::uuids::to_string(uuid);
         session_to_id_.insert(std::make_pair(session_ptr, session_id));
@@ -138,6 +139,7 @@ public:
         const auto id_to_session_iter = id_to_session_.find(session_id);
         if (id_to_session_iter != id_to_session_.end()) {
             const auto session_ptr = id_to_session_iter->second;
+            assert(session_ptr);
             const auto session_to_id_iter = session_to_id_.find(session_ptr);
             session_to_id_.erase(session_to_id_iter);
             id_to_session_.erase(id_to_session_iter);
@@ -309,8 +311,9 @@ public:
 
     ServerUnaryReactor *CreateSession(CallbackServerContext *context, const CreateSessionRequest *request,
                                       CreateSessionResponse *response) override {
-        const auto &file_path = request->file_path();
-        auto session_ptr = omega_edit_create_session(file_path.c_str(), session_event_callback, &session_manager_);
+        const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
+        auto session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_);
+        assert(session_ptr);
         response->mutable_session_id()->set_id(session_manager_.add_session(session_ptr));
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);

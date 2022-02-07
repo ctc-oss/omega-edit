@@ -85,7 +85,7 @@ message ViewportDataResponse {
 }
 
 message CreateSessionRequest {
-  string file_path = 1;
+  optional string file_path = 1;
 }
 
 message CreateSessionResponse {
@@ -100,10 +100,6 @@ message SaveSessionRequest {
 message SaveSessionResponse {
   ObjectId session_id = 1;
   string file_path = 2;
-}
-
-message DestroySessionResponse {
-  ObjectId session_id = 1;
 }
 
 message SubscribeOnChangeViewportRequest {

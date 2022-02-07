@@ -309,6 +309,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
+    assert(session_ptr);
     for (auto &&model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { fclose(model_ptr->file_ptr); }
     }
