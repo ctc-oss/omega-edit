@@ -54,6 +54,7 @@ namespace omega_edit {
     }
 
     void IWorkerQueue::Push(const std::shared_ptr<void> &item) {
+        CreateThread();
         assert(thread_);
 
         const auto thread_message_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::USER_ITEM, item);

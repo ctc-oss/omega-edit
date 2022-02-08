@@ -18,7 +18,7 @@ import "google/protobuf/empty.proto";
 
 package omega_edit;
 
-//option cc_enable_arenas = true;
+option cc_enable_arenas = true;
 
 service Editor {
   rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
@@ -31,7 +31,7 @@ service Editor {
   rpc GetChangeDetails(SessionChange) returns (ChangeDetailsResponse);
   // Event streams
   rpc SubscribeOnChangeSession(ObjectId) returns (stream SessionChange);
-  rpc SubscribeOnChangeViewport(SubscribeOnChangeViewportRequest) returns (stream ViewportChange);
+  rpc SubscribeOnChangeViewport(ObjectId) returns (stream ViewportChange);
 }
 
 message VersionResponse {
@@ -56,7 +56,7 @@ message ChangeRequest {
   ChangeKind kind = 2;
   int64 offset = 3;
   int64 length = 4;
-  bytes data = 5;
+  optional bytes data = 5;
 }
 
 message ChangeResponse {
@@ -102,10 +102,6 @@ message SaveSessionResponse {
   string file_path = 2;
 }
 
-message SubscribeOnChangeViewportRequest {
-  ObjectId viewport_id = 1;
-}
-
 enum SessionChangeKind {
   SESSION_EVT_UNDEFINED = 0;
   SESSION_EVT_CREATE = 1;
@@ -121,7 +117,7 @@ enum SessionChangeKind {
 message SessionChange {
   ObjectId session_id = 1;
   SessionChangeKind session_change_kind = 2;
-  int64 serial = 3;
+  optional int64 serial = 3;
 }
 
 enum ViewportChangeKind {
@@ -136,7 +132,7 @@ enum ViewportChangeKind {
 message ViewportChange {
   ObjectId viewport_id = 1;
   ViewportChangeKind viewport_change_kind = 2;
-  int64 serial = 3;
+  optional int64 serial = 3;
 }
 
 message ChangeDetailsResponse {
@@ -149,5 +145,5 @@ message Change {
   ChangeKind kind = 3;
   int64 offset = 4;
   int64 length = 5;
-  bytes data = 6;
+  optional bytes data = 6;
 }

@@ -14,15 +14,15 @@ project(omega_edit-rpc)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
 # Let Conan do it's magic.
-if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
+if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
     message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
     file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake"
             "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake"
             EXPECTED_HASH SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484
             TLS_VERIFY ON)
-else()
+else ()
     message(STATUS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake exists")
-endif()
+endif ()
 include(${CMAKE_CURRENT_BINARY_DIR}/conan.cmake)
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
@@ -39,15 +39,15 @@ conan_cmake_install(PATH_OR_REFERENCE .
 include(${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
 
-if(MSVC)
+if (MSVC)
     set(protoc build_tools/protoc.exe)
     set(grpc_cpp_plugin build_tools/grpc_cpp_plugin.exe)
     set(grpc_node_plugin build_tools/grpc_node_plugin.exe)
-else()
+else ()
     set(protoc build_tools/protoc)
     set(grpc_cpp_plugin build_tools/grpc_cpp_plugin)
     set(grpc_node_plugin build_tools/grpc_node_plugin)
-endif()
+endif ()
 
 # Proto file
 get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/protos/omega_edit.proto" ABSOLUTE)

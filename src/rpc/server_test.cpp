@@ -12,28 +12,45 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../lib/impl_/macros.h"
 #include <grpcpp/grpcpp.h>
 #include <omega_edit.grpc.pb.h>
 #include <sstream>
+#include <thread>
 
 using grpc::Channel;
 using grpc::ClientContext;
+using grpc::ClientReader;
 using grpc::Status;
+
 using omega_edit::Change;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
+using omega_edit::CreateViewportRequest;
+using omega_edit::CreateViewportResponse;
 using omega_edit::Editor;
 using omega_edit::ObjectId;
-using omega_edit::VersionResponse;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::VersionResponse;
+using omega_edit::ViewportChange;
+using omega_edit::ViewportDataRequest;
+using omega_edit::ViewportDataResponse;
 
-class OmegaEditServiceClient {
+class OmegaEditServiceClient final {
 public:
-    explicit OmegaEditServiceClient(const std::shared_ptr<Channel> &channel) : stub_(Editor::NewStub(channel)){};
+    explicit OmegaEditServiceClient(const std::shared_ptr<Channel> &channel) : stub_(Editor::NewStub(channel)) {
+        assert(channel);
+        assert(stub_);
+    };
+
+    ~OmegaEditServiceClient() {
+        if (viewport_subscription_handler_thread_) { viewport_subscription_handler_thread_->join(); }
+    }
+
     std::string GetOmegaEditVersion() const {
         VersionResponse response;
         google::protobuf::Empty request;
@@ -58,7 +75,7 @@ public:
             ss << response.major() << "." << response.minor() << "." << response.patch();
             return ss.str();
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return "RPC failed";
         }
     }
@@ -84,14 +101,17 @@ public:
         while (!done) { cv.wait(lock); }
 
         if (status.ok()) {
-            return response.session_id().id();
+            auto session_id = response.session_id().id();
+            assert(!session_id.empty());
+            return session_id;
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return "RPC failed";
         }
     }
 
     int64_t Insert(const std::string &session_id, int64_t offset, const std::string &str) const {
+        assert(!session_id.empty());
         ChangeRequest request;
         ChangeResponse response;
         ClientContext context;
@@ -119,12 +139,13 @@ public:
         if (status.ok()) {
             return response.serial();
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return 0;
         }
     }
 
     int64_t Overwrite(const std::string &session_id, int64_t offset, const std::string &str) const {
+        assert(!session_id.empty());
         ChangeRequest request;
         ChangeResponse response;
         ClientContext context;
@@ -152,12 +173,13 @@ public:
         if (status.ok()) {
             return response.serial();
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return 0;
         }
     }
 
     int64_t Delete(const std::string &session_id, int64_t offset, int64_t length) const {
+        assert(!session_id.empty());
         ChangeRequest request;
         ChangeResponse response;
         ClientContext context;
@@ -184,42 +206,45 @@ public:
         if (status.ok()) {
             return response.serial();
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return 0;
         }
     }
 
     std::string SaveSession(const std::string &session_id, const std::string &file_path) const {
-            SaveSessionRequest request;
-            SaveSessionResponse response;
-            ClientContext context;
+        assert(!session_id.empty());
+        assert(!file_path.empty());
+        SaveSessionRequest request;
+        SaveSessionResponse response;
+        ClientContext context;
 
-            request.mutable_session_id()->set_id(session_id);
-            request.set_file_path(file_path);
+        request.mutable_session_id()->set_id(session_id);
+        request.set_file_path(file_path);
 
-            std::mutex mu;
-            std::condition_variable cv;
-            bool done = false;
-            Status status;
-            stub_->async()->SaveSession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
-                status = std::move(s);
-                std::lock_guard<std::mutex> lock(mu);
-                done = true;
-                cv.notify_one();
-            });
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->SaveSession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
 
-            std::unique_lock<std::mutex> lock(mu);
-            while (!done) { cv.wait(lock); }
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
 
-            if (status.ok()) {
-                return response.file_path();
-            } else {
-                std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
-                return "RPC failed";
-            }
+        if (status.ok()) {
+            return response.file_path();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
     }
 
     std::string DestroySession(const std::string &session_id) const {
+        assert(!session_id.empty());
         ObjectId request;
         ObjectId response;
         ClientContext context;
@@ -243,13 +268,104 @@ public:
         if (status.ok()) {
             return response.id();
         } else {
-            std::cerr << status.error_code() << ": " << status.error_message() << std::endl;
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
             return "RPC failed";
         }
     }
 
+    std::string CreateViewport(const std::string &session_id, int64_t offset, int64_t capacity) {
+        assert(!session_id.empty());
+        CreateViewportRequest request;
+        CreateViewportResponse response;
+        ClientContext context;
+
+        request.mutable_session_id()->set_id(session_id);
+        request.set_offset(offset);
+        request.set_capacity(capacity);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->CreateViewport(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            auto viewport_id = response.viewport_id().id();
+            assert(!viewport_id.empty());
+            return viewport_id;
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
+    std::string GetViewportData(const std::string &viewport_id) {
+        assert(!viewport_id.empty());
+        ViewportDataRequest request;
+        ViewportDataResponse response;
+        ClientContext context;
+
+        request.mutable_viewport_id()->set_id(viewport_id);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetViewportData(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.data();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
+    static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
+                                      std::unique_ptr<ClientReader<ViewportChange>> reader_ptr) {
+        assert(reader_ptr);
+        (void) context_ptr;// Though we're not using the context pointer, we need to manage its lifecycle in this scope.
+        ViewportChange viewport_change;
+        reader_ptr->WaitForInitialMetadata();
+        while (reader_ptr->Read(&viewport_change)) {
+            DBG(CLOG << LOCATION << "id: " << viewport_change.viewport_id().id()
+                     << ", kind: " << viewport_change.viewport_change_kind() << std::endl;);
+        }
+    }
+
+    std::thread::id SubscribeOnChangeViewport(const std::string &viewport_id) {
+        assert(!viewport_id.empty());
+        ObjectId request;
+        auto context_ptr = std::make_unique<ClientContext>();
+
+        request.set_id(viewport_id);
+
+        ViewportChange viewport_change;
+        viewport_subscription_handler_thread_ = std::make_unique<std::thread>(
+                std::thread(HandleViewportChanges, std::move(context_ptr),
+                            std::move(stub_->SubscribeOnChangeViewport(context_ptr.get(), request))));
+        return viewport_subscription_handler_thread_->get_id();
+    }
+
 private:
     std::unique_ptr<Editor::Stub> stub_;
+    std::unique_ptr<std::thread> viewport_subscription_handler_thread_ = nullptr;
 };
 
 int main(int argc, char **argv) {
@@ -274,22 +390,38 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
     }
+    CLOG << "Establishing a channel to Ωedit server on: " << target_str << std::endl;
     OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+
     auto reply = server_test_client.GetOmegaEditVersion();
-    std::cout << "OmegaEditVersion received: " << reply << std::endl;
+    CLOG << "Channel established to Ωedit server version: " << reply << " on " << target_str << std::endl;
 
     auto session_id = server_test_client.CreateSession();
-    std::cout << "CreateSession received: " << session_id << std::endl;
+    DBG(CLOG << LOCATION << "CreateSession received: " << session_id << std::endl;);
+
+    auto viewport_id = server_test_client.CreateViewport(session_id, 0, 100);
+    DBG(CLOG << LOCATION << "CreateViewport received: " << viewport_id << std::endl;);
+
+    auto thread_id = server_test_client.SubscribeOnChangeViewport(viewport_id);
+    DBG(CLOG << LOCATION << "SubscribeOnChangeViewport received: " << thread_id << std::endl;);
+
     auto serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
-    std::cout << "Insert received: " << serial << std::endl;
+    DBG(CLOG << LOCATION << "Insert received: " << serial << std::endl;);
+
     serial = server_test_client.Overwrite(session_id, 7, "orl");
-    std::cout << "Overwrite received: " << serial << std::endl;
+    DBG(CLOG << LOCATION << "Overwrite received: " << serial << std::endl;);
+
     serial = server_test_client.Delete(session_id, 11, 3);
-    std::cout << "Delete received: " << serial << std::endl;
+    DBG(CLOG << LOCATION << "Delete received: " << serial << std::endl;);
+
     reply = server_test_client.SaveSession(session_id, "/tmp/server_test.txt");
-    std::cout << "SaveSession received: " << reply << std::endl;
+    DBG(CLOG << LOCATION << "SaveSession received: " << reply << std::endl;);
+
+    reply = server_test_client.GetViewportData(viewport_id);
+    DBG(CLOG << LOCATION << "Viewport data: " << reply << std::endl;);
+
     reply = server_test_client.DestroySession(session_id);
-    std::cout << "DestroySession received: " << reply << std::endl;
+    DBG(CLOG << LOCATION << "DestroySession received: " << reply << std::endl;);
 
     return EXIT_SUCCESS;
 }

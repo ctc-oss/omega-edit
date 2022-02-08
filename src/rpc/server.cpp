@@ -17,6 +17,7 @@
 #include "worker_queue/worker_queue.hpp"
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <cassert>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
@@ -25,7 +26,6 @@
 #include <omega_edit.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <string>
-#include <cassert>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -59,9 +59,7 @@ public:
     SessionEventQueue(const SessionEventQueue &) = delete;
     SessionEventQueue operator=(const SessionEventQueue &) = delete;
 
-    void HandleItem(std::shared_ptr<void> item) override {
-        std::cout << "Not implemented" << std::endl;
-    }
+    void HandleItem(std::shared_ptr<void> item) override { std::cout << "Not implemented" << std::endl; }
 
     ServerWriter<SessionChange> *GetWriter() const { return writer_; }
 
@@ -73,7 +71,8 @@ private:
 
 class OmegaEditServiceImpl;
 
-void session_event_callback(const omega_session_t * session_ptr, omega_session_event_t session_event, const omega_change_t * change_ptr) {
+void session_event_callback(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                            const omega_change_t *change_ptr) {
     assert(session_ptr);
     // TODO: Implement
 }
@@ -263,8 +262,7 @@ public:
         return Status::OK;
     }
 
-    Status SubscribeOnChangeViewport(::grpc::ServerContext *context,
-                                     const ::omega_edit::SubscribeOnChangeViewportRequest *request,
+    Status SubscribeOnChangeViewport(::grpc::ServerContext *context, const ::omega_edit::ObjectId *request,
                                      ::grpc::ServerWriter<ViewportChange> *writer) override {
         (void) context;
         (void) request;
