@@ -12,9 +12,9 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../lib/impl_/macros.h"
+#include "../../lib/impl_/macros.h"
+#include "omega_edit.grpc.pb.h"
 #include <grpcpp/grpcpp.h>
-#include <omega_edit.grpc.pb.h>
 #include <sstream>
 #include <thread>
 
@@ -379,11 +379,12 @@ public:
             auto const viewport_id = viewport_change.viewport_id().id();
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             if (viewport_change.has_serial()) {
-                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: " << viewport_change.viewport_change_kind()
-                         << " change serial: " << viewport_change.serial() << ", data: [" << GetViewportData(viewport_id) << "]" << std::endl;);
+                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
+                         << viewport_change.viewport_change_kind() << " change serial: " << viewport_change.serial()
+                         << ", data: [" << GetViewportData(viewport_id) << "]" << std::endl;);
             } else {
-                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: " << viewport_change.viewport_change_kind()
-                         << std::endl;);
+                DBG(CLOG << LOCATION << "viewport id: " << viewport_id
+                         << ", event kind: " << viewport_change.viewport_change_kind() << std::endl;);
                 if (omega_edit::ViewportChangeKind::VIEWPORT_EVT_CREATE == viewport_change.viewport_change_kind()) {
                     DBG(CLOG << LOCATION << "viewport id: " << viewport_id << " finishing" << std::endl;);
                     reader_ptr->Finish();
@@ -438,7 +439,8 @@ int main(int argc, char **argv) {
     OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
     auto reply = server_test_client.GetOmegaEditVersion();
-    DBG(CLOG << LOCATION << "Channel established to Ωedit server version: " << reply << " on " << target_str << std::endl;);
+    DBG(CLOG << LOCATION << "Channel established to Ωedit server version: " << reply << " on " << target_str
+             << std::endl;);
 
     auto session_id = server_test_client.CreateSession();
     DBG(CLOG << LOCATION << "CreateSession received: " << session_id << std::endl;);

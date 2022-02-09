@@ -54,22 +54,22 @@ get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/protos/omega_edi
 get_filename_component(omega_proto_path "${omega_proto}" PATH)
 
 # Generated sources
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos_cpp")
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos_js")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos/cpp")
+make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos/js")
 
-set(omega_proto_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.pb.cc")
-set(omega_proto_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.pb.h")
-set(omega_grpc_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.grpc.pb.cc")
-set(omega_grpc_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/omega_edit.grpc.pb.h")
+set(omega_proto_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/omega_edit.pb.cc")
+set(omega_proto_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/omega_edit.pb.h")
+set(omega_grpc_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/omega_edit.grpc.pb.cc")
+set(omega_grpc_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/omega_edit.grpc.pb.h")
 
-set(omega_grpc_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos_js/omega_edit_grpc_pb.js")
-set(omega_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos_js/omega_edit_pb.js")
+set(omega_grpc_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos/js/omega_edit_grpc_pb.js")
+set(omega_js_pb "${CMAKE_CURRENT_BINARY_DIR}/protos/js/omega_edit_pb.js")
 
 add_custom_command(
         OUTPUT "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}"
         COMMAND ${protoc}
-        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protos_cpp
-        --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/protos_cpp
+        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/protos/cpp
+        --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/protos/cpp
         --plugin=protoc-gen-grpc=${grpc_cpp_plugin}
         -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
         ${omega_proto}
@@ -81,8 +81,8 @@ add_custom_command(
 add_custom_command(
         OUTPUT "${omega_grpc_js_pb}" "${omega_js_pb}"
         COMMAND ${protoc}
-        ARGS --js_out=${CMAKE_CURRENT_BINARY_DIR}/protos_js
-        --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/protos_js
+        ARGS --js_out=${CMAKE_CURRENT_BINARY_DIR}/protos/js
+        --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/protos/js
         --plugin=protoc-gen-grpc=${grpc_node_plugin}
         -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
         ${omega_proto}
@@ -92,20 +92,20 @@ add_custom_command(
         VERBATIM)
 
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
-include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos_cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+include_directories("${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
 
 SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}")
-SET(WORKER_QUEUE_SOURCE_FILES "worker_queue/worker_queue.hpp" "worker_queue/worker_queue.cpp")
+SET(WORKER_QUEUE_SOURCE_FILES "server/cpp/worker_queue/worker_queue.hpp" "server/cpp/worker_queue/worker_queue.cpp")
 
-add_executable(server server.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+add_executable(server server/cpp/server.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
 target_link_libraries(server PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
-add_executable(server_cbk server_cbk.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+add_executable(server_cbk server/cpp/server_cbk.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
 target_link_libraries(server_cbk PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
-add_executable(server_test server_test.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+add_executable(server_test tests/server_test.cpp ${RPC_SOURCE_FILES})
 target_link_libraries(server_test PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
