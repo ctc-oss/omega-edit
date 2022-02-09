@@ -14,6 +14,10 @@
 
 #include "../../../lib/impl_/macros.h"
 #include "./worker_queue/worker_queue.hpp"
+#include "omega_edit.grpc.pb.h"
+#include "omega_edit.h"
+#include "omega_edit/fwd_defs.h"
+#include "omega_edit/stl_string_adaptor.hpp"
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <cassert>
@@ -21,10 +25,6 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 #include <iostream>
-#include "omega_edit.grpc.pb.h"
-#include "omega_edit.h"
-#include "omega_edit/fwd_defs.h"
-#include "omega_edit/stl_string_adaptor.hpp"
 #include <string>
 #include <utility>
 
