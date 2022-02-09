@@ -28,7 +28,11 @@ service Editor {
   rpc SubmitChange(ChangeRequest) returns (ChangeResponse);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
+  rpc DestroyViewport(ObjectId) returns (ObjectId);
   rpc GetChangeDetails(SessionChange) returns (ChangeDetailsResponse);
+  rpc UnsubscribeOnChangeSession(ObjectId) returns (ObjectId);
+  rpc UnsubscribeOnChangeViewport(ObjectId) returns (ObjectId);
+
   // Event streams
   rpc SubscribeOnChangeSession(ObjectId) returns (stream SessionChange);
   rpc SubscribeOnChangeViewport(ObjectId) returns (stream ViewportChange);

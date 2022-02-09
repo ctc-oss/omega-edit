@@ -40,6 +40,8 @@ using omega_edit::ViewportChange;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
 
+std::mutex write_mutex;
+
 class OmegaEditServiceClient final {
 public:
     explicit OmegaEditServiceClient(const std::shared_ptr<Channel> &channel) : stub_(Editor::NewStub(channel)) {
@@ -337,15 +339,57 @@ public:
         }
     }
 
-    static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
-                                      std::unique_ptr<ClientReader<ViewportChange>> reader_ptr) {
+    std::string DestroyViewport(const std::string &viewport_id) const {
+        assert(!viewport_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(viewport_id);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->DestroyViewport(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
+    void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
+                               std::unique_ptr<ClientReader<ViewportChange>> reader_ptr) {
         assert(reader_ptr);
         (void) context_ptr;// Though we're not using the context pointer, we need to manage its lifecycle in this scope.
         ViewportChange viewport_change;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_change)) {
-            DBG(CLOG << LOCATION << "id: " << viewport_change.viewport_id().id()
-                     << ", kind: " << viewport_change.viewport_change_kind() << std::endl;);
+            auto const viewport_id = viewport_change.viewport_id().id();
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            if (viewport_change.has_serial()) {
+                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: " << viewport_change.viewport_change_kind()
+                         << " change serial: " << viewport_change.serial() << ", data: [" << GetViewportData(viewport_id) << "]" << std::endl;);
+            } else {
+                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: " << viewport_change.viewport_change_kind()
+                         << std::endl;);
+                if (omega_edit::ViewportChangeKind::VIEWPORT_EVT_CREATE == viewport_change.viewport_change_kind()) {
+                    DBG(CLOG << LOCATION << "viewport id: " << viewport_id << " finishing" << std::endl;);
+                    reader_ptr->Finish();
+                    break;
+                }
+            }
         }
     }
 
@@ -358,7 +402,7 @@ public:
 
         ViewportChange viewport_change;
         viewport_subscription_handler_thread_ = std::make_unique<std::thread>(
-                std::thread(HandleViewportChanges, std::move(context_ptr),
+                std::thread(&OmegaEditServiceClient::HandleViewportChanges, this, std::move(context_ptr),
                             std::move(stub_->SubscribeOnChangeViewport(context_ptr.get(), request))));
         return viewport_subscription_handler_thread_->get_id();
     }
@@ -390,38 +434,68 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
     }
-    CLOG << "Establishing a channel to Ωedit server on: " << target_str << std::endl;
+    DBG(CLOG << LOCATION << "Establishing a channel to Ωedit server on: " << target_str << std::endl;);
     OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
     auto reply = server_test_client.GetOmegaEditVersion();
-    CLOG << "Channel established to Ωedit server version: " << reply << " on " << target_str << std::endl;
+    DBG(CLOG << LOCATION << "Channel established to Ωedit server version: " << reply << " on " << target_str << std::endl;);
 
     auto session_id = server_test_client.CreateSession();
     DBG(CLOG << LOCATION << "CreateSession received: " << session_id << std::endl;);
 
     auto viewport_id = server_test_client.CreateViewport(session_id, 0, 100);
-    DBG(CLOG << LOCATION << "CreateViewport received: " << viewport_id << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "CreateViewport received: " << viewport_id << std::endl;);
+    }
 
     auto thread_id = server_test_client.SubscribeOnChangeViewport(viewport_id);
-    DBG(CLOG << LOCATION << "SubscribeOnChangeViewport received: " << thread_id << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "SubscribeOnChangeViewport received: " << thread_id << std::endl;);
+    }
 
     auto serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
-    DBG(CLOG << LOCATION << "Insert received: " << serial << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "Insert received: " << serial << std::endl;);
+    }
 
     serial = server_test_client.Overwrite(session_id, 7, "orl");
-    DBG(CLOG << LOCATION << "Overwrite received: " << serial << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "Overwrite received: " << serial << std::endl;);
+    }
 
     serial = server_test_client.Delete(session_id, 11, 3);
-    DBG(CLOG << LOCATION << "Delete received: " << serial << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "Delete received: " << serial << std::endl;);
+    }
 
-    reply = server_test_client.SaveSession(session_id, "/tmp/server_test.txt");
-    DBG(CLOG << LOCATION << "SaveSession received: " << reply << std::endl;);
+    reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "SaveSession received: " << reply << std::endl;);
+    }
 
     reply = server_test_client.GetViewportData(viewport_id);
-    DBG(CLOG << LOCATION << "Viewport data: " << reply << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "Viewport data: [" << reply << "]" << std::endl;);
+    }
+
+    reply = server_test_client.DestroyViewport(viewport_id);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "DestroyViewport received: " << reply << std::endl;);
+    }
 
     reply = server_test_client.DestroySession(session_id);
-    DBG(CLOG << LOCATION << "DestroySession received: " << reply << std::endl;);
+    {
+        const std::lock_guard<std::mutex> write_lock(write_mutex);
+        DBG(CLOG << LOCATION << "DestroySession received: " << reply << std::endl;);
+    }
 
     return EXIT_SUCCESS;
 }

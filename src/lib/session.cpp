@@ -20,7 +20,7 @@
 
 enum session_flags { pause_viewport_callbacks = 0x01 };
 
-void *omega_session_get_user_data(const omega_session_t *session_ptr) {
+void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->user_data_ptr;
 }

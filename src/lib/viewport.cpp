@@ -51,7 +51,7 @@ int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->data_segment.offset;
 }
 
-void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr) {
+void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     return viewport_ptr->user_data_ptr;
 }

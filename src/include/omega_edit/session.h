@@ -39,7 +39,7 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr);
  * @param session_ptr session to get the associated user data from
  * @return associated user data for the given session
  */
-void *omega_session_get_user_data(const omega_session_t *session_ptr);
+void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the number of active viewports

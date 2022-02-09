@@ -54,8 +54,8 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
-            if (omega_viewport_get_user_data(viewport_ptr)) {
-                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
+            if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
+                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
                 switch (view_mode_ptr->display_mode) {
                     case display_mode_t::BIT_MODE:
                         write_pretty_bits(omega_viewport_get_data(viewport_ptr),
