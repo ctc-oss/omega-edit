@@ -12,9 +12,9 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../lib/impl_/macros.h"
+#include "../../lib/impl_/macros.h"
 #include <grpcpp/grpcpp.h>
-#include <omega_edit.grpc.pb.h>
+#include "omega_edit.grpc.pb.h"
 #include <sstream>
 #include <thread>
 
