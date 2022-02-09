@@ -26,22 +26,28 @@ jobs:
     steps:
       - name: Install Prerequisites 📚
         run: |
-          brew install ninja nodeenv yarn doxygen graphviz
+          brew install boost ninja nodeenv yarn doxygen graphviz
           sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
+      - name: Set up Python 🐍
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Conan 💪
+        run: pip install conan pytest && conan --version
       - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug
+        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
       - name: Build Debug Build 🔧
         run: cmake --build cmake-build-debug
       - name: Run Tests 📋
-        working-directory: cmake-build-debug/src/tests/
+        working-directory: cmake-build-debug/bin/
         run: ./omega_test -d yes --order lex
       - name: Build Node v14 Bindings 🔧
         run: npm ci
@@ -57,21 +63,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Prerequisites 📚
-        run: sudo apt install -y ninja-build nodeenv valgrind yarn
+        run: sudo apt install -y libboost-all-dev ninja-build nodeenv uuid-dev valgrind yarn
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
+      - name: Set up Python 🐍
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Conan 💪
+        run: pip install conan pytest && conan --version
       - name: Setup Debug Build 📐
         run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
       - name: Build Debug Build 🔧
         run: cmake --build cmake-build-debug
       - name: Run Tests 📋
-        working-directory: cmake-build-debug/src/tests/
+        working-directory: cmake-build-debug/bin/
         run: ./omega_test -d yes --order lex
       - name: Collect code coverage 🛻
         working-directory: cmake-build-debug/src/tests/
@@ -79,7 +91,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run Tests Under Valgrind 📋
-        working-directory: cmake-build-debug/src/tests/
+        working-directory: cmake-build-debug/bin/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
       - name: Build Node v14 Bindings 🔧
         run: npm ci
@@ -103,22 +115,26 @@ jobs:
           update: true
           install: >-
             mingw-w64-${{ matrix.env }}-toolchain
+            mingw-w64-${{ matrix.env }}-boost
+            mingw-w64-${{ matrix.env }}-python-pip
             base-devel
             cmake
-            swig
             git
+            swig
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
           node-version: ${{ env.node_version }}
+      - name: Install Conan 💪
+        run: pip install conan pytest && conan --version
       - name: Build Debug Build 🔧
         run: ./compile.sh win-ci
       - name: Run Tests 📋
-        working-directory: cmake-build-debug/src/tests/
+        working-directory: cmake-build-debug/bin/
         run: ./omega_test -d yes --order lex
       - name: Build Node v14 Bindings 🔧
         run: npm ci
@@ -135,7 +151,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.3.5
         with:
-          submodules: true
+          submodules: recursive
       - uses: actions/setup-java@v2.5.0
         with:
           distribution: 'adopt'
@@ -145,15 +161,20 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
+      - name: Set up Python 🐍
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Conan 💪
+        run: pip install conan pytest && conan --version
       - name: Prepare The Build 🪛
-        run: cmake -S . -B cmake-build-debug
+        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
       - name: Build Tests 🔧
         run: cmake --build cmake-build-debug --target omega_test
       - name: Run tests 📋
-        run: |
-          cd cmake-build-debug/src/tests/
-          ./omega_test -d yes --order lex
+        working-directory: cmake-build-debug/bin/
+        run: ./omega_test -d yes --order lex
   deploy-documentation:
     concurrency: ci-${{ github.ref }}
     needs: [ macos-node-test ]
@@ -162,7 +183,7 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
         with:
-          submodules: true
+          submodules: recursive
       - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
         uses: actions/download-artifact@v1
         with:

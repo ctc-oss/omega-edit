@@ -72,7 +72,7 @@ int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr);
  * @param viewport_ptr viewport to get the user data from
  * @return viewport user data
  */
-void *omega_viewport_get_user_data(const omega_viewport_t *viewport_ptr);
+void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr);
 
 /**
  * Change viewport settings

@@ -20,7 +20,7 @@
 
 enum session_flags { pause_viewport_callbacks = 0x01 };
 
-void *omega_session_get_user_data(const omega_session_t *session_ptr) {
+void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->user_data_ptr;
 }
@@ -101,7 +101,7 @@ void omega_session_pause_viewport_on_change_callbacks(omega_session_t *session_p
 
 void omega_session_resume_viewport_on_change_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ &= ~(pause_viewport_callbacks);
+    session_ptr->session_flags_ &= ~pause_viewport_callbacks;
 }
 
 size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {

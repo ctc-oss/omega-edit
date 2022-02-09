@@ -1,4 +1,4 @@
-<!--
+git st<!--
   Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
@@ -50,6 +50,7 @@ Studio Code also works well.
 
 - **C/C++ compiler** (such as clang, gcc, mingw, or MSVC)
 - **CMake** (https://cmake.org/download/)
+- **conan** C/C++ package manager
 - **make** or **ninja** for running the build scripts
 - **nvm** or **nodeenv** for using specific versions of node.js
 - **node-gyp** (to run `package.json` scripts)
@@ -68,16 +69,16 @@ Studio Code also works well.
 
 :exclamation: These commands should be executed at the root level of the repository :exclamation:
 
-### Pulling the submodules required to build:
+### Install conan:
 
 ```bash
-git submodule update --init
+pip install conan
 ```
 
 ### Configure debug build:
 
 ```bash
-cmake -S . -B cmake-build-debug
+cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 ```
 
 ### Run debug build:
@@ -132,7 +133,7 @@ node src/examples/omega_simple.js
 ### Create C++ binary
 
 ```bash
-cmake -S . -B cmake-build-debug
+cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 cmake --build cmake-build-debug
 ```
 

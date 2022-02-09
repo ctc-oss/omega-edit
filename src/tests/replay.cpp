@@ -26,15 +26,13 @@
 
 using namespace std;
 
-typedef struct file_info_struct {
-    char const *in_filename = nullptr;
-} file_info_t;
+using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
 
 void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
     switch (session_event) {
         case SESSION_EVT_CREATE:
         case SESSION_EVT_EDIT: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             // NOTE: This is for demonstration purposes only.  This is not production safe JSON.

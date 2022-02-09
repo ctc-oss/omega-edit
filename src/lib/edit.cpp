@@ -309,6 +309,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
+    assert(session_ptr);
     for (auto &&model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { fclose(model_ptr->file_ptr); }
     }
@@ -393,17 +394,17 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
                                                          offset, length)) {
             errno = 0;
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
-                0 == rename(out_file.c_str(), in_file.c_str())) {
-                if ((session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
-                    for (const auto &viewport_ptr : session_ptr->viewports_) {
-                        viewport_ptr->data_segment.capacity =
-                                -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-                        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
-                    }
-                    omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
-                    return 0;
+                0 == rename(out_file.c_str(), in_file.c_str()) &&
+                (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
+                for (const auto &viewport_ptr : session_ptr->viewports_) {
+                    viewport_ptr->data_segment.capacity =
+                            -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                    omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
                 }
+                omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
+                return 0;
             }
+
             // In a bad state (I/O failure), so abort
             ABORT(LOG_ERROR(strerror(errno)););
         }

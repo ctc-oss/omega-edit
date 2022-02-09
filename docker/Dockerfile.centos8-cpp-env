@@ -19,6 +19,7 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
   make \
   autoconf \
   automake \
+  boost-static \
   dos2unix \
   gcc \
   gcc-c++ \

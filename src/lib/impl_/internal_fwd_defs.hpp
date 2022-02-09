@@ -18,10 +18,10 @@
 #include "../../include/omega_edit/fwd_defs.h"
 #include <memory>
 
-typedef struct omega_model_struct omega_model_t;
-typedef struct omega_data_segment_struct omega_data_segment_t;
-typedef struct omega_model_segment_struct omega_model_segment_t;
+using omega_model_t = struct omega_model_struct;
+using omega_data_segment_t = struct omega_data_segment_struct;
+using omega_model_segment_t = struct omega_model_segment_struct;
 
-typedef std::shared_ptr<const omega_change_t> const_omega_change_ptr_t;
+using const_omega_change_ptr_t = std::shared_ptr<const omega_change_t>;
 
 #endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP

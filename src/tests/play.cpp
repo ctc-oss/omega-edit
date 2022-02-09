@@ -86,7 +86,7 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
     switch (session_event) {
         case SESSION_EVT_UNDO:
         case SESSION_EVT_EDIT: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
             file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
             file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
             omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
@@ -140,8 +140,8 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
             clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
                  << " length: " << omega_viewport_get_length(viewport_ptr)
                  << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
-            if (omega_viewport_get_user_data(viewport_ptr)) {
-                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
+            if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
+                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
                 switch (view_mode_ptr->display_mode) {
                     case display_mode_t::BIT_MODE:
                         clog << " BIT MODE [";

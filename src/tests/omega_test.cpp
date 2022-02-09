@@ -14,8 +14,8 @@
 
 #define CATCH_CONFIG_MAIN
 
-#include "catch2/catch.hpp"
 #include "test_util.h"
+#include <catch2/catch.hpp>
 #include <omega_edit.h>
 #include <omega_edit/check.h>
 #include <omega_edit/config.h>
@@ -144,9 +144,7 @@ TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
 }
 
-TEST_CASE("Current Directory", "[UtilTests]") {
-    REQUIRE_THAT(omega_util_get_current_dir(nullptr), Contains("src") && EndsWith("tests"));
-}
+TEST_CASE("Current Directory", "[UtilTests]") { REQUIRE_THAT(omega_util_get_current_dir(nullptr), EndsWith("bin")); }
 
 TEST_CASE("Directory Name", "[UtilTests]") {
     // Unix-style paths
@@ -296,9 +294,7 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 
-typedef struct file_info_struct {
-    size_t num_changes{};
-} file_info_t;
+using file_info_t = struct file_info_struct { size_t num_changes{}; };
 
 static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                       const omega_change_t *change_ptr) {
@@ -306,7 +302,7 @@ static inline void session_change_cbk(const omega_session_t *session_ptr, omega_
     switch (session_event) {
         case SESSION_EVT_EDIT:
         case SESSION_EVT_UNDO: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             if (0 < omega_change_get_serial(change_ptr)) {
@@ -673,8 +669,8 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_vi
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
          << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
-    if (omega_viewport_get_user_data(viewport_ptr)) {
-        auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data(viewport_ptr);
+    if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
+        auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
             case display_mode_t::BIT_MODE:
                 clog << " BIT MODE [";

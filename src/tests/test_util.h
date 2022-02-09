@@ -21,8 +21,6 @@
 #include <iostream>
 #include <omega_edit/byte.h>
 
-using namespace std;
-
 // Returns 0 if the content of the 2 file pointers are the same (from where the pointers are currently) and 1 if contents are not the same
 static inline int compare_file_pointers(FILE *f1, FILE *f2) {
     const size_t buff_size = 1024 * 4;
@@ -62,7 +60,7 @@ static inline FILE *fill_file(const char *f1, int64_t file_size, const char *fil
 }
 
 static inline void write_pretty_bits_byte(omega_byte_t byte) {
-    for (auto i = 7; 0 <= i; --i) { clog << ((byte & (1 << i)) ? '1' : '0'); }
+    for (auto i = 7; 0 <= i; --i) { std::clog << ((byte & (1 << i)) ? '1' : '0'); }
 }
 
 static inline void write_pretty_bits(const omega_byte_t *ptr, int64_t size) {
@@ -70,7 +68,7 @@ static inline void write_pretty_bits(const omega_byte_t *ptr, int64_t size) {
         auto i = 0;
         write_pretty_bits_byte(ptr[i++]);
         while (i < size) {
-            clog << " ";
+            std::clog << " ";
             write_pretty_bits_byte(ptr[i++]);
         }
     }
@@ -79,9 +77,9 @@ static inline void write_pretty_bits(const omega_byte_t *ptr, int64_t size) {
 static inline void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     if (size > 0) {
         auto i = 0;
-        clog << setfill('0');
-        clog << hex << setw(2) << static_cast<int>(data[i++]);
-        while (i < size) { clog << " " << hex << setw(2) << (int) data[i++]; }
+        std::clog << std::setfill('0');
+        std::clog << std::hex << std::setw(2) << static_cast<int>(data[i++]);
+        while (i < size) { std::clog << " " << std::hex << std::setw(2) << static_cast<int>(data[i++]); }
     }
 }
 

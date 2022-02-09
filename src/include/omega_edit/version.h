@@ -21,9 +21,28 @@
 extern "C" {
 #endif
 
+/**
+ * Get the major version of the library
+ * @return the major version of the library
+ */
 int omega_version_major();
+
+/**
+ * Get the minor version of the library
+ * @return the minor version of the library
+ */
 int omega_version_minor();
+
+/**
+ * Get the patch-level of the library
+ * @return the patch-level of the library
+ */
 int omega_version_patch();
+
+/**
+ * Get the integer representation of the version of the library
+ * @return the integer representation of the version of the library
+ */
 int omega_version();
 
 #ifdef __cplusplus

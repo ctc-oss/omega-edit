@@ -22,8 +22,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     cmake \
     doxygen \
     git \
+    googletest \
     graphviz \
-    libc++-dev \
     python3-breathe \
     python3-sphinx \
     python3-pip \
@@ -33,4 +33,5 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # Install python3 modules using pip
 RUN pip3 install \
     sphinx_rtd_theme \
-    sphinx-sitemap
+    sphinx-sitemap \
+    conan
