@@ -87,6 +87,7 @@ target_include_directories(omega_edit_so PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src
 # keep inlined functions intact for Rust binding generation
 target_compile_options(omega_edit_so PUBLIC -fkeep-inline-functions)
 set_target_properties(omega_edit_so PROPERTIES OUTPUT_NAME omega_edit)
+target_link_libraries(omega_edit_so ${CONAN_LIBS_CWALK})
 
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
