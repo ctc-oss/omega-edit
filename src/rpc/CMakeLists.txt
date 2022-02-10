@@ -55,7 +55,6 @@ get_filename_component(omega_proto_path "${omega_proto}" PATH)
 
 # Generated sources
 make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos/cpp")
-make_directory("${CMAKE_CURRENT_BINARY_DIR}/protos/js")
 make_directory("${CMAKE_CURRENT_BINARY_DIR}/client/js")
 
 set(omega_proto_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/protos/cpp/omega_edit.pb.cc")
