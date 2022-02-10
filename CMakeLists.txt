@@ -78,8 +78,8 @@ set(OMEGA_EDIT_SOURCE_FILES
 # Create the library archive for static linking
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
+target_link_libraries(omega_edit ${CONAN_LIBS_CWALK})
 
 # Create a shared library
 add_library(omega_edit_so SHARED ${OMEGA_EDIT_SOURCE_FILES})
@@ -95,8 +95,6 @@ string(TOUPPER "${PROJECT_NAME}" PREFIX)
 foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
-
-target_link_libraries(omega_edit ${CONAN_LIBS_CWALK})
 
 # Add additional subdirectories with CMakeLists.txt to the build
 add_subdirectory(src/examples)
