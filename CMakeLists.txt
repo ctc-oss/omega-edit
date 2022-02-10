@@ -81,6 +81,13 @@ target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/in
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
 
+# Create a shared library
+add_library(omega_edit_so SHARED ${OMEGA_EDIT_SOURCE_FILES})
+target_include_directories(omega_edit_so PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
+# keep inlined functions intact for Rust binding generation
+target_compile_options(omega_edit_so PUBLIC -fkeep-inline-functions)
+set_target_properties(omega_edit_so PROPERTIES OUTPUT_NAME omega_edit)
+
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
 
