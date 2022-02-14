@@ -766,9 +766,9 @@ TEST_CASE("Search", "[SearchTests]") {
         const auto advance_context = static_cast<int64_t>(replace.length());
         do {
             const auto pattern_offset = omega_search_context_get_offset(match_context);
-            omega_session_pause_viewport_on_change_callbacks(session_ptr);
+            omega_session_pause_viewport_event_callbacks(session_ptr);
             omega_edit_delete(session_ptr, pattern_offset, pattern_length);
-            omega_session_resume_viewport_on_change_callbacks(session_ptr);
+            omega_session_resume_viewport_event_callbacks(session_ptr);
             omega_edit_insert_string(session_ptr, pattern_offset, replace);
             ++needles_found;
         } while (omega_search_next_match(match_context, advance_context));
@@ -819,9 +819,9 @@ TEST_CASE("File Viewing", "[InitTests]") {
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));
     viewport_count = omega_session_get_num_viewports(session_ptr);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    omega_session_pause_viewport_on_change_callbacks(session_ptr);
+    omega_session_pause_viewport_event_callbacks(session_ptr);
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
-    omega_session_resume_viewport_on_change_callbacks(session_ptr);
+    omega_session_resume_viewport_event_callbacks(session_ptr);
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     omega_edit_destroy_viewport(viewport_ptr);
     REQUIRE(viewport_count - 1 == omega_session_get_num_viewports(session_ptr));

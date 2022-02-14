@@ -94,12 +94,12 @@ int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *ses
     return (session_ptr->session_flags_ & pause_viewport_callbacks) ? 1 : 0;
 }
 
-void omega_session_pause_viewport_on_change_callbacks(omega_session_t *session_ptr) {
+void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
     session_ptr->session_flags_ |= pause_viewport_callbacks;
 }
 
-void omega_session_resume_viewport_on_change_callbacks(omega_session_t *session_ptr) {
+void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
     session_ptr->session_flags_ &= ~pause_viewport_callbacks;
 }

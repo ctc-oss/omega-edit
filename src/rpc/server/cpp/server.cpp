@@ -48,13 +48,13 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
-using omega_edit::SessionChange;
-using omega_edit::SessionChangeKind;
+using omega_edit::SessionEvent;
+using omega_edit::SessionEventKind;
 using omega_edit::VersionResponse;
-using omega_edit::ViewportChange;
-using omega_edit::ViewportChangeKind;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
+using omega_edit::ViewportEvent;
+using omega_edit::ViewportEventKind;
 
 using google::protobuf::Empty;
 
@@ -64,7 +64,7 @@ using session_event_subscription_map_t = std::map<std::string, SessionEventWrite
 class ViewportEventWriter;
 using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *>;
 
-class SessionEventWriter final : public ServerWriteReactor<SessionChange>, public omega_edit::IWorkerQueue {
+class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public omega_edit::IWorkerQueue {
     const CallbackServerContext *context_;
     const std::string session_id_;
     session_event_subscription_map_t &session_event_subscriptions_;
@@ -89,12 +89,12 @@ public:
 
     void HandleItem(std::shared_ptr<void> item) override {
         assert(item);
-        const auto session_change_ptr = std::static_pointer_cast<SessionChange>(item);
+        const auto session_change_ptr = std::static_pointer_cast<SessionEvent>(item);
         StartWrite(session_change_ptr.get());
     }
 };
 
-class ViewportEventWriter final : public ServerWriteReactor<ViewportChange>, public omega_edit::IWorkerQueue {
+class ViewportEventWriter final : public ServerWriteReactor<ViewportEvent>, public omega_edit::IWorkerQueue {
     const CallbackServerContext *context_;
     const std::string viewport_id_;
     viewport_event_subscription_map_t &viewport_event_subscriptions_;
@@ -119,7 +119,7 @@ public:
 
     void HandleItem(std::shared_ptr<void> item) override {
         assert(item);
-        const auto viewport_change_ptr = std::static_pointer_cast<ViewportChange>(item);
+        const auto viewport_change_ptr = std::static_pointer_cast<ViewportEvent>(item);
         StartWrite(viewport_change_ptr.get());
     }
 };
@@ -138,7 +138,7 @@ public:
     inline std::string add_session(omega_session_t *session_ptr) {
         assert(session_ptr);
         // Don't use const here because it prevents the automatic move on return
-        const auto session_id = boost::uuids::to_string(boost::uuids::random_generator()());
+        auto session_id = boost::uuids::to_string(boost::uuids::random_generator()());
         assert(!session_id.empty());
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
@@ -271,45 +271,45 @@ public:
     }
 };
 
-static inline SessionChangeKind omega_session_event_to_rpc_event(omega_session_event_t session_event) {
+static inline SessionEventKind omega_session_event_to_rpc_event(omega_session_event_t session_event) {
     switch (session_event) {
         case SESSION_EVT_UNDEFINED:
-            return SessionChangeKind::SESSION_EVT_UNDEFINED;
+            return SessionEventKind::SESSION_EVT_UNDEFINED;
         case SESSION_EVT_CREATE:
-            return SessionChangeKind::SESSION_EVT_CREATE;
+            return SessionEventKind::SESSION_EVT_CREATE;
         case SESSION_EVT_EDIT:
-            return SessionChangeKind::SESSION_EVT_EDIT;
+            return SessionEventKind::SESSION_EVT_EDIT;
         case SESSION_EVT_UNDO:
-            return SessionChangeKind::SESSION_EVT_UNDO;
+            return SessionEventKind::SESSION_EVT_UNDO;
         case SESSION_EVT_CLEAR:
-            return SessionChangeKind::SESSION_EVT_CLEAR;
+            return SessionEventKind::SESSION_EVT_CLEAR;
         case SESSION_EVT_TRANSFORM:
-            return SessionChangeKind::SESSION_EVT_TRANSFORM;
+            return SessionEventKind::SESSION_EVT_TRANSFORM;
         case SESSION_EVT_CREATE_CHECKPOINT:
-            return SessionChangeKind::SESSION_EVT_CREATE_CHECKPOINT;
+            return SessionEventKind::SESSION_EVT_CREATE_CHECKPOINT;
         case SESSION_EVT_DESTROY_CHECKPOINT:
-            return SessionChangeKind::SESSION_EVT_DESTROY_CHECKPOINT;
+            return SessionEventKind::SESSION_EVT_DESTROY_CHECKPOINT;
         case SESSION_EVT_SAVE:
-            return SessionChangeKind::SESSION_EVT_SAVE;
+            return SessionEventKind::SESSION_EVT_SAVE;
         default:
             assert(0);
     }
 }
 
-static inline ViewportChangeKind omega_viewport_event_to_rpc_event(omega_viewport_event_t viewport_event) {
+static inline ViewportEventKind omega_viewport_event_to_rpc_event(omega_viewport_event_t viewport_event) {
     switch (viewport_event) {
         case VIEWPORT_EVT_UNDEFINED:
-            return ViewportChangeKind::VIEWPORT_EVT_UNDEFINED;
+            return ViewportEventKind::VIEWPORT_EVT_UNDEFINED;
         case VIEWPORT_EVT_CREATE:
-            return ViewportChangeKind::VIEWPORT_EVT_CREATE;
+            return ViewportEventKind::VIEWPORT_EVT_CREATE;
         case VIEWPORT_EVT_EDIT:
-            return ViewportChangeKind::VIEWPORT_EVT_EDIT;
+            return ViewportEventKind::VIEWPORT_EVT_EDIT;
         case VIEWPORT_EVT_UNDO:
-            return ViewportChangeKind::VIEWPORT_EVT_UNDO;
+            return ViewportEventKind::VIEWPORT_EVT_UNDO;
         case VIEWPORT_EVT_CLEAR:
-            return ViewportChangeKind::VIEWPORT_EVT_CLEAR;
+            return ViewportEventKind::VIEWPORT_EVT_CLEAR;
         case VIEWPORT_EVT_TRANSFORM:
-            return ViewportChangeKind::VIEWPORT_EVT_TRANSFORM;
+            return ViewportEventKind::VIEWPORT_EVT_TRANSFORM;
         default:
             assert(0);
     }
@@ -326,9 +326,9 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
         const auto session_event_writer_ptr = session_manager_ptr->get_session_subscription(session_id);
         if (session_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
-            const auto session_change_ptr = std::make_shared<SessionChange>();
+            const auto session_change_ptr = std::make_shared<SessionEvent>();
             session_change_ptr->mutable_session_id()->set_id(session_id);
-            session_change_ptr->set_session_change_kind(omega_session_event_to_rpc_event(session_event));
+            session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             session_event_writer_ptr->Push(session_change_ptr);
         }
@@ -346,9 +346,9 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
         const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
         if (viewport_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
-            const auto viewport_change_ptr = std::make_shared<ViewportChange>();
+            const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
             viewport_change_ptr->mutable_viewport_id()->set_id(viewport_id);
-            viewport_change_ptr->set_viewport_change_kind(omega_viewport_event_to_rpc_event(viewport_event));
+            viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) {
                 auto data = omega_viewport_get_string(viewport_ptr);
                 viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr));
@@ -451,7 +451,7 @@ public:
     }
 
     ServerUnaryReactor *RedoLastUndo(CallbackServerContext *context, const ObjectId *request,
-                                       ChangeResponse *response) override {
+                                     ChangeResponse *response) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
@@ -509,6 +509,38 @@ public:
         return reactor;
     }
 
+    ServerUnaryReactor *PauseViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        {
+            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            omega_session_pause_viewport_event_callbacks(session_ptr);
+        }
+        auto *reactor = context->DefaultReactor();
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *ResumeViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        {
+            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            omega_session_resume_viewport_event_callbacks(session_ptr);
+        }
+        auto *reactor = context->DefaultReactor();
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerUnaryReactor *DestroySession(CallbackServerContext *context, const ObjectId *request,
                                        ObjectId *response) override {
         const auto &session_id = request->id();
@@ -523,7 +555,7 @@ public:
         return reactor;
     }
 
-    ServerUnaryReactor *GetChangeDetails(CallbackServerContext *context, const SessionChange *request,
+    ServerUnaryReactor *GetChangeDetails(CallbackServerContext *context, const SessionEvent *request,
                                          ChangeDetailsResponse *response) override {
         const auto &session_id = request->session_id().id();
         assert(!session_id.empty());
@@ -611,8 +643,8 @@ public:
     }
 
     // Subscription services
-    ServerWriteReactor<SessionChange> *SubscribeOnChangeSession(CallbackServerContext *context,
-                                                                const ObjectId *request) override {
+    ServerWriteReactor<SessionEvent> *SubscribeToSessionEvents(CallbackServerContext *context,
+                                                               const ObjectId *request) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
         auto writer = session_manager_.create_session_subscription(context, session_id);
@@ -620,8 +652,8 @@ public:
         return writer;
     }
 
-    ServerWriteReactor<ViewportChange> *SubscribeOnChangeViewport(CallbackServerContext *context,
-                                                                  const ObjectId *request) override {
+    ServerWriteReactor<ViewportEvent> *SubscribeToViewportEvents(CallbackServerContext *context,
+                                                                 const ObjectId *request) override {
         const auto &viewport_id = request->id();
         assert(!viewport_id.empty());
         auto writer = session_manager_.create_viewport_subscription(context, viewport_id);

@@ -55,12 +55,12 @@ int main(int arc, char **argv) {
             } else {
                 // pattern length does not match the replacement length, so first we must delete the pattern, then
                 // insert the replacement
-                omega_session_pause_viewport_on_change_callbacks(session_ptr.get());
+                omega_session_pause_viewport_event_callbacks(session_ptr.get());
                 if (0 >= omega_edit_delete(session_ptr.get(), pattern_offset, pattern_length)) {
                     cerr << "Error deleting" << endl;
                     return -1;
                 }
-                omega_session_resume_viewport_on_change_callbacks(session_ptr.get());
+                omega_session_resume_viewport_event_callbacks(session_ptr.get());
                 if (0 >= omega_edit_insert_string(session_ptr.get(), pattern_offset, replacement)) {
                     cerr << "Error inserting" << endl;
                     return -1;
