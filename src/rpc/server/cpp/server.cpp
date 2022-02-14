@@ -468,6 +468,23 @@ public:
         return reactor;
     }
 
+    ServerUnaryReactor *ClearChanges(CallbackServerContext *context, const ObjectId *request,
+                                     ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        int64_t change_serial = 0;
+        {
+            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            change_serial = omega_edit_clear_changes(session_ptr);
+        }
+        response->set_id(session_id);
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerUnaryReactor *SaveSession(CallbackServerContext *context, const SaveSessionRequest *request,
                                     SaveSessionResponse *response) override {
         const auto &session_id = request->session_id().id();
