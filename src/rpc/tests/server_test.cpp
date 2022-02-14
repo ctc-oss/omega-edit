@@ -302,6 +302,66 @@ public:
         }
     }
 
+    std::string PauseViewportEvents(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->PauseViewportEvents(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+            ;
+        }
+    }
+
+    std::string ResumeViewportEvents(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->ResumeViewportEvents(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+            ;
+        }
+    }
+
     std::string SaveSession(const std::string &session_id, const std::string &file_path) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
@@ -508,8 +568,8 @@ int main(int argc, char **argv) {
     // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
 
     // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
-    //std::string target_str = "localhost:50042";
-    std::string target_str = "unix:///tmp/omega-edit.sock";
+    std::string target_str = "localhost:50042";
+    //std::string target_str = "unix:///tmp/omega-edit.sock";
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
@@ -581,6 +641,12 @@ int main(int argc, char **argv) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Redo received: " << serial << std::endl;);
         }
 
+        reply = server_test_client.PauseViewportEvents(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] PauseViewportEvents received: " << reply << std::endl;);
+        }
+
         reply = server_test_client.Clear(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
@@ -591,6 +657,12 @@ int main(int argc, char **argv) {
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
+        }
+
+        reply = server_test_client.ResumeViewportEvents(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply << std::endl;);
         }
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");

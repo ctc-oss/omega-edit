@@ -509,6 +509,38 @@ public:
         return reactor;
     }
 
+    ServerUnaryReactor *PauseViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        {
+            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            omega_session_pause_viewport_event_callbacks(session_ptr);
+        }
+        auto *reactor = context->DefaultReactor();
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *ResumeViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        {
+            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            omega_session_resume_viewport_event_callbacks(session_ptr);
+        }
+        auto *reactor = context->DefaultReactor();
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerUnaryReactor *DestroySession(CallbackServerContext *context, const ObjectId *request,
                                        ObjectId *response) override {
         const auto &session_id = request->id();
@@ -657,8 +689,8 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
     // Server can run HTTP2 or Unix Domain Sockets (on compatible OSes)
-    //std::string target_str = "localhost:50042";
-    std::string target_str = "unix:///tmp/omega-edit.sock";
+    std::string target_str = "localhost:50042";
+    //std::string target_str = "unix:///tmp/omega-edit.sock";
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
