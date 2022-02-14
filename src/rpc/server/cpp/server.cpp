@@ -141,6 +141,7 @@ public:
         auto session_id = (session_id_desired) ? *session_id_desired
                                                : boost::uuids::to_string(boost::uuids::random_generator()());
         assert(!session_id.empty());
+        assert(id_to_session_.find(session_id) == id_to_session_.end());
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
         return session_id;
@@ -212,6 +213,7 @@ public:
         auto viewport_id = (viewport_id_desired) ? *viewport_id_desired
                                                  : boost::uuids::to_string(boost::uuids::random_generator()());
         assert(!viewport_id.empty());
+        assert(id_to_viewport_.find(viewport_id) == id_to_viewport_.end());
         viewport_to_id_[viewport_ptr] = viewport_id;
         id_to_viewport_[viewport_id] = viewport_ptr;
         return viewport_id;
