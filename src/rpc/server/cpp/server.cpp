@@ -135,10 +135,11 @@ private:
     viewport_event_subscription_map_t viewport_event_subscriptions_{};
 
 public:
-    inline std::string add_session(omega_session_t *session_ptr) {
+    inline std::string add_session(omega_session_t *session_ptr, const std::string *session_id_desired = nullptr) {
         assert(session_ptr);
         // Don't use const here because it prevents the automatic move on return
-        auto session_id = boost::uuids::to_string(boost::uuids::random_generator()());
+        auto session_id = (session_id_desired) ? *session_id_desired
+                                               : boost::uuids::to_string(boost::uuids::random_generator()());
         assert(!session_id.empty());
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
@@ -205,10 +206,11 @@ public:
                        : nullptr;
     }
 
-    inline std::string add_viewport(omega_viewport_t *viewport_ptr) {
+    inline std::string add_viewport(omega_viewport_t *viewport_ptr, const std::string *viewport_id_desired = nullptr) {
         assert(viewport_ptr);
         // Don't use const here because it prevents the automatic move on return
-        auto viewport_id = boost::uuids::to_string(boost::uuids::random_generator()());
+        auto viewport_id = (viewport_id_desired) ? *viewport_id_desired
+                                                 : boost::uuids::to_string(boost::uuids::random_generator()());
         assert(!viewport_id.empty());
         viewport_to_id_[viewport_ptr] = viewport_id;
         id_to_viewport_[viewport_id] = viewport_ptr;
@@ -391,7 +393,8 @@ public:
             session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_);
         }
         assert(session_ptr);
-        const auto session_id = session_manager_.add_session(session_ptr);
+        const auto session_id = session_manager_.add_session(
+                session_ptr, request->has_session_id_desired() ? &request->session_id_desired() : nullptr);
         assert(!session_id.empty());
         assert(session_id == session_manager_.get_session_id(session_ptr));
         response->mutable_session_id()->set_id(session_id);
@@ -526,7 +529,7 @@ public:
     }
 
     ServerUnaryReactor *ResumeViewportEvents(CallbackServerContext *context, const ObjectId *request,
-                                            ObjectId *response) override {
+                                             ObjectId *response) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
@@ -605,7 +608,8 @@ public:
                                                       &session_manager_);
         }
         assert(viewport_ptr);
-        const auto viewport_id = session_manager_.add_viewport(viewport_ptr);
+        const auto viewport_id = session_manager_.add_viewport(
+                viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
         response->mutable_viewport_id()->set_id(viewport_id);
         auto *reactor = context->DefaultReactor();

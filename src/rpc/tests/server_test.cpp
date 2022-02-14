@@ -83,12 +83,14 @@ public:
         }
     }
 
-    std::string CreateSession(std::string file_path = std::string()) const {
+    std::string CreateSession(const std::string *file_path = nullptr,
+                              const std::string *session_id_desired = nullptr) const {
         CreateSessionRequest request;
         CreateSessionResponse response;
         ClientContext context;
 
-        if (!file_path.empty()) { request.set_file_path(file_path); }
+        if (file_path) { request.set_file_path(*file_path); }
+        if (session_id_desired) { request.set_session_id_desired(*session_id_desired); }
         std::mutex mu;
         std::condition_variable cv;
         bool done = false;
@@ -424,7 +426,8 @@ public:
         }
     }
 
-    std::string CreateViewport(const std::string &session_id, int64_t offset, int64_t capacity) {
+    std::string CreateViewport(const std::string &session_id, int64_t offset, int64_t capacity,
+                               const std::string *viewport_id_desired = nullptr) {
         assert(!session_id.empty());
         CreateViewportRequest request;
         CreateViewportResponse response;
@@ -433,6 +436,7 @@ public:
         request.mutable_session_id()->set_id(session_id);
         request.set_offset(offset);
         request.set_capacity(capacity);
+        if (viewport_id_desired) { request.set_viewport_id_desired(*viewport_id_desired); }
 
         std::mutex mu;
         std::condition_variable cv;
@@ -604,12 +608,16 @@ int main(int argc, char **argv) {
                      << reply << " on " << target_str << std::endl;);
         }
 
-        auto session_id = server_test_client.CreateSession();
+        const std::string session_id("session-1");
+        reply = server_test_client.CreateSession(nullptr, &session_id);
+        assert(session_id == reply);
         if (log)
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateSession received: " << session_id
                      << std::endl;);
 
-        auto viewport_id = server_test_client.CreateViewport(session_id, 0, 100);
+        const std::string viewport_id = session_id + "~viewport-1";
+        reply = server_test_client.CreateViewport(session_id, 0, 100, &viewport_id);
+        assert(viewport_id == reply);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_id
@@ -644,7 +652,8 @@ int main(int argc, char **argv) {
         reply = server_test_client.PauseViewportEvents(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] PauseViewportEvents received: " << reply << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] PauseViewportEvents received: " << reply
+                     << std::endl;);
         }
 
         reply = server_test_client.Clear(session_id);
@@ -662,7 +671,8 @@ int main(int argc, char **argv) {
         reply = server_test_client.ResumeViewportEvents(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply
+                     << std::endl;);
         }
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
