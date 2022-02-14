@@ -36,9 +36,10 @@ using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
 using omega_edit::VersionResponse;
-using omega_edit::ViewportChange;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
+using omega_edit::ViewportEvent;
+using omega_edit::ViewportEventKind;
 
 std::mutex write_mutex;
 
@@ -458,22 +459,22 @@ public:
     }
 
     void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
-                               std::unique_ptr<ClientReader<ViewportChange>> reader_ptr) {
+                               std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
         (void) context_ptr;// Though we're not using the context pointer, we need to manage its lifecycle in this scope.
-        ViewportChange viewport_change;
+        ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
-        while (reader_ptr->Read(&viewport_change)) {
-            auto const viewport_id = viewport_change.viewport_id().id();
+        while (reader_ptr->Read(&viewport_event)) {
+            auto const viewport_id = viewport_event.viewport_id().id();
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            if (viewport_change.has_serial()) {
+            if (viewport_event.has_serial()) {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
-                         << viewport_change.viewport_change_kind() << " change serial: " << viewport_change.serial()
-                         << ", data: [" << viewport_change.data() << "]" << std::endl;);
+                         << viewport_event.viewport_event_kind() << " change serial: " << viewport_event.serial()
+                         << ", data: [" << viewport_event.data() << "]" << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
-                         << ", event kind: " << viewport_change.viewport_change_kind() << std::endl;);
-                if (omega_edit::ViewportChangeKind::VIEWPORT_EVT_CREATE == viewport_change.viewport_change_kind()) {
+                         << ", event kind: " << viewport_event.viewport_event_kind() << std::endl;);
+                if (ViewportEventKind::VIEWPORT_EVT_CREATE == viewport_event.viewport_event_kind()) {
                     DBG(CLOG << LOCATION << "viewport id: " << viewport_id << " finishing" << std::endl;);
                     reader_ptr->Finish();
                     break;
@@ -489,10 +490,10 @@ public:
 
         request.set_id(viewport_id);
 
-        ViewportChange viewport_change;
+        ViewportEvent viewport_event;
         viewport_subscription_handler_thread_ = std::make_unique<std::thread>(
                 std::thread(&OmegaEditServiceClient::HandleViewportChanges, this, std::move(context_ptr),
-                            std::move(stub_->SubscribeOnChangeViewport(context_ptr.get(), request))));
+                            std::move(stub_->SubscribeToViewportEvents(context_ptr.get(), request))));
         return viewport_subscription_handler_thread_->get_id();
     }
 
@@ -507,8 +508,8 @@ int main(int argc, char **argv) {
     // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
 
     // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
-    std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega-edit.sock";
+    //std::string target_str = "localhost:50042";
+    std::string target_str = "unix:///tmp/omega-edit.sock";
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
