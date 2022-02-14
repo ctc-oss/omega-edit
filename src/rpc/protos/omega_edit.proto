@@ -28,6 +28,7 @@ service Editor {
   rpc SubmitChange(ChangeRequest) returns (ChangeResponse);
   rpc UndoLastChange(ObjectId) returns (ChangeResponse);
   rpc RedoLastUndo(ObjectId) returns (ChangeResponse);
+  rpc ClearChanges(ObjectId) returns (ObjectId);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
   rpc DestroyViewport(ObjectId) returns (ObjectId);

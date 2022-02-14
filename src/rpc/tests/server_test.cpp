@@ -271,6 +271,36 @@ public:
         }
     }
 
+    std::string Clear(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->ClearChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+            ;
+        }
+    }
+
     std::string SaveSession(const std::string &session_id, const std::string &file_path) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
@@ -538,16 +568,28 @@ int main(int argc, char **argv) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
-        serial =server_test_client.Undo(session_id);
+        serial = server_test_client.Undo(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Undo received: " << serial << std::endl;);
         }
 
-        serial =server_test_client.Redo(session_id);
+        serial = server_test_client.Redo(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Redo received: " << serial << std::endl;);
+        }
+
+        reply = server_test_client.Clear(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Clear received: " << reply << std::endl;);
+        }
+
+        serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
