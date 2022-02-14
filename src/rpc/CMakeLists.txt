@@ -103,9 +103,6 @@ target_link_libraries(server PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
-add_executable(server_cbk server/cpp/server_cbk.cpp ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server_cbk PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
-
 add_executable(server_test tests/server_test.cpp ${RPC_SOURCE_FILES})
 target_link_libraries(server_test PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
