@@ -213,6 +213,64 @@ public:
         }
     }
 
+    int64_t Undo(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ChangeResponse response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->UndoLastChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.serial();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return 0;
+        }
+    }
+
+    int64_t Redo(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ChangeResponse response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->RedoLastUndo(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.serial();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return 0;
+        }
+    }
+
     std::string SaveSession(const std::string &session_id, const std::string &file_path) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
@@ -417,7 +475,11 @@ int main(int argc, char **argv) {
     // Instantiate the client. It requires a channel, out of which the actual RPCs are created. This channel models a
     // connection to an endpoint specified by the argument "--target=" which is the only expected argument.
     // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
+
+    // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
     std::string target_str = "localhost:50042";
+    //std::string target_str = "unix:///tmp/omega-edit.sock";
+
     if (argc > 1) {
         const std::string arg_val = argv[1];
         const std::string arg_str("--target");
@@ -474,6 +536,18 @@ int main(int argc, char **argv) {
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
+        }
+
+        serial =server_test_client.Undo(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Undo received: " << serial << std::endl;);
+        }
+
+        serial =server_test_client.Redo(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Redo received: " << serial << std::endl;);
         }
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
