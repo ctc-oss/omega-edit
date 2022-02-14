@@ -381,7 +381,7 @@ public:
             if (viewport_change.has_serial()) {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
                          << viewport_change.viewport_change_kind() << " change serial: " << viewport_change.serial()
-                         << ", data: [" << GetViewportData(viewport_id) << "]" << std::endl;);
+                         << ", data: [" << viewport_change.data() << "]" << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
                          << ", event kind: " << viewport_change.viewport_change_kind() << std::endl;);
@@ -435,69 +435,85 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
     }
-    DBG(CLOG << LOCATION << "Establishing a channel to Ωedit server on: " << target_str << std::endl;);
-    OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
-    auto reply = server_test_client.GetOmegaEditVersion();
-    DBG(CLOG << LOCATION << "Channel established to Ωedit server version: " << reply << " on " << target_str
-             << std::endl;);
+    auto repetitions = 5000;
+    const auto log = false;
+    while (repetitions--) {
+        if (log) {
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] Establishing a channel to Ωedit server on: " << target_str << std::endl;);
+        }
+        OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
-    auto session_id = server_test_client.CreateSession();
-    DBG(CLOG << LOCATION << "CreateSession received: " << session_id << std::endl;);
+        auto reply = server_test_client.GetOmegaEditVersion();
+        if (log) {
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Channel established to Ωedit server version: "
+                     << reply << " on " << target_str << std::endl;);
+        }
 
-    auto viewport_id = server_test_client.CreateViewport(session_id, 0, 100);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "CreateViewport received: " << viewport_id << std::endl;);
+        auto session_id = server_test_client.CreateSession();
+        if (log)
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateSession received: " << session_id
+                     << std::endl;);
+
+        auto viewport_id = server_test_client.CreateViewport(session_id, 0, 100);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_id
+                     << std::endl;);
+        }
+
+        auto thread_id = server_test_client.SubscribeOnChangeViewport(viewport_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] SubscribeOnChangeViewport received: " << thread_id << std::endl;);
+        }
+
+        auto serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
+        }
+
+        serial = server_test_client.Overwrite(session_id, 7, "orl");
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Overwrite received: " << serial << std::endl;);
+        }
+
+        serial = server_test_client.Delete(session_id, 11, 3);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Delete received: " << serial << std::endl;);
+        }
+
+        reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
+        }
+
+        reply = server_test_client.GetViewportData(viewport_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport data: [" << reply << "]"
+                     << std::endl;);
+        }
+
+        reply = server_test_client.DestroyViewport(viewport_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroyViewport received: " << reply
+                     << std::endl;);
+        }
+
+        reply = server_test_client.DestroySession(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroySession received: " << reply
+                     << std::endl;);
+        }
     }
-
-    auto thread_id = server_test_client.SubscribeOnChangeViewport(viewport_id);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "SubscribeOnChangeViewport received: " << thread_id << std::endl;);
-    }
-
-    auto serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "Insert received: " << serial << std::endl;);
-    }
-
-    serial = server_test_client.Overwrite(session_id, 7, "orl");
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "Overwrite received: " << serial << std::endl;);
-    }
-
-    serial = server_test_client.Delete(session_id, 11, 3);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "Delete received: " << serial << std::endl;);
-    }
-
-    reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "SaveSession received: " << reply << std::endl;);
-    }
-
-    reply = server_test_client.GetViewportData(viewport_id);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "Viewport data: [" << reply << "]" << std::endl;);
-    }
-
-    reply = server_test_client.DestroyViewport(viewport_id);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "DestroyViewport received: " << reply << std::endl;);
-    }
-
-    reply = server_test_client.DestroySession(session_id);
-    {
-        const std::lock_guard<std::mutex> write_lock(write_mutex);
-        DBG(CLOG << LOCATION << "DestroySession received: " << reply << std::endl;);
-    }
-
     return EXIT_SUCCESS;
 }

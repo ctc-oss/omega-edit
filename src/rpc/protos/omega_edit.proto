@@ -137,6 +137,8 @@ message ViewportChange {
   ObjectId viewport_id = 1;
   ViewportChangeKind viewport_change_kind = 2;
   optional int64 serial = 3;
+  optional int64 length = 4;
+  optional bytes data = 5;
 }
 
 message ChangeDetailsResponse {
