@@ -81,19 +81,11 @@ public:
 
     ~SessionEventWriter() override {
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id_);
-        if (session_event_subscription_iter != session_event_subscriptions_.end()) {
-            session_event_subscriptions_.erase(session_event_subscription_iter);
-            const auto session_change_ptr = std::make_shared<SessionChange>();
-            session_change_ptr->mutable_session_id()->set_id(session_id_);
-            // Indicate to the subscribed client that the stream is ending by sending the session create event that is
-            // otherwise unused
-            session_change_ptr->set_session_change_kind(omega_edit::SESSION_EVT_CREATE);
-            HandleItem(session_change_ptr);
-        }
-        Finish(Status::OK);
+        assert (session_event_subscription_iter != session_event_subscriptions_.end());
+        session_event_subscriptions_.erase(session_event_subscription_iter);
     }
 
-    void OnDone() override { delete this; }
+    inline void OnDone() override { delete this; }
 
     void HandleItem(std::shared_ptr<void> item) override {
         assert(item);
@@ -123,7 +115,7 @@ public:
         viewport_event_subscriptions_.erase(viewport_event_subscription_iter);
     }
 
-    void OnDone() override { delete this; }
+    inline void OnDone() override { delete this; }
 
     void HandleItem(std::shared_ptr<void> item) override {
         assert(item);
@@ -153,7 +145,7 @@ public:
         return session_id;
     }
 
-    void destroy_session_subscription(const std::string &session_id) {
+    inline void destroy_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         if (session_event_subscription_iter != session_event_subscriptions_.end()) {
@@ -181,7 +173,7 @@ public:
         }
     }
 
-    std::string get_session_id(const omega_session_t *session_ptr) {
+    inline std::string get_session_id(const omega_session_t *session_ptr) {
         assert(session_ptr);
         // Don't use const here because it prevents the automatic move on return
         auto session_id = session_to_id_[const_cast<omega_session_t *>(session_ptr)];
@@ -189,7 +181,7 @@ public:
         return session_id;
     }
 
-    omega_session_t *get_session_ptr(const std::string &session_id) {
+    inline omega_session_t *get_session_ptr(const std::string &session_id) {
         assert(!session_id.empty());
         // Don't use const here because it prevents the automatic move on return
         auto session_ptr = id_to_session_[session_id];
@@ -246,7 +238,7 @@ public:
         }
     }
 
-    std::string get_viewport_id(const omega_viewport_t *viewport_ptr) {
+    inline std::string get_viewport_id(const omega_viewport_t *viewport_ptr) {
         assert(viewport_ptr);
         // Don't use const here because it prevents the automatic move on return
         auto viewport_id = viewport_to_id_[const_cast<omega_viewport_t *>(viewport_ptr)];
@@ -254,7 +246,7 @@ public:
         return viewport_id;
     }
 
-    omega_viewport_t *get_viewport_ptr(const std::string &viewport_id) {
+    inline omega_viewport_t *get_viewport_ptr(const std::string &viewport_id) {
         assert(!viewport_id.empty());
         // Don't use const here because it prevents the automatic move on return
         auto viewport_ptr = id_to_viewport_[viewport_id];
