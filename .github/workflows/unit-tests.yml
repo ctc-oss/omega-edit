@@ -74,6 +74,10 @@ jobs:
           python-version: 3.8
       - name: Install Conan 💪
         run: pip install conan pytest && conan --version
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v1
+        with:
+          languages: cpp
       - name: Setup Debug Build 📐
         run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
       - name: Build Debug Build 🔧
@@ -89,6 +93,8 @@ jobs:
       - name: Run Tests Under Valgrind 📋
         working-directory: cmake-build-debug/bin/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v1
   windows-node-test:
     name: Windows Tests
     runs-on: windows-latest
