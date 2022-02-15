@@ -18,6 +18,7 @@
 #include <grpcpp/grpcpp.h>
 #include <sstream>
 #include <thread>
+#include <csignal>
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -566,35 +567,7 @@ private:
     std::unique_ptr<std::thread> viewport_subscription_handler_thread_ = nullptr;
 };
 
-int main(int argc, char **argv) {
-    // Instantiate the client. It requires a channel, out of which the actual RPCs are created. This channel models a
-    // connection to an endpoint specified by the argument "--target=" which is the only expected argument.
-    // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
-
-    // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
-    std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega-edit.sock";
-
-    if (argc > 1) {
-        const std::string arg_val = argv[1];
-        const std::string arg_str("--target");
-        size_t start_pos = arg_val.find(arg_str);
-        if (start_pos != std::string::npos) {
-            start_pos += arg_str.size();
-            if (arg_val[start_pos] == '=') {
-                target_str = arg_val.substr(start_pos + 1);
-            } else {
-                std::cout << "The only correct argument syntax is --target=" << std::endl;
-                return EXIT_FAILURE;
-            }
-        } else {
-            std::cout << "The only acceptable argument is --target=" << std::endl;
-            return EXIT_FAILURE;
-        }
-    }
-
-    auto repetitions = 5000;
-    const auto log = false;
+void run_tests(const std::string &target_str, int repetitions, bool log) {
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
@@ -714,5 +687,48 @@ int main(int argc, char **argv) {
                      << std::endl;);
         }
     }
+
+}
+
+int main(int argc, char **argv) {
+    // Instantiate the client. It requires a channel, out of which the actual RPCs are created. This channel models a
+    // connection to an endpoint specified by the argument "--target=" which is the only expected argument.
+    // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
+
+    // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
+    std::string target_str = "localhost:50042";
+    //std::string target_str = "unix:///tmp/omega-edit.sock";
+
+    if (argc > 1) {
+        const std::string arg_val = argv[1];
+        const std::string arg_str("--target");
+        size_t start_pos = arg_val.find(arg_str);
+        if (start_pos != std::string::npos) {
+            start_pos += arg_str.size();
+            if (arg_val[start_pos] == '=') {
+                target_str = arg_val.substr(start_pos + 1);
+            } else {
+                std::cout << "The only correct argument syntax is --target=" << std::endl;
+                return EXIT_FAILURE;
+            }
+        } else {
+            std::cout << "The only acceptable argument is --target=" << std::endl;
+            return EXIT_FAILURE;
+        }
+    }
+    pid_t pid = 0;
+    bool run_server = true;
+    if (run_server) {
+        pid = fork();
+        const char *server_program = "./server";
+        const auto target = std::string("--target=") + target_str;
+        if (0 == pid) {
+            execl(server_program, server_program, target.c_str(), (char *) NULL);
+            exit(1);
+        }
+        std::cout << "Ωedit server pid: " << pid << std::endl;
+    }
+    run_tests(target_str, 5000, false);
+    if (pid) { kill(pid, SIGTERM); }
     return EXIT_SUCCESS;
 }
