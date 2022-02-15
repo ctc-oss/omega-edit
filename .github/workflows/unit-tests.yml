@@ -49,10 +49,6 @@ jobs:
       - name: Run Tests 📋
         working-directory: cmake-build-debug/bin/
         run: ./omega_test -d yes --order lex
-      - name: Build Node v14 Bindings 🔧
-        run: npm ci
-      - name: Test Node v14 Bindings 📋
-        run: yarn test
       - name: Upload User Documentation Arifacts 🔺
         uses: actions/upload-artifact@v1
         with:
@@ -93,10 +89,6 @@ jobs:
       - name: Run Tests Under Valgrind 📋
         working-directory: cmake-build-debug/bin/
         run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
-      - name: Build Node v14 Bindings 🔧
-        run: npm ci
-      - name: Test Node v14 Bindings 📋
-        run: yarn test
   windows-node-test:
     name: Windows Tests
     runs-on: windows-latest
@@ -136,12 +128,6 @@ jobs:
       - name: Run Tests 📋
         working-directory: cmake-build-debug/bin/
         run: ./omega_test -d yes --order lex
-      - name: Build Node v14 Bindings 🔧
-        run: npm ci
-        shell: powershell
-      - name: Test Node v14 Bindings 📋
-        run: yarn test
-        shell: powershell
   scala-test:
     strategy:
       matrix:

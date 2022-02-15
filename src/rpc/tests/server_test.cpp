@@ -14,6 +14,7 @@
 
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
+#include <condition_variable>
 #include <grpcpp/grpcpp.h>
 #include <sstream>
 #include <thread>

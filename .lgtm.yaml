@@ -1,0 +1,45 @@
+# Copyright (c) 2021-2022 Concurrent Technologies Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
+
+# for full syntax documentation see:  https://lgtm.com/help/lgtm/lgtm.yml-configuration-file
+
+path_classifiers:
+  test:
+    - "*/src/rpc/tests/**/*"
+    - "*/src/tests/**/*"
+    - "*/src/examples/**/*"
+  docs:
+    - "*/sphinx/**/*"
+
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - g++-10
+        - ccache
+    configure:
+      command:
+        - which python3
+        - python3 --version
+        - python3 -m venv venv
+        - source ./venv/bin/activate
+        - pip install --upgrade pip setuptools
+        - pip install cmake conan
+        - which conan
+        - conan --version
+        - which cmake
+        - cmake --version
+        - mkdir -p build
+        - cmake -D CMAKE_BUILD_TYPE:STRING=Debug -D CMAKE_CXX_FLAGS=--coverage -D CMAKE_C_FLAGS=--coverage -S . -B build
+    index:
+      build_command:
+        - source ./venv/bin/activate
+        - cmake --build ./build -- -j
