@@ -569,21 +569,21 @@ public:
         const auto serial = request->serial();
         const auto change_ptr = omega_session_get_change(session_ptr, serial);
         assert(change_ptr);
-        response->mutable_change()->set_serial(serial);
-        response->mutable_change()->set_offset(omega_change_get_offset(change_ptr));
-        response->mutable_change()->set_length(omega_change_get_length(change_ptr));
+        response->set_serial(serial);
+        response->set_offset(omega_change_get_offset(change_ptr));
+        response->set_length(omega_change_get_length(change_ptr));
         const auto kind = omega_change_get_kind_as_char(change_ptr);
         switch (kind) {
             case 'D':
-                response->mutable_change()->set_kind(ChangeKind::CHANGE_DELETE);
+                response->set_kind(ChangeKind::CHANGE_DELETE);
                 break;
             case 'I':
-                response->mutable_change()->set_kind(ChangeKind::CHANGE_INSERT);
-                response->mutable_change()->set_data(omega_change_get_string(change_ptr));
+                response->set_kind(ChangeKind::CHANGE_INSERT);
+                response->set_data(omega_change_get_string(change_ptr));
                 break;
             case 'O':
-                response->mutable_change()->set_kind(ChangeKind::CHANGE_OVERWRITE);
-                response->mutable_change()->set_data(omega_change_get_string(change_ptr));
+                response->set_kind(ChangeKind::CHANGE_OVERWRITE);
+                response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
                 // TODO: Handle error

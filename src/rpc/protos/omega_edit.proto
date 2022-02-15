@@ -149,10 +149,6 @@ message ViewportEvent {
 }
 
 message ChangeDetailsResponse {
-  Change change = 1;
-}
-
-message Change {
   SessionEvent id = 1;
   int64 serial = 2;
   ChangeKind kind = 3;

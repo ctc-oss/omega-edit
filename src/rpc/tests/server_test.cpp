@@ -23,7 +23,6 @@ using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
 
-using omega_edit::Change;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
