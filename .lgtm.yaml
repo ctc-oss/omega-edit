@@ -16,6 +16,9 @@ path_classifiers:
     - "*/src/rpc/tests/**/*"
     - "*/src/tests/**/*"
     - "*/src/examples/**/*"
+  docs:
+    - "*/sphinx/**/*"
+
 extraction:
   cpp:
     prepare:
@@ -28,9 +31,15 @@ extraction:
         - python3 -m pip install --upgrade pip setuptools
         - python3 -m pip install cmake conan
         - source ~/.profile
+        - which python3
+        - python3 --version
+        - which conan
+        - conan --version
+        - which cmake
+        - cmake --version
     configure:
       command:
         - mkdir -p build
-        - cmake -D OPT_ENABLE_COVERAGE:BOOL=TRUE -D CMAKE_BUILD_TYPE:STRING=Debug -D ENABLE_DEVELOPER_MODE:BOOL=FALSE  -S . -B build
+        - cmake -D CMAKE_BUILD_TYPE:STRING=Debug -D CMAKE_CXX_FLAGS=--coverage -D CMAKE_C_FLAGS=--coverage -S . -B build
     index:
       build_command: cmake --build ./build -- -j
