@@ -84,6 +84,6 @@ namespace omega_edit {
         std::condition_variable cv_{};
     };
 
-}// namespace omega_edit
+}  // namespace omega_edit
 
-#endif// OMEGA_EDIT_WORKER_QUEUE_HPP
+#endif  // OMEGA_EDIT_WORKER_QUEUE_HPP

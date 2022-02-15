@@ -130,4 +130,4 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
 }
 #endif
 
-#endif//OMEGA_EDIT_SESSION_H
+#endif  //OMEGA_EDIT_SESSION_H

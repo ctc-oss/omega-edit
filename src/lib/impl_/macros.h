@@ -37,15 +37,15 @@
 #ifdef DEBUG
 #define DBG(x)                                                                                                         \
     do { x } while (0)
-#else//DEBUG
+#else  //DEBUG
 #define DBG(x)
-#endif//DEBUG
+#endif  //DEBUG
 
 #ifdef __cplusplus
 #define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ": "
 #ifndef CLOG
 #define CLOG std::clog
-#endif//CLOG
+#endif  //CLOG
 #define LOG_ERROR(x)                                                                                                   \
     do { CLOG << LOCATION << x << std::endl; } while (0)
 #else
@@ -53,4 +53,4 @@
     do { fprintf(stderr, "%s@%d::%s: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, (x)); } while (0)
 #endif
 
-#endif//OMEGA_EDIT_MACROS_H
+#endif  //OMEGA_EDIT_MACROS_H

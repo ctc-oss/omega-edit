@@ -96,4 +96,4 @@ void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_
 }
 #endif
 
-#endif//OMEGA_EDIT_VIEWPORT_H
+#endif  //OMEGA_EDIT_VIEWPORT_H

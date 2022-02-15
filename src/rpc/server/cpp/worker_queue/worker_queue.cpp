@@ -90,4 +90,4 @@ namespace omega_edit {
         }
     }
 
-}// namespace omega_edit
+}  // namespace omega_edit

@@ -98,4 +98,4 @@ void omega_search_destroy_context(omega_search_context_t *search_context_ptr);
 }
 #endif
 
-#endif//OMEGA_EDIT_SEARCH_H
+#endif  //OMEGA_EDIT_SEARCH_H

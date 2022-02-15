@@ -32,4 +32,4 @@ int omega_check_model(const omega_session_t *session_ptr);
 }
 #endif
 
-#endif//OMEGA_EDIT_CHECK_H
+#endif  //OMEGA_EDIT_CHECK_H

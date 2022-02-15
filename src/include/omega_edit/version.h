@@ -49,4 +49,4 @@ int omega_version();
 }
 #endif
 
-#endif//OMEGA_EDIT_VERSION_H
+#endif  //OMEGA_EDIT_VERSION_H

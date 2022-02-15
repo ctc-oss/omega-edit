@@ -34,9 +34,9 @@ using Catch::Matchers::EndsWith;
 using Catch::Matchers::Equals;
 
 TEST_CASE("Size Tests", "[SizeTests]") {
-    REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
+    REQUIRE(1 == sizeof(omega_byte_t));  //must always be 1-byte
     REQUIRE(4 == sizeof(int));
-    REQUIRE(8 == sizeof(int64_t));//explicit 8-bytes
+    REQUIRE(8 == sizeof(int64_t));  //explicit 8-bytes
     REQUIRE(8 == sizeof(long long));
     REQUIRE(8 == sizeof(size_t));
     REQUIRE(8 == sizeof(void *));
@@ -682,7 +682,7 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_vi
                 clog << omega_viewport_get_string(viewport_ptr);
                 clog << "]\n";
                 break;
-            default:// flow through
+            default:  // flow through
             case display_mode_t::BYTE_MODE:
                 clog << "BYTE MODE [";
                 write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));

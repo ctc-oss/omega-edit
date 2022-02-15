@@ -100,7 +100,7 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
 
 static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
     switch (change_ptr->kind) {
-        case change_kind_t::CHANGE_DELETE:// deliberate fall-through
+        case change_kind_t::CHANGE_DELETE:  // deliberate fall-through
         case change_kind_t::CHANGE_INSERT:
             // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
             return (change_ptr->offset <=
@@ -118,7 +118,7 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
     for (auto &&viewport_ptr : session_ptr->viewports_) {
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
-                    -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                    -1 * std::abs(viewport_ptr->data_segment.capacity);  // indicate dirty read
             omega_viewport_notify(viewport_ptr.get(), (0 < change_ptr->serial) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
                                   change_ptr);
         }
@@ -223,7 +223,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                             (*iter)->change_offset += delete_length;
                             assert((*iter)->change_offset < (*iter)->change_ptr->length);
                             delete_length = 0;
-                            ++iter;// move to the next segment for adjusting
+                            ++iter;  // move to the next segment for adjusting
                         }
                     }
                     // adjust the computed offsets for segments beyond the DELETE site
@@ -232,7 +232,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr
                     }
                     break;
                 }
-                case change_kind_t::CHANGE_OVERWRITE:// deliberate fall-through
+                case change_kind_t::CHANGE_OVERWRITE:  // deliberate fall-through
                 case change_kind_t::CHANGE_INSERT: {
                     auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
                     insert_segment_ptr->computed_offset = change_ptr->offset;
@@ -329,7 +329,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
         viewport_ptr->data_segment.offset = offset;
-        viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
+        viewport_ptr->data_segment.capacity = -1 * capacity;  // Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
         viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
         viewport_ptr->event_handler = cbk;
@@ -398,7 +398,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
                 (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
                 for (const auto &viewport_ptr : session_ptr->viewports_) {
                     viewport_ptr->data_segment.capacity =
-                            -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                            -1 * std::abs(viewport_ptr->data_segment.capacity);  // indicate dirty read
                     omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
                 }
                 omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
@@ -425,7 +425,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("snprintf failed");
         return -1;
     }
-    errno = 0;// reset errno
+    errno = 0;  // reset errno
     auto temp_fd = omega_util_mkstemp(temp_filename);
     if (temp_fd < 0) {
         LOG_ERROR("mkstemp failed: " << strerror(errno) << ", temp filename: " << temp_filename);
@@ -503,7 +503,8 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     initialize_model_segments_(session_ptr->models_.front()->model_segments, length);
     free_session_changes_(session_ptr);
     for (const auto &viewport_ptr : session_ptr->viewports_) {
-        viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+        viewport_ptr->data_segment.capacity =
+                -1 * std::abs(viewport_ptr->data_segment.capacity);  // indicate dirty read
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
     }
     omega_session_notify(session_ptr, SESSION_EVT_CLEAR, nullptr);

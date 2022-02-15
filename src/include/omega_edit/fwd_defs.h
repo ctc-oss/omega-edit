@@ -54,4 +54,4 @@ typedef struct omega_viewport_struct omega_viewport_t;
 }
 #endif
 
-#endif//OMEGA_EDIT_FWD_DEFS_H
+#endif  //OMEGA_EDIT_FWD_DEFS_H

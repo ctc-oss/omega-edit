@@ -27,11 +27,11 @@ using omega_model_segments_t = std::vector<omega_model_segment_ptr_t>;
 using omega_changes_t = std::vector<const_omega_change_ptr_t>;
 
 struct omega_model_struct {
-    FILE *file_ptr{};                       ///< File being edited (open for read)
-    std::string file_path{};                ///< File path being edited
-    omega_changes_t changes{};              ///< Collection of changes for this session, ordered by time
-    omega_changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
-    omega_model_segments_t model_segments{};///< Model segment vector
+    FILE *file_ptr{};                         ///< File being edited (open for read)
+    std::string file_path{};                  ///< File path being edited
+    omega_changes_t changes{};                ///< Collection of changes for this session, ordered by time
+    omega_changes_t changes_undone{};         ///< Undone changes that are eligible for being redone
+    omega_model_segments_t model_segments{};  ///< Model segment vector
 };
 
-#endif//OMEGA_EDIT_MODEL_DEF_HPP
+#endif  //OMEGA_EDIT_MODEL_DEF_HPP

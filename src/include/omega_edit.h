@@ -32,4 +32,4 @@
 #include "omega_edit/viewport.h"
 #include "omega_edit/visit.h"
 
-#endif//OMEGA_OMEGA_EDIT_H
+#endif  //OMEGA_OMEGA_EDIT_H

@@ -55,4 +55,4 @@ void omega_find_destroy_skip_table(const omega_find_skip_table_t *skip_table_ptr
 }
 #endif
 
-#endif//OMEGA_EDIT_FIND_H
+#endif  //OMEGA_EDIT_FIND_H

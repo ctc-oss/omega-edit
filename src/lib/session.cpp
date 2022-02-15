@@ -76,11 +76,11 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    if (0 < change_serial) {// Positive serials are active changes
+    if (0 < change_serial) {  // Positive serials are active changes
         if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {
             return session_ptr->models_.back()->changes[change_serial - 1].get();
         }
-    } else if (change_serial < 0) {// Negative serials are undone changes
+    } else if (change_serial < 0) {  // Negative serials are undone changes
         for (auto iter = session_ptr->models_.back()->changes_undone.rbegin();
              iter != session_ptr->models_.back()->changes_undone.rend(); ++iter) {
             if ((*iter)->serial == change_serial) { return iter->get(); }

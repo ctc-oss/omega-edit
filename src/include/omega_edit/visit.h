@@ -99,4 +99,4 @@ void omega_visit_change_destroy_context(omega_visit_change_context_t *change_con
 }
 #endif
 
-#endif//OMEGA_EDIT_VISIT_H
+#endif  //OMEGA_EDIT_VISIT_H

@@ -46,4 +46,4 @@ size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length);
 }
 #endif
 
-#endif//OMEGA_EDIT_ENCODINGS_H
+#endif  //OMEGA_EDIT_ENCODINGS_H

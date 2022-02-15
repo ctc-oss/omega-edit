@@ -127,7 +127,9 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED, const omega_change_t *change_ptr = nullptr) {
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
+                    omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED,
+                    const omega_change_t *change_ptr = nullptr) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
@@ -155,7 +157,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
                                        omega_viewport_get_length(viewport_ptr));
                         clog << "]";
                         break;
-                    default:// flow through
+                    default:  // flow through
                     case display_mode_t::BYTE_MODE:
                         clog << "BYTE MODE [";
                         write_pretty_bytes(omega_viewport_get_data(viewport_ptr),

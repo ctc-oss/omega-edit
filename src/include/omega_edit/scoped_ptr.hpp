@@ -29,6 +29,6 @@
 template<typename T>
 using omega_scoped_ptr = std::unique_ptr<T, std::function<void(T *)>>;
 
-#endif//__cplusplus
+#endif  //__cplusplus
 
-#endif//OMEGA_EDIT_SCOPED_PTR_H
+#endif  //OMEGA_EDIT_SCOPED_PTR_H

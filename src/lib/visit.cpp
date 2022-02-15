@@ -46,7 +46,7 @@ struct omega_visit_change_context_struct {
         omega_changes_t::const_iterator *iter_ptr;
         omega_changes_t::const_reverse_iterator *riter_ptr;
     } change_iter{};
-    ~omega_visit_change_context_struct() {}// NOLINT This destructor is required, but don't use =default
+    ~omega_visit_change_context_struct() {}  // NOLINT This destructor is required, but don't use =default
 };
 
 omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse) {
@@ -78,7 +78,7 @@ int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr) {
         }
         *change_context_ptr->change_iter.riter_ptr = change_context_ptr->session_ptr->models_.back()->changes.rbegin();
         change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.rend());
     } else {
         if (!change_context_ptr->change_iter.iter_ptr) {
             change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
@@ -86,7 +86,7 @@ int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr) {
         }
         *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->models_.back()->changes.cbegin();
         change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.cend());
     }
     return omega_visit_change_at_end(change_context_ptr);
 }
@@ -100,12 +100,12 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
         assert(change_context_ptr->change_iter.riter_ptr);
         ++*change_context_ptr->change_iter.riter_ptr;
         change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.rend());
     } else {
         assert(change_context_ptr->change_iter.iter_ptr);
         ++*change_context_ptr->change_iter.iter_ptr;
         change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.cend());
     }
     return omega_visit_change_at_end(change_context_ptr);
 }
@@ -130,6 +130,6 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
 
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
     assert(change_context_ptr);
-    delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
+    delete change_context_ptr->change_iter.iter_ptr;  // NOTE: deleting a nullptr is safe as it has no effect
     delete change_context_ptr;
 }

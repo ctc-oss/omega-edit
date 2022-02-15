@@ -19,7 +19,7 @@
 #include <cstdint>
 #else
 #include <stdint.h>
-#endif//__cplusplus
+#endif  //__cplusplus
 
 /***********************************************************************************************************************
  * CONFIGURATION
@@ -31,17 +31,17 @@
 // Default maximum viewport capacity
 #ifndef OMEGA_VIEWPORT_CAPACITY_LIMIT
 #define OMEGA_VIEWPORT_CAPACITY_LIMIT (1024 * 1024)
-#endif//OMEGA_VIEWPORT_CAPACITY_LIMIT
+#endif  //OMEGA_VIEWPORT_CAPACITY_LIMIT
 
 // Define the maximum length of a pattern for searching
 #ifndef OMEGA_SEARCH_PATTERN_LENGTH_LIMIT
 #define OMEGA_SEARCH_PATTERN_LENGTH_LIMIT (OMEGA_VIEWPORT_CAPACITY_LIMIT / 2)
-#endif//OMEGA_SEARCH_PATTERN_LENGTH_LIMIT
+#endif  //OMEGA_SEARCH_PATTERN_LENGTH_LIMIT
 
 // Define the byte type to be used across the project
 #ifndef OMEGA_BYTE_T
 #define OMEGA_BYTE_T unsigned char
-#endif//OMEGA_BYTE_T
+#endif  //OMEGA_BYTE_T
 
 #if !defined(__CYGWIN__) &&                                                                                            \
         (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD))
@@ -82,4 +82,4 @@
 #endif
 #endif
 
-#endif//OMEGA_EDIT_CONFIG_H
+#endif  //OMEGA_EDIT_CONFIG_H

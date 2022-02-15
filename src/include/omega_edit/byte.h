@@ -28,4 +28,4 @@ typedef OMEGA_BYTE_T omega_byte_t;
 static_assert(1 == sizeof(omega_byte_t), "size of omega_byte_t is expected to be 1 byte");
 #endif
 
-#endif//OMEGA_EDIT_BYTE_H
+#endif  //OMEGA_EDIT_BYTE_H

@@ -183,4 +183,4 @@ omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_ma
 }
 #endif
 
-#endif//OMEGA_EDIT_UTILITY_H
+#endif  //OMEGA_EDIT_UTILITY_H

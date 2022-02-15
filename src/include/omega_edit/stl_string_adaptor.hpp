@@ -88,6 +88,6 @@ inline omega_search_context_t *omega_search_create_context_string(const omega_se
                                        session_offset, session_length, case_insensitive);
 }
 
-#endif//__cplusplus
+#endif  //__cplusplus
 
-#endif//OMEGA_EDIT_STL_STRING_ADAPTOR_HPP
+#endif  //OMEGA_EDIT_STL_STRING_ADAPTOR_HPP

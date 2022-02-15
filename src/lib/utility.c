@@ -48,7 +48,7 @@
 #include <stdlib.h>
 
 int omega_util_mkstemp(char *tmpl) {
-    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
+    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";  //len = 62
     static uint64_t value;
     const size_t len = strlen(tmpl);
     char *template;
@@ -101,7 +101,7 @@ int omega_util_mkstemp(char *tmpl) {
 }
 
 const char *omega_util_get_current_dir(char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX];  //create string buffer to hold path
     if (!buffer) { buffer = buff; }
     buffer[0] = '\0';
     return (getcwd(buffer, FILENAME_MAX)) ? buffer : NULL;
@@ -144,7 +144,7 @@ char omega_util_directory_separator() {
 }
 
 char *omega_util_dirname(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold directory name
+    static char buff[FILENAME_MAX];  //create string buffer to hold directory name
     assert(path);
     if (!buffer) { buffer = buff; }
     size_t dirname_len;
@@ -155,7 +155,7 @@ char *omega_util_dirname(char const *path, char *buffer) {
 }
 
 char *omega_util_basename(char const *path, char const *suffix, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold basename
+    static char buff[FILENAME_MAX];  //create string buffer to hold basename
     assert(path);
     if (!buffer) { buffer = buff; }
     const char *basename;
@@ -174,7 +174,7 @@ char *omega_util_basename(char const *path, char const *suffix, char *buffer) {
 }
 
 char *omega_util_file_extension(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold extension
+    static char buff[FILENAME_MAX];  //create string buffer to hold extension
     char file_name_buff[FILENAME_MAX];
     path = omega_util_basename(path, NULL, file_name_buff);
     assert(path);
@@ -191,7 +191,7 @@ char *omega_util_file_extension(char const *path, char *buffer) {
 }
 
 char *omega_util_normalize_path(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX];  //create string buffer to hold path
     assert(path);
     if (!buffer) { buffer = buff; }
     cwk_path_normalize(path, buffer, FILENAME_MAX);
@@ -199,7 +199,7 @@ char *omega_util_normalize_path(char const *path, char *buffer) {
 }
 
 char *omega_util_available_filename(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX];  //create string buffer to hold path
     assert(path);
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {

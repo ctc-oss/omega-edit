@@ -15,7 +15,8 @@
 #include <omega_edit.h>
 #include <stdio.h>
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const omega_change_t *change_ptr) {
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                    const omega_change_t *change_ptr) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {

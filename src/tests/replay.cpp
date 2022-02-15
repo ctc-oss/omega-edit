@@ -28,7 +28,8 @@ using namespace std;
 
 using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
 
-void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
+void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                        const omega_change_t *change_ptr) {
     switch (session_event) {
         case SESSION_EVT_CREATE:
         case SESSION_EVT_EDIT: {
@@ -76,7 +77,7 @@ int main(int argc, char **argv) {
         omega_byte_t hex_bytes[2048];
         // NOTE: This is for demonstration purposes only.  This is not production safe parsing.
         const auto rc =
-                fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes);//NOLINT
+                fscanf(stdin, "%c,%" PRId64 ",%" PRId64 ",%s\n", &change_type, &offset, &length, hex_bytes);  //NOLINT
         if (rc != 4) {
             cerr << "error reading change" << endl;
             abort();

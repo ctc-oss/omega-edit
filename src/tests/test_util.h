@@ -32,7 +32,7 @@ static inline int compare_file_pointers(FILE *f1, FILE *f2) {
         auto r2 = fread(buf2, sizeof(omega_byte_t), buff_size, f2);
 
         if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
-            return 1;// Files are not equal
+            return 1;  // Files are not equal
         }
     } while (!feof(f1) && !feof(f2));
     return (feof(f1) && feof(f2)) ? 0 : 1;
@@ -83,4 +83,4 @@ static inline void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-#endif//OMEGA_EDIT_TEST_UTIL_H
+#endif  //OMEGA_EDIT_TEST_UTIL_H

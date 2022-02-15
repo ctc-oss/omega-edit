@@ -23,9 +23,9 @@
  * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
  * whose address will be stored in the bytes field.
  */
-using omega_data_t =  union omega_data_union {
-    omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
+using omega_data_t = union omega_data_union {
+    omega_byte_t *bytes_ptr{};  ///< Hold bytes of length greater than 7
+    omega_byte_t sm_bytes[8];   ///< Hold bytes of length less than 8
 };
 
 static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
@@ -34,4 +34,4 @@ inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacit
     return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
 }
 
-#endif//OMEGA_EDIT_DATA_DEF_HPP
+#endif  //OMEGA_EDIT_DATA_DEF_HPP

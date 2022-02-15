@@ -524,7 +524,7 @@ public:
     void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
-        (void) context_ptr;// Though we're not using the context pointer, we need to manage its lifecycle in this scope.
+        (void) context_ptr;  // Though we're not using the context pointer, we need to manage its lifecycle in this scope.
         ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_event)) {

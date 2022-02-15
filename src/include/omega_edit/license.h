@@ -29,4 +29,4 @@ const char *omega_license_get();
 }
 #endif
 
-#endif//OMEGA_EDIT_LICENSE_H
+#endif  //OMEGA_EDIT_LICENSE_H

@@ -24,4 +24,4 @@ using omega_model_segment_t = struct omega_model_segment_struct;
 
 using const_omega_change_ptr_t = std::shared_ptr<const omega_change_t>;
 
-#endif//OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
+#endif  //OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP

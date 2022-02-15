@@ -71,4 +71,4 @@ int omega_change_is_undone(const omega_change_t *change_ptr);
 }
 #endif
 
-#endif//OMEGA_EDIT_CHANGE_H
+#endif  //OMEGA_EDIT_CHANGE_H

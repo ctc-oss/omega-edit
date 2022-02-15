@@ -63,7 +63,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity) {
             if (7 < omega_viewport_get_capacity(viewport_ptr)) { delete[] viewport_ptr->data_segment.data.bytes_ptr; }
             viewport_ptr->data_segment.offset = offset;
-            viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
+            viewport_ptr->data_segment.capacity = -1 * capacity;  // Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
             omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_EDIT, nullptr);
         }

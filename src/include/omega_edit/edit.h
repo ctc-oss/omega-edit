@@ -193,4 +193,4 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 }
 #endif
 
-#endif//OMEGA_EDIT_EDIT_H
+#endif  //OMEGA_EDIT_EDIT_H

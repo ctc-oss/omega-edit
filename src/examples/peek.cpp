@@ -64,7 +64,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
                     case display_mode_t::CHAR_MODE:
                         clog << omega_viewport_get_string(viewport_ptr);
                         break;
-                    default:// flow through
+                    default:  // flow through
                     case display_mode_t::BYTE_MODE:
                         write_pretty_bytes(omega_viewport_get_data(viewport_ptr),
                                            omega_viewport_get_length(viewport_ptr));

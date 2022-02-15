@@ -22,11 +22,11 @@
 enum class change_kind_t { CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE };
 
 struct omega_change_struct {
-    int64_t serial{};    ///< Serial number of the change (increasing)
-    change_kind_t kind{};///< Change kind
-    int64_t offset{};    ///< Offset at the time of the change
-    int64_t length{};    ///< Number of bytes at the time of the change
-    omega_data_t data{}; ///< Bytes to insert or overwrite
+    int64_t serial{};      ///< Serial number of the change (increasing)
+    change_kind_t kind{};  ///< Change kind
+    int64_t offset{};      ///< Offset at the time of the change
+    int64_t length{};      ///< Number of bytes at the time of the change
+    omega_data_t data{};   ///< Bytes to insert or overwrite
 };
 
-#endif//OMEGA_EDIT_CHANGE_DEF_HPP
+#endif  //OMEGA_EDIT_CHANGE_DEF_HPP
