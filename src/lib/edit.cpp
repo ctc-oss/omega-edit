@@ -52,7 +52,7 @@ static void initialize_model_segments_(omega_model_segments_t &model_segments, i
     }
 }
 
-static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
+static inline const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_DELETE;
@@ -62,7 +62,7 @@ static const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t len
     return change_ptr;
 }
 
-static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
+static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
@@ -80,7 +80,7 @@ static const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega
     return change_ptr;
 }
 
-static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
+static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
@@ -98,24 +98,41 @@ static const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega
     return change_ptr;
 }
 
+static inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
+                                                      const omega_change_t *change_ptr) {
+    assert(0 < change_ptr->length);
+    // If the viewport is floating and a change happens before or at the start of the given viewport...
+    if (omega_viewport_is_floating(viewport_ptr) && change_ptr->offset <= omega_viewport_get_offset(viewport_ptr)) {
+        // ...and the change is a delete, or insert, update the offset adjustment accordingly
+        if (change_kind_t::CHANGE_DELETE == change_ptr->kind) {
+            viewport_ptr->data_segment.offset_adjustment -= change_ptr->length;
+        } else if (change_kind_t::CHANGE_INSERT == change_ptr->kind) {
+            viewport_ptr->data_segment.offset_adjustment += change_ptr->length;
+        }
+    }
+}
+
 static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
+    assert(0 < change_ptr->length);
     switch (change_ptr->kind) {
         case change_kind_t::CHANGE_DELETE:// deliberate fall-through
         case change_kind_t::CHANGE_INSERT:
             // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
             return (change_ptr->offset <=
-                    (viewport_ptr->data_segment.offset + omega_viewport_get_capacity(viewport_ptr)));
+                    (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
         case change_kind_t::CHANGE_OVERWRITE:
-            return ((change_ptr->offset + change_ptr->length) >= viewport_ptr->data_segment.offset) &&
+            // OVERWRITE changes that happen inside the viewport affect the viewport
+            return ((change_ptr->offset + change_ptr->length) >= omega_viewport_get_offset(viewport_ptr)) &&
                    (change_ptr->offset <=
-                    (viewport_ptr->data_segment.offset + omega_viewport_get_capacity(viewport_ptr)));
+                    (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
         default:
             ABORT(LOG_ERROR("Unhandled change kind"););
     }
 }
 
-static int update_viewports_(omega_session_t *session_ptr, const omega_change_t *change_ptr) {
+static int update_viewports_(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (auto &&viewport_ptr : session_ptr->viewports_) {
+        update_viewport_offset_adjustment_(viewport_ptr.get(), change_ptr);
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
@@ -126,7 +143,7 @@ static int update_viewports_(omega_session_t *session_ptr, const omega_change_t 
     return 0;
 }
 
-static omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_ptr_t &segment_ptr) {
+static inline omega_model_segment_ptr_t clone_model_segment_(const omega_model_segment_ptr_t &segment_ptr) {
     auto result = std::make_unique<omega_model_segment_t>();
     result->computed_offset = segment_ptr->computed_offset;
     result->computed_length = segment_ptr->computed_length;

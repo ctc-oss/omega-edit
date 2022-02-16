@@ -828,3 +828,21 @@ TEST_CASE("File Viewing", "[InitTests]") {
     omega_edit_destroy_session(session_ptr);
     remove(file_name);
 }
+
+TEST_CASE("Viewports", "[ViewportTests]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr);
+    omega_edit_insert_string(session_ptr, 0,"123456789");
+    const auto viewport_fixed_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 0);
+    const auto viewport_floating_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 1);
+    REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
+    REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
+    omega_edit_delete(session_ptr, 0, 2);
+    REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "789");
+    REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
+    omega_edit_insert_string(session_ptr, 0, "12");
+    REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
+    REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
+    omega_edit_destroy_viewport(viewport_fixed_ptr);
+    omega_edit_destroy_viewport(viewport_floating_ptr);
+    omega_edit_destroy_session(session_ptr);
+}
