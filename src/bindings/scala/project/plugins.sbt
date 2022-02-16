@@ -14,5 +14,5 @@
 addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
 addSbtPlugin("com.mariussoutier.sbt" % "sbt-unpack" % "0.9.5")
-//addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.17")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.1.17")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.0")

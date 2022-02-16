@@ -16,19 +16,19 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with OmegaTestSupport {
       v.data() shouldBe "b"
     })
 
-    "move" in session("abc")(view(1, 1, _) { (s, v) =>
+    "move" in session("abc")(view(1, 1, _) { (_, v) =>
       v.data() shouldBe "b"
       v.move(0)
       v.data() shouldBe "a"
     })
 
-    "resize" in session("abc")(view(0, 1, _) { (s, v) =>
+    "resize" in session("abc")(view(0, 1, _) { (_, v) =>
       v.data() shouldBe "a"
       v.resize(2)
       v.data() shouldBe "ab"
     })
 
-    "move and resize" in session("abc")(view(0, 1, _) { (s, v) =>
+    "move and resize" in session("abc")(view(0, 1, _) { (_, v) =>
       v.data() shouldBe "a"
       v.update(1, 2)
       v.data() shouldBe "bc"
