@@ -304,8 +304,8 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPv">
-<span id="_CPPv326omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPv"></span><span id="_CPPv226omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPv"></span><span id="omega_edit_create_viewport__omega_session_tP.int64_t.int64_t.omega_viewport_event_cbk_t.voidP"></span><span class="target" id="edit_8h_1a2698a2fcd01443c6cc0717775910995d"></span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_create_viewport</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span>, <a class="reference internal" href="#_CPPv426omega_viewport_event_cbk_t" title="omega_viewport_event_cbk_t"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">cbk</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPv" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPvi">
+<span id="_CPPv326omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPvi"></span><span id="_CPPv226omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPvi"></span><span id="omega_edit_create_viewport__omega_session_tP.int64_t.int64_t.omega_viewport_event_cbk_t.voidP.i"></span><span class="target" id="edit_8h_1aa7f1c2c2233feb400046c5b7cdc30540"></span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_create_viewport</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span>, <a class="reference internal" href="#_CPPv426omega_viewport_event_cbk_t" title="omega_viewport_event_cbk_t"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">cbk</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data_ptr</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">is_floating</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_t26omega_viewport_event_cbk_tPvi" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Create a new viewport for the given author, returns a pointer to the new viewport </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -315,6 +315,7 @@
 <li><p><strong>capacity</strong> – desired capacity of the new viewport </p></li>
 <li><p><strong>cbk</strong> – user-defined callback function called whenever the viewport gets updated </p></li>
 <li><p><strong>user_data_ptr</strong> – pointer to user-defined data to associate with this new viewport </p></li>
+<li><p><strong>is_floating</strong> – 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to “float” as bytes are inserted or deleted before the start of this viewport </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -695,6 +696,11 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME">
 <span id="_CPPv3N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span id="_CPPv2N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40ac4fa315ef659ee3b826172dc238dc811"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_TRANSFORM</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_UPDATEDE">
+<span id="_CPPv3N22omega_viewport_event_t20VIEWPORT_EVT_UPDATEDE"></span><span id="_CPPv2N22omega_viewport_event_t20VIEWPORT_EVT_UPDATEDE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40afdfebb9f8200f62ec98219076fb6f3bf"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_UPDATED</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_UPDATEDE" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1482,6 +1488,20 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv426omega_viewport_is_floatingPK16omega_viewport_t">
+<span id="_CPPv326omega_viewport_is_floatingPK16omega_viewport_t"></span><span id="_CPPv226omega_viewport_is_floatingPK16omega_viewport_t"></span><span id="omega_viewport_is_floating__omega_viewport_tCP"></span><span class="target" id="viewport_8h_1a0457c7fe08bc1de28f9e86ca69f06e2b"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_is_floating</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">viewport_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_viewport_is_floatingPK16omega_viewport_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Given a viewport, return non-zero if the viewport is floating and zero if the viewport is fixed </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>viewport_ptr</strong> – viewport to determine if its floating or not </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if the viewport is floating and zero if the viewport is fixed </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv432omega_viewport_get_user_data_ptrPK16omega_viewport_t">
 <span id="_CPPv332omega_viewport_get_user_data_ptrPK16omega_viewport_t"></span><span id="_CPPv232omega_viewport_get_user_data_ptrPK16omega_viewport_t"></span><span id="omega_viewport_get_user_data_ptr__omega_viewport_tCP"></span><span class="target" id="viewport_8h_1aefa12512327186d608a78c6707f8281c"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_get_user_data_ptr</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">viewport_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv432omega_viewport_get_user_data_ptrPK16omega_viewport_t" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Given a viewport, return the viewport user data </p>
@@ -1496,8 +1516,8 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv421omega_viewport_updateP16omega_viewport_t7int64_t7int64_t">
-<span id="_CPPv321omega_viewport_updateP16omega_viewport_t7int64_t7int64_t"></span><span id="_CPPv221omega_viewport_updateP16omega_viewport_t7int64_t7int64_t"></span><span id="omega_viewport_update__omega_viewport_tP.int64_t.int64_t"></span><span class="target" id="viewport_8h_1a49f1088d7c44cc90b46e17af0812f45e"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_update</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">viewport_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv421omega_viewport_updateP16omega_viewport_t7int64_t7int64_t" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv421omega_viewport_updateP16omega_viewport_t7int64_t7int64_ti">
+<span id="_CPPv321omega_viewport_updateP16omega_viewport_t7int64_t7int64_ti"></span><span id="_CPPv221omega_viewport_updateP16omega_viewport_t7int64_t7int64_ti"></span><span id="omega_viewport_update__omega_viewport_tP.int64_t.int64_t.i"></span><span class="target" id="viewport_8h_1a5316485afa0ebea6a1ba65c4d7921a8e"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_update</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">viewport_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">capacity</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">is_floating</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv421omega_viewport_updateP16omega_viewport_t7int64_t7int64_ti" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Change viewport settings </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1505,6 +1525,7 @@
 <li><p><strong>viewport_ptr</strong> – viewport to change settings on </p></li>
 <li><p><strong>offset</strong> – offset for the viewport </p></li>
 <li><p><strong>capacity</strong> – capacity of the viewport </p></li>
+<li><p><strong>is_floating</strong> – 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to “float” as bytes are inserted or deleted before the start of this viewport </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
