@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
     view_mode.display_mode = char_to_display_mode(argv[1][0]);
     auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr);
     if (session_ptr) {
-        omega_edit_create_viewport(session_ptr, offset, length, vpt_change_cbk, &view_mode);
+        omega_edit_create_viewport(session_ptr, offset, length, vpt_change_cbk, &view_mode, 0);
         omega_edit_destroy_session(session_ptr);
     } else {
         cerr << "failed to create session, probably because the offset and/or length are out of range for the given "

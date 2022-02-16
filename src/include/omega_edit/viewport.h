@@ -68,6 +68,13 @@ int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr);
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr);
 
 /**
+ * Given a viewport, return non-zero if the viewport is floating and zero if the viewport is fixed
+ * @param viewport_ptr viewport to determine if its floating or not
+ * @return non-zero if the viewport is floating and zero if the viewport is fixed
+ */
+int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr);
+
+/**
  * Given a viewport, return the viewport user data
  * @param viewport_ptr viewport to get the user data from
  * @return viewport user data
@@ -79,9 +86,11 @@ void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr);
  * @param viewport_ptr viewport to change settings on
  * @param offset offset for the viewport
  * @param capacity capacity of the viewport
+ * @param is_floating 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to
+ * "float" as bytes are inserted or deleted before the start of this viewport
  * @return 0 on success, non-zero otherwise
  */
-int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity);
+int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating);
 
 /**
  * Execute the viewport on-change callback with the given change if a viewport on-change callback is defined and if the

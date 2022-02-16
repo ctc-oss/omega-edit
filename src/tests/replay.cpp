@@ -28,7 +28,8 @@ using namespace std;
 
 using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
 
-void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr) {
+void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                        const omega_change_t *change_ptr) {
     switch (session_event) {
         case SESSION_EVT_CREATE:
         case SESSION_EVT_EDIT: {

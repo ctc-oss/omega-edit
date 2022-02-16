@@ -15,10 +15,10 @@
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
 #include <condition_variable>
+#include <csignal>
 #include <grpcpp/grpcpp.h>
 #include <sstream>
 #include <thread>
-#include <csignal>
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -427,7 +427,7 @@ public:
         }
     }
 
-    std::string CreateViewport(const std::string &session_id, int64_t offset, int64_t capacity,
+    std::string CreateViewport(const std::string &session_id, int64_t offset, int64_t capacity, bool is_floating,
                                const std::string *viewport_id_desired = nullptr) {
         assert(!session_id.empty());
         CreateViewportRequest request;
@@ -437,6 +437,7 @@ public:
         request.mutable_session_id()->set_id(session_id);
         request.set_offset(offset);
         request.set_capacity(capacity);
+        request.set_is_floating(is_floating);
         if (viewport_id_desired) { request.set_viewport_id_desired(*viewport_id_desired); }
 
         std::mutex mu;
@@ -589,7 +590,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << std::endl;);
 
         const std::string viewport_id = session_id + "~viewport-1";
-        reply = server_test_client.CreateViewport(session_id, 0, 100, &viewport_id);
+        reply = server_test_client.CreateViewport(session_id, 0, 100, false, &viewport_id);
         assert(viewport_id == reply);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
@@ -687,7 +688,6 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << std::endl;);
         }
     }
-
 }
 
 int main(int argc, char **argv) {
@@ -727,6 +727,7 @@ int main(int argc, char **argv) {
             exit(1);
         }
         std::cout << "Ωedit server pid: " << pid << std::endl;
+        sleep(2);// sleep 2 seconds for the server to come online
     }
     run_tests(target_str, 5000, false);
     if (pid) { kill(pid, SIGTERM); }

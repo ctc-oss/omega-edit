@@ -314,6 +314,8 @@ static inline ViewportEventKind omega_viewport_event_to_rpc_event(omega_viewport
             return ViewportEventKind::VIEWPORT_EVT_CLEAR;
         case VIEWPORT_EVT_TRANSFORM:
             return ViewportEventKind::VIEWPORT_EVT_TRANSFORM;
+        case VIEWPORT_EVT_UPDATED:
+            return ViewportEventKind::VIEWPORT_EVT_UPDATED;
         default:
             assert(0);
     }
@@ -353,12 +355,10 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
             const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
             viewport_change_ptr->mutable_viewport_id()->set_id(viewport_id);
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
-            if (change_ptr) {
-                auto data = omega_viewport_get_string(viewport_ptr);
-                viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr));
-                viewport_change_ptr->set_length((int64_t) data.length());
-                viewport_change_ptr->set_data(std::move(data));
-            }
+            if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
+            auto data = omega_viewport_get_string(viewport_ptr);
+            viewport_change_ptr->set_length((int64_t) data.length());
+            viewport_change_ptr->set_data(std::move(data));
             viewport_event_writer_ptr->Push(viewport_change_ptr);
         }
     }
@@ -607,7 +607,7 @@ public:
         {
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
             viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, viewport_event_callback,
-                                                      &session_manager_);
+                                                      &session_manager_, request->is_floating() ? 1 : 0);
         }
         assert(viewport_ptr);
         const auto viewport_id = session_manager_.add_viewport(
