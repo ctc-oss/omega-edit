@@ -831,9 +831,13 @@ TEST_CASE("File Viewing", "[InitTests]") {
 
 TEST_CASE("Viewports", "[ViewportTests]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr);
-    omega_edit_insert_string(session_ptr, 0,"123456789");
+    REQUIRE(session_ptr);
+    omega_edit_insert_string(session_ptr, 0, "123456789");
     const auto viewport_fixed_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 0);
+    REQUIRE(viewport_fixed_ptr);
     const auto viewport_floating_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 1);
+    REQUIRE(viewport_floating_ptr);
+    REQUIRE(2 == omega_session_get_num_viewports(session_ptr));
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
     REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
     omega_edit_delete(session_ptr, 0, 2);
@@ -843,6 +847,8 @@ TEST_CASE("Viewports", "[ViewportTests]") {
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
     REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
     omega_edit_destroy_viewport(viewport_fixed_ptr);
+    REQUIRE(1 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_viewport(viewport_floating_ptr);
+    REQUIRE(0 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_session(session_ptr);
 }

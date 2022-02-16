@@ -199,7 +199,7 @@ public:
                        : new SessionEventWriter(context, session_id, session_event_subscriptions_);
     }
 
-    SessionEventWriter *get_session_subscription(const std::string &session_id) {
+    inline SessionEventWriter *get_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
@@ -216,6 +216,7 @@ public:
         assert(id_to_viewport_.find(viewport_id) == id_to_viewport_.end());
         viewport_to_id_[viewport_ptr] = viewport_id;
         id_to_viewport_[viewport_id] = viewport_ptr;
+        assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
         return viewport_id;
     }
 
@@ -239,6 +240,7 @@ public:
             id_to_viewport_.erase(id_to_viewport_iter);
             destroy_viewport_subscription(viewport_id);
             omega_edit_destroy_viewport(viewport_ptr);
+            assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
         }
     }
 
@@ -258,7 +260,8 @@ public:
         return viewport_ptr;
     }
 
-    ViewportEventWriter *create_viewport_subscription(CallbackServerContext *context, const std::string &viewport_id) {
+    inline ViewportEventWriter *create_viewport_subscription(CallbackServerContext *context,
+                                                             const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
@@ -266,7 +269,7 @@ public:
                        : new ViewportEventWriter(context, viewport_id, viewport_event_subscriptions_);
     }
 
-    ViewportEventWriter *get_viewport_subscription(const std::string &viewport_id) {
+    inline ViewportEventWriter *get_viewport_subscription(const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
