@@ -324,11 +324,13 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
 }
 
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr) {
+                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr, int is_floating) {
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
         viewport_ptr->data_segment.offset = offset;
+        viewport_ptr->data_segment.offset_adjustment = 0;
+        viewport_ptr->data_segment.is_floating = (bool) is_floating;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
         viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;

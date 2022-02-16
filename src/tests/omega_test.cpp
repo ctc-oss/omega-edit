@@ -702,7 +702,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 < omega_session_get_computed_file_size(session_ptr));
     view_mode_t view_mode;
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    omega_edit_create_viewport(session_ptr, 0, 1024, vpt_change_cbk, &view_mode);
+    omega_edit_create_viewport(session_ptr, 0, 1024, vpt_change_cbk, &view_mode, 0);
     int needles_found = 0;
     auto needle = "NeEdLe";
     auto needle_length = strlen(needle);
@@ -803,17 +803,17 @@ TEST_CASE("File Viewing", "[InitTests]") {
     auto viewport_count = omega_session_get_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode);
+    viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode, 0);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
-        REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40)));
+        REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40), 0));
     }
 
     // Change the display mode from character mode to bit mode
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20));
+    REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20, 0));
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));

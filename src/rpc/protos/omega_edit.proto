@@ -77,7 +77,8 @@ message CreateViewportRequest {
   ObjectId session_id = 1;
   int64 capacity = 2;
   int64 offset = 3;
-  optional string viewport_id_desired = 4;
+  bool is_floating = 4;
+  optional string viewport_id_desired = 5;
 }
 
 message CreateViewportResponse {
@@ -138,6 +139,7 @@ enum ViewportEventKind {
   VIEWPORT_EVT_UNDO = 4;
   VIEWPORT_EVT_CLEAR = 8;
   VIEWPORT_EVT_TRANSFORM = 16;
+  VIEWPORT_EVT_UPDATED = 32;
 }
 
 message ViewportEvent {

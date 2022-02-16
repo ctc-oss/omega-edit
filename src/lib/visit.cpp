@@ -78,7 +78,7 @@ int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr) {
         }
         *change_context_ptr->change_iter.riter_ptr = change_context_ptr->session_ptr->models_.back()->changes.rbegin();
         change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.rend());
     } else {
         if (!change_context_ptr->change_iter.iter_ptr) {
             change_context_ptr->change_iter.iter_ptr = new omega_changes_t::const_iterator;
@@ -86,7 +86,7 @@ int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr) {
         }
         *change_context_ptr->change_iter.iter_ptr = change_context_ptr->session_ptr->models_.back()->changes.cbegin();
         change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.cend());
     }
     return omega_visit_change_at_end(change_context_ptr);
 }
@@ -100,12 +100,12 @@ int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr) {
         assert(change_context_ptr->change_iter.riter_ptr);
         ++*change_context_ptr->change_iter.riter_ptr;
         change_context_ptr->at_end = (*change_context_ptr->change_iter.riter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.rend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.rend());
     } else {
         assert(change_context_ptr->change_iter.iter_ptr);
         ++*change_context_ptr->change_iter.iter_ptr;
         change_context_ptr->at_end = (*change_context_ptr->change_iter.iter_ptr ==
-                                        change_context_ptr->session_ptr->models_.back()->changes.cend());
+                                      change_context_ptr->session_ptr->models_.back()->changes.cend());
     }
     return omega_visit_change_at_end(change_context_ptr);
 }

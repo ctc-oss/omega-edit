@@ -127,7 +127,9 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED, const omega_change_t *change_ptr = nullptr) {
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
+                    omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED,
+                    const omega_change_t *change_ptr = nullptr) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
@@ -185,7 +187,7 @@ int main(int /*argc*/, char ** /*argv*/) {
             omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info),
             omega_edit_destroy_session);
     clog << "File Size: " << omega_session_get_computed_file_size(session_ptr.get()) << endl;
-    auto viewport1_ptr = omega_edit_create_viewport(session_ptr.get(), 0, 100, vpt_change_cbk, &view_mode);
+    auto viewport1_ptr = omega_edit_create_viewport(session_ptr.get(), 0, 100, vpt_change_cbk, &view_mode, 0);
     omega_edit_delete(session_ptr.get(), 0, omega_session_get_computed_file_size(session_ptr.get()));
     assert(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr.get())));
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
@@ -194,7 +196,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_overwrite_string(session_ptr.get(), 5, "-");
     omega_edit_insert_string(session_ptr.get(), 0, "++++");
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
-    auto viewport2_ptr = omega_edit_create_viewport(session_ptr.get(), 50, 10, vpt_change_cbk, &view_mode);
+    auto viewport2_ptr = omega_edit_create_viewport(session_ptr.get(), 50, 10, vpt_change_cbk, &view_mode, 0);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_edit_insert(session_ptr.get(), 71, "++++", 4);
     omega_edit_overwrite(session_ptr.get(), 10, ".", 0);

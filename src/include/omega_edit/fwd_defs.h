@@ -43,7 +43,8 @@ typedef enum {
     VIEWPORT_EVT_EDIT = 2,
     VIEWPORT_EVT_UNDO = 4,
     VIEWPORT_EVT_CLEAR = 8,
-    VIEWPORT_EVT_TRANSFORM = 16
+    VIEWPORT_EVT_TRANSFORM = 16,
+    VIEWPORT_EVT_UPDATED = 32
 } omega_viewport_event_t;
 
 typedef struct omega_session_struct omega_session_t;

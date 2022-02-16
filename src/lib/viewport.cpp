@@ -48,7 +48,7 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
 
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return viewport_ptr->data_segment.offset;
+    return viewport_ptr->data_segment.offset + viewport_ptr->data_segment.offset_adjustment;
 }
 
 void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
@@ -56,16 +56,24 @@ void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->user_data_ptr;
 }
 
-int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity) {
+int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
+}
+
+int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
     assert(viewport_ptr);
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
-        if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity) {
+        if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity ||
+            viewport_ptr->data_segment.is_floating != (bool) is_floating) {
             if (7 < omega_viewport_get_capacity(viewport_ptr)) { delete[] viewport_ptr->data_segment.data.bytes_ptr; }
             viewport_ptr->data_segment.offset = offset;
+            viewport_ptr->data_segment.is_floating = is_floating;
+            viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
-            omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_EDIT, nullptr);
+            omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UPDATED, nullptr);
         }
         return 0;
     }
