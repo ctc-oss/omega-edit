@@ -1118,10 +1118,38 @@
 <dd><p>Check if the given file name exists </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>file_name</strong> – file name to check existence for </p>
+<dd class="field-odd"><p><strong>file_name</strong> – file name to check existence of </p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>zero if the file does not exist, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv427omega_util_directory_existsPKc">
+<span id="_CPPv327omega_util_directory_existsPKc"></span><span id="_CPPv227omega_util_directory_existsPKc"></span><span id="omega_util_directory_exists__cCP"></span><span class="target" id="utility_8h_1a4232a735a1fa4bbe38b484d89b61db8b"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_directory_exists</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_util_directory_existsPKc" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Check if the given directory exists </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> – directory to check for the existence of </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if the directory exists and zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv427omega_util_create_directoryPKc">
+<span id="_CPPv327omega_util_create_directoryPKc"></span><span id="_CPPv227omega_util_create_directoryPKc"></span><span id="omega_util_create_directory__cCP"></span><span class="target" id="utility_8h_1aa53cc8250625412198d5afc58677bd5c"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_create_directory</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_util_create_directoryPKc" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Create the given directory </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>path</strong> – directory to create </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>zero if the path was created successfully and non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1155,15 +1183,15 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv419omega_util_basenamePKcPKcPc">
-<span id="_CPPv319omega_util_basenamePKcPKcPc"></span><span id="_CPPv219omega_util_basenamePKcPKcPc"></span><span id="omega_util_basename__cCP.cCP.cP"></span><span class="target" id="utility_8h_1a181cc7785bd64ff99908eec915c9daec"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_basename</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">suffix</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_util_basenamePKcPKcPc" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv419omega_util_basenamePKcPci">
+<span id="_CPPv319omega_util_basenamePKcPci"></span><span id="_CPPv219omega_util_basenamePKcPci"></span><span id="omega_util_basename__cCP.cP.i"></span><span class="target" id="utility_8h_1a33ede8f95adf5ec59cfc63713419473d"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_basename</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">drop_suffix</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_util_basenamePKcPci" title="Permalink to this definition"></a><br /></dt>
 <dd><p>Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>path</strong> – file path </p></li>
-<li><p><strong>suffix</strong> – optional file suffix that if it matches the basename suffix, it is removed from the result </p></li>
 <li><p><strong>buffer</strong> – pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </p></li>
+<li><p><strong>drop_suffix</strong> – if non-zero, remove the suffix (file extension) from the path basename </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1192,16 +1220,16 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv425omega_util_normalize_pathPKcPc">
 <span id="_CPPv325omega_util_normalize_pathPKcPc"></span><span id="_CPPv225omega_util_normalize_pathPKcPc"></span><span id="omega_util_normalize_path__cCP.cP"></span><span class="target" id="utility_8h_1aae175c42643d6f82f6296f32440e5f15"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_normalize_path</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">path</span></span>, <span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">buffer</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv425omega_util_normalize_pathPKcPc" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Creates a normalized version of the given path. The following will be true for the normalized path: ”../” will be resolved. ”./” will be removed. double separators will be fixed with a single separator. separator suffixes will be removed. </p>
+<dd><p>Given a path, which must exist, returns an absolute path that has no symbolic link, dot, or dot-dot elements </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>path</strong> – path to normalize </p></li>
-<li><p><strong>buffer</strong> – </p></li>
+<li><p><strong>path</strong> – path to get the absolute path of </p></li>
+<li><p><strong>buffer</strong> – pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
-<dd class="field-even"><p>normalized path </p>
+<dd class="field-even"><p>absolute path that has no symbolic link, dot, or dot-dot elements </p>
 </dd>
 </dl>
 </dd></dl>
