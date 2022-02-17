@@ -29,7 +29,7 @@ lazy val omega_edit = project
   .in(file("."))
   .settings(commonSettings)
   .settings(publish / skip := true)
-  .aggregate(api)
+  .aggregate(api, native)
 
 lazy val api = project
   .in(file("api"))
@@ -38,6 +38,7 @@ lazy val api = project
     name := "omega-edit-api",
     libraryDependencies ++= {
       Seq(
+        "com.ctc" %% s"omega-edit-native-$arch" % version.value,
         "com.github.jnr" % "jnr-ffi" % "2.2.11",
         "org.scijava" % "native-lib-loader" % "2.4.0",
         "org.scalatest" %% "scalatest" % "3.2.11" % Test
@@ -47,4 +48,33 @@ lazy val api = project
     Test / scalacOptions -= "-Ywarn-value-discard",
     Test / javaOptions += s"-Djava.library.path=${baseDirectory.map(_ / "../../../../lib").value}"
   )
-  .enablePlugins(UnpackPlugin, GitVersioning)
+  .enablePlugins(GitVersioning)
+
+lazy val native = project
+  .in(file("native"))
+  .settings(commonSettings)
+  .settings(
+    name := s"omega-edit-native-$arch",
+    Compile / packageBin / mappings += {
+      baseDirectory.map(_ / s"../../../../lib/${mapping._1}").value -> mapping._2
+    }
+  )
+
+lazy val arch = {
+  val os = System.getProperty("os.name").toLowerCase
+  val amd = """amd(\d+)""".r
+  val arch = System.getProperty("os.arch").toLowerCase match {
+    case amd(bits) => bits
+    case _         => "unknown"
+  }
+  s"$os-$arch"
+}
+
+def pair(name: String): (String, String) = name -> s"${arch.replace("-", "_")}/$name"
+lazy val mapping = {
+  System.getProperty("os.name").toLowerCase match {
+    case "linux"   => pair("libomega_edit.so")
+    case "mac"     => pair("libomega_edit.dyn")
+    case "windows" => pair("libomega_edit.dll")
+  }
+}

@@ -18,11 +18,15 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.{Omega, Session, SessionCallback, Version, ViewportCallback}
 import jnr.ffi.{LibraryLoader, Pointer}
+import org.scijava.nativelib.NativeLoader
 
 import java.nio.file.Path
 
 object lib {
-  val omega: Omega = LibraryLoader.create(classOf[OmegaFFI]).failImmediately().load("omega_edit")
+  val omega: Omega = {
+    NativeLoader.loadLibrary("omega_edit")
+    LibraryLoader.create(classOf[OmegaFFI]).failImmediately().load("omega_edit")
+  }
 }
 
 private trait OmegaFFI extends Omega {
