@@ -79,8 +79,8 @@ def pair(name: String): (String, String) = name -> s"${arch._id}/$name"
 lazy val mapping = {
   System.getProperty("os.name").toLowerCase match {
     case "linux"   => pair("libomega_edit.so")
-    case "mac"     => pair("libomega_edit.dyn")
-    case "windows" => pair("libomega_edit.dll")
+    case "mac"     => pair("libomega_edit.dylib")
+    case "windows" => pair("omega_edit.dll")
   }
 }
 
