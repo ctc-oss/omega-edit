@@ -39,7 +39,7 @@ lazy val api = project
   .dependsOn(native)
   .settings(commonSettings)
   .settings(
-    name := "omega-edit-api",
+    name := "omega-edit",
     libraryDependencies ++= {
       Seq(
         "com.ctc" %% "omega-edit-native" % version.value % "runtime" classifier arch.id,
