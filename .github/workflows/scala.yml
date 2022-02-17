@@ -33,6 +33,9 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
       - name: Build Omega Edit
         run: |
           mkdir build && cd build
