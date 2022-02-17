@@ -52,7 +52,6 @@ lazy val api = project
     Test / javaOptions += s"-Djava.library.path=${baseDirectory.map(_ / libdir).value}",
     scalacOptions ~= adjustScalacOptionsForScalatest
   )
-  .enablePlugins(GitVersioning)
 
 lazy val native = project
   .in(file("native"))

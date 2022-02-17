@@ -43,6 +43,11 @@ jobs:
           cmake --build . --target omega_edit_so
           mv lib/* ../lib
 
+      - name: Check Scala headers
+        if: "${{ matrix.os }} == ubuntu-20.04"
+        run: sbt headerCheckAll
+        working-directory: src/bindings/scala
+
       - name: Package Scala API and Linux so
         if: "${{ matrix.os }} == ubuntu-20.04"
         run: sbt +test +publishLocal
