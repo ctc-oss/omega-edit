@@ -1,7 +1,7 @@
-Omega Edit Scala API
+Ωedit Scala API
 ===
 
-Scala interface to the Omega Edit byte editor.
+Scala interface to the Ωedit library editor.
 
 ## design
 

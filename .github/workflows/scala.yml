@@ -42,7 +42,7 @@ jobs:
 
       - name: Build Omega Edit
         run: |
-          mkdir build && cd build
+          mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
           cmake --build . --target omega_edit_so
           mv lib/* ../lib
