@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/utility.h"
-#include "macros.h"
+#include "impl_/macros.h"
+#include "omega_edit/utility.h"
 #include <assert.h>
 #include <boost/filesystem.hpp>
 

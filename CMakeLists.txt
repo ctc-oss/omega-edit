@@ -73,7 +73,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         src/include/omega_edit/license.h src/lib/license.c
         src/include/omega_edit/utility.h src/lib/utility.c
         src/include/omega_edit/encodings.h src/lib/encodings.c
-        src/lib/impl_/filesystem.cpp
+        src/lib/filesystem.cpp
         src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
         src/lib/impl_/find.h src/lib/impl_/find.cpp
         src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
