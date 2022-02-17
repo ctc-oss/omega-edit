@@ -16,7 +16,7 @@
 
 package com.ctc.omega_edit.api
 
-import com.ctc.omega_edit.{lib, OmegaFFI, SessionImpl}
+import com.ctc.omega_edit.{OmegaFFI, SessionImpl}
 import jnr.ffi.Pointer
 import jnr.ffi.annotations.Delegate
 
@@ -24,7 +24,7 @@ import scala.annotation.nowarn
 
 trait SessionCallback {
   @Delegate def invoke(p: Pointer, @nowarn e: Pointer, @nowarn c: Pointer): Unit =
-    handle(new SessionImpl(p, lib.omega.asInstanceOf[OmegaFFI]))
+    handle(new SessionImpl(p, OmegaFFI.i))
 
   def handle(v: Session): Unit
 }

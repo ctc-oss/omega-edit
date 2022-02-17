@@ -16,10 +16,28 @@
 
 package com.ctc.omega_edit.api
 
+import com.ctc.omega_edit.OmegaFFI.i
+import com.ctc.omega_edit.SessionImpl
+
 import java.nio.file.Path
 
-trait Omega {
+trait OmegaEdit {
   def version(): Version
   def newSession(path: Option[Path]): Session
   def newSessionCb(path: Option[Path], cb: SessionCallback): Session
+}
+
+object OmegaEdit extends OmegaEdit {
+  def newSession(path: Option[Path]): Session = new SessionImpl(
+    i.omega_edit_create_session(path.map(_.toString).orNull, null, null),
+    i
+  )
+
+  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = new SessionImpl(
+    i.omega_edit_create_session(path.map(_.toString).orNull, cb, null),
+    i
+  )
+
+  def version(): Version =
+    Version(i.omega_version_major(), i.omega_version_minor(), i.omega_version_patch())
 }

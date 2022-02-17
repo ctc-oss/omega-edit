@@ -1,11 +1,13 @@
 package com.ctc.omega_edit
 
+import com.ctc.omega_edit.api.OmegaEdit
+
 trait SessionSupport {
   def emptySession(test: api.Session => Unit): Unit =
-    test(lib.omega.newSession(None))
+    test(OmegaEdit.newSession(None))
 
   def session(bytes: Array[Byte])(test: api.Session => Unit): Unit = {
-    val s = lib.omega.newSession(None)
+    val s = OmegaEdit.newSession(None)
     s.push(bytes)
     test(s)
   }

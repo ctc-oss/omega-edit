@@ -16,20 +16,11 @@
 
 package com.ctc.omega_edit
 
-import com.ctc.omega_edit.api.{Omega, Session, SessionCallback, Version, ViewportCallback}
+import com.ctc.omega_edit.api._
 import jnr.ffi.{LibraryLoader, Pointer}
 import org.scijava.nativelib.NativeLoader
 
-import java.nio.file.Path
-
-object lib {
-  val omega: Omega = {
-    NativeLoader.loadLibrary("omega_edit")
-    LibraryLoader.create(classOf[OmegaFFI]).failImmediately().load("omega_edit")
-  }
-}
-
-private trait OmegaFFI extends Omega {
+private[omega_edit] trait OmegaFFI extends OmegaEdit {
   def omega_version_major(): Int
   def omega_version_minor(): Int
   def omega_version_patch(): Int
@@ -55,16 +46,16 @@ private trait OmegaFFI extends Omega {
   def omega_change_get_bytes(p: Pointer): String
   def omega_change_get_kind_as_char(p: Pointer): String
   def omega_session_get_change(p: Pointer, serial: Long): Pointer
+}
 
-  def newSession(path: Option[Path]): Session = new SessionImpl(
-    omega_edit_create_session(path.map(_.toString).orNull, null, null),
-    this
-  )
-
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = new SessionImpl(
-    omega_edit_create_session(path.map(_.toString).orNull, cb, null),
-    this
-  )
-
-  def version(): Version = Version(omega_version_major(), omega_version_minor(), omega_version_patch())
+object OmegaFFI {
+  private val nativeLibraryName = "omega_edit"
+  private[omega_edit] val i: OmegaFFI =
+    try {
+      NativeLoader.loadLibrary(nativeLibraryName)
+      LibraryLoader.create(classOf[OmegaFFI]).failImmediately().load(nativeLibraryName)
+    } catch {
+      case e: Exception =>
+        throw new RuntimeException("Failed to load Omega Edit native library", e)
+    }
 }
