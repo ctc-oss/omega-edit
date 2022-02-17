@@ -436,26 +436,30 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
     omega_util_dirname(file_path, temp_filename);
+    if (!omega_util_directory_exists(temp_filename) && !omega_util_create_directory(temp_filename)) {
+        LOG_ERROR("failed to create directory: " << omega_util_normalize_path(temp_filename, nullptr));
+        return -1;
+    }
     const auto temp_filename_str = std::string(temp_filename);
     auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
                                              : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
                                                         temp_filename_str.c_str(), omega_util_directory_separator());
     if (count < 0 || FILENAME_MAX <= count) {
         LOG_ERROR("snprintf failed");
-        return -1;
+        return -2;
     }
     errno = 0;// reset errno
     auto temp_fd = omega_util_mkstemp(temp_filename);
     if (temp_fd < 0) {
         LOG_ERROR("mkstemp failed: " << strerror(errno) << ", temp filename: " << temp_filename);
-        return -1;
+        return -3;
     }
     auto temp_fptr = fdopen(temp_fd, "wb");
     if (!temp_fptr) {
         LOG_ERROR("fdopen failed: " << strerror(errno));
         close(temp_fd);
         unlink(temp_filename);
-        return -1;
+        return -4;
     }
     int64_t write_offset = 0;
     for (const auto &segment : session_ptr->models_.back()->model_segments) {
@@ -473,7 +477,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
                     fclose(temp_fptr);
                     unlink(temp_filename);
                     LOG_ERROR("omega_util_write_segment_to_file failed");
-                    return -1;
+                    return -5;
                 }
                 break;
             }
@@ -484,7 +488,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
                     fclose(temp_fptr);
                     unlink(temp_filename);
                     LOG_ERROR("fwrite failed");
-                    return -1;
+                    return -6;
                 }
                 break;
             }
@@ -498,15 +502,18 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         if (overwrite) {
             if (unlink(file_path)) {
                 LOG_ERROR("unlink failed: " << strerror(errno));
-                return -1;
+                return -7;
             }
         } else {
-            if (!(file_path = omega_util_available_filename(file_path, nullptr))) { return -1; }
+            if (!(file_path = omega_util_available_filename(file_path, nullptr))) {
+                LOG_ERROR("cannot find available filename");
+                return -8;
+            }
         }
     }
     if (rename(temp_filename, file_path)) {
         LOG_ERROR("rename failed: " << strerror(errno));
-        return -1;
+        return -9;
     }
     if (saved_file_path) { strcpy(saved_file_path, file_path); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);

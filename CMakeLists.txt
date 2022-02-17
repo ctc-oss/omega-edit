@@ -25,6 +25,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Let Conan do it's magic.
 if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
@@ -36,10 +37,10 @@ if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
 else()
     message(STATUS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake exists")
 endif()
-include(${CMAKE_CURRENT_BINARY_DIR}/conan.cmake)
+include("${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES catch2/2.13.8 cwalk/1.2.5
+        REQUIRES catch2/2.13.8 boost/1.78.0
         GENERATORS cmake cmake_find_package
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_install(PATH_OR_REFERENCE .
@@ -48,6 +49,10 @@ conan_cmake_install(PATH_OR_REFERENCE .
         SETTINGS ${settings})
 include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
+
+# Dependencies -- Boost
+Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
@@ -68,6 +73,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         src/include/omega_edit/license.h src/lib/license.c
         src/include/omega_edit/utility.h src/lib/utility.c
         src/include/omega_edit/encodings.h src/lib/encodings.c
+        src/lib/filesystem.cpp
         src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
         src/lib/impl_/find.h src/lib/impl_/find.cpp
         src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
@@ -78,16 +84,17 @@ set(OMEGA_EDIT_SOURCE_FILES
 # Create the library archive for static linking
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_CWALK}")
-target_link_libraries(omega_edit ${CONAN_LIBS_CWALK})
+target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
+target_link_libraries(omega_edit Boost::filesystem)
 
 # Create a shared library
 add_library(omega_edit_so SHARED ${OMEGA_EDIT_SOURCE_FILES})
 target_include_directories(omega_edit_so PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
+target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
+target_link_libraries(omega_edit_so Boost::filesystem)
 # keep inlined functions intact for Rust binding generation
 target_compile_options(omega_edit_so PUBLIC -fkeep-inline-functions)
 set_target_properties(omega_edit_so PROPERTIES OUTPUT_NAME omega_edit)
-target_link_libraries(omega_edit_so ${CONAN_LIBS_CWALK})
 
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
