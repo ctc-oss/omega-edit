@@ -28,6 +28,7 @@ using grpc::Status;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
+using omega_edit::ChangeDetailsResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -107,7 +108,7 @@ public:
         while (!done) { cv.wait(lock); }
 
         if (status.ok()) {
-            auto session_id = response.session_id().id();
+            auto session_id = response.session_id();
             assert(!session_id.empty());
             return session_id;
         } else {
@@ -122,7 +123,7 @@ public:
         ChangeResponse response;
         ClientContext context;
 
-        request.mutable_session_id()->set_id(session_id);
+        request.set_session_id(session_id);
         request.set_kind(ChangeKind::CHANGE_INSERT);
         request.set_offset(offset);
         request.set_length(str.length());
@@ -156,7 +157,7 @@ public:
         ChangeResponse response;
         ClientContext context;
 
-        request.mutable_session_id()->set_id(session_id);
+        request.set_session_id(session_id);
         request.set_kind(ChangeKind::CHANGE_OVERWRITE);
         request.set_offset(offset);
         request.set_length(str.length());
@@ -190,7 +191,7 @@ public:
         ChangeResponse response;
         ClientContext context;
 
-        request.mutable_session_id()->set_id(session_id);
+        request.set_session_id(session_id);
         request.set_kind(ChangeKind::CHANGE_DELETE);
         request.set_offset(offset);
         request.set_length(length);
@@ -372,7 +373,7 @@ public:
         SaveSessionResponse response;
         ClientContext context;
 
-        request.mutable_session_id()->set_id(session_id);
+        request.set_session_id(session_id);
         request.set_file_path(file_path);
 
         std::mutex mu;
@@ -434,7 +435,7 @@ public:
         CreateViewportResponse response;
         ClientContext context;
 
-        request.mutable_session_id()->set_id(session_id);
+        request.set_session_id(session_id);
         request.set_offset(offset);
         request.set_capacity(capacity);
         request.set_is_floating(is_floating);
@@ -455,7 +456,7 @@ public:
         while (!done) { cv.wait(lock); }
 
         if (status.ok()) {
-            auto viewport_id = response.viewport_id().id();
+            auto viewport_id = response.viewport_id();
             assert(!viewport_id.empty());
             return viewport_id;
         } else {
@@ -470,7 +471,7 @@ public:
         ViewportDataResponse response;
         ClientContext context;
 
-        request.mutable_viewport_id()->set_id(viewport_id);
+        request.set_viewport_id(viewport_id);
 
         std::mutex mu;
         std::condition_variable cv;
@@ -524,6 +525,62 @@ public:
         }
     }
 
+    int GetLastChange(const std::string &session_id, ChangeDetailsResponse &response) {
+        assert(!session_id.empty());
+        ObjectId request;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetLastChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return 0;
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
+    int GetLastUndo(const std::string &session_id, ChangeDetailsResponse &response) {
+        assert(!session_id.empty());
+        ObjectId request;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetLastUndo(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return 0;
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -531,7 +588,7 @@ public:
         ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_event)) {
-            auto const viewport_id = viewport_event.viewport_id().id();
+            auto const viewport_id = viewport_event.viewport_id();
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             if (viewport_event.has_serial()) {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
@@ -611,10 +668,27 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
+        ChangeDetailsResponse change_details;
+        auto rc = server_test_client.GetLastChange(session_id, change_details);
+        assert(0 == rc);
+        assert(serial == change_details.serial());
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastChange received: " << rc << " serial: " << change_details.serial() << std::endl;);
+        }
+
         serial = server_test_client.Undo(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Undo received: " << serial << std::endl;);
+        }
+
+        rc = server_test_client.GetLastUndo(session_id, change_details);
+        assert(0 == rc);
+        assert(serial == change_details.serial());
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastUndo received: " << rc << " serial: " << change_details.serial() << std::endl;);
         }
 
         serial = server_test_client.Redo(session_id);
@@ -729,7 +803,7 @@ int main(int argc, char **argv) {
         std::cout << "Ωedit server pid: " << pid << std::endl;
         sleep(2);// sleep 2 seconds for the server to come online
     }
-    run_tests(target_str, 5000, false);
+    run_tests(target_str, 50, true);
     if (pid) { kill(pid, SIGTERM); }
     return EXIT_SUCCESS;
 }

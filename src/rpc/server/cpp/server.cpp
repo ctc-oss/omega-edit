@@ -336,7 +336,7 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
         if (session_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
             const auto session_change_ptr = std::make_shared<SessionEvent>();
-            session_change_ptr->mutable_session_id()->set_id(session_id);
+            session_change_ptr->set_session_id(session_id);
             session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             session_event_writer_ptr->Push(session_change_ptr);
@@ -356,7 +356,7 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
         if (viewport_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
             const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
-            viewport_change_ptr->mutable_viewport_id()->set_id(viewport_id);
+            viewport_change_ptr->set_viewport_id(viewport_id);
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             auto data = omega_viewport_get_string(viewport_ptr);
@@ -402,7 +402,7 @@ public:
                 session_ptr, request->has_session_id_desired() ? &request->session_id_desired() : nullptr);
         assert(!session_id.empty());
         assert(session_id == session_manager_.get_session_id(session_ptr));
-        response->mutable_session_id()->set_id(session_id);
+        response->set_session_id(session_id);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
@@ -410,7 +410,7 @@ public:
 
     ServerUnaryReactor *SubmitChange(CallbackServerContext *context, const ChangeRequest *request,
                                      ChangeResponse *response) override {
-        const auto &session_id = request->session_id().id();
+        const auto &session_id = request->session_id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
@@ -433,7 +433,7 @@ public:
                     break;
             }
         }
-        response->mutable_session_id()->set_id(session_id);
+        response->set_session_id(session_id);
         response->set_serial(change_serial);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
@@ -451,7 +451,7 @@ public:
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_undo_last_change(session_ptr);
         }
-        response->mutable_session_id()->set_id(session_id);
+        response->set_session_id(session_id);
         response->set_serial(change_serial);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
@@ -469,7 +469,7 @@ public:
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_redo_last_undo(session_ptr);
         }
-        response->mutable_session_id()->set_id(session_id);
+        response->set_session_id(session_id);
         response->set_serial(change_serial);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
@@ -495,7 +495,7 @@ public:
 
     ServerUnaryReactor *SaveSession(CallbackServerContext *context, const SaveSessionRequest *request,
                                     SaveSessionResponse *response) override {
-        const auto &session_id = request->session_id().id();
+        const auto &session_id = request->session_id();
         assert(!session_id.empty());
         const auto &file_path = request->file_path();
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
@@ -507,7 +507,7 @@ public:
             rc = omega_edit_save(session_ptr, file_path.c_str(), 1, nullptr);
         }
         if (0 == rc) {
-            response->mutable_session_id()->set_id(session_id);
+            response->set_session_id(session_id);
             response->set_file_path(file_path);
             reactor->Finish(Status::OK);
         } else {
@@ -565,7 +565,7 @@ public:
 
     ServerUnaryReactor *GetChangeDetails(CallbackServerContext *context, const SessionEvent *request,
                                          ChangeDetailsResponse *response) override {
-        const auto &session_id = request->session_id().id();
+        const auto &session_id = request->session_id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
@@ -597,10 +597,76 @@ public:
         return reactor;
     }
 
+    ServerUnaryReactor *GetLastChange(CallbackServerContext *context, const ObjectId *request,
+                                      ChangeDetailsResponse *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto change_ptr = omega_session_get_last_change(session_ptr);
+        assert(change_ptr);
+        response->set_serial(omega_change_get_serial(change_ptr));
+        response->set_offset(omega_change_get_offset(change_ptr));
+        response->set_length(omega_change_get_length(change_ptr));
+        const auto kind = omega_change_get_kind_as_char(change_ptr);
+        switch (kind) {
+            case 'D':
+                response->set_kind(ChangeKind::CHANGE_DELETE);
+                break;
+            case 'I':
+                response->set_kind(ChangeKind::CHANGE_INSERT);
+                response->set_data(omega_change_get_string(change_ptr));
+                break;
+            case 'O':
+                response->set_kind(ChangeKind::CHANGE_OVERWRITE);
+                response->set_data(omega_change_get_string(change_ptr));
+                break;
+            default:
+                // TODO: Handle error
+                break;
+        }
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetLastUndo(CallbackServerContext *context, const ObjectId *request,
+                                    ChangeDetailsResponse *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto change_ptr = omega_session_get_last_undo(session_ptr);
+        assert(change_ptr);
+        response->set_serial(omega_change_get_serial(change_ptr));
+        response->set_offset(omega_change_get_offset(change_ptr));
+        response->set_length(omega_change_get_length(change_ptr));
+        const auto kind = omega_change_get_kind_as_char(change_ptr);
+        switch (kind) {
+            case 'D':
+                response->set_kind(ChangeKind::CHANGE_DELETE);
+                break;
+            case 'I':
+                response->set_kind(ChangeKind::CHANGE_INSERT);
+                response->set_data(omega_change_get_string(change_ptr));
+                break;
+            case 'O':
+                response->set_kind(ChangeKind::CHANGE_OVERWRITE);
+                response->set_data(omega_change_get_string(change_ptr));
+                break;
+            default:
+                // TODO: Handle error
+                break;
+        }
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerUnaryReactor *CreateViewport(CallbackServerContext *context, const CreateViewportRequest *request,
                                        CreateViewportResponse *response) override {
         (void) context;
-        const auto &session_id = request->session_id().id();
+        const auto &session_id = request->session_id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
@@ -616,7 +682,7 @@ public:
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
-        response->mutable_viewport_id()->set_id(viewport_id);
+        response->set_viewport_id(viewport_id);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
@@ -625,7 +691,7 @@ public:
     ServerUnaryReactor *GetViewportData(CallbackServerContext *context, const ViewportDataRequest *request,
                                         ViewportDataResponse *response) override {
         (void) context;
-        const auto &viewport_id = request->viewport_id().id();
+        const auto &viewport_id = request->viewport_id();
         assert(!viewport_id.empty());
         const auto viewport_ptr = session_manager_.get_viewport_ptr(viewport_id);
         assert(viewport_ptr);
@@ -634,7 +700,7 @@ public:
             response->set_length(omega_viewport_get_length(viewport_ptr));
             response->set_data(omega_viewport_get_string(viewport_ptr));
         }
-        response->mutable_viewport_id()->set_id(viewport_id);
+        response->set_viewport_id(viewport_id);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
