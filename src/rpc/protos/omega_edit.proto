@@ -35,6 +35,8 @@ service Editor {
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
   rpc DestroyViewport(ObjectId) returns (ObjectId);
   rpc GetChangeDetails(SessionEvent) returns (ChangeDetailsResponse);
+  rpc GetLastChange(ObjectId) returns (ChangeDetailsResponse);
+  rpc GetLastUndo(ObjectId) returns (ChangeDetailsResponse);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
 
@@ -61,7 +63,7 @@ enum ChangeKind {
 }
 
 message ChangeRequest {
-  ObjectId session_id = 1;
+  string session_id = 1;
   ChangeKind kind = 2;
   int64 offset = 3;
   int64 length = 4;
@@ -69,12 +71,12 @@ message ChangeRequest {
 }
 
 message ChangeResponse {
-  ObjectId session_id = 1;
+  string session_id = 1;
   int64 serial = 2;
 }
 
 message CreateViewportRequest {
-  ObjectId session_id = 1;
+  string session_id = 1;
   int64 capacity = 2;
   int64 offset = 3;
   bool is_floating = 4;
@@ -82,15 +84,15 @@ message CreateViewportRequest {
 }
 
 message CreateViewportResponse {
-  ObjectId viewport_id = 1;
+  string viewport_id = 1;
 }
 
 message ViewportDataRequest {
-  ObjectId viewport_id = 1;
+  string viewport_id = 1;
 }
 
 message ViewportDataResponse {
-  ObjectId viewport_id = 1;
+  string viewport_id = 1;
   int64 length = 2;
   bytes data = 3;
 }
@@ -101,16 +103,16 @@ message CreateSessionRequest {
 }
 
 message CreateSessionResponse {
-  ObjectId session_id = 1;
+  string session_id = 1;
 }
 
 message SaveSessionRequest {
-  ObjectId session_id = 1;
+  string session_id = 1;
   string file_path = 2;
 }
 
 message SaveSessionResponse {
-  ObjectId session_id = 1;
+  string session_id = 1;
   string file_path = 2;
 }
 
@@ -127,7 +129,7 @@ enum SessionEventKind {
 }
 
 message SessionEvent {
-  ObjectId session_id = 1;
+  string session_id = 1;
   SessionEventKind session_event_kind = 2;
   optional int64 serial = 3;
 }
@@ -143,7 +145,7 @@ enum ViewportEventKind {
 }
 
 message ViewportEvent {
-  ObjectId viewport_id = 1;
+  string viewport_id = 1;
   ViewportEventKind viewport_event_kind = 2;
   optional int64 serial = 3;
   optional int64 length = 4;
@@ -151,7 +153,7 @@ message ViewportEvent {
 }
 
 message ChangeDetailsResponse {
-  SessionEvent id = 1;
+  string session_id = 1;
   int64 serial = 2;
   ChangeKind kind = 3;
   int64 offset = 4;

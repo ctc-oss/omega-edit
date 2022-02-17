@@ -79,7 +79,7 @@ const omega_change_t *omega_session_get_last_change(const omega_session_t *sessi
 /**
  * Given a session, get the last undone change eligible for redo (if any)
  * @param session_ptr session to get the last undone change eligible for redo from
- * @return last undone change eligible for redo
+ * @return last undone change eligible for redo, or nullptr if there are no eligible changes for redo
  */
 const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr);
 
