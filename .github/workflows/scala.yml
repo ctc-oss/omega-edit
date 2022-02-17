@@ -41,6 +41,7 @@ jobs:
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
           cmake --build . --target omega_edit_so
+          mv lib/* ../lib
 
       - name: Package Scala API and Linux so
         if: "${{ matrix.os }} == ubuntu-20.04"
@@ -93,11 +94,15 @@ jobs:
           distribution: 'adopt'
           java-version: '11'
 
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
       - name: Build Omega Edit
         run: |
           mkdir build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
           cmake --build . --target omega_edit_so
+          mv lib/* ../lib
 
       - name: Package Windows dll
         run: sbt ++test ++native/publishLocal
