@@ -42,7 +42,6 @@
 #include "../include/omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <assert.h>
-#include <cwalk.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,13 +99,6 @@ int omega_util_mkstemp(char *tmpl) {
     return -1;
 }
 
-const char *omega_util_get_current_dir(char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
-    if (!buffer) { buffer = buff; }
-    buffer[0] = '\0';
-    return (getcwd(buffer, FILENAME_MAX)) ? buffer : NULL;
-}
-
 int omega_util_touch(const char *file_name, int create) {
     int fd = OPEN(file_name, (create) ? O_RDWR | O_CREAT : O_RDWR, 0644);
     if (fd < 0) {
@@ -125,99 +117,12 @@ int omega_util_touch(const char *file_name, int create) {
     return 0;
 }
 
-int omega_util_file_exists(const char *file_name) {
-    assert(file_name);
-    FILE *file_ptr = fopen(file_name, "rb");
-    if (file_ptr) {
-        fclose(file_ptr);
-        return 1;
-    }
-    return 0;
-}
-
 char omega_util_directory_separator() {
 #ifdef OMEGA_BUILD_WINDOWS
     return '\\';
 #else
     return '/';
 #endif
-}
-
-char *omega_util_dirname(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold directory name
-    assert(path);
-    if (!buffer) { buffer = buff; }
-    size_t dirname_len;
-    cwk_path_get_dirname(path, &dirname_len);
-    memcpy(buffer, path, dirname_len);
-    buffer[dirname_len] = '\0';
-    return buffer;
-}
-
-char *omega_util_basename(char const *path, char const *suffix, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold basename
-    assert(path);
-    if (!buffer) { buffer = buff; }
-    const char *basename;
-    size_t basename_len;
-    cwk_path_get_basename(path, &basename, &basename_len);
-    if (!basename) { return NULL; }
-    memcpy(buffer, basename, basename_len);
-    buffer[basename_len] = '\0';
-    if (suffix) {
-        const size_t suffix_len = strlen(suffix);
-        if (suffix_len < basename_len && 0 == strncmp(buffer + basename_len - suffix_len, suffix, suffix_len)) {
-            buffer[basename_len - suffix_len] = '\0';
-        }
-    }
-    return buffer;
-}
-
-char *omega_util_file_extension(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold extension
-    char file_name_buff[FILENAME_MAX];
-    path = omega_util_basename(path, NULL, file_name_buff);
-    assert(path);
-    if (!buffer) { buffer = buff; }
-    const char *extension;
-    size_t extension_len;
-    if (cwk_path_get_extension(path, &extension, &extension_len)) {
-        memcpy(buffer, extension, extension_len);
-        buffer[extension_len] = '\0';
-        return buffer;
-    }
-    buffer[0] = '\0';
-    return NULL;
-}
-
-char *omega_util_normalize_path(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
-    assert(path);
-    if (!buffer) { buffer = buff; }
-    cwk_path_normalize(path, buffer, FILENAME_MAX);
-    return buffer;
-}
-
-char *omega_util_available_filename(char const *path, char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
-    assert(path);
-    if (!buffer) { buffer = buff; }
-    if (!omega_util_file_exists(path)) {
-        memcpy(buffer, path, strlen(path) + 1);
-        return buffer;
-    }
-    int i = 0;
-    const char *dirname = omega_util_dirname(path, NULL);
-    const char *extension = omega_util_file_extension(path, NULL);
-    const char *basename = omega_util_basename(path, extension, NULL);
-    do {
-        if (i == 99) {
-            // stop after 99 filenames exist
-            return NULL;
-        }
-        snprintf(buffer, FILENAME_MAX, "%s%s-%d%s", dirname, basename, ++i, extension);
-    } while (omega_util_file_exists(buffer));
-    return buffer;
 }
 
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
@@ -337,7 +242,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         fclose(out_fp);
         fclose(in_fp);
         return 0;
-    } while (false);
+    } while (0);
     fclose(in_fp);
     LOG_ERROR("transform failed");
     return -1;
