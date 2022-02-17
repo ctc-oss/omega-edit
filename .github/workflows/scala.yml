@@ -45,69 +45,69 @@ jobs:
 
       - name: Package Scala API and Linux so
         if: "${{ matrix.os }} == ubuntu-20.04"
-        run: sbt ++test ++publishLocal
+        run: sbt +test +publishLocal
         working-directory: src/bindings/scala
 
       - name: Package Mac dylib
         if: "${{ matrix.os }} == macos-latest"
-        run: sbt ++test ++native/publishLocal
+        run: sbt +test +native/publishLocal
         working-directory: src/bindings/scala
 
 #      - name: Publish Scala API and Linux so
 #        if: "${{ matrix.os }} == ubuntu-20.04"
-#        run: sbt ++publish
+#        run: sbt +publish
 #        working-directory: src/bindings/scala
 #
 #      - name: Publish Mac dylib
 #        if: "${{ matrix.os }} == macos-latest"
-#        run: sbt ++native/publish
+#        run: sbt +native/publish
 #        working-directory: src/bindings/scala
-
-  scala-build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        include:
-          - { sys: mingw64, env: x86_64 }
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
-      - name: Install MinGW
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.sys }}
-          update: true
-          install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
-            base-devel
-            cmake
-            swig
-            git
-
-      - uses: actions/setup-java@v2.5.0
-        with:
-          distribution: 'adopt'
-          java-version: '11'
-
-      - name: Install Conan
-        uses: turtlebrowser/get-conan@main
-
-      - name: Build Omega Edit
-        run: |
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
-          cmake --build . --target omega_edit_so
-          mv lib/* ../lib
-
-      - name: Package Windows dll
-        run: sbt ++test ++native/publishLocal
-        working-directory: src/bindings/scala
-
+#
+#  scala-build-windows:
+#    name: Build Windows
+#    runs-on: windows-latest
+#    strategy:
+#      matrix:
+#        include:
+#          - { sys: mingw64, env: x86_64 }
+#    defaults:
+#      run:
+#        shell: msys2 {0}
+#    steps:
+#      - uses: actions/checkout@v2.3.5
+#        with:
+#          submodules: recursive
+#      - name: Install MinGW
+#        uses: msys2/setup-msys2@v2
+#        with:
+#          msystem: ${{ matrix.sys }}
+#          update: true
+#          install: >-
+#            mingw-w64-${{ matrix.env }}-toolchain
+#            base-devel
+#            cmake
+#            swig
+#            git
+#
+#      - uses: actions/setup-java@v2.5.0
+#        with:
+#          distribution: 'adopt'
+#          java-version: '11'
+#
+#      - name: Install Conan
+#        uses: turtlebrowser/get-conan@main
+#
+#      - name: Build Omega Edit
+#        run: |
+#          mkdir build && cd build
+#          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
+#          cmake --build . --target omega_edit_so
+#          mv lib/* ../lib
+#
+#      - name: Package Windows dll
+#        run: sbt +test +native/publishLocal
+#        working-directory: src/bindings/scala
+#
 #      - name: Publish Windows dll
-#        run: sbt ++native/publish
+#        run: sbt +native/publish
 #        working-directory: src/bindings/scala

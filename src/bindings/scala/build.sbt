@@ -67,9 +67,9 @@ lazy val native = project
 
 lazy val arch: Arch = {
   val os = System.getProperty("os.name").toLowerCase
-  val amd = """amd(\d+)""".r
+  val Amd = """amd(\d+)""".r
   val arch = System.getProperty("os.arch").toLowerCase match {
-    case amd(bits) => bits
+    case Amd(bits) => bits
     case _         => "unknown"
   }
   Arch(s"$os-$arch", s"${os}_$arch")
@@ -77,9 +77,10 @@ lazy val arch: Arch = {
 
 def pair(name: String): (String, String) = name -> s"${arch._id}/$name"
 lazy val mapping = {
+  val Mac = """mac.+""".r
   System.getProperty("os.name").toLowerCase match {
     case "linux"   => pair("libomega_edit.so")
-    case "mac"     => pair("libomega_edit.dylib")
+    case Mac()     => pair("libomega_edit.dylib")
     case "windows" => pair("omega_edit.dll")
   }
 }
