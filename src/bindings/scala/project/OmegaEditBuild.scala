@@ -1,3 +1,5 @@
+import sbt.URL
+
 /*
  * Copyright 2021 Concurrent Technologies Corporation
  *
@@ -16,4 +18,6 @@
 
 object OmegaEditBuild {
   case class Arch(id: String, _id: String)
+  val libdir: String = "../../../../lib"
+  val apacheLicenseUrl: URL = new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")
 }

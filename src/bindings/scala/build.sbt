@@ -23,7 +23,7 @@ lazy val commonSettings = {
     scalaVersion := "2.12.13",
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
-    licenses := Seq(("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt"))),
+    licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021)
   )
 }
@@ -49,8 +49,8 @@ lazy val api = project
       )
     },
     Test / fork := true,
-    Test / scalacOptions ~= adjustScalacOptionsForTesting,
-    Test / javaOptions += s"-Djava.library.path=${baseDirectory.map(_ / "../../../../lib").value}"
+    Test / javaOptions += s"-Djava.library.path=${baseDirectory.map(_ / libdir).value}",
+    scalacOptions ~= adjustScalacOptionsForScalatest
   )
   .enablePlugins(GitVersioning)
 
@@ -61,7 +61,7 @@ lazy val native = project
     name := "omega-edit-native",
     artifactClassifier := Some(arch.id),
     Compile / packageBin / mappings += {
-      baseDirectory.map(_ / s"../../../../lib/${mapping._1}").value -> mapping._2
+      baseDirectory.map(_ / s"$libdir/${mapping._1}").value -> mapping._2
     }
   )
 
@@ -84,7 +84,7 @@ lazy val mapping = {
   }
 }
 
-lazy val adjustScalacOptionsForTesting = { opts: Seq[String] =>
+lazy val adjustScalacOptionsForScalatest = { opts: Seq[String] =>
   opts.filterNot(
     Set(
       "-Wvalue-discard",
