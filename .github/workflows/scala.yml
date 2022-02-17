@@ -14,9 +14,13 @@ name: Automatic Release
 on:
   push:
     branches:
-      - master
+      - main
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+
 jobs:
   scala-build-linux-mac:
     strategy:
