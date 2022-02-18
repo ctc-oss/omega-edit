@@ -136,7 +136,7 @@ static int update_viewports_(const omega_session_t *session_ptr, const omega_cha
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-            omega_viewport_notify(viewport_ptr.get(), (0 < change_ptr->serial) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
+            omega_viewport_notify(viewport_ptr.get(), (0 < omega_change_get_serial(change_ptr)) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
                                   change_ptr);
         }
     }
@@ -285,10 +285,9 @@ static int update_model_(omega_model_t *model_ptr, const_omega_change_ptr_t &cha
 static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t change_ptr) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     if (change_ptr->offset <= computed_file_size) {
-        if (change_ptr->serial < 0) {
+        if (omega_change_get_serial(change_ptr.get()) < 0) {
             // This is a previously undone change that is being redone, so flip the serial number back to positive
-            const auto undone_change_ptr = const_cast<omega_change_t *>(change_ptr.get());
-            undone_change_ptr->serial *= -1;
+            const_cast<omega_change_t *>(change_ptr.get())->serial *= -1;
         } else if (!session_ptr->models_.back()->changes_undone.empty()) {
             // This is not a redo change, so any changes undone are now invalid and must be cleared
             free_session_changes_undone_(session_ptr);
@@ -297,7 +296,7 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
         if (0 != update_model_(session_ptr->models_.back().get(), change_ptr)) { return -1; }
         update_viewports_(session_ptr, change_ptr.get());
         omega_session_notify(session_ptr, SESSION_EVT_EDIT, change_ptr.get());
-        return change_ptr->serial;
+        return omega_change_get_serial(change_ptr.get());
     }
     return -1;
 }
@@ -316,6 +315,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     const auto session_ptr = new omega_session_t;
     session_ptr->event_handler = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
+    session_ptr->num_changes_adjustment_ = 0;
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
     session_ptr->models_.back()->file_ptr = file_ptr;
     session_ptr->models_.back()->file_path =
@@ -587,6 +587,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
         return -1;
     }
     auto file_size = omega_session_get_computed_file_size(session_ptr);
+    session_ptr->num_changes_adjustment_ = omega_session_get_num_changes(session_ptr);
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
     session_ptr->models_.back()->file_ptr = fopen(checkpoint_filename, "rb");
     session_ptr->models_.back()->file_path = checkpoint_filename;
@@ -602,6 +603,7 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         if (0 != unlink(last_checkpoint_ptr->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
+        session_ptr->num_changes_adjustment_ -= (int64_t)session_ptr->models_.back()->changes.size();
         session_ptr->models_.pop_back();
         omega_session_notify(session_ptr, SESSION_EVT_DESTROY_CHECKPOINT, nullptr);
         return 0;

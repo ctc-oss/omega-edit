@@ -350,11 +350,14 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(file_size > 0);
     REQUIRE(0 !=
             omega_edit_insert_string(session_ptr, 0, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0, "./data"));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 37, "BCDEFGHIJKLMNOPQRSTUVWXY"));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(2 == omega_edit_overwrite_string(session_ptr, 37, "BCDEFGHIJKLMNOPQRSTUVWXY"));
+    REQUIRE(2 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.1.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.1.dat"));
     mask_info_t mask_info;
@@ -381,12 +384,14 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 != omega_edit_overwrite_string(session_ptr, 0,
+    REQUIRE(3 == omega_edit_overwrite_string(session_ptr, 0,
                                              "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+    REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
     REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
+    REQUIRE(2 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.7.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.7.dat"));
     omega_edit_destroy_session(session_ptr);

@@ -25,9 +25,9 @@ void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     return session_ptr->user_data_ptr;
 }
 
-size_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
+int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return session_ptr->viewports_.size();
+    return (int64_t)session_ptr->viewports_.size();
 }
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
@@ -42,16 +42,16 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
     return computed_file_size;
 }
 
-size_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
+int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return session_ptr->models_.back()->changes.size();
+    return (int64_t)session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
 }
 
-size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
+int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return session_ptr->models_.back()->changes_undone.size();
+    return (int64_t)session_ptr->models_.back()->changes_undone.size();
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
@@ -81,9 +81,9 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
             return session_ptr->models_.back()->changes[change_serial - 1].get();
         }
     } else if (change_serial < 0) {// Negative serials are undone changes
-        for (auto iter = session_ptr->models_.back()->changes_undone.rbegin();
-             iter != session_ptr->models_.back()->changes_undone.rend(); ++iter) {
-            if ((*iter)->serial == change_serial) { return iter->get(); }
+        for (auto iter = session_ptr->models_.back()->changes_undone.crbegin();
+             iter != session_ptr->models_.back()->changes_undone.crend(); ++iter) {
+            if (omega_change_get_serial(iter->get()) == change_serial) { return iter->get(); }
         }
     }
     return nullptr;

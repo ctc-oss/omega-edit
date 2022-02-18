@@ -115,11 +115,11 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
 
 static void print_change_(const omega_change_t *change_ptr, std::ostream &out_stream) noexcept {
     assert(change_ptr);
-    out_stream << R"({"serial": )" << change_ptr->serial << R"(, "kind": ")"
-               << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << change_ptr->offset
-               << R"(, "length": )" << change_ptr->length;
+    out_stream << R"({"serial": )" << omega_change_get_serial(change_ptr) << R"(, "kind": ")"
+               << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
+               << R"(, "length": )" << omega_change_get_length(change_ptr);
     const auto bytes = omega_change_get_bytes(change_ptr);
-    if (bytes) { out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, change_ptr->length) << R"(")"; }
+    if (bytes) { out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr)) << R"(")"; }
     out_stream << "}";
 }
 
