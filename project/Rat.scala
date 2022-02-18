@@ -31,6 +31,11 @@ object Rat {
 
     // cmake build folder
     file("cmake-build-debug"),
+    file("cmake-build-release"),
+
+    // cmake plugins
+    file("cmake/"),
+    file("src/rpc/cmake/"),
 
     // ide folders
     file(".idea"),
