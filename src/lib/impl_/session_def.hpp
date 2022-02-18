@@ -31,6 +31,7 @@ struct omega_session_struct {
     void *user_data_ptr{};                    ///< Pointer to associated user-provided data
     omega_viewports_t viewports_{};           ///< Collection of viewports in this session
     omega_models_t models_{};                 ///< Edit models (internal)
+    int64_t num_changes_adjustment_{};        ///< Numer of changes in checkpoints
     int8_t session_flags_{};                  ///< Internal state flags
 };
 

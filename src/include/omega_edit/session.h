@@ -46,21 +46,21 @@ void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports
  */
-size_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of active changes
  * @param session_ptr session to get number of active changes from
  * @return number of active changes
  */
-size_t omega_session_get_num_changes(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of undone changes eligible for being redone
  * @param session_ptr session to get the number of undone changes for
  * @return number of undone changes eligible for being redone
  */
-size_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the computed file size in bytes
