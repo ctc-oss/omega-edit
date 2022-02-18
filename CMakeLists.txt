@@ -27,27 +27,43 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 
-# Let Conan do it's magic.
-if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
-    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/v0.16.1/conan.cmake"
-            "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake"
-            EXPECTED_HASH SHA256=396e16d0f5eabdc6a14afddbcfff62a54a7ee75c6da23f32f7a31bc85db23484
-            TLS_VERIFY ON)
-else()
-    message(STATUS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake exists")
-endif()
-include("${CMAKE_CURRENT_BINARY_DIR}/conan.cmake")
+include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES catch2/2.13.8 boost/1.78.0
+        REQUIRES "catch2/2.13.8" "boost/1.78.0"
         GENERATORS cmake cmake_find_package
+        OPTIONS boost:shared=False
+        boost:without_chrono=True
+        boost:without_container=True
+        boost:without_context=True
+        boost:without_contract=True
+        boost:without_coroutine=True
+        boost:without_date_time=True
+        boost:without_exception=True
+        boost:without_fiber=True
+        boost:without_graph=True
+        boost:without_iostreams=True
+        boost:without_json=True
+        boost:without_locale=True
+        boost:without_log=True
+        boost:without_math=True
+        boost:without_nowide=True
+        boost:without_program_options=True
+        boost:without_random=True
+        boost:without_regex=True
+        boost:without_serialization=True
+        boost:without_stacktrace=True
+        boost:without_test=True
+        boost:without_thread=True
+        boost:without_timer=True
+        boost:without_type_erasure=True
+        boost:without_wave=True
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_install(PATH_OR_REFERENCE .
         BUILD missing
         REMOTE conancenter
         SETTINGS ${settings})
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+include("${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
 # Dependencies -- Boost
@@ -56,30 +72,30 @@ find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
-        src/include/omega_edit.h
-        src/include/omega_edit/config.h
-        src/include/omega_edit/fwd_defs.h
-        src/include/omega_edit/byte.h
-        src/include/omega_edit/scoped_ptr.hpp
-        src/include/omega_edit/stl_string_adaptor.hpp
-        src/include/omega_edit/change.h src/lib/change.cpp src/lib/impl_/change_def.hpp
-        src/include/omega_edit/check.h src/lib/check.cpp
-        src/include/omega_edit/edit.h src/lib/edit.cpp
-        src/include/omega_edit/search.h src/lib/search.cpp
-        src/include/omega_edit/version.h src/lib/version.c
-        src/include/omega_edit/visit.h src/lib/visit.cpp
-        src/include/omega_edit/session.h src/lib/session.cpp src/lib/impl_/session_def.hpp
-        src/include/omega_edit/viewport.h src/lib/viewport.cpp src/lib/impl_/viewport_def.hpp
-        src/include/omega_edit/license.h src/lib/license.c
-        src/include/omega_edit/utility.h src/lib/utility.c
-        src/include/omega_edit/encodings.h src/lib/encodings.c
-        src/lib/filesystem.cpp
-        src/lib/impl_/internal_fun.hpp src/lib/impl_/internal_fun.cpp
-        src/lib/impl_/find.h src/lib/impl_/find.cpp
-        src/lib/impl_/data_def.hpp src/lib/impl_/data_segment_def.hpp
-        src/lib/impl_/model_def.hpp src/lib/impl_/model_segment_def.hpp
-        src/lib/impl_/macros.h
-        src/lib/impl_/internal_fwd_defs.hpp)
+        "src/include/omega_edit.h"
+        "src/include/omega_edit/config.h"
+        "src/include/omega_edit/fwd_defs.h"
+        "src/include/omega_edit/byte.h"
+        "src/include/omega_edit/scoped_ptr.hpp"
+        "src/include/omega_edit/stl_string_adaptor.hpp"
+        "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
+        "src/include/omega_edit/check.h" "src/lib/check.cpp"
+        "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
+        "src/include/omega_edit/search.h" "src/lib/search.cpp"
+        "src/include/omega_edit/version.h" "src/lib/version.c"
+        "src/include/omega_edit/visit.h" "src/lib/visit.cpp"
+        "src/include/omega_edit/session.h" "src/lib/session.cpp" "src/lib/impl_/session_def.hpp"
+        "src/include/omega_edit/viewport.h" "src/lib/viewport.cpp" "src/lib/impl_/viewport_def.hpp"
+        "src/include/omega_edit/license.h" "src/lib/license.c"
+        "src/include/omega_edit/utility.h" "src/lib/utility.c"
+        "src/include/omega_edit/encodings.h" "src/lib/encodings.c"
+        "src/lib/filesystem.cpp"
+        "src/lib/impl_/internal_fun.hpp" "src/lib/impl_/internal_fun.cpp"
+        "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
+        "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
+        "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
+        "src/lib/impl_/macros.h"
+        "src/lib/impl_/internal_fwd_defs.hpp")
 
 # Create the library archive for static linking
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
@@ -105,12 +121,12 @@ foreach (level MAJOR MINOR PATCH)
 endforeach ()
 
 # Add additional subdirectories with CMakeLists.txt to the build
-add_subdirectory(src/examples)
-add_subdirectory(src/tests)
+add_subdirectory("src/examples")
+add_subdirectory("src/tests")
 
 option(BUILD_RPC "build RPC server and client" ON)
 if (BUILD_RPC)
-    add_subdirectory(src/rpc)
+    add_subdirectory("src/rpc")
 endif(BUILD_RPC)
 
 option(BUILD_DOCS "build documentation" ON)
