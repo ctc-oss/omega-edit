@@ -410,7 +410,7 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     char saved_filename[FILENAME_MAX];
     unlink("data/test_dir/model-test.actual.1.dat");
-    rmdir("data/test_dir");
+    REQUIRE(0 == omega_util_remove_directory("data/test_dir"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test_dir/model-test.actual.1.dat", 0, saved_filename));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/test_dir/model-test.actual.1.dat"));
     unlink("data/model-test.actual.1.dat");
