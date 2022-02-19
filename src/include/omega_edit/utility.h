@@ -44,7 +44,7 @@ int omega_util_touch(const char *file_name, int create);
 /**
  * Check if the given file name exists
  * @param file_name file name to check existence of
- * @return zero if the file does not exist, non-zero otherwise
+ * @return non-zero if the file exists, and zero otherwise
  */
 int omega_util_file_exists(const char *file_name);
 
@@ -61,6 +61,13 @@ int omega_util_directory_exists(const char *path);
  * @return zero if the path was created successfully and non-zero otherwise
  */
 int omega_util_create_directory(char const *path);
+
+/**
+ * Remove the given directory
+ * @param path directory to remove
+ * @return zero if the path was removed successfully and non-zero otherwise
+ */
+int omega_util_remove_directory(char const *path);
 
 /**
  * Returns the directory separator character used on the host system

@@ -436,7 +436,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
 int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
     omega_util_dirname(file_path, temp_filename);
-    if (!omega_util_directory_exists(temp_filename) && !omega_util_create_directory(temp_filename)) {
+    if (!omega_util_directory_exists(temp_filename) && 0 != omega_util_create_directory(temp_filename)) {
         LOG_ERROR("failed to create directory: " << omega_util_normalize_path(temp_filename, nullptr));
         return -1;
     }
