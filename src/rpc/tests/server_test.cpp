@@ -29,6 +29,7 @@ using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::ChangeDetailsResponse;
+using omega_edit::ComputedFileSizeResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -581,6 +582,35 @@ public:
         }
     }
 
+    int64_t GetComputedFileSize(const std::string &session_id) {
+        assert(!session_id.empty());
+        ObjectId request;
+        ComputedFileSizeResponse response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetComputedFileSize(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::lock_guard<std::mutex> lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock<std::mutex> lock(mu);
+        while (!done) { cv.wait(lock); }
+
+        if (status.ok()) {
+            return response.computed_file_size();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -733,6 +763,12 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Delete received: " << serial << std::endl;);
+        }
+
+        auto computed_file_size = server_test_client.GetComputedFileSize(session_id);
+        if (log) {
+            const std::lock_guard<std::mutex> write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
         reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");

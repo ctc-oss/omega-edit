@@ -41,6 +41,7 @@ using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
+using omega_edit::ComputedFileSizeResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -658,6 +659,19 @@ public:
                 // TODO: Handle error
                 break;
         }
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetComputedFileSize(CallbackServerContext *context, const ObjectId *request,
+                                            ComputedFileSizeResponse *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        response->set_session_id(session_id);
+        response->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
