@@ -1,5 +1,5 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       *
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
  *                                                                                                                    *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
@@ -15,7 +15,7 @@
 #include "../include/omega_edit/license.h"
 
 const char *omega_license_get() {
-    return "Copyright 2021-2022 Concurrent Technologies Corporation\n"
+    return "Copyright 2021 Concurrent Technologies Corporation\n"
            "\n"
            "Licensed under the Apache License, Version 2.0 (the \"License\");\n"
            "you may not use this file except in compliance with the License.\n"

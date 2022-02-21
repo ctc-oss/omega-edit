@@ -1,5 +1,5 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021-2022 Concurrent Technologies Corporation.                                                       *
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
  *                                                                                                                    *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
  * with the License.  You may obtain a copy of the License at                                                         *
@@ -54,7 +54,7 @@ TEST_CASE("Version check", "[VersionCheck]") {
 TEST_CASE("License check", "[LicenseCheck]") {
     const auto license = omega_license_get();
     REQUIRE(license);
-    REQUIRE(strlen(license) == 581);
+    REQUIRE(strlen(license) == 576);
     REQUIRE(strstr(license, "Concurrent Technologies Corporation"));
 }
 
