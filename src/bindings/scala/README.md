@@ -66,7 +66,7 @@ The classifier controls identifies the platform binaries to match the runtime.
 Platform identifiers are as follows
 
 - `linux-{32|64}`
-- `osx-{32|64}`
+- `macos-{32|64}`
 - `windows-{32|64}`
 
 ## callbacks

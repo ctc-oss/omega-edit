@@ -47,7 +47,7 @@ object BuildSupport {
   lazy val arch: Arch = {
     val os = System.getProperty("os.name").toLowerCase match {
       case "linux"   => "linux"
-      case Mac()     => "osx"
+      case Mac()     => "macos"
       case "windows" => "windows"
     }
 
