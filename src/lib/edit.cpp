@@ -29,7 +29,6 @@
 #ifdef OMEGA_BUILD_WINDOWS
 #include <io.h>
 #define close _close
-#define unlink _unlink
 #else
 #include <unistd.h>
 #endif
@@ -334,7 +333,7 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
     while (omega_session_get_num_checkpoints(session_ptr)) {
-        if (0 != unlink(session_ptr->models_.back()->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
+        if (0 != omega_util_remove_file(session_ptr->models_.back()->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
         session_ptr->models_.pop_back();
     }
     delete session_ptr;
@@ -412,7 +411,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
         if (0 == omega_util_apply_byte_transform_to_file(in_file.c_str(), out_file.c_str(), transform, user_data_ptr,
                                                          offset, length)) {
             errno = 0;
-            if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == unlink(in_file.c_str()) &&
+            if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == omega_util_remove_file(in_file.c_str()) &&
                 0 == rename(out_file.c_str(), in_file.c_str()) &&
                 (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
                 for (const auto &viewport_ptr : session_ptr->viewports_) {
@@ -428,7 +427,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
             ABORT(LOG_ERROR(strerror(errno)););
         }
         // The transform failed, but we can recover from this
-        if (omega_util_file_exists(out_file.c_str())) { unlink(out_file.c_str()); }
+        if (omega_util_file_exists(out_file.c_str())) { omega_util_remove_file(out_file.c_str()); }
     }
     return -1;
 }
@@ -458,7 +457,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
     if (!temp_fptr) {
         LOG_ERROR("fdopen failed: " << strerror(errno));
         close(temp_fd);
-        unlink(temp_filename);
+        omega_util_remove_file(temp_filename);
         return -4;
     }
     int64_t write_offset = 0;
@@ -475,7 +474,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
                 if (omega_util_write_segment_to_file(session_ptr->models_.back()->file_ptr, segment->change_offset,
                                                      segment->computed_length, temp_fptr) != segment->computed_length) {
                     fclose(temp_fptr);
-                    unlink(temp_filename);
+                    omega_util_remove_file(temp_filename);
                     LOG_ERROR("omega_util_write_segment_to_file failed");
                     return -5;
                 }
@@ -486,7 +485,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
                             fwrite(omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset, 1,
                                    segment->computed_length, temp_fptr)) != segment->computed_length) {
                     fclose(temp_fptr);
-                    unlink(temp_filename);
+                    omega_util_remove_file(temp_filename);
                     LOG_ERROR("fwrite failed");
                     return -6;
                 }
@@ -500,8 +499,8 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
     fclose(temp_fptr);
     if (omega_util_file_exists(file_path)) {
         if (overwrite) {
-            if (unlink(file_path)) {
-                LOG_ERROR("unlink failed: " << strerror(errno));
+            if (0 != omega_util_remove_file(file_path)) {
+                LOG_ERROR("removing file failed: " << strerror(errno));
                 return -7;
             }
         } else {
@@ -600,7 +599,7 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
     if (omega_session_get_num_checkpoints(session_ptr)) {
         const auto last_checkpoint_ptr = session_ptr->models_.back().get();
         fclose(last_checkpoint_ptr->file_ptr);
-        if (0 != unlink(last_checkpoint_ptr->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
+        if (0 != omega_util_remove_file(last_checkpoint_ptr->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
         session_ptr->num_changes_adjustment_ -= (int64_t)session_ptr->models_.back()->changes.size();

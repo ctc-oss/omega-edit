@@ -25,7 +25,11 @@ int omega_util_directory_exists(const char *path) { return (fs::is_directory(pat
 
 int omega_util_create_directory(char const *path) { return (fs::create_directories(path)) ? 0 : 1; }
 
+int omega_util_remove_file(char const *path) { return (fs::remove(path)) ? 0 : 1; }
+
 int omega_util_remove_directory(char const *path) { return (fs::remove(path)) ? 0 : 1; }
+
+int64_t omega_util_get_filesize(char const *path) { return static_cast<int64_t>(fs::file_size(path)); }
 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path

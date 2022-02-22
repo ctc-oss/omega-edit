@@ -62,12 +62,15 @@ int omega_util_directory_exists(const char *path);
  */
 int omega_util_create_directory(char const *path);
 
+int omega_util_remove_file(char const *path);
 /**
  * Remove the given directory
  * @param path directory to remove
  * @return zero if the path was removed successfully and non-zero otherwise
  */
 int omega_util_remove_directory(char const *path);
+
+int64_t omega_util_get_filesize(char const *path);
 
 /**
  * Returns the directory separator character used on the host system
