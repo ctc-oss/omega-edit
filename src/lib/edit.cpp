@@ -135,7 +135,8 @@ static int update_viewports_(const omega_session_t *session_ptr, const omega_cha
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
                     -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-            omega_viewport_notify(viewport_ptr.get(), (0 < omega_change_get_serial(change_ptr)) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
+            omega_viewport_notify(viewport_ptr.get(),
+                                  (0 < omega_change_get_serial(change_ptr)) ? VIEWPORT_EVT_EDIT : VIEWPORT_EVT_UNDO,
                                   change_ptr);
         }
     }
@@ -602,7 +603,7 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         if (0 != omega_util_remove_file(last_checkpoint_ptr->file_path.c_str())) { LOG_ERROR(strerror(errno)); }
         free_model_changes_(last_checkpoint_ptr);
         free_model_changes_undone_(last_checkpoint_ptr);
-        session_ptr->num_changes_adjustment_ -= (int64_t)session_ptr->models_.back()->changes.size();
+        session_ptr->num_changes_adjustment_ -= (int64_t) session_ptr->models_.back()->changes.size();
         session_ptr->models_.pop_back();
         omega_session_notify(session_ptr, SESSION_EVT_DESTROY_CHECKPOINT, nullptr);
         return 0;

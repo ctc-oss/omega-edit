@@ -103,7 +103,7 @@ TEST_CASE("End Of Line", "[EOLTests]") {
     omega_byte_t buffer[1024];
     FILE *in_fp = fopen("data/test1.dat", "rb");
     REQUIRE(in_fp);
-    auto file_size = omega_util_get_filesize("data/test1.dat");
+    auto file_size = omega_util_file_size("data/test1.dat");
     REQUIRE(63 == file_size);
     REQUIRE(file_size < sizeof(buffer));
     REQUIRE(file_size == fread(buffer, sizeof(omega_byte_t), file_size, in_fp));
@@ -305,7 +305,7 @@ TEST_CASE("Empty File Tests", "[EmptyFileTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     const auto in_filename = "data/empty_file.dat";
-    auto file_size = omega_util_get_filesize(in_filename);
+    auto file_size = omega_util_file_size(in_filename);
     REQUIRE(0 == file_size);
     const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info);
     REQUIRE(session_ptr);

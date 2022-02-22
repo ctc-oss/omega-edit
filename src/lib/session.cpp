@@ -27,7 +27,7 @@ void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
 
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (int64_t)session_ptr->viewports_.size();
+    return (int64_t) session_ptr->viewports_.size();
 }
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
@@ -45,13 +45,13 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
 int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return (int64_t)session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
+    return (int64_t) session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
 }
 
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return (int64_t)session_ptr->models_.back()->changes_undone.size();
+    return (int64_t) session_ptr->models_.back()->changes_undone.size();
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
