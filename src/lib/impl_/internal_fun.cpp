@@ -119,7 +119,10 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
                << R"(, "length": )" << omega_change_get_length(change_ptr);
     const auto bytes = omega_change_get_bytes(change_ptr);
-    if (bytes) { out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr)) << R"(")"; }
+    if (bytes) {
+        out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr))
+                   << R"(")";
+    }
     out_stream << "}";
 }
 

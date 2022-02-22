@@ -205,7 +205,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
             0 != FSEEK(in_fp, offset, SEEK_SET)) {
             LOG_ERROR("failed to write first segment bytes to file");
             fclose(out_fp);
-            unlink(out_path);
+            omega_util_remove_file(out_path);
             break;
         }
         int64_t remaining = length;
@@ -228,7 +228,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         if (remaining) {
             LOG_ERROR("there are remaining bytes");
             fclose(out_fp);
-            unlink(out_path);
+            omega_util_remove_file(out_path);
             break;
         }
         offset += length;
@@ -236,7 +236,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         if (offset < in_file_length && omega_util_write_segment_to_file(in_fp, offset, length, out_fp) != length) {
             LOG_ERROR("failed to write last segment");
             fclose(out_fp);
-            unlink(out_path);
+            omega_util_remove_file(out_path);
             break;
         }
         fclose(out_fp);
