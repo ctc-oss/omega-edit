@@ -779,7 +779,7 @@ int main(int argc, char **argv) {
     (void) argv;
     // Server can run HTTP2 or Unix Domain Sockets (on compatible OSes)
     std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega-edit.sock";
+    //std::string target_str = "unix:///tmp/omega_edit.sock";
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
