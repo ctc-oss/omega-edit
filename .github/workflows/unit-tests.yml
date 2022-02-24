@@ -20,120 +20,6 @@ env:
   node_version: 14.16.0
 
 jobs:
-  macos-node-test:
-    name: MacOS Tests
-    runs-on: macos-latest
-    steps:
-      - name: Install Prerequisites 📚
-        run: |
-          brew install boost ninja nodeenv yarn doxygen graphviz
-          sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
-      - name: Checkout Source 🛎️
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1.4.6
-        with:
-          node-version: ${{ env.node_version }}
-      - name: Set up Python 🐍
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install Conan 💪
-        run: pip install conan pytest && conan --version
-      - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-      - name: Build Debug Build 🔧
-        run: cmake --build cmake-build-debug
-      - name: Run Tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
-      - name: Upload User Documentation Arifacts 🔺
-        uses: actions/upload-artifact@v1
-        with:
-          name: site
-          path: cmake-build-debug/docs/sphinx
-  linux-node-test:
-    name: Linux Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Prerequisites 📚
-        run: sudo apt install -y libboost-all-dev ninja-build nodeenv uuid-dev valgrind yarn
-      - name: Checkout Source 🛎️
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1.4.6
-        with:
-          node-version: ${{ env.node_version }}
-      - name: Set up Python 🐍
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install Conan 💪
-        run: pip install conan pytest && conan --version
-      - name: Initialize CodeQL 🏍️
-        uses: github/codeql-action/init@v1
-        with:
-          languages: cpp
-      - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
-      - name: Build Debug Build 🔧
-        run: cmake --build cmake-build-debug
-      - name: Run Tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
-      - name: Collect code coverage 🛻
-        working-directory: cmake-build-debug/src/tests/
-        run: bash <(curl -s https://codecov.io/bash)
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Run Tests Under Valgrind 📋
-        working-directory: cmake-build-debug/bin/
-        run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
-      - name: Perform CodeQL Analysis 🕵
-        uses: github/codeql-action/analyze@v1
-  windows-node-test:
-    name: Windows Tests
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        include:
-          - { sys: mingw64, env: x86_64 }
-    defaults:
-      run:
-        shell: msys2 {0}
-    steps:
-      - name: Install MinGW 📚
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: ${{ matrix.sys }}
-          update: true
-          install: >-
-            mingw-w64-${{ matrix.env }}-toolchain
-            mingw-w64-${{ matrix.env }}-boost
-            mingw-w64-${{ matrix.env }}-python-pip
-            base-devel
-            cmake
-            git
-            swig
-      - name: Checkout Source 🛎️
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1.4.6
-        with:
-          node-version: ${{ env.node_version }}
-      - name: Install Conan 💪
-        run: pip install conan pytest && conan --version
-      - name: Build Debug Build 🔧
-        run: ./compile.sh win-ci
-      - name: Run Tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
   scala-test:
     strategy:
       matrix:
@@ -169,7 +55,7 @@ jobs:
         run: ./omega_test -d yes --order lex
   deploy-documentation:
     concurrency: ci-${{ github.ref }}
-    needs: [ macos-node-test ]
+    # needs: [ macos-node-test ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source 🛎️
