@@ -25,8 +25,7 @@ object Rat {
     file(".git"),
 
     // json files
-    file("package.json"),
-    file("package-lock.json"),
+    file("src/rpc/client/ts/package.json"),
     file(".devcontainer/devcontainer.json"),
 
     // cmake build folder
@@ -56,17 +55,17 @@ object Rat {
     file("server/core/src/main/java/org.ctc.omegaedit"),
     file("src/bindings/java/omega_edit_wrap.cxx"),
     file("src/bindings/java/omega_edit_wrap.h"),
-    file("src/bindings/node/omega_edit_wrap.cxx"),
-    file("src/bindings/node/omega_edit_wrap.h"),
 
     // omega-edit logo picture
     file("images/OmegaEditLogo.png"),
 
     // node generated files
-    file("node_modules"),
-    file("module/omega_edit/omega_edit_mac.node"),
-    file("module/omega_edit/omega_edit_darwin.node"),
-    file("module/omega_edit/omega_edit_linux.node")
+    file("src/rpc/client/ts/node_modules"),
+    file("src/rpc/client/ts/omega_edit_grpc_pb.d.ts"),
+    file("src/rpc/client/ts/omega_edit_grpc_pb.js"),
+    file("src/rpc/client/ts/omega_edit_pb.d.ts"),
+    file("src/rpc/client/ts/omega_edit_pb.js"),
+    file("src/rpc/client/ts/yarn.lock")
     
   )
 
