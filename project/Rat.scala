@@ -35,6 +35,7 @@ object Rat {
     // cmake plugins
     file("cmake/"),
     file("src/rpc/cmake/"),
+    file("src/tests/integration/cmake/"),
 
     // ide folders
     file(".idea"),
@@ -46,6 +47,7 @@ object Rat {
     file("build"),
 
     // data files for tests
+    file("src/examples/data/"),
     file("src/tests/integration/data/"),
 
     // ignore lib files
