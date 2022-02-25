@@ -23,7 +23,7 @@ generator="Ninja"
 rm -rf "${PWD}/_install"
 
 rm -rf build-static-$type
-cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DCMAKE_BUILD_TYPE=$type -DCMAKE_RELEASE_POSTFIX=_static
+cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DCMAKE_BUILD_TYPE=$type
 cmake --build build-static-$type
 cmake --install build-static-$type --prefix "${PWD}/_install"
 
@@ -43,4 +43,7 @@ cmake --build build-rpc-$type
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
 cmake --build build-tests-integration-$type
-cd build-tests-integration-$type && ctest --output-on-failure
+pushd build-tests-integration-$type && ctest --output-on-failure && popd
+
+cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
+pushd build-tests-$type && ctest --output-on-failure && popd

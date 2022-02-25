@@ -103,10 +103,10 @@ foreach (level MAJOR MINOR PATCH)
 endforeach ()
 
 
-option(BUILD_DOCS "build documentation" OFF)
+option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
     # Generate API documentation using Doxygen
-    find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)
+    find_package(Doxygen COMPONENTS dot)
     if (DOXYGEN_FOUND)
         message(STATUS "API documentation generation enabled")
         set(DOXYGEN_GENERATE_HTML YES)
@@ -114,15 +114,16 @@ if (BUILD_DOCS)
         set(DOXYGEN_GENERATE_XML YES)
         set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
         set(DOXYGEN_EXTRACT_ALL YES)
+        set(DOXYGEN_INDEX_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/xml")
+        set(DOXYGEN_INDEX_FILE "${DOXYGEN_INDEX_DIR}/index.xml")
         set(DOXYGEN_OUTPUT_DIRECTORY docs)
-        doxygen_add_docs(docs "src/include" ALL)
+        doxygen_add_docs(docs "src/include" ALL COMMENT "Generate doxygen docs")
         # Add the cmake folder so the FindSphinx module is found
         set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" "${CMAKE_MODULE_PATH}")
         find_package(Sphinx REQUIRED)
         if (SPHINX_FOUND)
             # Generate user documentation using Sphinx
             message(STATUS "User documentation generation enabled")
-            set(DOXYGEN_INDEX_DIR "${CMAKE_CURRENT_BINARY_DIR}/docs/xml")
             set(SPHINX_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/sphinx")
             set(SPHINX_BUILD "${CMAKE_CURRENT_BINARY_DIR}/docs/sphinx")
             set(SPHINX_INDEX_FILE "${SPHINX_BUILD}/index.html")
@@ -136,7 +137,6 @@ if (BUILD_DOCS)
                     DEPENDS
                     # Other docs files you want to track should go here (or in some variable)
                     "${SPHINX_SOURCE}/index.rst"
-                    "${DOXYGEN_INDEX_DIR}/index.xml"
                     MAIN_DEPENDENCY "${SPHINX_SOURCE}/conf.py"
                     COMMENT "Generating documentation with Sphinx")
             # Nice named target so we can run the job easily

@@ -27,10 +27,7 @@ conan_cmake_configure(
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
-conan_cmake_install(PATH_OR_REFERENCE .
-        BUILD missing
-        REMOTE conancenter
-        SETTINGS ${settings})
+conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 

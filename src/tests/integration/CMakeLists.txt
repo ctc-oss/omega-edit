@@ -30,7 +30,6 @@ Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 find_package(omega_edit REQUIRED)
 
-
 enable_testing()
 
 add_executable(omega_test omega_test.cpp test_util.h)
