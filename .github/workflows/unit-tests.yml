@@ -54,9 +54,9 @@ jobs:
         run: cmake --build build
       - name: Run Tests 📋
         run: |
-        cmake -G Ninja -S src/tests -B build-tests
-        cd build-tests
-        ctest --output-on-failure
+          cmake -G Ninja -S src/tests -B build-tests
+          cd build-tests
+          ctest --output-on-failure
   deploy-documentation:
     concurrency: ci-${{ github.ref }}
     needs: [ unit-test ]
