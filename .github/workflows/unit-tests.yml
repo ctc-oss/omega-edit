@@ -42,7 +42,7 @@ jobs:
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
       - name: Setup cmake 🔧
-        uses: jwlawson/actions-setup-cmake@v1.12
+        uses: jwlawson/actions-setup-cmake@v1
         with:
           cmake-version: '3.16.x'
       - name: Checkout 🛎️
@@ -70,7 +70,7 @@ jobs:
         with:
           name: site
       - name: Deploy User Documentation 🚀
-        uses: JamesIves/github-pages-deploy-action@v4.2.2
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: 'site' # The deployment folder should match the name of the artifact.
