@@ -88,3 +88,8 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt howMuchCoverage
         working-directory: src/bindings/scala
+
+      - name: Build Scala gRPC Reference Impl
+        if: startsWith(matrix.os, 'ubuntu')
+        run: sbt test
+        working-directory: src/rpc/server/scala
