@@ -1,28 +1,39 @@
-/**********************************************************************************************************************
- * Copyright (c) 2021 Concurrent Technologies Corporation.                                                                 *
- *                                                                                                                    *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
- * with the License.  You may obtain a copy of the License at                                                         *
- *                                                                                                                    *
- *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
- *                                                                                                                    *
- * Unless required by applicable law or agreed to in writing, software is distributed under the License is            *
- * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                   *
- * implied.  See the License for the specific language governing permissions and limitations under the License.       *
- *                                                                                                                    *
- **********************************************************************************************************************/
+/*
+ * Copyright 2021 Concurrent Technologies Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import BuildSupport._
 
 lazy val commonSettings = {
   Seq(
-    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
-    organization := "org.apache",
+    organization := "com.ctc",
     scalaVersion := "2.12.13",
-    scalacOptions ++= Seq("-Ypartial-unification"),
+    // version := "0.7.1-TEST",
+    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    crossScalaVersions := Seq("2.12.13", "2.13.8"),
+    organizationName := "Concurrent Technologies Corporation",
+    git.useGitDescribe := true,
+    git.gitUncommittedChanges := false,
+    licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
+    // publishMavenStyle := true,
+    githubOwner := "Shanedell",
+    githubRepository := "omega-edit",
+    githubTokenSource := TokenSource.Environment("GITHUB_TOKEN")
   )
 }
-
-lazy val commonPlugins = Seq(UnpackPlugin)
 
 lazy val ratSettings = Seq(
   ratLicenses := Seq(
@@ -35,11 +46,82 @@ lazy val ratSettings = Seq(
   ratFailBinaries := true,
 )
 
-lazy val `omega-edit` = project
+lazy val omega_edit = project
   .in(file("."))
   .settings(commonSettings, ratSettings)
   .settings(
-    name := "omega-edit",
     publish / skip := true
   )
-  .enablePlugins(commonPlugins: _*)
+  .aggregate(api, native)
+
+lazy val api = project
+  .in(file("src/bindings/scala/api"))
+  .settings(commonSettings)
+  .settings(
+    name := "omega-edit",
+    libraryDependencies ++= {
+      Seq(
+        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier arch.id,
+        "com.github.jnr" % "jnr-ffi" % "2.2.11",
+        "org.scalatest" %% "scalatest" % "3.2.11" % Test
+      )
+    },
+    scalacOptions ~= adjustScalacOptionsForScalatest,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := organization.value + ".omega_edit",
+    buildInfoKeys ++= Seq(
+      "nativeSharedLibraryName" -> mapping._1,
+      "nativeSharedLibraryPath" -> mapping._2
+    ),
+    // trim the dep to the native project from the pom
+    pomPostProcess := filterScopedDependenciesFromPom,
+    // ensure the native jar is published locally for tests
+    resolvers ++= Seq(
+      Resolver.mavenLocal,
+      Resolver.githubPackages("Shanedell")
+    )
+    // Test / Keys.test :=
+    //   (Test / Keys.test)
+    //     .dependsOn(native / publishM2)
+    //     .value
+    
+  )
+  .enablePlugins(BuildInfoPlugin, GitVersioning)
+
+lazy val native = project
+  .in(file("src/bindings/scala/native"))
+  .settings(commonSettings)
+  .settings(
+    name := "omega-edit-native",
+    artifactClassifier := Some(arch.id),
+    Compile / packageBin / mappings += {
+      baseDirectory.map(_ / s"$libdir/${mapping._1}").value -> mapping._2
+    }
+  )
+  .enablePlugins(GitVersioning)
+
+// lazy val server = project
+//   .in(file("src/rpc/server/scala"))
+//   .settings(
+//     Seq(
+//       name := "example-grpc-server",
+//       scalaVersion := "2.13.6",
+//       git.useGitDescribe := true,
+//       git.gitUncommittedChanges := false,
+//       licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
+//       organizationName := "Concurrent Technologies Corporation",
+//       startYear := Some(2021),
+//       libraryDependencies ++= Seq(
+//         "com.ctc" %% "omega-edit" % version.value,
+//         "com.ctc" %% "omega-edit-native" % version.value classifier s"${arch.id}",
+//         "org.scalatest" %% "scalatest" % "3.2.11" % Test
+//       ),
+//       resolvers += Resolver.mavenLocal,
+//       Compile / PB.protoSources += baseDirectory.value / "src/rpc/protos"
+//     )
+//   )
+//   .enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaAppPackaging, UniversalPlugin)
+
+addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2")
+addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
+addCommandAlias("publish", "; clean; native/publish; test; api/publish")

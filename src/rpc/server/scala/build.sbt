@@ -22,6 +22,10 @@ scalaVersion := "2.13.6"
 git.useGitDescribe := true
 git.gitUncommittedChanges := false
 
+githubOwner := "Shanedell"
+githubRepository := "omega-edit"
+githubTokenSource := TokenSource.Environment("GITHUB_TOKEN")
+
 licenses := Seq(("Apache-2.0", apacheLicenseUrl))
 organizationName := "Concurrent Technologies Corporation"
 startYear := Some(2021)
@@ -32,7 +36,11 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 
-resolvers += Resolver.mavenLocal
+resolvers ++= Seq(
+  Resolver.mavenLocal,
+  Resolver.githubPackages("Shanedell")
+)
+
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 
 enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaAppPackaging, UniversalPlugin)
