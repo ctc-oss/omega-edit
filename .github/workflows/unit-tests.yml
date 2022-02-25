@@ -54,7 +54,7 @@ jobs:
         run: cmake --build build
       - name: Run Tests 📋
         run: |
-          cmake -G Ninja -S src/tests -B build-tests
+          cmake -S src/tests -B build-tests
           cd build-tests
           ctest --output-on-failure
   deploy-documentation:
