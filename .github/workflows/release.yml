@@ -25,12 +25,10 @@ env:
 
 jobs:
   node-build:
-    name: Build ubuntu-20.04 🔧
-    runs-on: ubuntu-20.04
+    name: Build ubuntu-latest 🔧
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
       - name: Setup Node 📐
         uses: actions/setup-node@v1.4.6
         with:
@@ -60,12 +58,10 @@ jobs:
 
   release:
     name: Release ✨
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [node-build]
     steps:
       - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
