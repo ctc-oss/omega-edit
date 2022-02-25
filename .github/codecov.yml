@@ -32,9 +32,7 @@ comment:
   require_changes: no
 
 ignore:
-  - vendor
   - src/bindings
   - src/examples
-  - src/tests/play.cpp
-  - src/tests/replay.cpp
-  - src/tests/generate_file.cpp
+  - src/rpc
+  - src/tests/integration/generate_file.cpp
