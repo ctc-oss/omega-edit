@@ -45,5 +45,5 @@ cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type 
 cmake --build build-tests-integration-$type
 pushd build-tests-integration-$type && ctest --output-on-failure && popd
 
-cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
-pushd build-tests-$type && ctest --output-on-failure && popd
+cmake -G "$generator" -S src/tests -B build-tests
+pushd build-tests && ctest --output-on-failure && popd
