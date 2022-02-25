@@ -30,7 +30,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
       - name: Setup Java ☕
-      - uses: actions/setup-java@v2
+        uses: actions/setup-java@v2
         with:
           distribution: adopt
           java-version: 8
