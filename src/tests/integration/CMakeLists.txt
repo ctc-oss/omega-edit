@@ -7,18 +7,20 @@
 #                                                                                                               
 # Unless required by applicable law or agreed to in writing, software is distributed under the License is       
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-# implied.  See the License for the specific language governing permissions and limitations under the License.  
-
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 cmake_minimum_required(VERSION 3.13)
-project(omega_edit-examples LANGUAGES C CXX)
+project(omega_edit-integration_tests LANGUAGES C CXX)
 
 # Use C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Get verbose output from the makefile (useful for debugging the build)
+set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
+
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
-conan_cmake_configure(REQUIRES "boost/1.78.0" GENERATORS cmake cmake_find_package OPTIONS boost:shared=False)
+conan_cmake_configure(REQUIRES "boost/1.78.0" "catch2/2.13.8" GENERATORS cmake cmake_find_package OPTIONS boost:shared=False)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
@@ -28,28 +30,17 @@ Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 find_package(omega_edit REQUIRED)
 
-add_executable(replace replace.cpp)
-target_include_directories(replace PRIVATE $omega_edit_INCLUDE_DIRS)
-target_link_libraries(replace PRIVATE omega_edit::omega_edit Boost::filesystem)
 
-add_executable(rotate rotate.cpp)
-target_link_libraries(rotate PRIVATE omega_edit::omega_edit Boost::filesystem)
+enable_testing()
 
-add_executable(slice slice.cpp)
-target_link_libraries(slice PRIVATE omega_edit::omega_edit Boost::filesystem)
+add_executable(omega_test omega_test.cpp test_util.h)
+target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
+add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
 
-add_executable(peek peek.cpp)
-target_link_libraries(peek PRIVATE omega_edit::omega_edit Boost::filesystem)
+add_executable(generate_file generate_file.cpp test_util.h)
+target_link_libraries(generate_file PRIVATE omega_edit::omega_edit Boost::filesystem)
 
-add_executable(simple simple.cpp)
-target_link_libraries(simple PRIVATE omega_edit::omega_edit Boost::filesystem)
-
-add_executable(simple_c simple_c.c)
-target_link_libraries(simple_c PRIVATE omega_edit::omega_edit Boost::filesystem)
-
-add_executable(replay replay.cpp)
-target_link_libraries(replay PRIVATE omega_edit::omega_edit Boost::filesystem)
-
-add_executable(play play.cpp)
-target_link_libraries(play PRIVATE omega_edit::omega_edit Boost::filesystem)
-add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+include(CTest)
+include(Catch)
+catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")

@@ -16,6 +16,7 @@
 #define OMEGA_EDIT_ENCODINGS_H
 
 #include "byte.h"
+#include "export.h"
 
 #ifdef __cplusplus
 #include <cstddef>
@@ -31,7 +32,7 @@ extern "C" {
  * @param src_length src_length of the bytes
  * @return number of characters written to the destination, or 0 if unsuccessful
  */
-size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length);
+OMEGA_EDIT_EXPORT size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length);
 
 /**
  * Given a pointer to hex characters, write the binary representation to dst
@@ -40,7 +41,7 @@ size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length);
  * @param src_length src_length of the hex characters
  * @return number of bytes written to the destination, or 0 if unsuccessful
  */
-size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length);
+OMEGA_EDIT_EXPORT size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length);
 
 #ifdef __cplusplus
 }

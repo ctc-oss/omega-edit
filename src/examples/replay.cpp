@@ -16,13 +16,13 @@
  * This application is an example of how a saved session can be replayed.
  */
 
+#include "omega_edit.h"
+#include "omega_edit/check.h"
+#include "omega_edit/encodings.h"
+#include "omega_edit/scoped_ptr.hpp"
 #include <cinttypes>
 #include <cstring>
 #include <iostream>
-#include <omega_edit.h>
-#include <omega_edit/check.h>
-#include <omega_edit/encodings.h>
-#include <omega_edit/scoped_ptr.hpp>
 
 using namespace std;
 

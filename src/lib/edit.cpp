@@ -23,7 +23,6 @@
 #include "impl_/model_segment_def.hpp"
 #include "impl_/session_def.hpp"
 #include "impl_/viewport_def.hpp"
-#include "omega_edit/utility.h"
 #include <cassert>
 #include <memory>
 #ifdef OMEGA_BUILD_WINDOWS

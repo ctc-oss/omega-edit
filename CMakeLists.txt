@@ -21,7 +21,7 @@ project(omega_edit
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
-# Use C++14gir branch
+# Use C++14
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
@@ -30,43 +30,15 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES "catch2/2.13.8" "boost/1.78.0"
+        REQUIRES "boost/1.78.0"
         GENERATORS cmake cmake_find_package
         OPTIONS boost:shared=False
-        boost:without_chrono=True
-        boost:without_container=True
-        boost:without_context=True
-        boost:without_contract=True
-        boost:without_coroutine=True
-        boost:without_date_time=True
-        boost:without_exception=True
-        boost:without_fiber=True
-        boost:without_graph=True
-        boost:without_iostreams=True
-        boost:without_json=True
-        boost:without_locale=True
-        boost:without_log=True
-        boost:without_math=True
-        boost:without_nowide=True
-        boost:without_program_options=True
-        boost:without_random=True
-        boost:without_regex=True
-        boost:without_serialization=True
-        boost:without_stacktrace=True
-        boost:without_test=True
-        boost:without_thread=True
-        boost:without_timer=True
-        boost:without_type_erasure=True
-        boost:without_wave=True
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
-conan_cmake_install(PATH_OR_REFERENCE .
-        BUILD missing
-        REMOTE conancenter
-        SETTINGS ${settings})
-include("${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
+conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
+include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
-# Dependencies -- Boost
+# Dependencies
 Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 
@@ -89,7 +61,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/license.h" "src/lib/license.c"
         "src/include/omega_edit/utility.h" "src/lib/utility.c"
         "src/include/omega_edit/encodings.h" "src/lib/encodings.c"
-        "src/lib/filesystem.cpp"
+        "src/include/omega_edit/filesystem.h" "src/lib/filesystem.cpp"
         "src/lib/impl_/internal_fun.hpp" "src/lib/impl_/internal_fun.cpp"
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
         "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
@@ -97,20 +69,30 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/macros.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 
+## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
+if (DEFINED omega_edit_SHARED_LIBS)
+    set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
+endif ()
+
 # Create the library archive for static linking
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
-target_include_directories(omega_edit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
+add_library(omega_edit::omega_edit ALIAS omega_edit)
+set_target_properties(omega_edit PROPERTIES VERSION ${omega_edit_VERSION} SOVERSION ${omega_edit_VERSION_MAJOR})
+target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
 target_link_libraries(omega_edit Boost::filesystem)
+include(GenerateExportHeader)
+generate_export_header(omega_edit EXPORT_FILE_NAME "src/include/export.h")
+target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
+target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include>")
 
-# Create a shared library
-add_library(omega_edit_so SHARED ${OMEGA_EDIT_SOURCE_FILES})
-target_include_directories(omega_edit_so PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
-target_link_libraries(omega_edit_so Boost::filesystem)
-# keep inlined functions intact for Rust binding generation
-target_compile_options(omega_edit_so PUBLIC -fkeep-inline-functions)
-set_target_properties(omega_edit_so PROPERTIES OUTPUT_NAME omega_edit)
+## Include the install rules if the user wanted them (included by default when top-level)
+string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
+option(omega_edit_INCLUDE_PACKAGING "Include packaging rules for OmegaEdit" "${is_top_level}")
+if (omega_edit_INCLUDE_PACKAGING)
+    message(STATUS "Including packaging")
+    add_subdirectory(packaging)
+endif ()
 
 # Parse version information
 string(TOUPPER "${PROJECT_NAME}" PREFIX)
@@ -120,16 +102,8 @@ foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
 
-# Add additional subdirectories with CMakeLists.txt to the build
-add_subdirectory("src/examples")
-add_subdirectory("src/tests")
 
-option(BUILD_RPC "build RPC server and client" ON)
-if (BUILD_RPC)
-    add_subdirectory("src/rpc")
-endif(BUILD_RPC)
-
-option(BUILD_DOCS "build documentation" ON)
+option(BUILD_DOCS "build documentation" OFF)
 if (BUILD_DOCS)
     # Generate API documentation using Doxygen
     find_package(Doxygen OPTIONAL_COMPONENTS dot dia mscgen)

@@ -16,6 +16,7 @@
 #define OMEGA_EDIT_SEARCH_H
 
 #include "byte.h"
+#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -42,10 +43,10 @@ typedef struct omega_search_context_t omega_search_context_t;
  * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return search context
  */
-omega_search_context_t *omega_search_create_context_bytes(const omega_session_t *session_ptr,
-                                                          const omega_byte_t *pattern, int64_t pattern_length,
-                                                          int64_t session_offset, int64_t session_length,
-                                                          int case_insensitive);
+OMEGA_EDIT_EXPORT omega_search_context_t *
+omega_search_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                  int64_t pattern_length, int64_t session_offset, int64_t session_length,
+                                  int case_insensitive);
 
 /**
  * Create a search context
@@ -59,9 +60,9 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-inline omega_search_context_t *omega_search_create_context(const omega_session_t *session_ptr, const char *pattern,
-                                                           int64_t pattern_length, int64_t session_offset,
-                                                           int64_t session_length, int case_insensitive) {
+OMEGA_EDIT_EXPORT inline omega_search_context_t *
+omega_search_create_context(const omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                            int64_t session_offset, int64_t session_length, int case_insensitive) {
     return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
                                              session_offset, session_length, case_insensitive);
 }
@@ -71,14 +72,14 @@ inline omega_search_context_t *omega_search_create_context(const omega_session_t
  * @param search_context_ptr search context to get the most recent search offset from
  * @return the most recent search offset, if the search offset is equal to the session length, then no match was found
  */
-int64_t omega_search_context_get_offset(const omega_search_context_t *search_context_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_search_context_get_offset(const omega_search_context_t *search_context_ptr);
 
 /**
  * Given a search context, get the pattern length
  * @param search_context_ptr search context to get the pattern length from
  * @return the pattern length offset
  */
-int64_t omega_search_context_get_length(const omega_search_context_t *search_context_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_search_context_get_length(const omega_search_context_t *search_context_ptr);
 
 /**
  * Given a search context, find the next match
@@ -86,13 +87,13 @@ int64_t omega_search_context_get_length(const omega_search_context_t *search_con
  * @param advance_context advance the internal search context offset by this many bytes
  * @return non-zero if a match is found, zero otherwise
  */
-int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context);
+OMEGA_EDIT_EXPORT int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context);
 
 /**
  * Destroy the given search context
  * @param search_context_ptr search context to destroy
  */
-void omega_search_destroy_context(omega_search_context_t *search_context_ptr);
+OMEGA_EDIT_EXPORT void omega_search_destroy_context(omega_search_context_t *search_context_ptr);
 
 #ifdef __cplusplus
 }

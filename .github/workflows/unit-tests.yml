@@ -42,18 +42,20 @@ jobs:
           python-version: 3.8
       - name: Install Conan 💪
         run: pip install conan pytest && conan --version
-      - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-      - name: Build Debug Build 🔧
-        run: cmake --build cmake-build-debug
       - name: Run Tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
+        run: |
+          cmake -G Ninja -S src/tests -B cmake-test -DCMAKE_BUILD_TYPE=Release
+          cd cmake-test
+          ctest --output-on-failure
+      - name: Setup Build 📐
+        run: cmake -S . -B cmake-build -DCMAKE_BUILD_TYPE=Release
+      - name: Build 🔧
+        run: cmake --build cmake-build
       - name: Upload User Documentation Arifacts 🔺
         uses: actions/upload-artifact@v1
         with:
           name: site
-          path: cmake-build-debug/docs/sphinx
+          path: cmake-build/docs/sphinx
   linux-node-test:
     name: Linux Tests
     runs-on: ubuntu-latest
@@ -78,21 +80,23 @@ jobs:
         uses: github/codeql-action/init@v1
         with:
           languages: cpp
-      - name: Setup Debug Build 📐
-        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
-      - name: Build Debug Build 🔧
-        run: cmake --build cmake-build-debug
       - name: Run Tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
+        run: |
+          cmake -G Ninja -S src/tests -B cmake-test -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage
+          cd cmake-test
+          ctest --output-on-failure
+      - name: Run Tests Under Valgrind 📋
+        working-directory: cmake-test/default/bin/
+        run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
       - name: Collect code coverage 🛻
-        working-directory: cmake-build-debug/src/tests/
+        working-directory: cmake-test/default/bin/
         run: bash <(curl -s https://codecov.io/bash)
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Run Tests Under Valgrind 📋
-        working-directory: cmake-build-debug/bin/
-        run: valgrind --leak-check=full --show-leak-kinds=all --leak-resolution=med --track-origins=yes --vgdb=no --error-exitcode=1 ./omega_test -d yes --order lex
+      - name: Setup Build 📐
+        run: cmake -S . -B cmake-build -DCMAKE_BUILD_TYPE=Release
+      - name: Build 🔧
+        run: cmake --build cmake-build
       - name: Perform CodeQL Analysis 🕵
         uses: github/codeql-action/analyze@v1
   windows-node-test:
