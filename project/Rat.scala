@@ -46,7 +46,7 @@ object Rat {
     file("build"),
 
     // data files for tests
-    file("src/tests/data/"),
+    file("src/tests/integration/data/"),
 
     // ignore lib files
     file("lib"),
