@@ -44,6 +44,10 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v1
         with:
           cmake-version: '3.x'
+      - name: Setup Ninja
+        uses: ashutoshvarma/setup-ninja@v1
+        with:
+          version: '1.x'
       - name: Checkout 🛎️
         uses: actions/checkout@v2
       - name: Run sbt tests 📋
