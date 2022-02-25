@@ -23,10 +23,13 @@ jobs:
   scala-test:
     strategy:
       matrix:
-        os: [macos-11, ubuntu-20.04]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
       - name: Setup Java ☕
       - uses: actions/setup-java@v2.5.0
         with:

@@ -27,9 +27,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
-
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
@@ -42,12 +39,12 @@ jobs:
         with:
           cmake-version: '3.16.x'
 
-      - name: Build Omega Edit
+      - name: Build Ωedit
         run: |
           rm -rf build || true
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
-          cmake --build . --target omega_edit_so
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
           mv lib/* ../lib
 
       - name: Setup JDK
