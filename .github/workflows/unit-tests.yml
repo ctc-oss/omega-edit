@@ -15,9 +15,8 @@ on:
   push:
     branches:
       - '**'
-
-env:
-  node_version: 14.16.0
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   unit-test:
