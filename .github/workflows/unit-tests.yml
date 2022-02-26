@@ -55,7 +55,7 @@ jobs:
         run: |
           cmake -S src/tests -B build-tests
           cd build-tests
-          ctest --output-on-failure
+          ctest -C Release --output-on-failure
   deploy-documentation:
     concurrency: ci-${{ github.ref }}
     needs: [ unit-test ]
