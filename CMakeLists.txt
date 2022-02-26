@@ -17,6 +17,7 @@ project(omega_edit
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
+message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
 
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")

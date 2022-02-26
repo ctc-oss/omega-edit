@@ -13,6 +13,10 @@ project(omega_edit-tests LANGUAGES C CXX)
 
 enable_testing()
 
+if (MSVC)
+    set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
+endif ()
+
 if (CMAKE_HOST_WIN32)
     set(static_opts -DCMAKE_RELEASE_POSTFIX=_static)
     set(LDD dumpbin /dependents)
