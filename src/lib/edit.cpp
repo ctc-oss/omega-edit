@@ -514,7 +514,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("rename failed: " << strerror(errno));
         return -9;
     }
-    if (saved_file_path) { strcpy(saved_file_path, file_path); }
+    if (saved_file_path) { strncpy(saved_file_path, file_path, FILENAME_MAX); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);
     return 0;
 }

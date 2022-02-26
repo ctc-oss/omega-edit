@@ -43,7 +43,7 @@ cmake --build build-rpc-$type
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
 cmake --build build-tests-integration-$type
-pushd build-tests-integration-$type && ctest --output-on-failure && popd
+pushd build-tests-integration-$type && ctest -C $type --output-on-failure && popd
 
 cmake -G "$generator" -S src/tests -B build-tests
-pushd build-tests && ctest --output-on-failure && popd
+pushd build-tests && ctest -C $type --output-on-failure && popd
