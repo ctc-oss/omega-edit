@@ -19,12 +19,24 @@ import BuildSupport._
 name := "example-grpc-server"
 scalaVersion := "2.13.6"
 
-git.useGitDescribe := true
-git.gitUncommittedChanges := false
+version := "0.7.1"
 
-githubOwner := "Shanedell"
-githubRepository := "omega-edit"
-githubTokenSource := TokenSource.Environment("GITHUB_TOKEN")
+lazy val ghb_repo_owner = "Shanedell"
+lazy val ghb_repo = "omega-edit"
+lazy val ghb_resolver = (
+  s"GitHub ${ghb_repo_owner} Apache Maven Packages"
+  at
+  s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+)
+
+publishTo := Some(ghb_resolver)
+publishMavenStyle := true
+credentials += Credentials(
+  "GitHub Package Registry",
+  "maven.pkg.github.com",
+  ghb_repo_owner,
+  System.getenv("GITHUB_TOKEN")
+)
 
 licenses := Seq(("Apache-2.0", apacheLicenseUrl))
 organizationName := "Concurrent Technologies Corporation"
@@ -36,10 +48,8 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 
-resolvers ++= Seq(
-  Resolver.mavenLocal,
-  Resolver.githubPackages("Shanedell")
-)
+resolvers += Resolver.mavenLocal
+externalResolvers += ghb_resolver
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 

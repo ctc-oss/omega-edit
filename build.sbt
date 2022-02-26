@@ -15,23 +15,41 @@
  */
 
 import BuildSupport._
+import play.api.libs.json._
+
+lazy val packageData = Json.parse(
+  scala.io.Source.fromFile("./src/rpc/client/ts/package.json"
+).mkString).as[JsObject]
+lazy val omegaVersion = packageData("version").as[String]
+
+lazy val ghb_repo_owner = "Shanedell"
+lazy val ghb_repo = "omega-edit"
+lazy val ghb_resolver = (
+  s"GitHub ${ghb_repo_owner} Apache Maven Packages"
+  at
+  s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+)
 
 lazy val commonSettings = {
   Seq(
     organization := "com.ctc",
     scalaVersion := "2.12.13",
-    // version := "0.7.1-TEST",
+    version := omegaVersion,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
-    git.useGitDescribe := true,
-    git.gitUncommittedChanges := false,
+    // git.useGitDescribe := true,
+    // git.gitUncommittedChanges := false,
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
-    // publishMavenStyle := true,
-    githubOwner := "Shanedell",
-    githubRepository := "omega-edit",
-    githubTokenSource := TokenSource.Environment("GITHUB_TOKEN")
+    publishTo := Some(ghb_resolver),
+    publishMavenStyle := true,
+    credentials += Credentials(
+      "GitHub Package Registry",
+      "maven.pkg.github.com",
+      ghb_repo_owner,
+      System.getenv("GITHUB_TOKEN")
+    ),
   )
 }
 
@@ -67,8 +85,9 @@ lazy val api = project
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, "omegaVersion" -> omegaVersion),
     buildInfoPackage := organization.value + ".omega_edit",
+    packageName := s"${name.value}-$daffodilVer",
     buildInfoKeys ++= Seq(
       "nativeSharedLibraryName" -> mapping._1,
       "nativeSharedLibraryPath" -> mapping._2
@@ -76,15 +95,12 @@ lazy val api = project
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
-    resolvers ++= Seq(
-      Resolver.mavenLocal,
-      Resolver.githubPackages("Shanedell")
-    )
-    // Test / Keys.test :=
-    //   (Test / Keys.test)
-    //     .dependsOn(native / publishM2)
-    //     .value
-    
+    resolvers += Resolver.mavenLocal,
+    externalResolvers += ghb_resolver,
+    Test / Keys.test :=
+      (Test / Keys.test)
+        .dependsOn(native / publishM2)
+        .value
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -100,28 +116,6 @@ lazy val native = project
   )
   .enablePlugins(GitVersioning)
 
-// lazy val server = project
-//   .in(file("src/rpc/server/scala"))
-//   .settings(
-//     Seq(
-//       name := "example-grpc-server",
-//       scalaVersion := "2.13.6",
-//       git.useGitDescribe := true,
-//       git.gitUncommittedChanges := false,
-//       licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
-//       organizationName := "Concurrent Technologies Corporation",
-//       startYear := Some(2021),
-//       libraryDependencies ++= Seq(
-//         "com.ctc" %% "omega-edit" % version.value,
-//         "com.ctc" %% "omega-edit-native" % version.value classifier s"${arch.id}",
-//         "org.scalatest" %% "scalatest" % "3.2.11" % Test
-//       ),
-//       resolvers += Resolver.mavenLocal,
-//       Compile / PB.protoSources += baseDirectory.value / "src/rpc/protos"
-//     )
-//   )
-//   .enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaAppPackaging, UniversalPlugin)
-
 addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2")
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
-addCommandAlias("publish", "; clean; native/publish; test; api/publish")
+addCommandAlias("publishAll", "; clean; +native/publish; +api/publish")
