@@ -51,6 +51,7 @@ jobs:
       - name: Build 🔧
         run: cmake --build build
       - name: Run Tests 📋
+        if: runner.os != 'Windows'
         run: |
           cmake -S src/tests -B build-tests
           cd build-tests
