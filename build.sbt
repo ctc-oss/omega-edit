@@ -87,7 +87,6 @@ lazy val api = project
     scalacOptions ~= adjustScalacOptionsForScalatest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion, "omegaVersion" -> omegaVersion),
     buildInfoPackage := organization.value + ".omega_edit",
-    packageName := s"${name.value}-$daffodilVer",
     buildInfoKeys ++= Seq(
       "nativeSharedLibraryName" -> mapping._1,
       "nativeSharedLibraryPath" -> mapping._2
