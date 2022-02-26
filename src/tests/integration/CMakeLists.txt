@@ -32,6 +32,10 @@ find_package(omega_edit REQUIRED)
 
 enable_testing()
 
+if (MSVC)
+    set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
+endif ()
+
 add_executable(omega_test omega_test.cpp test_util.h)
 target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Boost::filesystem)
 target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
