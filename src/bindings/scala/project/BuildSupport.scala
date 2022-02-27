@@ -20,7 +20,10 @@ import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Node => XmlNode, NodeSeq => XmlNodeSeq, _}
 
 object BuildSupport {
-  case class Arch(id: String, _id: String)
+  case class Platform(os: String, bits: String) {
+    def id: String = s"$os-$bits"
+    def _id: String = s"${os}_$bits"
+  }
   val libdir: String = "../../../../lib"
   val apacheLicenseUrl: URL = new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")
 
@@ -44,11 +47,12 @@ object BuildSupport {
       }
     }).transform(node).head
 
-  lazy val arch: Arch = {
+  lazy val platform: Platform = {
     val os = System.getProperty("os.name").toLowerCase match {
       case "linux"   => "linux"
       case Mac()     => "macos"
       case "windows" => "windows"
+      case os        => throw new IllegalStateException(s"Unsupported OS: $os")
     }
 
     val arch = System.getProperty("os.arch").toLowerCase match {
@@ -56,10 +60,10 @@ object BuildSupport {
       case x86(bits) => bits
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
-    Arch(s"$os-$arch", s"${os}_$arch")
+    Platform(os, arch)
   }
 
-  def pair(name: String): (String, String) = name -> s"${arch._id}/$name"
+  def pair(name: String): (String, String) = name -> s"${platform._id}/$name"
   lazy val mapping = {
     val Mac = """mac.+""".r
     System.getProperty("os.name").toLowerCase match {
