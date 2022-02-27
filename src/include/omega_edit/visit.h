@@ -15,6 +15,7 @@
 #ifndef OMEGA_EDIT_VISIT_H
 #define OMEGA_EDIT_VISIT_H
 
+#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -35,7 +36,8 @@ typedef int (*omega_session_change_visitor_cbk_t)(const omega_change_t *, void *
  * @param user_data user-provided data to provide back to the callback
  * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
  */
-int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data);
+OMEGA_EDIT_EXPORT int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                          void *user_data);
 
 /**
  * Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer
@@ -45,8 +47,8 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
  * @param user_data user-provided data to provide back to the callback
  * @return 0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early
  */
-int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
-                                void *user_data);
+OMEGA_EDIT_EXPORT int omega_visit_changes_reverse(const omega_session_t *session_ptr,
+                                                  omega_session_change_visitor_cbk_t cbk, void *user_data);
 
 /**
  * Opaque visit change context
@@ -59,41 +61,43 @@ typedef struct omega_visit_change_context_struct omega_visit_change_context_t;
  * @param reverse non-zero to reverse the visitation chronology (newest change to oldest change)
  * @return change visitor context
  */
-omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse);
+OMEGA_EDIT_EXPORT omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr,
+                                                                                  int reverse);
 
 /**
  * Return non-zero if we are at the end of the change visitations
  * @param change_context_ptr change visitor context to see if we're at the end of
  * @return non-zero if we are at the end of the change visitations and zero if there are changes remaining to visit
  */
-int omega_visit_change_at_end(const omega_visit_change_context_t *change_context_ptr);
+OMEGA_EDIT_EXPORT int omega_visit_change_at_end(const omega_visit_change_context_t *change_context_ptr);
 
 /**
  * Set the change visitor context to the beginning of the changes
  * @param change_context_ptr change visitor context to set to the beginning
  * @return non-zero if there are no changes to visit and zero otherwise
  */
-int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr);
+OMEGA_EDIT_EXPORT int omega_visit_change_begin(omega_visit_change_context_t *change_context_ptr);
 
 /**
  * Given a change visitor context, find the next change
  * @param change_context_ptr change visitor context to find the next change in
  * @return non-zero if a change is found, zero otherwise
  */
-int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr);
+OMEGA_EDIT_EXPORT int omega_visit_change_next(omega_visit_change_context_t *change_context_ptr);
 
 /**
  * Given a change visitor context, get a pointer to the change
  * @param change_context_ptr change visitor context to get the change from
  * @return pointer to the change, or nullptr if no change is found
  */
-const omega_change_t *omega_visit_change_context_get_change(const omega_visit_change_context_t *change_context_ptr);
+OMEGA_EDIT_EXPORT const omega_change_t *
+omega_visit_change_context_get_change(const omega_visit_change_context_t *change_context_ptr);
 
 /**
  * Destroy the given change visitor context
  * @param change_context_ptr change visitor context to destroy
  */
-void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr);
+OMEGA_EDIT_EXPORT void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr);
 
 #ifdef __cplusplus
 }

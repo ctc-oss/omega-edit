@@ -12,10 +12,10 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../include/omega_edit/filesystem.h"
 #include "impl_/macros.h"
-#include "omega_edit/utility.h"
-#include <assert.h>
 #include <boost/filesystem.hpp>
+#include <cassert>
 
 namespace fs = boost::filesystem;
 
@@ -41,6 +41,7 @@ const char *omega_util_get_current_dir(char *buffer) {
 }
 
 char *omega_util_dirname(char const *path, char *buffer) {
+    assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const len = fs::path(path).parent_path().string().copy(buffer, FILENAME_MAX);
@@ -49,6 +50,7 @@ char *omega_util_dirname(char const *path, char *buffer) {
 }
 
 char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
+    assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const len = (drop_suffix) ? fs::path(path).stem().string().copy(buffer, FILENAME_MAX)
@@ -58,6 +60,7 @@ char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
 }
 
 char *omega_util_file_extension(char const *path, char *buffer) {
+    assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const len = fs::path(path).extension().string().copy(buffer, FILENAME_MAX);
@@ -66,6 +69,7 @@ char *omega_util_file_extension(char const *path, char *buffer) {
 }
 
 char *omega_util_normalize_path(char const *path, char *buffer) {
+    assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const len = fs::absolute(fs::canonical(path)).string().copy(buffer, FILENAME_MAX);
@@ -74,6 +78,7 @@ char *omega_util_normalize_path(char const *path, char *buffer) {
 }
 
 char *omega_util_available_filename(char const *path, char *buffer) {
+    assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     assert(path);
     if (!buffer) { buffer = buff; }

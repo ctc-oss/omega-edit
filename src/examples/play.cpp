@@ -17,15 +17,15 @@
  * saved to a file where they can be replayed.
  */
 
+#include "omega_edit.h"
+#include "omega_edit/check.h"
+#include "omega_edit/encodings.h"
+#include "omega_edit/scoped_ptr.hpp"
+#include "omega_edit/stl_string_adaptor.hpp"
 #include <cassert>
 #include <cinttypes>
 #include <iomanip>
 #include <iostream>
-#include <omega_edit.h>
-#include <omega_edit/check.h>
-#include <omega_edit/encodings.h>
-#include <omega_edit/scoped_ptr.hpp>
-#include <omega_edit/stl_string_adaptor.hpp>
 
 using namespace std;
 
@@ -178,8 +178,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode_t view_mode;
 
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    file_info.in_filename = "data/test1.dat";
-    file_info.save_filename = "data/test1.dat.sav";
+    file_info.in_filename = "data/example1.dat";
+    file_info.save_filename = "data/example1.dat.sav";
     file_info.bin_to_hex_buffer_size = 1024;
     file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
 

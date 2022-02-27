@@ -16,6 +16,7 @@
 #define OMEGA_EDIT_EDIT_H
 
 #include "byte.h"
+#include "export.h"
 #include "fwd_defs.h"
 #include "utility.h"
 
@@ -47,13 +48,14 @@ typedef void (*omega_viewport_event_cbk_t)(const omega_viewport_t *, omega_viewp
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @return pointer to the created session, nullptr on failure
  */
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr);
+OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
+                                                             void *user_data_ptr);
 
 /**
  * Destroy the given session and all associated objects (authors, changes, and viewports)
  * @param session_ptr session to destroy
  */
-void omega_edit_destroy_session(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
 
 /**
  * Create a new viewport for the given author, returns a pointer to the new viewport
@@ -66,36 +68,37 @@ void omega_edit_destroy_session(omega_session_t *session_ptr);
  * "float" as bytes are inserted or deleted before the start of this viewport
  * @return pointer to the new viewport, nullptr on failure
  */
-omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr, int is_floating);
+OMEGA_EDIT_EXPORT omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset,
+                                                               int64_t capacity, omega_viewport_event_cbk_t cbk,
+                                                               void *user_data_ptr, int is_floating);
 
 /**
  * Destroy a given viewport
  * @param viewport_ptr viewport to destroy
  * @return 0 of the viewport was successfully destroyed, and non-zero otherwise
  */
-void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
 
 /**
  * Given a session, clear all active changes
  * @param session_ptr session to clear all changes for
  * @return zero on success and non-zero otherwise
  */
-int omega_edit_clear_changes(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_edit_clear_changes(omega_session_t *session_ptr);
 
 /**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
  * @return negative serial number of the undone change if successful, zero otherwise
  */
-int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
 
 /**
  * Redoes the last undo (if available)
  * @param session_ptr session to redo the last undo for
  * @return positive serial number of the redone change if successful, zero otherwise
  */
-int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 
 /**
  * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
@@ -108,7 +111,8 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
  * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
  * @return 0 on success, non-zero otherwise
  */
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path);
+OMEGA_EDIT_EXPORT int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite,
+                                      char *saved_file_path);
 
 /**
  * Delete a number of bytes at the given offset
@@ -117,7 +121,7 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
  * @param length number of bytes to delete
  * @return positive change serial number on success, zero otherwise
  */
-int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
+OMEGA_EDIT_EXPORT int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
 
 /**
  * Insert a number of bytes at the given offset
@@ -127,8 +131,8 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
  * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
  */
-int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
-                                int64_t length);
+OMEGA_EDIT_EXPORT int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset,
+                                                  const omega_byte_t *bytes, int64_t length);
 
 /**
  * Insert a C string at the given offset
@@ -139,7 +143,8 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
  * bytes)
  * @return positive change serial number on success, zero otherwise
  */
-int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
+OMEGA_EDIT_EXPORT int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr,
+                                            int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new bytes
@@ -149,8 +154,8 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
  * @param length number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
  */
-int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
-                                   int64_t length);
+OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
+                                                     const omega_byte_t *bytes, int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new C string
@@ -160,7 +165,8 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
  */
-int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
+OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
+                                               int64_t length);
 
 /**
  * Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given
@@ -173,8 +179,9 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
  * @param checkpoint_directory directory to store the checkpoint file
  * @return zero on success, non-zero otherwise
  */
-int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
-                               int64_t offset, int64_t length, char const *checkpoint_directory);
+OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
+                                                 void *user_data_ptr, int64_t offset, int64_t length,
+                                                 char const *checkpoint_directory);
 
 /**
  * Creates a session checkpoint in the given directory.
@@ -182,14 +189,14 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
  * @param checkpoint_directory directory to create the checkpoint in
  * @return zero on success, non-zero otherwise
  */
-int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory);
+OMEGA_EDIT_EXPORT int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory);
 
 /**
  * Destroys the last checkpoint created on the given session
  * @param session_ptr session to remove the checkpoint
  * @return zero on success, non-zero otherwise
  */
-int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

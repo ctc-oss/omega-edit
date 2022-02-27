@@ -8,7 +8,12 @@
 # Unless required by applicable law or agreed to in writing, software is distributed under the License is
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
-project(omega_edit-rpc)
+cmake_minimum_required(VERSION 3.13)
+project(omega_edit-rpc LANGUAGES C CXX)
+
+# Use C++14
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
@@ -17,17 +22,19 @@ include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
         REQUIRES "boost/1.78.0" "grpc/1.43.0"
-        OPTIONS boost:header_only=True
+        OPTIONS boost:shared=False
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
-conan_cmake_install(PATH_OR_REFERENCE .
-        BUILD missing
-        REMOTE conancenter
-        SETTINGS ${settings})
+conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
+
+# Dependencies
+Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
+find_package(omega_edit REQUIRED)
 
 if (MSVC)
     set(protoc "build_tools/protoc.exe")
@@ -87,11 +94,11 @@ SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omeg
 SET(WORKER_QUEUE_SOURCE_FILES "server/cpp/worker_queue/worker_queue.hpp" "server/cpp/worker_queue/worker_queue.cpp")
 
 add_executable(server "server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server PRIVATE omega_edit::omega_edit Boost::filesystem ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
 add_executable(server_test "tests/server_test.cpp" ${RPC_SOURCE_FILES})
-target_link_libraries(server_test PRIVATE omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server_test PRIVATE ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 add_dependencies(server_test server)

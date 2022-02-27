@@ -25,14 +25,12 @@ env:
 
 jobs:
   node-build:
-    name: Build ubuntu-20.04 🔧
-    runs-on: ubuntu-20.04
+    name: Build ubuntu-latest 🔧
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v2
       - name: Setup Node 📐
-        uses: actions/setup-node@v1.4.6
+        uses: actions/setup-node@v1
         with:
           node-version: ${{ env.node_version }}
 
@@ -51,7 +49,7 @@ jobs:
           yarn package
 
       - name: Upload ${{ env.NODE_FILE }} 🔺
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v2
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
@@ -60,12 +58,10 @@ jobs:
 
   release:
     name: Release ✨
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: [node-build]
     steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
@@ -79,7 +75,7 @@ jobs:
         shell: bash
 
       - name: Create release 🔧
-        uses: actions/create-release@v1.1.4
+        uses: actions/create-release@v1
         id: create_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,13 +89,13 @@ jobs:
       ## Node release process ##
       ##########################
       - name: Setup Node 📐
-        uses: actions/setup-node@v1.4.6
+        uses: actions/setup-node@v1
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: ${{ env.node_version }}
 
       - name: Download node release file 🔻
-        uses: actions/download-artifact@v2.1.0
+        uses: actions/download-artifact@v2
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: omega-edit-v${{ env.PKG_VERSION }}.tgz
@@ -111,7 +107,7 @@ jobs:
           rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
 
       - name: Upload node release tarball 🔺
-        uses: actions/upload-release-asset@v1.0.2
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

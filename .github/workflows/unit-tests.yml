@@ -15,59 +15,60 @@ on:
   push:
     branches:
       - '**'
-
-env:
-  node_version: 14.16.0
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  scala-test:
+  unit-test:
     strategy:
       matrix:
-        os: [macos-11, ubuntu-20.04]
+        os: [windows-latest, macos-latest, ubuntu-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2.3.5
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup Java ☕
+        uses: actions/setup-java@v2
         with:
-          submodules: recursive
-      - uses: actions/setup-java@v2.5.0
-        with:
-          distribution: 'adopt'
-          java-version: '11'
-      - name: Run tests 📋
-        run: sbt test
-      - name: Checkout 🛎️
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: Set up Python 🐍
+          distribution: adopt
+          java-version: 8
+      - name: Setup Python 🐍
         uses: actions/setup-python@v2
         with:
-          python-version: 3.8
+          python-version: '3.x'
       - name: Install Conan 💪
-        run: pip install conan pytest && conan --version
+        uses: turtlebrowser/get-conan@main
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
+      - name: Checkout 🛎️
+        uses: actions/checkout@v2
+      - name: Run sbt tests 📋
+        run: sbt test
       - name: Prepare The Build 🪛
-        run: cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-      - name: Build Tests 🔧
-        run: cmake --build cmake-build-debug --target omega_test
-      - name: Run tests 📋
-        working-directory: cmake-build-debug/bin/
-        run: ./omega_test -d yes --order lex
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build 🔧
+        run: cmake --build build
+      - name: Run Tests 📋
+        if: runner.os != 'Windows'
+        run: |
+          cmake -S src/tests -B build-tests
+          cd build-tests
+          ctest -C Release --output-on-failure
   deploy-documentation:
     concurrency: ci-${{ github.ref }}
-    # needs: [ macos-node-test ]
+    needs: [ unit-test ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
-        with:
-          submodules: recursive
       - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
         uses: actions/download-artifact@v1
         with:
           name: site
       - name: Deploy User Documentation 🚀
-        uses: JamesIves/github-pages-deploy-action@v4.2.2
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: 'site' # The deployment folder should match the name of the artifact.

@@ -25,21 +25,16 @@ extraction:
       packages:
         - g++-10
         - ccache
+      script:
+        - mkdir ~/.conan
+        - cat /usr/local/share/ca-certificates/semmle-cache-ca/semmle-cache-ca.crt >> ~/.conan/cacert.pem
+        - python3 -m pip install --upgrade pip setuptools
+        - python3 -m pip install conan
+        - python3 -m pip install cmake
+        - source ~/.profile
     configure:
       command:
-        - which python3
-        - python3 --version
-        - python3 -m venv venv
-        - source ./venv/bin/activate
-        - pip install --upgrade pip setuptools
-        - pip install cmake conan
-        - which conan
-        - conan --version
-        - which cmake
-        - cmake --version
-        - mkdir -p build
-        - cmake -D CMAKE_BUILD_TYPE:STRING=Debug -D CMAKE_CXX_FLAGS=--coverage -D CMAKE_C_FLAGS=--coverage -S . -B build
+        - mkdir build
+        - cmake -S . -B build -DCMAKE_BUILD_TYPE:STRING=Debug
     index:
-      build_command:
-        - source ./venv/bin/activate
-        - cmake --build ./build -- -j
+      build_command: cmake --build build

@@ -15,6 +15,7 @@
 #ifndef OMEGA_EDIT_CHECK_H
 #define OMEGA_EDIT_CHECK_H
 
+#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -26,7 +27,7 @@ extern "C" {
  * @param session_ptr session whose model to check for errors
  * @return 0 if the model is error free and non-zero otherwise
  */
-int omega_check_model(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_check_model(const omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

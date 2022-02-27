@@ -408,14 +408,14 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     omega_util_remove_directory("data/test_dir");
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test_dir/model-test.actual.1.dat", 0, saved_filename));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/test_dir/model-test.actual.1.dat"));
-    REQUIRE(0 == omega_util_remove_file("data/model-test.actual.1.dat"));
+    omega_util_remove_file("data/model-test.actual.1.dat");
     REQUIRE(0 == omega_util_remove_file("data/test_dir/model-test.actual.1.dat"));
     REQUIRE(0 == omega_util_remove_directory("data/test_dir"));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0, saved_filename));
     REQUIRE(0 != compare_files("data/model-test.dat", "data/model-test.actual.1.dat"));
     REQUIRE(0 == compare_files("data/model-test.expected.1.dat", "data/model-test.actual.1.dat"));
     REQUIRE_THAT(saved_filename, Equals("data/model-test.actual.1.dat"));
-    REQUIRE(0 == omega_util_remove_file("data/model-test.actual.1-1.dat"));
+    omega_util_remove_file("data/model-test.actual.1-1.dat");
     REQUIRE(0 == omega_edit_save(session_ptr, "data/model-test.actual.1.dat", 0, saved_filename));
     REQUIRE(0 == compare_files("data/model-test.actual.1.dat", "data/model-test.actual.1-1.dat"));
     REQUIRE(0 == strcmp("data/model-test.actual.1-1.dat", saved_filename));
