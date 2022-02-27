@@ -62,17 +62,17 @@ jobs:
       - name: Check Scala headers
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt headerCheckAll
-        working-directory: src/bindings/scala
+        # working-directory: src/bindings/scala
 
       - name: Package Scala API and Linux so
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt +test +publishM2
-        working-directory: src/bindings/scala
+        # working-directory: src/bindings/scala
 
       - name: Package Mac dylib
         if: startsWith(matrix.os, 'mac')
         run: sbt +test +native/publishM2
-        working-directory: src/bindings/scala
+        # working-directory: src/bindings/scala
 
       - name: Archive M2
         uses: actions/upload-artifact@v2
@@ -84,9 +84,9 @@ jobs:
       - name: Coverage report
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt howMuchCoverage
-        working-directory: src/bindings/scala
+        # working-directory: src/bindings/scala
 
       - name: Build Scala gRPC Reference Impl
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt test
-        working-directory: src/rpc/server/scala
+        # working-directory: src/rpc/server/scala

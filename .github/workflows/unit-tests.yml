@@ -45,7 +45,7 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v2
       - name: Run sbt tests 📋
-        run: sbt test
+        run: sbt +test +publishM2
       - name: Prepare The Build 🪛
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build 🔧
