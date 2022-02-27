@@ -87,12 +87,6 @@ jobs:
           distribution: adopt
           java-version: 8
 
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -143,12 +137,6 @@ jobs:
         with:
           distribution: adopt
           java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
 
       - name: Package Scala Native
         env:
@@ -257,18 +245,11 @@ jobs:
       ###########################
       ## Scala release process ##
       ###########################
-
       - name: Setup JDK
         uses: actions/setup-java@v2
         with:
           distribution: adopt
           java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
 
       - name: Package scala reference server
         env:

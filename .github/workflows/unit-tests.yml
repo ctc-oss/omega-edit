@@ -34,11 +34,6 @@ jobs:
         with:
           distribution: adopt
           java-version: 8
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
       - name: Setup Python 🐍
         uses: actions/setup-python@v2
         with:
