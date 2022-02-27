@@ -36,31 +36,33 @@ lazy val omega_edit = project
   .settings(
     publish / skip := true
   )
-  .aggregate(api, native)
+  .aggregate(api, spi, native)
 
 lazy val api = project
   .in(file("api"))
+  .dependsOn(spi)
   .settings(commonSettings)
   .settings(
     name := "omega-edit",
     libraryDependencies ++= {
       Seq(
-        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier arch.id,
+        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.11",
         "org.scalatest" %% "scalatest" % "3.2.11" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoObject := "ApiBuildInfo",
     buildInfoPackage := organization.value + ".omega_edit",
-    buildInfoKeys ++= Seq(
-      "nativeSharedLibraryName" -> mapping._1,
-      "nativeSharedLibraryPath" -> mapping._2
-    ),
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
     resolvers += Resolver.mavenLocal,
+    Compile / Keys.compile :=
+      (Compile / Keys.compile)
+        .dependsOn(native / publishM2)
+        .value,
     Test / Keys.test :=
       (Test / Keys.test)
         .dependsOn(native / publishM2)
@@ -70,13 +72,32 @@ lazy val api = project
 
 lazy val native = project
   .in(file("native"))
+  .dependsOn(spi)
   .settings(commonSettings)
   .settings(
     name := "omega-edit-native",
-    artifactClassifier := Some(arch.id),
+    artifactClassifier := Some(platform.id),
     Compile / packageBin / mappings += {
-      baseDirectory.map(_ / s"$libdir/${mapping._1}").value -> mapping._2
-    }
+      baseDirectory.map(_ / s"$libdir/${mapping._1}").value -> s"${version.value}/${mapping._2}"
+    },
+    Compile / packageDoc / publishArtifact := false,
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := organization.value + ".omega_edit.native",
+    buildInfoKeys ++= Seq(
+      "sharedLibraryName" -> mapping._1,
+      "sharedLibraryOs" -> platform.os,
+      "sharedLibraryArch" -> System.getProperty("os.arch"),
+      "sharedLibraryPath" -> s"${version.value}/${mapping._2}"
+    ),
+    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo")
+  )
+  .enablePlugins(BuildInfoPlugin, GitVersioning)
+
+lazy val spi = project
+  .in(file("spi"))
+  .settings(commonSettings)
+  .settings(
+    name := "omega-edit-spi"
   )
   .enablePlugins(GitVersioning)
 
