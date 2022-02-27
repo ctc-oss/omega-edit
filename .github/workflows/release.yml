@@ -76,9 +76,10 @@ jobs:
 
       - name: Build Omega Edit
         run: |
-          cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
-          cmake --build cmake-build-debug --target omega_edit_so
-          mv cmake-build-debug/lib/* lib
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
+          mv lib/* ../lib
 
       - name: Setup JDK
         uses: actions/setup-java@v2
@@ -132,10 +133,9 @@ jobs:
 
       - name: Build Omega Edit
         run: |
-          rm -rf build || true
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
-          cmake --build . --target omega_edit_so
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
           mv lib/* ../lib
 
       - name: Setup JDK
