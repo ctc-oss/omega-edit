@@ -99,9 +99,12 @@ jobs:
 
   native-publish-mac-win:
     needs: [api-native-publish-linux]
+    defaults:
+      run:
+        shell: bash
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [macos-latest, windows-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
