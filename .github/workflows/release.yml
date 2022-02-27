@@ -109,6 +109,10 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+        shell: bash
+
       - uses: actions/checkout@v2.3.5
         with:
           submodules: recursive
@@ -151,14 +155,14 @@ jobs:
         run: |
           cd ~/.m2/repository/com/ctc
           for dir in omega-edit-native_*; do
-            for file in ${dir}/${PKG_VERSION}/${dir}-${PKG_VERSION}-macos-*; do
+            for file in ${dir}/${{ env.PKG_VERSION }}/${dir}-${{ env.PKG_VERSION }}-macos-*; do
               curl -X PUT \
                 "https://maven.pkg.github.com/Shanedell/_/com/ctc/${file}" \
                 -H "Authorization: token ${GITHUB_TOKEN}" \
-                --upload-file "${file}"
+                --upload-file "${PWD}/${file}"
             done
           done
-      
+
       - name: Upload windows JARs
         if: startsWith(matrix.os, 'win')
         env:
@@ -166,13 +170,14 @@ jobs:
         run: |
           cd ~/.m2/repository/com/ctc
           for dir in omega-edit-native_*; do
-            for file in ${dir}/${PKG_VERSION}/${dir}-${PKG_VERSION}-windows-*; do
+            for file in ${dir}/${{ env.PKG_VERSION }}/${dir}-${{ env.PKG_VERSION }}-windows-*; do
               curl -X PUT \
                 "https://maven.pkg.github.com/Shanedell/_/com/ctc/${file}" \
                 -H "Authorization: token ${GITHUB_TOKEN}" \
-                --upload-file "${file}"
+                --upload-file "${PWD}/${file}"
             done
           done
+        shell: bash
 
   release:
     name: Release ✨
