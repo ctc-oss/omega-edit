@@ -34,6 +34,11 @@ jobs:
         with:
           distribution: adopt
           java-version: 8
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
+          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
       - name: Setup Python 🐍
         uses: actions/setup-python@v2
         with:
@@ -48,10 +53,6 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
       - name: Build 🔧
         run: cmake --build build
-      - name: Run sbt tests 📋
-        run: |
-          cp -r build/lib/* lib/
-          sbt +test +publishM2
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
