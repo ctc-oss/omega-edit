@@ -29,10 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ env.node_version }}
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
