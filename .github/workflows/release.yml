@@ -54,12 +54,66 @@ jobs:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
 
-  ### TODO SCALA BUILD ###
+  scala-build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+        with:
+          cmake-version: '3.16.x'
+
+      - name: Build Omega Edit
+        run: |
+          rm -rf build || true
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
+          cmake --build . --target omega_edit_so
+          mv lib/* ../lib
+
+      - name: Upload linux library file
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: lib/libomega_edit.so
+          path: libomega_edit.so
+      
+      - name: Upload mac library file
+        if: startsWith(matrix.os, 'mac')
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: lib/libomega_edit.dylib
+          path: libomega_edit.dylib
+
+      - name: Upload windows library file
+        if: startsWith(matrix.os, 'win')
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: lib/omega_edit.dll
+          path: omega_edit.dll
 
   release:
     name: Release ✨
     runs-on: ubuntu-latest
-    needs: [node-build]
+    needs: [node-build, scala-build-linux-mac]
     steps:
       - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
@@ -113,7 +167,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          asset_name: omega-edit-node-${{ env.PKG_VERSION }}.tar.gz
+          asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
 
       - name: Publish node package to npm registry 🚀
@@ -127,5 +181,66 @@ jobs:
 
       ###########################
       ## Scala release process ##
-      ##### TO BE CONTINUED #####
       ###########################
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
+          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
+
+      - name: Download linux lib file 🔻
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: libomega_edit.so
+          path: lib/libomega_edit.so
+
+      - name: Download mac lib file 🔻
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: libomega_edit.dylib
+          path: lib/libomega_edit.dylib
+
+      - name: Download windows lib file 🔻
+        uses: actions/download-artifact@v2.1.0
+        with:
+          name: omega_edit.dll
+          path: lib/omega_edit.dll
+
+      - name: Move out node package file 🛻
+        run: |
+          cd lib/
+
+          for file in "libomega_edit.so" "libomega_edit.dylib" "omega_edit.dll";
+          do
+            mv ${file} "${file}_dir"
+            mv "${file}_dir/${file}" .
+            rm -rf "${file}_dir"
+          done
+
+      - name: Publish scala native and api to github packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt publishAll
+
+      - name: Package scala reference server
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt universal:packageBin
+        working-directory: src/rpc/server/scala
+
+      - name: Upload scala reference server 🔺
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src/rpc/server/scala/target/universal/example-grpc-server-${{ env.PKG_VERSION }}.zip
+          asset_name: omega-edit-grpc-scala-server-v${{ env.PKG_VERSION }}.zip
+          asset_content_type: application/tar+gzip

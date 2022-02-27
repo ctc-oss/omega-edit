@@ -21,22 +21,38 @@ scalaVersion := "2.13.6"
 
 version := "0.7.1"
 
-lazy val ghb_repo_owner = "Shanedell"
-lazy val ghb_repo = "omega-edit"
-lazy val ghb_resolver = (
-  s"GitHub ${ghb_repo_owner} Apache Maven Packages"
-  at
-  s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
-)
+githubOwner := "Shanedell"
+githubRepository := "omega-edit"
+githubTokenSource := TokenSource.Environment("GITHUB_TOKEN")
 
-publishTo := Some(ghb_resolver)
-publishMavenStyle := true
-credentials += Credentials(
-  "GitHub Package Registry",
-  "maven.pkg.github.com",
-  ghb_repo_owner,
-  System.getenv("GITHUB_TOKEN")
-)
+/**
+ * Commented out code is another way to connect to
+ * the github repo holding the packages without using
+ * the sbt-github-packages plugin.
+ *
+ * This plugin is not used for publish the API and native
+ * code because it did not perform consistently for publishing
+ * however seems to work well for downloading.
+ */
+
+// lazy val ghb_repo_owner = "Shanedell"
+// lazy val ghb_repo = "omega-edit"
+// lazy val ghb_resolver = (
+//   s"GitHub ${ghb_repo_owner} Apache Maven Packages"
+//   at
+//   s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+// )
+
+// publishTo := Some(ghb_resolver)
+// publishMavenStyle := true
+// credentials += Credentials(
+//   "GitHub Package Registry",
+//   "maven.pkg.github.com",
+//   ghb_repo_owner,
+//   System.getenv("GITHUB_TOKEN")
+// )
+
+// externalResolvers += ghb_resolver
 
 licenses := Seq(("Apache-2.0", apacheLicenseUrl))
 organizationName := "Concurrent Technologies Corporation"
@@ -48,8 +64,10 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 
-resolvers += Resolver.mavenLocal
-externalResolvers += ghb_resolver
+resolvers ++= Seq(
+  Resolver.mavenLocal,
+  Resolver.githubPackages("Shanedell")
+)
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 
