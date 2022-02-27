@@ -126,7 +126,7 @@ jobs:
       - name: Build Omega Edit
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build build
+          cmake --build build --target omega_edit
 
       - name: Move library file
         run: |
@@ -149,6 +149,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd ~/.m2/repository/com/ctc
           for dir in omega-edit-native_*; do
             for file in ${dir}/${PKG_VERSION}/${dir}-${PKG_VERSION}-macos-*; do
               curl -X PUT \
@@ -157,13 +158,13 @@ jobs:
                 --upload-file "${file}"
             done
           done
-        working-directory: ~/.m2/repository/com/ctc
       
       - name: Upload windows JARs
         if: startsWith(matrix.os, 'win')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cd ~/.m2/repository/com/ctc
           for dir in omega-edit-native_*; do
             for file in ${dir}/${PKG_VERSION}/${dir}-${PKG_VERSION}-windows-*; do
               curl -X PUT \
@@ -172,7 +173,6 @@ jobs:
                 --upload-file "${file}"
             done
           done
-        working-directory: ~/.m2/repository/com/ctc
 
   release:
     name: Release ✨
