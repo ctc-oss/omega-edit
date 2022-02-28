@@ -15,6 +15,20 @@
  */
 
 import BuildSupport._
+import play.api.libs.json._
+
+lazy val packageData = Json.parse(
+  scala.io.Source.fromFile("../../rpc/client/ts/package.json"
+).mkString).as[JsObject]
+lazy val omegaVersion = packageData("version").as[String]
+
+lazy val ghb_repo_owner = "Shanedell"
+lazy val ghb_repo = "omega-edit"
+lazy val ghb_resolver = (
+  s"GitHub ${ghb_repo_owner} Apache Maven Packages"
+  at
+  s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+)
 
 lazy val commonSettings = {
   Seq(
@@ -26,7 +40,13 @@ lazy val commonSettings = {
     git.gitUncommittedChanges := false,
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
-    publishMavenStyle := true
+    publishMavenStyle := true,
+    credentials += Credentials(
+      "GitHub Package Registry",
+      "maven.pkg.github.com",
+      ghb_repo_owner,
+      System.getenv("GITHUB_TOKEN")
+    ),
   )
 }
 
@@ -59,6 +79,7 @@ lazy val api = project
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
     resolvers += Resolver.mavenLocal,
+    externalResolvers += ghb_resolver,
     Compile / Keys.compile :=
       (Compile / Keys.compile)
         .dependsOn(native / publishM2)

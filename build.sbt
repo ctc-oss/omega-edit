@@ -40,4 +40,3 @@ lazy val `omega-edit` = project
     name := "omega-edit",
     publish / skip := true
   )
-  .enablePlugins(commonPlugins: _*)
