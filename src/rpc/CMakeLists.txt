@@ -21,7 +21,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES "boost/1.78.0" "grpc/1.43.0"
+        REQUIRES "boost/1.78.0" "grpc/1.44.0"
         OPTIONS boost:shared=False
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
