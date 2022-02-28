@@ -22,17 +22,12 @@ jobs:
     steps:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
-      - name: Prepare The Build 🪛
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
-      - name: Build 🔧
-        run:
+      - name: Prepare and Build 🪛
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
           cmake --build build
-      - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
-        uses: actions/download-artifact@v1
-        with:
-          name: site
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: site # The deployment folder should match the name of the artifact.
+          folder: build # The deployment folder should match the name of the artifact.
