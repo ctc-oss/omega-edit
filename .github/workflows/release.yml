@@ -109,11 +109,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ env.node_version }}
-
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
@@ -128,14 +123,14 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Build Omega Edit
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build build --target omega_edit
+      - name: Prepare The Build 🪛
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF -DCMAKE_CXX_COMPILER="g++"
+
+      - name: Build Omega Edit 🔧
+        run: cmake --build build --target omega_edit
 
       - name: Move library file
-        run: |
-          mv build/lib/* lib
+        run: mv build/lib/* lib
         shell: bash
 
       - name: Setup JDK
