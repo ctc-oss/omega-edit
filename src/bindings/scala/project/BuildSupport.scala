@@ -29,6 +29,7 @@ object BuildSupport {
 
   // some regexes for arch parsing
   val Mac = """mac.+""".r
+  val Win = """windows.+""".r
   val Amd = """amd(\d+)""".r
   val x86 = """x86_(\d+)""".r
 
@@ -51,7 +52,7 @@ object BuildSupport {
     val os = System.getProperty("os.name").toLowerCase match {
       case "linux"   => "linux"
       case Mac()     => "macos"
-      case "windows" => "windows"
+      case Win()     => "windows"
       case os        => throw new IllegalStateException(s"Unsupported OS: $os")
     }
 
@@ -69,7 +70,7 @@ object BuildSupport {
     System.getProperty("os.name").toLowerCase match {
       case "linux"   => pair("libomega_edit.so")
       case Mac()     => pair("libomega_edit.dylib")
-      case "windows" => pair("omega_edit.dll")
+      case Win()     => pair("omega_edit.dll")
     }
   }
 
