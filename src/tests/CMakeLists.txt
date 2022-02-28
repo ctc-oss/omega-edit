@@ -28,8 +28,8 @@ else ()
 endif ()
 
 # Set up install trees for subsequent tests
-add_test(NAME build_shared COMMAND ${CMAKE_CTEST_COMMAND} --build-and-test "${CMAKE_CURRENT_LIST_DIR}/../.." "${CMAKE_CURRENT_BINARY_DIR}/build-shared" --build-generator Ninja --build-options -DBUILD_SHARED_LIBS=YES -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_DOCS=NO)
-add_test(NAME build_static COMMAND ${CMAKE_CTEST_COMMAND} --build-and-test "${CMAKE_CURRENT_LIST_DIR}/../.." "${CMAKE_CURRENT_BINARY_DIR}/build-static" --build-generator Ninja --build-options -DBUILD_SHARED_LIBS=NO ${static_opts} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_DOCS=NO)
+add_test(NAME build_shared COMMAND ${CMAKE_CTEST_COMMAND} --build-and-test "${CMAKE_CURRENT_LIST_DIR}/../.." "${CMAKE_CURRENT_BINARY_DIR}/build-shared" --build-generator ${CMAKE_GENERATOR} --build-options -DBUILD_SHARED_LIBS=YES -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_DOCS=NO)
+add_test(NAME build_static COMMAND ${CMAKE_CTEST_COMMAND} --build-and-test "${CMAKE_CURRENT_LIST_DIR}/../.." "${CMAKE_CURRENT_BINARY_DIR}/build-static" --build-generator ${CMAKE_GENERATOR} --build-options -DBUILD_SHARED_LIBS=NO ${static_opts} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DBUILD_DOCS=NO)
 add_test(NAME install_shared COMMAND ${CMAKE_COMMAND} --install "${CMAKE_CURRENT_BINARY_DIR}/build-shared" --prefix "${CMAKE_CURRENT_BINARY_DIR}/install-shared")
 add_test(NAME install_shared_both COMMAND ${CMAKE_COMMAND} --install "${CMAKE_CURRENT_BINARY_DIR}/build-shared" --prefix "${CMAKE_CURRENT_BINARY_DIR}/install-both")
 add_test(NAME install_static COMMAND ${CMAKE_COMMAND} --install "${CMAKE_CURRENT_BINARY_DIR}/build-static" --prefix "${CMAKE_CURRENT_BINARY_DIR}/install-static")

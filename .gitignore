@@ -14,7 +14,8 @@ node_modules/
 build*/
 cmake-build*/
 .DS_Store
-Release
+_install/
+Release/
 yarn.lock
 venv/
 
