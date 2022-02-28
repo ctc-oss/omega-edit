@@ -20,6 +20,15 @@ jobs:
   deploy-documentation:
     runs-on: macos-latest
     steps:
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install Conan 💪
+        uses: turtlebrowser/get-conan@main
+      - name: Setup cmake 🔧
+        uses:
+          lukka/get-cmake@latest
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
       - name: Prepare and Build 🔧
