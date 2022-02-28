@@ -34,12 +34,15 @@ lazy val commonSettings = {
   Seq(
     organization := "com.ctc",
     scalaVersion := "2.12.13",
+    version := omegaVersion,
+    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
-    git.useGitDescribe := true,
-    git.gitUncommittedChanges := false,
+    // git.useGitDescribe := true,
+    // git.gitUncommittedChanges := false,
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
+    publishTo := Some(ghb_resolver),
     publishMavenStyle := true,
     credentials += Credentials(
       "GitHub Package Registry",
@@ -124,3 +127,4 @@ lazy val spi = project
 
 addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2")
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
+addCommandAlias("publishAll", "; clean; +native/publish; +api/publish")

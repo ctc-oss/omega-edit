@@ -15,11 +15,15 @@
  */
 
 import BuildSupport._
+import play.api.libs.json._
+
+lazy val packageData = Json.parse(
+  scala.io.Source.fromFile("../../client/ts/package.json"
+).mkString).as[JsObject]
+lazy val omegaVersion = packageData("version").as[String]
 
 name := "example-grpc-server"
 scalaVersion := "2.13.6"
-
-version := "0.7.1"
 
 githubOwner := "Shanedell"
 githubRepository := "omega-edit"
@@ -59,8 +63,8 @@ organizationName := "Concurrent Technologies Corporation"
 startYear := Some(2021)
 
 libraryDependencies ++= Seq(
-  "com.ctc" %% "omega-edit" % version.value,
-  "com.ctc" %% "omega-edit-native" % version.value classifier s"${arch.id}",
+  "com.ctc" %% "omega-edit" % omegaVersion,
+  "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 

@@ -126,10 +126,10 @@ jobs:
         uses: lukka/get-cmake@latest
 
       - name: Prepare The Build 🪛
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF -DCMAKE_CXX_COMPILER="g++"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build Omega Edit 🔧
-        run: cmake --build build --target omega_edit
+      - name: Build 🔧
+        run: cmake --build build
 
       - name: Move library file
         run: mv build/lib/* lib
@@ -152,13 +152,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          export SETTINGS_PATH="${PWD}/settings.xml"
           for sversion in "2.12" "2.13"; do
-            export FILE_PATH="omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-macos-64.jar"
-            mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
+            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}
+            mvn -gs ${SETTINGS_PATH} deploy:deploy-file -DgroupId="com.ctc" \
               -DartifactId=omega-edit-native_${sversion} \
               -Dversion="${{ env.PKG_VERSION }}" \
               -Dpackaging="jar" \
-              -Dfile=~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}/${FILE_PATH}
+              -Dfile=omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-macos-64.jar \
               -DrepositoryId=github \
               -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
               -Dgh.token=${GITHUB_TOKEN} \
@@ -172,19 +173,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          export SETTINGS_PATH="${PWD}/settings.xml"
           for sversion in "2.12" "2.13"; do
-            export FILE_PATH="omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-windows-64.jar"
-            mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
+            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}
+            mvn -gs ${SETTINGS_PATH} deploy:deploy-file -DgroupId="com.ctc" \
               -DartifactId=omega-edit-native_${sversion} \
               -Dversion="${{ env.PKG_VERSION }}" \
               -Dpackaging="jar" \
-              -Dfile=~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}/${FILE_PATH}
+              -Dfile=omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-windows-64.jar \
               -DrepositoryId=github \
               -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
               -Dgh.token=${GITHUB_TOKEN} \
               -Dgh.user="Shanedell" \
               -DgeneratePom=false \
-              -Dclassifier="macos-64"
+              -Dclassifier="windows-64"
           done
         shell: bash
 
