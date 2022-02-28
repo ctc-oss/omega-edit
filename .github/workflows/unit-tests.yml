@@ -50,6 +50,8 @@ jobs:
         run: | 
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
+          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
+          cmake --build build-rpc
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
