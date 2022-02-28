@@ -154,14 +154,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd ~/.m2/repository/com/ctc
-          for dir in omega-edit-native_*; do
-            for file in ${dir}/${{ env.PKG_VERSION }}/${dir}-${{ env.PKG_VERSION }}-macos-*; do
-              curl -X PUT \
-                "https://maven.pkg.github.com/Shanedell/_/com/ctc/${file}" \
-                -H "Authorization: token ${GITHUB_TOKEN}" \
-                --upload-file "${PWD}/${file}"
-            done
+          for sversion in "2.12" "2.13"; do
+            export FILE_PATH="omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-macos-64.jar"
+            mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
+              -DartifactId=omega-edit-native_${sversion} \
+              -Dversion="${{ env.PKG_VERSION }}" \
+              -Dpackaging="jar" \
+              -Dfile=~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}/${FILE_PATH}
+              -DrepositoryId=github \
+              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
+              -Dgh.token=${GITHUB_TOKEN} \
+              -Dgh.user="Shanedell" \
+              -DgeneratePom=false \
+              -Dclassifier="macos-64"
           done
 
       - name: Upload windows JARs
@@ -169,14 +174,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd ~/.m2/repository/com/ctc
-          for dir in omega-edit-native_*; do
-            for file in ${dir}/${{ env.PKG_VERSION }}/${dir}-${{ env.PKG_VERSION }}-windows-*; do
-              curl -X PUT \
-                "https://maven.pkg.github.com/Shanedell/_/com/ctc/${file}" \
-                -H "Authorization: token ${GITHUB_TOKEN}" \
-                --upload-file "${PWD}/${file}"
-            done
+          for sversion in "2.12" "2.13"; do
+            export FILE_PATH="omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-windows-64.jar"
+            mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
+              -DartifactId=omega-edit-native_${sversion} \
+              -Dversion="${{ env.PKG_VERSION }}" \
+              -Dpackaging="jar" \
+              -Dfile=~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}/${FILE_PATH}
+              -DrepositoryId=github \
+              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
+              -Dgh.token=${GITHUB_TOKEN} \
+              -Dgh.user="Shanedell" \
+              -DgeneratePom=false \
+              -Dclassifier="macos-64"
           done
         shell: bash
 
