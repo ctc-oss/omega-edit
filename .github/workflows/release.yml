@@ -175,12 +175,12 @@ jobs:
         run: |
           export SETTINGS_PATH="${PWD}/settings.xml"
           for sversion in "2.12" "2.13"; do
-            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}
+            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${PKG_VERSION}
             mvn -gs ${SETTINGS_PATH} deploy:deploy-file -DgroupId="com.ctc" \
               -DartifactId=omega-edit-native_${sversion} \
-              -Dversion="${{ env.PKG_VERSION }}" \
+              -Dversion="${PKG_VERSION}" \
               -Dpackaging="jar" \
-              -Dfile=omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-windows-64.jar \
+              -Dfile=./omega-edit-native_${sversion}-${PKG_VERSION}-windows-64.jar \
               -DrepositoryId=github \
               -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
               -Dgh.token=${GITHUB_TOKEN} \
