@@ -18,7 +18,7 @@
 
 #include "omega_edit.h"
 #include "omega_edit/check.h"
-#include "omega_edit/encodings.h"
+#include "omega_edit/encode.h"
 #include "omega_edit/scoped_ptr.hpp"
 #include <cinttypes>
 #include <cstring>
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
             abort();
         }
         if (hex_bytes[0] != 'x' &&
-            length != omega_hex2bin((const char *) hex_bytes, bytes, strlen((const char *) hex_bytes))) {
+            length != omega_encode_hex2bin((const char *) hex_bytes, bytes, strlen((const char *) hex_bytes))) {
             clog << "ERROR decoding: '" << hex_bytes << "'\n";
             return -1;
         }
