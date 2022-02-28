@@ -1,0 +1,17 @@
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/omega_edit.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/package.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/package_source.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/edit_cache.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/rebuild_cache.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/list_install_components.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/install.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/install/local.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/install/strip.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/package.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/package_source.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/edit_cache.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/rebuild_cache.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/list_install_components.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/install.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/install/local.dir
+/Users/runner/work/omega-edit/omega-edit/build/packaging/CMakeFiles/install/strip.dir

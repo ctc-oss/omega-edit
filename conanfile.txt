@@ -1,0 +1,9 @@
+[requires]
+boost/1.78.0
+[generators]
+cmake
+cmake_find_package
+[imports]
+., license* -> ./licenses @ folder=True, ignore_case=True
+[options]
+boost:shared=False
