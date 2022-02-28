@@ -147,82 +147,49 @@ jobs:
         run: sbt +native/publishM2
         working-directory: src/bindings/scala
 
-      - name: Upload macos JARs 2.12
+      - name: Upload macos JARs
         if: startsWith(matrix.os, 'macos')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}/settings.xml
-          cd ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}
-          mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
-            -DartifactId=omega-edit-native_2.12 \
-            -Dversion="${{ env.PKG_VERSION }}" \
-            -Dpackaging="jar" \
-            -Dfile=omega-edit-native_2.12-${{ env.PKG_VERSION }}-macos-64.jar \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-            -Dgh.token=${GITHUB_TOKEN} \
-            -Dgh.user="Shanedell" \
-            -DgeneratePom=false \
-            -Dclassifier="macos-64"
+          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${PKG_VERSION}/settings.xml
+          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${PKG_VERSION}/settings.xml
+          for sversion in "2.12" "2.13"; do
+            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}
+            mvn -gs settings.xml -X deploy:deploy-file -DgroupId="com.ctc" \
+              -DartifactId=omega-edit-native_${sversion} \
+              -Dversion="${{ env.PKG_VERSION }}" \
+              -Dpackaging="jar" \
+              -Dfile=omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-macos-64.jar \
+              -DrepositoryId=github \
+              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
+              -Dgh.token=${GITHUB_TOKEN} \
+              -Dgh.user="Shanedell" \
+              -DgeneratePom=false \
+              -Dclassifier="macos-64"
+          done
 
-      - name: Upload windows JARs 2.12
+      - name: Upload windows JARs
         if: startsWith(matrix.os, 'win')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}/settings.xml
-          cd ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}
-          mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
-            -DartifactId=omega-edit-native_2.12 \
-            -Dversion="${{ env.PKG_VERSION }}" \
-            -Dpackaging="jar" \
-            -Dfile=omega-edit-native_2.12-${{ env.PKG_VERSION }}-windows-64.jar \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-            -Dgh.token=${GITHUB_TOKEN} \
-            -Dgh.user="Shanedell" \
-            -DgeneratePom=false \
-            -Dclassifier="windows-64"
-        shell: bash
-
-      - name: Upload macos JARs 2.13
-        if: startsWith(matrix.os, 'macos')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}/settings.xml
-          cd ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}
-          mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
-            -DartifactId=omega-edit-native_2.13 \
-            -Dversion="${{ env.PKG_VERSION }}" \
-            -Dpackaging="jar" \
-            -Dfile=omega-edit-native_2.13-${{ env.PKG_VERSION }}-macos-64.jar \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-            -Dgh.token=${GITHUB_TOKEN} \
-            -Dgh.user="Shanedell" \
-            -DgeneratePom=false \
-            -Dclassifier="macos-64"
-
-      - name: Upload windows JARs 2.13
-        if: startsWith(matrix.os, 'win')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}/settings.xml
-          cd ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}
-          mvn -gs settings.xml deploy:deploy-file -DgroupId="com.ctc" \
-            -DartifactId=omega-edit-native_2.13 \
-            -Dversion="${{ env.PKG_VERSION }}" \
-            -Dpackaging="jar" \
-            -Dfile=omega-edit-native_2.13-${{ env.PKG_VERSION }}-windows-64.jar \
-            -DrepositoryId=github \
-            -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-            -Dgh.token=${GITHUB_TOKEN} \
-            -Dgh.user="Shanedell" \
-            -DgeneratePom=false \
-            -Dclassifier="windows-64"
+          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${PKG_VERSION}/settings.xml
+          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${PKG_VERSION}/settings.xml
+          for sversion in "2.12" "2.13"; do
+            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${PKG_VERSION}
+            mvn -gs settings.xml -X deploy:deploy-file -DgroupId="com.ctc" \
+              -DartifactId=omega-edit-native_${sversion} \
+              -Dversion="${PKG_VERSION}" \
+              -Dpackaging="jar" \
+              -Dfile=./omega-edit-native_${sversion}-${PKG_VERSION}-windows-64.jar \
+              -DrepositoryId=github \
+              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
+              -Dgh.token=${GITHUB_TOKEN} \
+              -Dgh.user="Shanedell" \
+              -DgeneratePom=false \
+              -Dclassifier="windows-64"
+          done
         shell: bash
 
   release:
