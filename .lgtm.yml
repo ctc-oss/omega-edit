@@ -26,6 +26,7 @@ extraction:
         - g++-10
         - ccache
         - python-pip
+        - ninja-build
         - ca-certificates
     after_prepare:
       - pip3 install cmake conan --user --upgrade
