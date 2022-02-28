@@ -87,11 +87,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +native/publish
+        working-directory: src/bindings/scala
 
       - name: Package Scala API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +api/publish
+        working-directory: src/bindings/scala
 
   native-publish-mac-win:
     needs: [api-native-publish-linux]
@@ -143,6 +145,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +native/publishM2
+        working-directory: src/bindings/scala
 
       - name: Upload macos JARs
         if: startsWith(matrix.os, 'macos')
