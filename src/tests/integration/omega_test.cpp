@@ -19,7 +19,7 @@
 #include <omega_edit.h>
 #include <omega_edit/check.h>
 #include <omega_edit/config.h>
-#include <omega_edit/encodings.h>
+#include <omega_edit/encode.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <omega_edit/utility.h>
 

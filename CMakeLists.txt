@@ -61,7 +61,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/viewport.h" "src/lib/viewport.cpp" "src/lib/impl_/viewport_def.hpp"
         "src/include/omega_edit/license.h" "src/lib/license.c"
         "src/include/omega_edit/utility.h" "src/lib/utility.c"
-        "src/include/omega_edit/encodings.h" "src/lib/encodings.c"
+        "src/include/omega_edit/encode.h" "src/lib/encode.c"
         "src/include/omega_edit/filesystem.h" "src/lib/filesystem.cpp"
         "src/lib/impl_/internal_fun.hpp" "src/lib/impl_/internal_fun.cpp"
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"

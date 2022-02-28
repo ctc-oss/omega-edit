@@ -25,10 +25,10 @@ using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
 
+using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
-using omega_edit::ChangeDetailsResponse;
 using omega_edit::ComputedFileSizeResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
@@ -704,7 +704,8 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         assert(serial == change_details.serial());
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastChange received: " << rc << " serial: " << change_details.serial() << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastChange received: " << rc
+                     << " serial: " << change_details.serial() << std::endl;);
         }
 
         serial = server_test_client.Undo(session_id);
@@ -718,7 +719,8 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         assert(serial == change_details.serial());
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastUndo received: " << rc << " serial: " << change_details.serial() << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastUndo received: " << rc
+                     << " serial: " << change_details.serial() << std::endl;);
         }
 
         serial = server_test_client.Redo(session_id);
@@ -768,7 +770,8 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         auto computed_file_size = server_test_client.GetComputedFileSize(session_id);
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
         reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");
