@@ -52,6 +52,9 @@ jobs:
           cmake --build build
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
           cmake --build build-rpc
+          pushd build-rpc/bin
+          ./server_test
+          popd
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
