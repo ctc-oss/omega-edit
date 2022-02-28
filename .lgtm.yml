@@ -25,16 +25,20 @@ extraction:
       packages:
         - g++-10
         - ccache
-      script:
-        - mkdir ~/.conan
-        - cat /usr/local/share/ca-certificates/semmle-cache-ca/semmle-cache-ca.crt >> ~/.conan/cacert.pem
-        - python3 -m pip install --upgrade pip setuptools
-        - python3 -m pip install conan
-        - python3 -m pip install cmake
-        - source ~/.profile
+        - python-pip
+        - ninja-build
+        - ca-certificates
+    after_prepare:
+      - pip3 install cmake conan --user --upgrade
+      - ls ~/.local/bin
+      - export PATH=$PATH:~/.local/bin
+      - conan --version
+      - conan profile new default --detect
+      - cat /usr/local/share/ca-certificates/semmle-cache-ca/semmle-cache-ca.crt >> ~/.conan/cacert.pem
     configure:
       command:
-        - mkdir build
-        - cmake -S . -B build -DCMAKE_BUILD_TYPE:STRING=Debug
+        - cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=OFF
     index:
-      build_command: cmake --build build
+      build_command:
+        - cd build-tests
+        - ctest -C Debug --output-on-failure

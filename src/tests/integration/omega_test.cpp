@@ -19,7 +19,7 @@
 #include <omega_edit.h>
 #include <omega_edit/check.h>
 #include <omega_edit/config.h>
-#include <omega_edit/encodings.h>
+#include <omega_edit/encode.h>
 #include <omega_edit/stl_string_adaptor.hpp>
 #include <omega_edit/utility.h>
 
@@ -261,11 +261,11 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     auto in = reinterpret_cast<const omega_byte_t *>(in_string.c_str());
     char encoded_buffer[1024];
     omega_byte_t decoded_buffer[1024];
-    omega_bin2hex(in, encoded_buffer, in_string.size());
+    omega_encode_bin2hex(in, encoded_buffer, in_string.size());
     REQUIRE(0 == strcmp(encoded_buffer, "48656c6c6f20576f726c6421"));
-    omega_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
+    omega_encode_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
-    omega_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
+    omega_encode_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
     REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
 }
 

@@ -19,7 +19,7 @@
 
 #include "omega_edit.h"
 #include "omega_edit/check.h"
-#include "omega_edit/encodings.h"
+#include "omega_edit/encode.h"
 #include "omega_edit/scoped_ptr.hpp"
 #include "omega_edit/stl_string_adaptor.hpp"
 #include <cassert>
@@ -71,7 +71,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
                     (char *) realloc(file_info_ptr->bin_to_hex_buffer, file_info_ptr->bin_to_hex_buffer_size);
             assert(file_info_ptr->bin_to_hex_buffer);
         }
-        omega_bin2hex(bytes, file_info_ptr->bin_to_hex_buffer, bytes_length);
+        omega_encode_bin2hex(bytes, file_info_ptr->bin_to_hex_buffer, bytes_length);
     } else {
         file_info_ptr->bin_to_hex_buffer[0] = 'x';
         file_info_ptr->bin_to_hex_buffer[1] = '\0';

@@ -12,54 +12,39 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/encodings.h"
-#include <assert.h>
+#ifndef OMEGA_EDIT_ENCODE_H
+#define OMEGA_EDIT_ENCODE_H
 
-size_t omega_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
-    static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
-    size_t i, j = 0;
+#include "byte.h"
+#include "export.h"
 
-    for (i = 0; i < src_length; ++i) {
-        dst[j++] = HEX_CONVERSION_TABLE[src[i] >> 4];
-        dst[j++] = HEX_CONVERSION_TABLE[src[i] & 15];
-    }
-    dst[j] = '\0';
-    return j;
+#ifdef __cplusplus
+#include <cstddef>
+extern "C" {
+#else
+#include <stddef.h>
+#endif
+
+/**
+ * Given a pointer to bytes, and a character pointer destination, write the hex values of the bytes to the destination
+ * @param src pointer to bytes
+ * @param dst destination, must be memory sufficient to hold (src_length * 2) + 1 bytes (will be null-terminated)
+ * @param src_length src_length of the bytes
+ * @return number of characters written to the destination, or 0 if unsuccessful
+ */
+OMEGA_EDIT_EXPORT size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_length);
+
+/**
+ * Given a pointer to hex characters, write the binary representation to dst
+ * @param src pointer to hex characters
+ * @param dst destination, must be memory sufficient to hold (src_length / 2) bytes
+ * @param src_length src_length of the hex characters
+ * @return number of bytes written to the destination, or 0 if unsuccessful
+ */
+OMEGA_EDIT_EXPORT size_t omega_encode_hex2bin(const char *src, omega_byte_t *dst, size_t src_length);
+
+#ifdef __cplusplus
 }
+#endif
 
-size_t omega_hex2bin(const char *src, omega_byte_t *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
-    const size_t dst_length = src_length >> 1;
-    size_t i = 0, j = 0;
-
-    while (i < dst_length) {
-        omega_byte_t c = src[j++], d;
-
-        if (c >= '0' && c <= '9') {
-            d = (c - '0') << 4;
-        } else if (c >= 'a' && c <= 'f') {
-            d = (c - 'a' + 10) << 4;
-        } else if (c >= 'A' && c <= 'F') {
-            d = (c - 'A' + 10) << 4;
-        } else {
-            return 0;
-        }
-        c = src[j++];
-
-        if (c >= '0' && c <= '9') {
-            d |= c - '0';
-        } else if (c >= 'a' && c <= 'f') {
-            d |= c - 'a' + 10;
-        } else if (c >= 'A' && c <= 'F') {
-            d |= c - 'A' + 10;
-        } else {
-            return 0;
-        }
-        dst[i++] = d;
-    }
-    dst[i] = '\0';
-    return i;
-}
+#endif//OMEGA_EDIT_ENCODE_H
