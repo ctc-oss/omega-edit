@@ -92,3 +92,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt test
         working-directory: src/rpc/server/scala
+
+      - name: Test download M2
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.os }}-artifacts
+
+      - name: Debugging
+        run: |
+          if [[ -d "${{ matrix.os }}-artifacts" ]]; then
+            ls -la ${{ matrix.os }}-artifacts
+          else
+            unzip ${{ matrix.os }}-artifacts
+            ls -la ${{ matrix.os }}-artifacts
+          fi

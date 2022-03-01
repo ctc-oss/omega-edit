@@ -95,12 +95,6 @@ jobs:
           distribution: adopt
           java-version: 8
 
-      - name: Setup Maven Action
-        uses: s4u/setup-maven-action@v1.2.1
-        with:
-          java-version: 8
-          maven-version: 3.8.2
-
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -223,10 +217,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
+          path: omega-edit-v${{ env.PKG_VERSION }}.tgz
 
       - name: Move out node package file 🛻
         run: |
-          mv src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
+          mv omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
+          mv omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
+          rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
 
       - name: Upload node release tarball 🔺
         uses: actions/upload-release-asset@v1
