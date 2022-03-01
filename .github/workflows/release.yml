@@ -184,6 +184,12 @@ jobs:
         run: sbt +api/publish
         working-directory: src/bindings/scala
 
+      - name: Package Scala SPI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt +spi/publish
+        working-directory: src/bindings/scala
+
   release:
     name: Release ✨
     runs-on: ubuntu-latest

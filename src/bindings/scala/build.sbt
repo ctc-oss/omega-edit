@@ -125,6 +125,6 @@ lazy val spi = project
   )
   .enablePlugins(GitVersioning)
 
-addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2")
+addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2; spi/publishM2")
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
-addCommandAlias("publishAll", "; clean; +native/publish; +api/publish")
+addCommandAlias("publishAll", "; clean; +native/publish; +api/publish; +spi/publish")
