@@ -54,7 +54,7 @@ jobs:
           ctest -C Debug --output-on-failure
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES
           cmake --build build
           cmake --install build --prefix "${PWD}/_install"
       - name: Prepare, Build, and Test Ωedit RPC 📋
