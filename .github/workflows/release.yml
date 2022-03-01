@@ -201,7 +201,7 @@ jobs:
 
       - name: Check if pre-release ✅
         run: |
-          if [[ ${{env.GIT_TAG}} == *"pre-"* || ${{env.GIT_TAG}} == *"-pre"* ]]; then
+          if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
             echo "PRE_RELEASE=true" >> $GITHUB_ENV
           else
             echo "PRE_RELEASE=false" >> $GITHUB_ENV
