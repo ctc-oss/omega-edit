@@ -1,0 +1,11 @@
+\\.clang_format
+\\.devcontainer/
+\\.editorconfig
+\\.git*
+\\.git/
+\\.lgtm.yml
+\\.run/
+\\.vscode/
+_install/
+build*/
+doc/
