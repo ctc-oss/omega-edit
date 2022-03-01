@@ -153,19 +153,27 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: macos-latest-artifacts
-          # path: ~/.m2/repository/com/ctc/*
 
       - name: Download windows Native JARs
         uses: actions/download-artifact@v2
         with:
           name: windows-latest-artifacts
-          # path: ~/.m2/repository/com/ctc/
 
-      - name: Debug statement
+      - name: Debugging
         run: |
-          ls -la ~/.m2/repository/com/ctc/
-          ls -la ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}
-          ls -la ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}
+          ls -la
+          
+          for folder in omega-edit-native*; do
+            echo $folder
+            ls -la $folder/${{ env.PKG_VERSION }}
+          done  
+
+      - name: Move windows and macos jars out
+        run: |
+          for folder in omega-edit-native*; do
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-*.jar .
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-*.jar .
+          done
 
       - name: Package Scala Native
         env:

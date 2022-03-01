@@ -22,7 +22,7 @@ jobs:
   linux-mac:
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [macos-latest, ubuntu-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.os }}-artifacts
-          path: ~/.m2/repository/com/ctc/omega-edit-native*
+          path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
 
       - name: Coverage report
@@ -92,17 +92,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt test
         working-directory: src/rpc/server/scala
-
-      - name: Test download M2
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.os }}-artifacts
-
-      - name: Debugging
-        run: |
-          ls -la
-          
-          for folder in omega-edit-native*; do
-            echo $folder
-            ls -la $folder/0.7.5
-          done  
