@@ -79,11 +79,18 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Prepare The Build 🪛
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Build Ωedit mac
+        if: startsWith(matrix.os, 'mac')
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
 
-      - name: Build 🔧
-        run: cmake --build build
+      - name: Build Ωedit windows
+        if: startsWith(matrix.os, 'win')
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
 
       - name: Move library file
         run: mv build/lib/* lib
@@ -129,7 +136,7 @@ jobs:
         with:
           cmake-version: '3.16.x'
 
-      - name: Build Omega Edit
+      - name: Build Ωedit
         run: |
           mkdir -p build && cd build
           cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF

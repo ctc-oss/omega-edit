@@ -22,7 +22,7 @@ jobs:
   linux-mac:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        os: [ubuntu-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -100,9 +100,10 @@ jobs:
 
       - name: Debugging
         run: |
+          ls -la
+          mv ${{ matrix.os }}-artifacts ${{ matrix.os }}-artifacts_dir
+          mv ${{ matrix.os }}-artifacts_dir/${{ matrix.os }}-artifacts .
+          ls -la
           if [[ -d "${{ matrix.os }}-artifacts" ]]; then
-            ls -la ${{ matrix.os }}-artifacts
-          else
-            unzip ${{ matrix.os }}-artifacts
             ls -la ${{ matrix.os }}-artifacts
           fi
