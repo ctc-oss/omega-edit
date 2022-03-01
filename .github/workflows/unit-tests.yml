@@ -52,10 +52,11 @@ jobs:
           cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
           cd build-tests
           ctest -C Debug --output-on-failure
-      - name: Prepare and Build Ωedit 🔧
+      - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
+          cmake --install build --prefix "${PWD}/_install"
       - name: Prepare, Build, and Test Ωedit RPC 📋
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
