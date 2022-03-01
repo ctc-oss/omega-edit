@@ -22,7 +22,7 @@ lazy val packageData = Json.parse(
 ).mkString).as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
-lazy val ghb_repo_owner = "Shanedell"
+lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
 lazy val ghb_resolver = (
   s"GitHub ${ghb_repo_owner} Apache Maven Packages"

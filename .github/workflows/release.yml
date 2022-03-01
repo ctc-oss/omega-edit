@@ -275,6 +275,8 @@ jobs:
           mv build.sbt ci/build.sbt
           mv ci/release.sbt build.sbt
           sbt universal:packageBin
+          SERVER_RELEASE_FILE=$(echo src/rpc/server/scala/target/universal/example-grpc-server-${{ env.PKG_VERSION }}*)
+          echo "SERVER_RELEASE_FILE=$SERVER_RELEASE_FILE" >> $GITHUB_ENV
         working-directory: src/rpc/server/scala
 
       - name: Upload scala reference server 🔺
@@ -283,6 +285,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src/rpc/server/scala/target/universal/example-grpc-server-${{ env.PKG_VERSION }}*
+          asset_path: ./${{ env.SERVER_RELEASE_FILE }}
           asset_name: omega-edit-grpc-scala-server-v${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
