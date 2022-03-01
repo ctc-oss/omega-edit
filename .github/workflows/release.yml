@@ -162,20 +162,11 @@ jobs:
         with:
           name: windows-latest-artifacts
 
-      - name: Debugging
-        run: |
-          ls -la
-          
-          for folder in omega-edit-native*; do
-            echo $folder
-            ls -la $folder/${{ env.PKG_VERSION }}
-          done  
-
       - name: Move windows and macos jars out
         run: |
           for folder in omega-edit-native*; do
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-*.jar .
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-*.jar .
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-*.jar src/bindings/scala/
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-*.jar src/bindings/scala/
           done
 
       - name: Package Scala Native
