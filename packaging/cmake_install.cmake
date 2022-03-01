@@ -78,3 +78,10 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xomega_edit_Developmentx" OR NOT CMA
     )
 endif()
 
+if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xUnspecifiedx" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/share/doc/omega_edit" TYPE FILE FILES
+    "/Users/runner/work/omega-edit/omega-edit/README.md"
+    "/Users/runner/work/omega-edit/omega-edit/LICENSE.txt"
+    )
+endif()
+
