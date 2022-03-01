@@ -115,8 +115,8 @@ lazy val native = project
     ),
     buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo"),
     packagedArtifacts ++= Map(
-      Artifact("omega-edit-native", "windows-64") -> file(s"omega-edit-native_${scalaVersion.value}-${version.value}-windows-64.jar"),
-      Artifact("omega-edit-native", "macos-64") -> file(s"omega-edit-native_${scalaVersion.value}-${version.value}-macos-64.jar"),
+      Artifact("omega-edit-native", "windows-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"),
+      Artifact("omega-edit-native", "macos-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"),
     )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)

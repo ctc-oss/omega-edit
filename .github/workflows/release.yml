@@ -168,7 +168,6 @@ jobs:
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* src/bindings/scala/
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* src/bindings/scala/
           done
-          ls -la src/bindings/scala
 
       - name: Package Scala Native
         env:
