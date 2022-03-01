@@ -275,7 +275,7 @@ jobs:
           mv build.sbt ci/build.sbt
           mv ci/release.sbt build.sbt
           sbt universal:packageBin
-          SERVER_RELEASE_FILE=$(echo src/rpc/server/scala/target/universal/example-grpc-server-${{ env.PKG_VERSION }}*)
+          SERVER_RELEASE_FILE=$(echo target/universal/example-grpc-server-${{ env.PKG_VERSION }}*)
           echo "SERVER_RELEASE_FILE=$SERVER_RELEASE_FILE" >> $GITHUB_ENV
         working-directory: src/rpc/server/scala
 
