@@ -57,6 +57,7 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
       - name: Prepare, Build, and Test Ωedit RPC 📋
+        run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
           cmake --build build-rpc
           pushd build-rpc/bin
