@@ -271,7 +271,10 @@ jobs:
       - name: Package scala reference server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt universal:packageBin
+        run: |
+          mv build.sbt ci/build.sbt
+          mv ci/release.sbt build.sbt
+          sbt universal:packageBin
         working-directory: src/rpc/server/scala
 
       - name: Upload scala reference server 🔺

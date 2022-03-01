@@ -17,7 +17,7 @@ import sbt.URL
  */
 
 object BuildSupport {
-  case class Arch(id: String, _id: String)
+  case class Arch(id: String, _id: String, os: String, arch: String)
   val apacheLicenseUrl: URL = new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")
 
   // some regexes for arch parsing
@@ -38,7 +38,7 @@ object BuildSupport {
       case x86(bits) => bits
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
-    Arch(s"$os-$arch", s"${os}_$arch")
+    Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
   }
 
   def pair(name: String): (String, String) = name -> s"${arch._id}/$name"

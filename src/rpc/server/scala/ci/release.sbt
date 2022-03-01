@@ -44,13 +44,20 @@ licenses := Seq(("Apache-2.0", apacheLicenseUrl))
 organizationName := "Concurrent Technologies Corporation"
 startYear := Some(2021)
 
+lazy val altOs = arch.os match {
+  case "linux"    => ("macos", "windows")
+  case "macos"    => ("linux", "windows")
+  case "windows"  => ("macos", "linux")
+}
+
 libraryDependencies ++= Seq(
   "com.ctc" %% "omega-edit" % omegaVersion,
   "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+  "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${altOs._1}-${arch.arch}",
+  "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${altOs._2}-${arch.arch}",
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 
-resolvers += Resolver.mavenLocal
 externalResolvers += ghb_resolver
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
