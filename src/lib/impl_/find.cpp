@@ -27,10 +27,8 @@ const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char 
     assert(needle_length > 0);
     auto skip_table_ptr = new omega_find_skip_table_t(UCHAR_MAX + 1, needle_length);
     assert(skip_table_ptr);
-    if (needle_length >= 1) {
-        const auto needle_length_minus_1 = needle_length - 1;
-        for (size_t i = 0; i < needle_length_minus_1; ++i) { (*skip_table_ptr)[needle[i]] = needle_length_minus_1 - i; }
-    }
+    const auto needle_length_minus_1 = needle_length - 1;
+    for (size_t i = 0; i < needle_length_minus_1; ++i) { (*skip_table_ptr)[needle[i]] = needle_length_minus_1 - i; }
     return skip_table_ptr;
 }
 
