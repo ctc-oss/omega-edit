@@ -58,8 +58,6 @@ object Rat {
 
     // ignore generated files
     file("server/core/src/main/java/org.ctc.omegaedit"),
-    file("src/bindings/java/omega_edit_wrap.cxx"),
-    file("src/bindings/java/omega_edit_wrap.h"),
 
     // omega-edit logo picture
     file("images/OmegaEditLogo.png"),

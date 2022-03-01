@@ -22,8 +22,6 @@ lazy val commonSettings = {
   )
 }
 
-lazy val commonPlugins = Seq(UnpackPlugin)
-
 lazy val ratSettings = Seq(
   ratLicenses := Seq(
     ("HPP  ", Rat.HPP_LICENSE_NAME, Rat.HPP_LICENSE_TEXT),
@@ -42,4 +40,3 @@ lazy val `omega-edit` = project
     name := "omega-edit",
     publish / skip := true
   )
-  .enablePlugins(commonPlugins: _*)
