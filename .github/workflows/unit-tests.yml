@@ -59,7 +59,7 @@ jobs:
           cmake --install build --prefix "${PWD}/_install"
       - name: Prepare, Build, and Test Ωedit RPC 📋
         run: |
-          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
+          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-rpc
           pushd build-rpc/bin
           ./server_test
