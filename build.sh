@@ -26,11 +26,16 @@ rm -rf build-static-$type
 cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DCMAKE_BUILD_TYPE=$type
 cmake --build build-static-$type
 cmake --install build-static-$type --prefix "${PWD}/_install"
+cpack --config build-static-$type/CPackSourceConfig.cmake
+cpack --config build-static-$type/CPackConfig.cmake
 
 rm -rf build-shared-$type
 cmake -G "$generator" -S . -B build-shared-$type -DBUILD_SHARED_LIBS=YES -DCMAKE_BUILD_TYPE=$type
 cmake --build build-shared-$type
 cmake --install build-shared-$type --prefix "${PWD}/_install"
+cpack --config build-shared-$type/CPackSourceConfig.cmake
+cpack --config build-shared-$type/CPackConfig.cmake
+
 
 rm -rf build-examples-$type
 cmake -G "$generator" -S src/examples -B build-examples-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
@@ -47,3 +52,4 @@ pushd build-tests-integration-$type && ctest -C $type --output-on-failure && pop
 
 cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
 pushd build-tests-$type && ctest -C $type --output-on-failure && popd
+

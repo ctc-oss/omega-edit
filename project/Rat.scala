@@ -24,6 +24,9 @@ object Rat {
     // git files
     file(".git"),
 
+    // ignore files
+    file("packaging/.cpack_ignore"),
+
     // json files
     file("src/rpc/client/ts/package.json"),
     file(".devcontainer/devcontainer.json"),
