@@ -104,5 +104,5 @@ jobs:
           
           for folder in omega-edit-native*; do
             echo $folder
-            ls -la $folder/${{ env.PKG_VERSION }}
+            ls -la $folder/0.7.5
           done  
