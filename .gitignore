@@ -10,13 +10,14 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
 # generated files
-node_modules/
-build*/
-cmake-build*/
 .DS_Store
 Release
-yarn.lock
+_install/
+build*/
+cmake-build*/
+node_modules/
 venv/
+yarn.lock
 
 # log files
 *.log
@@ -35,16 +36,16 @@ venv/
 **/*.class
 
 # Ignore generated binding files
-**/*.o
 **/*.dylib
+**/*.o
 **/*.so
 
 # sbt
+!lib/.gitkeep
+**/*jar
 **/target/*
 .bsp
 lib/*
-!lib/.gitkeep
-**/*jar
 
 # ignore java binding files as they are not needed
 # still need the omega_edit_wrap codes for the lib file to work

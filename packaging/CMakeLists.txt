@@ -28,5 +28,28 @@ install(EXPORT omega_edit_Targets DESTINATION "${omega_edit_INSTALL_CMAKEDIR}" N
 write_basic_package_version_file(omega_editConfigVersion.cmake COMPATIBILITY SameMajorVersion)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/omega_editConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/omega_editConfigVersion.cmake" DESTINATION "${omega_edit_INSTALL_CMAKEDIR}" COMPONENT omega_edit_Development)
 
-# TODO: add additional CPack variables here
+set(_fmt TGZ)
+if(WIN32)
+    set(_fmt ZIP)
+endif()
+set(CPACK_GENERATOR ${_fmt})
+set(CPACK_SOURCE_GENERATOR ${_fmt})
+set(CPACK_PACKAGE_VENDOR "Concurrent Technologies Corporation")
+set(CPACK_PACKAGE_CONTACT "omega.edit@ctc.com")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
+set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
+set(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_BINARY_DIR}/package")
+set(CPACK_PACKAGE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+string(TOLOWER ${CMAKE_SYSTEM_NAME} _sys)
+string(TOLOWER ${PROJECT_NAME} _project_lower)
+set(CPACK_PACKAGE_FILE_NAME "${_project_lower}-${_sys}")
+set(CPACK_SOURCE_PACKAGE_FILE_NAME "${_project_lower}-${PROJECT_VERSION}")
+
+# not .gitignore as its regex syntax is distinct
+file(READ ${CMAKE_CURRENT_LIST_DIR}/.cpack_ignore _cpack_ignore)
+string(REGEX REPLACE "\n" ";" _cpack_ignore ${_cpack_ignore})
+set(CPACK_SOURCE_IGNORE_FILES "${_cpack_ignore}")
+
+install(FILES ${CPACK_RESOURCE_FILE_README} ${CPACK_RESOURCE_FILE_LICENSE} DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+
 include(CPack)
