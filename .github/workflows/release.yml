@@ -50,53 +50,7 @@ jobs:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
 
-  api-native-publish-linux:
-    name: Publish Scala API and Native packages
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2.3.5
-        with:
-          submodules: recursive
-
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-
-      - name: Install Conan
-        uses: turtlebrowser/get-conan@main
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.12
-        with:
-          cmake-version: '3.16.x'
-
-      - name: Build Omega Edit
-        run: |
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build . --target omega_edit
-          mv lib/* ../lib
-
-      - name: Setup JDK
-        uses: actions/setup-java@v2
-        with:
-          distribution: adopt
-          java-version: 8
-
-      - name: Package Scala Native
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt +native/publish
-        working-directory: src/bindings/scala
-
-      - name: Package Scala API
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt +api/publish
-        working-directory: src/bindings/scala
-
-  native-publish-mac-win:
-    needs: [api-native-publish-linux]
+  native-build-mac-win:
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -141,61 +95,96 @@ jobs:
           distribution: adopt
           java-version: 8
 
+      - name: Setup Maven Action
+        uses: s4u/setup-maven-action@v1.2.1
+        with:
+          java-version: 8
+          maven-version: 3.8.2
+
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +native/publishM2
         working-directory: src/bindings/scala
 
-      - name: Upload macos JARs
-        if: startsWith(matrix.os, 'macos')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${PKG_VERSION}/settings.xml
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${PKG_VERSION}/settings.xml
-          for sversion in "2.12" "2.13"; do
-            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${{ env.PKG_VERSION }}
-            mvn -gs settings.xml -X deploy:deploy-file -DgroupId="com.ctc" \
-              -DartifactId=omega-edit-native_${sversion} \
-              -Dversion="${{ env.PKG_VERSION }}" \
-              -Dpackaging="jar" \
-              -Dfile=omega-edit-native_${sversion}-${{ env.PKG_VERSION }}-macos-64.jar \
-              -DrepositoryId=github \
-              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-              -Dgh.token=${GITHUB_TOKEN} \
-              -Dgh.user="Shanedell" \
-              -DgeneratePom=false \
-              -Dclassifier="macos-64"
-          done
+      - name: Upload Native JARs
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: ~/.m2/repository/com/ctc/*
+          if-no-files-found: error
 
-      - name: Upload windows JARs
-        if: startsWith(matrix.os, 'win')
+  api-native-publish:
+    needs: [native-build-mac-win]
+    name: Publish Scala API and Native packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+        with:
+          cmake-version: '3.16.x'
+
+      - name: Build Omega Edit
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
+          mv lib/* ../lib
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Download macos Native JARs
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-latest-artifacts
+          # path: ~/.m2/repository/com/ctc/*
+
+      - name: Download windows Native JARs
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-latest-artifacts
+          # path: ~/.m2/repository/com/ctc/
+
+      - name: Debug statement
+        run: |
+          ls -la ~/.m2/repository/com/ctc/
+          ls -la ~/.m2/repository/com/ctc/omega-edit-native_2.12/${{ env.PKG_VERSION }}
+          ls -la ~/.m2/repository/com/ctc/omega-edit-native_2.13/${{ env.PKG_VERSION }}
+
+      - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.12/${PKG_VERSION}/settings.xml
-          cp settings.xml ~/.m2/repository/com/ctc/omega-edit-native_2.13/${PKG_VERSION}/settings.xml
-          for sversion in "2.12" "2.13"; do
-            cd ~/.m2/repository/com/ctc/omega-edit-native_${sversion}/${PKG_VERSION}
-            mvn -gs settings.xml -X deploy:deploy-file -DgroupId="com.ctc" \
-              -DartifactId=omega-edit-native_${sversion} \
-              -Dversion="${PKG_VERSION}" \
-              -Dpackaging="jar" \
-              -Dfile=./omega-edit-native_${sversion}-${PKG_VERSION}-windows-64.jar \
-              -DrepositoryId=github \
-              -Durl=https://maven.pkg.github.com/Shanedell/omega-edit \
-              -Dgh.token=${GITHUB_TOKEN} \
-              -Dgh.user="Shanedell" \
-              -DgeneratePom=false \
-              -Dclassifier="windows-64"
-          done
-        shell: bash
+          mv build.sbt ci/build.sbt
+          mv ci/release.sbt build.sbt
+          sbt +native/publish
+        working-directory: src/bindings/scala
+
+      - name: Package Scala API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt +api/publish
+        working-directory: src/bindings/scala
 
   release:
     name: Release ✨
     runs-on: ubuntu-latest
-    needs: [node-build, native-publish-mac-win]
+    needs: [node-build, api-native-publish]
     steps:
       - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
@@ -234,13 +223,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
-          path: omega-edit-v${{ env.PKG_VERSION }}.tgz
 
       - name: Move out node package file 🛻
         run: |
-          mv omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
-          mv omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
+          mv src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
 
       - name: Upload node release tarball 🔺
         uses: actions/upload-release-asset@v1
