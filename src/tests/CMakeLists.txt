@@ -13,16 +13,16 @@ project(omega_edit-tests LANGUAGES C CXX)
 
 enable_testing()
 
-if (MSVC)
+if (DEFINED MSVC)
     set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
 endif ()
 
-if (CMAKE_HOST_WIN32)
+if (DEFINED CMAKE_HOST_WIN32)
     string(TOUPPER "${CMAKE_BUILD_TYPE}" BT)
     set(static_opts "-DCMAKE_${BT}_POSTFIX=_static")
     set(LDD dumpbin /dependents)
     set(EXT .exe)
-elseif (CMAKE_HOST_APPLE)
+elseif (DEFINED CMAKE_HOST_APPLE)
     set(LDD otool -L)
 else ()
     set(LDD ldd)
@@ -53,7 +53,7 @@ function(add_integration_test)
         set_tests_properties(${arg_NAME} PROPERTIES WILL_FAIL TRUE FAIL_REGULAR_EXPRESSION "${arg_EXPECTED}")
         set_tests_properties(${arg_NAME}_linkage_check PROPERTIES WILL_FAIL TRUE)
     endif ()
-endfunction()
+endfunction(add_integration_test)
 
 ## Joint install directory tests
 add_integration_test(NAME default ROOT install-both EXPECTED static)

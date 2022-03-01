@@ -16,13 +16,13 @@ on:
     branches:
       - '**'
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   unit-test:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -47,7 +47,7 @@ jobs:
       - name: Run sbt tests 📋
         run: sbt test
       - name: Prepare and Build 🔧
-        run: | 
+        run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build
       - name: Run Tests 📋
