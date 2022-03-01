@@ -46,18 +46,19 @@ jobs:
         uses: actions/checkout@v2
       - name: Run sbt tests 📋
         run: sbt test
-      - name: Prepare and Build 🔧
-        run: | 
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
-          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
-          cmake --build build-rpc
-          pushd build-rpc/bin
-          ./server_test
-          popd
-      - name: Run Tests 📋
+      - name: Build and Test Ωedit 📋
         if: runner.os != 'Windows'
         run: |
           cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
           cd build-tests
           ctest -C Debug --output-on-failure
+      - name: Prepare and Build Ωedit 🔧
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+      - name: Prepare, Build, and Test Ωedit RPC 📋
+          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${PWD}/build"
+          cmake --build build-rpc
+          pushd build-rpc/bin
+          ./server_test
+          popd
