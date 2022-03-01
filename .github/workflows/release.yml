@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.os }}-artifacts
-          path: ~/.m2/repository/com/ctc/omega-edit-native-*
+          path: ~/.m2/repository/com/ctc/omega-edit-native*
           if-no-files-found: error
 
   api-native-publish:
