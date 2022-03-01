@@ -285,6 +285,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./${{ env.SERVER_RELEASE_FILE }}
+          asset_path: ./src/rpc/server/scala/${{ env.SERVER_RELEASE_FILE }}
           asset_name: omega-edit-grpc-scala-server-v${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
