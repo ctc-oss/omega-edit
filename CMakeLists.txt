@@ -67,7 +67,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
         "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
         "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
-        "src/lib/impl_/macros.h" "src/include/export.h"
+        "src/lib/impl_/macros.h" "src/include/omega_edit/export.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
