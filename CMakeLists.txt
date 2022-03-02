@@ -83,7 +83,6 @@ target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
 target_link_libraries(omega_edit Boost::filesystem)
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
-target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include>")
 
 ## Include the install rules if the user wanted them (included by default when top-level)
 string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
