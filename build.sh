@@ -44,9 +44,7 @@ cmake --build build-examples-$type
 rm -rf build-rpc-$type
 cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
 cmake --build build-rpc-$type
-pushd build-rpc-$type/bin
-./server_test
-popd
+build-rpc-$type/bin/server_test
 
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
