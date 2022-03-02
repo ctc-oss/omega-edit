@@ -18,12 +18,16 @@ on:
 
 jobs:
   deploy-documentation:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Setup Python 🐍
         uses: actions/setup-python@v2
         with:
           python-version: '3.x'
+      - name: Install Required Packages
+        run: |
+          sudo apt-get install -y doxygen graphviz python3-breathe python3-sphinx python3-pip
+          sudo pip3 install sphinx_rtd_theme sphinx-sitemap
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
       - name: Setup cmake 🔧
