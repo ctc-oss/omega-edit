@@ -67,6 +67,4 @@ jobs:
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-rpc
-          pushd build-rpc/bin
-          ./server_test
-          popd
+          build-rpc/bin/server_test
