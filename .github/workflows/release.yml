@@ -69,6 +69,10 @@ jobs:
         run: ${{ env.export_cmd }}
         shell: bash
 
+      - name: Check if git tag matches package version ✅
+        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+        shell: bash
+
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
@@ -190,10 +194,57 @@ jobs:
         run: sbt +spi/publish
         working-directory: src/bindings/scala
 
+  server-packaging:
+    needs: [api-native-publish]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: Build server ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+        shell: bash
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Package scala reference server
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt universal:packageBin
+          cd target/universal/
+          SERVER_RELEASE_FILE=$(echo example-grpc-server-${{ env.PKG_VERSION }}*)
+          unzip $SERVER_RELEASE_FILE
+          rm -rf $SERVER_RELEASE_FILE
+          mv $(echo ${SERVER_RELEASE_FILE%.zip*}) ${{ matrix.os }}-server
+          mv ${{ matrix.os }}-server ../../${{ matrix.os }}-server
+        working-directory: src/rpc/server/scala
+        shell: bash
+
+      - name: Upload {{ matrix.os }} server
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-server
+          path: src/rpc/server/scala/${{ matrix.os }}-server
+          if-no-files-found: error
+
   release:
     name: Release ✨
     runs-on: ubuntu-latest
-    needs: [node-build, api-native-publish]
+    needs: [node-build, server-packaging]
     steps:
       - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
@@ -267,17 +318,32 @@ jobs:
         with:
           distribution: adopt
           java-version: 8
+      
+      - name: Download macos server
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-latest-server
+          path: macos-latest-server
 
-      - name: Package scala reference server
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download linux server
+        uses: actions/download-artifact@v2
+        with:
+          name: ubuntu-latest-server
+          path: ubuntu-latest-server
+
+      - name: Download windows server
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-latest-server
+          path: windows-latest-server
+
+      - name: Combine all servers into one zip
         run: |
-          mv build.sbt ci/build.sbt
-          mv ci/release.sbt build.sbt
-          sbt universal:packageBin
-          SERVER_RELEASE_FILE=$(echo target/universal/example-grpc-server-${{ env.PKG_VERSION }}*)
-          echo "SERVER_RELEASE_FILE=$SERVER_RELEASE_FILE" >> $GITHUB_ENV
-        working-directory: src/rpc/server/scala
+          mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
+          mv macos-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/macos
+          mv windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
+          mv ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
+          zip -r "omega-edit-scala-server-${{ env.PKG_VERSION }}.zip" omega-edit-scala-server-${{ env.PKG_VERSION }}
 
       - name: Upload scala reference server 🔺
         uses: actions/upload-release-asset@v1.0.2
@@ -285,6 +351,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src/rpc/server/scala/${{ env.SERVER_RELEASE_FILE }}
-          asset_name: omega-edit-grpc-scala-server-v${{ env.PKG_VERSION }}.zip
+          asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
