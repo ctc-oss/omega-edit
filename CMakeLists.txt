@@ -67,7 +67,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
         "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
         "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
-        "src/lib/impl_/macros.h" "src/include/export.h"
+        "src/lib/impl_/macros.h" "src/include/omega_edit/export.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
@@ -83,7 +83,6 @@ target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
 target_link_libraries(omega_edit Boost::filesystem)
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
-target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include>")
 
 ## Include the install rules if the user wanted them (included by default when top-level)
 string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
@@ -100,7 +99,6 @@ string(TOUPPER "${PROJECT_NAME}" PREFIX)
 foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
-
 
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
