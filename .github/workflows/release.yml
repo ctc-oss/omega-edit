@@ -229,7 +229,7 @@ jobs:
           SERVER_RELEASE_FILE=$(echo example-grpc-server-${{ env.PKG_VERSION }}*)
           unzip $SERVER_RELEASE_FILE
           rm -rf $SERVER_RELEASE_FILE
-          mv $(echo $SERVER_RELEASE_FILE | rev | cut -d '.' -f 2- | rev) ${{ matrix.os }}-server
+          mv $(echo ${SERVER_RELEASE_FILE%.zip*}) ${{ matrix.os }}-server
           mv ${{ matrix.os }}-server ../../${{ matrix.os }}-server
         working-directory: src/rpc/server/scala
         shell: bash
