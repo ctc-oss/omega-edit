@@ -337,13 +337,6 @@ jobs:
           name: windows-latest-server
           path: windows-latest-server
 
-      - name: Debug statement
-        run: |
-          ls -la
-          ls -la windows-latest-server
-          ls -la linux-latest-server
-          ls -la macos-latest-server
-
       - name: Combine all servers into one zip
         run: |
           mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
