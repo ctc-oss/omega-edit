@@ -17,11 +17,12 @@ import sbt.URL
  */
 
 object BuildSupport {
-  case class Arch(id: String, _id: String)
+  case class Arch(id: String, _id: String, os: String, arch: String)
   val apacheLicenseUrl: URL = new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")
 
   // some regexes for arch parsing
   val Mac = """mac.+""".r
+  val Win = """windows.+""".r
   val Amd = """amd(\d+)""".r
   val x86 = """x86_(\d+)""".r
 
@@ -29,7 +30,7 @@ object BuildSupport {
     val os = System.getProperty("os.name").toLowerCase match {
       case "linux"   => "linux"
       case Mac()     => "macos"
-      case "windows" => "windows"
+      case Win()     => "windows"
     }
 
     val arch = System.getProperty("os.arch").toLowerCase match {
@@ -37,7 +38,7 @@ object BuildSupport {
       case x86(bits) => bits
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
-    Arch(s"$os-$arch", s"${os}_$arch")
+    Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
   }
 
   def pair(name: String): (String, String) = name -> s"${arch._id}/$name"
@@ -46,7 +47,7 @@ object BuildSupport {
     System.getProperty("os.name").toLowerCase match {
       case "linux"   => pair("libomega_edit.so")
       case Mac()     => pair("libomega_edit.dylib")
-      case "windows" => pair("omega_edit.dll")
+      case Win()     => pair("omega_edit.dll")
     }
   }
 }

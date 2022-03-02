@@ -88,5 +88,7 @@ jobs:
 
       - name: Build Scala gRPC Reference Impl
         if: startsWith(matrix.os, 'ubuntu')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt test
         working-directory: src/rpc/server/scala

@@ -29,10 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Setup Node 📐
-        uses: actions/setup-node@v1
-        with:
-          node-version: ${{ env.node_version }}
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
@@ -54,12 +50,201 @@ jobs:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
 
-  ### TODO SCALA BUILD ###
+  native-build-mac-win:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+        shell: bash
+
+      - name: Check if git tag matches package version ✅
+        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+        shell: bash
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
+
+      - name: Build Ωedit mac
+        if: startsWith(matrix.os, 'mac')
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
+
+      - name: Build Ωedit windows
+        if: startsWith(matrix.os, 'win')
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build
+
+      - name: Move library file
+        run: mv build/lib/* lib
+        shell: bash
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Package Scala Native
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt +native/publishM2
+        working-directory: src/bindings/scala
+
+      - name: Upload Native JARs
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: ~/.m2/repository/com/ctc/omega-edit-native*
+          if-no-files-found: error
+
+  api-native-publish:
+    needs: [native-build-mac-win]
+    name: Publish Scala API and Native packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+          
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan
+        uses: turtlebrowser/get-conan@main
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+        with:
+          cmake-version: '3.16.x'
+
+      - name: Build Ωedit
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build . --target omega_edit
+          mv lib/* ../lib
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Download macos Native JARs
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-latest-artifacts
+
+      - name: Download windows Native JARs
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-latest-artifacts
+
+      - name: Move windows and macos jars out
+        run: |
+          for folder in "omega-edit-native_2.12" "omega-edit-native_2.13"; do
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* src/bindings/scala/
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* src/bindings/scala/
+          done
+
+      - name: Package Scala Native
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv build.sbt ci/build.sbt
+          mv ci/release.sbt build.sbt
+          sbt +native/publish
+        working-directory: src/bindings/scala
+
+      - name: Package Scala API
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt +api/publish
+        working-directory: src/bindings/scala
+
+      - name: Package Scala SPI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: sbt +spi/publish
+        working-directory: src/bindings/scala
+
+  server-packaging:
+    needs: [api-native-publish]
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: Build server ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - uses: actions/checkout@v2.3.5
+        with:
+          submodules: recursive
+
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+        shell: bash
+
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+
+      - name: Package scala reference server
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sbt universal:packageBin
+          cd target/universal/
+          SERVER_RELEASE_FILE=$(echo example-grpc-server-${{ env.PKG_VERSION }}*)
+          unzip $SERVER_RELEASE_FILE
+          rm -rf $SERVER_RELEASE_FILE
+          mv $(echo ${SERVER_RELEASE_FILE%.zip*}) ${{ matrix.os }}-server
+          mv ${{ matrix.os }}-server ../../${{ matrix.os }}-server
+        working-directory: src/rpc/server/scala
+        shell: bash
+
+      - name: Upload {{ matrix.os }} server
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.os }}-server
+          path: src/rpc/server/scala/${{ matrix.os }}-server
+          if-no-files-found: error
 
   release:
     name: Release ✨
     runs-on: ubuntu-latest
-    needs: [node-build]
+    needs: [node-build, server-packaging]
     steps:
       - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
@@ -67,7 +252,7 @@ jobs:
 
       - name: Check if pre-release ✅
         run: |
-          if [[ ${{env.GIT_TAG}} == *"pre-"* || ${{env.GIT_TAG}} == *"-pre"* ]]; then
+          if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
             echo "PRE_RELEASE=true" >> $GITHUB_ENV
           else
             echo "PRE_RELEASE=false" >> $GITHUB_ENV
@@ -113,7 +298,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          asset_name: omega-edit-node-${{ env.PKG_VERSION }}.tar.gz
+          asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
 
       - name: Publish node package to npm registry 🚀
@@ -127,5 +312,45 @@ jobs:
 
       ###########################
       ## Scala release process ##
-      ##### TO BE CONTINUED #####
       ###########################
+      - name: Setup JDK
+        uses: actions/setup-java@v2
+        with:
+          distribution: adopt
+          java-version: 8
+      
+      - name: Download macos server
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-latest-server
+          path: macos-latest-server
+
+      - name: Download linux server
+        uses: actions/download-artifact@v2
+        with:
+          name: ubuntu-latest-server
+          path: ubuntu-latest-server
+
+      - name: Download windows server
+        uses: actions/download-artifact@v2
+        with:
+          name: windows-latest-server
+          path: windows-latest-server
+
+      - name: Combine all servers into one zip
+        run: |
+          mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
+          mv macos-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/macos
+          mv windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
+          mv ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
+          zip -r "omega-edit-scala-server-${{ env.PKG_VERSION }}.zip" omega-edit-scala-server-${{ env.PKG_VERSION }}
+
+      - name: Upload scala reference server 🔺
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          asset_content_type: application/tar+gzip

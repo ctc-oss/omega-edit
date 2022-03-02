@@ -38,6 +38,8 @@ lazy val commonSettings = {
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
+    // git.useGitDescribe := true,
+    // git.gitUncommittedChanges := false,
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
@@ -111,7 +113,11 @@ lazy val native = project
       "sharedLibraryArch" -> System.getProperty("os.arch"),
       "sharedLibraryPath" -> s"${version.value}/${mapping._2}"
     ),
-    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo")
+    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo"),
+    packagedArtifacts ++= Map(
+      Artifact("omega-edit-native", "windows-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"),
+      Artifact("omega-edit-native", "macos-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"),
+    )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
