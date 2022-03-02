@@ -327,7 +327,7 @@ jobs:
       - name: Download linux server
         uses: actions/download-artifact@v2
         with:
-          name: linux-latest-server
+          name: ubuntu-latest-server
 
       - name: Download windows server
         uses: actions/download-artifact@v2
@@ -339,7 +339,7 @@ jobs:
           mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
           mv src/rpc/server/scala/macos-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/macos
           mv src/rpc/server/scala/windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
-          mv src/rpc/server/scala/linux-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
+          mv src/rpc/server/scala/ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
           zip -r "omega-edit-scala-server-${{ env.PKG_VERSION }}.zip" omega-edit-scala-server-${{ env.PKG_VERSION }}
 
       - name: Upload scala reference server 🔺
