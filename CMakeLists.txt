@@ -101,7 +101,6 @@ foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
 
-
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
     # Generate API documentation using Doxygen
