@@ -323,16 +323,26 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: macos-latest-server
+          path: macos-latest-server
 
       - name: Download linux server
         uses: actions/download-artifact@v2
         with:
           name: ubuntu-latest-server
+          path: ubuntu-latest-server
 
       - name: Download windows server
         uses: actions/download-artifact@v2
         with:
           name: windows-latest-server
+          path: windows-latest-server
+
+      - name: Debug statement
+        run: |
+          ls -la
+          ls -la windows-latest-server
+          ls -la linux-latest-server
+          ls -la macos-latest-server
 
       - name: Combine all servers into one zip
         run: |
