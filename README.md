@@ -58,10 +58,6 @@ Studio Code also works well.
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
 - **scala/sbt/java**
 
-### Development requirements:
-
-- **swig** to generate language bindings (http://www.swig.org/svn.html)
-
 ## Build the core library (C/C++)
 
 :exclamation: These commands should be executed at the root level of the repository :exclamation:
@@ -72,31 +68,31 @@ Studio Code also works well.
 pip install conan
 ```
 
-### Configure debug build:
+### Configure a debug build:
+
+#### Static:
 
 ```bash
 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 ```
 
-### Run debug build:
+#### Shared:
+
+```bash
+cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES
+```
+
+### Build the configured build:
 
 ```bash
 cmake --build cmake-build-debug
 ```
 
-### Run unit tests:
+### Run the test suite:
 
 ```bash
-cd cmake-build-debug/src/tests/
-./omega_test -d yes --order lex
-cd ../../../
-```
-
-## Creating Java Native/Shared Library - Manual
-
-```bash
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=OFF -DBUILD_RPC=OFF
-cmake --build cmake-build-debug --target omega_edit_so
+cmake -S src/tests -B cmake-build-tests -DCMAKE_BUILD_TYPE=Debug
+pushd cmake-build-tests && ctest -C Debug --output-on-failure && popd
 ```
 
 ## Packaging Ωedit
