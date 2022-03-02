@@ -50,6 +50,11 @@ encode.h
 
 .. doxygenfile:: encode.h
 
+export.h
+-----------
+
+.. doxygenfile:: export.h
+
 filesystem.h
 ----------
 
