@@ -337,9 +337,9 @@ jobs:
       - name: Combine all servers into one zip
         run: |
           mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
-          mv src/rpc/server/scala/macos-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/macos
-          mv src/rpc/server/scala/windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
-          mv src/rpc/server/scala/ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
+          mv macos-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/macos
+          mv windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
+          mv ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
           zip -r "omega-edit-scala-server-${{ env.PKG_VERSION }}.zip" omega-edit-scala-server-${{ env.PKG_VERSION }}
 
       - name: Upload scala reference server 🔺
