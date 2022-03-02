@@ -14,11 +14,14 @@
 
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
+#include <boost/filesystem.hpp>
 #include <condition_variable>
 #include <csignal>
 #include <grpcpp/grpcpp.h>
 #include <sstream>
 #include <thread>
+
+namespace fs = boost::filesystem;
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -829,6 +832,8 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
     }
+    // change current working path to that of this executable
+    fs::current_path(fs::path(argv[0]).parent_path());
     pid_t pid = 0;
     bool run_server = true;
     if (run_server) {

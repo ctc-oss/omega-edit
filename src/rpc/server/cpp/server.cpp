@@ -300,7 +300,7 @@ static inline SessionEventKind omega_session_event_to_rpc_event(omega_session_ev
         case SESSION_EVT_SAVE:
             return SessionEventKind::SESSION_EVT_SAVE;
         default:
-            assert(0);
+            abort();
     }
 }
 
@@ -321,7 +321,7 @@ static inline ViewportEventKind omega_viewport_event_to_rpc_event(omega_viewport
         case VIEWPORT_EVT_UPDATED:
             return ViewportEventKind::VIEWPORT_EVT_UPDATED;
         default:
-            assert(0);
+            abort();
     }
 }
 
