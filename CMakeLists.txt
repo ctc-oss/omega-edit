@@ -67,7 +67,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
         "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
         "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
-        "src/lib/impl_/macros.h"
+        "src/lib/impl_/macros.h" "src/include/export.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
@@ -82,8 +82,6 @@ set_target_properties(omega_edit PROPERTIES VERSION ${omega_edit_VERSION} SOVERS
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
 target_link_libraries(omega_edit Boost::filesystem)
-include(GenerateExportHeader)
-generate_export_header(omega_edit EXPORT_FILE_NAME "src/include/export.h")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/include>")
 
