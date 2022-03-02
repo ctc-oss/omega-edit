@@ -70,13 +70,15 @@ pip install conan
 
 ### Configure a debug build:
 
-#### Static:
+Depending on your linking needs, Ωedit can be built as either as a static (e.g., libomega_edit.a) or shared (e.g., libomega_edit.so) library.
+
+- #### Static:
 
 ```bash
 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 ```
 
-#### Shared:
+- #### Shared:
 
 ```bash
 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES
