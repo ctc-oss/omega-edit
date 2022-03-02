@@ -1,0 +1,156 @@
+.TH "src/include/omega_edit/search.h" 3 "Wed Mar 2 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+src/include/omega_edit/search.h
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'byte\&.h'\fP
+.br
+\fC#include 'export\&.h'\fP
+.br
+\fC#include 'fwd_defs\&.h'\fP
+.br
+\fC#include <stdint\&.h>\fP
+.br
+
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef struct \fBomega_search_context_t\fP \fBomega_search_context_t\fP"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP \fBomega_search_context_t\fP * \fBomega_search_create_context_bytes\fP (const \fBomega_session_t\fP *session_ptr, const \fBomega_byte_t\fP *pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP \fBomega_search_context_t\fP * \fBomega_search_create_context\fP (const \fBomega_session_t\fP *session_ptr, const char *pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_search_context_get_offset\fP (const \fBomega_search_context_t\fP *search_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_search_context_get_length\fP (const \fBomega_search_context_t\fP *search_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_search_next_match\fP (\fBomega_search_context_t\fP *search_context_ptr, int64_t advance_context)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP void \fBomega_search_destroy_context\fP (\fBomega_search_context_t\fP *search_context_ptr)"
+.br
+.in -1c
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef struct \fBomega_search_context_t\fP \fBomega_search_context_t\fP"
+Opaque search context 
+.SH "Function Documentation"
+.PP 
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_search_context_get_length (const \fBomega_search_context_t\fP * search_context_ptr)"
+Given a search context, get the pattern length 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsearch_context_ptr\fP search context to get the pattern length from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the pattern length offset 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_search_context_get_offset (const \fBomega_search_context_t\fP * search_context_ptr)"
+Given a search context, get the most recent search offset 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsearch_context_ptr\fP search context to get the most recent search offset from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+the most recent search offset, if the search offset is equal to the session length, then no match was found 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP \fBomega_search_context_t\fP * omega_search_create_context (const \fBomega_session_t\fP * session_ptr, const char * pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)\fC [inline]\fP"
+Create a search context 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to find patterns in 
+.br
+\fIpattern\fP pointer to the pattern to find (as a C string) 
+.br
+\fIpattern_length\fP length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.br
+\fIsession_offset\fP start searching at this offset within the session 
+.br
+\fIsession_length\fP search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length 
+.br
+\fIcase_insensitive\fP zero for case sensitive matching and non-zero otherwise 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+search context 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP \fBomega_search_context_t\fP * omega_search_create_context_bytes (const \fBomega_session_t\fP * session_ptr, const \fBomega_byte_t\fP * pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)"
+Create a search context 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to find patterns in 
+.br
+\fIpattern\fP pointer to the pattern to find (as a sequence of bytes) 
+.br
+\fIpattern_length\fP length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.br
+\fIsession_offset\fP start searching at this offset within the session 
+.br
+\fIsession_length\fP search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length 
+.br
+\fIcase_insensitive\fP zero for case sensitive match and non-zero otherwise 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+search context 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP void omega_search_destroy_context (\fBomega_search_context_t\fP * search_context_ptr)"
+Destroy the given search context 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsearch_context_ptr\fP search context to destroy 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_search_next_match (\fBomega_search_context_t\fP * search_context_ptr, int64_t advance_context)"
+Given a search context, find the next match 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsearch_context_ptr\fP search context to find the next match in 
+.br
+\fIadvance_context\fP advance the internal search context offset by this many bytes 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+non-zero if a match is found, zero otherwise 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for omega_edit from the source code\&.

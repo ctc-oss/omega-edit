@@ -1,7 +1,7 @@
 CMakeFiles/omega_edit.dir/src/lib/visit.cpp.o: \
   /Users/runner/work/omega-edit/omega-edit/src/lib/visit.cpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/visit.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/fwd_defs.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/cstddef \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/__config \

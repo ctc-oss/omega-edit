@@ -194,6 +194,32 @@ omega_edit/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/omega_edit.dir/build.make CMakeFiles/omega_edit.dir/build
 .PHONY : omega_edit/fast
 
+#=============================================================================
+# Target rules for targets named docs
+
+# Build rule for target.
+docs: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 docs
+.PHONY : docs
+
+# fast build rule for target.
+docs/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docs.dir/build.make CMakeFiles/docs.dir/build
+.PHONY : docs/fast
+
+#=============================================================================
+# Target rules for targets named sphinx
+
+# Build rule for target.
+sphinx: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 sphinx
+.PHONY : sphinx
+
+# fast build rule for target.
+sphinx/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/sphinx.dir/build.make CMakeFiles/sphinx.dir/build
+.PHONY : sphinx/fast
+
 src/lib/change.o: src/lib/change.cpp.o
 .PHONY : src/lib/change.o
 
@@ -544,6 +570,8 @@ help:
 	@echo "... package"
 	@echo "... package_source"
 	@echo "... rebuild_cache"
+	@echo "... docs"
+	@echo "... sphinx"
 	@echo "... omega_edit"
 	@echo "... src/lib/change.o"
 	@echo "... src/lib/change.i"

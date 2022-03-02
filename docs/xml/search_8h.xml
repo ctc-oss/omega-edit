@@ -1,0 +1,444 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="search_8h" kind="file" language="C++">
+    <compoundname>search.h</compoundname>
+    <includes refid="byte_8h" local="yes">byte.h</includes>
+    <includes refid="export_8h" local="yes">export.h</includes>
+    <includes refid="fwd__defs_8h" local="yes">fwd_defs.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includedby refid="omega__edit_8h" local="yes">src/include/omega_edit.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>byte.h</label>
+        <link refid="byte_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>config.h</label>
+        <link refid="config_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>export.h</label>
+        <link refid="export_8h"/>
+      </node>
+      <node id="6">
+        <label>fwd_defs.h</label>
+        <link refid="fwd__defs_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/search.h</label>
+        <link refid="search_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/include/omega_edit.h</label>
+        <link refid="omega__edit_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/search.h</label>
+        <link refid="search_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+      <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="search_8h_1ae21eaf832e8193563d7e51425840f2db" prot="public" static="no">
+        <type>struct <ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref></type>
+        <definition>typedef struct omega_search_context_t omega_search_context_t</definition>
+        <argsstring></argsstring>
+        <name>omega_search_context_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Opaque search context </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="32" column="37" bodyfile="src/include/omega_edit/search.h" bodystart="32" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="func">
+      <memberdef kind="function" id="search_8h_1a343cec09807e5ba3f43fe9ad580b4dd2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> <ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT omega_search_context_t * omega_search_create_context_bytes</definition>
+        <argsstring>(const omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)</argsstring>
+        <name>omega_search_create_context_bytes</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <param>
+          <type>const <ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref> *</type>
+          <declname>pattern</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>pattern_length</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>session_offset</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>session_length</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>case_insensitive</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Create a search context <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to find patterns in </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>pattern</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to the pattern to find (as a sequence of bytes) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>pattern_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>session_offset</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>start searching at this offset within the session </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>session_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>case_insensitive</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>zero for case sensitive match and non-zero otherwise </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>search context </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="47" column="1" declfile="src/include/omega_edit/search.h" declline="47" declcolumn="1"/>
+      </memberdef>
+      <memberdef kind="function" id="search_8h_1a404b06d0100deef604734af070b06a33" prot="public" static="no" const="no" explicit="no" inline="yes" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> <ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT omega_search_context_t * omega_search_create_context</definition>
+        <argsstring>(const omega_session_t *session_ptr, const char *pattern, int64_t pattern_length, int64_t session_offset, int64_t session_length, int case_insensitive)</argsstring>
+        <name>omega_search_create_context</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <param>
+          <type>const char *</type>
+          <declname>pattern</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>pattern_length</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>session_offset</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>session_length</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>case_insensitive</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Create a search context <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to find patterns in </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>pattern</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to the pattern to find (as a C string) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>pattern_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>session_offset</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>start searching at this offset within the session </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>session_length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>case_insensitive</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>zero for case sensitive matching and non-zero otherwise </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>search context </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="64" column="1" bodyfile="src/include/omega_edit/search.h" bodystart="64" bodyend="68"/>
+      </memberdef>
+      <memberdef kind="function" id="search_8h_1a0eb2f69314c6743c08635f22b6ebf12c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_search_context_get_offset</definition>
+        <argsstring>(const omega_search_context_t *search_context_ptr)</argsstring>
+        <name>omega_search_context_get_offset</name>
+        <param>
+          <type>const <ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+          <declname>search_context_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a search context, get the most recent search offset <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>search_context_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search context to get the most recent search offset from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>the most recent search offset, if the search offset is equal to the session length, then no match was found </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="75" column="27" declfile="src/include/omega_edit/search.h" declline="75" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="search_8h_1af752d47d228061d66e0babbc21cc8f5b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_search_context_get_length</definition>
+        <argsstring>(const omega_search_context_t *search_context_ptr)</argsstring>
+        <name>omega_search_context_get_length</name>
+        <param>
+          <type>const <ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+          <declname>search_context_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a search context, get the pattern length <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>search_context_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search context to get the pattern length from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>the pattern length offset </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="82" column="27" declfile="src/include/omega_edit/search.h" declline="82" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="search_8h_1a3bb8f9814961b1cfb420db2f500d2082" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_search_next_match</definition>
+        <argsstring>(omega_search_context_t *search_context_ptr, int64_t advance_context)</argsstring>
+        <name>omega_search_next_match</name>
+        <param>
+          <type><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+          <declname>search_context_ptr</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>advance_context</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a search context, find the next match <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>search_context_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search context to find the next match in </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>advance_context</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>advance the internal search context offset by this many bytes </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>non-zero if a match is found, zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="90" column="23" declfile="src/include/omega_edit/search.h" declline="90" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="search_8h_1a6af8b3eae135c28abf9b4d0c24e25ba9" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void</type>
+        <definition>OMEGA_EDIT_EXPORT void omega_search_destroy_context</definition>
+        <argsstring>(omega_search_context_t *search_context_ptr)</argsstring>
+        <name>omega_search_destroy_context</name>
+        <param>
+          <type><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref> *</type>
+          <declname>search_context_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Destroy the given search context <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>search_context_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>search context to destroy </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/search.h" line="96" column="24" declfile="src/include/omega_edit/search.h" declline="96" declcolumn="24"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/**********************************************************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021<sp/>Concurrent<sp/>Technologies<sp/>Corporation.<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>with<sp/>the<sp/>License.<sp/><sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software<sp/>is<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>implied.<sp/><sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and<sp/>limitations<sp/>under<sp/>the<sp/>License.<sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>**********************************************************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>OMEGA_EDIT_SEARCH_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>OMEGA_EDIT_SEARCH_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="byte_8h" kindref="compound">byte.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="export_8h" kindref="compound">export.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="fwd__defs_8h" kindref="compound">fwd_defs.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdint&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32" refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">struct<sp/></highlight><highlight class="normal"><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref>;</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="46"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*</highlight></codeline>
+<codeline lineno="47" refid="search_8h_1a343cec09807e5ba3f43fe9ad580b4dd2" refkind="member"><highlight class="normal"><ref refid="search_8h_1a343cec09807e5ba3f43fe9ad580b4dd2" kindref="member">omega_search_create_context_bytes</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*pattern,</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>int64_t<sp/>pattern_length,<sp/>int64_t<sp/>session_offset,<sp/>int64_t<sp/>session_length,</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>case_insensitive);</highlight></codeline>
+<codeline lineno="50"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">inline</highlight><highlight class="normal"><sp/><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*</highlight></codeline>
+<codeline lineno="64" refid="search_8h_1a404b06d0100deef604734af070b06a33" refkind="member"><highlight class="normal"><ref refid="search_8h_1a404b06d0100deef604734af070b06a33" kindref="member">omega_search_create_context</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr,<sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*pattern,<sp/>int64_t<sp/>pattern_length,</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>int64_t<sp/>session_offset,<sp/>int64_t<sp/>session_length,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>case_insensitive)<sp/>{</highlight></codeline>
+<codeline lineno="66"><highlight class="normal"><sp/><sp/><sp/><sp/></highlight><highlight class="keywordflow">return</highlight><highlight class="normal"><sp/><ref refid="search_8h_1a343cec09807e5ba3f43fe9ad580b4dd2" kindref="member">omega_search_create_context_bytes</ref>(session_ptr,<sp/>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*)<sp/>pattern,<sp/>pattern_length,</highlight></codeline>
+<codeline lineno="67"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>session_offset,<sp/>session_length,<sp/>case_insensitive);</highlight></codeline>
+<codeline lineno="68"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75" refid="search_8h_1a0eb2f69314c6743c08635f22b6ebf12c" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="search_8h_1a0eb2f69314c6743c08635f22b6ebf12c" kindref="member">omega_search_context_get_offset</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*search_context_ptr);</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82" refid="search_8h_1af752d47d228061d66e0babbc21cc8f5b" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="search_8h_1af752d47d228061d66e0babbc21cc8f5b" kindref="member">omega_search_context_get_length</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*search_context_ptr);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="90" refid="search_8h_1a3bb8f9814961b1cfb420db2f500d2082" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="search_8h_1a3bb8f9814961b1cfb420db2f500d2082" kindref="member">omega_search_next_match</ref>(<ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*search_context_ptr,<sp/>int64_t<sp/>advance_context);</highlight></codeline>
+<codeline lineno="91"><highlight class="normal"></highlight></codeline>
+<codeline lineno="96" refid="search_8h_1a6af8b3eae135c28abf9b4d0c24e25ba9" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="search_8h_1a6af8b3eae135c28abf9b4d0c24e25ba9" kindref="member">omega_search_destroy_context</ref>(<ref refid="search_8h_1ae21eaf832e8193563d7e51425840f2db" kindref="member">omega_search_context_t</ref><sp/>*search_context_ptr);</highlight></codeline>
+<codeline lineno="97"><highlight class="normal"></highlight></codeline>
+<codeline lineno="98"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="99"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="101"><highlight class="normal"></highlight></codeline>
+<codeline lineno="102"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_SEARCH_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/include/omega_edit/search.h"/>
+  </compounddef>
+</doxygen>

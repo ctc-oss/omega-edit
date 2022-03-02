@@ -1,0 +1,576 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="session_8h" kind="file" language="C++">
+    <compoundname>session.h</compoundname>
+    <includes refid="byte_8h" local="yes">byte.h</includes>
+    <includes refid="export_8h" local="yes">export.h</includes>
+    <includes refid="fwd__defs_8h" local="yes">fwd_defs.h</includes>
+    <includes local="no">stddef.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includedby refid="omega__edit_8h" local="yes">src/include/omega_edit.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>byte.h</label>
+        <link refid="byte_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>config.h</label>
+        <link refid="config_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>export.h</label>
+        <link refid="export_8h"/>
+      </node>
+      <node id="6">
+        <label>fwd_defs.h</label>
+        <link refid="fwd__defs_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/session.h</label>
+        <link refid="session_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="7">
+        <label>stddef.h</label>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/include/omega_edit.h</label>
+        <link refid="omega__edit_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/session.h</label>
+        <link refid="session_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+      <sectiondef kind="func">
+      <memberdef kind="function" id="session_8h_1a1ae5986a1e010dcbc15abcbc318fecae" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const char *</type>
+        <definition>OMEGA_EDIT_EXPORT const char * omega_session_get_file_path</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_file_path</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the file path being edited (if known) <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to return the file path from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>file path, or null if not known </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="36" column="30" declfile="src/include/omega_edit/session.h" declline="36" declcolumn="30"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a8faae48dde84d3d0af09ce474c9fc7d7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void *</type>
+        <definition>OMEGA_EDIT_EXPORT void * omega_session_get_user_data_ptr</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_user_data_ptr</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the associated user data <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the associated user data from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>associated user data for the given session </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="43" column="24" declfile="src/include/omega_edit/session.h" declline="43" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1aff3c6a2b5300b225f6c01f0cc5c57d19" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_num_viewports</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the number of active viewports <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the number of active viewports for </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of active viewports </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="50" column="27" declfile="src/include/omega_edit/session.h" declline="50" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a761c55980dd13db59e5cb1d96fc3da91" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_session_get_num_changes</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_num_changes</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the current number of active changes <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get number of active changes from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of active changes </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="57" column="27" declfile="src/include/omega_edit/session.h" declline="57" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a562b2ae9e9796943d0191702b7f71f04" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_changes</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_num_undone_changes</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the current number of undone changes eligible for being redone <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the number of undone changes for </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of undone changes eligible for being redone </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="64" column="27" declfile="src/include/omega_edit/session.h" declline="64" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a8c5aee9e4b1510582b2792e69bc37a82" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_session_get_computed_file_size</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_computed_file_size</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the computed file size in bytes <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the computed file size from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>computed file size in bytes, or -1 on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="71" column="27" declfile="src/include/omega_edit/session.h" declline="71" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1aa28307bd9fe5f5fbc411ce550b9697f7" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT const omega_change_t * omega_session_get_last_change</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_last_change</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, get the last change (if any) <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the last change from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>last change, or nullptr if there are no changes </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="78" column="40" declfile="src/include/omega_edit/session.h" declline="78" declcolumn="40"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a29472fb4012639a5a2502dcfb39bc607" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT const omega_change_t * omega_session_get_last_undo</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_last_undo</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, get the last undone change eligible for redo (if any) <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the last undone change eligible for redo from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>last undone change eligible for redo, or nullptr if there are no eligible changes for redo </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="85" column="40" declfile="src/include/omega_edit/session.h" declline="85" declcolumn="40"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1ae4b61914620db09868a6c773abe88c77" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT const omega_change_t * omega_session_get_change</definition>
+        <argsstring>(const omega_session_t *session_ptr, int64_t change_serial)</argsstring>
+        <name>omega_session_get_change</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>change_serial</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change serial, get the change <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to which the change belongs </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>change_serial</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change serial of the change to get </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>change with the matching serial, or nullptr on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="93" column="40" declfile="src/include/omega_edit/session.h" declline="93" declcolumn="40"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1aaa04f78e8d289cbf6402789c4e068f3e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_session_viewport_on_change_callbacks_paused</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_viewport_on_change_callbacks_paused</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Determine if the viewport on-change callbacks have been paused or not <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to determine if viewport on-change callbacks are paused on </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>non-zero if viewport on-change callbacks are paused and zero if they are not </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="101" column="23" declfile="src/include/omega_edit/session.h" declline="101" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a13c778a1a9d51efa6c15828170beb57e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void</type>
+        <definition>OMEGA_EDIT_EXPORT void omega_session_pause_viewport_event_callbacks</definition>
+        <argsstring>(omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_pause_viewport_event_callbacks</name>
+        <param>
+          <type><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Pause viewport on-change callbacks for the given session <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to pause viewport on-change callbacks on </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="107" column="24" declfile="src/include/omega_edit/session.h" declline="107" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a4cbecf7bae4a83fe92f98643dca8d984" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void</type>
+        <definition>OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks</definition>
+        <argsstring>(omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_resume_viewport_event_callbacks</name>
+        <param>
+          <type><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Resume viewport on-change callbacks for the given session <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to resume viewport on-change callbacks on </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="113" column="24" declfile="src/include/omega_edit/session.h" declline="113" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1a898f0d0e261732ad00921f497087bd84" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> size_t</type>
+        <definition>OMEGA_EDIT_EXPORT size_t omega_session_get_num_checkpoints</definition>
+        <argsstring>(const omega_session_t *session_ptr)</argsstring>
+        <name>omega_session_get_num_checkpoints</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a session, return the current number of session checkpoints <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session to get the number of session checkpoints for </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of session checkpoints </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="120" column="26" declfile="src/include/omega_edit/session.h" declline="120" declcolumn="26"/>
+      </memberdef>
+      <memberdef kind="function" id="session_8h_1af19e20855126ed71a7465facdc568d07" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void</type>
+        <definition>OMEGA_EDIT_EXPORT void omega_session_notify</definition>
+        <argsstring>(const omega_session_t *session_ptr, omega_session_event_t session_event, const omega_change_t *change_ptr)</argsstring>
+        <name>omega_session_notify</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref> *</type>
+          <declname>session_ptr</declname>
+        </param>
+        <param>
+          <type><ref refid="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7" kindref="member">omega_session_event_t</ref></type>
+          <declname>session_event</declname>
+        </param>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Call the registered session event handler <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>session_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session whose event handler to call </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>session_event</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>session event </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to the change </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/session.h" line="128" column="24" declfile="src/include/omega_edit/session.h" declline="128" declcolumn="24"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/**********************************************************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021<sp/>Concurrent<sp/>Technologies<sp/>Corporation.<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>with<sp/>the<sp/>License.<sp/><sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software<sp/>is<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>implied.<sp/><sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and<sp/>limitations<sp/>under<sp/>the<sp/>License.<sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>**********************************************************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>OMEGA_EDIT_SESSION_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>OMEGA_EDIT_SESSION_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="byte_8h" kindref="compound">byte.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="export_8h" kindref="compound">export.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="fwd__defs_8h" kindref="compound">fwd_defs.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstddef&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdint&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stddef.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="36" refid="session_8h_1a1ae5986a1e010dcbc15abcbc318fecae" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="session_8h_1a1ae5986a1e010dcbc15abcbc318fecae" kindref="member">omega_session_get_file_path</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="37"><highlight class="normal"></highlight></codeline>
+<codeline lineno="43" refid="session_8h_1a8faae48dde84d3d0af09ce474c9fc7d7" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*<ref refid="session_8h_1a8faae48dde84d3d0af09ce474c9fc7d7" kindref="member">omega_session_get_user_data_ptr</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight></codeline>
+<codeline lineno="50" refid="session_8h_1aff3c6a2b5300b225f6c01f0cc5c57d19" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="session_8h_1aff3c6a2b5300b225f6c01f0cc5c57d19" kindref="member">omega_session_get_num_viewports</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="51"><highlight class="normal"></highlight></codeline>
+<codeline lineno="57" refid="session_8h_1a761c55980dd13db59e5cb1d96fc3da91" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="session_8h_1a761c55980dd13db59e5cb1d96fc3da91" kindref="member">omega_session_get_num_changes</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight></codeline>
+<codeline lineno="64" refid="session_8h_1a562b2ae9e9796943d0191702b7f71f04" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="session_8h_1a562b2ae9e9796943d0191702b7f71f04" kindref="member">omega_session_get_num_undone_changes</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="65"><highlight class="normal"></highlight></codeline>
+<codeline lineno="71" refid="session_8h_1a8c5aee9e4b1510582b2792e69bc37a82" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="session_8h_1a8c5aee9e4b1510582b2792e69bc37a82" kindref="member">omega_session_get_computed_file_size</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="72"><highlight class="normal"></highlight></codeline>
+<codeline lineno="78" refid="session_8h_1aa28307bd9fe5f5fbc411ce550b9697f7" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*<ref refid="session_8h_1aa28307bd9fe5f5fbc411ce550b9697f7" kindref="member">omega_session_get_last_change</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="79"><highlight class="normal"></highlight></codeline>
+<codeline lineno="85" refid="session_8h_1a29472fb4012639a5a2502dcfb39bc607" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*<ref refid="session_8h_1a29472fb4012639a5a2502dcfb39bc607" kindref="member">omega_session_get_last_undo</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="86"><highlight class="normal"></highlight></codeline>
+<codeline lineno="93" refid="session_8h_1ae4b61914620db09868a6c773abe88c77" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*<ref refid="session_8h_1ae4b61914620db09868a6c773abe88c77" kindref="member">omega_session_get_change</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr,</highlight></codeline>
+<codeline lineno="94"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>int64_t<sp/>change_serial);</highlight></codeline>
+<codeline lineno="95"><highlight class="normal"></highlight></codeline>
+<codeline lineno="101" refid="session_8h_1aaa04f78e8d289cbf6402789c4e068f3e" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="session_8h_1aaa04f78e8d289cbf6402789c4e068f3e" kindref="member">omega_session_viewport_on_change_callbacks_paused</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="102"><highlight class="normal"></highlight></codeline>
+<codeline lineno="107" refid="session_8h_1a13c778a1a9d51efa6c15828170beb57e" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="session_8h_1a13c778a1a9d51efa6c15828170beb57e" kindref="member">omega_session_pause_viewport_event_callbacks</ref>(<ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"></highlight></codeline>
+<codeline lineno="113" refid="session_8h_1a4cbecf7bae4a83fe92f98643dca8d984" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="session_8h_1a4cbecf7bae4a83fe92f98643dca8d984" kindref="member">omega_session_resume_viewport_event_callbacks</ref>(<ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="114"><highlight class="normal"></highlight></codeline>
+<codeline lineno="120" refid="session_8h_1a898f0d0e261732ad00921f497087bd84" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">size_t</highlight><highlight class="normal"><sp/><ref refid="session_8h_1a898f0d0e261732ad00921f497087bd84" kindref="member">omega_session_get_num_checkpoints</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr);</highlight></codeline>
+<codeline lineno="121"><highlight class="normal"></highlight></codeline>
+<codeline lineno="128" refid="session_8h_1af19e20855126ed71a7465facdc568d07" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="session_8h_1af19e20855126ed71a7465facdc568d07" kindref="member">omega_session_notify</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839" kindref="member">omega_session_t</ref><sp/>*session_ptr,<sp/><ref refid="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7" kindref="member">omega_session_event_t</ref><sp/>session_event,</highlight></codeline>
+<codeline lineno="129"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="130"><highlight class="normal"></highlight></codeline>
+<codeline lineno="131"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="132"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="133"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="134"><highlight class="normal"></highlight></codeline>
+<codeline lineno="135"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_SESSION_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/include/omega_edit/session.h"/>
+  </compounddef>
+</doxygen>

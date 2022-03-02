@@ -1,0 +1,288 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="change_8h" kind="file" language="C++">
+    <compoundname>change.h</compoundname>
+    <includes refid="byte_8h" local="yes">byte.h</includes>
+    <includes refid="export_8h" local="yes">export.h</includes>
+    <includes refid="fwd__defs_8h" local="yes">fwd_defs.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includedby refid="omega__edit_8h" local="yes">src/include/omega_edit.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>byte.h</label>
+        <link refid="byte_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/change.h</label>
+        <link refid="change_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>config.h</label>
+        <link refid="config_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>export.h</label>
+        <link refid="export_8h"/>
+      </node>
+      <node id="6">
+        <label>fwd_defs.h</label>
+        <link refid="fwd__defs_8h"/>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="2">
+        <label>src/include/omega_edit.h</label>
+        <link refid="omega__edit_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/change.h</label>
+        <link refid="change_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+      <sectiondef kind="func">
+      <memberdef kind="function" id="change_8h_1a7fd9fce273b09cc86160af1bff667dc4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_change_get_offset</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_get_offset</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, return the original change offset <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to get the original change offset from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>original change offset </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="34" column="27" declfile="src/include/omega_edit/change.h" declline="34" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="change_8h_1a921cb5f73430d65e31d5b237a968bc12" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_change_get_length</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_get_length</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, return the original number of bytes deleted, inserted, or overwritten <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to get the original number of bytes from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>original number of bytes deleted, inserted, or overwritten </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="41" column="27" declfile="src/include/omega_edit/change.h" declline="41" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="change_8h_1ab208ad8c24d56a96b4969eb089757d4d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_change_get_serial</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_get_serial</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, return the change serial number. A negative serial number is an undone change. <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to get the serial number from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>change serial number </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="48" column="27" declfile="src/include/omega_edit/change.h" declline="48" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="change_8h_1a30030b32e1f97a875d002db77ef776ea" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char</type>
+        <definition>OMEGA_EDIT_EXPORT char omega_change_get_kind_as_char</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_get_kind_as_char</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, return a character representing the kind of change (&apos;D&apos;, &apos;I&apos;, and &apos;O&apos;) <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to get the kind from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>&apos;D&apos; if the change is a delete, &apos;I&apos; if the change is an insert and &apos;O&apos; if the change is an overwrite </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="55" column="24" declfile="src/include/omega_edit/change.h" declline="55" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="change_8h_1a2acb131aedc0b98561c9e36fca1724b2" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const <ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref> *</type>
+        <definition>OMEGA_EDIT_EXPORT const omega_byte_t * omega_change_get_bytes</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_get_bytes</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, return a pointer to the byte data <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to get the bytes data from </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>pointer to the byte data </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="62" column="38" declfile="src/include/omega_edit/change.h" declline="62" declcolumn="38"/>
+      </memberdef>
+      <memberdef kind="function" id="change_8h_1ae0efbd2b70f6bac56a0f49920914027d" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_change_is_undone</definition>
+        <argsstring>(const omega_change_t *change_ptr)</argsstring>
+        <name>omega_change_is_undone</name>
+        <param>
+          <type>const <ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref> *</type>
+          <declname>change_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a change, determine if this change is undone <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>change_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>change to determine if it has been undone or not </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>non-zero if the change is undone, and zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/change.h" line="69" column="23" declfile="src/include/omega_edit/change.h" declline="69" declcolumn="23"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/**********************************************************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021<sp/>Concurrent<sp/>Technologies<sp/>Corporation.<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>with<sp/>the<sp/>License.<sp/><sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software<sp/>is<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>implied.<sp/><sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and<sp/>limitations<sp/>under<sp/>the<sp/>License.<sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>**********************************************************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>OMEGA_EDIT_CHANGE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>OMEGA_EDIT_CHANGE_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="byte_8h" kindref="compound">byte.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="export_8h" kindref="compound">export.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="fwd__defs_8h" kindref="compound">fwd_defs.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdint&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight></codeline>
+<codeline lineno="34" refid="change_8h_1a7fd9fce273b09cc86160af1bff667dc4" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="change_8h_1a7fd9fce273b09cc86160af1bff667dc4" kindref="member">omega_change_get_offset</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="35"><highlight class="normal"></highlight></codeline>
+<codeline lineno="41" refid="change_8h_1a921cb5f73430d65e31d5b237a968bc12" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="change_8h_1a921cb5f73430d65e31d5b237a968bc12" kindref="member">omega_change_get_length</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="42"><highlight class="normal"></highlight></codeline>
+<codeline lineno="48" refid="change_8h_1ab208ad8c24d56a96b4969eb089757d4d" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="change_8h_1ab208ad8c24d56a96b4969eb089757d4d" kindref="member">omega_change_get_serial</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="49"><highlight class="normal"></highlight></codeline>
+<codeline lineno="55" refid="change_8h_1a30030b32e1f97a875d002db77ef776ea" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/><ref refid="change_8h_1a30030b32e1f97a875d002db77ef776ea" kindref="member">omega_change_get_kind_as_char</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="56"><highlight class="normal"></highlight></codeline>
+<codeline lineno="62" refid="change_8h_1a2acb131aedc0b98561c9e36fca1724b2" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*<ref refid="change_8h_1a2acb131aedc0b98561c9e36fca1724b2" kindref="member">omega_change_get_bytes</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="63"><highlight class="normal"></highlight></codeline>
+<codeline lineno="69" refid="change_8h_1ae0efbd2b70f6bac56a0f49920914027d" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="change_8h_1ae0efbd2b70f6bac56a0f49920914027d" kindref="member">omega_change_is_undone</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/><ref refid="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd" kindref="member">omega_change_t</ref><sp/>*change_ptr);</highlight></codeline>
+<codeline lineno="70"><highlight class="normal"></highlight></codeline>
+<codeline lineno="71"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="72"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="74"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_CHANGE_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/include/omega_edit/change.h"/>
+  </compounddef>
+</doxygen>

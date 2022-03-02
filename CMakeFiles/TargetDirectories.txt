@@ -1,4 +1,6 @@
 /Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/omega_edit.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/docs.dir
+/Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/sphinx.dir
 /Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/package.dir
 /Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/package_source.dir
 /Users/runner/work/omega-edit/omega-edit/build/CMakeFiles/edit_cache.dir

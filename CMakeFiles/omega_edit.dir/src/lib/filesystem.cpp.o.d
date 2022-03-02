@@ -1,7 +1,7 @@
 CMakeFiles/omega_edit.dir/src/lib/filesystem.cpp.o: \
   /Users/runner/work/omega-edit/omega-edit/src/lib/filesystem.cpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/filesystem.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/cstdint \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/__config \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/pthread.h \

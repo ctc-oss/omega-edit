@@ -1,0 +1,128 @@
+.TH "src/include/omega_edit/change.h" 3 "Wed Mar 2 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+src/include/omega_edit/change.h
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'byte\&.h'\fP
+.br
+\fC#include 'export\&.h'\fP
+.br
+\fC#include 'fwd_defs\&.h'\fP
+.br
+\fC#include <stdint\&.h>\fP
+.br
+
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_change_get_offset\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_change_get_length\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_change_get_serial\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP char \fBomega_change_get_kind_as_char\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP const \fBomega_byte_t\fP * \fBomega_change_get_bytes\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_change_is_undone\fP (const \fBomega_change_t\fP *change_ptr)"
+.br
+.in -1c
+.SH "Function Documentation"
+.PP 
+.SS "\fBOMEGA_EDIT_EXPORT\fP const \fBomega_byte_t\fP * omega_change_get_bytes (const \fBomega_change_t\fP * change_ptr)"
+Given a change, return a pointer to the byte data 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to get the bytes data from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+pointer to the byte data 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP char omega_change_get_kind_as_char (const \fBomega_change_t\fP * change_ptr)"
+Given a change, return a character representing the kind of change ('D', 'I', and 'O') 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to get the kind from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+'D' if the change is a delete, 'I' if the change is an insert and 'O' if the change is an overwrite 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_change_get_length (const \fBomega_change_t\fP * change_ptr)"
+Given a change, return the original number of bytes deleted, inserted, or overwritten 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to get the original number of bytes from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+original number of bytes deleted, inserted, or overwritten 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_change_get_offset (const \fBomega_change_t\fP * change_ptr)"
+Given a change, return the original change offset 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to get the original change offset from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+original change offset 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_change_get_serial (const \fBomega_change_t\fP * change_ptr)"
+Given a change, return the change serial number\&. A negative serial number is an undone change\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to get the serial number from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+change serial number 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_change_is_undone (const \fBomega_change_t\fP * change_ptr)"
+Given a change, determine if this change is undone 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_ptr\fP change to determine if it has been undone or not 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+non-zero if the change is undone, and zero otherwise 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for omega_edit from the source code\&.

@@ -1,7 +1,7 @@
 CMakeFiles/omega_edit.dir/src/lib/check.cpp.o: \
   /Users/runner/work/omega-edit/omega-edit/src/lib/check.cpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/check.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/fwd_defs.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/change_def.hpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/../../include/omega_edit/fwd_defs.h \

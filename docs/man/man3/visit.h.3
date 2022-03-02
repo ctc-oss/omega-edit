@@ -1,0 +1,179 @@
+.TH "src/include/omega_edit/visit.h" 3 "Wed Mar 2 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+src/include/omega_edit/visit.h
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'export\&.h'\fP
+.br
+\fC#include 'fwd_defs\&.h'\fP
+.br
+
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef int(* \fBomega_session_change_visitor_cbk_t\fP) (const \fBomega_change_t\fP *, void *)"
+.br
+.ti -1c
+.RI "typedef struct omega_visit_change_context_struct \fBomega_visit_change_context_t\fP"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_visit_changes\fP (const \fBomega_session_t\fP *session_ptr, \fBomega_session_change_visitor_cbk_t\fP cbk, void *user_data)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_visit_changes_reverse\fP (const \fBomega_session_t\fP *session_ptr, \fBomega_session_change_visitor_cbk_t\fP cbk, void *user_data)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP \fBomega_visit_change_context_t\fP * \fBomega_visit_change_create_context\fP (const \fBomega_session_t\fP *session_ptr, int reverse)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_visit_change_at_end\fP (const \fBomega_visit_change_context_t\fP *change_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_visit_change_begin\fP (\fBomega_visit_change_context_t\fP *change_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_visit_change_next\fP (\fBomega_visit_change_context_t\fP *change_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP const \fBomega_change_t\fP * \fBomega_visit_change_context_get_change\fP (const \fBomega_visit_change_context_t\fP *change_context_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP void \fBomega_visit_change_destroy_context\fP (\fBomega_visit_change_context_t\fP *change_context_ptr)"
+.br
+.in -1c
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef int(* omega_session_change_visitor_cbk_t) (const \fBomega_change_t\fP *, void *)"
+Callback to implement for visiting changes in a session\&. Return 0 to continue visiting changes and non-zero to stop\&. 
+.SS "typedef struct omega_visit_change_context_struct \fBomega_visit_change_context_t\fP"
+Opaque visit change context 
+.SH "Function Documentation"
+.PP 
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_visit_change_at_end (const \fBomega_visit_change_context_t\fP * change_context_ptr)"
+Return non-zero if we are at the end of the change visitations 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_context_ptr\fP change visitor context to see if we're at the end of 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+non-zero if we are at the end of the change visitations and zero if there are changes remaining to visit 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_visit_change_begin (\fBomega_visit_change_context_t\fP * change_context_ptr)"
+Set the change visitor context to the beginning of the changes 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_context_ptr\fP change visitor context to set to the beginning 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+non-zero if there are no changes to visit and zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP const \fBomega_change_t\fP * omega_visit_change_context_get_change (const \fBomega_visit_change_context_t\fP * change_context_ptr)"
+Given a change visitor context, get a pointer to the change 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_context_ptr\fP change visitor context to get the change from 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+pointer to the change, or nullptr if no change is found 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP \fBomega_visit_change_context_t\fP * omega_visit_change_create_context (const \fBomega_session_t\fP * session_ptr, int reverse)"
+Create a change visitor context 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to visit changes 
+.br
+\fIreverse\fP non-zero to reverse the visitation chronology (newest change to oldest change) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+change visitor context 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP void omega_visit_change_destroy_context (\fBomega_visit_change_context_t\fP * change_context_ptr)"
+Destroy the given change visitor context 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_context_ptr\fP change visitor context to destroy 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_visit_change_next (\fBomega_visit_change_context_t\fP * change_context_ptr)"
+Given a change visitor context, find the next change 
+.PP
+\fBParameters\fP
+.RS 4
+\fIchange_context_ptr\fP change visitor context to find the next change in 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+non-zero if a change is found, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_visit_changes (const \fBomega_session_t\fP * session_ptr, \fBomega_session_change_visitor_cbk_t\fP cbk, void * user_data)"
+Visit changes in the given session in chronological order (oldest first), if the callback returns an integer other than 0, visitation will stop and the return value of the callback will be this function's return value 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to visit changes in 
+.br
+\fIcbk\fP user-provided function to call for each change 
+.br
+\fIuser_data\fP user-provided data to provide back to the callback 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_visit_changes_reverse (const \fBomega_session_t\fP * session_ptr, \fBomega_session_change_visitor_cbk_t\fP cbk, void * user_data)"
+Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer other than 0, visitation will stop and the return value of the callback will be this function's return value 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to visit changes in 
+.br
+\fIcbk\fP user-provided function to call for each change 
+.br
+\fIuser_data\fP user-provided data to provide back to the callback 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 if all changes were visited or the non-zero return value of the callback if visitation was stopped early 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for omega_edit from the source code\&.

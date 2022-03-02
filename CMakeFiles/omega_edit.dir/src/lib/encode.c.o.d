@@ -30,7 +30,7 @@ CMakeFiles/omega_edit.dir/src/lib/encode.c.o: \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/sys/_types/_uintptr_t.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/_types/_intmax_t.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/_types/_uintmax_t.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/13.0.0/include/stddef.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/13.0.0/include/__stddef_max_align_t.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/assert.h

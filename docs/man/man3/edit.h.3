@@ -1,0 +1,373 @@
+.TH "src/include/omega_edit/edit.h" 3 "Wed Mar 2 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+src/include/omega_edit/edit.h
+.SH SYNOPSIS
+.br
+.PP
+\fC#include 'byte\&.h'\fP
+.br
+\fC#include 'export\&.h'\fP
+.br
+\fC#include 'fwd_defs\&.h'\fP
+.br
+\fC#include 'utility\&.h'\fP
+.br
+\fC#include <stddef\&.h>\fP
+.br
+\fC#include <stdint\&.h>\fP
+.br
+
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef void(* \fBomega_session_event_cbk_t\fP) (const \fBomega_session_t\fP *, \fBomega_session_event_t\fP session_event, const \fBomega_change_t\fP *)"
+.br
+.ti -1c
+.RI "typedef void(* \fBomega_viewport_event_cbk_t\fP) (const \fBomega_viewport_t\fP *, \fBomega_viewport_event_t\fP viewport_event, const \fBomega_change_t\fP *)"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP \fBomega_session_t\fP * \fBomega_edit_create_session\fP (const char *file_path, \fBomega_session_event_cbk_t\fP cbk, void *user_data_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP void \fBomega_edit_destroy_session\fP (\fBomega_session_t\fP *session_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP \fBomega_viewport_t\fP * \fBomega_edit_create_viewport\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, int64_t capacity, \fBomega_viewport_event_cbk_t\fP cbk, void *user_data_ptr, int is_floating)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP void \fBomega_edit_destroy_viewport\fP (\fBomega_viewport_t\fP *viewport_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_edit_clear_changes\fP (\fBomega_session_t\fP *session_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_undo_last_change\fP (\fBomega_session_t\fP *session_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_redo_last_undo\fP (\fBomega_session_t\fP *session_ptr)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_edit_save\fP (const \fBomega_session_t\fP *session_ptr, const char *file_path, int overwrite, char *saved_file_path)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_delete\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, int64_t length)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_insert_bytes\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, const \fBomega_byte_t\fP *bytes, int64_t length)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_insert\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, const char *cstr, int64_t length)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_overwrite_bytes\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, const \fBomega_byte_t\fP *bytes, int64_t length)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int64_t \fBomega_edit_overwrite\fP (\fBomega_session_t\fP *session_ptr, int64_t offset, const char *cstr, int64_t length)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_edit_apply_transform\fP (\fBomega_session_t\fP *session_ptr, \fBomega_util_byte_transform_t\fP transform, void *user_data_ptr, int64_t offset, int64_t length, char const *checkpoint_directory)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_edit_create_checkpoint\fP (\fBomega_session_t\fP *session_ptr, char const *checkpoint_directory)"
+.br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_edit_destroy_last_checkpoint\fP (\fBomega_session_t\fP *session_ptr)"
+.br
+.in -1c
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef void(* omega_session_event_cbk_t) (const \fBomega_session_t\fP *, \fBomega_session_event_t\fP session_event, const \fBomega_change_t\fP *)"
+On session change callback\&. This under-defined function will be called when an associated session changes\&. 
+.SS "typedef void(* omega_viewport_event_cbk_t) (const \fBomega_viewport_t\fP *, \fBomega_viewport_event_t\fP viewport_event, const \fBomega_change_t\fP *)"
+On viewport change callback\&. This under-defined function will be called when an associated viewport changes\&. 
+.SH "Function Documentation"
+.PP 
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_edit_apply_transform (\fBomega_session_t\fP * session_ptr, \fBomega_util_byte_transform_t\fP transform, void * user_data_ptr, int64_t offset, int64_t length, char const * checkpoint_directory)"
+Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given length 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fItransform\fP byte transform to apply 
+.br
+\fIuser_data_ptr\fP pointer to user data that will be sent through to the given transform 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIlength\fP the number of bytes from the given offset to apply the mask to 
+.br
+\fIcheckpoint_directory\fP directory to store the checkpoint file 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+zero on success, non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_edit_clear_changes (\fBomega_session_t\fP * session_ptr)"
+Given a session, clear all active changes 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to clear all changes for 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+zero on success and non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_edit_create_checkpoint (\fBomega_session_t\fP * session_ptr, char const * checkpoint_directory)"
+Creates a session checkpoint in the given directory\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to checkpoint 
+.br
+\fIcheckpoint_directory\fP directory to create the checkpoint in 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+zero on success, non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP \fBomega_session_t\fP * omega_edit_create_session (const char * file_path, \fBomega_session_event_cbk_t\fP cbk, void * user_data_ptr)"
+Create a file editing session from a file path 
+.PP
+\fBParameters\fP
+.RS 4
+\fIfile_path\fP file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch 
+.br
+\fIcbk\fP user-defined callback function called whenever a content affecting change is made to this session 
+.br
+\fIuser_data_ptr\fP pointer to user-defined data to associate with this session 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+pointer to the created session, nullptr on failure 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP \fBomega_viewport_t\fP * omega_edit_create_viewport (\fBomega_session_t\fP * session_ptr, int64_t offset, int64_t capacity, \fBomega_viewport_event_cbk_t\fP cbk, void * user_data_ptr, int is_floating)"
+Create a new viewport for the given author, returns a pointer to the new viewport 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP author wanting the new viewport 
+.br
+\fIoffset\fP offset for the new viewport 
+.br
+\fIcapacity\fP desired capacity of the new viewport 
+.br
+\fIcbk\fP user-defined callback function called whenever the viewport gets updated 
+.br
+\fIuser_data_ptr\fP pointer to user-defined data to associate with this new viewport 
+.br
+\fIis_floating\fP 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to 'float' as bytes are inserted or deleted before the start of this viewport 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+pointer to the new viewport, nullptr on failure 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_delete (\fBomega_session_t\fP * session_ptr, int64_t offset, int64_t length)"
+Delete a number of bytes at the given offset 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIlength\fP number of bytes to delete 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive change serial number on success, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_edit_destroy_last_checkpoint (\fBomega_session_t\fP * session_ptr)"
+Destroys the last checkpoint created on the given session 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to remove the checkpoint 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+zero on success, non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP void omega_edit_destroy_session (\fBomega_session_t\fP * session_ptr)"
+Destroy the given session and all associated objects (authors, changes, and viewports) 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to destroy 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP void omega_edit_destroy_viewport (\fBomega_viewport_t\fP * viewport_ptr)"
+Destroy a given viewport 
+.PP
+\fBParameters\fP
+.RS 4
+\fIviewport_ptr\fP viewport to destroy 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 of the viewport was successfully destroyed, and non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_insert (\fBomega_session_t\fP * session_ptr, int64_t offset, const char * cstr, int64_t length)"
+Insert a C string at the given offset 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIcstr\fP C string to insert at the given offset 
+.br
+\fIlength\fP length of the C string to insert (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive change serial number on success, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_insert_bytes (\fBomega_session_t\fP * session_ptr, int64_t offset, const \fBomega_byte_t\fP * bytes, int64_t length)"
+Insert a number of bytes at the given offset 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIbytes\fP bytes to insert at the given offset 
+.br
+\fIlength\fP number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive change serial number on success, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_overwrite (\fBomega_session_t\fP * session_ptr, int64_t offset, const char * cstr, int64_t length)"
+Overwrite bytes at the given offset with the given new C string 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIcstr\fP new C string to overwrite the old bytes with 
+.br
+\fIlength\fP length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive change serial number on success, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_overwrite_bytes (\fBomega_session_t\fP * session_ptr, int64_t offset, const \fBomega_byte_t\fP * bytes, int64_t length)"
+Overwrite bytes at the given offset with the given new bytes 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to make the change in 
+.br
+\fIoffset\fP location offset to make the change 
+.br
+\fIbytes\fP new bytes to overwrite the old bytes with 
+.br
+\fIlength\fP number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive change serial number on success, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_redo_last_undo (\fBomega_session_t\fP * session_ptr)"
+Redoes the last undo (if available) 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to redo the last undo for 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+positive serial number of the redone change if successful, zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int omega_edit_save (const \fBomega_session_t\fP * session_ptr, const char * file_path, int overwrite, char * saved_file_path)"
+Save the given session (the edited file) to the given file path\&. If the save file already exists, it can be overwritten if overwrite is non zero\&. If the file exists and overwrite is zero, a new file name will be used as determined by omega_util_available_filename\&. 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to save 
+.br
+\fIfile_path\fP file path to save to 
+.br
+\fIoverwrite\fP set to non-zero if overwriting an existing file is okay, and zero otherwise 
+.br
+\fIsaved_file_path\fP if overwrite is not set and the target file_path exists, a new file path will be created, and if this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes) 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+0 on success, non-zero otherwise 
+.RE
+.PP
+
+.SS "\fBOMEGA_EDIT_EXPORT\fP int64_t omega_edit_undo_last_change (\fBomega_session_t\fP * session_ptr)"
+Given a session, undo the last change 
+.PP
+\fBParameters\fP
+.RS 4
+\fIsession_ptr\fP session to undo the last change for 
+.RE
+.PP
+\fBReturns\fP
+.RS 4
+negative serial number of the undone change if successful, zero otherwise 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for omega_edit from the source code\&.

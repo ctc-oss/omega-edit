@@ -34,7 +34,7 @@ CMakeFiles/omega_edit.dir/src/lib/change.cpp.o: \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/sys/_types/_uintptr_t.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/_types/_intmax_t.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/_types/_uintmax_t.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/fwd_defs.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/change_def.hpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/../../include/omega_edit/fwd_defs.h \

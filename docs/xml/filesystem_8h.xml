@@ -1,0 +1,577 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="filesystem_8h" kind="file" language="C++">
+    <compoundname>filesystem.h</compoundname>
+    <includes refid="export_8h" local="yes">export.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includedby refid="utility_8h" local="yes">src/include/omega_edit/utility.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>export.h</label>
+        <link refid="export_8h"/>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/filesystem.h</label>
+        <link refid="filesystem_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>stdint.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="4">
+        <label>src/include/omega_edit.h</label>
+        <link refid="omega__edit_8h"/>
+      </node>
+      <node id="3">
+        <label>src/include/omega_edit/edit.h</label>
+        <link refid="edit_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/filesystem.h</label>
+        <link refid="filesystem_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+      <node id="2">
+        <label>src/include/omega_edit/utility.h</label>
+        <link refid="utility_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+      <sectiondef kind="func">
+      <memberdef kind="function" id="filesystem_8h_1a45a9445820a1530fdf03367008c7ad65" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> const char *</type>
+        <definition>OMEGA_EDIT_EXPORT const char * omega_util_get_current_dir</definition>
+        <argsstring>(char *buffer)</argsstring>
+        <name>omega_util_get_current_dir</name>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Gets the current working directory <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>current working directory or NULL on error </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="32" column="30" declfile="src/include/omega_edit/filesystem.h" declline="32" declcolumn="30"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1aeb3d41ec693b9e2f9cdae207d4b6dcb3" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_touch</definition>
+        <argsstring>(const char *file_name, int create)</argsstring>
+        <name>omega_util_touch</name>
+        <param>
+          <type>const char *</type>
+          <declname>file_name</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>create</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Touch the given file, optionally creating it f it does not exist <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>file_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>flle name to touch </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>create</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>if non-zero, create the file name if it does not exist </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero on success, non-zero on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="40" column="23" declfile="src/include/omega_edit/filesystem.h" declline="40" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1abea56ec8cd316ed1d4eb7c085714ca31" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_file_exists</definition>
+        <argsstring>(const char *file_name)</argsstring>
+        <name>omega_util_file_exists</name>
+        <param>
+          <type>const char *</type>
+          <declname>file_name</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Check if the given file name exists <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>file_name</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>file name to check existence of </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>non-zero if the file exists, and zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="47" column="23" declfile="src/include/omega_edit/filesystem.h" declline="47" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a9e6c645f9019572905de0c88d21d8f4f" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_directory_exists</definition>
+        <argsstring>(const char *path)</argsstring>
+        <name>omega_util_directory_exists</name>
+        <param>
+          <type>const char *</type>
+          <declname>path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Check if the given directory exists <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>directory to check for the existence of </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>non-zero if the directory exists and zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="54" column="23" declfile="src/include/omega_edit/filesystem.h" declline="54" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1aa45806628a32c6bde330e9785a732ec1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_create_directory</definition>
+        <argsstring>(char const *path)</argsstring>
+        <name>omega_util_create_directory</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Create the given directory <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>directory to create </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero if the path was created successfully and non-zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="61" column="23" declfile="src/include/omega_edit/filesystem.h" declline="61" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1af48d9706eef3fb20ead0024cad8c9f84" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_remove_file</definition>
+        <argsstring>(char const *path)</argsstring>
+        <name>omega_util_remove_file</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Remove the given file <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>path to the fle to remove </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero if the file was removed successfully and non-zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="68" column="23" declfile="src/include/omega_edit/filesystem.h" declline="68" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a32f7fb947b697aa2a216a82a6e2ab9dd" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_remove_directory</definition>
+        <argsstring>(char const *path)</argsstring>
+        <name>omega_util_remove_directory</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Remove the given directory <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>directory to remove </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero if the path was removed successfully and non-zero otherwise </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="75" column="23" declfile="src/include/omega_edit/filesystem.h" declline="75" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a25ef6dce21d83ec8e7fa04df877d9e07" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_util_file_size</definition>
+        <argsstring>(char const *path)</argsstring>
+        <name>omega_util_file_size</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a file path, return the file size <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>path to get the file size of </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>file size </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="82" column="27" declfile="src/include/omega_edit/filesystem.h" declline="82" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1ab4dab96516f6e947338d41e13a39372a" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char *</type>
+        <definition>OMEGA_EDIT_EXPORT char * omega_util_basename</definition>
+        <argsstring>(char const *path, char *buffer, int drop_suffix)</argsstring>
+        <name>omega_util_basename</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <param>
+          <type>int</type>
+          <declname>drop_suffix</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>file path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>drop_suffix</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>if non-zero, remove the suffix (file extension) from the path basename </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>associated basename, possibly without the suffix </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="91" column="24" declfile="src/include/omega_edit/filesystem.h" declline="91" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a08f22a5009fdbe4bdaa416b6c1950800" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char *</type>
+        <definition>OMEGA_EDIT_EXPORT char * omega_util_file_extension</definition>
+        <argsstring>(char const *path, char *buffer)</argsstring>
+        <name>omega_util_file_extension</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a file name, return the associated file extension, with or without the dot prefix <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>file path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>associated file extension or NULL if no extension exists </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="99" column="24" declfile="src/include/omega_edit/filesystem.h" declline="99" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1aa0b33f96990ec7ca1fe4fc7e501242d1" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char *</type>
+        <definition>OMEGA_EDIT_EXPORT char * omega_util_available_filename</definition>
+        <argsstring>(char const *path, char *buffer)</argsstring>
+        <name>omega_util_available_filename</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Creates a available filename from the given path <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>desired path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to a buffer that can hold up to FILENAME_MAX bytes, or NULL to use an internal static buffer </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>a path that is currently available (insecure as the file may exist later at the time of attempted creation) </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="107" column="24" declfile="src/include/omega_edit/filesystem.h" declline="107" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a45b5e982be4c1ac9e1c9fc129546253b" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char *</type>
+        <definition>OMEGA_EDIT_EXPORT char * omega_util_normalize_path</definition>
+        <argsstring>(char const *path, char *buffer)</argsstring>
+        <name>omega_util_normalize_path</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a path, which must exist, returns an absolute path that has no symbolic link, dot, or dot-dot elements <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>path to get the absolute path of </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>absolute path that has no symbolic link, dot, or dot-dot elements </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="115" column="24" declfile="src/include/omega_edit/filesystem.h" declline="115" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="filesystem_8h_1a59df8a7658c9e4b2f39ed6c7b5e64d60" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char *</type>
+        <definition>OMEGA_EDIT_EXPORT char * omega_util_dirname</definition>
+        <argsstring>(char const *path, char *buffer)</argsstring>
+        <name>omega_util_dirname</name>
+        <param>
+          <type>char const *</type>
+          <declname>path</declname>
+        </param>
+        <param>
+          <type>char *</type>
+          <declname>buffer</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Given a file name, return the associated directory <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>file path </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to memory to hold the directory name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>associated directory </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/filesystem.h" line="123" column="24" declfile="src/include/omega_edit/filesystem.h" declline="123" declcolumn="24"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/**********************************************************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021<sp/>Concurrent<sp/>Technologies<sp/>Corporation.<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>with<sp/>the<sp/>License.<sp/><sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software<sp/>is<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>implied.<sp/><sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and<sp/>limitations<sp/>under<sp/>the<sp/>License.<sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>**********************************************************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>OMEGA_EDIT_FILESYSTEM_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>OMEGA_EDIT_FILESYSTEM_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="export_8h" kindref="compound">export.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdint&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight></codeline>
+<codeline lineno="32" refid="filesystem_8h_1a45a9445820a1530fdf03367008c7ad65" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1a45a9445820a1530fdf03367008c7ad65" kindref="member">omega_util_get_current_dir</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer);</highlight></codeline>
+<codeline lineno="33"><highlight class="normal"></highlight></codeline>
+<codeline lineno="40" refid="filesystem_8h_1aeb3d41ec693b9e2f9cdae207d4b6dcb3" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1aeb3d41ec693b9e2f9cdae207d4b6dcb3" kindref="member">omega_util_touch</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*file_name,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>create);</highlight></codeline>
+<codeline lineno="41"><highlight class="normal"></highlight></codeline>
+<codeline lineno="47" refid="filesystem_8h_1abea56ec8cd316ed1d4eb7c085714ca31" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1abea56ec8cd316ed1d4eb7c085714ca31" kindref="member">omega_util_file_exists</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*file_name);</highlight></codeline>
+<codeline lineno="48"><highlight class="normal"></highlight></codeline>
+<codeline lineno="54" refid="filesystem_8h_1a9e6c645f9019572905de0c88d21d8f4f" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1a9e6c645f9019572905de0c88d21d8f4f" kindref="member">omega_util_directory_exists</ref>(</highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*path);</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight></codeline>
+<codeline lineno="61" refid="filesystem_8h_1aa45806628a32c6bde330e9785a732ec1" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1aa45806628a32c6bde330e9785a732ec1" kindref="member">omega_util_create_directory</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path);</highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight></codeline>
+<codeline lineno="68" refid="filesystem_8h_1af48d9706eef3fb20ead0024cad8c9f84" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1af48d9706eef3fb20ead0024cad8c9f84" kindref="member">omega_util_remove_file</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path);</highlight></codeline>
+<codeline lineno="69"><highlight class="normal"></highlight></codeline>
+<codeline lineno="75" refid="filesystem_8h_1a32f7fb947b697aa2a216a82a6e2ab9dd" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="filesystem_8h_1a32f7fb947b697aa2a216a82a6e2ab9dd" kindref="member">omega_util_remove_directory</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path);</highlight></codeline>
+<codeline lineno="76"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82" refid="filesystem_8h_1a25ef6dce21d83ec8e7fa04df877d9e07" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="filesystem_8h_1a25ef6dce21d83ec8e7fa04df877d9e07" kindref="member">omega_util_file_size</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91" refid="filesystem_8h_1ab4dab96516f6e947338d41e13a39372a" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1ab4dab96516f6e947338d41e13a39372a" kindref="member">omega_util_basename</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer,<sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/>drop_suffix);</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"></highlight></codeline>
+<codeline lineno="99" refid="filesystem_8h_1a08f22a5009fdbe4bdaa416b6c1950800" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1a08f22a5009fdbe4bdaa416b6c1950800" kindref="member">omega_util_file_extension</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer);</highlight></codeline>
+<codeline lineno="100"><highlight class="normal"></highlight></codeline>
+<codeline lineno="107" refid="filesystem_8h_1aa0b33f96990ec7ca1fe4fc7e501242d1" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1aa0b33f96990ec7ca1fe4fc7e501242d1" kindref="member">omega_util_available_filename</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer);</highlight></codeline>
+<codeline lineno="108"><highlight class="normal"></highlight></codeline>
+<codeline lineno="115" refid="filesystem_8h_1a45b5e982be4c1ac9e1c9fc129546253b" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1a45b5e982be4c1ac9e1c9fc129546253b" kindref="member">omega_util_normalize_path</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer);</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"></highlight></codeline>
+<codeline lineno="123" refid="filesystem_8h_1a59df8a7658c9e4b2f39ed6c7b5e64d60" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*<ref refid="filesystem_8h_1a59df8a7658c9e4b2f39ed6c7b5e64d60" kindref="member">omega_util_dirname</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*buffer);</highlight></codeline>
+<codeline lineno="124"><highlight class="normal"></highlight></codeline>
+<codeline lineno="125"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="126"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="127"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="128"><highlight class="normal"></highlight></codeline>
+<codeline lineno="129"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_FILESYSTEM_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/include/omega_edit/filesystem.h"/>
+  </compounddef>
+</doxygen>

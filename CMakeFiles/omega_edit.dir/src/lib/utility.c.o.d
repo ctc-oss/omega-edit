@@ -76,7 +76,7 @@ CMakeFiles/omega_edit.dir/src/lib/utility.c.o: \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/utime.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/utility.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/byte.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/export.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/../include/omega_edit/filesystem.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/stdio.h \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/_stdio.h \

@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="dir_313d29b1ad72ef7d1f68dcea8f59fe31" kind="dir">
+    <compoundname>src/include/omega_edit</compoundname>
+    <innerfile refid="byte_8h">byte.h</innerfile>
+    <innerfile refid="change_8h">change.h</innerfile>
+    <innerfile refid="check_8h">check.h</innerfile>
+    <innerfile refid="config_8h">config.h</innerfile>
+    <innerfile refid="edit_8h">edit.h</innerfile>
+    <innerfile refid="encode_8h">encode.h</innerfile>
+    <innerfile refid="export_8h">export.h</innerfile>
+    <innerfile refid="filesystem_8h">filesystem.h</innerfile>
+    <innerfile refid="fwd__defs_8h">fwd_defs.h</innerfile>
+    <innerfile refid="license_8h">license.h</innerfile>
+    <innerfile refid="scoped__ptr_8hpp">scoped_ptr.hpp</innerfile>
+    <innerfile refid="search_8h">search.h</innerfile>
+    <innerfile refid="session_8h">session.h</innerfile>
+    <innerfile refid="stl__string__adaptor_8hpp">stl_string_adaptor.hpp</innerfile>
+    <innerfile refid="utility_8h">utility.h</innerfile>
+    <innerfile refid="version_8h">version.h</innerfile>
+    <innerfile refid="viewport_8h">viewport.h</innerfile>
+    <innerfile refid="visit_8h">visit.h</innerfile>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <location file="src/include/omega_edit/"/>
+  </compounddef>
+</doxygen>

@@ -1,0 +1,616 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.9.3" xml:lang="en-US">
+  <compounddef id="utility_8h" kind="file" language="C++">
+    <compoundname>utility.h</compoundname>
+    <includes refid="byte_8h" local="yes">byte.h</includes>
+    <includes refid="export_8h" local="yes">export.h</includes>
+    <includes refid="filesystem_8h" local="yes">filesystem.h</includes>
+    <includes local="no">stdint.h</includes>
+    <includes local="no">stdio.h</includes>
+    <includedby refid="edit_8h" local="yes">src/include/omega_edit/edit.h</includedby>
+    <incdepgraph>
+      <node id="2">
+        <label>byte.h</label>
+        <link refid="byte_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="3">
+        <label>config.h</label>
+        <link refid="config_8h"/>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="5">
+        <label>export.h</label>
+        <link refid="export_8h"/>
+      </node>
+      <node id="6">
+        <label>filesystem.h</label>
+        <link refid="filesystem_8h"/>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/utility.h</label>
+        <link refid="utility_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+        <childnode refid="5" relation="include">
+        </childnode>
+        <childnode refid="6" relation="include">
+        </childnode>
+        <childnode refid="4" relation="include">
+        </childnode>
+        <childnode refid="7" relation="include">
+        </childnode>
+      </node>
+      <node id="4">
+        <label>stdint.h</label>
+      </node>
+      <node id="7">
+        <label>stdio.h</label>
+      </node>
+    </incdepgraph>
+    <invincdepgraph>
+      <node id="3">
+        <label>src/include/omega_edit.h</label>
+        <link refid="omega__edit_8h"/>
+      </node>
+      <node id="2">
+        <label>src/include/omega_edit/edit.h</label>
+        <link refid="edit_8h"/>
+        <childnode refid="3" relation="include">
+        </childnode>
+      </node>
+      <node id="1">
+        <label>src/include/omega_edit/utility.h</label>
+        <link refid="utility_8h"/>
+        <childnode refid="2" relation="include">
+        </childnode>
+      </node>
+    </invincdepgraph>
+      <sectiondef kind="enum">
+      <memberdef kind="enum" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016" prot="public" static="no" strong="no">
+        <type></type>
+        <name>omega_mask_kind_t</name>
+        <enumvalue id="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed" prot="public">
+          <name>MASK_AND</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9" prot="public">
+          <name>MASK_OR</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <enumvalue id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4" prot="public">
+          <name>MASK_XOR</name>
+          <briefdescription>
+          </briefdescription>
+          <detaileddescription>
+          </detaileddescription>
+        </enumvalue>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Mask types </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="77" column="1" bodyfile="src/include/omega_edit/utility.h" bodystart="77" bodyend="77"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="typedef">
+      <memberdef kind="typedef" id="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" prot="public" static="no">
+        <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref>(*</type>
+        <definition>typedef omega_byte_t(* omega_util_byte_transform_t) (omega_byte_t, void *user_data)</definition>
+        <argsstring>)(omega_byte_t, void *user_data)</argsstring>
+        <name>omega_util_byte_transform_t</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Byte transform function pointer </para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="82" column="9" bodyfile="src/include/omega_edit/utility.h" bodystart="82" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+      <sectiondef kind="func">
+      <memberdef kind="function" id="utility_8h_1a52b739210467116e92a281ee3fc3ffb4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> char</type>
+        <definition>OMEGA_EDIT_EXPORT char omega_util_directory_separator</definition>
+        <argsstring>()</argsstring>
+        <name>omega_util_directory_separator</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Returns the directory separator character used on the host system <simplesect kind="return"><para>directory separator character used on the host system </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="35" column="24" declfile="src/include/omega_edit/utility.h" declline="35" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1ad8333da33f510e6ee562e4914400b9ca" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_mkstemp</definition>
+        <argsstring>(char *tmpl)</argsstring>
+        <name>omega_util_mkstemp</name>
+        <param>
+          <type>char *</type>
+          <declname>tmpl</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Generate a temporary file name based on tmpl. The name constructed does not exist at the time of the call. The tmpl parameter is overwritten with the result. <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>tmpl</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>must match the rules for mk[s]temp (i.e. end in &quot;XXXXXX&quot;) </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>read-write file descriptor opened with mode 0600 modulo umask or -1 with errno set on error </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="43" column="23" declfile="src/include/omega_edit/utility.h" declline="43" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1aabee17e8c9266abb2d68d5e0c7931cc4" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int64_t</type>
+        <definition>OMEGA_EDIT_EXPORT int64_t omega_util_write_segment_to_file</definition>
+        <argsstring>(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr)</argsstring>
+        <name>omega_util_write_segment_to_file</name>
+        <param>
+          <type>FILE *</type>
+          <declname>from_file_ptr</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>byte_count</declname>
+        </param>
+        <param>
+          <type>FILE *</type>
+          <declname>to_file_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Write a segment from one file into another file <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>from_file_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>from file pointer, opened for read </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>offset</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>where in the from file to begin reading from </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>byte_count</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of bytes to read from the from file starting at the given offset </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>to_file_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>to file pointer, opened for writing and positioned to where to write the segment to </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>number of bytes that where successfully written </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="53" column="27" declfile="src/include/omega_edit/utility.h" declline="53" declcolumn="27"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1ac38fc49c3b1580fbedde6e5ed53e4b80" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_left_shift_buffer</definition>
+        <argsstring>(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left)</argsstring>
+        <name>omega_util_left_shift_buffer</name>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref> *</type>
+          <declname>buffer</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref></type>
+          <declname>shift_left</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Shift the bits of the given buffer by a given number of bits to the left <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to the start of the buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>len</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>length of the buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>shift_left</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of bits (greater than 0 and less than 8) to shift to the left </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero on success, non-zero on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="63" column="23" declfile="src/include/omega_edit/utility.h" declline="63" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1a0106fd8e01a44ec995197aaccd2adb2c" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_right_shift_buffer</definition>
+        <argsstring>(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right)</argsstring>
+        <name>omega_util_right_shift_buffer</name>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref> *</type>
+          <declname>buffer</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref></type>
+          <declname>shift_right</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Shift the bits of the given buffer by a given number of bits to the right <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to the start of the buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>len</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>length of the buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>shift_right</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of bits (greater than 0 and less than 8) to shift to the right </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero on success, non-zero on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="72" column="23" declfile="src/include/omega_edit/utility.h" declline="72" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1a96f9a1a05e2661e0cc364dfed04c4f9e" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> void</type>
+        <definition>OMEGA_EDIT_EXPORT void omega_util_apply_byte_transform</definition>
+        <argsstring>(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform, void *user_data_ptr)</argsstring>
+        <name>omega_util_apply_byte_transform</name>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref> *</type>
+          <declname>buffer</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>len</declname>
+        </param>
+        <param>
+          <type><ref refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" kindref="member">omega_util_byte_transform_t</ref></type>
+          <declname>transform</declname>
+        </param>
+        <param>
+          <type>void *</type>
+          <declname>user_data_ptr</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Apply the given transform to bytes in the given buffer <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>buffer</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>buffer of bytes to apply the transform to </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>len</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of bytes in the buffer to apply the transform to </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>transform</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>transform function to apply to the bytes in the buffer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>user_data_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to user-defined data to associate with the transformer </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="91" column="24" declfile="src/include/omega_edit/utility.h" declline="91" declcolumn="24"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1a1ccb38420188e1134da6e19f5f980bcf" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> int</type>
+        <definition>OMEGA_EDIT_EXPORT int omega_util_apply_byte_transform_to_file</definition>
+        <argsstring>(char const *in_path, char const *out_path, omega_util_byte_transform_t transform, void *user_data_ptr, int64_t offset, int64_t length)</argsstring>
+        <name>omega_util_apply_byte_transform_to_file</name>
+        <param>
+          <type>char const *</type>
+          <declname>in_path</declname>
+        </param>
+        <param>
+          <type>char const *</type>
+          <declname>out_path</declname>
+        </param>
+        <param>
+          <type><ref refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" kindref="member">omega_util_byte_transform_t</ref></type>
+          <declname>transform</declname>
+        </param>
+        <param>
+          <type>void *</type>
+          <declname>user_data_ptr</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>offset</declname>
+        </param>
+        <param>
+          <type>int64_t</type>
+          <declname>length</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Apply the given transform to the input file and write the transformed data to the output file <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>in_path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>path of the file to apply the transform to </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>out_path</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>path of the file to write the transformed data to </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>transform</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>byte transform function to apply </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>user_data_ptr</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>pointer to user-defined data to associate with the transformer </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>offset</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>where to begin transforming bytes </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>length</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>number of bytes to transform from the given offset </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>zero on success, non-zero on failure </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="104" column="23" declfile="src/include/omega_edit/utility.h" declline="104" declcolumn="23"/>
+      </memberdef>
+      <memberdef kind="function" id="utility_8h_1a1cf2c4113a9a657452d71dc6f4269e23" prot="public" static="no" const="no" explicit="no" inline="no" virt="non-virtual">
+        <type><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref> <ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref></type>
+        <definition>OMEGA_EDIT_EXPORT omega_byte_t omega_util_mask_byte</definition>
+        <argsstring>(omega_byte_t byte, omega_byte_t mask, omega_mask_kind_t mask_kind)</argsstring>
+        <name>omega_util_mask_byte</name>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref></type>
+          <declname>byte</declname>
+        </param>
+        <param>
+          <type><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref></type>
+          <declname>mask</declname>
+        </param>
+        <param>
+          <type><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016" kindref="member">omega_mask_kind_t</ref></type>
+          <declname>mask_kind</declname>
+        </param>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+<para>Apply the given mask of the given mask kind to the given byte <parameterlist kind="param"><parameteritem>
+<parameternamelist>
+<parametername>byte</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>byte to mask </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>mask</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>mask to apply </para>
+</parameterdescription>
+</parameteritem>
+<parameteritem>
+<parameternamelist>
+<parametername>mask_kind</parametername>
+</parameternamelist>
+<parameterdescription>
+<para>mask kind (e.g., MASK_AND, MASK_OR, MASK_XOR) </para>
+</parameterdescription>
+</parameteritem>
+</parameterlist>
+<simplesect kind="return"><para>masked byte </para>
+</simplesect>
+</para>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="src/include/omega_edit/utility.h" line="115" column="32" declfile="src/include/omega_edit/utility.h" declline="115" declcolumn="32"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+    </detaileddescription>
+    <programlisting>
+<codeline lineno="1"><highlight class="comment">/**********************************************************************************************************************</highlight></codeline>
+<codeline lineno="2"><highlight class="comment"><sp/>*<sp/>Copyright<sp/>(c)<sp/>2021<sp/>Concurrent<sp/>Technologies<sp/>Corporation.<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="3"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="4"><highlight class="comment"><sp/>*<sp/>Licensed<sp/>under<sp/>the<sp/>Apache<sp/>License,<sp/>Version<sp/>2.0<sp/>(the<sp/>&quot;License&quot;);<sp/>you<sp/>may<sp/>not<sp/>use<sp/>this<sp/>file<sp/>except<sp/>in<sp/>compliance<sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="5"><highlight class="comment"><sp/>*<sp/>with<sp/>the<sp/>License.<sp/><sp/>You<sp/>may<sp/>obtain<sp/>a<sp/>copy<sp/>of<sp/>the<sp/>License<sp/>at<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="6"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="7"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/>http://www.apache.org/licenses/LICENSE-2.0<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="8"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="9"><highlight class="comment"><sp/>*<sp/>Unless<sp/>required<sp/>by<sp/>applicable<sp/>law<sp/>or<sp/>agreed<sp/>to<sp/>in<sp/>writing,<sp/>software<sp/>is<sp/>distributed<sp/>under<sp/>the<sp/>License<sp/>is<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="10"><highlight class="comment"><sp/>*<sp/>distributed<sp/>on<sp/>an<sp/>&quot;AS<sp/>IS&quot;<sp/>BASIS,<sp/>WITHOUT<sp/>WARRANTIES<sp/>OR<sp/>CONDITIONS<sp/>OF<sp/>ANY<sp/>KIND,<sp/>either<sp/>express<sp/>or<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="11"><highlight class="comment"><sp/>*<sp/>implied.<sp/><sp/>See<sp/>the<sp/>License<sp/>for<sp/>the<sp/>specific<sp/>language<sp/>governing<sp/>permissions<sp/>and<sp/>limitations<sp/>under<sp/>the<sp/>License.<sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="12"><highlight class="comment"><sp/>*<sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>*</highlight></codeline>
+<codeline lineno="13"><highlight class="comment"><sp/>**********************************************************************************************************************/</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="14"><highlight class="normal"></highlight></codeline>
+<codeline lineno="15"><highlight class="normal"></highlight><highlight class="preprocessor">#ifndef<sp/>OMEGA_EDIT_UTILITY_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="16"><highlight class="normal"></highlight><highlight class="preprocessor">#define<sp/>OMEGA_EDIT_UTILITY_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="17"><highlight class="normal"></highlight></codeline>
+<codeline lineno="18"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="byte_8h" kindref="compound">byte.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="19"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="export_8h" kindref="compound">export.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="20"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&quot;<ref refid="filesystem_8h" kindref="compound">filesystem.h</ref>&quot;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="21"><highlight class="normal"></highlight></codeline>
+<codeline lineno="22"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="23"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdint&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="24"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;cstdio&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="25"><highlight class="normal"></highlight><highlight class="keyword">extern</highlight><highlight class="normal"><sp/></highlight><highlight class="stringliteral">&quot;C&quot;</highlight><highlight class="normal"><sp/>{</highlight></codeline>
+<codeline lineno="26"><highlight class="normal"></highlight><highlight class="preprocessor">#else</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="27"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdint.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="28"><highlight class="normal"></highlight><highlight class="preprocessor">#include<sp/>&lt;stdio.h&gt;</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="29"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="30"><highlight class="normal"></highlight></codeline>
+<codeline lineno="35" refid="utility_8h_1a52b739210467116e92a281ee3fc3ffb4" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1a52b739210467116e92a281ee3fc3ffb4" kindref="member">omega_util_directory_separator</ref>();</highlight></codeline>
+<codeline lineno="36"><highlight class="normal"></highlight></codeline>
+<codeline lineno="43" refid="utility_8h_1ad8333da33f510e6ee562e4914400b9ca" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1ad8333da33f510e6ee562e4914400b9ca" kindref="member">omega_util_mkstemp</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/>*tmpl);</highlight></codeline>
+<codeline lineno="44"><highlight class="normal"></highlight></codeline>
+<codeline lineno="53" refid="utility_8h_1aabee17e8c9266abb2d68d5e0c7931cc4" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/>int64_t<sp/><ref refid="utility_8h_1aabee17e8c9266abb2d68d5e0c7931cc4" kindref="member">omega_util_write_segment_to_file</ref>(FILE<sp/>*from_file_ptr,<sp/>int64_t<sp/>offset,<sp/>int64_t<sp/>byte_count,</highlight></codeline>
+<codeline lineno="54"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/>FILE<sp/>*to_file_ptr);</highlight></codeline>
+<codeline lineno="55"><highlight class="normal"></highlight></codeline>
+<codeline lineno="63" refid="utility_8h_1ac38fc49c3b1580fbedde6e5ed53e4b80" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1ac38fc49c3b1580fbedde6e5ed53e4b80" kindref="member">omega_util_left_shift_buffer</ref>(<ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*buffer,<sp/>int64_t<sp/>len,<sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>shift_left);</highlight></codeline>
+<codeline lineno="64"><highlight class="normal"></highlight></codeline>
+<codeline lineno="72" refid="utility_8h_1a0106fd8e01a44ec995197aaccd2adb2c" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1a0106fd8e01a44ec995197aaccd2adb2c" kindref="member">omega_util_right_shift_buffer</ref>(<ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*buffer,<sp/>int64_t<sp/>len,<sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>shift_right);</highlight></codeline>
+<codeline lineno="73"><highlight class="normal"></highlight></codeline>
+<codeline lineno="77" refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">enum</highlight><highlight class="normal"><sp/>{<sp/><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed" kindref="member">MASK_AND</ref>,<sp/><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9" kindref="member">MASK_OR</ref>,<sp/><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4" kindref="member">MASK_XOR</ref><sp/>}<sp/><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016" kindref="member">omega_mask_kind_t</ref>;</highlight></codeline>
+<codeline lineno="78"><highlight class="normal"></highlight></codeline>
+<codeline lineno="82" refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" refkind="member"><highlight class="normal"></highlight><highlight class="keyword">typedef</highlight><highlight class="normal"><sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>(*<ref refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" kindref="member">omega_util_byte_transform_t</ref>)(<ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref>,<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*user_data);</highlight></codeline>
+<codeline lineno="83"><highlight class="normal"></highlight></codeline>
+<codeline lineno="91" refid="utility_8h_1a96f9a1a05e2661e0cc364dfed04c4f9e" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1a96f9a1a05e2661e0cc364dfed04c4f9e" kindref="member">omega_util_apply_byte_transform</ref>(<ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>*buffer,<sp/>int64_t<sp/>len,</highlight></codeline>
+<codeline lineno="92"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" kindref="member">omega_util_byte_transform_t</ref><sp/>transform,<sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*user_data_ptr);</highlight></codeline>
+<codeline lineno="93"><highlight class="normal"></highlight></codeline>
+<codeline lineno="104" refid="utility_8h_1a1ccb38420188e1134da6e19f5f980bcf" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="utility_8h_1a1ccb38420188e1134da6e19f5f980bcf" kindref="member">omega_util_apply_byte_transform_to_file</ref>(</highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*in_path,<sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*out_path,</highlight></codeline>
+<codeline lineno="105"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><ref refid="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0" kindref="member">omega_util_byte_transform_t</ref><sp/>transform,</highlight></codeline>
+<codeline lineno="106"><highlight class="normal"><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/><sp/></highlight><highlight class="keywordtype">void</highlight><highlight class="normal"><sp/>*user_data_ptr,<sp/>int64_t<sp/>offset,<sp/>int64_t<sp/>length);</highlight></codeline>
+<codeline lineno="107"><highlight class="normal"></highlight></codeline>
+<codeline lineno="115" refid="utility_8h_1a1cf2c4113a9a657452d71dc6f4269e23" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/><ref refid="utility_8h_1a1cf2c4113a9a657452d71dc6f4269e23" kindref="member">omega_util_mask_byte</ref>(<ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/></highlight><highlight class="keywordtype">byte</highlight><highlight class="normal">,<sp/><ref refid="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793" kindref="member">omega_byte_t</ref><sp/>mask,<sp/><ref refid="utility_8h_1a253863278e68560d3c6342ddf3b6e016" kindref="member">omega_mask_kind_t</ref><sp/>mask_kind);</highlight></codeline>
+<codeline lineno="116"><highlight class="normal"></highlight></codeline>
+<codeline lineno="117"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="118"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="119"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="120"><highlight class="normal"></highlight></codeline>
+<codeline lineno="121"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_UTILITY_H</highlight><highlight class="normal"></highlight></codeline>
+    </programlisting>
+    <location file="src/include/omega_edit/utility.h"/>
+  </compounddef>
+</doxygen>

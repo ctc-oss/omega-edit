@@ -166,7 +166,7 @@ CMakeFiles/omega_edit.dir/src/lib/impl_/internal_fun.cpp.o: \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/cassert \
   /Applications/Xcode_13.2.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.1.sdk/usr/include/assert.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/../../include/omega_edit/change.h \
-  /Users/runner/work/omega-edit/omega-edit/build/src/include/export.h \
+  /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/../../include/omega_edit/export.h \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/change_def.hpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/data_def.hpp \
   /Users/runner/work/omega-edit/omega-edit/src/lib/impl_/macros.h \
