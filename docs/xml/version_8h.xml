@@ -101,10 +101,13 @@
         <briefdescription>
         </briefdescription>
         <detaileddescription>
+<para>Returns &quot;shared&quot; if the library has been built as a shared library, or &quot;static&quot; if the library is built as a static library <simplesect kind="return"><para>&quot;shared&quot; if the library has been built as a shared library, or &quot;static&quot; if the library is built as a static library </para>
+</simplesect>
+</para>
         </detaileddescription>
         <inbodydescription>
         </inbodydescription>
-        <location file="src/include/omega_edit/version.h" line="50" column="30" declfile="src/include/omega_edit/version.h" declline="50" declcolumn="30"/>
+        <location file="src/include/omega_edit/version.h" line="56" column="30" declfile="src/include/omega_edit/version.h" declline="56" declcolumn="30"/>
       </memberdef>
       </sectiondef>
     <briefdescription>
@@ -145,13 +148,13 @@
 <codeline lineno="43"><highlight class="normal"></highlight></codeline>
 <codeline lineno="48" refid="version_8h_1a628ba4ac8c4c42432c69662544dfd559" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">int</highlight><highlight class="normal"><sp/><ref refid="version_8h_1a628ba4ac8c4c42432c69662544dfd559" kindref="member">omega_version</ref>();</highlight></codeline>
 <codeline lineno="49"><highlight class="normal"></highlight></codeline>
-<codeline lineno="50" refid="version_8h_1a995d40a67a2e674f816afc3ef42f698f" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*<ref refid="version_8h_1a995d40a67a2e674f816afc3ef42f698f" kindref="member">omega_libtype</ref>();</highlight></codeline>
-<codeline lineno="51"><highlight class="normal"></highlight></codeline>
-<codeline lineno="52"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
-<codeline lineno="53"><highlight class="normal">}</highlight></codeline>
-<codeline lineno="54"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
-<codeline lineno="55"><highlight class="normal"></highlight></codeline>
-<codeline lineno="56"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_VERSION_H</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="56" refid="version_8h_1a995d40a67a2e674f816afc3ef42f698f" refkind="member"><highlight class="normal"><ref refid="export_8h_1aeeca33efab8cac52d03011dcf2f1f105" kindref="member">OMEGA_EDIT_EXPORT</ref><sp/></highlight><highlight class="keywordtype">char</highlight><highlight class="normal"><sp/></highlight><highlight class="keyword">const</highlight><highlight class="normal"><sp/>*<ref refid="version_8h_1a995d40a67a2e674f816afc3ef42f698f" kindref="member">omega_libtype</ref>();</highlight></codeline>
+<codeline lineno="57"><highlight class="normal"></highlight></codeline>
+<codeline lineno="58"><highlight class="normal"></highlight><highlight class="preprocessor">#ifdef<sp/>__cplusplus</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="59"><highlight class="normal">}</highlight></codeline>
+<codeline lineno="60"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="normal"></highlight></codeline>
+<codeline lineno="61"><highlight class="normal"></highlight></codeline>
+<codeline lineno="62"><highlight class="normal"></highlight><highlight class="preprocessor">#endif</highlight><highlight class="comment">//OMEGA_EDIT_VERSION_H</highlight><highlight class="normal"></highlight></codeline>
     </programlisting>
     <location file="src/include/omega_edit/version.h"/>
   </compounddef>
