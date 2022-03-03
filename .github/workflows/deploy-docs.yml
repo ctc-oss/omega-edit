@@ -14,10 +14,10 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - main
+      - '**'
 
 jobs:
-  deploy-documentation:
+  build-docs:
     runs-on: macos-latest
     steps:
       - name: Install Prerequisites 📚
@@ -31,12 +31,21 @@ jobs:
           lukka/get-cmake@latest
       - name: Checkout Source 🛎️
         uses: actions/checkout@v2
-      - name: Prepare and Build 🔧
+      - name: Prepare and Build Docs 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
-          cmake --build build
+          cmake --build build --target sphinx
+  deploy-docs:
+    concurrency: ci-${{ github.ref }}
+    needs: [ build-docs ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
+        uses: actions/download-artifact@v1
+        with:
+          name: site
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: build # The deployment folder should match the name of the artifact.
+          folder: site # The deployment folder should match the name of the artifact.
