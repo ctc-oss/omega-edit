@@ -50,10 +50,10 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
         sizeAfter <- service.getComputedFileSize(ObjectId(sid)).map(_.computedFileSize)
       } yield {
-        sizeBefore shouldBe Session.defaultSize
+        sizeBefore shouldBe 0
         changeResponse should matchPattern { case ChangeResponse(`sid`, _, _) => }
         changeResponse should matchPattern { case ChangeResponse(`sid`, _, _) => }
-        sizeAfter shouldBe Session.defaultSize + testString.length
+        sizeAfter shouldBe testString.length
       }
     }
 

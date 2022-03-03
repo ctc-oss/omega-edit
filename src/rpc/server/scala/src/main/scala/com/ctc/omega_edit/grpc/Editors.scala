@@ -60,13 +60,8 @@ object Editors {
     case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
   }
 
-  private def sessionFor(path: Option[Path], cb: SessionCallback): api.Session = path match {
-    case None =>
-      val session = OmegaEdit.newSessionCb(None, cb)
-      session.insert(List.fill(Session.defaultSize)(" ").mkString, 0)
-      session
-    case path => OmegaEdit.newSessionCb(path, cb)
-  }
+  private def sessionFor(path: Option[Path], cb: SessionCallback): api.Session =
+    OmegaEdit.newSessionCb(path, cb)
 }
 
 class Editors extends Actor with ActorLogging {

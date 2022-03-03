@@ -20,6 +20,8 @@ import com.ctc.omega_edit.api.Change
 import jnr.ffi.Pointer
 
 private[omega_edit] class ChangeImpl(p: Pointer, i: FFI) extends Change {
+  require(p != null, "native change pointer was null")
+
   val id: Long = i.omega_change_get_serial(p)
 
   val offset: Long = i.omega_change_get_offset(p)

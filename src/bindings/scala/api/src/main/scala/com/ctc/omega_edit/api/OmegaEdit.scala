@@ -27,15 +27,16 @@ import scala.util.Try
   * Provides Session instances and version information.
   */
 object OmegaEdit extends OmegaEdit {
-  def newSession(path: Option[Path]): Session = new SessionImpl(
-    ffi.omega_edit_create_session(path.map(_.toString).orNull, null, null),
-    ffi
-  )
+  def newSession(path: Option[Path]): Session =
+    newSessionCb(path, null)
 
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = new SessionImpl(
-    ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null),
-    ffi
-  )
+  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = {
+    require(path.forall(_.toFile.exists()), "specified path does not exist")
+    new SessionImpl(
+      ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null),
+      ffi
+    )
+  }
 
   def version(): Version =
     Version(ffi.omega_version_major(), ffi.omega_version_minor(), ffi.omega_version_patch())
