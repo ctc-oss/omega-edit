@@ -47,6 +47,8 @@ OMEGA_EDIT_EXPORT int omega_version_patch();
  */
 OMEGA_EDIT_EXPORT int omega_version();
 
+OMEGA_EDIT_EXPORT char const *omega_libtype();
+
 #ifdef __cplusplus
 }
 #endif

@@ -16,7 +16,7 @@ if (NOT DEFINED omega_edit_INSTALL_CMAKEDIR)
 endif ()
 
 install(TARGETS omega_edit EXPORT omega_edit_Targets RUNTIME COMPONENT omega_edit_Runtime LIBRARY COMPONENT omega_edit_Runtime NAMELINK_COMPONENT omega_edit_Development ARCHIVE COMPONENT omega_edit_Development INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
-install(DIRECTORY "${omega_edit_SOURCE_DIR}/src/include/" "${omega_edit_BINARY_DIR}/src/include/" TYPE INCLUDE COMPONENT omega_edit_Development)
+install(DIRECTORY "${omega_edit_SOURCE_DIR}/src/include/" TYPE INCLUDE COMPONENT omega_edit_Development)
 
 if (BUILD_SHARED_LIBS)
     set(type shared)
