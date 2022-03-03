@@ -21,6 +21,8 @@ import com.ctc.omega_edit.api.{Change, Session, Viewport, ViewportCallback}
 import jnr.ffi.Pointer
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
+  require(p != null, "native session pointer was null")
+
   def isEmpty: Boolean =
     size == 0
 

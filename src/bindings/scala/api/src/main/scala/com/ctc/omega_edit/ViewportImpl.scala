@@ -20,6 +20,8 @@ import com.ctc.omega_edit.api.Viewport
 import jnr.ffi.Pointer
 
 private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
+  require(p != null, "native viewport pointer was null")
+
   def data: String =
     i.omega_viewport_get_data(p)
 

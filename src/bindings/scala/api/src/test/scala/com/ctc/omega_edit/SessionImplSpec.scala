@@ -17,11 +17,13 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.Changed
-import com.ctc.omega_edit.api.{Change, SessionEvent}
+import com.ctc.omega_edit.api.{Change, OmegaEdit, SessionEvent}
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import java.nio.file.Paths
 
 class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   "a session" must {
@@ -38,6 +40,10 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "have string" in session("abc") { s =>
       s.isEmpty shouldBe false
       s.size shouldBe 3
+    }
+
+    "throw if file doesnt exist" in {
+      assertThrows[IllegalArgumentException](OmegaEdit.newSession(Some(Paths.get("/does-not-exist"))))
     }
   }
 

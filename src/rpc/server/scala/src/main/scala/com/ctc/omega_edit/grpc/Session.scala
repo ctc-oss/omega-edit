@@ -29,8 +29,6 @@ import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import java.nio.file.Path
 
 object Session {
-  val defaultSize = 10000
-
   type EventStream = Source[Session.Updated, NotUsed]
   trait Events {
     def stream: EventStream
