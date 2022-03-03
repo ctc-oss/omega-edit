@@ -35,17 +35,9 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
           cmake --build build --target sphinx
-  deploy-docs:
-    concurrency: ci-${{ github.ref }}
-    needs: [ build-docs ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download Artifacts 🔻 # The built project is downloaded into the 'site' folder.
-        uses: actions/download-artifact@v1
-        with:
-          name: site
+          touch build/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: site # The deployment folder should match the name of the artifact.
+          folder: build/docs/sphinx # The deployment folder should match the name of the artifact.
