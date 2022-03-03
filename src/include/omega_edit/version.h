@@ -47,6 +47,12 @@ OMEGA_EDIT_EXPORT int omega_version_patch();
  */
 OMEGA_EDIT_EXPORT int omega_version();
 
+/**
+ * Returns "shared" if the library has been built as a shared library, or "static" if the library is built as a static
+ * library
+ * @return "shared" if the library has been built as a shared library, or "static" if the library is built as a static
+ * library
+ */
 OMEGA_EDIT_EXPORT char const *omega_libtype();
 
 #ifdef __cplusplus
