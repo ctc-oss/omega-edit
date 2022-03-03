@@ -14,7 +14,7 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - '**'
+      - main
 
 jobs:
   build-docs:
@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Install Prerequisites 📚
         run: |
-          brew install ninja doxygen graphviz
+          brew install ninja doxygen graphviz sphinx-doc
           sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
