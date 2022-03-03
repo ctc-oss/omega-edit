@@ -17,7 +17,7 @@ on:
       - main
 
 jobs:
-  build-docs:
+  deploy-docs:
     runs-on: macos-latest
     steps:
       - name: Install Prerequisites 📚
