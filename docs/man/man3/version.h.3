@@ -1,4 +1,4 @@
-.TH "src/include/omega_edit/version.h" 3 "Wed Mar 2 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
+.TH "src/include/omega_edit/version.h" 3 "Thu Mar 3 2022" "Version 0.8.1" "omega_edit" \" -*- nroff -*-
 .ad l
 .nh
 .SH NAME
@@ -24,9 +24,14 @@ src/include/omega_edit/version.h
 .ti -1c
 .RI "\fBOMEGA_EDIT_EXPORT\fP int \fBomega_version\fP ()"
 .br
+.ti -1c
+.RI "\fBOMEGA_EDIT_EXPORT\fP char const * \fBomega_libtype\fP ()"
+.br
 .in -1c
 .SH "Function Documentation"
 .PP 
+.SS "\fBOMEGA_EDIT_EXPORT\fP char const  * omega_libtype ()"
+
 .SS "\fBOMEGA_EDIT_EXPORT\fP int omega_version ()"
 Get the integer representation of the version of the library 
 .PP

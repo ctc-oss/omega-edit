@@ -147,6 +147,7 @@
     <member refid="version_8h_1aa3776686bf8eedbf154d104e8258f76f" kind="function"><name>omega_version_minor</name></member>
     <member refid="version_8h_1af9b84aff481474ca8959f035f3f03017" kind="function"><name>omega_version_patch</name></member>
     <member refid="version_8h_1a628ba4ac8c4c42432c69662544dfd559" kind="function"><name>omega_version</name></member>
+    <member refid="version_8h_1a995d40a67a2e674f816afc3ef42f698f" kind="function"><name>omega_libtype</name></member>
   </compound>
   <compound refid="viewport_8h" kind="file"><name>viewport.h</name>
     <member refid="viewport_8h_1a26559ea1b197f83005a3d49f00a3a63d" kind="function"><name>omega_viewport_get_session</name></member>

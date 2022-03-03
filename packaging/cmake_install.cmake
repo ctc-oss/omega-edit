@@ -46,10 +46,7 @@ if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xomega_edit_Developmentx" OR NOT CMA
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xomega_edit_Developmentx" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE DIRECTORY FILES
-    "/Users/runner/work/omega-edit/omega-edit/src/include/"
-    "/Users/runner/work/omega-edit/omega-edit/build/src/include/"
-    )
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE DIRECTORY FILES "/Users/runner/work/omega-edit/omega-edit/src/include/")
 endif()
 
 if("x${CMAKE_INSTALL_COMPONENT}x" STREQUAL "xomega_edit_Developmentx" OR NOT CMAKE_INSTALL_COMPONENT)

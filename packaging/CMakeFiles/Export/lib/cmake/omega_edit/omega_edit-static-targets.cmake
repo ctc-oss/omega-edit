@@ -55,7 +55,7 @@ add_library(omega_edit::omega_edit STATIC IMPORTED)
 
 set_target_properties(omega_edit::omega_edit PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "\$<\$<NOT:\$<BOOL:>>:OMEGA_EDIT_STATIC_DEFINE>"
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include"
+  INTERFACE_INCLUDE_DIRECTORIES "/src/include;${_IMPORT_PREFIX}/include"
   INTERFACE_LINK_LIBRARIES "Boost::filesystem"
 )
 
