@@ -689,8 +689,8 @@ public:
         omega_viewport_t *viewport_ptr = nullptr;
         {
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
-            viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, viewport_event_callback,
-                                                      &session_manager_, request->is_floating() ? 1 : 0);
+            viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, request->is_floating() ? 1 : 0,
+                                                      viewport_event_callback, &session_manager_);
         }
         assert(viewport_ptr);
         const auto viewport_id = session_manager_.add_viewport(

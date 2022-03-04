@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     assert(session_ptr);
     // Create a small viewport at the end of the file to track the last byte.
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1,
-                                                   4, vpt_change_last_byte_cbk, &last_byte_info, 0);
+                                                   4, 0, vpt_change_last_byte_cbk, &last_byte_info);
     assert(viewport_ptr);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {

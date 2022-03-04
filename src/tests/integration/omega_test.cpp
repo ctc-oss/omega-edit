@@ -685,7 +685,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 < omega_session_get_computed_file_size(session_ptr));
     view_mode_t view_mode;
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    omega_edit_create_viewport(session_ptr, 0, 1024, vpt_change_cbk, &view_mode, 0);
+    omega_edit_create_viewport(session_ptr, 0, 1024, 0, vpt_change_cbk, &view_mode);
     int needles_found = 0;
     auto needle = "NeEdLe";
     auto needle_length = strlen(needle);
@@ -786,7 +786,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     auto viewport_count = omega_session_get_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, vpt_change_cbk, &view_mode, 0);
+    viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, 0, vpt_change_cbk, &view_mode);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
@@ -816,9 +816,9 @@ TEST_CASE("Viewports", "[ViewportTests]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr);
     REQUIRE(session_ptr);
     omega_edit_insert_string(session_ptr, 0, "123456789");
-    const auto viewport_fixed_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 0);
+    const auto viewport_fixed_ptr = omega_edit_create_viewport(session_ptr, 4, 4, 0, vpt_change_cbk, nullptr);
     REQUIRE(viewport_fixed_ptr);
-    const auto viewport_floating_ptr = omega_edit_create_viewport(session_ptr, 4, 4, vpt_change_cbk, nullptr, 1);
+    const auto viewport_floating_ptr = omega_edit_create_viewport(session_ptr, 4, 4, 1, vpt_change_cbk, nullptr);
     REQUIRE(viewport_floating_ptr);
     REQUIRE(2 == omega_session_get_num_viewports(session_ptr));
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");

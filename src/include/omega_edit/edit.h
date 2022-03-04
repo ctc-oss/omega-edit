@@ -62,15 +62,15 @@ OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @param session_ptr author wanting the new viewport
  * @param offset offset for the new viewport
  * @param capacity desired capacity of the new viewport
- * @param cbk user-defined callback function called whenever the viewport gets updated
- * @param user_data_ptr pointer to user-defined data to associate with this new viewport
  * @param is_floating 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to
  * "float" as bytes are inserted or deleted before the start of this viewport
+ * @param cbk user-defined callback function called whenever the viewport gets updated
+ * @param user_data_ptr pointer to user-defined data to associate with this new viewport
  * @return pointer to the new viewport, nullptr on failure
  */
 OMEGA_EDIT_EXPORT omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset,
-                                                               int64_t capacity, omega_viewport_event_cbk_t cbk,
-                                                               void *user_data_ptr, int is_floating);
+                                                               int64_t capacity, int is_floating,
+                                                               omega_viewport_event_cbk_t cbk, void *user_data_ptr);
 
 /**
  * Destroy a given viewport

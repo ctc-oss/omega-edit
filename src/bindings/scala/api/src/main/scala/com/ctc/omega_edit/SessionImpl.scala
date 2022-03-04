@@ -45,12 +45,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   def view(offset: Long, size: Long): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, null, null, 0)
+    val vp = i.omega_edit_create_viewport(p, offset, size, 0, null, null)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, cb, null, 0)
+    val vp = i.omega_edit_create_viewport(p, offset, size, 0, cb, null)
     new ViewportImpl(vp, i)
   }
 
