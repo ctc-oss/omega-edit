@@ -14,6 +14,7 @@
 
 #include <omega_edit.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
                     const omega_change_t *change_ptr) {
@@ -25,13 +26,14 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
             break;
         }
         default:
+            abort();
             break;
     }
 }
 
 int main() {
-    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL);
-    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, NULL);
+    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL, 0);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, NULL, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
     omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
     omega_edit_overwrite(session_ptr, 7, "orl", 0);
     omega_edit_delete(session_ptr, 11, 3);

@@ -37,7 +37,7 @@ int main(int arc, char **argv) {
     }
     int64_t replacements = 0;
     const string replacement = argv[4];
-    auto session_ptr = omega_scoped_ptr<omega_session_t>(omega_edit_create_session(in_filename, nullptr, nullptr),
+    auto session_ptr = omega_scoped_ptr<omega_session_t>(omega_edit_create_session(in_filename, nullptr, nullptr, 0),
                                                          omega_edit_destroy_session);
     auto match_context_ptr = omega_scoped_ptr<omega_search_context_t>(
             omega_search_create_context_string(session_ptr.get(), argv[3]), omega_search_destroy_context);

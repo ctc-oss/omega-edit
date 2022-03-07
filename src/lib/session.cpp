@@ -73,6 +73,22 @@ const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->file_path.empty()) ? nullptr : session_ptr->models_.back()->file_path.c_str();
 }
 
+omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->event_handler;
+}
+
+int32_t omega_session_get_event_interest(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->event_interest_;
+}
+
+int32_t omega_session_set_event_interest(omega_session_t *session_ptr, int32_t event_interest) {
+    assert(session_ptr);
+    session_ptr->event_interest_ = event_interest;
+    return omega_session_get_event_interest(session_ptr);
+}
+
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
@@ -112,5 +128,8 @@ size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                           const omega_change_t *change_ptr) {
     assert(session_ptr);
-    if (session_ptr->event_handler) { (*session_ptr->event_handler)(session_ptr, session_event, change_ptr); }
+    if (session_ptr->event_handler &&
+        (0 == session_ptr->event_interest_ || session_event & session_ptr->event_interest_)) {
+        (*session_ptr->event_handler)(session_ptr, session_event, change_ptr);
+    }
 }

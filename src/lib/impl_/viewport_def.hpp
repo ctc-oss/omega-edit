@@ -24,6 +24,7 @@ struct omega_viewport_struct {
     omega_data_segment_t data_segment{};       ///< Viewport data
     omega_viewport_event_cbk_t event_handler{};///< User callback when the viewport changes
     void *user_data_ptr{};                     ///< Pointer to associated user-provided data
+    int32_t event_interest_;                   ///< Events of interest
 };
 
 #endif//OMEGA_EDIT_VIEWPORT_DEF_HPP

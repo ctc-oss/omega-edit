@@ -83,6 +83,28 @@ OMEGA_EDIT_EXPORT int omega_viewport_is_floating(const omega_viewport_t *viewpor
 OMEGA_EDIT_EXPORT void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr);
 
 /**
+ *  Given a session, return the viewport event callback
+ * @param viewport_ptr viewport to return the event callback from
+ * @return viewport event callback
+ */
+OMEGA_EDIT_EXPORT omega_viewport_event_cbk_t omega_viewport_get_event_cbk(const omega_viewport_t *viewport_ptr);
+
+/**
+ * Given a viewport, return the viewport event interest
+ * @param viewport_ptr viewport to return the viewport event interest from
+ * @return viewport event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_viewport_get_event_interest(const omega_viewport_t *viewport_ptr);
+
+/**
+ *  Set the viewport event interest to the given viewport event interest for the the given viewport
+ * @param viewport_ptr viewport
+ * @param event_interest desired viewport event interest
+ * @return viewport event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_t event_interest);
+
+/**
  * Change viewport settings
  * @param viewport_ptr viewport to change settings on
  * @param offset offset for the viewport

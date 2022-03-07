@@ -32,8 +32,9 @@ inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_
 }
 
 int main() {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr);
-    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, nullptr);
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, nullptr,
+                               VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
     omega_edit_insert_string(session_ptr, 0, "Hello Weird!!!!");
     omega_edit_overwrite_string(session_ptr, 7, "orl");
     omega_edit_delete(session_ptr, 11, 3);

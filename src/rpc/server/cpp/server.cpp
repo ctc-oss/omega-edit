@@ -393,10 +393,11 @@ public:
     ServerUnaryReactor *CreateSession(CallbackServerContext *context, const CreateSessionRequest *request,
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
+        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
         omega_session_t *session_ptr = nullptr;
         {
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
-            session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_);
+            session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_, event_interest);
         }
         assert(session_ptr);
         const auto session_id = session_manager_.add_session(
@@ -686,11 +687,12 @@ public:
         assert(session_ptr);
         const auto offset = request->offset();
         const auto capacity = request->capacity();
+        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
         omega_viewport_t *viewport_ptr = nullptr;
         {
             std::lock_guard<std::mutex> edit_lock(edit_mutex_);
             viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, request->is_floating() ? 1 : 0,
-                                                      viewport_event_callback, &session_manager_);
+                                                      viewport_event_callback, &session_manager_, event_interest);
         }
         assert(viewport_ptr);
         const auto viewport_id = session_manager_.add_viewport(
