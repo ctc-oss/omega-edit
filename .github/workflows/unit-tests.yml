@@ -49,7 +49,7 @@ jobs:
       - name: Prepare, Build, and Package Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build
+          cmake --build build -DCMAKE_BUILD_TYPE=Debug
           cpack --config build/CPackConfig.cmake
       - name: Run Tests 📋
         if: runner.os != 'Windows'
@@ -60,12 +60,12 @@ jobs:
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build
+          cmake --build build -DCMAKE_BUILD_TYPE=Debug
           cmake --install build --prefix "${PWD}/_install"
       - name: Prepare, and Build Ωedit RPC 🔧
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
-          cmake --build build-rpc
+          cmake --build build-rpc -DCMAKE_BUILD_TYPE=Debug
       - name: Test Ωedit RPC 📋
         if: runner.os == 'macOS'
         run: |
