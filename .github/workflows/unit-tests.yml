@@ -50,7 +50,7 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
-          cmake --install build --prefix "${PWD}/_install"
+          cmake --install build/packaging --prefix "${PWD}/_install"  --config Debug
       - name: Prepare, and Build Ωedit RPC 🔧
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
