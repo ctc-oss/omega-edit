@@ -36,7 +36,6 @@ cmake --install build-shared-$type --prefix "${PWD}/_install"
 cpack --config build-shared-$type/CPackSourceConfig.cmake
 cpack --config build-shared-$type/CPackConfig.cmake
 
-
 rm -rf build-examples-$type
 cmake -G "$generator" -S src/examples -B build-examples-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="${PWD}/_install"
 cmake --build build-examples-$type
