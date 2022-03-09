@@ -48,23 +48,23 @@ jobs:
         run: sbt test
       - name: Prepare, Build, and Package Ωedit 🔧
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
           cpack --config build/CPackConfig.cmake
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
-          cmake -S src/tests -B build-tests
+          cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
           cd build-tests
           ctest -C Debug --output-on-failure
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S . -B build
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
           cmake --build build
           cmake --install build --prefix "${PWD}/_install"
       - name: Prepare, and Build Ωedit RPC 🔧
         run: |
-          cmake -S src/rpc -B build-rpc -DCMAKE_PREFIX_PATH="${PWD}/_install"
+          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-rpc
       - name: Test Ωedit RPC 📋
         if: runner.os == 'macOS'
