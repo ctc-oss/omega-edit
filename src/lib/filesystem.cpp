@@ -14,8 +14,9 @@
 
 #include "../include/omega_edit/filesystem.h"
 #include "impl_/macros.h"
-#include <filesystem>
 #include <cassert>
+#include <filesystem>
+#include <string>
 
 namespace fs = std::filesystem;
 
@@ -87,9 +88,9 @@ char *omega_util_available_filename(char const *path, char *buffer) {
         return buffer;
     }
     int i = 0;
-    const char *dirname = omega_util_dirname(path, NULL);
-    const char *extension = omega_util_file_extension(path, NULL);
-    const std::string basename = omega_util_basename(path, NULL, 1);
+    const std::string dirname(omega_util_dirname(path, NULL));
+    const std::string extension(omega_util_file_extension(path, NULL));
+    const std::string basename(omega_util_basename(path, NULL, 1));
     do {
         if (++i == 99) {
             // stop after 99 filenames exist
