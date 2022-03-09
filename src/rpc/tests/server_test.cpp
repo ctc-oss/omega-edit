@@ -14,7 +14,7 @@
 
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <condition_variable>
 #include <csignal>
 #include <grpcpp/grpcpp.h>
@@ -22,7 +22,7 @@
 #include <thread>
 #include <vector>
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 using grpc::Channel;
 using grpc::ClientContext;

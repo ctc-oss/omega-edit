@@ -198,7 +198,7 @@ TEST_CASE("Base File Name", "[UtilTests]") {
     auto test_4 = "/this/is/a/directory/";
     result = omega_util_basename(test_4, buffer, 0);
     REQUIRE(result);
-    REQUIRE_THAT(buffer, Equals("."));
+    REQUIRE_THAT(buffer, Equals(""));
 }
 
 TEST_CASE("File Extension", "[UtilTests]") {

@@ -22,26 +22,11 @@ message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
-# Use C++14
-set(CMAKE_CXX_STANDARD 14)
+# Use C++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
-
-include("cmake/conan.cmake")
-conan_cmake_autodetect(settings)
-conan_cmake_configure(
-        REQUIRES "boost/1.78.0"
-        GENERATORS cmake cmake_find_package
-        OPTIONS boost:shared=False
-        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
-conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
-include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
-conan_basic_setup()
-
-# Dependencies
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
@@ -80,8 +65,6 @@ add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 add_library(omega_edit::omega_edit ALIAS omega_edit)
 set_target_properties(omega_edit PROPERTIES VERSION ${omega_edit_VERSION} SOVERSION ${omega_edit_VERSION_MAJOR})
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
-target_include_directories(omega_edit PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}")
-target_link_libraries(omega_edit Boost::filesystem)
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 
 ## Include the install rules if the user wanted them (included by default when top-level)

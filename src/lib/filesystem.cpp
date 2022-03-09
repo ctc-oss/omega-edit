@@ -14,10 +14,10 @@
 
 #include "../include/omega_edit/filesystem.h"
 #include "impl_/macros.h"
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <cassert>
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 int omega_util_file_exists(const char *path) { return (fs::is_regular_file(path)) ? 1 : 0; }
 

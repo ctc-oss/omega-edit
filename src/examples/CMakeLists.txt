@@ -12,44 +12,35 @@
 cmake_minimum_required(VERSION 3.13)
 project(omega_edit-examples LANGUAGES C CXX)
 
-# Use C++14
-set(CMAKE_CXX_STANDARD 14)
+# Use C++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-include("cmake/conan.cmake")
-conan_cmake_autodetect(settings)
-conan_cmake_configure(REQUIRES "boost/1.78.0" GENERATORS cmake cmake_find_package OPTIONS boost:shared=False)
-conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
-include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
-conan_basic_setup()
-
 # Dependencies
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.78.0 COMPONENTS filesystem REQUIRED)
 find_package(omega_edit REQUIRED)
 
 add_executable(replace replace.cpp)
 target_include_directories(replace PRIVATE $omega_edit_INCLUDE_DIRS)
-target_link_libraries(replace PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(replace PRIVATE omega_edit::omega_edit)
 
 add_executable(rotate rotate.cpp)
-target_link_libraries(rotate PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(rotate PRIVATE omega_edit::omega_edit)
 
 add_executable(slice slice.cpp)
-target_link_libraries(slice PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(slice PRIVATE omega_edit::omega_edit)
 
 add_executable(peek peek.cpp)
-target_link_libraries(peek PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(peek PRIVATE omega_edit::omega_edit)
 
 add_executable(simple simple.cpp)
-target_link_libraries(simple PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(simple PRIVATE omega_edit::omega_edit)
 
 add_executable(simple_c simple_c.c)
-target_link_libraries(simple_c PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(simple_c PRIVATE omega_edit::omega_edit)
 
 add_executable(replay replay.cpp)
-target_link_libraries(replay PRIVATE omega_edit::omega_edit Boost::filesystem)
+target_link_libraries(replay PRIVATE omega_edit::omega_edit)
 
 add_executable(play play.cpp)
-target_link_libraries(play PRIVATE omega_edit::omega_edit Boost::filesystem)
-add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+target_link_libraries(play PRIVATE omega_edit::omega_edit)
+add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
