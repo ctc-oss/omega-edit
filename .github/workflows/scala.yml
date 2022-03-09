@@ -42,10 +42,10 @@ jobs:
       - name: Build Ωedit
         run: |
           rm -rf build || true
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build . --target omega_edit
-          mv lib/* ../lib
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build build --target omega_edit
+          cmake --install build --prefix "${PWD}/_install"
+          mv _install/lib/* ./lib
 
       - name: Setup JDK
         uses: actions/setup-java@v2
