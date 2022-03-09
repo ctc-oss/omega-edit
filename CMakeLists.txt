@@ -19,6 +19,9 @@ project(omega_edit
         LANGUAGES C CXX)
 message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
 
+# default to Debug builds
+set(CMAKE_BUILD_TYPE_INIT "Debug")
+
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
