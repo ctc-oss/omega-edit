@@ -829,7 +829,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, "/tmp/hello.txt");
+        reply = server_test_client.SaveSession(session_id, "hello-rpc.txt");
         if (log) {
             const std::lock_guard<std::mutex> write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
