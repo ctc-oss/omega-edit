@@ -906,8 +906,8 @@ int main(int argc, char **argv) {
     // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
 
     // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
-    //std::string target_str = "localhost:50042";
-    std::string target_str = "unix:///tmp/omega_edit.sock";
+    std::string target_str = "localhost:50042";
+    //std::string target_str = "unix:///tmp/omega_edit.sock";
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
