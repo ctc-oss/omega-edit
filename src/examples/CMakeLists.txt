@@ -20,7 +20,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 find_package(omega_edit REQUIRED)
 
 add_executable(replace replace.cpp)
-target_include_directories(replace PRIVATE $omega_edit_INCLUDE_DIRS)
 target_link_libraries(replace PRIVATE omega_edit::omega_edit)
 
 add_executable(rotate rotate.cpp)
@@ -43,4 +42,4 @@ target_link_libraries(replay PRIVATE omega_edit::omega_edit)
 
 add_executable(play play.cpp)
 target_link_libraries(play PRIVATE omega_edit::omega_edit)
-add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

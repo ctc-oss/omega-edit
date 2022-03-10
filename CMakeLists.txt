@@ -19,9 +19,6 @@ project(omega_edit
         LANGUAGES C CXX)
 message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
 
-# default to Debug builds
-set(CMAKE_BUILD_TYPE_INIT "Debug")
-
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
@@ -31,6 +28,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 
+#######################################################################################################################
+# DEPENDENCIES
+#######################################################################################################################
+include("cmake/conan.cmake")
+conan_cmake_autodetect(settings)
+conan_cmake_configure(
+        REQUIRES "boost/1.78.0" "catch2/2.13.8" "grpc/1.44.0"
+        OPTIONS boost:header_only=True
+        GENERATORS cmake cmake_find_package
+        IMPORTS "bin, protoc* -> ./build_tools"
+        IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
+        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
+conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
+include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
+conan_basic_setup()
+
+Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+find_package(Boost 1.78.0)
+
+#######################################################################################################################
+# CORE LIBRARY
+#######################################################################################################################
 # Define the library source files
 set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit.h"
@@ -86,6 +105,140 @@ foreach (level MAJOR MINOR PATCH)
     target_compile_definitions(omega_edit PRIVATE "${PREFIX}_VERSION_${level}=${${PROJECT_NAME}_VERSION_${level}}")
 endforeach ()
 
+#######################################################################################################################
+# RPC
+#######################################################################################################################
+option(BUILD_RPC "build RPC" ON)
+if (BUILD_RPC)
+    if (MSVC)
+        set(protoc "build_tools/protoc.exe")
+        set(grpc_cpp_plugin "build_tools/grpc_cpp_plugin.exe")
+        set(grpc_node_plugin "build_tools/grpc_node_plugin.exe")
+    else ()
+        set(protoc "build_tools/protoc")
+        set(grpc_cpp_plugin "build_tools/grpc_cpp_plugin")
+        set(grpc_node_plugin "build_tools/grpc_node_plugin")
+    endif ()
+
+    # Proto file
+    get_filename_component(omega_proto "${CMAKE_CURRENT_SOURCE_DIR}/src/rpc/protos/omega_edit.proto" ABSOLUTE)
+    get_filename_component(omega_proto_path "${omega_proto}" PATH)
+
+    # Generated sources
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/client/js")
+
+    set(omega_proto_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/omega_edit.pb.cc")
+    set(omega_proto_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/omega_edit.pb.h")
+    set(omega_grpc_cpp_srcs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/omega_edit.grpc.pb.cc")
+    set(omega_grpc_cpp_hdrs "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/omega_edit.grpc.pb.h")
+
+    set(omega_grpc_js_pb "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/client/js/omega_edit_grpc_pb.js")
+    set(omega_js_pb "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/client/js/omega_edit_pb.js")
+
+    add_custom_command(
+            OUTPUT "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}"
+            COMMAND ${protoc}
+            ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp
+            --grpc_out=generate_mock_code=true:${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp
+            --plugin=protoc-gen-grpc=${grpc_cpp_plugin}
+            -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
+            ${omega_proto}
+            DEPENDS ${omega_proto}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Running gRPC C++ protocol buffer compiler on ${omega_proto}"
+            VERBATIM)
+
+    add_custom_command(
+            OUTPUT "${omega_grpc_js_pb}" "${omega_js_pb}"
+            COMMAND ${protoc}
+            ARGS --js_out=${CMAKE_CURRENT_BINARY_DIR}/src/rpc/client/js
+            --grpc_out=${CMAKE_CURRENT_BINARY_DIR}/src/rpc/client/js
+            --plugin=protoc-gen-grpc=${grpc_node_plugin}
+            -I ${omega_proto_path} -I ${CONAN_INCLUDE_DIRS_PROTOBUF}
+            ${omega_proto}
+            DEPENDS ${omega_proto}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
+            VERBATIM)
+
+    message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
+
+    SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}")
+    SET(WORKER_QUEUE_SOURCE_FILES "src/rpc/server/cpp/worker_queue/worker_queue.hpp" "src/rpc/server/cpp/worker_queue/worker_queue.cpp")
+
+    add_executable(server "src/rpc/server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+    target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+    target_link_libraries(server PRIVATE omega_edit::omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+
+    add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
+    add_dependencies(server client)
+endif()
+
+#######################################################################################################################
+# EXAMPLES
+#######################################################################################################################
+option(BUILD_EXAMPLES "build examples" ON)
+if (BUILD_EXAMPLES)
+    add_executable(replace "src/examples/replace.cpp")
+    target_link_libraries(replace PRIVATE omega_edit::omega_edit)
+
+    add_executable(rotate "src/examples/rotate.cpp")
+    target_link_libraries(rotate PRIVATE omega_edit::omega_edit)
+
+    add_executable(slice "src/examples/slice.cpp")
+    target_link_libraries(slice PRIVATE omega_edit::omega_edit)
+
+    add_executable(peek "src/examples/peek.cpp")
+    target_link_libraries(peek PRIVATE omega_edit::omega_edit)
+
+    add_executable(simple "src/examples/simple.cpp")
+    target_link_libraries(simple PRIVATE omega_edit::omega_edit)
+
+    add_executable(simple_c "src/examples/simple_c.c")
+    target_link_libraries(simple_c PRIVATE omega_edit::omega_edit)
+
+    add_executable(replay "src/examples/replay.cpp")
+    target_link_libraries(replay PRIVATE omega_edit::omega_edit)
+
+    add_executable(play "src/examples/play.cpp")
+    target_link_libraries(play PRIVATE omega_edit::omega_edit)
+    add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
+
+#######################################################################################################################
+# TESTING
+#######################################################################################################################
+option(BUILD_TESTS "build tests" ON)
+if (BUILD_TESTS)
+    enable_testing()
+
+    if (MSVC)
+        set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
+    endif ()
+
+    add_executable(omega_test "src/tests/integration/omega_test.cpp" "src/tests/integration/test_util.h")
+    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit)
+    target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
+    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/integration/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+
+    add_executable(generate_file "src/tests/integration/generate_file.cpp" "src/tests/integration/test_util.h")
+    target_link_libraries(generate_file PRIVATE omega_edit::omega_edit)
+
+    if (BUILD_RPC)
+        add_executable(server_test "src/rpc/tests/server_test.cpp" ${RPC_SOURCE_FILES})
+        target_link_libraries(server_test PRIVATE ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+        target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+        add_dependencies(server_test server)
+    endif()
+
+    include(CTest)
+    include(Catch)
+    catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+endif()
+
+#######################################################################################################################
+# DOCUMENTATION
+#######################################################################################################################
 option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
     # Generate API documentation using Doxygen
