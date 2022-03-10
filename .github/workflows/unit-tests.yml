@@ -60,7 +60,7 @@ jobs:
           cd build-tests
           ctest -C Debug --output-on-failure
       - name: Test Ωedit RPC 📋
-        if: runner.os != 'Windows'
+        if: runner.os == 'macOS'
         run: |
           cmake --build build-rpc --target server_test
           build-rpc/bin/server_test
