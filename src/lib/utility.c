@@ -100,7 +100,7 @@ int omega_util_mkstemp(char *tmpl) {
 }
 
 int omega_util_touch(const char *file_name, int create) {
-    int fd = OPEN(file_name, (create) ? O_RDWR | O_CREAT : O_RDWR, 0644);
+    int fd = OPEN(file_name, create ? O_RDWR | O_CREAT : O_RDWR, 0644);
     if (fd < 0) {
         if (!create && errno == ENOENT) {
             return 0;

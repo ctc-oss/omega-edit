@@ -65,12 +65,13 @@ static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, cons
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
         // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
+        // allocate its capacity plus one, so we can null-terminate it
         change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
@@ -83,12 +84,13 @@ static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, cons
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
         // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
+        // allocate its capacity plus one, so we can null-terminate it
         change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
@@ -169,11 +171,11 @@ static inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
     model_ptr->changes_undone.clear();
 }
 
-static inline void free_session_changes_(omega_session_t *session_ptr) {
+static inline void free_session_changes_(const omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) { free_model_changes_(model_ptr.get()); }
 }
 
-static inline void free_session_changes_undone_(omega_session_t *session_ptr) {
+static inline void free_session_changes_undone_(const omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) { free_model_changes_undone_(model_ptr.get()); }
 }
 
@@ -183,7 +185,7 @@ static inline void free_session_changes_undone_(omega_session_t *session_ptr) {
  that is covered by adjusting, or removing, the READ, INSERT, and OVERWRITE segments accordingly.  The model expects to
  take in changes with original offsets and lengths and the model will calculate computed offsets and lengths.
  -------------------------------------------------------------------------------------------------------------------- */
-static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr_t &change_ptr) {
+static int update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) {
     int64_t read_offset = 0;
 
     if (model_ptr->model_segments.empty()) {
@@ -282,8 +284,7 @@ static int update_model_(omega_model_t *model_ptr, const_omega_change_ptr_t &cha
 }
 
 static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t change_ptr) {
-    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    if (change_ptr->offset <= computed_file_size) {
+    if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
         if (omega_change_get_serial(change_ptr.get()) < 0) {
             // This is a previously undone change that is being redone, so flip the serial number back to positive
             const_cast<omega_change_t *>(change_ptr.get())->serial *= -1;
@@ -308,7 +309,10 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     }
     off_t file_size = 0;
     if (file_ptr) {
-        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return nullptr; }
+        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) {
+            fclose(file_ptr);
+            return nullptr;
+        }
         file_size = FTELL(file_ptr);
     }
     const auto session_ptr = new omega_session_t;
@@ -349,6 +353,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.is_floating = (bool) is_floating;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
+        // data segment buffer allocation is its capacity plus one, so we can null-terminate it
         viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
         viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
@@ -374,16 +379,15 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     return (0 < length && offset < computed_file_size)
-                   ? update_(session_ptr, del_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, std::min(length, computed_file_size - offset)))
+                   ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
+                                               std::min(length, computed_file_size - offset)))
                    : 0;
 }
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
     return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, bytes, length))
+                   ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
 
@@ -394,8 +398,7 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
     return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, bytes, length))
+                   ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
 
@@ -440,9 +443,9 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         return -1;
     }
     const auto temp_filename_str = std::string(temp_filename);
-    auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
-                                             : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
-                                                        temp_filename_str.c_str(), omega_util_directory_separator());
+    auto count = temp_filename_str.empty() ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                                           : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                                      temp_filename_str.c_str(), omega_util_directory_separator());
     if (count < 0 || FILENAME_MAX <= count) {
         LOG_ERROR("snprintf failed");
         return -2;

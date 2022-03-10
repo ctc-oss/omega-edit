@@ -45,7 +45,7 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
     pattern_length =
             (pattern_length) ? pattern_length : static_cast<int64_t>(strlen(reinterpret_cast<const char *>(pattern)));
     const auto session_length_computed =
-            (session_length) ? session_length : omega_session_get_computed_file_size(session_ptr);
+            session_length ? session_length : omega_session_get_computed_file_size(session_ptr);
     if (pattern_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT && pattern_length <= session_length_computed) {
         const auto match_context_ptr = new omega_search_context_t;
         assert(match_context_ptr);

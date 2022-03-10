@@ -75,7 +75,7 @@ class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public
     session_event_subscription_map_t &session_event_subscriptions_;
 
 public:
-    SessionEventWriter(CallbackServerContext *context, std::string session_id,
+    SessionEventWriter(const CallbackServerContext *context, std::string session_id,
                        session_event_subscription_map_t &session_event_subscriptions)
         : context_(context), session_id_(std::move(session_id)),
           session_event_subscriptions_(session_event_subscriptions) {
@@ -106,7 +106,7 @@ class ViewportEventWriter final : public ServerWriteReactor<ViewportEvent>, publ
     viewport_event_subscription_map_t &viewport_event_subscriptions_;
 
 public:
-    ViewportEventWriter(CallbackServerContext *context, std::string viewport_id,
+    ViewportEventWriter(const CallbackServerContext *context, std::string viewport_id,
                         viewport_event_subscription_map_t &viewport_event_subscriptions)
         : context_(context), viewport_id_(std::move(viewport_id)),
           viewport_event_subscriptions_(viewport_event_subscriptions) {
@@ -197,7 +197,7 @@ public:
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(CallbackServerContext *context, const std::string &session_id) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
@@ -265,7 +265,7 @@ public:
         return viewport_ptr;
     }
 
-    inline ViewportEventWriter *create_viewport_subscription(CallbackServerContext *context,
+    inline ViewportEventWriter *create_viewport_subscription(const CallbackServerContext *context,
                                                              const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);

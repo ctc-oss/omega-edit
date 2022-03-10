@@ -101,6 +101,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
             } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
+            assert(data_segment_ptr->length <= data_segment_capacity);
+            // data segment buffer allocation is its capacity plus one, so we can null-terminate it
             data_segment_buffer[data_segment_ptr->length] = '\0';
             return 0;
         }
@@ -118,8 +120,7 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
     out_stream << R"({"serial": )" << omega_change_get_serial(change_ptr) << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
                << R"(, "length": )" << omega_change_get_length(change_ptr);
-    const auto bytes = omega_change_get_bytes(change_ptr);
-    if (bytes) {
+    if (const auto bytes = omega_change_get_bytes(change_ptr); bytes) {
         out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr))
                    << R"(")";
     }
