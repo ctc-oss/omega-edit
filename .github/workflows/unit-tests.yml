@@ -15,8 +15,6 @@ on:
   push:
     branches:
       - '**'
-  pull_request:
-    types: [ opened, synchronize, reopened ]
 
 jobs:
   unit-test:
