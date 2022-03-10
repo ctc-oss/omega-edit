@@ -54,7 +54,7 @@ jobs:
       - name: Prepare, and Build Ωedit RPC 🔧
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
-          cmake --build build-rpc
+          cmake --build build-rpc --target server
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
@@ -64,4 +64,5 @@ jobs:
       - name: Test Ωedit RPC 📋
         if: runner.os == 'macOS'
         run: |
+          cmake --build build-rpc --target server_test
           build-rpc/bin/server_test

@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "../../../lib/impl_/macros.h"
+#include "../../../include/omega_edit/config.h"
 #include "./worker_queue/worker_queue.hpp"
 #include "omega_edit.grpc.pb.h"
 #include "omega_edit.h"
@@ -778,23 +779,26 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
     // Server can run HTTP2 or Unix Domain Sockets (on compatible OSes)
-    std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega_edit.sock";
+#ifdef OMEGA_BUILD_UNIX
+    std::string target_str("unix:///tmp/omega_edit.sock");
+#else
+    std::string target_str("localhost:50042");
+#endif
 
     if (argc > 1) {
-        const std::string arg_val = argv[1];
+        const std::string arg_val(argv[1]);
         const std::string arg_str("--target");
-        size_t start_pos = arg_val.find(arg_str);
+        auto start_pos = arg_val.find(arg_str);
         if (start_pos != std::string::npos) {
             start_pos += arg_str.size();
             if (arg_val[start_pos] == '=') {
                 target_str = arg_val.substr(start_pos + 1);
             } else {
-                std::cout << "The only correct argument syntax is --target=" << std::endl;
+                std::cerr << "The only correct argument syntax is --target=" << std::endl;
                 return EXIT_FAILURE;
             }
         } else {
-            std::cout << "The only acceptable argument is --target=" << std::endl;
+            std::cerr << "The only acceptable argument is --target=" << std::endl;
             return EXIT_FAILURE;
         }
     }

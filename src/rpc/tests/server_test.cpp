@@ -12,11 +12,12 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../../include/omega_edit/config.h"
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
-#include <filesystem>
 #include <condition_variable>
 #include <csignal>
+#include <filesystem>
 #include <grpcpp/grpcpp.h>
 #include <sstream>
 #include <thread>
@@ -58,7 +59,7 @@ public:
     };
 
     ~OmegaEditServiceClient() {
-        while(!viewport_subscription_handler_threads_.empty()) {
+        while (!viewport_subscription_handler_threads_.empty()) {
             viewport_subscription_handler_threads_.back()->join();
             viewport_subscription_handler_threads_.pop_back();
         }
@@ -906,8 +907,11 @@ int main(int argc, char **argv) {
     // We indicate that the channel isn't authenticated (use of InsecureChannelCredentials()).
 
     // Client can connect to HTTP2 or Unix Domain Sockets (on compatible OSes)
-    std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega_edit.sock";
+#ifdef OMEGA_BUILD_UNIX
+    std::string target_str("unix:///tmp/omega_edit.sock");
+#else
+    std::string target_str("localhost:50042");
+#endif
 
     if (argc > 1) {
         const std::string arg_val = argv[1];
@@ -918,30 +922,38 @@ int main(int argc, char **argv) {
             if (arg_val[start_pos] == '=') {
                 target_str = arg_val.substr(start_pos + 1);
             } else {
-                std::cout << "The only correct argument syntax is --target=" << std::endl;
+                std::cerr << "The only correct argument syntax is --target=" << std::endl;
                 return EXIT_FAILURE;
             }
         } else {
-            std::cout << "The only acceptable argument is --target=" << std::endl;
+            std::cerr << "The only acceptable argument is --target=" << std::endl;
             return EXIT_FAILURE;
         }
     }
     // change current working path to that of this executable
     fs::current_path(fs::path(argv[0]).parent_path());
-    pid_t pid = 0;
     bool run_server = true;
+#ifdef OMEGA_BUILD_UNIX
+    pid_t pid = 0;
+#endif
     if (run_server) {
-        pid = fork();
-        const char *server_program = "./server";
+        const auto server_program = fs::current_path() / "server";
         const auto target = std::string("--target=") + target_str;
+#ifdef OMEGA_BUILD_UNIX
+        pid = fork();
         if (0 == pid) {
-            execl(server_program, server_program, target.c_str(), (char *) NULL);
-            exit(1);
+            execl(server_program.c_str(), server_program.c_str(), target.c_str(), (char *) NULL);
+            return EXIT_FAILURE;
         }
-        std::cout << "Ωedit server pid: " << pid << std::endl;
+        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << pid << std::endl;);
         sleep(2);// sleep 2 seconds for the server to come online
+#endif
+        // TODO: CreateProcess for Windows
     }
+
     run_tests(target_str, 50, true);
+#ifdef OMEGA_BUILD_UNIX
     if (pid) { kill(pid, SIGTERM); }
+#endif
     return EXIT_SUCCESS;
 }
