@@ -29,6 +29,8 @@
 #include <utility>
 
 using grpc::CallbackServerContext;
+using grpc::EnableDefaultHealthCheckService;
+using grpc::HealthCheckServiceInterface;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -60,10 +62,12 @@ using omega_edit::ViewportEventKind;
 using google::protobuf::Empty;
 
 class SessionEventWriter;
-using session_event_subscription_map_t = std::map<std::string, SessionEventWriter *>;
+using session_event_subscription_map_t = std::map<std::string, SessionEventWriter *, std::less<>>;
 
 class ViewportEventWriter;
-using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *>;
+using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *, std::less<>>;
+
+static inline std::string create_uuid() { return boost::uuids::to_string(boost::uuids::random_generator()()); }
 
 class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public omega_edit::IWorkerQueue {
     const CallbackServerContext *context_;
@@ -71,12 +75,13 @@ class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public
     session_event_subscription_map_t &session_event_subscriptions_;
 
 public:
-    SessionEventWriter(CallbackServerContext *context, std::string session_id,
+    SessionEventWriter(const CallbackServerContext *context, std::string session_id,
                        session_event_subscription_map_t &session_event_subscriptions)
         : context_(context), session_id_(std::move(session_id)),
           session_event_subscriptions_(session_event_subscriptions) {
-        // Add this instance to the session event subscriptions
+        assert(context_);
         assert(!session_id_.empty());
+        // Add this instance to the session event subscriptions
         session_event_subscriptions_[session_id_] = this;
     }
 
@@ -101,12 +106,13 @@ class ViewportEventWriter final : public ServerWriteReactor<ViewportEvent>, publ
     viewport_event_subscription_map_t &viewport_event_subscriptions_;
 
 public:
-    ViewportEventWriter(CallbackServerContext *context, std::string viewport_id,
+    ViewportEventWriter(const CallbackServerContext *context, std::string viewport_id,
                         viewport_event_subscription_map_t &viewport_event_subscriptions)
         : context_(context), viewport_id_(std::move(viewport_id)),
           viewport_event_subscriptions_(viewport_event_subscriptions) {
-        // Add this instance to the session event subscriptions
+        assert(context_);
         assert(!viewport_id_.empty());
+        // Add this instance to the session event subscriptions
         viewport_event_subscriptions_[viewport_id_] = this;
     }
 
@@ -128,19 +134,18 @@ public:
 class SessionManager {
 private:
     std::map<omega_session_t *, std::string> session_to_id_{};
-    std::map<std::string, omega_session_t *> id_to_session_{};
+    std::map<std::string, omega_session_t *, std::less<>> id_to_session_{};
     session_event_subscription_map_t session_event_subscriptions_{};
 
     std::map<omega_viewport_t *, std::string> viewport_to_id_{};
-    std::map<std::string, omega_viewport_t *> id_to_viewport_{};
+    std::map<std::string, omega_viewport_t *, std::less<>> id_to_viewport_{};
     viewport_event_subscription_map_t viewport_event_subscriptions_{};
 
 public:
     inline std::string add_session(omega_session_t *session_ptr, const std::string *session_id_desired = nullptr) {
         assert(session_ptr);
         // Don't use const here because it prevents the automatic move on return
-        auto session_id = (session_id_desired) ? *session_id_desired
-                                               : boost::uuids::to_string(boost::uuids::random_generator()());
+        auto session_id = session_id_desired ? *session_id_desired : create_uuid();
         assert(!session_id.empty());
         assert(id_to_session_.find(session_id) == id_to_session_.end());
         session_to_id_[session_ptr] = session_id;
@@ -192,7 +197,7 @@ public:
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(CallbackServerContext *context, const std::string &session_id) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
@@ -211,8 +216,7 @@ public:
     inline std::string add_viewport(omega_viewport_t *viewport_ptr, const std::string *viewport_id_desired = nullptr) {
         assert(viewport_ptr);
         // Don't use const here because it prevents the automatic move on return
-        auto viewport_id = (viewport_id_desired) ? *viewport_id_desired
-                                                 : boost::uuids::to_string(boost::uuids::random_generator()());
+        auto viewport_id = viewport_id_desired ? *viewport_id_desired : create_uuid();
         assert(!viewport_id.empty());
         assert(id_to_viewport_.find(viewport_id) == id_to_viewport_.end());
         viewport_to_id_[viewport_ptr] = viewport_id;
@@ -261,7 +265,7 @@ public:
         return viewport_ptr;
     }
 
-    inline ViewportEventWriter *create_viewport_subscription(CallbackServerContext *context,
+    inline ViewportEventWriter *create_viewport_subscription(const CallbackServerContext *context,
                                                              const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
@@ -382,10 +386,10 @@ public:
     ServerUnaryReactor *GetOmegaVersion(CallbackServerContext *context, const Empty *request,
                                         VersionResponse *response) override {
         (void) request;
+        auto *reactor = context->DefaultReactor();
         response->set_major(omega_version_major());
         response->set_minor(omega_version_minor());
         response->set_patch(omega_version_patch());
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -393,9 +397,10 @@ public:
     ServerUnaryReactor *CreateSession(CallbackServerContext *context, const CreateSessionRequest *request,
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
+        auto *reactor = context->DefaultReactor();
         omega_session_t *session_ptr = nullptr;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_);
         }
         assert(session_ptr);
@@ -404,7 +409,6 @@ public:
         assert(!session_id.empty());
         assert(session_id == session_manager_.get_session_id(session_ptr));
         response->set_session_id(session_id);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -415,10 +419,11 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         const auto change_kind = request->kind();
         int64_t change_serial = 0;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             switch (change_kind) {
                 case omega_edit::CHANGE_DELETE:
                     change_serial = omega_edit_delete(session_ptr, request->offset(), request->length());
@@ -436,7 +441,6 @@ public:
         }
         response->set_session_id(session_id);
         response->set_serial(change_serial);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -447,14 +451,14 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         int64_t change_serial = 0;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_undo_last_change(session_ptr);
         }
         response->set_session_id(session_id);
         response->set_serial(change_serial);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -465,14 +469,14 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         int64_t change_serial = 0;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_redo_last_undo(session_ptr);
         }
         response->set_session_id(session_id);
         response->set_serial(change_serial);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -483,14 +487,19 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
-        int64_t change_serial = 0;
-        {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
-            change_serial = omega_edit_clear_changes(session_ptr);
-        }
-        response->set_id(session_id);
         auto *reactor = context->DefaultReactor();
-        reactor->Finish(Status::OK);
+        int rc = -1;
+        {
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
+            rc = omega_edit_clear_changes(session_ptr);
+        }
+        if (0 == rc) {
+            response->set_id(session_id);
+            reactor->Finish(Status::OK);
+        } else {
+            // TODO: Error handing
+            reactor->Finish(Status::OK);
+        }
         return reactor;
     }
 
@@ -504,7 +513,7 @@ public:
         auto *reactor = context->DefaultReactor();
         int rc = -1;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             rc = omega_edit_save(session_ptr, file_path.c_str(), 1, nullptr);
         }
         if (0 == rc) {
@@ -524,11 +533,11 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             omega_session_pause_viewport_event_callbacks(session_ptr);
         }
-        auto *reactor = context->DefaultReactor();
         response->set_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -540,11 +549,11 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             omega_session_resume_viewport_event_callbacks(session_ptr);
         }
-        auto *reactor = context->DefaultReactor();
         response->set_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -554,12 +563,12 @@ public:
                                        ObjectId *response) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
+        auto *reactor = context->DefaultReactor();
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             session_manager_.destroy_session(session_id);
         }
         response->set_id(session_id);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -570,14 +579,14 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         const auto serial = request->serial();
         const auto change_ptr = omega_session_get_change(session_ptr, serial);
         assert(change_ptr);
         response->set_serial(serial);
         response->set_offset(omega_change_get_offset(change_ptr));
         response->set_length(omega_change_get_length(change_ptr));
-        const auto kind = omega_change_get_kind_as_char(change_ptr);
-        switch (kind) {
+        switch (omega_change_get_kind_as_char(change_ptr)) {
             case 'D':
                 response->set_kind(ChangeKind::CHANGE_DELETE);
                 break;
@@ -593,7 +602,6 @@ public:
                 // TODO: Handle error
                 break;
         }
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -604,13 +612,13 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         const auto change_ptr = omega_session_get_last_change(session_ptr);
         assert(change_ptr);
         response->set_serial(omega_change_get_serial(change_ptr));
         response->set_offset(omega_change_get_offset(change_ptr));
         response->set_length(omega_change_get_length(change_ptr));
-        const auto kind = omega_change_get_kind_as_char(change_ptr);
-        switch (kind) {
+        switch (omega_change_get_kind_as_char(change_ptr)) {
             case 'D':
                 response->set_kind(ChangeKind::CHANGE_DELETE);
                 break;
@@ -626,7 +634,6 @@ public:
                 // TODO: Handle error
                 break;
         }
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -637,13 +644,13 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         const auto change_ptr = omega_session_get_last_undo(session_ptr);
         assert(change_ptr);
         response->set_serial(omega_change_get_serial(change_ptr));
         response->set_offset(omega_change_get_offset(change_ptr));
         response->set_length(omega_change_get_length(change_ptr));
-        const auto kind = omega_change_get_kind_as_char(change_ptr);
-        switch (kind) {
+        switch (omega_change_get_kind_as_char(change_ptr)) {
             case 'D':
                 response->set_kind(ChangeKind::CHANGE_DELETE);
                 break;
@@ -659,7 +666,6 @@ public:
                 // TODO: Handle error
                 break;
         }
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -670,9 +676,9 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         response->set_session_id(session_id);
         response->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -684,11 +690,12 @@ public:
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
         const auto offset = request->offset();
         const auto capacity = request->capacity();
         omega_viewport_t *viewport_ptr = nullptr;
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, viewport_event_callback,
                                                       &session_manager_, request->is_floating() ? 1 : 0);
         }
@@ -697,7 +704,6 @@ public:
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
         response->set_viewport_id(viewport_id);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -707,15 +713,15 @@ public:
         (void) context;
         const auto &viewport_id = request->viewport_id();
         assert(!viewport_id.empty());
+        auto *reactor = context->DefaultReactor();
         const auto viewport_ptr = session_manager_.get_viewport_ptr(viewport_id);
         assert(viewport_ptr);
         {
-            std::lock_guard<std::mutex> edit_lock(edit_mutex_);
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             response->set_length(omega_viewport_get_length(viewport_ptr));
             response->set_data(omega_viewport_get_string(viewport_ptr));
         }
         response->set_viewport_id(viewport_id);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -724,9 +730,9 @@ public:
                                         ObjectId *response) override {
         const auto &viewport_id = request->id();
         assert(!viewport_id.empty());
+        auto *reactor = context->DefaultReactor();
         session_manager_.destroy_viewport(viewport_id);
         response->set_id(viewport_id);
-        auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
         return reactor;
     }
@@ -754,7 +760,7 @@ public:
 void RunServer(const std::string &server_address) {
     OmegaEditServiceImpl service;
 
-    grpc::EnableDefaultHealthCheckService(true);
+    EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
 
@@ -767,6 +773,7 @@ void RunServer(const std::string &server_address) {
 
     // Finally, assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
+    server->GetHealthCheckService()->SetServingStatus("OmegaEdit", true);
     DBG(CLOG << LOCATION << "Ωedit server listening on: " << server_address << std::endl;);
 
     // Wait for the server to shut down. Note that some other thread must be
@@ -778,23 +785,26 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
     // Server can run HTTP2 or Unix Domain Sockets (on compatible OSes)
-    std::string target_str = "localhost:50042";
-    //std::string target_str = "unix:///tmp/omega_edit.sock";
+#ifdef OMEGA_BUILD_UNIX
+    std::string target_str("unix:///tmp/omega_edit.sock");
+#else
+    std::string target_str("localhost:50042");
+#endif
 
     if (argc > 1) {
-        const std::string arg_val = argv[1];
+        const std::string arg_val(argv[1]);
         const std::string arg_str("--target");
-        size_t start_pos = arg_val.find(arg_str);
+        auto start_pos = arg_val.find(arg_str);
         if (start_pos != std::string::npos) {
             start_pos += arg_str.size();
             if (arg_val[start_pos] == '=') {
                 target_str = arg_val.substr(start_pos + 1);
             } else {
-                std::cout << "The only correct argument syntax is --target=" << std::endl;
+                std::cerr << "The only correct argument syntax is --target=" << std::endl;
                 return EXIT_FAILURE;
             }
         } else {
-            std::cout << "The only acceptable argument is --target=" << std::endl;
+            std::cerr << "The only acceptable argument is --target=" << std::endl;
             return EXIT_FAILURE;
         }
     }

@@ -86,15 +86,14 @@ jobs:
       - name: Build Ωedit mac
         if: startsWith(matrix.os, 'mac')
         run: |
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build . --target omega_edit
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build build --target omega_edit
 
       - name: Build Ωedit windows
         if: startsWith(matrix.os, 'win')
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build
+          cmake --build build --target omega_edit
 
       - name: Move library file
         run: mv build/lib/* lib
@@ -145,10 +144,12 @@ jobs:
 
       - name: Build Ωedit
         run: |
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build . --target omega_edit
-          mv lib/* ../lib
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build build --target omega_edit
+
+      - name: Move library file
+        run: mv build/lib/* lib
+        shell: bash
 
       - name: Setup JDK
         uses: actions/setup-java@v2

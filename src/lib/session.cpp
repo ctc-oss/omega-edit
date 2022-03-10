@@ -18,7 +18,7 @@
 #include "impl_/session_def.hpp"
 #include <cassert>
 
-enum session_flags { pause_viewport_callbacks = 0x01 };
+enum class session_flags { pause_viewport_callbacks = 0x01 };
 
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
@@ -77,7 +77,7 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     assert(session_ptr);
     assert(session_ptr->models_.back());
     if (0 < change_serial) {// Positive serials are active changes
-        if (change_serial <= static_cast<int64_t>(omega_session_get_num_changes(session_ptr))) {
+        if (change_serial <= omega_session_get_num_changes(session_ptr)) {
             return session_ptr->models_.back()->changes[change_serial - 1].get();
         }
     } else if (change_serial < 0) {// Negative serials are undone changes
@@ -91,17 +91,17 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
 
 int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->session_flags_ & pause_viewport_callbacks) ? 1 : 0;
+    return (session_ptr->session_flags_ & (int8_t)session_flags::pause_viewport_callbacks) ? 1 : 0;
 }
 
 void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ |= pause_viewport_callbacks;
+    session_ptr->session_flags_ |= (int8_t)session_flags::pause_viewport_callbacks;
 }
 
 void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ &= ~pause_viewport_callbacks;
+    session_ptr->session_flags_ &= ~(int8_t)session_flags::pause_viewport_callbacks;
 }
 
 size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
