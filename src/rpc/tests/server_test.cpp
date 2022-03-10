@@ -15,6 +15,7 @@
 #include "../../include/omega_edit/config.h"
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
+#include <condition_variable>
 #include <csignal>
 #include <filesystem>
 #include <grpcpp/grpcpp.h>
