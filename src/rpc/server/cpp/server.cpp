@@ -30,12 +30,14 @@
 #include <utility>
 
 using grpc::CallbackServerContext;
+using grpc::EnableDefaultHealthCheckService;
+using grpc::HealthCheckServiceInterface;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerUnaryReactor;
-using grpc::ServerWriter;
 using grpc::ServerWriteReactor;
+using grpc::ServerWriter;
 using grpc::Status;
 
 using omega_edit::ChangeDetailsResponse;
@@ -755,7 +757,7 @@ public:
 void RunServer(const std::string &server_address) {
     OmegaEditServiceImpl service;
 
-    grpc::EnableDefaultHealthCheckService(true);
+    EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
 
@@ -768,6 +770,7 @@ void RunServer(const std::string &server_address) {
 
     // Finally, assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
+    server->GetHealthCheckService()->SetServingStatus("OmegaEdit", true);
     DBG(CLOG << LOCATION << "Ωedit server listening on: " << server_address << std::endl;);
 
     // Wait for the server to shut down. Note that some other thread must be

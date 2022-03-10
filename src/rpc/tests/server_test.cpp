@@ -946,6 +946,7 @@ int main(int argc, char **argv) {
             return EXIT_FAILURE;
         }
         DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << pid << std::endl;);
+        // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
 #endif
         // TODO: CreateProcess for Windows
