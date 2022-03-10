@@ -62,10 +62,10 @@ using omega_edit::ViewportEventKind;
 using google::protobuf::Empty;
 
 class SessionEventWriter;
-using session_event_subscription_map_t = std::map<std::string, SessionEventWriter *>;
+using session_event_subscription_map_t = std::map<std::string, SessionEventWriter *, std::less<>>;
 
 class ViewportEventWriter;
-using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *>;
+using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *, std::less<>>;
 
 static inline std::string create_uuid() { return boost::uuids::to_string(boost::uuids::random_generator()()); }
 
@@ -79,8 +79,9 @@ public:
                        session_event_subscription_map_t &session_event_subscriptions)
         : context_(context), session_id_(std::move(session_id)),
           session_event_subscriptions_(session_event_subscriptions) {
-        // Add this instance to the session event subscriptions
+        assert(context_);
         assert(!session_id_.empty());
+        // Add this instance to the session event subscriptions
         session_event_subscriptions_[session_id_] = this;
     }
 
@@ -109,8 +110,9 @@ public:
                         viewport_event_subscription_map_t &viewport_event_subscriptions)
         : context_(context), viewport_id_(std::move(viewport_id)),
           viewport_event_subscriptions_(viewport_event_subscriptions) {
-        // Add this instance to the session event subscriptions
+        assert(context_);
         assert(!viewport_id_.empty());
+        // Add this instance to the session event subscriptions
         viewport_event_subscriptions_[viewport_id_] = this;
     }
 
@@ -132,11 +134,11 @@ public:
 class SessionManager {
 private:
     std::map<omega_session_t *, std::string> session_to_id_{};
-    std::map<std::string, omega_session_t *> id_to_session_{};
+    std::map<std::string, omega_session_t *, std::less<>> id_to_session_{};
     session_event_subscription_map_t session_event_subscriptions_{};
 
     std::map<omega_viewport_t *, std::string> viewport_to_id_{};
-    std::map<std::string, omega_viewport_t *> id_to_viewport_{};
+    std::map<std::string, omega_viewport_t *, std::less<>> id_to_viewport_{};
     viewport_event_subscription_map_t viewport_event_subscriptions_{};
 
 public:

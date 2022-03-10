@@ -46,6 +46,7 @@ conan_basic_setup()
 
 Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.78.0)
+message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
 #######################################################################################################################
 # CORE LIBRARY
@@ -160,8 +161,6 @@ if (BUILD_RPC)
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             COMMENT "Running gRPC JS protocol buffer compiler on ${omega_proto}"
             VERBATIM)
-
-    message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
     SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}")
     SET(WORKER_QUEUE_SOURCE_FILES "src/rpc/server/cpp/worker_queue/worker_queue.hpp" "src/rpc/server/cpp/worker_queue/worker_queue.cpp")

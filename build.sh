@@ -56,4 +56,3 @@ pushd build-tests-integration-$type && ctest -C $type --output-on-failure && pop
 
 cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
 pushd build-tests-$type && ctest -C $type --output-on-failure && popd
-
