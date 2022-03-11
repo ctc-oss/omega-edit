@@ -372,7 +372,7 @@ public:
         }
     }
 
-    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path) const {
+    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path, bool allow_overwrite) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
         SaveSessionRequest request;
@@ -381,6 +381,7 @@ public:
 
         request.set_session_id(session_id);
         request.set_file_path(file_path);
+        request.set_allow_overwrite(allow_overwrite);
 
         std::mutex mu;
         std::condition_variable cv;
@@ -827,7 +828,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, "hello-rpc.txt");
+        reply = server_test_client.SaveSession(session_id, "hello-rpc.txt", true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
