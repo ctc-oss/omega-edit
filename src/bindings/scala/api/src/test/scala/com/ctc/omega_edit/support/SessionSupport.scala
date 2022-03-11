@@ -19,6 +19,9 @@ package com.ctc.omega_edit.support
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.{Change, OmegaEdit, Session, SessionEvent}
 
+import java.nio.file.Path
+import scala.io.Source
+
 trait SessionSupport {
   def emptySession(test: api.Session => Unit): Unit =
     test(OmegaEdit.newSession(None))
@@ -51,4 +54,6 @@ trait SessionSupport {
     })
     test(session, cb)
   }
+
+  def fileContents(at: Path): String = Source.fromFile(at.toFile).mkString
 }
