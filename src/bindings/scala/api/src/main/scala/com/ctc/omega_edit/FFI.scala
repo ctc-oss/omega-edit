@@ -31,6 +31,7 @@ private[omega_edit] trait FFI {
   def omega_version_minor(): Int
   def omega_version_patch(): Int
 
+  def omega_edit_save(p: Pointer, path: String, overwrite: Boolean, opath: Pointer): Long
   def omega_edit_create_session(path: String, cb: SessionCallback, userData: Pointer): Pointer
   def omega_session_get_computed_file_size(p: Pointer): Long
   def omega_edit_insert(p: Pointer, offset: Long, s: String, len: Long): Long

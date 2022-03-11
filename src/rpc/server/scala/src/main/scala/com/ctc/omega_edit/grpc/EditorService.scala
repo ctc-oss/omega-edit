@@ -24,6 +24,8 @@ import akka.pattern.ask
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import com.ctc.omega_edit.api.OmegaEdit
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.OverwriteExisting
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
@@ -59,9 +61,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     }
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
-    (editors ? SessionOp(in.sessionId, Save(Paths.get(in.filePath)))).mapTo[Result].map {
-      case Ok(id) => SaveSessionResponse(id)
-      case Err(c) => throw grpcFailure(c)
+    (editors ? SessionOp(in.sessionId, Save(Paths.get(in.filePath), OverwriteExisting))).mapTo[Result].map {
+      case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString)
+      case Ok(id)              => SaveSessionResponse(id)
+      case Err(c)              => throw grpcFailure(c)
     }
 
   def createViewport(in: CreateViewportRequest): Future[CreateViewportResponse] =

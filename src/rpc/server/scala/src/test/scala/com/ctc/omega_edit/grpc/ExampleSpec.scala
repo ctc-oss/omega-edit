@@ -25,13 +25,18 @@ import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpecLike
 
+import java.nio.file.Files
 import java.util.UUID
 import scala.concurrent.Future
+import scala.io.Source
 
 /**
   * This unit test is more for demonstration of the testability of the gRPC components than actual coverage
   */
 class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupport {
+  val tmp = Files.createTempDirectory("omega")
+  tmp.toFile.deleteOnExit()
+
   "client" should useService { implicit service =>
     "to get version" in service.getOmegaVersion(Empty()).map { v =>
       v should matchPattern { case VersionResponse(_, _, _, _) => }
@@ -62,6 +67,21 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
       service.subscribeToSessionEvents(ObjectId(sid)).runWith(Sink.headOption).map {
         case Some(e) => e should matchPattern { case SessionEvent(`sid`, _, _, _) => }
         case None    => fail("no message received")
+      }
+    }
+
+    "save session" in newSession { sid =>
+      val testString = UUID.randomUUID().toString
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(sid, ChangeKind.CHANGE_INSERT, data = Some(ByteString.copyFromUtf8(testString)))
+        )
+        saveResponse <- service.saveSession(
+          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString)
+        )
+        contents = Source.fromFile(saveResponse.filePath).mkString
+      } yield {
+        contents shouldBe testString
       }
     }
   }
