@@ -508,17 +508,19 @@ public:
         const auto &session_id = request->session_id();
         assert(!session_id.empty());
         const auto &file_path = request->file_path();
+        const auto allow_overwrite = !request->has_allow_overwrite() || request->allow_overwrite();
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
         int rc = -1;
+        char saved_file_buffer[FILENAME_MAX];
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            rc = omega_edit_save(session_ptr, file_path.c_str(), 1, nullptr);
+            rc = omega_edit_save(session_ptr, file_path.c_str(), allow_overwrite ? 1 : 0, saved_file_buffer);
         }
         if (0 == rc) {
             response->set_session_id(session_id);
-            response->set_file_path(file_path);
+            response->set_file_path(saved_file_buffer);
             reactor->Finish(Status::OK);
         } else {
             // TODO: Error handing
