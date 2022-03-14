@@ -61,13 +61,8 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt headerCheckAll
 
-      - name: Package Scala API and Linux so
-        if: startsWith(matrix.os, 'ubuntu')
-        run: sbt +test +publishM2
-
-      - name: Package Mac dylib
-        if: startsWith(matrix.os, 'mac')
-        run: sbt +test +native/publishM2
+      - name: Package Scala API
+        run: sbt +installM2
 
       - name: Archive M2
         uses: actions/upload-artifact@v2
