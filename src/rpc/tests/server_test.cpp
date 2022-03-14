@@ -662,6 +662,7 @@ private:
 
 void run_tests(const std::string &target_str, int repetitions, bool log) {
     const int64_t vpt_capacity = 5;
+    fs::remove_all(fs::current_path() / "server_test_out");
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
@@ -828,7 +829,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, "hello-rpc.txt", true);
+        auto save_file= fs::current_path() / "server_test_out" / "hello-rpc.txt";
+        reply = server_test_client.SaveSession(session_id, save_file, true);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
+        }
+
+        reply = server_test_client.SaveSession(session_id, save_file, false);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
