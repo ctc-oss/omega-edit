@@ -42,8 +42,6 @@ jobs:
         uses: lukka/get-cmake@latest
       - name: Checkout 🛎️
         uses: actions/checkout@v2
-      - name: Run sbt tests 📋
-        run: sbt test
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
