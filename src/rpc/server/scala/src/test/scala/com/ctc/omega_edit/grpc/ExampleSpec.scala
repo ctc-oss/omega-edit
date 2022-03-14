@@ -84,6 +84,32 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents shouldBe testString
       }
     }
+
+    "save session without overwrites writes to new file" in newSession { sid =>
+      val testString1 = UUID.randomUUID().toString
+      val testString2 = UUID.randomUUID().toString
+
+      val filePath = tmp.resolve("dat.txt").toString
+
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(sid, ChangeKind.CHANGE_INSERT, data = Some(ByteString.copyFromUtf8(testString1)))
+        )
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+
+        _ <- service.submitChange(
+          ChangeRequest(sid, ChangeKind.CHANGE_OVERWRITE, data = Some(ByteString.copyFromUtf8(testString2)))
+        )
+        saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+
+        contents1 = Source.fromFile(saveResponse1.filePath).mkString // to ensure first saved file not overwritten
+        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+      } yield {
+        saveResponse2.filePath should not be saveResponse1.filePath
+        contents1 shouldBe testString1
+        contents2 shouldBe testString2
+      }
+    }
   }
 }
 
