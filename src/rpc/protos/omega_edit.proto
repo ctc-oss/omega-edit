@@ -134,6 +134,7 @@ message CreateSessionResponse {
 message SaveSessionRequest {
   string session_id = 1;
   string file_path = 2;
+  optional bool allow_overwrite = 3;
 }
 
 message SaveSessionResponse {

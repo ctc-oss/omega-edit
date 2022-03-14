@@ -24,9 +24,11 @@ import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors.{Err, Ok}
 import com.ctc.omega_edit.api
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 
 import java.nio.file.Path
+import scala.util.{Failure, Success}
 
 object Session {
   type EventStream = Source[Session.Updated, NotUsed]
@@ -38,11 +40,15 @@ object Session {
     def computedSize: Long
   }
 
+  trait SavedTo {
+    def path: Path
+  }
+
   def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
     Props(new Session(session, events, cb))
 
   trait Op
-  case class Save(to: Path) extends Op
+  case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
   case class View(offset: Long, capacity: Long, id: Option[String]) extends Op
   case class DestroyView(id: String) extends Op
   case object Watch extends Op
@@ -120,6 +126,16 @@ class Session(session: api.Session, events: EventStream, cb: SessionCallback) ex
     case GetSize =>
       sender() ! new Ok(sessionId) with Size {
         def computedSize: Long = session.size
+      }
+
+    case Save(to, overwrite) =>
+      session.save(to, overwrite) match {
+        case Success(actual) =>
+          sender() ! new Ok(sessionId) with SavedTo {
+            def path: Path = actual
+          }
+        case Failure(_) =>
+          sender() ! Err(Status.UNKNOWN)
       }
   }
 }

@@ -17,13 +17,16 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.Changed
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, OmegaEdit, SessionEvent}
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import java.util.UUID
+import scala.util.Success
 
 class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   "a session" must {
@@ -56,6 +59,55 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "include the change" in emptySessionWithCallback { (s, cb) =>
       s.insert("bar", 0)
       cb.change.flatten.value.operation shouldBe Change.Insert
+    }
+  }
+
+  "saving" should {
+    val tmp = Files.createTempDirectory("omega")
+    tmp.toFile.deleteOnExit()
+
+    "save empty session" in emptySession { s =>
+      val empty = tmp.resolve(Paths.get("empty.txt"))
+      s.save(empty) should matchPattern { case Success(`empty`) => }
+
+      fileContents(empty) shouldBe ""
+    }
+
+    "save data from session" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      val expected = UUID.randomUUID().toString
+
+      s.insert(expected, 0)
+      s.save(dat) should matchPattern { case Success(`dat`) => }
+
+      fileContents(dat) shouldBe expected
+    }
+
+    "overwrite if exists" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      dat.toFile.exists() shouldBe true
+      val expected = UUID.randomUUID().toString
+
+      s.insert(expected, 0)
+      val r = s.save(dat, OverwriteStrategy.OverwriteExisting)
+      r.isSuccess shouldBe true
+      r should matchPattern { case Success(`dat`) => }
+
+      fileContents(dat) shouldBe expected
+    }
+
+    "use generated path if exists" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      dat.toFile.exists() shouldBe true
+
+      val expected = UUID.randomUUID().toString
+      s.insert(expected, 0)
+
+      val r = s.save(dat, OverwriteStrategy.GenerateFilename)
+      r.isSuccess shouldBe true
+      r should not matchPattern { case Success(`dat`) => }
+
+      fileContents(r.get) shouldBe expected
     }
   }
 }

@@ -17,6 +17,10 @@
 package com.ctc.omega_edit.api
 
 import com.ctc.omega_edit.api.Change.Result
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
+
+import java.nio.file.Path
+import scala.util.Try
 
 /**
   * The top level type in OmegaEdit, maintains the data and all instances related to it.
@@ -37,4 +41,15 @@ trait Session {
 
   def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport
   def findChange(id: Long): Option[Change]
+
+  def save(to: Path): Try[Path]
+  def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
+}
+
+object Session {
+  sealed trait OverwriteStrategy
+  object OverwriteStrategy {
+    case object OverwriteExisting extends OverwriteStrategy
+    case object GenerateFilename extends OverwriteStrategy
+  }
 }

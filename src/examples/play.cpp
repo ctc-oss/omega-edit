@@ -178,8 +178,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode_t view_mode;
 
     view_mode.display_mode = display_mode_t::CHAR_MODE;
-    file_info.in_filename = "data/example1.dat";
-    file_info.save_filename = "data/example1.dat.sav";
+    file_info.in_filename = "data/examples/example1.dat";
+    file_info.save_filename = "data/examples/example1.dat.sav";
     file_info.bin_to_hex_buffer_size = 1024;
     file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
 

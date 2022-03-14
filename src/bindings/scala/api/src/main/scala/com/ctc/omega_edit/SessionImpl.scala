@@ -17,8 +17,15 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
 import com.ctc.omega_edit.api.{Change, Session, Viewport, ViewportCallback}
 import jnr.ffi.Pointer
+
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Path, Paths}
+import scala.util.{Failure, Success, Try}
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
@@ -57,6 +64,25 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def findChange(id: Long): Option[Change] = i.omega_session_get_change(p, id) match {
     case null => None
     case ptr  => Some(new ChangeImpl(ptr, i))
+  }
+
+  def save(to: Path): Try[Path] =
+    save(to, OverwriteExisting)
+
+  def save(to: Path, onExists: OverwriteStrategy): Try[Path] = {
+    // todo;; obtain an accurate and portable number here
+    val buffer = ByteBuffer.allocate(4096)
+    val overwrite = onExists match {
+      case OverwriteExisting => true
+      case GenerateFilename  => false
+    }
+    i.omega_edit_save(p, to.toString, overwrite, Pointer.wrap(p.getRuntime, buffer)) match {
+      case 0 =>
+        val path = StandardCharsets.UTF_8.decode(buffer)
+        Success(Paths.get(path.toString.trim))
+
+      case ec => Failure(new RuntimeException(s"Failed to save session to file, $ec"))
+    }
   }
 }
 
