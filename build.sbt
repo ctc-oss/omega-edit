@@ -49,6 +49,25 @@ lazy val commonSettings = {
   )
 }
 
+lazy val ratSettings = Seq(
+  ratLicenses := Seq(
+    ("HPP  ", Rat.HPP_LICENSE_NAME, Rat.HPP_LICENSE_TEXT),
+  ),
+  ratLicenseFamilies := Seq(
+    Rat.HPP_LICENSE_NAME,
+  ),
+  ratExcludes := Rat.excludes,
+  ratFailBinaries := true,
+)
+
+lazy val `omega-edit` = project
+  .in(file("."))
+  .settings(commonSettings, ratSettings)
+  .settings(
+    name := "omega-edit",
+    publish / skip := true
+  )
+
 lazy val omega_edit = project
   .in(file("."))
   .settings(commonSettings)
@@ -120,25 +139,6 @@ lazy val spi = project
     name := "omega-edit-spi"
   )
   .enablePlugins(GitVersioning)
-
-lazy val ratSettings = Seq(
-  ratLicenses := Seq(
-    ("HPP  ", Rat.HPP_LICENSE_NAME, Rat.HPP_LICENSE_TEXT),
-  ),
-  ratLicenseFamilies := Seq(
-    Rat.HPP_LICENSE_NAME,
-  ),
-  ratExcludes := Rat.excludes,
-  ratFailBinaries := true,
-)
-
-lazy val `omega-edit` = project
-  .in(file("."))
-  .settings(commonSettings, ratSettings)
-  .settings(
-    name := "omega-edit",
-    publish / skip := true
-  )
 
 addCommandAlias("installM2", "; clean; native/publishM2; test; api/publishM2; spi/publishM2")
 addCommandAlias("installLocal", "; clean; native/publishLocal; test; api/publishLocal; spi/publishLocal")
