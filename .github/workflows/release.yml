@@ -109,7 +109,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +native/publishM2
-        working-directory: src/bindings/scala
 
       - name: Upload Native JARs
         uses: actions/upload-artifact@v2
@@ -178,7 +177,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build.sbt ci/build.sbt
           mv ci/release.sbt build.sbt
           sbt +native/publish
         working-directory: src/bindings/scala
