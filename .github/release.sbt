@@ -18,7 +18,7 @@ import BuildSupport._
 import play.api.libs.json._
 
 lazy val packageData = Json.parse(
-  scala.io.Source.fromFile("../../rpc/client/ts/package.json"
+  scala.io.Source.fromFile("src/rpc/client/ts/package.json"
 ).mkString).as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -62,7 +62,7 @@ lazy val omega_edit = project
   .aggregate(api, spi, native)
 
 lazy val api = project
-  .in(file("api"))
+  .in(file("src/bindings/scala/api"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -95,7 +95,7 @@ lazy val api = project
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val native = project
-  .in(file("native"))
+  .in(file("src/bindings/scala/native"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -122,7 +122,7 @@ lazy val native = project
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val spi = project
-  .in(file("spi"))
+  .in(file("src/bindings/scala/spi"))
   .settings(commonSettings)
   .settings(
     name := "omega-edit-spi"
