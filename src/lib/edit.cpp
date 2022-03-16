@@ -437,6 +437,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
 
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
+    if (saved_file_path) { saved_file_path[0] = '\0'; }
     omega_util_dirname(file_path, temp_filename);
     if (!temp_filename[0]) { omega_util_get_current_dir(temp_filename); }
     if (!omega_util_directory_exists(temp_filename) && 0 != omega_util_create_directory(temp_filename)) {
@@ -505,9 +506,8 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int ove
     if (omega_util_file_exists(file_path)) {
         if (overwrite) {
             // reset the session if we're overwriting the file being edited
-            reset_session =
-                    (omega_session_get_file_path(session_ptr) &&
-                     omega_util_paths_equivalent(file_path, omega_session_get_file_path(session_ptr)));
+            reset_session = (omega_session_get_file_path(session_ptr) &&
+                             omega_util_paths_equivalent(file_path, omega_session_get_file_path(session_ptr)));
             if (reset_session) {
                 assert(session_ptr->models_.front()->file_ptr);
                 fclose(session_ptr->models_.front()->file_ptr);
