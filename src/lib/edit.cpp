@@ -435,7 +435,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
     return -1;
 }
 
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
+int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
     omega_util_dirname(file_path, temp_filename);
     if (!temp_filename[0]) { omega_util_get_current_dir(temp_filename); }
@@ -501,8 +501,18 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         write_offset += segment->computed_length;
     }
     fclose(temp_fptr);
+    bool reset_session = false;
     if (omega_util_file_exists(file_path)) {
         if (overwrite) {
+            // reset the session if we're overwriting the file being edited
+            reset_session =
+                    (omega_session_get_file_path(session_ptr) &&
+                     omega_util_paths_equivalent(file_path, omega_session_get_file_path(session_ptr)));
+            if (reset_session) {
+                assert(session_ptr->models_.front()->file_ptr);
+                fclose(session_ptr->models_.front()->file_ptr);
+                session_ptr->models_.front()->file_ptr = nullptr;
+            }
             if (0 != omega_util_remove_file(file_path)) {
                 LOG_ERROR("removing file failed: " << strerror(errno));
                 return -7;
@@ -518,7 +528,22 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("rename failed: " << strerror(errno));
         return -9;
     }
-    if (saved_file_path) { strncpy(saved_file_path, file_path, FILENAME_MAX); }
+    if (reset_session) {
+        assert(!session_ptr->models_.front()->file_ptr);
+        auto file_ptr = fopen(file_path, "rb");
+        if (!file_ptr) {
+            LOG_ERROR("fopen failed: " << strerror(errno));
+            return -10;
+        }
+        // session to point to the overwritten file, then suspend viewport callbacks, clear the changes, then resume the
+        // viewport callbacks.  A session clear event will be triggered in the clear changes call to indicate to the
+        // user that the edit history is cleared, affecting undo/redo.
+        session_ptr->models_.front()->file_ptr = file_ptr;
+        omega_session_pause_viewport_event_callbacks(session_ptr);
+        omega_edit_clear_changes(session_ptr);
+        omega_session_resume_viewport_event_callbacks(session_ptr);
+    }
+    if (saved_file_path) { omega_util_normalize_path(file_path, saved_file_path); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);
     return 0;
 }

@@ -82,6 +82,14 @@ OMEGA_EDIT_EXPORT int omega_util_remove_directory(char const *path);
 OMEGA_EDIT_EXPORT int64_t omega_util_file_size(char const *path);
 
 /**
+ * Given two file paths, determine if they are equivalent
+ * @param path1 first path
+ * @param path2 second path
+ * @return non-zero if the paths are equivalent and zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_util_paths_equivalent(char const *path1, char const *path2);
+
+/**
  * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
  * @param path file path
  * @param buffer pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
