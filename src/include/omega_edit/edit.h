@@ -32,13 +32,11 @@ extern "C" {
 /** On session change callback.  This under-defined function will be called when an associated session changes. */
 // TODO: Session change events can now be session creation, checkpoints, session clearing, transformations, session
 //  saving, in addition to changes, so we might want to consider adding a session change event type to the callback
-typedef void (*omega_session_event_cbk_t)(const omega_session_t *, omega_session_event_t session_event,
-                                          const omega_change_t *);
+typedef void (*omega_session_event_cbk_t)(const omega_session_t *, omega_session_event_t, const omega_change_t *);
 
 /** On viewport change callback.  This under-defined function will be called when an associated viewport changes. */
 // TODO: Like session changes, there are events other than standard changes that could change the state of a viewport
-typedef void (*omega_viewport_event_cbk_t)(const omega_viewport_t *, omega_viewport_event_t viewport_event,
-                                           const omega_change_t *);
+typedef void (*omega_viewport_event_cbk_t)(const omega_viewport_t *, omega_viewport_event_t, const omega_change_t *);
 
 /**
  * Create a file editing session from a file path
@@ -111,7 +109,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
  * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite,
+OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite,
                                       char *saved_file_path);
 
 /**
