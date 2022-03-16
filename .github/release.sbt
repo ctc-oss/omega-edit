@@ -82,7 +82,10 @@ lazy val api = project
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
     resolvers += Resolver.mavenLocal,
-    externalResolvers += ghb_resolver,
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal
+    ),
     Compile / Keys.compile :=
       (Compile / Keys.compile)
         .dependsOn(native / publishM2)
