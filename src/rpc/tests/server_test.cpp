@@ -46,6 +46,7 @@ using omega_edit::Editor;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SessionCountResponse;
 using omega_edit::VersionResponse;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
@@ -652,6 +653,33 @@ public:
         }
     }
 
+    [[nodiscard]] int64_t GetSessionCount() const {
+        google::protobuf::Empty request;
+        SessionCountResponse response;
+        ClientContext context;
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetSessionCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.count();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                       std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -871,7 +899,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        auto count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
+        auto count = server_test_client.GetSessionCount();
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count
+                     << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions

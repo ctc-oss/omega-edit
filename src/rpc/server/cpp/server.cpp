@@ -25,8 +25,8 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <utility>
 
 using grpc::CallbackServerContext;
@@ -56,6 +56,7 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SessionCountResponse;
 using omega_edit::SessionEvent;
 using omega_edit::SessionEventKind;
 using omega_edit::VersionResponse;
@@ -155,8 +156,11 @@ public:
         assert(id_to_session_.find(session_id) == id_to_session_.end());
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
+        assert(session_to_id_.size() == id_to_session_.size());
         return session_id;
     }
+
+    [[nodiscard]] inline size_t get_session_count() const { return session_to_id_.size(); }
 
     inline void destroy_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
@@ -202,7 +206,8 @@ public:
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
+                                                    const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
@@ -509,6 +514,14 @@ public:
         return reactor;
     }
 
+    ServerUnaryReactor *GetSessionCount(CallbackServerContext *context, const Empty *request,
+                                        SessionCountResponse *response) override {
+        response->set_count(static_cast<int64_t>(session_manager_.get_session_count()));
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerUnaryReactor *GetCount(CallbackServerContext *context, const CountRequest *request,
                                  CountResponse *response) override {
         const auto &session_id = request->session_id();
@@ -518,7 +531,7 @@ public:
         const auto count_kind = request->kind();
         auto *reactor = context->DefaultReactor();
         int64_t count = -1;
-        switch(count_kind) {
+        switch (count_kind) {
             case CountKind::UNDEFINED_COUNT_KIND:
                 break;
             case CountKind::COUNT_FILE_SIZE:
