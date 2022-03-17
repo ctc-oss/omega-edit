@@ -71,7 +71,7 @@ namespace omega_edit {
             {
                 // Wait for a message to be added to the queue (Push)
                 std::unique_lock lk(mutex_);
-                cv_.wait(lk, [this] {return !queue_.empty();});
+                cv_.wait(lk, [this] { return !queue_.empty(); });
                 if (queue_.empty()) { continue; }
                 thread_item_ptr = queue_.front();
                 queue_.pop();

@@ -109,7 +109,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +native/publishM2
-        working-directory: src/bindings/scala
 
       - name: Upload Native JARs
         uses: actions/upload-artifact@v2
@@ -170,30 +169,27 @@ jobs:
       - name: Move windows and macos jars out
         run: |
           for folder in "omega-edit-native_2.12" "omega-edit-native_2.13"; do
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* src/bindings/scala/
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* src/bindings/scala/
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
+            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
           done
 
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build.sbt ci/build.sbt
-          mv ci/release.sbt build.sbt
+          mv build.sbt .github/build.sbt
+          mv .github/release.sbt build.sbt
           sbt +native/publish
-        working-directory: src/bindings/scala
 
       - name: Package Scala API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +api/publish
-        working-directory: src/bindings/scala
 
       - name: Package Scala SPI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt +spi/publish
-        working-directory: src/bindings/scala
 
   server-packaging:
     needs: [api-native-publish]

@@ -103,7 +103,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
  * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite,
+OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite,
                                       char *saved_file_path);
 
 /**

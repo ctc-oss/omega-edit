@@ -51,7 +51,10 @@ libraryDependencies ++= Seq(
 )
 
 resolvers += Resolver.mavenLocal
-externalResolvers += ghb_resolver
+externalResolvers ++= Seq (
+  ghb_resolver,
+  Resolver.mavenLocal
+)
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 

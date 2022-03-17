@@ -32,6 +32,8 @@ int omega_util_remove_directory(char const *path) { return (fs::remove(path)) ? 
 
 int64_t omega_util_file_size(char const *path) { return static_cast<int64_t>(fs::file_size(path)); }
 
+int omega_util_paths_equivalent(char const *path1, char const *path2) { return fs::equivalent(path1, path2) ? 1 : 0; }
+
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }

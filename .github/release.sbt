@@ -18,7 +18,7 @@ import BuildSupport._
 import play.api.libs.json._
 
 lazy val packageData = Json.parse(
-  scala.io.Source.fromFile("../../rpc/client/ts/package.json"
+  scala.io.Source.fromFile("src/rpc/client/ts/package.json"
 ).mkString).as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -38,6 +38,8 @@ lazy val commonSettings = {
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
+    // git.useGitDescribe := true,
+    // git.gitUncommittedChanges := false,
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
@@ -60,7 +62,7 @@ lazy val omega_edit = project
   .aggregate(api, spi, native)
 
 lazy val api = project
-  .in(file("api"))
+  .in(file("src/bindings/scala/api"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -80,7 +82,10 @@ lazy val api = project
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
     resolvers += Resolver.mavenLocal,
-    externalResolvers += ghb_resolver,
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal
+    ),
     Compile / Keys.compile :=
       (Compile / Keys.compile)
         .dependsOn(native / publishM2)
@@ -93,7 +98,7 @@ lazy val api = project
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val native = project
-  .in(file("native"))
+  .in(file("src/bindings/scala/native"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -111,12 +116,16 @@ lazy val native = project
       "sharedLibraryArch" -> System.getProperty("os.arch"),
       "sharedLibraryPath" -> s"${version.value}/${mapping._2}"
     ),
-    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo")
+    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo"),
+    packagedArtifacts ++= Map(
+      Artifact("omega-edit-native", "windows-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"),
+      Artifact("omega-edit-native", "macos-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"),
+    )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val spi = project
-  .in(file("spi"))
+  .in(file("src/bindings/scala/spi"))
   .settings(commonSettings)
   .settings(
     name := "omega-edit-spi"

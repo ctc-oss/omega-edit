@@ -26,19 +26,26 @@ install_dir="${PWD}/_install"
 
 rm -rf "$install_dir"
 
-rm -rf build-static-$type
-cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
-cmake --build build-static-$type
-cmake --install build-static-$type/packaging --prefix "$install_dir"  --config $type
-cpack --config build-static-$type/CPackSourceConfig.cmake
-cpack --config build-static-$type/CPackConfig.cmake
-
 rm -rf build-shared-$type
 cmake -G "$generator" -S . -B build-shared-$type -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
 cmake --build build-shared-$type
 cmake --install build-shared-$type/packaging --prefix "$install_dir"  --config $type
 cpack --config build-shared-$type/CPackSourceConfig.cmake
 cpack --config build-shared-$type/CPackConfig.cmake
+
+rm -rf ./lib/*
+cp -av ${install_dir}/lib/* ./lib
+sbt headerCheckAll
+sbt +installM2
+sbt test
+sbt howMuchCoverage
+
+rm -rf build-static-$type
+cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
+cmake --build build-static-$type
+cmake --install build-static-$type/packaging --prefix "$install_dir"  --config $type
+cpack --config build-static-$type/CPackSourceConfig.cmake
+cpack --config build-static-$type/CPackConfig.cmake
 
 rm -rf build-examples-$type
 cmake -G "$generator" -S src/examples -B build-examples-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
