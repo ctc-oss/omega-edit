@@ -26,6 +26,7 @@
 #include <grpcpp/health_check_service_interface.h>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <utility>
 
 using grpc::CallbackServerContext;
@@ -38,6 +39,7 @@ using grpc::ServerUnaryReactor;
 using grpc::ServerWriter;
 using grpc::ServerWriteReactor;
 using grpc::Status;
+using grpc::StatusCode;
 
 using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
@@ -435,8 +437,8 @@ public:
                     change_serial = omega_edit_overwrite_string(session_ptr, request->offset(), request->data());
                     break;
                 default:
-                    // TODO: Implement error handling
-                    break;
+                    reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                    return reactor;
             }
         }
         response->set_session_id(session_id);
@@ -497,8 +499,9 @@ public:
             response->set_id(session_id);
             reactor->Finish(Status::OK);
         } else {
-            // TODO: Error handing
-            reactor->Finish(Status::OK);
+            std::stringstream ss;
+            ss << "ERROR: " << rc << ", clearing: " << session_id;
+            reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
         return reactor;
     }
@@ -523,8 +526,9 @@ public:
             response->set_file_path(saved_file_buffer);
             reactor->Finish(Status::OK);
         } else {
-            // TODO: Error handing
-            reactor->Finish(Status::OK);
+            std::stringstream ss;
+            ss << "ERROR: " << rc << ", saving session: " << session_id << ", to file path: " << file_path;
+            reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
         return reactor;
     }
@@ -601,8 +605,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
@@ -633,8 +637,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
@@ -665,8 +669,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
