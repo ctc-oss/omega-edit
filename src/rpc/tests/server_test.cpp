@@ -35,6 +35,9 @@ using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::ComputedFileSizeResponse;
+using omega_edit::CountKind;
+using omega_edit::CountRequest;
+using omega_edit::CountResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -372,7 +375,8 @@ public:
         }
     }
 
-    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path, bool allow_overwrite) const {
+    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path,
+                                          bool allow_overwrite) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
         SaveSessionRequest request;
@@ -617,6 +621,37 @@ public:
         }
     }
 
+    [[nodiscard]] int64_t GetCount(const std::string &session_id, CountKind count_kind) const {
+        assert(!session_id.empty());
+        CountRequest request;
+        CountResponse response;
+        ClientContext context;
+
+        request.set_session_id(session_id);
+        request.set_kind(count_kind);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.count();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                       std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -829,11 +864,47 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        auto save_file= fs::current_path() / "server_test_out" / "hello-rpc.txt";
+        auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
         reply = server_test_client.SaveSession(session_id, save_file, true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
+        }
+
+        auto count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_FILE_SIZE) received: " << count << std::endl;);
+        }
+        assert(computed_file_size == count);
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_CHANGES);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_CHANGES) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_UNDOS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_UNDOS) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_VIEWPORTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_VIEWPORTS) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_CHECKPOINTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_CHECKPOINTS) received: " << count << std::endl;);
         }
 
         reply = server_test_client.SaveSession(session_id, save_file, false);

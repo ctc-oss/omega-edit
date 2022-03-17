@@ -117,7 +117,7 @@ OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_sessi
 * @param session_ptr session to get the number of session checkpoints for
 * @return number of session checkpoints
  */
-OMEGA_EDIT_EXPORT size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
 
 /**
  * Call the registered session event handler

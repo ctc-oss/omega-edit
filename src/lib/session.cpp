@@ -104,9 +104,9 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
     session_ptr->session_flags_ &= ~(int8_t)session_flags::pause_viewport_callbacks;
 }
 
-size_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
+int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return session_ptr->models_.size() - 1;
+    return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,

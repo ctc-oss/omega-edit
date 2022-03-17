@@ -46,6 +46,9 @@ using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::ComputedFileSizeResponse;
+using omega_edit::CountKind;
+using omega_edit::CountRequest;
+using omega_edit::CountResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -503,6 +506,45 @@ public:
             ss << "ERROR: " << rc << ", clearing: " << session_id;
             reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetCount(CallbackServerContext *context, const CountRequest *request,
+                                 CountResponse *response) override {
+        const auto &session_id = request->session_id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto count_kind = request->kind();
+        auto *reactor = context->DefaultReactor();
+        int64_t count = -1;
+        switch(count_kind) {
+            case CountKind::UNDEFINED_COUNT_KIND:
+                break;
+            case CountKind::COUNT_FILE_SIZE:
+                count = omega_session_get_computed_file_size(session_ptr);
+                break;
+            case CountKind::COUNT_CHANGES:
+                count = omega_session_get_num_changes(session_ptr);
+                break;
+            case CountKind::COUNT_UNDOS:
+                count = omega_session_get_num_undone_changes(session_ptr);
+                break;
+            case CountKind::COUNT_VIEWPORTS:
+                count = omega_session_get_num_viewports(session_ptr);
+                break;
+            case CountKind::COUNT_CHECKPOINTS:
+                count = omega_session_get_num_checkpoints(session_ptr);
+                break;
+            default:
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal count kind")));
+                return reactor;
+        }
+        assert(0 <= count);
+        response->set_session_id(session_id);
+        response->set_kind(count_kind);
+        response->set_count(count);
+        reactor->Finish(Status::OK);
         return reactor;
     }
 
