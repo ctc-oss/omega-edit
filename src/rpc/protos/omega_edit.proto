@@ -41,9 +41,28 @@ service Editor {
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
 
+  rpc GetCount(CountRequest) returns (CountResponse);
+
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
   rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+}
+
+enum CountKind {
+  UNDEFINED_COUNT_KIND = 0;
+  COUNT_FILE_SIZE = 1;
+  COUNT_EDITS = 2;
+  COUNT_UNDOS = 3;
+  COUNT_CHECKPOINTS = 4;
+}
+
+message CountRequest {
+  CountKind kind = 1;
+}
+
+message CountResponse {
+  CountKind kind = 1;
+  int64 count = 2;
 }
 
 message VersionResponse {
