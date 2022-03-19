@@ -51,6 +51,14 @@ jobs:
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-rpc --target server
+      - name: Prepare, and Build Ωedit Integration Tests 🔧
+        run: |
+          cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
+          cmake --build build-tests-integration
+      - name: Run Ωedit Integration Tests 📋
+        run: |
+          cd build-tests-integration
+          ctest -C Debug --output-on-failure
       - name: Run Tests 📋
         if: runner.os != 'Windows'
         run: |
