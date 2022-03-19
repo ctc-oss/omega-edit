@@ -873,13 +873,13 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         }
 
         auto save_file= fs::current_path() / "server_test_out" / "hello-rpc.txt";
-        reply = server_test_client.SaveSession(session_id, save_file, true);
+        reply = server_test_client.SaveSession(session_id, save_file.string(), true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, save_file, false);
+        reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
@@ -997,8 +997,8 @@ int main(int argc, char **argv) {
         // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
 #else
-        auto cmd = server_program + " " + "--target=" + target_str;
-        spawn_widows_process(pi, cmd.c_str());
+        auto cmd = server_program.string() + " " + "--target=" + target_str;
+        spawn_widows_process(pi, (TCHAR *)cmd.c_str());
 #endif
     }
 
