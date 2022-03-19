@@ -51,6 +51,49 @@ using omega_edit::ViewportEventKind;
 
 std::mutex write_mutex;
 
+#ifdef OMEGA_BUILD_UNIX
+pid_t spawn_process(const char *program, char **arg_list) {
+    pid_t ch_pid = fork();
+    if (ch_pid == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (ch_pid == 0) {
+        execve(program, arg_list, nullptr);
+        perror("execve");
+        exit(EXIT_FAILURE);
+    }
+    assert(0 < ch_pid);
+    return ch_pid;
+}
+#else
+#include <tchar.h>
+#include <windows.h>
+
+void spawn_widows_process(PROCESS_INFORMATION &pi, TCHAR *cmd) {
+    STARTUPINFO si;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Start the child process.
+    if (!CreateProcess(NULL, // No module name (use command line)
+                       cmd,  // Command line
+                       NULL, // Process handle not inheritable
+                       NULL, // Thread handle not inheritable
+                       FALSE,// Set handle inheritance to FALSE
+                       0,    // No creation flags
+                       NULL, // Use parent's environment block
+                       NULL, // Use parent's starting directory
+                       &si,  // Pointer to STARTUPINFO structure
+                       &pi)  // Pointer to PROCESS_INFORMATION structure
+    ) {
+        DBG(CLOG << LOCATION << "CreateProcess failed: " << GetLastError() << std::endl;);
+        return;
+    }
+}
+#endif
+
 class OmegaEditServiceClient final {
 public:
     explicit OmegaEditServiceClient(const std::shared_ptr<Channel> &channel) : stub_(Editor::NewStub(channel)) {
@@ -940,27 +983,37 @@ int main(int argc, char **argv) {
     fs::current_path(fs::path(argv[0]).parent_path());
     bool run_server = true;
 #ifdef OMEGA_BUILD_UNIX
-    pid_t pid = 0;
+    pid_t server_pid = 0;
+#else
+    PROCESS_INFORMATION pi;
 #endif
     if (run_server) {
         const auto server_program = fs::current_path() / "server";
         const auto target = std::string("--target=") + target_str;
 #ifdef OMEGA_BUILD_UNIX
-        pid = fork();
-        if (0 == pid) {
-            execl(server_program.c_str(), server_program.c_str(), target.c_str(), (char *) nullptr);
-            return EXIT_FAILURE;
-        }
-        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << pid << std::endl;);
+        char *arg_list[] = {(char *) server_program.c_str(), (char *) target.c_str(), nullptr};
+        server_pid = spawn_process(server_program.c_str(), arg_list);
+        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << server_pid << std::endl;);
         // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
+#else
+        auto cmd = server_program + " " + "--target=" + target_str;
+        spawn_widows_process(pi, cmd.c_str());
 #endif
-        // TODO: CreateProcess for Windows
     }
 
     run_tests(target_str, 50, true);
+    if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
-    if (pid) { kill(pid, SIGTERM); }
+        kill(server_pid, SIGTERM);
+#else
+        // Wait until child process exits.
+        TerminateProcess(pi.hProcess, 0);
+
+        // Close process and thread handles.
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 #endif
+    }
     return EXIT_SUCCESS;
 }
