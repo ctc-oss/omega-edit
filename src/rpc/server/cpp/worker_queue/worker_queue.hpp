@@ -29,7 +29,7 @@ namespace omega_edit {
          * Users are expected subclass IWorkerQueue and implement this method
          * @param msg message to handle
          */
-        virtual void handle_item(std::shared_ptr<void> item) = 0;
+        virtual void handle_item(std::shared_ptr<void> const &item) = 0;
 
         // No copy constructor
         IWorkerQueue(const IWorkerQueue &) = delete;
@@ -62,13 +62,13 @@ namespace omega_edit {
          * Get the ID of this thread instance
          * @return ID of this thread instance
          */
-        std::thread::id thread_id() const;
+        [[nodiscard]] std::thread::id thread_id() const;
 
         /**
          * Push an item on to the queue
          * @param item to push on to the queue
          */
-        void push(std::shared_ptr<void> item);
+        void push(std::shared_ptr<void> const &item);
 
     private:
         /**

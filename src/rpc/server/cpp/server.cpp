@@ -95,10 +95,9 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void handle_item(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        const auto session_change_ptr = std::static_pointer_cast<SessionEvent>(item);
-        StartWrite(session_change_ptr.get());
+        StartWrite(std::static_pointer_cast<SessionEvent>(item).get());
     }
 };
 
@@ -126,10 +125,9 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void handle_item(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        const auto viewport_change_ptr = std::static_pointer_cast<ViewportEvent>(item);
-        StartWrite(viewport_change_ptr.get());
+        StartWrite(std::static_pointer_cast<ViewportEvent>(item).get());
     }
 };
 

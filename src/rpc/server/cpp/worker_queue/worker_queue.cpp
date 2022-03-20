@@ -44,7 +44,7 @@ namespace omega_edit {
         if (thread_) {
             const auto thread_item_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::EXIT_THREAD, nullptr);
             {
-                std::lock_guard lock(mutex_);
+                std::scoped_lock lock(mutex_);
                 queue_.push(thread_item_ptr);
                 cv_.notify_one();
             }
@@ -53,7 +53,7 @@ namespace omega_edit {
         }
     }
 
-    void IWorkerQueue::push(std::shared_ptr<void> item) {
+    void IWorkerQueue::push(std::shared_ptr<void> const &item) {
         create_thread();
         assert(thread_);
 
@@ -71,7 +71,7 @@ namespace omega_edit {
             {
                 // Wait for a message to be added to the queue (Push)
                 std::unique_lock lk(mutex_);
-                cv_.wait(lk, [this] {return !queue_.empty();});
+                cv_.wait(lk, [this] { return !queue_.empty(); });
                 if (queue_.empty()) { continue; }
                 thread_item_ptr = queue_.front();
                 queue_.pop();
