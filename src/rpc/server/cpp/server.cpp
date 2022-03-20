@@ -95,7 +95,7 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void HandleItem(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> item) override {
         assert(item);
         const auto session_change_ptr = std::static_pointer_cast<SessionEvent>(item);
         StartWrite(session_change_ptr.get());
@@ -126,7 +126,7 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void HandleItem(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> item) override {
         assert(item);
         const auto viewport_change_ptr = std::static_pointer_cast<ViewportEvent>(item);
         StartWrite(viewport_change_ptr.get());
@@ -350,7 +350,7 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
             session_change_ptr->set_change_count(omega_session_get_num_changes(session_ptr));
             session_change_ptr->set_undo_count(omega_session_get_num_undone_changes(session_ptr));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            session_event_writer_ptr->Push(session_change_ptr);
+            session_event_writer_ptr->push(session_change_ptr);
         }
     }
 }
@@ -374,10 +374,9 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
             viewport_change_ptr->set_offset(omega_viewport_get_offset(viewport_ptr));
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            auto data = omega_viewport_get_string(viewport_ptr);
-            viewport_change_ptr->set_length((int64_t) data.length());
-            viewport_change_ptr->set_data(std::move(data));
-            viewport_event_writer_ptr->Push(viewport_change_ptr);
+            viewport_change_ptr->set_data(omega_viewport_get_string(viewport_ptr));
+            viewport_change_ptr->set_length((int64_t) viewport_change_ptr->data().length());
+            viewport_event_writer_ptr->push(viewport_change_ptr);
         }
     }
 }

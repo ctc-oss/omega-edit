@@ -29,7 +29,7 @@ namespace omega_edit {
          * Users are expected subclass IWorkerQueue and implement this method
          * @param msg message to handle
          */
-        virtual void HandleItem(std::shared_ptr<void> item) = 0;
+        virtual void handle_item(std::shared_ptr<void> item) = 0;
 
         // No copy constructor
         IWorkerQueue(const IWorkerQueue &) = delete;
@@ -51,30 +51,30 @@ namespace omega_edit {
          * Called once to create the worker thread
          * @return True if thread is created and false otherwise.
          */
-        bool CreateThread();
+        bool create_thread();
 
         /**
          * Called once a program exit to exit the worker thread
          */
-        void ExitThread();
+        void exit_thread();
 
         /**
          * Get the ID of this thread instance
          * @return ID of this thread instance
          */
-        std::thread::id GetThreadId() const;
+        std::thread::id thread_id() const;
 
         /**
          * Push an item on to the queue
          * @param item to push on to the queue
          */
-        void Push(const std::shared_ptr<void> &item);
+        void push(std::shared_ptr<void> item);
 
     private:
         /**
          * Entry point for the worker thread
          */
-        void Process_();
+        void process_();
 
         struct thread_item_t;
 
