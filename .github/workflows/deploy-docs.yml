@@ -23,7 +23,7 @@ jobs:
       - name: Install Prerequisites 📚
         run: |
           brew install ninja doxygen graphviz sphinx-doc
-          sudo pip3 install breathe sphinx_rtd_theme sphinx-sitemap
+          sudo pip3 install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
       - name: Setup cmake 🔧

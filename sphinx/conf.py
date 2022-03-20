@@ -50,6 +50,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
+    'sphinx_rtd_dark_mode',
     'sphinx_sitemap',
     'breathe'
 ]
