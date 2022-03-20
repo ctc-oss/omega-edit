@@ -74,7 +74,7 @@ public:
         std::condition_variable cv;
         bool done = false;
         Status status;
-        stub_->async()->GetOmegaVersion(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+        stub_->async()->GetVersion(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
             std::scoped_lock lock(mu);
             done = true;

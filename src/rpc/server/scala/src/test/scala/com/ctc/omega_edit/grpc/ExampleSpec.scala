@@ -38,7 +38,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
   tmp.toFile.deleteOnExit()
 
   "client" should useService { implicit service =>
-    "to get version" in service.getOmegaVersion(Empty()).map { v =>
+    "to get version" in service.getVersion(Empty()).map { v =>
       v should matchPattern { case VersionResponse(_, _, _, _) => }
     }
 
