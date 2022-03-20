@@ -1003,7 +1003,7 @@ int main(int argc, char **argv) {
         // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
 #else
-        auto cmd = server_program.string() + " " + "--target=" + target_str;
+        auto cmd = server_program.string() + " " + "--target=" + target_str + ".exe";
         spawn_widows_process(pi, (TCHAR *) cmd.c_str());
 #endif
     }

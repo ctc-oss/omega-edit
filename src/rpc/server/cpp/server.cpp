@@ -810,7 +810,6 @@ int main(int argc, char **argv) {
 #else
     std::string target_str("localhost:50042");
 #endif
-    target_str = "localhost:50042";
 
     if (argc > 1) {
         const std::string arg_val(argv[1]);
