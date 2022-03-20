@@ -26,7 +26,7 @@
  **********************************************************************************************************************/
 
 // Define to enable debugging
-//#define DEBUG
+#define DEBUG
 
 // Default maximum viewport capacity
 #ifndef OMEGA_VIEWPORT_CAPACITY_LIMIT

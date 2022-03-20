@@ -25,8 +25,8 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <utility>
 
 using grpc::CallbackServerContext;
@@ -199,7 +199,8 @@ public:
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
+                                                    const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
@@ -345,6 +346,9 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
             const auto session_change_ptr = std::make_shared<SessionEvent>();
             session_change_ptr->set_session_id(session_id);
             session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
+            session_change_ptr->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
+            session_change_ptr->set_change_count(omega_session_get_num_changes(session_ptr));
+            session_change_ptr->set_undo_count(omega_session_get_num_undone_changes(session_ptr));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             session_event_writer_ptr->Push(session_change_ptr);
         }
@@ -362,8 +366,12 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
         const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
         if (viewport_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
+            const auto session_id = session_manager_ptr->get_session_id(omega_viewport_get_session(viewport_ptr));
+            assert(!session_id.empty());
             const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
+            viewport_change_ptr->set_session_id(session_id);
             viewport_change_ptr->set_viewport_id(viewport_id);
+            viewport_change_ptr->set_offset(omega_viewport_get_offset(viewport_ptr));
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             auto data = omega_viewport_get_string(viewport_ptr);
@@ -423,18 +431,23 @@ public:
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
         const auto change_kind = request->kind();
+        const auto offset = request->offset();
+        assert(0 <= offset);
         int64_t change_serial = 0;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             switch (change_kind) {
                 case omega_edit::CHANGE_DELETE:
-                    change_serial = omega_edit_delete(session_ptr, request->offset(), request->length());
+                    // Ignores request data
+                    change_serial = omega_edit_delete(session_ptr, offset, request->length());
                     break;
                 case omega_edit::CHANGE_INSERT:
-                    change_serial = omega_edit_insert_string(session_ptr, request->offset(), request->data());
+                    // Ignores request length
+                    change_serial = omega_edit_insert_string(session_ptr, offset, request->data());
                     break;
                 case omega_edit::CHANGE_OVERWRITE:
-                    change_serial = omega_edit_overwrite_string(session_ptr, request->offset(), request->data());
+                    // Ignores request length
+                    change_serial = omega_edit_overwrite_string(session_ptr, offset, request->data());
                     break;
                 default:
                     reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
@@ -709,6 +722,7 @@ public:
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
+        response->set_session_id(session_id);
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -796,6 +810,7 @@ int main(int argc, char **argv) {
 #else
     std::string target_str("localhost:50042");
 #endif
+    target_str = "localhost:50042";
 
     if (argc > 1) {
         const std::string arg_val(argv[1]);

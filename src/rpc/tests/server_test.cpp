@@ -415,7 +415,8 @@ public:
         }
     }
 
-    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path, bool allow_overwrite) const {
+    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path,
+                                          bool allow_overwrite) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
         SaveSessionRequest request;
@@ -667,12 +668,17 @@ public:
         ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_event)) {
+            auto const &session_id = viewport_event.session_id();
+            assert(!session_id.empty());
             auto const &viewport_id = viewport_event.viewport_id();
+            assert(!viewport_id.empty());
             const std::scoped_lock write_lock(write_mutex);
             if (viewport_event.has_serial()) {
-                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
-                         << viewport_event.viewport_event_kind() << " change serial: " << viewport_event.serial()
-                         << ", data: [" << viewport_event.data() << "]" << std::endl;);
+                DBG(CLOG << LOCATION << "session id: " << session_id << ", viewport id: " << viewport_id
+                         << ", event kind: " << viewport_event.viewport_event_kind()
+                         << ", change serial: " << viewport_event.serial() << ", offset: " << viewport_event.offset()
+                         << ", length: " << viewport_event.length() << ", data: [" << viewport_event.data() << "]"
+                         << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
                          << ", event kind: " << viewport_event.viewport_event_kind() << std::endl;);
@@ -872,7 +878,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        auto save_file= fs::current_path() / "server_test_out" / "hello-rpc.txt";
+        auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
         reply = server_test_client.SaveSession(session_id, save_file.string(), true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
@@ -998,11 +1004,11 @@ int main(int argc, char **argv) {
         sleep(2);// sleep 2 seconds for the server to come online
 #else
         auto cmd = server_program.string() + " " + "--target=" + target_str;
-        spawn_widows_process(pi, (TCHAR *)cmd.c_str());
+        spawn_widows_process(pi, (TCHAR *) cmd.c_str());
 #endif
     }
 
-    run_tests(target_str, 50, true);
+    run_tests(target_str, 99, true);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);
