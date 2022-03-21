@@ -38,7 +38,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
   tmp.toFile.deleteOnExit()
 
   "client" should useService { implicit service =>
-    "to get version" in service.getOmegaVersion(Empty()).map { v =>
+    "to get version" in service.getVersion(Empty()).map { v =>
       v should matchPattern { case VersionResponse(_, _, _, _) => }
     }
 
@@ -65,7 +65,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
     "listen to session events" in newSession { sid =>
       import service.system
       service.subscribeToSessionEvents(ObjectId(sid)).runWith(Sink.headOption).map {
-        case Some(e) => e should matchPattern { case SessionEvent(`sid`, _, _, _) => }
+        case Some(e) => e should matchPattern { case SessionEvent(`sid`, _, _, _, _, _, _) => }
         case None    => fail("no message received")
       }
     }

@@ -122,24 +122,25 @@ TEST_CASE("File Exists", "[UtilTests]") {
 }
 
 TEST_CASE("File Touch", "[UtilTests]") {
-    REQUIRE(omega_util_file_exists("data/test1.dat"));
-    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    //const char dir_sep = omega_util_directory_separator();
-    const char dir_sep = '/';
+    const char dir_sep = omega_util_directory_separator();
+    const auto exists = std::string("data") + dir_sep + "test1.dat";;
+    const auto dont_exist = std::string("data") + dir_sep + "IDonTExist.DaT";;
+    REQUIRE(omega_util_file_exists(exists.c_str()));
+    REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
     auto expected = std::string("data") + dir_sep + "test1-1.dat";
-    REQUIRE_THAT(omega_util_available_filename("data/test1.dat", nullptr), Equals(expected));
-    expected = std::string("data") + dir_sep + "IDonTExist.DaT";
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
-    omega_util_touch("data/IDonTExist.DaT", 0);
-    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    omega_util_touch("data/IDonTExist.DaT", 1);
-    REQUIRE(omega_util_file_exists("data/IDonTExist.DaT"));
+    REQUIRE_THAT(omega_util_available_filename(exists.c_str(), nullptr), Equals(expected));
+    expected = dont_exist;
+    REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
+    omega_util_touch(dont_exist.c_str(), 0);
+    REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
+    omega_util_touch(dont_exist.c_str(), 1);
+    REQUIRE(omega_util_file_exists(dont_exist.c_str()));
     expected = std::string("data") + dir_sep + "IDonTExist-1.DaT";
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
-    REQUIRE(0 == omega_util_remove_file("data/IDonTExist.DaT"));
-    REQUIRE(!omega_util_file_exists("data/IDonTExist.DaT"));
-    expected = std::string("data") + dir_sep + "IDonTExist.DaT";
-    REQUIRE_THAT(omega_util_available_filename("data/IDonTExist.DaT", nullptr), Equals(expected));
+    REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
+    REQUIRE(0 == omega_util_remove_file(dont_exist.c_str()));
+    REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
+    expected = dont_exist;
+    REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
 }
 
 TEST_CASE("Current Directory", "[UtilTests]") { REQUIRE_THAT(omega_util_get_current_dir(nullptr), EndsWith("bin")); }
@@ -156,7 +157,7 @@ TEST_CASE("Directory Name", "[UtilTests]") {
     result = omega_util_dirname(test_2, buffer);
     REQUIRE(result);
 #ifdef OMEGA_BUILD_WINDOWS
-    REQUIRE_THAT(buffer, Equals(R"(C:\this\is\a\directory\)"));
+    REQUIRE_THAT(buffer, Equals(R"(C:\this\is\a\directory)"));
 #else
     REQUIRE_THAT(buffer, Equals(""));
 #endif
