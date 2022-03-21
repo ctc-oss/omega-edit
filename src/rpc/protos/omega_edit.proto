@@ -21,7 +21,7 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
+  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);

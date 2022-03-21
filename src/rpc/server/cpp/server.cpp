@@ -23,15 +23,12 @@
 #include <cassert>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <utility>
 
 using grpc::CallbackServerContext;
-using grpc::EnableDefaultHealthCheckService;
-using grpc::HealthCheckServiceInterface;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -385,8 +382,8 @@ public:
     OmegaEditServiceImpl &operator=(const OmegaEditServiceImpl &) = delete;
 
     // Unary services
-    ServerUnaryReactor *GetOmegaVersion(CallbackServerContext *context, const Empty *request,
-                                        VersionResponse *response) override {
+    ServerUnaryReactor *GetVersion(CallbackServerContext *context, const Empty *request,
+                                   VersionResponse *response) override {
         (void) request;
         auto *reactor = context->DefaultReactor();
         response->set_major(omega_version_major());
@@ -766,7 +763,6 @@ public:
 void RunServer(const std::string &server_address) {
     OmegaEditServiceImpl service;
 
-    EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
 
@@ -779,7 +775,6 @@ void RunServer(const std::string &server_address) {
 
     // Finally, assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    server->GetHealthCheckService()->SetServingStatus("OmegaEdit", true);
     DBG(CLOG << LOCATION << "Ωedit server listening on: " << server_address << std::endl;);
 
     // Wait for the server to shut down. Note that some other thread must be

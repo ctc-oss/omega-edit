@@ -42,7 +42,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   private val editors = system.actorOf(Editors.props())
   import system.dispatcher
 
-  def getOmegaVersion(in: Empty): Future[VersionResponse] = {
+  def getVersion(in: Empty): Future[VersionResponse] = {
     val v = OmegaEdit.version()
     Future.successful(VersionResponse(v.major, v.minor, v.patch))
   }
