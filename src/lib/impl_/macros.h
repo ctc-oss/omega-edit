@@ -33,7 +33,6 @@
     do { x abort(); } while (0)
 #endif
 
-#define DEBUG
 #ifdef DEBUG
 #define DBG(x)                                                                                                         \
     do { x } while (0)

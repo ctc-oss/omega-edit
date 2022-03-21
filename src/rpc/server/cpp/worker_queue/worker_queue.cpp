@@ -28,23 +28,23 @@ namespace omega_edit {
         const std::shared_ptr<void> item_ptr;
     };
 
-    IWorkerQueue::~IWorkerQueue() { ExitThread(); }
+    IWorkerQueue::~IWorkerQueue() { exit_thread(); }
 
-    bool IWorkerQueue::CreateThread() {
-        if (!thread_) { thread_ = std::make_unique<std::thread>(std::thread(&IWorkerQueue::Process_, this)); }
+    bool IWorkerQueue::create_thread() {
+        if (!thread_) { thread_ = std::make_unique<std::thread>(std::thread(&IWorkerQueue::process_, this)); }
         return (bool) thread_;
     }
 
-    std::thread::id IWorkerQueue::GetThreadId() const {
+    std::thread::id IWorkerQueue::thread_id() const {
         assert(thread_ != nullptr);
         return thread_->get_id();
     }
 
-    void IWorkerQueue::ExitThread() {
+    void IWorkerQueue::exit_thread() {
         if (thread_) {
             const auto thread_item_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::EXIT_THREAD, nullptr);
             {
-                std::lock_guard lock(mutex_);
+                std::scoped_lock lock(mutex_);
                 queue_.push(thread_item_ptr);
                 cv_.notify_one();
             }
@@ -53,8 +53,8 @@ namespace omega_edit {
         }
     }
 
-    void IWorkerQueue::Push(const std::shared_ptr<void> &item) {
-        CreateThread();
+    void IWorkerQueue::push(std::shared_ptr<void> const &item) {
+        create_thread();
         assert(thread_);
 
         const auto thread_message_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::USER_ITEM, item);
@@ -65,13 +65,13 @@ namespace omega_edit {
         cv_.notify_one();
     }
 
-    void IWorkerQueue::Process_() {
+    void IWorkerQueue::process_() {
         while (true) {
             std::shared_ptr<thread_item_t> thread_item_ptr;
             {
                 // Wait for a message to be added to the queue (Push)
                 std::unique_lock lk(mutex_);
-                cv_.wait(lk, [this] {return !queue_.empty();});
+                cv_.wait(lk, [this] { return !queue_.empty(); });
                 if (queue_.empty()) { continue; }
                 thread_item_ptr = queue_.front();
                 queue_.pop();
@@ -80,7 +80,7 @@ namespace omega_edit {
             switch (thread_item_ptr->thread_item_kind) {
                 case thread_item_kind_t::USER_ITEM:
                     assert(thread_item_ptr->item_ptr);
-                    HandleItem(thread_item_ptr->item_ptr);
+                    handle_item(thread_item_ptr->item_ptr);
                     break;
                 case thread_item_kind_t::EXIT_THREAD:
                     return;

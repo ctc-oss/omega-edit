@@ -21,7 +21,7 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
+  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
@@ -112,7 +112,8 @@ message CreateViewportRequest {
 }
 
 message CreateViewportResponse {
-  string viewport_id = 1;
+  string session_id = 1;
+  string viewport_id = 2;
 }
 
 message ViewportDataRequest {
@@ -160,7 +161,10 @@ enum SessionEventKind {
 message SessionEvent {
   string session_id = 1;
   SessionEventKind session_event_kind = 2;
-  optional int64 serial = 3;
+  int64 computed_file_size = 3;
+  int64 change_count = 4;
+  int64 undo_count = 5;
+  optional int64 serial = 6;
 }
 
 enum ViewportEventKind {
@@ -174,11 +178,13 @@ enum ViewportEventKind {
 }
 
 message ViewportEvent {
-  string viewport_id = 1;
-  ViewportEventKind viewport_event_kind = 2;
-  optional int64 serial = 3;
-  optional int64 length = 4;
-  optional bytes data = 5;
+  string session_id = 1;
+  string viewport_id = 2;
+  ViewportEventKind viewport_event_kind = 3;
+  optional int64 serial = 4;
+  optional int64 offset = 5;
+  optional int64 length = 6;
+  optional bytes data = 7;
 }
 
 message ChangeDetailsResponse {
