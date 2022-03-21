@@ -51,6 +51,49 @@ using omega_edit::ViewportEventKind;
 
 std::mutex write_mutex;
 
+#ifdef OMEGA_BUILD_UNIX
+pid_t spawn_process(const char *program, char **arg_list) {
+    pid_t ch_pid = fork();
+    if (ch_pid == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (ch_pid == 0) {
+        execve(program, arg_list, nullptr);
+        perror("execve");
+        exit(EXIT_FAILURE);
+    }
+    assert(0 < ch_pid);
+    return ch_pid;
+}
+#else
+#include <tchar.h>
+#include <windows.h>
+
+void spawn_widows_process(PROCESS_INFORMATION &pi, TCHAR *cmd) {
+    STARTUPINFO si;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Start the child process.
+    if (!CreateProcess(NULL, // No module name (use command line)
+                       cmd,  // Command line
+                       NULL, // Process handle not inheritable
+                       NULL, // Thread handle not inheritable
+                       FALSE,// Set handle inheritance to FALSE
+                       0,    // No creation flags
+                       NULL, // Use parent's environment block
+                       NULL, // Use parent's starting directory
+                       &si,  // Pointer to STARTUPINFO structure
+                       &pi)  // Pointer to PROCESS_INFORMATION structure
+    ) {
+        DBG(CLOG << LOCATION << "CreateProcess failed: " << GetLastError() << std::endl;);
+        return;
+    }
+}
+#endif
+
 class OmegaEditServiceClient final {
 public:
     explicit OmegaEditServiceClient(const std::shared_ptr<Channel> &channel) : stub_(Editor::NewStub(channel)) {
@@ -372,7 +415,8 @@ public:
         }
     }
 
-    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path, bool allow_overwrite) const {
+    [[nodiscard]] std::string SaveSession(const std::string &session_id, const std::string &file_path,
+                                          bool allow_overwrite) const {
         assert(!session_id.empty());
         assert(!file_path.empty());
         SaveSessionRequest request;
@@ -624,12 +668,17 @@ public:
         ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_event)) {
+            auto const &session_id = viewport_event.session_id();
+            assert(!session_id.empty());
             auto const &viewport_id = viewport_event.viewport_id();
+            assert(!viewport_id.empty());
             const std::scoped_lock write_lock(write_mutex);
             if (viewport_event.has_serial()) {
-                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
-                         << viewport_event.viewport_event_kind() << " change serial: " << viewport_event.serial()
-                         << ", data: [" << viewport_event.data() << "]" << std::endl;);
+                DBG(CLOG << LOCATION << "session id: " << session_id << ", viewport id: " << viewport_id
+                         << ", event kind: " << viewport_event.viewport_event_kind()
+                         << ", change serial: " << viewport_event.serial() << ", offset: " << viewport_event.offset()
+                         << ", length: " << viewport_event.length() << ", data: [" << viewport_event.data() << "]"
+                         << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
                          << ", event kind: " << viewport_event.viewport_event_kind() << std::endl;);
@@ -829,14 +878,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
 
-        auto save_file= fs::current_path() / "server_test_out" / "hello-rpc.txt";
-        reply = server_test_client.SaveSession(session_id, save_file, true);
+        auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
+        reply = server_test_client.SaveSession(session_id, save_file.string(), true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, save_file, false);
+        reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
@@ -940,27 +989,37 @@ int main(int argc, char **argv) {
     fs::current_path(fs::path(argv[0]).parent_path());
     bool run_server = true;
 #ifdef OMEGA_BUILD_UNIX
-    pid_t pid = 0;
+    pid_t server_pid = 0;
+#else
+    PROCESS_INFORMATION pi;
 #endif
     if (run_server) {
         const auto server_program = fs::current_path() / "server";
         const auto target = std::string("--target=") + target_str;
 #ifdef OMEGA_BUILD_UNIX
-        pid = fork();
-        if (0 == pid) {
-            execl(server_program.c_str(), server_program.c_str(), target.c_str(), (char *) nullptr);
-            return EXIT_FAILURE;
-        }
-        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << pid << std::endl;);
+        char *arg_list[] = {(char *) server_program.c_str(), (char *) target.c_str(), nullptr};
+        server_pid = spawn_process(server_program.c_str(), arg_list);
+        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << server_pid << std::endl;);
         // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
+#else
+        auto cmd = server_program.string() + " " + "--target=" + target_str + ".exe";
+        spawn_widows_process(pi, (TCHAR *) cmd.c_str());
 #endif
-        // TODO: CreateProcess for Windows
     }
 
-    run_tests(target_str, 50, true);
+    run_tests(target_str, 99, true);
+    if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
-    if (pid) { kill(pid, SIGTERM); }
+        kill(server_pid, SIGTERM);
+#else
+        // Wait until child process exits.
+        TerminateProcess(pi.hProcess, 0);
+
+        // Close process and thread handles.
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 #endif
+    }
     return EXIT_SUCCESS;
 }
