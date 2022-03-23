@@ -30,11 +30,20 @@ import scala.util.{Failure, Success, Try}
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
 
-  def isEmpty: Boolean =
-    size == 0
-
   def size: Long =
     i.omega_session_get_computed_file_size(p)
+
+  def numChanges: Long =
+    i.omega_session_get_num_changes(p)
+
+  def numCheckpoints: Long =
+    i.omega_session_get_num_checkpoints(p)
+
+  def numUndos: Long =
+    i.omega_session_get_num_undone_changes(p)
+
+  def numViewports: Long =
+    i.omega_session_get_num_viewports(p)
 
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))

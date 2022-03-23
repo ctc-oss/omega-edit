@@ -28,7 +28,12 @@ import scala.util.Try
   */
 trait Session {
   def size: Long
-  def isEmpty: Boolean
+  def isEmpty: Boolean = size == 0
+
+  def numChanges: Long
+  def numCheckpoints: Long
+  def numUndos: Long
+  def numViewports: Long
 
   def insert(s: String, offset: Long): Result
   def insert(b: Array[Byte], offset: Long): Result
