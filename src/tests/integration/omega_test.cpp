@@ -882,6 +882,7 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(2 == viewport_events_count);
     omega_edit_save(session_ptr, "data/session_save.1.dat", 1, saved_filename);
     REQUIRE(omega_util_paths_equivalent("data/session_save.1.dat", saved_filename));
+    REQUIRE(0 == compare_files("data/session_save.expected.1.dat", "data/session_save.1.dat"));
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(4 == session_events_count);// SESSION_EVT_CLEAR and SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events

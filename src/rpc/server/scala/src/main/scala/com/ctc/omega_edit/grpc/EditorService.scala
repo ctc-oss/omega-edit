@@ -30,7 +30,7 @@ import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
-import omega_edit.ChangeKind.{CHANGE_DELETE, CHANGE_INSERT, CHANGE_OVERWRITE}
+import omega_edit.ChangeKind._
 import omega_edit._
 
 import java.nio.file.Paths
@@ -126,6 +126,34 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c)           => throw grpcFailure(c)
       case _                => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
+
+  def getSessionCount(in: Empty): Future[SessionCountResponse] =
+    (editors ? SessionCount)
+      .mapTo[Int]
+      .map(SessionCountResponse(_))
+
+  def getCount(in: CountRequest): Future[CountResponse] =
+    (in.kind match {
+      case CountKind.COUNT_CHANGES =>
+        (editors ? SessionOp(in.sessionId, GetNumChanges))
+      case CountKind.COUNT_CHECKPOINTS =>
+        (editors ? SessionOp(in.sessionId, GetNumCheckpoints))
+      case CountKind.COUNT_FILE_SIZE =>
+        (editors ? SessionOp(in.sessionId, GetSize))
+      case CountKind.COUNT_UNDOS =>
+        (editors ? SessionOp(in.sessionId, GetNumUndos))
+      case CountKind.COUNT_VIEWPORTS =>
+        (editors ? SessionOp(in.sessionId, GetNumViewports))
+      case CountKind.UNDEFINED_COUNT_KIND =>
+        Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
+      case CountKind.Unrecognized(unrecognizedValue) =>
+        Future.failed(grpcFailure(Status.UNKNOWN, s"unrecognized kind: $in"))
+    }).mapTo[Result]
+      .map {
+        case ok: Ok with Size => CountResponse(in.sessionId, in.kind, ok.computedSize)
+        case Err(c)           => throw grpcFailure(c)
+        case _                => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      }
 
   /**
     * Event streams

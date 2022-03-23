@@ -41,9 +41,36 @@ service Editor {
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
 
+  rpc GetCount(CountRequest) returns (CountResponse);
+  rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
+
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
   rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+}
+
+enum CountKind {
+  UNDEFINED_COUNT_KIND = 0;
+  COUNT_FILE_SIZE = 1;
+  COUNT_CHANGES = 2;
+  COUNT_UNDOS = 3;
+  COUNT_VIEWPORTS = 4;
+  COUNT_CHECKPOINTS = 5;
+}
+
+message CountRequest {
+  string session_id = 1;
+  CountKind kind = 2;
+}
+
+message CountResponse {
+  string session_id = 1;
+  CountKind kind = 2;
+  int64 count = 3;
+}
+
+message SessionCountResponse {
+  int64 count = 1;
 }
 
 message VersionResponse {

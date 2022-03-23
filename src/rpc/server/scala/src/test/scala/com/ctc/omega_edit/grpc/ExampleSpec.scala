@@ -38,15 +38,25 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
   tmp.toFile.deleteOnExit()
 
   "client" should useService { implicit service =>
-    "to get version" in service.getVersion(Empty()).map { v =>
+    "get version" in service.getVersion(Empty()).map { v =>
       v should matchPattern { case VersionResponse(_, _, _, _) => }
     }
 
-    "to create session" in service.createSession(CreateSessionRequest()).map { v =>
+    "have zero sessions when initialized" in service.getSessionCount(Empty()).map {
+      case SessionCountResponse(count, _) =>
+        count should be(0)
+    }
+
+    "create session" in service.createSession(CreateSessionRequest()).map { v =>
       v.sessionId shouldNot be(empty)
     }
 
-    "to update session data" in newSession { sid =>
+    "have one session counted after creation" in service.getSessionCount(Empty()).map {
+      case SessionCountResponse(count, _) =>
+        count should be(1)
+    }
+
+    "update session data" in newSession { sid =>
       val testString = UUID.randomUUID().toString
       for {
         sizeBefore <- service.getComputedFileSize(ObjectId(sid)).map(_.computedFileSize)
