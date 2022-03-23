@@ -23,7 +23,6 @@ import akka.stream.scaladsl.Source
 import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors.{Err, Ok}
-import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 
@@ -67,7 +66,7 @@ object Session {
   }
 }
 
-class Session(session: api.Session, events: EventStream, cb: SessionCallback) extends Actor {
+class Session(session: api.Session, @deprecated("unused", "")events: EventStream, @deprecated("unused", "") cb: SessionCallback) extends Actor {
   val sessionId: String = self.path.name
 
   def receive: Receive = {
@@ -80,7 +79,10 @@ class Session(session: api.Session, events: EventStream, cb: SessionCallback) ex
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           val (input, stream) = Source.queue[Viewport.Updated](1, OverflowStrategy.dropHead).preMaterialize()
-          val cb = ViewportCallback((v, e, c) => input.queue.offer(Viewport.Updated(fqid, v.data, c)))
+          val cb = ViewportCallback { (v, _, c) =>
+            input.queue.offer(Viewport.Updated(fqid, v.data, c))
+            ()
+          }
           context.actorOf(Viewport.props(session.viewCb(off, cap, cb), stream, cb), vid)
           sender() ! Ok(fqid)
       }
@@ -112,7 +114,7 @@ class Session(session: api.Session, events: EventStream, cb: SessionCallback) ex
     case LookupChange(id) =>
       session.findChange(id) match {
         case Some(c) =>
-          new Ok(s"$id") with ChangeDetails {
+          sender() ! new Ok(s"$id") with ChangeDetails {
             def change: Change = c
           }
         case None => sender() ! Err(Status.NOT_FOUND)

@@ -33,7 +33,7 @@ object OmegaEdit extends OmegaEdit {
   def newSessionCb(path: Option[Path], cb: SessionCallback): Session = {
     require(path.forall(_.toFile.exists()), "specified path does not exist")
     new SessionImpl(
-      ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null),
+      ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null, 0),
       ffi
     )
   }

@@ -18,7 +18,10 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
+  GenerateFilename,
+  OverwriteExisting
+}
 import com.ctc.omega_edit.api.{Change, Session, Viewport, ViewportCallback}
 import jnr.ffi.Pointer
 
@@ -52,19 +55,20 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   def view(offset: Long, size: Long): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, 0, null, null)
+    val vp = i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, 0, cb, null)
+    val vp = i.omega_edit_create_viewport(p, offset, size, false, cb, null, 0)
     new ViewportImpl(vp, i)
   }
 
-  def findChange(id: Long): Option[Change] = i.omega_session_get_change(p, id) match {
-    case null => None
-    case ptr  => Some(new ChangeImpl(ptr, i))
-  }
+  def findChange(id: Long): Option[Change] =
+    i.omega_session_get_change(p, id) match {
+      case null => None
+      case ptr  => Some(new ChangeImpl(ptr, i))
+    }
 
   def save(to: Path): Try[Path] =
     save(to, OverwriteExisting)
@@ -76,12 +80,18 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       case OverwriteExisting => true
       case GenerateFilename  => false
     }
-    i.omega_edit_save(p, to.toString, overwrite, Pointer.wrap(p.getRuntime, buffer)) match {
+    i.omega_edit_save(
+      p,
+      to.toString,
+      overwrite,
+      Pointer.wrap(p.getRuntime, buffer)
+    ) match {
       case 0 =>
         val path = StandardCharsets.UTF_8.decode(buffer)
         Success(Paths.get(path.toString.trim))
 
-      case ec => Failure(new RuntimeException(s"Failed to save session to file, $ec"))
+      case ec =>
+        Failure(new RuntimeException(s"Failed to save session to file, $ec"))
     }
   }
 }
