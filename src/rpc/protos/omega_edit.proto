@@ -76,6 +76,7 @@ enum ViewportEventKind {
   VIEWPORT_EVT_CLEAR = 8;
   VIEWPORT_EVT_TRANSFORM = 16;
   VIEWPORT_EVT_UPDATED = 32;
+}
 
 enum CountKind {
   UNDEFINED_COUNT_KIND = 0;
