@@ -122,8 +122,7 @@ message ViewportDataRequest {
 
 message ViewportDataResponse {
   string viewport_id = 1;
-  int64 length = 2;
-  bytes data = 3;
+  bytes data = 2;
 }
 
 message CreateSessionRequest {
@@ -183,8 +182,7 @@ message ViewportEvent {
   ViewportEventKind viewport_event_kind = 3;
   optional int64 serial = 4;
   optional int64 offset = 5;
-  optional int64 length = 6;
-  optional bytes data = 7;
+  optional bytes data = 6;
 }
 
 message ChangeDetailsResponse {

@@ -88,6 +88,7 @@ public:
         assert(!session_id_.empty());
         // Add this instance to the session event subscriptions
         session_event_subscriptions_[session_id_] = this;
+        this->StartSendInitialMetadata();
     }
 
     ~SessionEventWriter() override {
@@ -100,7 +101,7 @@ public:
 
     void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        StartWrite(std::static_pointer_cast<SessionEvent>(item).get());
+        this->StartWrite(std::static_pointer_cast<SessionEvent>(item).get());
     }
 };
 
@@ -118,6 +119,7 @@ public:
         assert(!viewport_id_.empty());
         // Add this instance to the session event subscriptions
         viewport_event_subscriptions_[viewport_id_] = this;
+        this->StartSendInitialMetadata();
     }
 
     ~ViewportEventWriter() override {
@@ -130,7 +132,7 @@ public:
 
     void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        StartWrite(std::static_pointer_cast<ViewportEvent>(item).get());
+        this->StartWrite(std::static_pointer_cast<ViewportEvent>(item).get());
     }
 };
 
@@ -379,7 +381,6 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
             viewport_change_ptr->set_data(omega_viewport_get_string_unlocked(viewport_ptr));
-            viewport_change_ptr->set_length((int64_t) viewport_change_ptr->data().length());
             viewport_event_writer_ptr->push(viewport_change_ptr);
         }
     }
@@ -756,7 +757,6 @@ public:
         const auto viewport_ptr = session_manager_.get_viewport_ptr(viewport_id);
         assert(viewport_ptr);
         response->set_data(omega_viewport_get_string(viewport_ptr));
-        response->set_length(static_cast<int64_t>(response->data().length()));
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
         return reactor;

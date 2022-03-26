@@ -781,7 +781,8 @@ public:
                 DBG(CLOG << LOCATION << "session id: " << session_id << ", viewport id: " << viewport_id
                          << ", event kind: " << viewport_event.viewport_event_kind()
                          << ", change serial: " << viewport_event.serial() << ", offset: " << viewport_event.offset()
-                         << ", length: " << viewport_event.length() << ", data: [" << viewport_event.data() << "]"
+                         << ", length: " << viewport_event.data().length()
+                         << ", data: [" << viewport_event.data() << "]"
                          << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
@@ -828,22 +829,24 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Channel established to Ωedit server version: "
                      << reply << " on " << target_str << std::endl;);
         }
+        assert(reply != "RPC failed");
 
         const std::string session_id("session-1");
         reply = server_test_client.CreateSession(nullptr, &session_id);
-        assert(session_id == reply);
-        if (log)
+        if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateSession received: " << session_id
                      << std::endl;);
+        }
+        assert(session_id == reply);
 
         const std::string viewport_0_id = session_id + "~viewport-0";
         reply = server_test_client.CreateViewport(session_id, 0, 64, false, &viewport_0_id);
-        assert(viewport_0_id == reply);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_0_id
                      << std::endl;);
         }
+        assert(viewport_0_id == reply);
 
         auto thread_0_id = server_test_client.SubscribeOnChangeViewport(viewport_0_id);
         if (log) {
@@ -854,12 +857,12 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
 
         const std::string viewport_1_id = session_id + "~viewport-1";
         reply = server_test_client.CreateViewport(session_id, 0 * vpt_capacity, vpt_capacity, false, &viewport_1_id);
-        assert(viewport_1_id == reply);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_1_id
                      << std::endl;);
         }
+        assert(viewport_1_id == reply);
 
         auto thread_1_id = server_test_client.SubscribeOnChangeViewport(viewport_1_id);
         if (log) {
@@ -870,12 +873,12 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
 
         const std::string viewport_2_id = session_id + "~viewport-2";
         reply = server_test_client.CreateViewport(session_id, 1 * vpt_capacity, vpt_capacity, false, &viewport_2_id);
-        assert(viewport_2_id == reply);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_2_id
                      << std::endl;);
         }
+        assert(viewport_2_id == reply);
 
         auto thread_2_id = server_test_client.SubscribeOnChangeViewport(viewport_2_id);
         if (log) {
@@ -886,12 +889,12 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
 
         const std::string viewport_3_id = session_id + "~viewport-3";
         reply = server_test_client.CreateViewport(session_id, 2 * vpt_capacity, vpt_capacity, false, &viewport_3_id);
-        assert(viewport_3_id == reply);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_3_id
                      << std::endl;);
         }
+        assert(viewport_3_id == reply);
 
         auto thread_3_id = server_test_client.SubscribeOnChangeViewport(viewport_3_id);
         if (log) {
@@ -905,37 +908,40 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
+        assert(0 < serial);
 
         ChangeDetailsResponse change_details;
         auto rc = server_test_client.GetLastChange(session_id, change_details);
-        assert(0 == rc);
-        assert(serial == change_details.serial());
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastChange received: " << rc
                      << " serial: " << change_details.serial() << std::endl;);
         }
+        assert(0 == rc);
+        assert(serial == change_details.serial());
 
         serial = server_test_client.Undo(session_id);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Undo received: " << serial << std::endl;);
         }
+        assert(0 > serial);
 
         rc = server_test_client.GetLastUndo(session_id, change_details);
-        assert(0 == rc);
-        assert(serial == change_details.serial());
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastUndo received: " << rc
                      << " serial: " << change_details.serial() << std::endl;);
         }
+        assert(0 == rc);
+        assert(serial == change_details.serial());
 
         serial = server_test_client.Redo(session_id);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Redo received: " << serial << std::endl;);
         }
+        assert(0 < serial);
 
         reply = server_test_client.PauseViewportEvents(session_id);
         if (log) {
@@ -943,18 +949,21 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] PauseViewportEvents received: " << reply
                      << std::endl;);
         }
+        assert(reply == session_id);
 
         reply = server_test_client.Clear(session_id);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Clear received: " << reply << std::endl;);
         }
+        assert(reply == session_id);
 
         serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
+        assert(0 < serial);
 
         reply = server_test_client.ResumeViewportEvents(session_id);
         if (log) {
@@ -962,6 +971,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply
                      << std::endl;);
         }
+        assert(reply == session_id);
 
         auto match_offsets = std::vector<int64_t >();
         auto num_matches = server_test_client.SearchSession(session_id, "weird", true, 0, 0, 0, match_offsets);
@@ -970,18 +980,21 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SearchSession received: " << num_matches
                      << std::endl;);
         }
+        assert(0 < num_matches);
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Overwrite received: " << serial << std::endl;);
         }
+        assert(0 < serial);
 
         serial = server_test_client.Delete(session_id, 11, 3);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Delete received: " << serial << std::endl;);
         }
+        assert(0 < serial);
 
         auto computed_file_size = server_test_client.GetComputedFileSize(session_id);
         if (log) {
@@ -989,6 +1002,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
+        assert(0 < computed_file_size);
 
         auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
         reply = server_test_client.SaveSession(session_id, save_file.string(), true);
@@ -996,6 +1010,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
+        assert(reply == save_file.string());
 
         auto count = server_test_client.GetSessionCount();
         if (log) {
@@ -1003,8 +1018,10 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count
                      << std::endl;);
         }
+        assert(0 < count);
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
+        assert(0 < count);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
@@ -1018,6 +1035,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_CHANGES) received: " << count << std::endl;);
         }
+        assert(0 < count);
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_UNDOS);
         if (log) {
@@ -1045,6 +1063,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
+        //assert(reply == save_file.string());
 
         reply = server_test_client.GetViewportData(viewport_0_id);
         if (log) {
@@ -1052,6 +1071,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 0 data: [" << reply << "]"
                      << std::endl;);
         }
+        assert(reply != "RPC failed");
 
         reply = server_test_client.GetViewportData(viewport_1_id);
         if (log) {
@@ -1059,6 +1079,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 1 data: [" << reply << "]"
                      << std::endl;);
         }
+        assert(reply != "RPC failed");
 
         reply = server_test_client.DestroyViewport(viewport_1_id);
         if (log) {
