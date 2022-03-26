@@ -22,6 +22,8 @@
 #include "viewport_def.hpp"
 #include <cassert>
 
+enum class session_flags { pause_viewport_callbacks = 0x01 };
+
 /**********************************************************************************************************************
  * Data segment functions
  **********************************************************************************************************************/
@@ -109,6 +111,90 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
         read_offset += (*iter)->computed_length;
     }
     return -1;
+}
+
+int64_t get_computed_file_size_(const omega_session_t *session_ptr) {
+    const auto computed_file_size =
+            (session_ptr->models_.back()->model_segments.empty())
+                    ? 0
+                    : session_ptr->models_.back()->model_segments.back()->computed_offset +
+                              session_ptr->models_.back()->model_segments.back()->computed_length;
+    assert(0 <= computed_file_size);
+    return computed_file_size;
+}
+
+const char *get_file_path_(const omega_session_t *session_ptr) {
+    return (session_ptr->models_.back()->file_path.empty()) ? nullptr : session_ptr->models_.back()->file_path.c_str();
+}
+
+void pause_viewport_event_callbacks_(omega_session_t *session_ptr) {
+    session_ptr->session_flags_ |= (int8_t) session_flags::pause_viewport_callbacks;
+}
+
+void resume_viewport_event_callbacks_(omega_session_t *session_ptr) {
+    session_ptr->session_flags_ &= ~(int8_t) session_flags::pause_viewport_callbacks;
+}
+
+int on_change_callbacks_paused_(const omega_session_t *session_ptr) {
+    return (session_ptr->session_flags_ & (int8_t) session_flags::pause_viewport_callbacks) ? 1 : 0;
+}
+
+void session_notify_(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                     const omega_change_t *change_ptr) {
+    if (session_ptr->event_handler) { (*session_ptr->event_handler)(session_ptr, session_event, change_ptr); }
+}
+
+int64_t get_num_changes_(const omega_session_t *session_ptr) {
+    return (int64_t) session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
+}
+
+int64_t get_num_checkpoints_(const omega_session_t *session_ptr) {
+    return static_cast<int64_t>(session_ptr->models_.size()) - 1;
+}
+
+void destroy_viewport_(omega_viewport_t *viewport_ptr) {
+    for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
+         iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
+        if (viewport_ptr == iter->get()) {
+            if (7 < viewport_get_capacity_(iter->get())) { delete[](*iter)->data_segment.data.bytes_ptr; }
+            viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
+            break;
+        }
+    }
+}
+
+void viewport_notify_(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                      const omega_change_t *change_ptr) {
+    if (!on_change_callbacks_paused_(viewport_ptr->session_ptr) && viewport_ptr->event_handler) {
+        (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, change_ptr);
+    }
+}
+
+int64_t viewport_get_capacity_(const omega_viewport_t *viewport_ptr) {
+    // Negative capacities are only used internally for tracking dirty reads.  The capacity is always positive to the
+    // public.
+    return std::abs(viewport_ptr->data_segment.capacity);
+}
+
+int64_t viewport_get_length_(const omega_viewport_t *viewport_ptr) {
+    if (!viewport_has_changes_(viewport_ptr)) { return viewport_ptr->data_segment.length; }
+    auto const capacity = viewport_get_capacity_(viewport_ptr);
+    auto const remaining_file_size =
+            std::max(get_computed_file_size_(viewport_ptr->session_ptr) - viewport_get_offset_(viewport_ptr),
+                     static_cast<int64_t>(0));
+    return (capacity < remaining_file_size) ? capacity : remaining_file_size;
+}
+
+int64_t viewport_get_offset_(const omega_viewport_t *viewport_ptr) {
+    return viewport_ptr->data_segment.offset + viewport_ptr->data_segment.offset_adjustment;
+}
+
+int viewport_is_floating_(const omega_viewport_t *viewport_ptr) {
+    return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
+}
+
+int viewport_has_changes_(const omega_viewport_t *viewport_ptr) {
+    return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
 }
 
 /**********************************************************************************************************************

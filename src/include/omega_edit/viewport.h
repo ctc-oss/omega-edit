@@ -39,6 +39,7 @@ OMEGA_EDIT_EXPORT const omega_session_t *omega_viewport_get_session(const omega_
  * @return viewport capacity
  */
 OMEGA_EDIT_EXPORT int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_viewport_get_capacity_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, return the viewport data length
@@ -46,6 +47,7 @@ OMEGA_EDIT_EXPORT int64_t omega_viewport_get_capacity(const omega_viewport_t *vi
  * @return viewport data length
  */
 OMEGA_EDIT_EXPORT int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_viewport_get_length_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, return the viewport data
@@ -53,6 +55,7 @@ OMEGA_EDIT_EXPORT int64_t omega_viewport_get_length(const omega_viewport_t *view
  * @return viewport data
  */
 OMEGA_EDIT_EXPORT const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT const omega_byte_t *omega_viewport_get_data_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, determine if it contains changes since the last omega_viewport_get_data call
@@ -60,6 +63,7 @@ OMEGA_EDIT_EXPORT const omega_byte_t *omega_viewport_get_data(const omega_viewpo
  * @return 0 if there are no changes present, and non-zero otherwise
  */
 OMEGA_EDIT_EXPORT int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT int omega_viewport_has_changes_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, return the viewport offset
@@ -67,6 +71,7 @@ OMEGA_EDIT_EXPORT int omega_viewport_has_changes(const omega_viewport_t *viewpor
  * @return viewport offset
  */
 OMEGA_EDIT_EXPORT int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_viewport_get_offset_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, return non-zero if the viewport is floating and zero if the viewport is fixed
@@ -74,6 +79,7 @@ OMEGA_EDIT_EXPORT int64_t omega_viewport_get_offset(const omega_viewport_t *view
  * @return non-zero if the viewport is floating and zero if the viewport is fixed
  */
 OMEGA_EDIT_EXPORT int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT int omega_viewport_is_floating_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Given a viewport, return the viewport user data
@@ -81,6 +87,7 @@ OMEGA_EDIT_EXPORT int omega_viewport_is_floating(const omega_viewport_t *viewpor
  * @return viewport user data
  */
 OMEGA_EDIT_EXPORT void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr);
+OMEGA_EDIT_EXPORT void *omega_viewport_get_user_data_ptr_unlocked(const omega_viewport_t *viewport_ptr);
 
 /**
  * Change viewport settings
@@ -102,6 +109,9 @@ OMEGA_EDIT_EXPORT int omega_viewport_update(omega_viewport_t *viewport_ptr, int6
  */
 OMEGA_EDIT_EXPORT void omega_viewport_notify(const omega_viewport_t *viewport_ptr,
                                              omega_viewport_event_t viewport_event, const omega_change_t *change_ptr);
+OMEGA_EDIT_EXPORT void omega_viewport_notify_unlocked(const omega_viewport_t *viewport_ptr,
+                                                      omega_viewport_event_t viewport_event,
+                                                      const omega_change_t *change_ptr);
 
 #ifdef __cplusplus
 }

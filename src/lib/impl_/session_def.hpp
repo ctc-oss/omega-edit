@@ -19,6 +19,7 @@
 #include "../../include/omega_edit/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
 #include "model_def.hpp"
+#include <shared_mutex>
 #include <vector>
 
 using omega_model_ptr_t = std::unique_ptr<omega_model_t>;
@@ -33,6 +34,7 @@ struct omega_session_struct {
     omega_models_t models_{};                 ///< Edit models (internal)
     int64_t num_changes_adjustment_{};        ///< Numer of changes in checkpoints
     int8_t session_flags_{};                  ///< Internal state flags
+    std::shared_mutex session_mutex_{};
 };
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

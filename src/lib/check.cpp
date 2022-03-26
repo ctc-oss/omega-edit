@@ -23,6 +23,7 @@
 int omega_check_model(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int64_t expected_offset = 0;
+    std::shared_lock sl(const_cast<omega_session_t *>(session_ptr)->session_mutex_);
     for (auto &&model_ptr : session_ptr->models_) {
         for (const auto &segment : model_ptr->model_segments) {
             assert(segment->change_ptr);

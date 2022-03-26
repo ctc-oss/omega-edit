@@ -28,80 +28,126 @@ const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewpo
     return viewport_ptr->session_ptr;
 }
 
-int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
-    // Negative capacities are only used internally for tracking dirty reads.  The capacity is always positive to the
-    // public.
+int64_t omega_viewport_get_capacity_unlocked(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return std::abs(viewport_ptr->data_segment.capacity);
+    return viewport_get_capacity_(viewport_ptr);
+}
+
+int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_get_capacity_unlocked(viewport_ptr);
+}
+
+int64_t omega_viewport_get_length_unlocked(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_get_length_(viewport_ptr);
 }
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    if (!omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
-    auto const capacity = omega_viewport_get_capacity(viewport_ptr);
-    auto const remaining_file_size =
-            std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
-                             omega_viewport_get_offset(viewport_ptr),
-                     static_cast<int64_t>(0));
-    return (capacity < remaining_file_size) ? capacity : remaining_file_size;
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_get_length_unlocked(viewport_ptr);
+}
+
+int64_t omega_viewport_get_offset_unlocked(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_get_offset_(viewport_ptr);
 }
 
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return viewport_ptr->data_segment.offset + viewport_ptr->data_segment.offset_adjustment;
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_get_offset_unlocked(viewport_ptr);
 }
 
-void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
+void *omega_viewport_get_user_data_ptr_unlocked(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     return viewport_ptr->user_data_ptr;
 }
 
+void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_get_user_data_ptr_unlocked(viewport_ptr);
+}
+
+int omega_viewport_is_floating_unlocked(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_is_floating_(viewport_ptr);
+}
+
 int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_is_floating_unlocked(viewport_ptr);
 }
 
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
     assert(viewport_ptr);
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
-        if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity ||
+        if (auto const old_capacity = omega_viewport_get_capacity(viewport_ptr);
+            viewport_ptr->data_segment.offset != offset || old_capacity != capacity ||
             viewport_ptr->data_segment.is_floating != (bool) is_floating) {
-            if (7 < omega_viewport_get_capacity(viewport_ptr)) { delete[] viewport_ptr->data_segment.data.bytes_ptr; }
+            std::unique_lock ul(viewport_ptr->viewport_mutex_);
+            if (7 < old_capacity) { delete[] viewport_ptr->data_segment.data.bytes_ptr; }
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.is_floating = is_floating;
             viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
-            omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UPDATED, nullptr);
+            viewport_notify_(viewport_ptr, VIEWPORT_EVT_UPDATED, nullptr);
         }
         return 0;
     }
     return -1;
 }
 
-const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
+const omega_byte_t *omega_viewport_get_data_unlocked(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
+    assert(viewport_ptr->session_ptr);
     auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
-    if (omega_viewport_has_changes(viewport_ptr)) {
+    if (viewport_has_changes_(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
         mut_viewport_ptr->data_segment.capacity = std::abs(viewport_ptr->data_segment.capacity);
         if (populate_data_segment_(viewport_ptr->session_ptr, &mut_viewport_ptr->data_segment) != 0) { return nullptr; }
-        assert(omega_viewport_get_length(viewport_ptr) == viewport_ptr->data_segment.length);
+        assert(viewport_get_length_(viewport_ptr) == viewport_ptr->data_segment.length);
     }
     return omega_data_segment_get_data(&mut_viewport_ptr->data_segment);
 }
 
+const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    assert(viewport_ptr->session_ptr);
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    std::shared_lock sls(const_cast<omega_viewport_t *>(viewport_ptr)->session_ptr->session_mutex_);
+    return omega_viewport_get_data_unlocked(viewport_ptr);
+}
+
+int omega_viewport_has_changes_unlocked(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_has_changes_(viewport_ptr);
+}
+
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    return omega_viewport_has_changes_unlocked(viewport_ptr);
+}
+
+void omega_viewport_notify_unlocked(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                           const omega_change_t *change_ptr) {
+    assert(viewport_ptr);
+    assert(viewport_ptr->session_ptr);
+    viewport_notify_(viewport_ptr, viewport_event, change_ptr);
 }
 
 void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
                            const omega_change_t *change_ptr) {
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
-    if (!omega_session_viewport_on_change_callbacks_paused(viewport_ptr->session_ptr) && viewport_ptr->event_handler) {
-        (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, change_ptr);
-    }
+    std::shared_lock sl(const_cast<omega_viewport_t *>(viewport_ptr)->viewport_mutex_);
+    std::shared_lock sls(const_cast<omega_viewport_t *>(viewport_ptr)->session_ptr->session_mutex_);
+    omega_viewport_notify_unlocked(viewport_ptr, viewport_event, change_ptr);
 }

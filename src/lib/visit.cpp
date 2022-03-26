@@ -17,7 +17,7 @@
 #include "impl_/session_def.hpp"
 #include <cassert>
 
-int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
+int omega_visit_changes_unlocked(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
     assert(session_ptr);
     int rc = 0;
     for (const auto &iter : session_ptr->models_.back()->changes) {
@@ -26,7 +26,13 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
     return rc;
 }
 
-int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
+    assert(session_ptr);
+    std::shared_lock sl(const_cast<omega_session_t *>(session_ptr)->session_mutex_);
+    return omega_visit_changes_unlocked(session_ptr, cbk, user_data);
+}
+
+int omega_visit_changes_reverse_unlocked(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                 void *user_data) {
     assert(session_ptr);
     int rc = 0;
@@ -35,6 +41,13 @@ int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_sessio
         if ((rc = cbk(iter->get(), user_data)) != 0) { break; }
     }
     return rc;
+}
+
+int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
+                                void *user_data) {
+    assert(session_ptr);
+    std::shared_lock sl(const_cast<omega_session_t *>(session_ptr)->session_mutex_);
+    return omega_visit_changes_reverse_unlocked(session_ptr, cbk, user_data);
 }
 
 struct omega_visit_change_context_struct {

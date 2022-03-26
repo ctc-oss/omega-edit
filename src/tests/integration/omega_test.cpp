@@ -278,7 +278,7 @@ static inline void session_change_cbk(const omega_session_t *session_ptr, omega_
     switch (session_event) {
         case SESSION_EVT_EDIT:
         case SESSION_EVT_UNDO: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr_unlocked(session_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             if (0 < omega_change_get_serial(change_ptr)) {
@@ -286,11 +286,11 @@ static inline void session_change_cbk(const omega_session_t *session_ptr, omega_
             } else {
                 --file_info_ptr->num_changes; /* this is in UNDO */
             }
-            auto file_path = omega_session_get_file_path(session_ptr);
+            auto file_path = omega_session_get_file_path_unlocked(session_ptr);
             file_path = (file_path) ? file_path : "NO FILENAME";
             clog << dec << R"({ "filename" : ")" << file_path << R"(", "num_changes" : )"
-                 << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
-                 << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
+                 << omega_session_get_num_changes_unlocked(session_ptr) << R"(, "computed_file_size": )"
+                 << omega_session_get_computed_file_size_unlocked(session_ptr) << R"(, "change_serial": )"
                  << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")"
                  << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )"
                  << omega_change_get_offset(change_ptr) << R"(, "length": )" << omega_change_get_length(change_ptr);
@@ -650,26 +650,26 @@ struct view_mode_t {
 static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
                                   const omega_change_t *change_ptr) {
     if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
-    clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
-         << " length: " << omega_viewport_get_length(viewport_ptr)
-         << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
-    if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
-        auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
+    clog << dec << "capacity: " << omega_viewport_get_capacity_unlocked(viewport_ptr)
+         << " length: " << omega_viewport_get_length_unlocked(viewport_ptr)
+         << " offset: " << omega_viewport_get_offset_unlocked(viewport_ptr) << endl;
+    if (omega_viewport_get_user_data_ptr_unlocked(viewport_ptr)) {
+        auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr_unlocked(viewport_ptr);
         switch (view_mode_ptr->display_mode) {
             case display_mode_t::BIT_MODE:
                 clog << " BIT MODE [";
-                write_pretty_bits(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
+                write_pretty_bits(omega_viewport_get_data_unlocked(viewport_ptr), omega_viewport_get_length_unlocked(viewport_ptr));
                 clog << "]\n";
                 break;
             case display_mode_t::CHAR_MODE:
                 clog << "CHAR MODE [";
-                clog << omega_viewport_get_string(viewport_ptr);
+                clog << omega_viewport_get_string_unlocked(viewport_ptr);
                 clog << "]\n";
                 break;
             default:// flow through
             case display_mode_t::BYTE_MODE:
                 clog << "BYTE MODE [";
-                write_pretty_bytes(omega_viewport_get_data(viewport_ptr), omega_viewport_get_length(viewport_ptr));
+                write_pretty_bytes(omega_viewport_get_data_unlocked(viewport_ptr), omega_viewport_get_length_unlocked(viewport_ptr));
                 clog << "]\n";
                 break;
         }
@@ -839,14 +839,14 @@ TEST_CASE("Viewports", "[ViewportTests]") {
 
 void session_save_test_session_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                    const omega_change_t *) {
-    auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr(session_ptr));
+    auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr_unlocked(session_ptr));
     std::clog << "Session Event: " << session_event << std::endl;
     ++*count_ptr;
 }
 
 void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
                                     const omega_change_t *) {
-    auto count_ptr = reinterpret_cast<int *>(omega_viewport_get_user_data_ptr(viewport_ptr));
+    auto count_ptr = reinterpret_cast<int *>(omega_viewport_get_user_data_ptr_unlocked(viewport_ptr));
     std::clog << "Viewport Event: " << viewport_event << std::endl;
     ++*count_ptr;
 }

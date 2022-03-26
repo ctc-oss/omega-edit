@@ -34,6 +34,7 @@ extern "C" {
  * @return file path, or null if not known
  */
 OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT const char *omega_session_get_file_path_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the associated user data
@@ -41,6 +42,7 @@ OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t 
  * @return associated user data for the given session
  */
 OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the number of active viewports
@@ -48,6 +50,7 @@ OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *s
  * @return number of active viewports
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of active changes
@@ -55,6 +58,7 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports(const omega_session_t 
  * @return number of active changes
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_changes_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of undone changes eligible for being redone
@@ -62,6 +66,7 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_changes(const omega_session_t *s
  * @return number of undone changes eligible for being redone
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_changes_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the computed file size in bytes
@@ -69,6 +74,7 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_changes(const omega_sessi
  * @return computed file size in bytes, or -1 on failure
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_computed_file_size_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last change (if any)
@@ -76,6 +82,7 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_computed_file_size(const omega_sessi
  * @return last change, or nullptr if there are no changes
  */
 OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_change_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last undone change eligible for redo (if any)
@@ -83,6 +90,7 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_change(const omeg
  * @return last undone change eligible for redo, or nullptr if there are no eligible changes for redo
  */
 OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_undo_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Given a change serial, get the change
@@ -92,6 +100,8 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_undo(const omega_
  */
 OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr,
                                                                  int64_t change_serial);
+OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change_unlocked(const omega_session_t *session_ptr,
+                                                                          int64_t change_serial);
 
 /**
  * Determine if the viewport on-change callbacks have been paused or not
@@ -99,18 +109,21 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change(const omega_ses
  * @return non-zero if viewport on-change callbacks are paused and zero if they are not
  */
 OMEGA_EDIT_EXPORT int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_session_viewport_on_change_callbacks_paused_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Pause viewport on-change callbacks for the given session
  * @param session_ptr session to pause viewport on-change callbacks on
  */
 OMEGA_EDIT_EXPORT void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT void omega_session_pause_viewport_event_callbacks_unlocked(omega_session_t *session_ptr);
 
 /**
  * Resume viewport on-change callbacks for the given session
  * @param session_ptr session to resume viewport on-change callbacks on
  */
 OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks_unlocked(omega_session_t *session_ptr);
 
 /**
 * Given a session, return the current number of session checkpoints
@@ -118,6 +131,7 @@ OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_sessi
 * @return number of session checkpoints
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints_unlocked(const omega_session_t *session_ptr);
 
 /**
  * Call the registered session event handler
@@ -127,6 +141,9 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_
  */
 OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                             const omega_change_t *change_ptr);
+OMEGA_EDIT_EXPORT void omega_session_notify_unlocked(const omega_session_t *session_ptr,
+                                                     omega_session_event_t session_event,
+                                                     const omega_change_t *change_ptr);
 
 #ifdef __cplusplus
 }

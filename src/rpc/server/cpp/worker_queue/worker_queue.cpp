@@ -44,7 +44,7 @@ namespace omega_edit {
         if (thread_) {
             const auto thread_item_ptr = std::make_shared<thread_item_t>(thread_item_kind_t::EXIT_THREAD, nullptr);
             {
-                std::scoped_lock lock(mutex_);
+                std::unique_lock lock(mutex_);
                 queue_.push(thread_item_ptr);
                 cv_.notify_one();
             }
