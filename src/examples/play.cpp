@@ -86,10 +86,10 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
     switch (session_event) {
         case SESSION_EVT_UNDO:
         case SESSION_EVT_EDIT: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr_unlocked(session_ptr);
             file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
             file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
-            omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
+            omega_visit_changes_unlocked(session_ptr, save_changes_cbk, file_info_ptr);
             fclose(file_info_ptr->save_fptr);
         }
         default:
@@ -139,29 +139,29 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
                      << ", offset: " << omega_change_get_offset(change_ptr)
                      << ", length: " << omega_change_get_length(change_ptr) << endl;
             }
-            clog << " capacity: " << omega_viewport_get_capacity(viewport_ptr)
-                 << " length: " << omega_viewport_get_length(viewport_ptr)
-                 << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
+            clog << " capacity: " << omega_viewport_get_capacity_unlocked(viewport_ptr)
+                 << " length: " << omega_viewport_get_length_unlocked(viewport_ptr)
+                 << " offset: " << omega_viewport_get_offset_unlocked(viewport_ptr) << endl;
             if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
-                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
+                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr_unlocked(viewport_ptr);
                 switch (view_mode_ptr->display_mode) {
                     case display_mode_t::BIT_MODE:
                         clog << " BIT MODE [";
-                        write_pretty_bits(omega_viewport_get_data(viewport_ptr),
-                                          omega_viewport_get_length(viewport_ptr));
+                        write_pretty_bits(omega_viewport_get_data_unlocked(viewport_ptr),
+                                          omega_viewport_get_length_unlocked(viewport_ptr));
                         clog << "]";
                         break;
                     case display_mode_t::CHAR_MODE:
                         clog << "CHAR MODE [";
-                        clog << string((const char *) omega_viewport_get_data(viewport_ptr),
-                                       omega_viewport_get_length(viewport_ptr));
+                        clog << string((const char *) omega_viewport_get_data_unlocked(viewport_ptr),
+                                       omega_viewport_get_length_unlocked(viewport_ptr));
                         clog << "]";
                         break;
                     default:// flow through
                     case display_mode_t::BYTE_MODE:
                         clog << "BYTE MODE [";
-                        write_pretty_bytes(omega_viewport_get_data(viewport_ptr),
-                                           omega_viewport_get_length(viewport_ptr));
+                        write_pretty_bytes(omega_viewport_get_data_unlocked(viewport_ptr),
+                                           omega_viewport_get_length_unlocked(viewport_ptr));
                         clog << "]";
                         break;
                 }

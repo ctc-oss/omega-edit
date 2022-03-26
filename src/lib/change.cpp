@@ -19,23 +19,23 @@
 
 int64_t omega_change_get_offset(const omega_change_t *change_ptr) {
     assert(change_ptr);
-    return change_ptr->offset;
+    return change_ptr->offset_;
 }
 
 int64_t omega_change_get_length(const omega_change_t *change_ptr) {
     assert(change_ptr);
-    return change_ptr->length;
+    return change_ptr->length_;
 }
 
 int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
     assert(change_ptr);
-    return change_ptr->serial;
+    return change_ptr->serial_;
 }
 
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     assert(change_ptr);
-    return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
-                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr : change_ptr->data.sm_bytes)
+    return (change_ptr->kind_ != change_kind_t::CHANGE_DELETE)
+                   ? ((7 < change_ptr->length_) ? change_ptr->data_.bytes_ptr_ : change_ptr->data_.sm_bytes_)
                    : nullptr;
 }
 
@@ -46,7 +46,7 @@ const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
 
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
     assert(change_ptr);
-    switch (change_ptr->kind) {
+    switch (change_ptr->kind_) {
         case change_kind_t::CHANGE_DELETE:
             return 'D';
         case change_kind_t::CHANGE_INSERT:

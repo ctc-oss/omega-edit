@@ -48,6 +48,11 @@ OMEGA_EDIT_EXPORT inline std::string omega_viewport_get_string(const omega_viewp
             static_cast<size_t>(omega_viewport_get_length(viewport_ptr))};
 }
 
+OMEGA_EDIT_EXPORT inline std::string omega_viewport_get_string_unlocked(const omega_viewport_t *viewport_ptr) noexcept {
+    return {reinterpret_cast<const char *>(omega_viewport_get_data_unlocked(viewport_ptr)),
+            static_cast<size_t>(omega_viewport_get_length_unlocked(viewport_ptr))};
+}
+
 /**
  * Insert a string at the given offset
  * @param session_ptr session to make the change in

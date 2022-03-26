@@ -24,16 +24,15 @@
  * A segment of data
  */
 struct omega_data_segment_struct {
-    int64_t offset{};   ///< Data offset as changes have been made
-    int64_t length{};   ///< Populated data length (in bytes)
-    int64_t capacity{}; ///< Data capacity (in bytes)
-    omega_data_t data{};///< Copy of the data itself
-    bool is_floating{};
-    int64_t offset_adjustment{};
+    int64_t offset_{};           ///< Data offset as changes have been made
+    int64_t length_{};           ///< Populated data length (in bytes)
+    int64_t capacity_{};         ///< Data capacity (in bytes)
+    omega_data_t data_{};        ///< Copy of the data itself
+    int64_t offset_adjustment_{};///< Adjustment to apply to the offset (used for floating viewports)
 };
 
 inline omega_byte_t *omega_data_segment_get_data(omega_data_segment_t *data_segment_ptr) {
-    return omega_data_get_data(&data_segment_ptr->data, std::abs(data_segment_ptr->capacity));
+    return omega_data_get_data(&data_segment_ptr->data_, std::abs(data_segment_ptr->capacity_));
 }
 
 #endif//OMEGA_EDIT_DATA_SEGMENT_DEF_HPP

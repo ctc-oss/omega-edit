@@ -1,19 +1,18 @@
 /**********************************************************************************************************************
- * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
- *                                                                                                                    *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
- * with the License.  You may obtain a copy of the License at                                                         *
- *                                                                                                                    *
- *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
- *                                                                                                                    *
- * Unless required by applicable law or agreed to in writing, software is distributed under the License is            *
- * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                   *
- * implied.  See the License for the specific language governing permissions and limitations under the License.       *
- *                                                                                                                    *
- **********************************************************************************************************************/
+* Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+*                                                                                                                    *
+* Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
+* with the License.  You may obtain a copy of the License at                                                         *
+*                                                                                                                    *
+*     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
+*                                                                                                                    *
+* Unless required by applicable law or agreed to in writing, software is distributed under the License is            *
+* distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                   *
+* implied.  See the License for the specific language governing permissions and limitations under the License.       *
+*                                                                                                                    *
+**********************************************************************************************************************/
 
 #include "../../../lib/impl_/macros.h"
-#include "./worker_queue/worker_queue.hpp"
 #include "omega_edit.grpc.pb.h"
 #include "omega_edit.h"
 #include "omega_edit/fwd_defs.h"
@@ -26,7 +25,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <utility>
 
 using grpc::CallbackServerContext;
 using grpc::Server;
@@ -64,73 +62,46 @@ using omega_edit::ViewportEventKind;
 
 using google::protobuf::Empty;
 
-class SessionEventWriter;
-using session_event_subscription_map_t = std::map<std::string, SessionEventWriter *, std::less<>>;
+class SessionEventWriter : public ServerWriteReactor<SessionEvent> {
+public:
+    explicit SessionEventWriter(const CallbackServerContext *context) : context_(context) {
+        this->StartSendInitialMetadata();
+    }
+    void OnDone() override {}
+    void write(std::shared_ptr<SessionEvent> &session_event_ptr) {
+        session_event_ptr_ = session_event_ptr;
+        this->StartWrite(session_event_ptr_.get());
+    }
+    virtual ~SessionEventWriter() {}
 
-class ViewportEventWriter;
-using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *, std::less<>>;
+private:
+    const CallbackServerContext *context_;
+    std::shared_ptr<SessionEvent> session_event_ptr_{};
+};
+
+class ViewportEventWriter : public ServerWriteReactor<ViewportEvent> {
+public:
+    explicit ViewportEventWriter(const CallbackServerContext *context) : context_(context) {
+        this->StartSendInitialMetadata();
+    }
+    void OnDone() override {}
+    void write(std::shared_ptr<ViewportEvent> &viewport_event_ptr) {
+        viewport_event_ptr_ = viewport_event_ptr;
+        this->StartWrite(viewport_event_ptr_.get());
+    }
+    virtual ~ViewportEventWriter() {}
+
+private:
+    const CallbackServerContext *context_;
+    std::shared_ptr<ViewportEvent> viewport_event_ptr_{};
+};
+
+using session_event_subscription_map_t = std::map<std::string, std::unique_ptr<SessionEventWriter>, std::less<>>;
+
+using viewport_event_subscription_map_t = std::map<std::string, std::unique_ptr<ViewportEventWriter>, std::less<>>;
 
 static inline std::string create_uuid() { return boost::uuids::to_string(boost::uuids::random_generator()()); }
 
-class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public omega_edit::IWorkerQueue {
-    const CallbackServerContext *context_;
-    const std::string session_id_;
-    session_event_subscription_map_t &session_event_subscriptions_;
-
-public:
-    SessionEventWriter(const CallbackServerContext *context, std::string session_id,
-                       session_event_subscription_map_t &session_event_subscriptions)
-        : context_(context), session_id_(std::move(session_id)),
-          session_event_subscriptions_(session_event_subscriptions) {
-        assert(context_);
-        assert(!session_id_.empty());
-        // Add this instance to the session event subscriptions
-        session_event_subscriptions_[session_id_] = this;
-    }
-
-    ~SessionEventWriter() override {
-        const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id_);
-        assert(session_event_subscription_iter != session_event_subscriptions_.end());
-        session_event_subscriptions_.erase(session_event_subscription_iter);
-    }
-
-    inline void OnDone() override { delete this; }
-
-    void handle_item(std::shared_ptr<void> const &item) override {
-        assert(item);
-        StartWrite(std::static_pointer_cast<SessionEvent>(item).get());
-    }
-};
-
-class ViewportEventWriter final : public ServerWriteReactor<ViewportEvent>, public omega_edit::IWorkerQueue {
-    const CallbackServerContext *context_;
-    const std::string viewport_id_;
-    viewport_event_subscription_map_t &viewport_event_subscriptions_;
-
-public:
-    ViewportEventWriter(const CallbackServerContext *context, std::string viewport_id,
-                        viewport_event_subscription_map_t &viewport_event_subscriptions)
-        : context_(context), viewport_id_(std::move(viewport_id)),
-          viewport_event_subscriptions_(viewport_event_subscriptions) {
-        assert(context_);
-        assert(!viewport_id_.empty());
-        // Add this instance to the session event subscriptions
-        viewport_event_subscriptions_[viewport_id_] = this;
-    }
-
-    ~ViewportEventWriter() override {
-        const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id_);
-        assert(viewport_event_subscription_iter != viewport_event_subscriptions_.end());
-        viewport_event_subscriptions_.erase(viewport_event_subscription_iter);
-    }
-
-    inline void OnDone() override { delete this; }
-
-    void handle_item(std::shared_ptr<void> const &item) override {
-        assert(item);
-        StartWrite(std::static_pointer_cast<ViewportEvent>(item).get());
-    }
-};
 
 class SessionManager {
 private:
@@ -152,6 +123,7 @@ public:
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
         assert(session_to_id_.size() == id_to_session_.size());
+        DBG(CLOG << LOCATION << " session map size: " << id_to_session_.size() << std::endl;);
         return session_id;
     }
 
@@ -162,6 +134,8 @@ public:
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         if (session_event_subscription_iter != session_event_subscriptions_.end()) {
             session_event_subscription_iter->second->Finish(Status::OK);
+            session_event_subscriptions_.erase(session_event_subscription_iter);
+            DBG(CLOG << LOCATION << " destroyed session subscription: " << session_id << std::endl;);
         }
     }
 
@@ -182,6 +156,7 @@ public:
                 iter = id_to_viewport_.begin();
             }
             omega_edit_destroy_session(session_ptr);
+            DBG(CLOG << LOCATION << " destroyed session: " << session_id << std::endl;);
         }
     }
 
@@ -204,17 +179,19 @@ public:
     SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
                                                     const std::string &session_id) {
         assert(!session_id.empty());
-        const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
-        return (session_event_subscription_iter != session_event_subscriptions_.end())
-                       ? session_event_subscription_iter->second
-                       : new SessionEventWriter(context, session_id, session_event_subscriptions_);
+        if (const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
+            session_event_subscription_iter == session_event_subscriptions_.end()) {
+            session_event_subscriptions_[session_id] = std::make_unique<SessionEventWriter>(context);
+            DBG(CLOG << LOCATION << " created session subscription: " << session_id << std::endl;);
+        }
+        return session_event_subscriptions_[session_id].get();
     }
 
     inline SessionEventWriter *get_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
-                       ? session_event_subscription_iter->second
+                       ? session_event_subscription_iter->second.get()
                        : nullptr;
     }
 
@@ -227,6 +204,8 @@ public:
         viewport_to_id_[viewport_ptr] = viewport_id;
         id_to_viewport_[viewport_id] = viewport_ptr;
         assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
+        DBG(CLOG << LOCATION << " added viewport: " << viewport_id << ", num viewports: " << viewport_to_id_.size()
+                 << std::endl;);
         return viewport_id;
     }
 
@@ -235,6 +214,7 @@ public:
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         if (viewport_event_subscription_iter != viewport_event_subscriptions_.end()) {
             viewport_event_subscription_iter->second->Finish(Status::OK);
+            DBG(CLOG << LOCATION << " destroy viewport subscription: " << viewport_id << std::endl;);
         }
     }
 
@@ -250,7 +230,7 @@ public:
             id_to_viewport_.erase(id_to_viewport_iter);
             destroy_viewport_subscription(viewport_id);
             omega_edit_destroy_viewport(viewport_ptr);
-            assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
+            DBG(CLOG << LOCATION << " destroy viewport: " << viewport_id << std::endl;);
         }
     }
 
@@ -273,17 +253,20 @@ public:
     inline ViewportEventWriter *create_viewport_subscription(const CallbackServerContext *context,
                                                              const std::string &viewport_id) {
         assert(!viewport_id.empty());
-        const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
-        return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
-                       ? viewport_event_subscription_iter->second
-                       : new ViewportEventWriter(context, viewport_id, viewport_event_subscriptions_);
+        DBG(CLOG << LOCATION << " creating viewport subscription: " << viewport_id << std::endl;);
+        if (const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
+            viewport_event_subscription_iter == viewport_event_subscriptions_.end()) {
+            viewport_event_subscriptions_[viewport_id] = std::make_unique<ViewportEventWriter>(context);
+            DBG(CLOG << LOCATION << " create viewport subscription: " << viewport_id << std::endl;);
+        }
+        return viewport_event_subscriptions_[viewport_id].get();
     }
 
     inline ViewportEventWriter *get_viewport_subscription(const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
-                       ? viewport_event_subscription_iter->second
+                       ? viewport_event_subscription_iter->second.get()
                        : nullptr;
     }
 };
@@ -339,20 +322,19 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
     assert(session_ptr);
     if (session_event != omega_session_event_t::SESSION_EVT_CREATE) {
         const auto session_manager_ptr =
-                reinterpret_cast<SessionManager *>(omega_session_get_user_data_ptr(session_ptr));
+                reinterpret_cast<SessionManager *>(omega_session_get_user_data_ptr_unlocked(session_ptr));
         const auto session_id = session_manager_ptr->get_session_id(session_ptr);
         assert(!session_id.empty());
-        const auto session_event_writer_ptr = session_manager_ptr->get_session_subscription(session_id);
+        auto session_event_writer_ptr = session_manager_ptr->get_session_subscription(session_id);
         if (session_event_writer_ptr) {
-            // This session is subscribed, so populate the RPC message and push it onto the worker queue
-            const auto session_change_ptr = std::make_shared<SessionEvent>();
+            auto session_change_ptr = std::make_shared<SessionEvent>();
             session_change_ptr->set_session_id(session_id);
             session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
             session_change_ptr->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
-            session_change_ptr->set_change_count(omega_session_get_num_changes(session_ptr));
-            session_change_ptr->set_undo_count(omega_session_get_num_undone_changes(session_ptr));
+            session_change_ptr->set_change_count(omega_session_get_num_changes_unlocked(session_ptr));
+            session_change_ptr->set_undo_count(omega_session_get_num_undone_changes_unlocked(session_ptr));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            session_event_writer_ptr->push(session_change_ptr);
+            session_event_writer_ptr->write(session_change_ptr);
         }
     }
 }
@@ -362,23 +344,21 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
     assert(viewport_ptr);
     if (viewport_event != omega_viewport_event_t::VIEWPORT_EVT_CREATE) {
         const auto session_manager_ptr =
-                reinterpret_cast<SessionManager *>(omega_viewport_get_user_data_ptr(viewport_ptr));
+                reinterpret_cast<SessionManager *>(omega_viewport_get_user_data_ptr_unlocked(viewport_ptr));
         const auto viewport_id = session_manager_ptr->get_viewport_id(viewport_ptr);
         assert(!viewport_id.empty());
         const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
         if (viewport_event_writer_ptr) {
-            // This session is subscribed, so populate the RPC message and push it onto the worker queue
             const auto session_id = session_manager_ptr->get_session_id(omega_viewport_get_session(viewport_ptr));
             assert(!session_id.empty());
-            const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
-            viewport_change_ptr->set_session_id(session_id);
-            viewport_change_ptr->set_viewport_id(viewport_id);
-            viewport_change_ptr->set_offset(omega_viewport_get_offset(viewport_ptr));
-            viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
-            if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            viewport_change_ptr->set_data(omega_viewport_get_string(viewport_ptr));
-            viewport_change_ptr->set_length((int64_t) viewport_change_ptr->data().length());
-            viewport_event_writer_ptr->push(viewport_change_ptr);
+            auto viewport_change = std::make_shared<ViewportEvent>();
+            viewport_change->set_session_id(session_id);
+            viewport_change->set_viewport_id(viewport_id);
+            viewport_change->set_offset(omega_viewport_get_offset_unlocked(viewport_ptr));
+            viewport_change->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
+            if (change_ptr) { viewport_change->set_serial(omega_change_get_serial(change_ptr)); }
+            viewport_change->set_data(omega_viewport_get_string_unlocked(viewport_ptr));
+            viewport_event_writer_ptr->write(viewport_change);
         }
     }
 }
@@ -386,7 +366,6 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
 class OmegaEditServiceImpl final : public omega_edit::Editor::CallbackService {
 private:
     SessionManager session_manager_{};
-    std::mutex edit_mutex_;
 
 public:
     OmegaEditServiceImpl() = default;
@@ -409,13 +388,9 @@ public:
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
         auto *reactor = context->DefaultReactor();
-        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
         omega_session_t *session_ptr = nullptr;
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            session_ptr =
-                    omega_edit_create_session(file_path, session_event_callback, &session_manager_, event_interest);
-        }
+        session_ptr = omega_edit_create_session(file_path, session_event_callback, &session_manager_,
+                                                (request->has_event_interest()) ? request->event_interest() : 0);
         assert(session_ptr);
         const auto session_id = session_manager_.add_session(
                 session_ptr, request->has_session_id_desired() ? &request->session_id_desired() : nullptr);
@@ -438,7 +413,6 @@ public:
         assert(0 <= offset);
         int64_t change_serial = 0;
         {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             switch (change_kind) {
                 case omega_edit::CHANGE_DELETE:
                     // Ignores request data
@@ -471,10 +445,7 @@ public:
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
         int64_t change_serial = 0;
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            change_serial = omega_edit_undo_last_change(session_ptr);
-        }
+        change_serial = omega_edit_undo_last_change(session_ptr);
         response->set_session_id(session_id);
         response->set_serial(change_serial);
         reactor->Finish(Status::OK);
@@ -489,10 +460,7 @@ public:
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
         int64_t change_serial = 0;
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            change_serial = omega_edit_redo_last_undo(session_ptr);
-        }
+        change_serial = omega_edit_redo_last_undo(session_ptr);
         response->set_session_id(session_id);
         response->set_serial(change_serial);
         reactor->Finish(Status::OK);
@@ -506,11 +474,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int rc = -1;
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            rc = omega_edit_clear_changes(session_ptr);
-        }
+        const auto rc = omega_edit_clear_changes(session_ptr);
         if (0 == rc) {
             response->set_id(session_id);
             reactor->Finish(Status::OK);
@@ -578,14 +542,9 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int rc = -1;
         char saved_file_buffer[FILENAME_MAX];
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            rc = omega_edit_save(session_ptr, file_path.c_str(), allow_overwrite ? 1 : 0, saved_file_buffer);
-        }
+        int rc = omega_edit_save(session_ptr, file_path.c_str(), allow_overwrite ? 1 : 0, saved_file_buffer);
         if (0 == rc) {
-            assert(0 < strlen(saved_file_buffer));
             response->set_session_id(session_id);
             response->set_file_path(saved_file_buffer);
             reactor->Finish(Status::OK);
@@ -604,10 +563,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            omega_session_pause_viewport_event_callbacks(session_ptr);
-        }
+        omega_session_pause_viewport_event_callbacks(session_ptr);
         response->set_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -620,10 +576,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            omega_session_resume_viewport_event_callbacks(session_ptr);
-        }
+        omega_session_resume_viewport_event_callbacks(session_ptr);
         response->set_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -634,10 +587,7 @@ public:
         const auto &session_id = request->id();
         assert(!session_id.empty());
         auto *reactor = context->DefaultReactor();
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            session_manager_.destroy_session(session_id);
-        }
+        session_manager_.destroy_session(session_id);
         response->set_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -763,13 +713,9 @@ public:
         auto *reactor = context->DefaultReactor();
         const auto offset = request->offset();
         const auto capacity = request->capacity();
-        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
-        omega_viewport_t *viewport_ptr = nullptr;
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, request->is_floating() ? 1 : 0,
-                                                      viewport_event_callback, &session_manager_, event_interest);
-        }
+        const auto viewport_ptr = omega_edit_create_viewport(
+                session_ptr, offset, capacity, request->is_floating() ? 1 : 0, viewport_event_callback,
+                &session_manager_, (request->has_event_interest()) ? request->event_interest() : 0);
         assert(viewport_ptr);
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
@@ -788,11 +734,7 @@ public:
         auto *reactor = context->DefaultReactor();
         const auto viewport_ptr = session_manager_.get_viewport_ptr(viewport_id);
         assert(viewport_ptr);
-        {
-            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
-            response->set_length(omega_viewport_get_length(viewport_ptr));
-            response->set_data(omega_viewport_get_string(viewport_ptr));
-        }
+        response->set_data(omega_viewport_get_string(viewport_ptr));
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
         return reactor;

@@ -55,7 +55,7 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
         match_context_ptr->session_length = session_length;
         match_context_ptr->match_offset = session_length_computed;
         match_context_ptr->case_insensitive = case_insensitive;
-        match_context_ptr->pattern.bytes_ptr = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
+        match_context_ptr->pattern.bytes_ptr_ = (7 < pattern_length) ? new omega_byte_t[pattern_length + 1] : nullptr;
         const auto pattern_data_ptr = omega_data_get_data(&match_context_ptr->pattern, pattern_length);
         memcpy(pattern_data_ptr, pattern, pattern_length);
         if (case_insensitive) { omega_util_apply_byte_transform(pattern_data_ptr, pattern_length, to_lower_, nullptr); }
@@ -89,32 +89,33 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     const auto session_length = (search_context_ptr->session_length)
                                         ? search_context_ptr->session_length
                                         : omega_session_get_computed_file_size(search_context_ptr->session_ptr);
-    data_segment.offset = (search_context_ptr->match_offset == session_length)
-                                  ? search_context_ptr->session_offset
-                                  : search_context_ptr->match_offset + advance_context;
-    data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
-    data_segment.data.bytes_ptr = (7 < data_segment.capacity) ? new omega_byte_t[data_segment.capacity + 1] : nullptr;
+    data_segment.offset_ = (search_context_ptr->match_offset == session_length)
+                                   ? search_context_ptr->session_offset
+                                   : search_context_ptr->match_offset + advance_context;
+    data_segment.capacity_ = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
+    data_segment.data_.bytes_ptr_ =
+            (7 < data_segment.capacity_) ? new omega_byte_t[data_segment.capacity_ + 1] : nullptr;
     const auto pattern_length = search_context_ptr->pattern_length;
     const auto pattern = omega_data_get_data(&search_context_ptr->pattern, pattern_length);
-    const auto skip_size = 1 + data_segment.capacity - pattern_length;
+    const auto skip_size = 1 + data_segment.capacity_ - pattern_length;
     int64_t skip = 0;
     do {
-        data_segment.offset += skip;
+        data_segment.offset_ += skip;
         populate_data_segment_(search_context_ptr->session_ptr, &data_segment);
         const auto segment_data_ptr = omega_data_segment_get_data(&data_segment);
         if (search_context_ptr->case_insensitive) {
-            omega_util_apply_byte_transform(segment_data_ptr, data_segment.length, to_lower_, nullptr);
+            omega_util_apply_byte_transform(segment_data_ptr, data_segment.length_, to_lower_, nullptr);
         }
-        const auto found = omega_find(segment_data_ptr, data_segment.length, search_context_ptr->skip_table_ptr,
+        const auto found = omega_find(segment_data_ptr, data_segment.length_, search_context_ptr->skip_table_ptr,
                                       pattern, pattern_length);
         if (found) {
-            if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
-            search_context_ptr->match_offset = data_segment.offset + (found - segment_data_ptr);
+            if (7 < data_segment.capacity_) { delete[] data_segment.data_.bytes_ptr_; }
+            search_context_ptr->match_offset = data_segment.offset_ + (found - segment_data_ptr);
             return 1;
         }
         skip = skip_size;
-    } while (data_segment.length == data_segment.capacity);
-    if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
+    } while (data_segment.length_ == data_segment.capacity_);
+    if (7 < data_segment.capacity_) { delete[] data_segment.data_.bytes_ptr_; }
     search_context_ptr->match_offset = session_length;
     return 0;
 }
@@ -123,6 +124,6 @@ void omega_search_destroy_context(omega_search_context_t *search_context_ptr) {
     assert(search_context_ptr);
     assert(search_context_ptr->skip_table_ptr);
     omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
-    if (7 < search_context_ptr->pattern_length) { delete[] search_context_ptr->pattern.bytes_ptr; }
+    if (7 < search_context_ptr->pattern_length) { delete[] search_context_ptr->pattern.bytes_ptr_; }
     delete search_context_ptr;
 }

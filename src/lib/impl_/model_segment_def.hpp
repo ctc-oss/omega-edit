@@ -21,15 +21,15 @@
 enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
 
 struct omega_model_segment_struct {
-    int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
-    int64_t computed_length{};            ///< Computed length can differ from the change as segments split
-    int64_t change_offset{};              ///< Change offset is the offset in the change due to a split
-    const_omega_change_ptr_t change_ptr{};///< Reference to parent change
+    int64_t computed_offset_{};            ///< Computed offset can differ from the change as segments move and split
+    int64_t computed_length_{};            ///< Computed length can differ from the change as segments split
+    int64_t change_offset_{};              ///< Change offset is the offset in the change due to a split
+    const_omega_change_ptr_t change_ptr_{};///< Reference to parent change
 };
 
 inline model_segment_kind_t omega_model_segment_get_kind(const omega_model_segment_t *model_segment_ptr) {
-    return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get())) ? model_segment_kind_t::SEGMENT_READ
-                                                                               : model_segment_kind_t::SEGMENT_INSERT;
+    return (0 == omega_change_get_serial(model_segment_ptr->change_ptr_.get())) ? model_segment_kind_t::SEGMENT_READ
+                                                                                : model_segment_kind_t::SEGMENT_INSERT;
 }
 
 inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_kind) {

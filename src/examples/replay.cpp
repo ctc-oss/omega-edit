@@ -33,13 +33,13 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
     switch (session_event) {
         case SESSION_EVT_CREATE:
         case SESSION_EVT_EDIT: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
+            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr_unlocked(session_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
             clog << dec << R"({ "filename" : ")" << file_info_ptr->in_filename << R"(", "num_changes" : )"
-                 << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
-                 << omega_session_get_computed_file_size(session_ptr) << R"(, "change_serial": )"
+                 << omega_session_get_num_changes_unlocked(session_ptr) << R"(, "computed_file_size": )"
+                 << omega_session_get_computed_file_size_unlocked(session_ptr) << R"(, "change_serial": )"
                  << omega_change_get_serial(change_ptr) << R"(, "kind": ")" << omega_change_get_kind_as_char(change_ptr)
                  << R"(", "offset": )" << omega_change_get_offset(change_ptr) << R"(, "length": )" << bytes_length;
             if (bytes) { clog << R"(, "bytes": ")" << string((const char *) bytes, bytes_length) << R"(")"; }
