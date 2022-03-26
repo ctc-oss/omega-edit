@@ -817,12 +817,12 @@ private:
 void run_tests(const std::string &target_str, int repetitions, bool log) {
     const int64_t vpt_capacity = 5;
     fs::remove_all(fs::current_path() / "server_test_out");
+    OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] Establishing a channel to Ωedit server on: " << target_str << std::endl;);
         }
-        OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
         auto reply = server_test_client.GetOmegaEditVersion();
         if (log) {
@@ -1163,7 +1163,7 @@ int main(int argc, char **argv) {
     }
     // change current working path to that of this executable
     fs::current_path(fs::path(argv[0]).parent_path());
-    bool run_server = true;
+    bool run_server = false;
 #ifdef OMEGA_BUILD_UNIX
     pid_t server_pid = 0;
 #else
