@@ -25,7 +25,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <utility>
 
 using grpc::CallbackServerContext;
 using grpc::Server;
@@ -68,17 +67,14 @@ using google::protobuf::Empty;
 class SessionEventWriter : public ServerWriteReactor<SessionEvent> {
 public:
     explicit SessionEventWriter(const CallbackServerContext *context) : context_(context) {
-        DBG(CLOG << LOCATION << std::endl;);
         this->StartSendInitialMetadata();
     }
-    void OnDone() override { delete this; }
+    void OnDone() override {}
     void write(std::shared_ptr<SessionEvent> &session_event_ptr) {
         session_event_ptr_ = session_event_ptr;
         this->StartWrite(session_event_ptr_.get());
     }
-    virtual ~SessionEventWriter() {
-        DBG(CLOG << LOCATION << std::endl;);
-    }
+    virtual ~SessionEventWriter() {}
 
 private:
     const CallbackServerContext *context_;
@@ -88,17 +84,14 @@ private:
 class ViewportEventWriter : public ServerWriteReactor<ViewportEvent> {
 public:
     explicit ViewportEventWriter(const CallbackServerContext *context) : context_(context) {
-        DBG(CLOG << LOCATION << std::endl;);
         this->StartSendInitialMetadata();
     }
-    void OnDone() override { delete this; }
+    void OnDone() override {}
     void write(std::shared_ptr<ViewportEvent> &viewport_event_ptr) {
         viewport_event_ptr_ = viewport_event_ptr;
         this->StartWrite(viewport_event_ptr_.get());
     }
-    virtual ~ViewportEventWriter() {
-        DBG(CLOG << LOCATION << std::endl;);
-    }
+    virtual ~ViewportEventWriter() {}
 
 private:
     const CallbackServerContext *context_;
@@ -213,7 +206,8 @@ public:
         viewport_to_id_[viewport_ptr] = viewport_id;
         id_to_viewport_[viewport_id] = viewport_ptr;
         assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
-        DBG(CLOG << LOCATION << " added viewport: " << viewport_id << ", num viewports: " << viewport_to_id_.size() << std::endl;);
+        DBG(CLOG << LOCATION << " added viewport: " << viewport_id << ", num viewports: " << viewport_to_id_.size()
+                 << std::endl;);
         return viewport_id;
     }
 
@@ -238,9 +232,7 @@ public:
             id_to_viewport_.erase(id_to_viewport_iter);
             destroy_viewport_subscription(viewport_id);
             omega_edit_destroy_viewport(viewport_ptr);
-            assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
             DBG(CLOG << LOCATION << " destroy viewport: " << viewport_id << std::endl;);
-
         }
     }
 
@@ -337,7 +329,6 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
         assert(!session_id.empty());
         auto session_event_writer_ptr = session_manager_ptr->get_session_subscription(session_id);
         if (session_event_writer_ptr) {
-            // This session is subscribed, so populate the RPC message and push it onto the worker queue
             auto session_change_ptr = std::make_shared<SessionEvent>();
             session_change_ptr->set_session_id(session_id);
             session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
@@ -360,7 +351,6 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
         assert(!viewport_id.empty());
         const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
         if (viewport_event_writer_ptr) {
-            // This session is subscribed, so populate the RPC message and push it onto the worker queue
             const auto session_id = session_manager_ptr->get_session_id(omega_viewport_get_session(viewport_ptr));
             assert(!session_id.empty());
             auto viewport_change = std::make_shared<ViewportEvent>();
@@ -378,7 +368,6 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
 class OmegaEditServiceImpl final : public omega_edit::Editor::CallbackService {
 private:
     SessionManager session_manager_{};
-    //std::mutex edit_mutex_;
 
 public:
     OmegaEditServiceImpl() = default;
