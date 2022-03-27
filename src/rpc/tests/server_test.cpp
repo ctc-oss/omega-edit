@@ -1163,7 +1163,7 @@ int main(int argc, char **argv) {
     }
     // change current working path to that of this executable
     fs::current_path(fs::path(argv[0]).parent_path());
-    bool run_server = false;
+    bool run_server = true;
 #ifdef OMEGA_BUILD_UNIX
     pid_t server_pid = 0;
 #else
@@ -1184,7 +1184,7 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    run_tests(target_str, 99, true);
+    run_tests(target_str, 50, true);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);
