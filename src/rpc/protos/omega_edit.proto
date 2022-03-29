@@ -21,7 +21,7 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
+  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
@@ -40,6 +40,9 @@ service Editor {
   rpc GetComputedFileSize(ObjectId) returns (ComputedFileSizeResponse);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+
+  rpc GetCount(CountRequest) returns (CountResponse);
+  rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
@@ -75,6 +78,30 @@ enum ViewportEventKind {
   VIEWPORT_EVT_UPDATED = 32;
 }
 
+enum CountKind {
+  UNDEFINED_COUNT_KIND = 0;
+  COUNT_FILE_SIZE = 1;
+  COUNT_CHANGES = 2;
+  COUNT_UNDOS = 3;
+  COUNT_VIEWPORTS = 4;
+  COUNT_CHECKPOINTS = 5;
+}
+
+message CountRequest {
+  string session_id = 1;
+  CountKind kind = 2;
+}
+
+message CountResponse {
+  string session_id = 1;
+  CountKind kind = 2;
+  int64 count = 3;
+}
+
+message SessionCountResponse {
+  int64 count = 1;
+}
+
 message VersionResponse {
   int32 major = 1;
   int32 minor = 2;
@@ -108,7 +135,8 @@ message CreateViewportRequest {
 }
 
 message CreateViewportResponse {
-  string viewport_id = 1;
+  string session_id = 1;
+  string viewport_id = 2;
 }
 
 message ViewportDataRequest {
@@ -145,15 +173,20 @@ message SaveSessionResponse {
 message SessionEvent {
   string session_id = 1;
   SessionEventKind session_event_kind = 2;
-  optional int64 serial = 3;
+  int64 computed_file_size = 3;
+  int64 change_count = 4;
+  int64 undo_count = 5;
+  optional int64 serial = 6;
 }
 
 message ViewportEvent {
-  string viewport_id = 1;
-  ViewportEventKind viewport_event_kind = 2;
-  optional int64 serial = 3;
-  optional int64 length = 4;
-  optional bytes data = 5;
+  string session_id = 1;
+  string viewport_id = 2;
+  ViewportEventKind viewport_event_kind = 3;
+  optional int64 serial = 4;
+  optional int64 offset = 5;
+  optional int64 length = 6;
+  optional bytes data = 7;
 }
 
 message ChangeDetailsResponse {

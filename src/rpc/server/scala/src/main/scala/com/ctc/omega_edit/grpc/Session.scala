@@ -46,21 +46,26 @@ object Session {
   def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
     Props(new Session(session, events, cb))
 
-  trait Op
+  sealed trait Op
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
   case class View(offset: Long, capacity: Long, id: Option[String]) extends Op
   case class DestroyView(id: String) extends Op
   case object Watch extends Op
   case object GetSize extends Op
+  case object GetNumCheckpoints extends Op
+  case object GetNumChanges extends Op
+  case object GetNumUndos extends Op
+  case object GetNumViewports extends Op
 
   case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
   case class Insert(data: String, offset: Long) extends Op
   case class Overwrite(data: String, offset: Long) extends Op
 
+  case class LookupChange(id: Long) extends Op
+  
   case class Updated(id: String)
 
-  case class LookupChange(id: Long) extends Op
   trait ChangeDetails {
     def change: Change
   }
@@ -128,6 +133,26 @@ class Session(session: api.Session, @deprecated("unused", "")events: EventStream
     case GetSize =>
       sender() ! new Ok(sessionId) with Size {
         def computedSize: Long = session.size
+      }
+
+    case GetNumChanges =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numChanges
+      }
+
+    case GetNumCheckpoints =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numCheckpoints
+      }
+
+    case GetNumUndos =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numUndos
+      }
+
+    case GetNumViewports =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numViewports
       }
 
     case Save(to, overwrite) =>

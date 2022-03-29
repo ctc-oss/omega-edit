@@ -38,6 +38,7 @@ object Editors {
   case class Find(id: String)
   case class Create(id: Option[String], path: Option[Path])
   case class Destroy(id: String)
+  case object SessionCount
 
   ///
 
@@ -94,6 +95,9 @@ class Editors extends Actor with ActorLogging {
           s ! PoisonPill
           sender() ! Ok(id)
       }
+
+    case SessionCount =>
+      sender() ! context.children.size
 
     case SessionOp(id, op) =>
       context.child(id) match {

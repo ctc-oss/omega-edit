@@ -35,6 +35,9 @@ using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::ComputedFileSizeResponse;
+using omega_edit::CountKind;
+using omega_edit::CountRequest;
+using omega_edit::CountResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -43,6 +46,7 @@ using omega_edit::Editor;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SessionCountResponse;
 using omega_edit::VersionResponse;
 using omega_edit::ViewportDataRequest;
 using omega_edit::ViewportDataResponse;
@@ -50,6 +54,49 @@ using omega_edit::ViewportEvent;
 using omega_edit::ViewportEventKind;
 
 std::mutex write_mutex;
+
+#ifdef OMEGA_BUILD_UNIX
+pid_t spawn_process(const char *program, char **arg_list) {
+    pid_t ch_pid = fork();
+    if (ch_pid == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    } else if (ch_pid == 0) {
+        execve(program, arg_list, nullptr);
+        perror("execve");
+        exit(EXIT_FAILURE);
+    }
+    assert(0 < ch_pid);
+    return ch_pid;
+}
+#else
+#include <tchar.h>
+#include <windows.h>
+
+void spawn_widows_process(PROCESS_INFORMATION &pi, TCHAR *cmd) {
+    STARTUPINFO si;
+
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Start the child process.
+    if (!CreateProcess(NULL, // No module name (use command line)
+                       cmd,  // Command line
+                       NULL, // Process handle not inheritable
+                       NULL, // Thread handle not inheritable
+                       FALSE,// Set handle inheritance to FALSE
+                       0,    // No creation flags
+                       NULL, // Use parent's environment block
+                       NULL, // Use parent's starting directory
+                       &si,  // Pointer to STARTUPINFO structure
+                       &pi)  // Pointer to PROCESS_INFORMATION structure
+    ) {
+        DBG(CLOG << LOCATION << "CreateProcess failed: " << GetLastError() << std::endl;);
+        return;
+    }
+}
+#endif
 
 class OmegaEditServiceClient final {
 public:
@@ -74,7 +121,7 @@ public:
         std::condition_variable cv;
         bool done = false;
         Status status;
-        stub_->async()->GetOmegaVersion(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+        stub_->async()->GetVersion(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
             std::scoped_lock lock(mu);
             done = true;
@@ -618,6 +665,64 @@ public:
         }
     }
 
+    [[nodiscard]] int64_t GetCount(const std::string &session_id, CountKind count_kind) const {
+        assert(!session_id.empty());
+        CountRequest request;
+        CountResponse response;
+        ClientContext context;
+
+        request.set_session_id(session_id);
+        request.set_kind(count_kind);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.count();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
+    [[nodiscard]] int64_t GetSessionCount() const {
+        google::protobuf::Empty request;
+        SessionCountResponse response;
+        ClientContext context;
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetSessionCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.count();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                       std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -625,12 +730,17 @@ public:
         ViewportEvent viewport_event;
         reader_ptr->WaitForInitialMetadata();
         while (reader_ptr->Read(&viewport_event)) {
+            auto const &session_id = viewport_event.session_id();
+            assert(!session_id.empty());
             auto const &viewport_id = viewport_event.viewport_id();
+            assert(!viewport_id.empty());
             const std::scoped_lock write_lock(write_mutex);
             if (viewport_event.has_serial()) {
-                DBG(CLOG << LOCATION << "viewport id: " << viewport_id << ", event kind: "
-                         << viewport_event.viewport_event_kind() << " change serial: " << viewport_event.serial()
-                         << ", data: [" << viewport_event.data() << "]" << std::endl;);
+                DBG(CLOG << LOCATION << "session id: " << session_id << ", viewport id: " << viewport_id
+                         << ", event kind: " << viewport_event.viewport_event_kind()
+                         << ", change serial: " << viewport_event.serial() << ", offset: " << viewport_event.offset()
+                         << ", length: " << viewport_event.length() << ", data: [" << viewport_event.data() << "]"
+                         << std::endl;);
             } else {
                 DBG(CLOG << LOCATION << "viewport id: " << viewport_id
                          << ", event kind: " << viewport_event.viewport_event_kind() << std::endl;);
@@ -831,13 +941,56 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         }
 
         auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
-        reply = server_test_client.SaveSession(session_id, save_file, true);
+        reply = server_test_client.SaveSession(session_id, save_file.string(), true);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        reply = server_test_client.SaveSession(session_id, save_file, false);
+        auto count = server_test_client.GetSessionCount();
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count
+                     << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_FILE_SIZE) received: " << count << std::endl;);
+        }
+        assert(computed_file_size == count);
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_CHANGES);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_CHANGES) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_UNDOS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_UNDOS) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_VIEWPORTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_VIEWPORTS) received: " << count << std::endl;);
+        }
+
+        count = server_test_client.GetCount(session_id, CountKind::COUNT_CHECKPOINTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_CHECKPOINTS) received: " << count << std::endl;);
+        }
+
+        reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
@@ -941,27 +1094,37 @@ int main(int argc, char **argv) {
     fs::current_path(fs::path(argv[0]).parent_path());
     bool run_server = true;
 #ifdef OMEGA_BUILD_UNIX
-    pid_t pid = 0;
+    pid_t server_pid = 0;
+#else
+    PROCESS_INFORMATION pi;
 #endif
     if (run_server) {
         const auto server_program = fs::current_path() / "server";
         const auto target = std::string("--target=") + target_str;
 #ifdef OMEGA_BUILD_UNIX
-        pid = fork();
-        if (0 == pid) {
-            execl(server_program.c_str(), server_program.c_str(), target.c_str(), (char *) nullptr);
-            return EXIT_FAILURE;
-        }
-        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << pid << std::endl;);
+        char *arg_list[] = {(char *) server_program.c_str(), (char *) target.c_str(), nullptr};
+        server_pid = spawn_process(server_program.c_str(), arg_list);
+        DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << server_pid << std::endl;);
         // TODO: Check to see if the server is up and serving instead of using sleep
         sleep(2);// sleep 2 seconds for the server to come online
+#else
+        auto cmd = server_program.string() + " " + "--target=" + target_str + ".exe";
+        spawn_widows_process(pi, (TCHAR *) cmd.c_str());
 #endif
-        // TODO: CreateProcess for Windows
     }
 
-    run_tests(target_str, 50, true);
+    run_tests(target_str, 99, true);
+    if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
-    if (pid) { kill(pid, SIGTERM); }
+        kill(server_pid, SIGTERM);
+#else
+        // Wait until child process exits.
+        TerminateProcess(pi.hProcess, 0);
+
+        // Close process and thread handles.
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
 #endif
+    }
     return EXIT_SUCCESS;
 }

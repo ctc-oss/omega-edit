@@ -23,14 +23,12 @@
 #include <cassert>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
-#include <grpcpp/health_check_service_interface.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <utility>
 
 using grpc::CallbackServerContext;
-using grpc::EnableDefaultHealthCheckService;
-using grpc::HealthCheckServiceInterface;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -38,12 +36,16 @@ using grpc::ServerUnaryReactor;
 using grpc::ServerWriter;
 using grpc::ServerWriteReactor;
 using grpc::Status;
+using grpc::StatusCode;
 
 using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
 using omega_edit::ChangeResponse;
 using omega_edit::ComputedFileSizeResponse;
+using omega_edit::CountKind;
+using omega_edit::CountRequest;
+using omega_edit::CountResponse;
 using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
@@ -51,6 +53,7 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SessionCountResponse;
 using omega_edit::SessionEvent;
 using omega_edit::SessionEventKind;
 using omega_edit::VersionResponse;
@@ -93,10 +96,9 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void HandleItem(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        const auto session_change_ptr = std::static_pointer_cast<SessionEvent>(item);
-        StartWrite(session_change_ptr.get());
+        StartWrite(std::static_pointer_cast<SessionEvent>(item).get());
     }
 };
 
@@ -124,10 +126,9 @@ public:
 
     inline void OnDone() override { delete this; }
 
-    void HandleItem(std::shared_ptr<void> item) override {
+    void handle_item(std::shared_ptr<void> const &item) override {
         assert(item);
-        const auto viewport_change_ptr = std::static_pointer_cast<ViewportEvent>(item);
-        StartWrite(viewport_change_ptr.get());
+        StartWrite(std::static_pointer_cast<ViewportEvent>(item).get());
     }
 };
 
@@ -150,8 +151,11 @@ public:
         assert(id_to_session_.find(session_id) == id_to_session_.end());
         session_to_id_[session_ptr] = session_id;
         id_to_session_[session_id] = session_ptr;
+        assert(session_to_id_.size() == id_to_session_.size());
         return session_id;
     }
+
+    [[nodiscard]] inline size_t get_session_count() const { return session_to_id_.size(); }
 
     inline void destroy_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
@@ -344,8 +348,11 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
             const auto session_change_ptr = std::make_shared<SessionEvent>();
             session_change_ptr->set_session_id(session_id);
             session_change_ptr->set_session_event_kind(omega_session_event_to_rpc_event(session_event));
+            session_change_ptr->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
+            session_change_ptr->set_change_count(omega_session_get_num_changes(session_ptr));
+            session_change_ptr->set_undo_count(omega_session_get_num_undone_changes(session_ptr));
             if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            session_event_writer_ptr->Push(session_change_ptr);
+            session_event_writer_ptr->push(session_change_ptr);
         }
     }
 }
@@ -361,14 +368,17 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
         const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
         if (viewport_event_writer_ptr) {
             // This session is subscribed, so populate the RPC message and push it onto the worker queue
+            const auto session_id = session_manager_ptr->get_session_id(omega_viewport_get_session(viewport_ptr));
+            assert(!session_id.empty());
             const auto viewport_change_ptr = std::make_shared<ViewportEvent>();
+            viewport_change_ptr->set_session_id(session_id);
             viewport_change_ptr->set_viewport_id(viewport_id);
+            viewport_change_ptr->set_offset(omega_viewport_get_offset(viewport_ptr));
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
             if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
-            auto data = omega_viewport_get_string(viewport_ptr);
-            viewport_change_ptr->set_length((int64_t) data.length());
-            viewport_change_ptr->set_data(std::move(data));
-            viewport_event_writer_ptr->Push(viewport_change_ptr);
+            viewport_change_ptr->set_data(omega_viewport_get_string(viewport_ptr));
+            viewport_change_ptr->set_length((int64_t) viewport_change_ptr->data().length());
+            viewport_event_writer_ptr->push(viewport_change_ptr);
         }
     }
 }
@@ -384,8 +394,8 @@ public:
     OmegaEditServiceImpl &operator=(const OmegaEditServiceImpl &) = delete;
 
     // Unary services
-    ServerUnaryReactor *GetOmegaVersion(CallbackServerContext *context, const Empty *request,
-                                        VersionResponse *response) override {
+    ServerUnaryReactor *GetVersion(CallbackServerContext *context, const Empty *request,
+                                   VersionResponse *response) override {
         (void) request;
         auto *reactor = context->DefaultReactor();
         response->set_major(omega_version_major());
@@ -424,22 +434,27 @@ public:
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
         const auto change_kind = request->kind();
+        const auto offset = request->offset();
+        assert(0 <= offset);
         int64_t change_serial = 0;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             switch (change_kind) {
                 case omega_edit::CHANGE_DELETE:
-                    change_serial = omega_edit_delete(session_ptr, request->offset(), request->length());
+                    // Ignores request data
+                    change_serial = omega_edit_delete(session_ptr, offset, request->length());
                     break;
                 case omega_edit::CHANGE_INSERT:
-                    change_serial = omega_edit_insert_string(session_ptr, request->offset(), request->data());
+                    // Ignores request length
+                    change_serial = omega_edit_insert_string(session_ptr, offset, request->data());
                     break;
                 case omega_edit::CHANGE_OVERWRITE:
-                    change_serial = omega_edit_overwrite_string(session_ptr, request->offset(), request->data());
+                    // Ignores request length
+                    change_serial = omega_edit_overwrite_string(session_ptr, offset, request->data());
                     break;
                 default:
-                    // TODO: Implement error handling
-                    break;
+                    reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                    return reactor;
             }
         }
         response->set_session_id(session_id);
@@ -500,9 +515,57 @@ public:
             response->set_id(session_id);
             reactor->Finish(Status::OK);
         } else {
-            // TODO: Error handing
-            reactor->Finish(Status::OK);
+            std::stringstream ss;
+            ss << "ERROR: " << rc << ", clearing: " << session_id;
+            reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetSessionCount(CallbackServerContext *context, const Empty *request,
+                                        SessionCountResponse *response) override {
+        response->set_count(static_cast<int64_t>(session_manager_.get_session_count()));
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetCount(CallbackServerContext *context, const CountRequest *request,
+                                 CountResponse *response) override {
+        const auto &session_id = request->session_id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto count_kind = request->kind();
+        auto *reactor = context->DefaultReactor();
+        int64_t count = -1;
+        switch (count_kind) {
+            case CountKind::UNDEFINED_COUNT_KIND:
+                break;
+            case CountKind::COUNT_FILE_SIZE:
+                count = omega_session_get_computed_file_size(session_ptr);
+                break;
+            case CountKind::COUNT_CHANGES:
+                count = omega_session_get_num_changes(session_ptr);
+                break;
+            case CountKind::COUNT_UNDOS:
+                count = omega_session_get_num_undone_changes(session_ptr);
+                break;
+            case CountKind::COUNT_VIEWPORTS:
+                count = omega_session_get_num_viewports(session_ptr);
+                break;
+            case CountKind::COUNT_CHECKPOINTS:
+                count = omega_session_get_num_checkpoints(session_ptr);
+                break;
+            default:
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal count kind")));
+                return reactor;
+        }
+        assert(0 <= count);
+        response->set_session_id(session_id);
+        response->set_kind(count_kind);
+        response->set_count(count);
+        reactor->Finish(Status::OK);
         return reactor;
     }
 
@@ -527,8 +590,9 @@ public:
             response->set_file_path(saved_file_buffer);
             reactor->Finish(Status::OK);
         } else {
-            // TODO: Error handing
-            reactor->Finish(Status::OK);
+            std::stringstream ss;
+            ss << "ERROR: " << rc << ", saving session: " << session_id << ", to file path: " << file_path;
+            reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
         return reactor;
     }
@@ -605,8 +669,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
@@ -637,8 +701,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
@@ -669,8 +733,8 @@ public:
                 response->set_data(omega_change_get_string(change_ptr));
                 break;
             default:
-                // TODO: Handle error
-                break;
+                reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal change kind")));
+                return reactor;
         }
         reactor->Finish(Status::OK);
         return reactor;
@@ -710,6 +774,7 @@ public:
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
+        response->set_session_id(session_id);
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -767,7 +832,6 @@ public:
 void RunServer(const std::string &server_address) {
     OmegaEditServiceImpl service;
 
-    EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
     ServerBuilder builder;
 
@@ -780,7 +844,6 @@ void RunServer(const std::string &server_address) {
 
     // Finally, assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    server->GetHealthCheckService()->SetServingStatus("OmegaEdit", true);
     DBG(CLOG << LOCATION << "Ωedit server listening on: " << server_address << std::endl;);
 
     // Wait for the server to shut down. Note that some other thread must be

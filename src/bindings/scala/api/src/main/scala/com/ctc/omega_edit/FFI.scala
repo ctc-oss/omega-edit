@@ -34,19 +34,8 @@ private[omega_edit] trait FFI {
   def omega_version_minor(): Int
   def omega_version_patch(): Int
 
-  def omega_edit_save(
-      p: Pointer,
-      path: String,
-      overwrite: Boolean,
-      opath: Pointer
-  ): Long
-  def omega_edit_create_session(
-      path: String,
-      cb: SessionCallback,
-      userData: Pointer,
-      eventInterest: Int
-  ): Pointer
-  def omega_session_get_computed_file_size(p: Pointer): Long
+  def omega_edit_save(p: Pointer, path: String, overwrite: Boolean, opath: Pointer): Long
+  def omega_edit_create_session(path: String, cb: SessionCallback, userData: Pointer, eventInterest: Int): Pointer
   def omega_edit_insert(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_insert_bytes(
       p: Pointer,
@@ -71,6 +60,12 @@ private[omega_edit] trait FFI {
       userData: Pointer,
       eventInterest: Int
   ): Pointer
+
+  def omega_session_get_computed_file_size(p: Pointer): Long
+  def omega_session_get_num_changes(p: Pointer): Long
+  def omega_session_get_num_checkpoints(p: Pointer): Long
+  def omega_session_get_num_undone_changes(p: Pointer): Long
+  def omega_session_get_num_viewports(p: Pointer): Long
 
   def omega_viewport_get_data(p: Pointer): String
   def omega_viewport_get_length(p: Pointer): Long
