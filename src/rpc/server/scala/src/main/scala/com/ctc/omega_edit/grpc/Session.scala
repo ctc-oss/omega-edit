@@ -23,6 +23,7 @@ import akka.stream.scaladsl.Source
 import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors.{Err, Ok}
+import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 
