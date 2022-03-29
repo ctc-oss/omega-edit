@@ -28,7 +28,6 @@ struct omega_data_segment_struct {
     int64_t length{};   ///< Populated data length (in bytes)
     int64_t capacity{}; ///< Data capacity (in bytes)
     omega_data_t data{};///< Copy of the data itself
-    bool is_floating{};
     int64_t offset_adjustment{};
 };
 

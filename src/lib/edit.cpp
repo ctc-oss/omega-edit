@@ -508,7 +508,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->session_ptr = session_ptr;
         viewport_ptr->data_segment.offset = offset;
         viewport_ptr->data_segment.offset_adjustment = 0;
-        viewport_ptr->data_segment.is_floating = (bool) is_floating;
+        viewport_ptr->is_floating = (bool) is_floating;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
         // data segment buffer allocation is its capacity plus one, so we can null-terminate it

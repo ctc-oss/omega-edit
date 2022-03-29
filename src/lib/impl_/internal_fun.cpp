@@ -190,7 +190,7 @@ int64_t viewport_get_offset_(const omega_viewport_t *viewport_ptr) {
 }
 
 int viewport_is_floating_(const omega_viewport_t *viewport_ptr) {
-    return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
+    return (viewport_ptr->is_floating) ? 1 : 0;
 }
 
 int viewport_has_changes_(const omega_viewport_t *viewport_ptr) {
