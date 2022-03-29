@@ -67,13 +67,6 @@ lazy val `omega-edit` = project
     name := "omega-edit",
     publish / skip := true
   )
-
-lazy val omega_edit = project
-  .in(file("."))
-  .settings(commonSettings)
-  .settings(
-    publish / skip := true
-  )
   .aggregate(api, spi, native)
 
 lazy val api = project
