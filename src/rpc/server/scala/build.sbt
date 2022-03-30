@@ -23,7 +23,7 @@ lazy val packageData = Json
 lazy val omegaVersion = packageData("version").as[String]
 
 name := "example-grpc-server"
-scalaVersion := "2.13.6"
+scalaVersion := "2.13.8"
 
 lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
