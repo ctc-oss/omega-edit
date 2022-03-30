@@ -34,6 +34,11 @@ trait Session {
   def numCheckpoints: Long
   def numUndos: Long
   def numViewports: Long
+  
+  def callback: Option[SessionCallback]
+
+  def eventInterest: Int
+  def eventInterest_=(eventInterest: Int): Unit
 
   def insert(s: String, offset: Long): Result
   def insert(b: Array[Byte], offset: Long): Result

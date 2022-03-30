@@ -29,6 +29,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
+import com.ctc.omega_edit.api.SessionCallback
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
@@ -47,6 +48,15 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def numViewports: Long =
     i.omega_session_get_num_viewports(p)
+
+  def callback: Option[SessionCallback] =
+    Option(i.omega_session_get_event_cbk(p))
+
+  def eventInterest: Int =
+    i.omega_session_get_event_interest(p)
+
+  def eventInterest_=(eventInterest: Int): Unit =
+    i.omega_session_set_event_interest(p, eventInterest)
 
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
