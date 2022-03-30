@@ -39,7 +39,9 @@ object OmegaEdit extends OmegaEdit {
   }
 
   def version(): Version =
-    Version(ffi.omega_version_major(), ffi.omega_version_minor(), ffi.omega_version_patch())
+    Version(ffi.omega_version_major(),
+            ffi.omega_version_minor(),
+            ffi.omega_version_patch())
 
   /**
     * Not strictly required to call this prior to interacting with the API, though this

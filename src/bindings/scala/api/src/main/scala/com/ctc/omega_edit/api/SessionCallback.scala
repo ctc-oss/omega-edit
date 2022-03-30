@@ -24,10 +24,12 @@ import jnr.ffi.annotations.Delegate
   * Provides callbacks on session changes.
   */
 trait SessionCallback {
-  @Delegate private[api] final def invoke(s: Pointer, e: Int, c: Pointer): Unit = {
+  @Delegate private[api] final def invoke(s: Pointer,
+                                          e: Int,
+                                          c: Pointer): Unit = {
     val change = c match {
       case null => None
-      case _    => Some(new ChangeImpl(c, FFI.i))
+      case _ => Some(new ChangeImpl(c, FFI.i))
     }
     handle(new SessionImpl(s, FFI.i), SessionEvent.fromNative(e), change)
   }
@@ -48,6 +50,7 @@ object SessionCallback {
     * @param cb The callback function
     * @return SessionCallback
     */
-  def apply(cb: (Session, SessionEvent, Option[Change]) => Unit): SessionCallback =
+  def apply(
+      cb: (Session, SessionEvent, Option[Change]) => Unit): SessionCallback =
     (v: Session, e: SessionEvent, c: Option[Change]) => cb(v, e, c)
 }

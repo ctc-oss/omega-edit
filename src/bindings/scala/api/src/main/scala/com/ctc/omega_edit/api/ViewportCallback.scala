@@ -24,10 +24,12 @@ import jnr.ffi.annotations.Delegate
   * Provides callbacks on viewport changes.
   */
 trait ViewportCallback {
-  @Delegate private[api] final def invoke(v: Pointer, e: Int, c: Pointer): Unit = {
+  @Delegate private[api] final def invoke(v: Pointer,
+                                          e: Int,
+                                          c: Pointer): Unit = {
     val change = c match {
       case null => None
-      case _    => Some(new ChangeImpl(c, FFI.i))
+      case _ => Some(new ChangeImpl(c, FFI.i))
     }
     handle(new ViewportImpl(v, FFI.i), ViewportEvent.fromNative(e), change)
   }
@@ -49,6 +51,7 @@ object ViewportCallback {
     * @param cb The callback function
     * @return ViewportCallback
     */
-  def apply(cb: (Viewport, ViewportEvent, Option[Change]) => Unit): ViewportCallback =
+  def apply(cb: (Viewport, ViewportEvent, Option[Change]) => Unit)
+    : ViewportCallback =
     (v: Viewport, e: ViewportEvent, change: Option[Change]) => cb(v, e, change)
 }

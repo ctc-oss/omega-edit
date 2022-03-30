@@ -25,7 +25,8 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   val libdir: String = "../../../../lib"
-  val apacheLicenseUrl: URL = new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")
+  val apacheLicenseUrl: URL = new URL(
+    "https://www.apache.org/licenses/LICENSE-2.0.txt")
 
   // some regexes for arch parsing
   val Mac = """mac.+""".r
@@ -40,9 +41,14 @@ object BuildSupport {
         case e: Elem
             if e.label == "dependency"
               && e.child.exists(child => child.label == "scope") =>
-          def txt(label: String): String = "\"" + e.child.filter(_.label == label).flatMap(_.text).mkString + "\""
+          def txt(label: String): String =
+            "\"" + e.child
+              .filter(_.label == label)
+              .flatMap(_.text)
+              .mkString + "\""
           Comment(
-            s""" scoped dependency ${txt("groupId")} % ${txt("artifactId")} % ${txt("version")} % ${txt("scope")} has been omitted """
+            s""" scoped dependency ${txt("groupId")} % ${txt("artifactId")} % ${txt(
+              "version")} % ${txt("scope")} has been omitted """
           )
         case _ => node
       }
@@ -50,16 +56,16 @@ object BuildSupport {
 
   lazy val platform: Platform = {
     val os = System.getProperty("os.name").toLowerCase match {
-      case "linux"   => "linux"
-      case Mac()     => "macos"
-      case Win()     => "windows"
-      case os        => throw new IllegalStateException(s"Unsupported OS: $os")
+      case "linux" => "linux"
+      case Mac() => "macos"
+      case Win() => "windows"
+      case os => throw new IllegalStateException(s"Unsupported OS: $os")
     }
 
     val arch = System.getProperty("os.arch").toLowerCase match {
       case Amd(bits) => bits
       case x86(bits) => bits
-      case arch      => throw new IllegalStateException(s"unknown arch: $arch")
+      case arch => throw new IllegalStateException(s"unknown arch: $arch")
     }
     Platform(os, arch)
   }
@@ -68,18 +74,19 @@ object BuildSupport {
   lazy val mapping = {
     val Mac = """mac.+""".r
     System.getProperty("os.name").toLowerCase match {
-      case "linux"   => pair("libomega_edit.so")
-      case Mac()     => pair("libomega_edit.dylib")
-      case Win()     => pair("omega_edit.dll")
+      case "linux" => pair("libomega_edit.so")
+      case Mac() => pair("libomega_edit.dylib")
+      case Win() => pair("omega_edit.dll")
     }
   }
 
-  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>
-    opts.filterNot(
-      Set(
-        "-Wvalue-discard",
-        "-Ywarn-value-discard"
+  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = {
+    opts: Seq[String] =>
+      opts.filterNot(
+        Set(
+          "-Wvalue-discard",
+          "-Ywarn-value-discard"
+        )
       )
-    )
   }
 }

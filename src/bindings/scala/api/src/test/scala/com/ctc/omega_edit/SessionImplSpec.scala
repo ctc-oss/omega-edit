@@ -46,7 +46,8 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
 
     "throw if file doesnt exist" in {
-      assertThrows[IllegalArgumentException](OmegaEdit.newSession(Some(Paths.get("/does-not-exist"))))
+      assertThrows[IllegalArgumentException](
+        OmegaEdit.newSession(Some(Paths.get("/does-not-exist"))))
     }
   }
 

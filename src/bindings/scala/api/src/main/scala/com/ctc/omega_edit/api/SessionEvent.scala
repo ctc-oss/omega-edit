@@ -33,14 +33,14 @@ object SessionEvent {
 
   private[api] def fromNative(v: Int): SessionEvent =
     v match {
-      case 1   => Create
-      case 2   => Edit
-      case 4   => Undo
-      case 8   => Clear
-      case 16  => Transform
-      case 32  => CreateCheckpoint
-      case 64  => DestroyCheckpoint
+      case 1 => Create
+      case 2 => Edit
+      case 4 => Undo
+      case 8 => Clear
+      case 16 => Transform
+      case 32 => CreateCheckpoint
+      case 64 => DestroyCheckpoint
       case 128 => Save
-      case _   => Undefined
+      case _ => Undefined
     }
 }

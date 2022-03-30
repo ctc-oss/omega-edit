@@ -44,7 +44,9 @@ object Session {
     def path: Path
   }
 
-  def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
+  def props(session: api.Session,
+            events: EventStream,
+            cb: SessionCallback): Props =
     Props(new Session(session, events, cb))
 
   sealed trait Op
@@ -64,7 +66,7 @@ object Session {
   case class Overwrite(data: String, offset: Long) extends Op
 
   case class LookupChange(id: Long) extends Op
-  
+
   case class Updated(id: String)
 
   trait ChangeDetails {
@@ -72,7 +74,10 @@ object Session {
   }
 }
 
-class Session(session: api.Session, @deprecated("unused", "")events: EventStream, @deprecated("unused", "") cb: SessionCallback) extends Actor {
+class Session(session: api.Session,
+              @deprecated("unused", "") events: EventStream,
+              @deprecated("unused", "") cb: SessionCallback)
+    extends Actor {
   val sessionId: String = self.path.name
 
   def receive: Receive = {
@@ -84,12 +89,16 @@ class Session(session: api.Session, @deprecated("unused", "")events: EventStream
       context.child(fqid) match {
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
-          val (input, stream) = Source.queue[Viewport.Updated](1, OverflowStrategy.dropHead).preMaterialize()
+          val (input, stream) = Source
+            .queue[Viewport.Updated](1, OverflowStrategy.dropHead)
+            .preMaterialize()
           val cb = ViewportCallback { (v, _, c) =>
             input.queue.offer(Viewport.Updated(fqid, v.data, c))
             ()
           }
-          context.actorOf(Viewport.props(session.viewCb(off, cap, cb), stream, cb), vid)
+          context.actorOf(
+            Viewport.props(session.viewCb(off, cap, cb), stream, cb),
+            vid)
           sender() ! Ok(fqid)
       }
 

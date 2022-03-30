@@ -64,7 +64,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   def view(offset: Long, size: Long): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
+    val vp =
+      i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
@@ -76,7 +77,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def findChange(id: Long): Option[Change] =
     i.omega_session_get_change(p, id) match {
       case null => None
-      case ptr  => Some(new ChangeImpl(ptr, i))
+      case ptr => Some(new ChangeImpl(ptr, i))
     }
 
   def save(to: Path): Try[Path] =
@@ -87,7 +88,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     val buffer = ByteBuffer.allocate(4096)
     val overwrite = onExists match {
       case OverwriteExisting => true
-      case GenerateFilename  => false
+      case GenerateFilename => false
     }
     i.omega_edit_save(
       p,
