@@ -69,8 +69,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     new ViewportImpl(vp, i)
   }
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, false, cb, null, 0)
+  def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport = {
+    val vp = i.omega_edit_create_viewport(p, offset, size, false, cb, null, eventInterest)
     new ViewportImpl(vp, i)
   }
 

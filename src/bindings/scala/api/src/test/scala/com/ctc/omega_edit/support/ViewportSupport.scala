@@ -39,7 +39,7 @@ trait ViewportSupport {
     session.viewCb(offset, capacity, (v, _, c) => {
       _data = Some(v.data)
       _change = c
-    })
+    }, 0)
     test(session, cb)
   }
 }

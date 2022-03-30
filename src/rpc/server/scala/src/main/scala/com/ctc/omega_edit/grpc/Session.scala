@@ -51,7 +51,7 @@ object Session {
 
   sealed trait Op
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
-  case class View(offset: Long, capacity: Long, id: Option[String]) extends Op
+  case class View(offset: Long, capacity: Long, id: Option[String], eventInterest: Option[Int]) extends Op
   case class DestroyView(id: String) extends Op
   case object Watch extends Op
   case object GetSize extends Op
@@ -81,7 +81,7 @@ class Session(session: api.Session,
   val sessionId: String = self.path.name
 
   def receive: Receive = {
-    case View(off, cap, id) =>
+    case View(off, cap, id, eventInterest) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId-$vid"
@@ -97,7 +97,7 @@ class Session(session: api.Session,
             ()
           }
           context.actorOf(
-            Viewport.props(session.viewCb(off, cap, cb), stream, cb),
+            Viewport.props(session.viewCb(off, cap, cb, eventInterest.getOrElse(0)), stream, cb),
             vid)
           sender() ! Ok(fqid)
       }

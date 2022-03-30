@@ -28,12 +28,12 @@ import scala.util.Try
   */
 object OmegaEdit extends OmegaEdit {
   def newSession(path: Option[Path]): Session =
-    newSessionCb(path, null)
+    newSessionCb(path, null, None)
 
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = {
+  def newSessionCb(path: Option[Path], cb: SessionCallback, eventInterest: Option[Int]): Session = {
     require(path.forall(_.toFile.exists()), "specified path does not exist")
     new SessionImpl(
-      ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null, 0),
+      ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null, eventInterest.getOrElse(0)),
       ffi
     )
   }
@@ -55,5 +55,5 @@ object OmegaEdit extends OmegaEdit {
 trait OmegaEdit {
   def version(): Version
   def newSession(path: Option[Path]): Session
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session
+  def newSessionCb(path: Option[Path], cb: SessionCallback, eventInterest: Option[Int]): Session
 }

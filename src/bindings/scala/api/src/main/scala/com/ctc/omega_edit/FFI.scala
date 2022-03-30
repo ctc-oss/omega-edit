@@ -34,14 +34,18 @@ private[omega_edit] trait FFI {
   def omega_version_minor(): Int
   def omega_version_patch(): Int
 
-  def omega_edit_save(p: Pointer,
-                      path: String,
-                      overwrite: Boolean,
-                      opath: Pointer): Long
-  def omega_edit_create_session(path: String,
-                                cb: SessionCallback,
-                                userData: Pointer,
-                                eventInterest: Int): Pointer
+  def omega_edit_save(
+      p: Pointer,
+      path: String,
+      overwrite: Boolean,
+      opath: Pointer
+  ): Long
+  def omega_edit_create_session(
+      path: String,
+      cb: SessionCallback,
+      userData: Pointer,
+      eventInterest: Int
+  ): Pointer
   def omega_edit_insert(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_insert_bytes(
       p: Pointer,
@@ -49,10 +53,7 @@ private[omega_edit] trait FFI {
       b: Array[Byte],
       len: Long
   ): Long
-  def omega_edit_overwrite(p: Pointer,
-                           offset: Long,
-                           s: String,
-                           len: Long): Long
+  def omega_edit_overwrite(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_overwrite_bytes(
       p: Pointer,
       offset: Long,
@@ -70,16 +71,23 @@ private[omega_edit] trait FFI {
       eventInterest: Int
   ): Pointer
 
+  def omega_session_get_change(p: Pointer, serial: Long): Pointer
   def omega_session_get_computed_file_size(p: Pointer): Long
+  def omega_session_get_event_cbk(p: Pointer): SessionCallback
+  def omega_session_get_event_interest(p: Pointer): Int
   def omega_session_get_num_changes(p: Pointer): Long
   def omega_session_get_num_checkpoints(p: Pointer): Long
   def omega_session_get_num_undone_changes(p: Pointer): Long
   def omega_session_get_num_viewports(p: Pointer): Long
+  def omega_session_set_event_interest(p: Pointer, eventInterest: Int): Int
 
   def omega_viewport_get_data(p: Pointer): String
+  def omega_viewport_get_event_cbk(p: Pointer): ViewportCallback
+  def omega_viewport_get_event_interest(p: Pointer): Int
   def omega_viewport_get_length(p: Pointer): Long
   def omega_viewport_get_offset(p: Pointer): Long
   def omega_viewport_get_capacity(p: Pointer): Long
+  def omega_viewport_set_event_interest(p: Pointer, eventInterest: Int): Int
   def omega_viewport_update(
       p: Pointer,
       offset: Long,
@@ -92,7 +100,6 @@ private[omega_edit] trait FFI {
   def omega_change_get_length(p: Pointer): Long
   def omega_change_get_bytes(p: Pointer): String
   def omega_change_get_kind_as_char(p: Pointer): Byte
-  def omega_session_get_change(p: Pointer, serial: Long): Pointer
 }
 
 /** Provides the FFI, initialized from the native contract and the OmegaEdit

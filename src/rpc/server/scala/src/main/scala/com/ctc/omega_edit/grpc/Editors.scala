@@ -36,7 +36,7 @@ object Editors {
   def props() = Props(new Editors)
 
   case class Find(id: String)
-  case class Create(id: Option[String], path: Option[Path])
+  case class Create(id: Option[String], path: Option[Path], eventInterest: Option[Int])
   case class Destroy(id: String)
   case object SessionCount
 
@@ -54,13 +54,9 @@ object Editors {
   }
 
   private def idFor(path: Option[Path]): String = path match {
-    case None => UUID.randomUUID().toString.take(8)
+    case None    => UUID.randomUUID().toString.take(8)
     case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
   }
-
-  private def sessionFor(path: Option[Path],
-                         cb: SessionCallback): api.Session =
-    OmegaEdit.newSessionCb(path, cb)
 }
 
 class Editors extends Actor with ActorLogging {
@@ -68,7 +64,7 @@ class Editors extends Actor with ActorLogging {
   implicit val timeout = Timeout(1.second)
 
   def receive: Receive = {
-    case Create(sid, path) =>
+    case Create(sid, path, eventInterest) =>
       val id = sid.getOrElse(idFor(path))
       context.child(id) match {
         case Some(_) =>
@@ -82,7 +78,7 @@ class Editors extends Actor with ActorLogging {
             input.queue.offer(Session.Updated(id))
             ()
           }
-          context.actorOf(Session.props(sessionFor(path, cb), stream, cb), id)
+          context.actorOf(Session.props(OmegaEdit.newSessionCb(path, cb, eventInterest), stream, cb), id)
           sender() ! Ok(id)
       }
 
