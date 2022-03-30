@@ -63,12 +63,15 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   }
 
   "saving" should {
-    val tmp = Files.createTempDirectory("omega")
+    /* On MacOSX, temp files are in /tmp which is a symlink to /private/tmp.
+     * Session.save() seems to resolve symlinks, so we resolve our paths
+     * to ensure they match what is returned. */
+    val tmp = Files.createTempDirectory("omega").toRealPath()
     tmp.toFile.deleteOnExit()
 
     "save empty session" in emptySession { s =>
       val empty = tmp.resolve(Paths.get("empty.txt"))
-      s.save(empty) should matchPattern { case Success(`empty`) => }
+      s.save(empty) shouldBe Success(empty)
 
       fileContents(empty) shouldBe ""
     }
@@ -78,7 +81,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val expected = UUID.randomUUID().toString
 
       s.insert(expected, 0)
-      s.save(dat) should matchPattern { case Success(`dat`) => }
+      s.save(dat) shouldBe Success(dat)
 
       fileContents(dat) shouldBe expected
     }
@@ -89,9 +92,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val expected = UUID.randomUUID().toString
 
       s.insert(expected, 0)
-      val r = s.save(dat, OverwriteStrategy.OverwriteExisting)
-      r.isSuccess shouldBe true
-      r should matchPattern { case Success(`dat`) => }
+      s.save(dat, OverwriteStrategy.OverwriteExisting) shouldBe Success(dat)
 
       fileContents(dat) shouldBe expected
     }
