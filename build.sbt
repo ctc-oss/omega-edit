@@ -31,7 +31,7 @@ lazy val ghb_resolver = (
 lazy val commonSettings = {
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.12.13",
+    scalaVersion := "2.13.8",
     version := omegaVersion,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     crossScalaVersions := Seq("2.12.13", "2.13.8"),
