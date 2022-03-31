@@ -56,6 +56,22 @@ void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->user_data_ptr;
 }
 
+omega_viewport_event_cbk_t omega_viewport_get_event_cbk(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_ptr->event_handler;
+}
+
+int32_t omega_viewport_get_event_interest(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return viewport_ptr->event_interest_;
+}
+
+int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_t event_interest) {
+    assert(viewport_ptr);
+    viewport_ptr->event_interest_ = event_interest;
+    return omega_viewport_get_event_interest(viewport_ptr);
+}
+
 int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
@@ -101,7 +117,9 @@ void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_
                            const omega_change_t *change_ptr) {
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
-    if (!omega_session_viewport_on_change_callbacks_paused(viewport_ptr->session_ptr) && viewport_ptr->event_handler) {
+    if (viewport_ptr->event_handler &&
+        (0 == viewport_ptr->event_interest_ || viewport_event & viewport_ptr->event_interest_) &&
+        !omega_session_viewport_on_change_callbacks_paused(viewport_ptr->session_ptr)) {
         (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, change_ptr);
     }
 }

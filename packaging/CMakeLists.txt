@@ -28,6 +28,7 @@ install(EXPORT omega_edit_Targets DESTINATION "${omega_edit_INSTALL_CMAKEDIR}" N
 write_basic_package_version_file(omega_editConfigVersion.cmake COMPATIBILITY SameMajorVersion)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/omega_editConfig.cmake" "${CMAKE_CURRENT_BINARY_DIR}/omega_editConfigVersion.cmake" DESTINATION "${omega_edit_INSTALL_CMAKEDIR}" COMPONENT omega_edit_Development)
 
+# see: https://www.scivision.dev/cmake-cpack-basic/
 set(_fmt TGZ)
 if(WIN32)
     set(_fmt ZIP)

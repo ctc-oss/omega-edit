@@ -51,6 +51,12 @@ typedef struct omega_session_struct omega_session_t;
 typedef struct omega_change_struct omega_change_t;
 typedef struct omega_viewport_struct omega_viewport_t;
 
+/** On session change callback.  This under-defined function will be called when an associated session changes. */
+typedef void (*omega_session_event_cbk_t)(const omega_session_t *, omega_session_event_t, const omega_change_t *);
+
+/** On viewport change callback.  This under-defined function will be called when an associated viewport changes. */
+typedef void (*omega_viewport_event_cbk_t)(const omega_viewport_t *, omega_viewport_event_t, const omega_change_t *);
+
 #ifdef __cplusplus
 }
 #endif

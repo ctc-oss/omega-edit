@@ -36,6 +36,27 @@ extern "C" {
 OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t *session_ptr);
 
 /**
+ * Given a session, return the session event callback
+ * @param omega_session_t session to return the event callback from
+ * @return session event callback
+ */
+OMEGA_EDIT_EXPORT omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the session event interest
+ * @param session_ptr session to return the session event interest from
+ * @return session event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_session_get_event_interest(const omega_session_t *session_ptr);
+
+/**
+ * Set the session event interest to the given session event interest for the the given session
+ * @param session_ptr session to set the session event interest for
+ * @param event_interest desired session event interest
+ * @return session event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_session_set_event_interest(omega_session_t *session_ptr, int32_t event_interest);
+/**
  * Given a session, return the associated user data
  * @param session_ptr session to get the associated user data from
  * @return associated user data for the given session

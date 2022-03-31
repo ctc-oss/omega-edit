@@ -49,3 +49,4 @@ lib/*
 !lib/.gitkeep
 **/*jar
 
+**/.vscode/settings.json
