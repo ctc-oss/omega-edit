@@ -269,25 +269,10 @@
 <section id="edit-h">
 <h2>edit.h<a class="headerlink" href="#edit-h" title="Permalink to this headline"></a></h2>
 <div class="breathe-sectiondef docutils container">
-<p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
-<dl class="cpp type">
-<dt class="sig sig-object cpp" id="_CPPv425omega_session_event_cbk_t">
-<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="edit_8h_1a177aaf7319955fe8eff0b6433b40d2a1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
-<dd><p>On session change callback. This under-defined function will be called when an associated session changes. </p>
-</dd></dl>
-
-<dl class="cpp type">
-<dt class="sig sig-object cpp" id="_CPPv426omega_viewport_event_cbk_t">
-<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="edit_8h_1a9ab8cce2a9fd49778902e791078476c1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
-<dd><p>On viewport change callback. This under-defined function will be called when an associated viewport changes. </p>
-</dd></dl>
-
-</div>
-<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="edit_8h_1a6f81559a083b766c03fe23db54799fd7"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_session_t</span> <span class="pre">*</span> <span class="pre">omega_edit_create_session</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">omega_session_event_cbk_t</span> <span class="pre">cbk,</span> <span class="pre">void</span> <span class="pre">*user_data_ptr)</span></span></dt>
+<span class="target" id="edit_8h_1a55b20d9cab44bfb7f7851ea358f0cf55"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_session_t</span> <span class="pre">*</span> <span class="pre">omega_edit_create_session</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">omega_session_event_cbk_t</span> <span class="pre">cbk,</span> <span class="pre">void</span> <span class="pre">*user_data_ptr,</span> <span class="pre">int32_t</span> <span class="pre">event_interest)</span></span></dt>
 <dd><p>Create a file editing session from a file path </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -295,6 +280,7 @@
 <li><p><strong>file_path</strong> – file path, will be opened for read, to create an editing session with, or nullptr if starting from scratch </p></li>
 <li><p><strong>cbk</strong> – user-defined callback function called whenever a content affecting change is made to this session </p></li>
 <li><p><strong>user_data_ptr</strong> – pointer to user-defined data to associate with this session </p></li>
+<li><p><strong>event_interest</strong> – oring together the session events of interest, or zero if all session events are desired </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -316,7 +302,7 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="edit_8h_1a8f3b95a9a0eb6b48215a19796eb6e9d5"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_viewport_t</span> <span class="pre">*</span> <span class="pre">omega_edit_create_viewport</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">capacity,</span> <span class="pre">omega_viewport_event_cbk_t</span> <span class="pre">cbk,</span> <span class="pre">void</span> <span class="pre">*user_data_ptr,</span> <span class="pre">int</span> <span class="pre">is_floating)</span></span></dt>
+<span class="target" id="edit_8h_1ad0bd62ec200acc6ab467dd9dcb430990"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_viewport_t</span> <span class="pre">*</span> <span class="pre">omega_edit_create_viewport</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">capacity,</span> <span class="pre">int</span> <span class="pre">is_floating,</span> <span class="pre">omega_viewport_event_cbk_t</span> <span class="pre">cbk,</span> <span class="pre">void</span> <span class="pre">*user_data_ptr,</span> <span class="pre">int32_t</span> <span class="pre">event_interest)</span></span></dt>
 <dd><p>Create a new viewport for the given author, returns a pointer to the new viewport </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -324,9 +310,10 @@
 <li><p><strong>session_ptr</strong> – author wanting the new viewport </p></li>
 <li><p><strong>offset</strong> – offset for the new viewport </p></li>
 <li><p><strong>capacity</strong> – desired capacity of the new viewport </p></li>
+<li><p><strong>is_floating</strong> – 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to “float” as bytes are inserted or deleted before the start of this viewport </p></li>
 <li><p><strong>cbk</strong> – user-defined callback function called whenever the viewport gets updated </p></li>
 <li><p><strong>user_data_ptr</strong> – pointer to user-defined data to associate with this new viewport </p></li>
-<li><p><strong>is_floating</strong> – 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to “float” as bytes are inserted or deleted before the start of this viewport </p></li>
+<li><p><strong>event_interest</strong> – oring together the viewport events of interest, or zero if all viewport events are desired </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -874,6 +861,18 @@
 <span id="_CPPv316omega_viewport_t"></span><span id="_CPPv216omega_viewport_t"></span><span id="omega_viewport_t"></span><span class="target" id="fwd__defs_8h_1aed03d2f64e2dd18e0a6cf1eb59bd0d5e"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_viewport_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_t</span></span></span><a class="headerlink" href="#_CPPv416omega_viewport_t" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv425omega_session_event_cbk_t">
+<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1a177aaf7319955fe8eff0b6433b40d2a1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>On session change callback. This under-defined function will be called when an associated session changes. </p>
+</dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv426omega_viewport_event_cbk_t">
+<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1a9ab8cce2a9fd49778902e791078476c1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>On viewport change callback. This under-defined function will be called when an associated viewport changes. </p>
+</dd></dl>
+
 </div>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
@@ -1120,6 +1119,51 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>file path, or null if not known </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1ab5082b49c0d981f557c94cb9c3927b60"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_session_event_cbk_t</span> <span class="pre">omega_session_get_event_cbk</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the session event callback </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>omega_session_t</strong> – session to return the event callback from </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>session event callback </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a4e73bcf7e15d7dc46a5332e107c895e7"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int32_t</span> <span class="pre">omega_session_get_event_interest</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the session event interest </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to return the session event interest from </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>session event interest </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a06d9e107de0c3955fb9d6f9d3fef9932"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int32_t</span> <span class="pre">omega_session_set_event_interest</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int32_t</span> <span class="pre">event_interest)</span></span></dt>
+<dd><p>Set the session event interest to the given session event interest for the the given session </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to set the session event interest for </p></li>
+<li><p><strong>event_interest</strong> – desired session event interest </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>session event interest </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1657,6 +1701,51 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>viewport user data </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="viewport_8h_1a5bade68c6fa603b32c0d41bdad9d006c"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_viewport_event_cbk_t</span> <span class="pre">omega_viewport_get_event_cbk</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr)</span></span></dt>
+<dd><p>Given a session, return the viewport event callback </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>viewport_ptr</strong> – viewport to return the event callback from </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>viewport event callback </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="viewport_8h_1af89dfa90eefccee70e7eb980d95ac401"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int32_t</span> <span class="pre">omega_viewport_get_event_interest</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr)</span></span></dt>
+<dd><p>Given a viewport, return the viewport event interest </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>viewport_ptr</strong> – viewport to return the viewport event interest from </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>viewport event interest </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="viewport_8h_1a55f0a4cbf71f3aa3bc26b66bf511c246"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int32_t</span> <span class="pre">omega_viewport_set_event_interest</span> <span class="pre">(omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">int32_t</span> <span class="pre">event_interest)</span></span></dt>
+<dd><p>Set the viewport event interest to the given viewport event interest for the the given viewport </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>viewport_ptr</strong> – viewport </p></li>
+<li><p><strong>event_interest</strong> – desired viewport event interest </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>viewport event interest </p>
 </dd>
 </dl>
 </dd></dl>
