@@ -34,6 +34,6 @@ private[omega_edit] class ChangeImpl(p: Pointer, i: FFI) extends Change {
     case 'D' => Change.Delete
     case 'I' => Change.Insert
     case 'O' => Change.Overwrite
-    case _   => Change.Undefined
+    case _ => Change.Undefined
   }
 }

@@ -18,12 +18,22 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Viewport
 import jnr.ffi.Pointer
+import com.ctc.omega_edit.api.ViewportCallback
 
 private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   require(p != null, "native viewport pointer was null")
 
   def data: String =
     i.omega_viewport_get_data(p)
+
+  def callback: Option[ViewportCallback] =
+    Option(i.omega_viewport_get_event_cbk(p))
+
+  def eventInterest: Int =
+    i.omega_viewport_get_event_interest(p)
+
+  def eventInterest_=(eventInterest: Int): Unit =
+    i.omega_viewport_set_event_interest(p, eventInterest)
 
   def length: Long =
     i.omega_viewport_get_length(p)

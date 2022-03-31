@@ -27,6 +27,7 @@ From the root project of Ωedit
 2. From within `src/rpc/server/scala` launch the gRPC server by running `sbt run`
 
 ## Reference
+
 - https://doc.akka.io/docs/akka-grpc
 
 ## License

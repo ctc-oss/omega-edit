@@ -19,7 +19,8 @@ package com.ctc.omega_edit.support
 import com.ctc.omega_edit.api.{Change, Session, Viewport}
 
 trait ViewportSupport {
-  def view(offset: Long, capacity: Long, session: Session)(test: (Session, Viewport) => Unit): Unit =
+  def view(offset: Long, capacity: Long, session: Session)(
+      test: (Session, Viewport) => Unit): Unit =
     test(session, session.view(offset, capacity))
 
   trait WithCallback {
@@ -27,7 +28,8 @@ trait ViewportSupport {
     def change: Option[Change]
   }
 
-  def viewWithCallback(offset: Long, capacity: Long, session: Session)(test: (Session, WithCallback) => Unit): Unit = {
+  def viewWithCallback(offset: Long, capacity: Long, session: Session)(
+      test: (Session, WithCallback) => Unit): Unit = {
     var _data: Option[String] = None
     var _change: Option[Change] = None
     val cb = new WithCallback {
@@ -37,7 +39,7 @@ trait ViewportSupport {
     session.viewCb(offset, capacity, (v, _, c) => {
       _data = Some(v.data)
       _change = c
-    })
+    }, 0)
     test(session, cb)
   }
 }

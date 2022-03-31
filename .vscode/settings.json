@@ -1,4 +1,8 @@
 {
     "C_Cpp.errorSquiggles": "Disabled",
-    "esbonio.server.enabled": true
+    "esbonio.server.enabled": true,
+    "files.watcherExclude": {
+        "**/target": true
+    },
+    "cmake.configureOnOpen": true
 }

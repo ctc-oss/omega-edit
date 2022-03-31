@@ -18,7 +18,10 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
+  GenerateFilename,
+  OverwriteExisting
+}
 import com.ctc.omega_edit.api.{Change, Session, Viewport, ViewportCallback}
 import jnr.ffi.Pointer
 
@@ -26,6 +29,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
+import com.ctc.omega_edit.api.SessionCallback
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
@@ -45,6 +49,15 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def numViewports: Long =
     i.omega_session_get_num_viewports(p)
 
+  def callback: Option[SessionCallback] =
+    Option(i.omega_session_get_event_cbk(p))
+
+  def eventInterest: Int =
+    i.omega_session_get_event_interest(p)
+
+  def eventInterest_=(eventInterest: Int): Unit =
+    i.omega_session_set_event_interest(p, eventInterest)
+
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
@@ -61,19 +74,21 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   def view(offset: Long, size: Long): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, null, null, 0)
+    val vp =
+      i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, cb, null, 0)
+  def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport = {
+    val vp = i.omega_edit_create_viewport(p, offset, size, false, cb, null, eventInterest)
     new ViewportImpl(vp, i)
   }
 
-  def findChange(id: Long): Option[Change] = i.omega_session_get_change(p, id) match {
-    case null => None
-    case ptr  => Some(new ChangeImpl(ptr, i))
-  }
+  def findChange(id: Long): Option[Change] =
+    i.omega_session_get_change(p, id) match {
+      case null => None
+      case ptr => Some(new ChangeImpl(ptr, i))
+    }
 
   def save(to: Path): Try[Path] =
     save(to, OverwriteExisting)
@@ -83,14 +98,20 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     val buffer = ByteBuffer.allocate(4096)
     val overwrite = onExists match {
       case OverwriteExisting => true
-      case GenerateFilename  => false
+      case GenerateFilename => false
     }
-    i.omega_edit_save(p, to.toString, overwrite, Pointer.wrap(p.getRuntime, buffer)) match {
+    i.omega_edit_save(
+      p,
+      to.toString,
+      overwrite,
+      Pointer.wrap(p.getRuntime, buffer)
+    ) match {
       case 0 =>
         val path = StandardCharsets.UTF_8.decode(buffer)
         Success(Paths.get(path.toString.trim))
 
-      case ec => Failure(new RuntimeException(s"Failed to save session to file, $ec"))
+      case ec =>
+        Failure(new RuntimeException(s"Failed to save session to file, $ec"))
     }
   }
 }

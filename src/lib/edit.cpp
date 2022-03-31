@@ -302,7 +302,8 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
     return -1;
 }
 
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr) {
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
+                                           int32_t event_interest) {
     FILE *file_ptr = nullptr;
     if (file_path && file_path[0] != '\0') {
         file_ptr = fopen(file_path, "rb");
@@ -319,6 +320,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     const auto session_ptr = new omega_session_t;
     session_ptr->event_handler = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
+    session_ptr->event_interest_ = event_interest;
     session_ptr->num_changes_adjustment_ = 0;
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
     session_ptr->models_.back()->file_ptr = file_ptr;
@@ -345,7 +347,8 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
 }
 
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr, int is_floating) {
+                                             int is_floating, omega_viewport_event_cbk_t cbk, void *user_data_ptr,
+                                             int32_t event_interest) {
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
@@ -358,6 +361,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
         viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
+        viewport_ptr->event_interest_ = event_interest;
         omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);

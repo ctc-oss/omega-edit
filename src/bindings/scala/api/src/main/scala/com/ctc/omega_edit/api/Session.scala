@@ -34,6 +34,11 @@ trait Session {
   def numCheckpoints: Long
   def numUndos: Long
   def numViewports: Long
+  
+  def callback: Option[SessionCallback]
+
+  def eventInterest: Int
+  def eventInterest_=(eventInterest: Int): Unit
 
   def insert(s: String, offset: Long): Result
   def insert(b: Array[Byte], offset: Long): Result
@@ -44,7 +49,7 @@ trait Session {
   def delete(offset: Long, len: Long): Result
   def view(offset: Long, size: Long): Viewport
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport
+  def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
   def findChange(id: Long): Option[Change]
 
   def save(to: Path): Try[Path]
