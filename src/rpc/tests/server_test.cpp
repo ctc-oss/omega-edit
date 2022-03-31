@@ -19,6 +19,7 @@
 #include <csignal>
 #include <filesystem>
 #include <grpcpp/grpcpp.h>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <vector>
@@ -123,7 +124,7 @@ public:
         Status status;
         stub_->async()->GetVersion(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -155,7 +156,7 @@ public:
         Status status;
         stub_->async()->CreateSession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -191,7 +192,7 @@ public:
         Status status;
         stub_->async()->SubmitChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -225,7 +226,7 @@ public:
         Status status;
         stub_->async()->SubmitChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -258,7 +259,7 @@ public:
         Status status;
         stub_->async()->SubmitChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -287,7 +288,7 @@ public:
         Status status;
         stub_->async()->UndoLastChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -316,7 +317,7 @@ public:
         Status status;
         stub_->async()->RedoLastUndo(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -345,7 +346,7 @@ public:
         Status status;
         stub_->async()->ClearChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -374,7 +375,7 @@ public:
         Status status;
         stub_->async()->PauseViewportEvents(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -403,7 +404,7 @@ public:
         Status status;
         stub_->async()->ResumeViewportEvents(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -437,7 +438,7 @@ public:
         Status status;
         stub_->async()->SaveSession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -467,7 +468,7 @@ public:
         Status status;
         stub_->async()->DestroySession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -502,7 +503,7 @@ public:
         Status status;
         stub_->async()->CreateViewport(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -534,7 +535,7 @@ public:
         Status status;
         stub_->async()->GetViewportData(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -564,7 +565,7 @@ public:
         Status status;
         stub_->async()->DestroyViewport(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -592,7 +593,7 @@ public:
         Status status;
         stub_->async()->GetLastChange(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -620,7 +621,7 @@ public:
         Status status;
         stub_->async()->GetLastUndo(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -649,7 +650,7 @@ public:
         Status status;
         stub_->async()->GetComputedFileSize(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -680,7 +681,7 @@ public:
         Status status;
         stub_->async()->GetCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -707,7 +708,7 @@ public:
         Status status;
         stub_->async()->GetSessionCount(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
             status = std::move(s);
-            std::scoped_lock lock(mu);
+            std::unique_lock lock(mu);
             done = true;
             cv.notify_one();
         });
@@ -734,7 +735,7 @@ public:
             assert(!session_id.empty());
             auto const &viewport_id = viewport_event.viewport_id();
             assert(!viewport_id.empty());
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             if (viewport_event.has_serial()) {
                 DBG(CLOG << LOCATION << "session id: " << session_id << ", viewport id: " << viewport_id
                          << ", event kind: " << viewport_event.viewport_event_kind()
@@ -798,14 +799,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         reply = server_test_client.CreateViewport(session_id, 0, 64, false, &viewport_0_id);
         assert(viewport_0_id == reply);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_0_id
                      << std::endl;);
         }
 
         auto thread_0_id = server_test_client.SubscribeOnChangeViewport(viewport_0_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] SubscribeOnChangeViewport received: " << thread_0_id << std::endl;);
         }
@@ -814,14 +815,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         reply = server_test_client.CreateViewport(session_id, 0 * vpt_capacity, vpt_capacity, false, &viewport_1_id);
         assert(viewport_1_id == reply);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_1_id
                      << std::endl;);
         }
 
         auto thread_1_id = server_test_client.SubscribeOnChangeViewport(viewport_1_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] SubscribeOnChangeViewport received: " << thread_1_id << std::endl;);
         }
@@ -830,14 +831,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         reply = server_test_client.CreateViewport(session_id, 1 * vpt_capacity, vpt_capacity, false, &viewport_2_id);
         assert(viewport_2_id == reply);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_2_id
                      << std::endl;);
         }
 
         auto thread_2_id = server_test_client.SubscribeOnChangeViewport(viewport_2_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] SubscribeOnChangeViewport received: " << thread_2_id << std::endl;);
         }
@@ -846,21 +847,21 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         reply = server_test_client.CreateViewport(session_id, 2 * vpt_capacity, vpt_capacity, false, &viewport_3_id);
         assert(viewport_3_id == reply);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] CreateViewport received: " << viewport_3_id
                      << std::endl;);
         }
 
         auto thread_3_id = server_test_client.SubscribeOnChangeViewport(viewport_3_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] SubscribeOnChangeViewport received: " << thread_3_id << std::endl;);
         }
 
         auto serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
@@ -869,14 +870,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         assert(0 == rc);
         assert(serial == change_details.serial());
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastChange received: " << rc
                      << " serial: " << change_details.serial() << std::endl;);
         }
 
         serial = server_test_client.Undo(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Undo received: " << serial << std::endl;);
         }
 
@@ -884,58 +885,58 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         assert(0 == rc);
         assert(serial == change_details.serial());
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetLastUndo received: " << rc
                      << " serial: " << change_details.serial() << std::endl;);
         }
 
         serial = server_test_client.Redo(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Redo received: " << serial << std::endl;);
         }
 
         reply = server_test_client.PauseViewportEvents(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] PauseViewportEvents received: " << reply
                      << std::endl;);
         }
 
         reply = server_test_client.Clear(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Clear received: " << reply << std::endl;);
         }
 
         serial = server_test_client.Insert(session_id, 0, "Hello Weird!!!!");
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
         reply = server_test_client.ResumeViewportEvents(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply
                      << std::endl;);
         }
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Overwrite received: " << serial << std::endl;);
         }
 
         serial = server_test_client.Delete(session_id, 11, 3);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Delete received: " << serial << std::endl;);
         }
 
         auto computed_file_size = server_test_client.GetComputedFileSize(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetComputedFileSize received: " << computed_file_size << std::endl;);
         }
@@ -943,20 +944,20 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         auto save_file = fs::current_path() / "server_test_out" / "hello-rpc.txt";
         reply = server_test_client.SaveSession(session_id, save_file.string(), true);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
         auto count = server_test_client.GetSessionCount();
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count
                      << std::endl;);
         }
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_FILE_SIZE);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_FILE_SIZE) received: " << count << std::endl;);
         }
@@ -964,97 +965,97 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_CHANGES);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_CHANGES) received: " << count << std::endl;);
         }
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_UNDOS);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_UNDOS) received: " << count << std::endl;);
         }
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_VIEWPORTS);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_VIEWPORTS) received: " << count << std::endl;);
         }
 
         count = server_test_client.GetCount(session_id, CountKind::COUNT_CHECKPOINTS);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_CHECKPOINTS) received: " << count << std::endl;);
         }
 
         reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
         reply = server_test_client.GetViewportData(viewport_0_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 0 data: [" << reply << "]"
                      << std::endl;);
         }
 
         reply = server_test_client.GetViewportData(viewport_1_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 1 data: [" << reply << "]"
                      << std::endl;);
         }
 
         reply = server_test_client.DestroyViewport(viewport_1_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroyViewport 1 received: " << reply
                      << std::endl;);
         }
 
         reply = server_test_client.GetViewportData(viewport_2_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 2 data: [" << reply << "]"
                      << std::endl;);
         }
 
         reply = server_test_client.DestroyViewport(viewport_2_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroyViewport 2 received: " << reply
                      << std::endl;);
         }
 
         reply = server_test_client.GetViewportData(viewport_3_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Viewport 3 data: [" << reply << "]"
                      << std::endl;);
         }
 
         reply = server_test_client.DestroyViewport(viewport_3_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroyViewport 3 received: " << reply
                      << std::endl;);
         }
 
         reply = server_test_client.DestroyViewport(viewport_0_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroyViewport 0 received: " << reply
                      << std::endl;);
         }
 
         reply = server_test_client.DestroySession(session_id);
         if (log) {
-            const std::scoped_lock write_lock(write_mutex);
+            const std::unique_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroySession received: " << reply
                      << std::endl;);
         }
@@ -1113,7 +1114,7 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    run_tests(target_str, 50, true);
+    run_tests(target_str, 99, true);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);
