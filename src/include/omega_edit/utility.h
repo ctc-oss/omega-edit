@@ -114,6 +114,24 @@ OMEGA_EDIT_EXPORT int omega_util_apply_byte_transform_to_file(char const *in_pat
  */
 OMEGA_EDIT_EXPORT omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_mask_kind_t mask_kind);
 
+/**
+ * Compares sz bytes of two character strings
+ * @param s1 first character string
+ * @param s2 second character string
+ * @param sz number of bytes to compare
+ * @return zero if sz bytes of the two character strings match, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz);
+
+/**
+ * Compares sz bytes of two character strings, without regard to case (case insensitive)
+ * @param s1 first character string
+ * @param s2 second character string
+ * @param sz number of bytes to compare
+ * @return zero if sz bytes of the two character strings match, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz);
+
 #ifdef __cplusplus
 }
 #endif

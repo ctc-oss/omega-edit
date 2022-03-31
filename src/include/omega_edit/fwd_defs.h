@@ -47,8 +47,9 @@ typedef enum {
     VIEWPORT_EVT_UPDATED = 32
 } omega_viewport_event_t;
 
-typedef struct omega_session_struct omega_session_t;
 typedef struct omega_change_struct omega_change_t;
+typedef struct omega_segment_struct omega_segment_t;
+typedef struct omega_session_struct omega_session_t;
 typedef struct omega_viewport_struct omega_viewport_t;
 
 #ifdef __cplusplus

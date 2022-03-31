@@ -43,6 +43,7 @@ service Editor {
 
   rpc GetCount(CountRequest) returns (CountResponse);
   rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
+  rpc GetSegment(SegmentRequest) returns (SegmentResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
@@ -199,4 +200,16 @@ message ChangeDetailsResponse {
 message ComputedFileSizeResponse {
   string session_id = 1;
   int64 computed_file_size = 2;
+}
+
+message SegmentRequest {
+  string session_id = 1;
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message SegmentResponse {
+  string session_id = 1;
+  int64 offset = 2;
+  bytes data = 3;
 }

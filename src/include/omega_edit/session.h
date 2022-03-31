@@ -43,6 +43,15 @@ OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t 
 OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
 
 /**
+ *
+ * @param session_ptr
+ * @param data_segment_ptr
+ * @param offset
+ * @return zero on success, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset);
+
+/**
  * Given a session, return the number of active viewports
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports

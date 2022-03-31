@@ -53,6 +53,8 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SegmentRequest;
+using omega_edit::SegmentResponse;
 using omega_edit::SessionCountResponse;
 using omega_edit::SessionEvent;
 using omega_edit::SessionEventKind;
@@ -563,6 +565,21 @@ public:
         response->set_session_id(session_id);
         response->set_kind(count_kind);
         response->set_count(count);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetSegment(CallbackServerContext *context, const SegmentRequest *request,
+                                   SegmentResponse *response) override {
+        const auto &session_id = request->session_id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
+        {
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
+            response->set_data(omega_session_get_segment_string(session_ptr, request->offset(), request->length()));
+        }
         reactor->Finish(Status::OK);
         return reactor;
     }
