@@ -1114,7 +1114,7 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    run_tests(target_str, 5, true);
+    run_tests(target_str, 100, true);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);
