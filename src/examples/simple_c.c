@@ -22,12 +22,11 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
             char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
-            fprintf(stdout, "%c: [%s]\n", change_kind, omega_viewport_get_data(viewport_ptr));
+            fprintf(stdout, "%c: [%s]\n", change_kind, omega_viewport_get_data_unlocked(viewport_ptr));
             break;
         }
         default:
             abort();
-            break;
     }
 }
 

@@ -38,6 +38,8 @@ typedef int (*omega_session_change_visitor_cbk_t)(const omega_change_t *, void *
  */
 OMEGA_EDIT_EXPORT int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                           void *user_data);
+OMEGA_EDIT_EXPORT int omega_visit_changes_unlocked(const omega_session_t *session_ptr,
+                                                   omega_session_change_visitor_cbk_t cbk, void *user_data);
 
 /**
  * Visit changes in the given session in reverse chronological order (newest first), if the callback returns an integer
@@ -49,6 +51,8 @@ OMEGA_EDIT_EXPORT int omega_visit_changes(const omega_session_t *session_ptr, om
  */
 OMEGA_EDIT_EXPORT int omega_visit_changes_reverse(const omega_session_t *session_ptr,
                                                   omega_session_change_visitor_cbk_t cbk, void *user_data);
+OMEGA_EDIT_EXPORT int omega_visit_changes_reverse_unlocked(const omega_session_t *session_ptr,
+                                                           omega_session_change_visitor_cbk_t cbk, void *user_data);
 
 /**
  * Opaque visit change context

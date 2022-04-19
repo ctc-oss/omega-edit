@@ -23,15 +23,16 @@
 int omega_check_model(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int64_t expected_offset = 0;
+    std::shared_lock sl(const_cast<omega_session_t *>(session_ptr)->session_mutex_);
     for (auto &&model_ptr : session_ptr->models_) {
-        for (const auto &segment : model_ptr->model_segments) {
-            assert(segment->change_ptr);
-            if (expected_offset != segment->computed_offset ||
-                (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
+        for (const auto &segment : model_ptr->model_segments_) {
+            assert(segment->change_ptr_);
+            if (expected_offset != segment->computed_offset_ ||
+                (segment->change_offset_ + segment->computed_length_) > segment->change_ptr_->length_) {
                 print_model_segments_(session_ptr->models_.back().get(), CLOG);
                 return -1;
             }
-            expected_offset += segment->computed_length;
+            expected_offset += segment->computed_length_;
         }
     }
     return 0;

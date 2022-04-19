@@ -163,9 +163,8 @@ if (BUILD_RPC)
             VERBATIM)
 
     SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omega_grpc_cpp_srcs}" "${omega_grpc_cpp_hdrs}")
-    SET(WORKER_QUEUE_SOURCE_FILES "src/rpc/server/cpp/worker_queue/worker_queue.hpp" "src/rpc/server/cpp/worker_queue/worker_queue.cpp")
 
-    add_executable(server "src/rpc/server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
+    add_executable(server "src/rpc/server/cpp/server.cpp" ${RPC_SOURCE_FILES})
     target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
     target_link_libraries(server PRIVATE omega_edit::omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 

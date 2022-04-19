@@ -20,6 +20,41 @@
 #include "internal_fwd_defs.hpp"
 #include <iosfwd>
 
+int64_t get_computed_file_size_(const omega_session_t *session_ptr);
+
+const char *get_file_path_(const omega_session_t *session_ptr);
+
+void pause_viewport_event_callbacks_(omega_session_t *session_ptr);
+
+void resume_viewport_event_callbacks_(omega_session_t *session_ptr);
+
+int on_change_callbacks_paused_(const omega_session_t *session_ptr);
+
+void session_notify_(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                     const omega_change_t *change_ptr);
+
+int64_t get_num_changes_(const omega_session_t *session_ptr);
+
+int64_t get_num_checkpoints_(const omega_session_t *session_ptr);
+
+void destroy_viewport_(omega_viewport_t *viewport_ptr);
+
+void viewport_notify_(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                      const omega_change_t *change_ptr);
+
+int64_t viewport_get_capacity_(const omega_viewport_t *viewport_ptr);
+
+int64_t viewport_get_length_(const omega_viewport_t *viewport_ptr);
+
+int64_t viewport_get_offset_(const omega_viewport_t *viewport_ptr);
+
+int viewport_is_floating_(const omega_viewport_t *viewport_ptr);
+
+int viewport_has_changes_(const omega_viewport_t *viewport_ptr);
+
+void viewport_notify_(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                      const omega_change_t *change_ptr);
+
 // Data segment functions
 int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr) noexcept;
 
