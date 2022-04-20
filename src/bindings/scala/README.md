@@ -39,7 +39,7 @@ Artifacts use Maven rather than Ivy to better support the use of the classifier 
 
 ### install from source tree
 
-Running `sbt +install` from the root directory of this project will install the artifacts into the local Maven cache.
+Running `sbt install` from the root directory of this project will install the artifacts into the local Maven cache.
 
 To use these artifacts from SBT you must add the M2 local resolver:
 

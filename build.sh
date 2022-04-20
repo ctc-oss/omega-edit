@@ -36,7 +36,7 @@ cpack --config build-shared-$type/CPackConfig.cmake
 rm -rf ./lib/*
 cp -av ${install_dir}/lib/* ./lib
 sbt headerCheckAll
-sbt +installM2
+sbt installM2
 sbt test
 sbt howMuchCoverage
 
