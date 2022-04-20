@@ -62,7 +62,7 @@ jobs:
         run: sbt headerCheckAll
 
       - name: Package Scala API
-        run: sbt +installM2
+        run: sbt installM2
 
       - name: Archive M2
         uses: actions/upload-artifact@v2

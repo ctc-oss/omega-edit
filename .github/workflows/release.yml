@@ -108,7 +108,7 @@ jobs:
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt +native/publishM2
+        run: sbt native/publishM2
 
       - name: Upload Native JARs
         uses: actions/upload-artifact@v2
@@ -179,17 +179,17 @@ jobs:
         run: |
           mv build.sbt .github/build.sbt
           mv .github/release.sbt build.sbt
-          sbt +native/publish
+          sbt native/publish
 
       - name: Package Scala API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt +api/publish
+        run: sbt api/publish
 
       - name: Package Scala SPI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt +spi/publish
+        run: sbt spi/publish
 
   server-packaging:
     needs: [api-native-publish]

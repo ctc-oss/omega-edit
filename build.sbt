@@ -34,7 +34,6 @@ lazy val commonSettings = {
     scalaVersion := "2.13.8",
     version := omegaVersion,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
-    crossScalaVersions := Seq("2.12.13", "2.13.8"),
     organizationName := "Concurrent Technologies Corporation",
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
