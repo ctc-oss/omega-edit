@@ -130,7 +130,21 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
 
     "find multiple matches" in session(as) { s =>
-      s.search("a", 0, as.length.toLong) shouldBe List(4,9,10,15)
+      s.search("a", 0, as.length.toLong) shouldBe List(4, 9, 10, 15)
+    }
+
+    "respect offsets" in session(as) { s =>
+      s.search("a", 1, numbers.length.toLong) shouldBe List(4, 9, 10, 15)
+      s.search("a", 5, numbers.length.toLong) shouldBe List(9, 10, 15)
+    }
+
+    "respect len" in session(as) { s =>
+      s.search("a", 0, numbers.length.toLong - 2) shouldBe List(4, 9, 10)
+    }
+
+    "respect caseInsensitive" in session(as) { s =>
+      // TODO: hangs without the - 1
+      s.search("A", 0, numbers.length.toLong - 1, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
     }
   }
 }

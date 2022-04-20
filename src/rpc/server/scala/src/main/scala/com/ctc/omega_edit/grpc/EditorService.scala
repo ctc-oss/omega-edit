@@ -210,7 +210,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   // search
 
-  def searchSession(in: SearchRequest): Future[SearchResponse] = ???
+  def searchSession(in: SearchRequest): Future[SearchResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
   //
   // unimplementeds

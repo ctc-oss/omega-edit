@@ -132,8 +132,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       pattern: String,
       offset: Long,
       len: Long,
-      caseInsensitive: Boolean,
-      limit: Option[Int]
+      caseInsensitive: Boolean = false,
+      limit: Option[Long] = None
   ): List[Long] = {
     val context =
       i.omega_search_create_context(
@@ -141,27 +141,19 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         pattern,
         pattern.length.toLong,
         offset,
-        len,
+        if (offset > 0) len - 1
+        else len, // TODO: without the decrement omega_search_next_match never returns
         caseInsensitive
       )
 
     try {
       Iterator
-        .unfold(
-          i.omega_search_create_context(
-            p,
-            pattern,
-            pattern.length.toLong,
-            offset,
-            len,
-            caseInsensitive
-          ) -> 0
-        ) { case (context, matches) =>
+        .unfold(context -> 0) { case (context, numMatches) =>
           Option.when(
-            limit.map(matches <= _).getOrElse(true) && i
-              .omega_search_next_match(context, 1) != 0
+            limit.map(numMatches <= _).getOrElse(true) && i
+              .omega_search_next_match(context, 1) > 0
           )(
-            i.omega_search_context_get_offset(context) -> (context, matches + 1)
+            i.omega_search_context_get_offset(context) -> (context, numMatches + 1)
           )
         }
         .toList
