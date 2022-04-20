@@ -60,12 +60,10 @@ omega_search_create_context_bytes(const omega_session_t *session_ptr, const omeg
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-OMEGA_EDIT_EXPORT inline omega_search_context_t *
-omega_search_create_context(const omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
-                            int64_t session_offset, int64_t session_length, int case_insensitive) {
-    return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
-                                             session_offset, session_length, case_insensitive);
-}
+OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context(const omega_session_t *session_ptr,
+                                                                      const char *pattern, int64_t pattern_length,
+                                                                      int64_t session_offset, int64_t session_length,
+                                                                      int case_insensitive);
 
 /**
  * Given a search context, get the most recent search offset

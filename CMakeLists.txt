@@ -58,7 +58,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/fwd_defs.h"
         "src/include/omega_edit/byte.h"
         "src/include/omega_edit/scoped_ptr.hpp"
-        "src/include/omega_edit/stl_string_adaptor.hpp"
+        "src/include/omega_edit/stl_string_adaptor.hpp" "src/lib/stl_string_adapter.cpp"
         "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
