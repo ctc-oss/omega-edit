@@ -26,7 +26,7 @@ jobs:
       run:
         shell: bash
     env:
-      SBT: sbt -J-Xms1024m -J-Xmx5120m -J-XX:ReservedCodeCacheSize=512m -J-XX:MaxMetaspaceSize=1024m ++2.12.13
+      SBT: sbt -J-Xms1024m -J-Xmx5120m -J-XX:ReservedCodeCacheSize=512m -J-XX:MaxMetaspaceSize=1024m
     
     steps:
       - name: Setup Java
