@@ -30,9 +30,14 @@ import java.util.logging.Logger
 /** Native contracts with the OmegaEdit shared library
   */
 private[omega_edit] trait FFI {
+
+  // version info
+
   def omega_version_major(): Int
   def omega_version_minor(): Int
   def omega_version_patch(): Int
+
+  // editing
 
   def omega_edit_save(
       p: Pointer,
@@ -71,6 +76,8 @@ private[omega_edit] trait FFI {
       eventInterest: Int
   ): Pointer
 
+  // session
+
   def omega_session_get_change(p: Pointer, serial: Long): Pointer
   def omega_session_get_computed_file_size(p: Pointer): Long
   def omega_session_get_event_cbk(p: Pointer): SessionCallback
@@ -80,6 +87,8 @@ private[omega_edit] trait FFI {
   def omega_session_get_num_undone_changes(p: Pointer): Long
   def omega_session_get_num_viewports(p: Pointer): Long
   def omega_session_set_event_interest(p: Pointer, eventInterest: Int): Int
+
+  // viewport
 
   def omega_viewport_get_data(p: Pointer): String
   def omega_viewport_get_event_cbk(p: Pointer): ViewportCallback
@@ -95,11 +104,28 @@ private[omega_edit] trait FFI {
       floating: Int
   ): Int
 
+  // changes
+
   def omega_change_get_serial(p: Pointer): Long
   def omega_change_get_offset(p: Pointer): Long
   def omega_change_get_length(p: Pointer): Long
   def omega_change_get_bytes(p: Pointer): String
   def omega_change_get_kind_as_char(p: Pointer): Byte
+
+  // search
+
+  def omega_search_create_context_bytes(p: Pointer, pattern: Array[Byte], patternLength: Long, offset: Long, length: Long, caseInsensitive: Boolean): Pointer
+  def omega_search_create_context(p: Pointer, pattern: String, patternLength: Long, offset: Long, length: Long, caseInsensitive: Boolean): Pointer
+  def omega_search_context_get_offset(p: Pointer): Long
+  def omega_search_context_get_length(p: Pointer): Long
+  def omega_search_next_match(p: Pointer, advanceContext: Long): Int
+  def omega_search_destroy_context(p: Pointer): Unit
+
+  // find
+
+  def omega_find_create_skip_table(needle: String, needleLength: Long): Pointer
+  def omega_find(haystack: String, length: Long, p: Pointer, needle: String, needleLength: Long): String
+  def omega_find_destroy_skip_table(p: Pointer): Unit
 }
 
 /** Provides the FFI, initialized from the native contract and the OmegaEdit

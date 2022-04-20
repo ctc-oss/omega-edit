@@ -47,7 +47,8 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
     "throw if file doesnt exist" in {
       assertThrows[IllegalArgumentException](
-        OmegaEdit.newSession(Some(Paths.get("/does-not-exist"))))
+        OmegaEdit.newSession(Some(Paths.get("/does-not-exist")))
+      )
     }
   }
 
@@ -110,6 +111,26 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       r should not matchPattern { case Success(`dat`) => }
 
       fileContents(r.get) shouldBe expected
+    }
+  }
+
+  "search" should {
+    val numbers = "123456789"
+    //        0         1
+    //        0123456789012345
+    //            |    ||    |
+    val as = "bbbbabbbbaabbbba"
+
+    "find nothing if nothing is there" in session(numbers) { s =>
+      s.search("abc", 0, numbers.length.toLong) shouldBe List.empty
+    }
+
+    "find a single match" in session(numbers) { s =>
+      s.search("345", 0, numbers.length.toLong) shouldBe List(2)
+    }
+
+    "find multiple matches" in session(as) { s =>
+      s.search("a", 0, as.length.toLong) shouldBe List(4,9,10,15)
     }
   }
 }

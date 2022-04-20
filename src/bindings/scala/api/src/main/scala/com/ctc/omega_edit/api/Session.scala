@@ -54,6 +54,8 @@ trait Session {
 
   def save(to: Path): Try[Path]
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
+
+  def search(pattern: String, offset: Long, len: Long, caseInsensitive: Boolean = false, limit: Option[Int] = None): List[Long]
 }
 
 object Session {
