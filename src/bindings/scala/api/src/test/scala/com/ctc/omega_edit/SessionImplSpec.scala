@@ -122,29 +122,28 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     val as = "bbbbabbbbaabbbba"
 
     "find nothing if nothing is there" in session(numbers) { s =>
-      s.search("abc", 0, numbers.length.toLong) shouldBe List.empty
+      s.search("abc", 0) shouldBe List.empty
     }
 
     "find a single match" in session(numbers) { s =>
-      s.search("345", 0, numbers.length.toLong) shouldBe List(2)
+      s.search("345", 0) shouldBe List(2)
     }
 
     "find multiple matches" in session(as) { s =>
-      s.search("a", 0, as.length.toLong) shouldBe List(4, 9, 10, 15)
+      s.search("a", 0) shouldBe List(4, 9, 10, 15)
     }
 
     "respect offsets" in session(as) { s =>
-      s.search("a", 1, numbers.length.toLong) shouldBe List(4, 9, 10, 15)
-      s.search("a", 5, numbers.length.toLong) shouldBe List(9, 10, 15)
+      s.search("a", 1) shouldBe List(4, 9, 10, 15)
+      s.search("a", 5) shouldBe List(9, 10, 15)
     }
 
     "respect len" in session(as) { s =>
-      s.search("a", 0, numbers.length.toLong - 2) shouldBe List(4, 9, 10)
+      s.search("a", 0, Some(numbers.length.toLong - 2)) shouldBe List(4, 9, 10)
     }
 
     "respect caseInsensitive" in session(as) { s =>
-      // TODO: hangs without the - 1
-      s.search("A", 0, numbers.length.toLong - 1, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
+      s.search("A", 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
     }
   }
 }

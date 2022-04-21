@@ -131,7 +131,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def search(
       pattern: String,
       offset: Long,
-      len: Long,
+      length: Option[Long] = None,
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
   ): List[Long] = {
@@ -139,10 +139,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       i.omega_search_create_context(
         p,
         pattern,
-        pattern.length.toLong,
+        0,
         offset,
-        if (offset > 0) len - 1
-        else len, // TODO: without the decrement omega_search_next_match never returns
+        length.getOrElse(0),
         caseInsensitive
       )
 
