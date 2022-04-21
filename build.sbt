@@ -45,6 +45,7 @@ lazy val commonSettings = {
       ghb_repo_owner,
       System.getenv("GITHUB_TOKEN")
     ),
+    fork := true
   )
 }
 
