@@ -131,7 +131,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
             return 1;
         }
         skip = skip_size;
-    } while (MAX_SEGMENT_LENGTH == data_segment.capacity);
+    } while (MAX_SEGMENT_LENGTH == data_segment.length);
     if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
     search_context_ptr->match_offset = session_length;
     return 0;
