@@ -18,6 +18,7 @@
 #include "impl_/data_segment_def.hpp"
 #include "impl_/find.h"
 #include "impl_/internal_fun.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <cstring>
@@ -70,9 +71,9 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
     return nullptr;
 }
 
-omega_search_context_t *
-omega_search_create_context(const omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
-                            int64_t session_offset, int64_t session_length, int case_insensitive) {
+omega_search_context_t *omega_search_create_context(const omega_session_t *session_ptr, const char *pattern,
+                                                    int64_t pattern_length, int64_t session_offset,
+                                                    int64_t session_length, int case_insensitive) {
     return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
                                              session_offset, session_length, case_insensitive);
 }
@@ -93,6 +94,7 @@ int64_t omega_search_context_get_length(const omega_search_context_t *search_con
  * catch patterns that were on the window boundary.
  */
 int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context) {
+    static const auto MAX_SEGMENT_LENGTH = int64_t(OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) << 1;
     assert(search_context_ptr);
     assert(search_context_ptr->skip_table_ptr);
     assert(search_context_ptr->session_ptr);
@@ -104,7 +106,11 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     data_segment.offset = (search_context_ptr->match_offset == session_length)
                                   ? search_context_ptr->session_offset
                                   : search_context_ptr->match_offset + advance_context;
-    data_segment.capacity = OMEGA_SEARCH_PATTERN_LENGTH_LIMIT << 1;
+    data_segment.capacity =
+            std::min((search_context_ptr->match_offset == session_length)
+                             ? session_length
+                             : session_length - (search_context_ptr->match_offset - search_context_ptr->session_offset),
+                     MAX_SEGMENT_LENGTH);
     data_segment.data.bytes_ptr = (7 < data_segment.capacity) ? new omega_byte_t[data_segment.capacity + 1] : nullptr;
     const auto pattern_length = search_context_ptr->pattern_length;
     const auto pattern = omega_data_get_data(&search_context_ptr->pattern, pattern_length);
@@ -125,7 +131,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
             return 1;
         }
         skip = skip_size;
-    } while (data_segment.length == data_segment.capacity);
+    } while (MAX_SEGMENT_LENGTH == data_segment.capacity);
     if (7 < data_segment.capacity) { delete[] data_segment.data.bytes_ptr; }
     search_context_ptr->match_offset = session_length;
     return 0;
