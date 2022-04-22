@@ -114,8 +114,33 @@ private[omega_edit] trait FFI {
 
   // search
 
-  def omega_search_create_context_bytes(p: Pointer, pattern: Array[Byte], patternLength: Long, offset: Long, length: Long, caseInsensitive: Boolean): Pointer
-  def omega_search_create_context(p: Pointer, pattern: String, patternLength: Long, offset: Long, length: Long, caseInsensitive: Boolean): Pointer
+  def omega_search_create_context_bytes(
+      p: Pointer,
+      pattern: Array[Byte],
+      patternLength: Long,
+      offset: Long,
+      length: Long,
+      caseInsensitive: Boolean
+  ): Pointer
+
+  /** @param p
+    * @param pattern
+    * @param patternLength
+    *   if 0, the length is computed from `pattern`
+    * @param offset
+    * @param length
+    *   if 0, computed from the offset and length of the session
+    * @param caseInsensitive
+    * @return
+    */
+  def omega_search_create_context(
+      p: Pointer,
+      pattern: String,
+      patternLength: Long,
+      offset: Long,
+      length: Long,
+      caseInsensitive: Boolean
+  ): Pointer
   def omega_search_context_get_offset(p: Pointer): Long
   def omega_search_context_get_length(p: Pointer): Long
   def omega_search_next_match(p: Pointer, advanceContext: Long): Int
@@ -124,7 +149,13 @@ private[omega_edit] trait FFI {
   // find
 
   def omega_find_create_skip_table(needle: String, needleLength: Long): Pointer
-  def omega_find(haystack: String, length: Long, p: Pointer, needle: String, needleLength: Long): String
+  def omega_find(
+      haystack: String,
+      length: Long,
+      p: Pointer,
+      needle: String,
+      needleLength: Long
+  ): String
   def omega_find_destroy_skip_table(p: Pointer): Unit
 }
 
