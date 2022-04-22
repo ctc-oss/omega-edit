@@ -149,7 +149,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       Iterator
         .unfold(context -> 0) { case (context, numMatches) =>
           Option.when(
-            limit.map(numMatches <= _).getOrElse(true) && i
+            limit.map(numMatches < _).getOrElse(true) && i
               .omega_search_next_match(context, 1) > 0
           )(
             i.omega_search_context_get_offset(context) -> (context, numMatches + 1)
