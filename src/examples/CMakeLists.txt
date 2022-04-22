@@ -31,6 +31,9 @@ target_link_libraries(slice PRIVATE omega_edit::omega_edit)
 add_executable(peek peek.cpp)
 target_link_libraries(peek PRIVATE omega_edit::omega_edit)
 
+add_executable(search search.cpp)
+target_link_libraries(search PRIVATE omega_edit::omega_edit)
+
 add_executable(simple simple.cpp)
 target_link_libraries(simple PRIVATE omega_edit::omega_edit)
 

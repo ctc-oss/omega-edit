@@ -190,6 +190,9 @@ if (BUILD_EXAMPLES)
     add_executable(peek "src/examples/peek.cpp")
     target_link_libraries(peek PRIVATE omega_edit::omega_edit)
 
+    add_executable(search "src/examples/search.cpp")
+    target_link_libraries(search PRIVATE omega_edit::omega_edit)
+
     add_executable(simple "src/examples/simple.cpp")
     target_link_libraries(simple PRIVATE omega_edit::omega_edit)
 
