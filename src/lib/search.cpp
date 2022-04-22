@@ -57,7 +57,7 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
         match_context_ptr->session_ptr = session_ptr;
         match_context_ptr->pattern_length = pattern_length;
         match_context_ptr->session_offset = session_offset;
-        match_context_ptr->session_length = session_length_computed;
+        match_context_ptr->session_length = session_length_computed - session_offset;
         match_context_ptr->match_offset = session_length_computed;
         match_context_ptr->case_insensitive = case_insensitive;
         omega_data_create(&match_context_ptr->pattern, pattern_length);
