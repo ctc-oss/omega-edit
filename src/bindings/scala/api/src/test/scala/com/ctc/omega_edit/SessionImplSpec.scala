@@ -139,7 +139,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
 
     "respect len" in session(as) { s =>
-      s.search("a", 0, Some(numbers.length.toLong - 2)) shouldBe List(4, 9, 10)
+      s.search("a", 0, Some(as.length.toLong - 2)) shouldBe List(4, 9, 10)
     }
 
     "respect caseInsensitive" in session(as) { s =>
