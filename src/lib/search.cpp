@@ -58,7 +58,7 @@ omega_search_context_t *omega_search_create_context_bytes(const omega_session_t 
         match_context_ptr->pattern_length = pattern_length;
         match_context_ptr->session_offset = session_offset;
         match_context_ptr->session_length = session_length_computed;
-        match_context_ptr->match_offset = session_length_computed + session_offset;
+        match_context_ptr->match_offset = session_offset + session_length_computed;
         match_context_ptr->case_insensitive = case_insensitive;
         omega_data_create(&match_context_ptr->pattern, pattern_length);
         const auto pattern_data_ptr = omega_data_get_data(&match_context_ptr->pattern, pattern_length);
@@ -100,13 +100,13 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     assert(search_context_ptr->session_ptr);
     assert(0 <= advance_context);
     omega_data_segment_t data_segment;
-    auto session_length = (search_context_ptr->match_offset == search_context_ptr->session_length)
-                                  ? search_context_ptr->session_length
-                                  : search_context_ptr->session_length -
-                                            (search_context_ptr->match_offset - search_context_ptr->session_offset);
-    data_segment.offset = (search_context_ptr->match_offset == session_length)
-                                  ? search_context_ptr->session_offset
-                                  : search_context_ptr->match_offset + advance_context;
+    const auto is_begin = search_context_ptr->match_offset ==
+                          (search_context_ptr->session_offset + search_context_ptr->session_length);
+    auto session_length = is_begin ? search_context_ptr->session_length
+                                   : search_context_ptr->session_length -
+                                             (search_context_ptr->match_offset - search_context_ptr->session_offset);
+    data_segment.offset =
+            is_begin ? search_context_ptr->session_offset : search_context_ptr->match_offset + advance_context;
     data_segment.capacity = std::min(session_length, MAX_SEGMENT_LENGTH);
     omega_data_create(&data_segment.data, data_segment.capacity);
     const auto pattern = omega_data_get_data(&search_context_ptr->pattern, search_context_ptr->pattern_length);

@@ -787,6 +787,31 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(match_context);
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(3 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 1, 0, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(4 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 5, 0, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(3 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 0, 5, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(1 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 4, 3, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(1 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 1, 3, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(0 == needles_found);
     omega_edit_destroy_session(session_ptr);
 }
 
