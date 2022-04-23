@@ -53,6 +53,8 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SearchRequest;
+using omega_edit::SearchResponse;
 using omega_edit::SessionCountResponse;
 using omega_edit::SessionEvent;
 using omega_edit::SessionEventKind;
@@ -805,6 +807,35 @@ public:
         auto *reactor = context->DefaultReactor();
         session_manager_.destroy_viewport(viewport_id);
         response->set_id(viewport_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *SearchSession(CallbackServerContext *context, const SearchRequest *request,
+                                      SearchResponse *response) override {
+        const auto &session_id = request->session_id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto &pattern = request->pattern();
+        const auto is_case_insensitive = request->has_is_case_insensitive() && request->is_case_insensitive();
+        const auto offset = request->has_offset() ? request->offset() : 0;
+        const auto length =
+                request->has_length() ? request->length() : omega_session_get_computed_file_size(session_ptr);
+        auto limit = request->has_limit() ? request->limit() : -1;
+        auto *reactor = context->DefaultReactor();
+        auto search_context_ptr =
+                omega_search_create_context_string(session_ptr, pattern, offset, length, is_case_insensitive);
+        while (limit && omega_search_next_match(search_context_ptr, 1)) {
+            response->add_match_offset(omega_search_context_get_offset(search_context_ptr));
+            --limit;
+        }
+        omega_search_destroy_context(search_context_ptr);
+        response->set_session_id(session_id);
+        response->set_pattern(pattern);
+        response->set_is_case_insensitive(is_case_insensitive);
+        response->set_offset(offset);
+        response->set_length(length);
         reactor->Finish(Status::OK);
         return reactor;
     }
