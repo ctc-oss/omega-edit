@@ -35,7 +35,7 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     assert(change_ptr);
     return (change_ptr->kind != change_kind_t::CHANGE_DELETE)
-                   ? ((7 < change_ptr->length) ? change_ptr->data.bytes_ptr : change_ptr->data.sm_bytes)
+                   ? omega_data_get_data_const(&change_ptr->data, change_ptr->length)
                    : nullptr;
 }
 

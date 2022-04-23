@@ -697,7 +697,7 @@ TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/search-test.dat";
-    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, 0);
+    auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, 0);
     REQUIRE(session_ptr);
     REQUIRE(0 < omega_session_get_computed_file_size(session_ptr));
     view_mode_t view_mode;
@@ -808,6 +808,47 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1, nullptr));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));
+    session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0);
+    REQUIRE(session_ptr);
+    std::string as = "bbbbabbbbaabbbba";
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, as));
+    REQUIRE(as.length() == omega_session_get_computed_file_size(session_ptr));
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 0, 0, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(4 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 0, omega_session_get_computed_file_size(session_ptr) - 2, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(3 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 1, 0, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(4 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 5, 0, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(3 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 0, 5, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(1 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 4, 3, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(1 == needles_found);
+    needles_found = 0;
+    match_context = omega_search_create_context_string(session_ptr, "a", 1, 3, 0);
+    REQUIRE(match_context);
+    while (omega_search_next_match(match_context, 1)) { ++needles_found; }
+    REQUIRE(0 == needles_found);
+    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("File Viewing", "[InitTests]") {

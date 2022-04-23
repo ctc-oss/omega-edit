@@ -16,13 +16,13 @@
 
 package com.ctc.omega_edit
 
+import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
   GenerateFilename,
   OverwriteExisting
 }
-import com.ctc.omega_edit.api.{Change, Session, Viewport, ViewportCallback}
 import jnr.ffi.Pointer
 
 import java.nio.ByteBuffer
@@ -79,15 +79,28 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     new ViewportImpl(vp, i)
   }
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport = {
-    val vp = i.omega_edit_create_viewport(p, offset, size, false, cb, null, eventInterest)
+  def viewCb(
+      offset: Long,
+      size: Long,
+      cb: ViewportCallback,
+      eventInterest: Int
+  ): Viewport = {
+    val vp = i.omega_edit_create_viewport(
+      p,
+      offset,
+      size,
+      false,
+      cb,
+      null,
+      eventInterest
+    )
     new ViewportImpl(vp, i)
   }
 
   def findChange(id: Long): Option[Change] =
     i.omega_session_get_change(p, id) match {
       case null => None
-      case ptr => Some(new ChangeImpl(ptr, i))
+      case ptr  => Some(new ChangeImpl(ptr, i))
     }
 
   def save(to: Path): Try[Path] =
@@ -98,7 +111,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     val buffer = ByteBuffer.allocate(4096)
     val overwrite = onExists match {
       case OverwriteExisting => true
-      case GenerateFilename => false
+      case GenerateFilename  => false
     }
     i.omega_edit_save(
       p,
@@ -113,6 +126,37 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       case ec =>
         Failure(new RuntimeException(s"Failed to save session to file, $ec"))
     }
+  }
+
+  def search(
+      pattern: String,
+      offset: Long,
+      length: Option[Long] = None,
+      caseInsensitive: Boolean = false,
+      limit: Option[Long] = None
+  ): List[Long] = {
+    val context =
+      i.omega_search_create_context(
+        p,
+        pattern,
+        0,
+        offset,
+        length.getOrElse(0),
+        caseInsensitive
+      )
+
+    try {
+      Iterator
+        .unfold(context -> 0) { case (context, numMatches) =>
+          Option.when(
+            limit.map(numMatches < _).getOrElse(true) && i
+              .omega_search_next_match(context, 1) > 0
+          )(
+            i.omega_search_context_get_offset(context) -> (context, numMatches + 1)
+          )
+        }
+        .toList
+    } finally i.omega_search_destroy_context(context)
   }
 }
 

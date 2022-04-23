@@ -58,7 +58,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/fwd_defs.h"
         "src/include/omega_edit/byte.h"
         "src/include/omega_edit/scoped_ptr.hpp"
-        "src/include/omega_edit/stl_string_adaptor.hpp"
+        "src/include/omega_edit/stl_string_adaptor.hpp" "src/lib/stl_string_adapter.cpp"
         "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
@@ -189,6 +189,9 @@ if (BUILD_EXAMPLES)
 
     add_executable(peek "src/examples/peek.cpp")
     target_link_libraries(peek PRIVATE omega_edit::omega_edit)
+
+    add_executable(search "src/examples/search.cpp")
+    target_link_libraries(search PRIVATE omega_edit::omega_edit)
 
     add_executable(simple "src/examples/simple.cpp")
     target_link_libraries(simple PRIVATE omega_edit::omega_edit)

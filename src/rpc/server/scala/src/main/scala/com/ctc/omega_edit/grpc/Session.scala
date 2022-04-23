@@ -29,6 +29,8 @@ import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 
 import java.nio.file.Path
 import scala.util.{Failure, Success}
+import omega_edit.SearchRequest
+import omega_edit.SearchResponse
 
 object Session {
   type EventStream = Source[Session.Updated, NotUsed]
@@ -44,9 +46,7 @@ object Session {
     def path: Path
   }
 
-  def props(session: api.Session,
-            events: EventStream,
-            cb: SessionCallback): Props =
+  def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
     Props(new Session(session, events, cb))
 
   sealed trait Op
@@ -67,6 +67,8 @@ object Session {
 
   case class LookupChange(id: Long) extends Op
 
+  case class Search(request: SearchRequest) extends Op
+
   case class Updated(id: String)
 
   trait ChangeDetails {
@@ -74,10 +76,11 @@ object Session {
   }
 }
 
-class Session(session: api.Session,
-              @deprecated("unused", "") events: EventStream,
-              @deprecated("unused", "") cb: SessionCallback)
-    extends Actor {
+class Session(
+    session: api.Session,
+    @deprecated("unused", "") events: EventStream,
+    @deprecated("unused", "") cb: SessionCallback
+) extends Actor {
   val sessionId: String = self.path.name
 
   def receive: Receive = {
@@ -96,9 +99,7 @@ class Session(session: api.Session,
             input.queue.offer(Viewport.Updated(fqid, v.data, c))
             ()
           }
-          context.actorOf(
-            Viewport.props(session.viewCb(off, cap, cb, eventInterest.getOrElse(0)), stream, cb),
-            vid)
+          context.actorOf(Viewport.props(session.viewCb(off, cap, cb, eventInterest.getOrElse(0)), stream, cb), vid)
           sender() ! Ok(fqid)
       }
 
@@ -174,5 +175,24 @@ class Session(session: api.Session,
         case Failure(_) =>
           sender() ! Err(Status.UNKNOWN)
       }
+
+    case Search(request) =>
+      val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
+      val offset = request.offset.getOrElse(0L)
+
+      sender() ! SearchResponse.of(
+        sessionId,
+        request.pattern,
+        isCaseInsensitive,
+        offset,
+        request.length.getOrElse(0),
+        session.search(
+          request.pattern,
+          offset,
+          request.length,
+          isCaseInsensitive,
+          request.limit
+        )
+      )
   }
 }

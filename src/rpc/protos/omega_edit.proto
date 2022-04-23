@@ -38,16 +38,16 @@ service Editor {
   rpc GetLastChange(ObjectId) returns (ChangeDetailsResponse);
   rpc GetLastUndo(ObjectId) returns (ChangeDetailsResponse);
   rpc GetComputedFileSize(ObjectId) returns (ComputedFileSizeResponse);
-  rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
-  rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
-
   rpc GetCount(CountRequest) returns (CountResponse);
   rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
   rpc GetSegment(SegmentRequest) returns (SegmentResponse);
+  rpc SearchSession(SearchRequest) returns (SearchResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
   rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+  rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
+  rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
 }
 
 enum ChangeKind {
@@ -214,4 +214,22 @@ message SegmentResponse {
   string session_id = 1;
   int64 offset = 2;
   bytes data = 3;
+}
+
+message SearchRequest {
+  string session_id = 1;
+  string pattern = 2;
+  optional bool is_case_insensitive = 3;
+  optional int64 offset = 4;
+  optional int64 length = 5;
+  optional int64 limit = 6;
+}
+
+message SearchResponse {
+  string session_id = 1;
+  string pattern = 2;
+  bool is_case_insensitive = 3;
+  int64 offset = 4;
+  int64 length = 5;
+  repeated int64 match_offset = 6;
 }

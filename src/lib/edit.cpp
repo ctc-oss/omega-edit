@@ -156,8 +156,8 @@ static inline omega_model_segment_ptr_t clone_model_segment_(const omega_model_s
 
 static inline void free_model_changes_(omega_model_struct *model_ptr) {
     for (auto &&change_ptr : model_ptr->changes) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
     model_ptr->changes.clear();
@@ -165,8 +165,8 @@ static inline void free_model_changes_(omega_model_struct *model_ptr) {
 
 static inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
     for (auto &&change_ptr : model_ptr->changes_undone) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
     model_ptr->changes_undone.clear();
@@ -357,8 +357,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.is_floating = (bool) is_floating;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
-        // data segment buffer allocation is its capacity plus one, so we can null-terminate it
-        viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
+        omega_data_create(&viewport_ptr->data_segment.data, capacity);
         viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         viewport_ptr->event_interest_ = event_interest;
@@ -374,7 +373,7 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
-            if (7 < omega_viewport_get_capacity(iter->get())) { delete[](*iter)->data_segment.data.bytes_ptr; }
+            omega_data_destroy(&(*iter)->data_segment.data, omega_viewport_get_capacity(iter->get()));
             viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
             break;
         }

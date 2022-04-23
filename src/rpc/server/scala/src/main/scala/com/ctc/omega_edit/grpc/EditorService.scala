@@ -172,6 +172,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
 
+  
+
   /**
     * Event streams
     */
@@ -205,6 +207,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     Future.successful(in)
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
     Future.successful(in)
+
+  // search
+
+  def searchSession(in: SearchRequest): Future[SearchResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
   //
   // unimplementeds

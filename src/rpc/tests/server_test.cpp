@@ -48,6 +48,8 @@ using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
 using omega_edit::SegmentRequest;
 using omega_edit::SegmentResponse;
+using omega_edit::SearchRequest;
+using omega_edit::SearchResponse;
 using omega_edit::SessionCountResponse;
 using omega_edit::VersionResponse;
 using omega_edit::ViewportDataRequest;
@@ -756,6 +758,46 @@ public:
         }
     }
 
+    int SearchSession(const std::string &session_id, const std::string &pattern, bool is_case_insensitive,
+                          int64_t offset, int64_t length, int64_t limit, std::vector<int64_t> &match_offset) {
+        assert(!session_id.empty());
+        SearchRequest request;
+        SearchResponse response;
+        ClientContext context;
+
+        request.set_session_id(session_id);
+        request.set_pattern(pattern);
+        request.set_is_case_insensitive(is_case_insensitive);
+        request.set_offset(offset);
+        request.set_length(length);
+        if (limit) { request.set_limit(limit); }
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->SearchSession(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            const auto num_matches = response.match_offset_size();
+            match_offset.reserve(num_matches);
+            for(int i = 0; i < num_matches; ++i) {
+                match_offset.push_back(response.match_offset(i));
+            }
+            return num_matches;
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                       std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -959,6 +1001,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ResumeViewportEvents received: " << reply
+                     << std::endl;);
+        }
+
+        auto match_offsets = std::vector<int64_t >();
+        auto num_matches = server_test_client.SearchSession(session_id, "weird", true, 0, 0, 0, match_offsets);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SearchSession received: " << num_matches
                      << std::endl;);
         }
 
