@@ -16,9 +16,9 @@
 
 package com.ctc.omega_edit
 
+import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.Changed
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.{Change, OmegaEdit, SessionEvent}
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
@@ -29,6 +29,13 @@ import java.util.UUID
 import scala.util.Success
 
 class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
+
+  val numbers = "123456789"
+  //        0         1
+  //        0123456789012345
+  //            |    ||    |
+  val as = "bbbbabbbbaabbbba"
+
   "a session" must {
     "be empty" in emptySession { s =>
       s.isEmpty shouldBe true
@@ -115,12 +122,6 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   }
 
   "search" should {
-    val numbers = "123456789"
-    //        0         1
-    //        0123456789012345
-    //            |    ||    |
-    val as = "bbbbabbbbaabbbba"
-
     "find nothing if nothing is there" in session(numbers) { s =>
       s.search("abc", 0) shouldBe List.empty
     }
@@ -148,6 +149,16 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
     "respect limit" in session(as) { s =>
       s.search("a", 0, limit = Some(2)) shouldBe List(4, 9)
+    }
+  }
+
+  "segments" should {
+    "find stuff" in session(numbers) { s =>
+      s.getSegment(3, 4) match {
+        case Some(Segment(3, data)) =>
+          data should equal(numbers.substring(3, 3 + 4).getBytes())
+        case _ => fail()
+      }
     }
   }
 }

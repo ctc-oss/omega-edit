@@ -152,11 +152,25 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
             limit.map(numMatches < _).getOrElse(true) && i
               .omega_search_next_match(context, 1) > 0
           )(
-            i.omega_search_context_get_offset(context) -> (context, numMatches + 1)
+            i.omega_search_context_get_offset(
+              context
+            ) -> (context, numMatches + 1)
           )
         }
         .toList
     } finally i.omega_search_destroy_context(context)
+  }
+
+  def getSegment(offset: Long, length: Long): Option[Segment] = {
+    val sp = i.omega_segment_create(length)
+
+    try {
+      val result = i.omega_session_get_segment(p, sp, offset)
+
+      Option.when(result == 0)(
+        Segment(offset, i.omega_segment_get_data(sp).getBytes)
+      )
+    } finally i.omega_segment_destroy(sp)
   }
 }
 

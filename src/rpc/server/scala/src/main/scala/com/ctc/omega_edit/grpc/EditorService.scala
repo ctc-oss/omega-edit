@@ -36,6 +36,8 @@ import omega_edit._
 import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
+import com.ctc.omega_edit.api
+import com.google.protobuf.ByteString
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(1.second)
@@ -146,7 +148,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
     (editors ? SessionCount)
       .mapTo[Int]
-      .map(SessionCountResponse(_))
+      .map(count => SessionCountResponse(count.toLong))
 
   def getCount(in: CountRequest): Future[CountResponse] =
     (in.kind match {
@@ -162,7 +164,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? SessionOp(in.sessionId, GetNumViewports))
       case CountKind.UNDEFINED_COUNT_KIND =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
-      case CountKind.Unrecognized(unrecognizedValue) =>
+      case CountKind.Unrecognized(_) =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"unrecognized kind: $in"))
     }).mapTo[Result]
       .map {
@@ -212,6 +214,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
+
+  // segments
+  def getSegment(in: SegmentRequest): Future[SegmentResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Segment(in)))
+      .mapTo[Option[api.Segment]] // No `Ok` wrapper
+      .flatMap {
+        case None => grpcFailFut[SegmentResponse](Status.NOT_FOUND, s"couldn't find segment: $in")
+        case Some(api.Segment(offset, data)) => Future.successful(SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data)))
+      }
 
   //
   // unimplementeds
