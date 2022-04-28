@@ -12,10 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+#include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/search.h"
 #include "../include/omega_edit/session.h"
 #include "../include/omega_edit/utility.h"
-#include "impl_/data_segment_def.hpp"
+#include "impl_/segment_def.hpp"
 #include "impl_/find.h"
 #include "impl_/internal_fun.hpp"
 #include <algorithm>
@@ -99,7 +100,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     assert(search_context_ptr->skip_table_ptr);
     assert(search_context_ptr->session_ptr);
     assert(0 <= advance_context);
-    omega_data_segment_t data_segment;
+    omega_segment_t data_segment;
     const auto is_begin = search_context_ptr->match_offset ==
                           (search_context_ptr->session_offset + search_context_ptr->session_length);
     auto session_length = is_begin ? search_context_ptr->session_length
@@ -114,7 +115,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     const auto stride_size = 1 + data_segment.capacity - search_context_ptr->pattern_length;
     do {
         populate_data_segment_(search_context_ptr->session_ptr, &data_segment);
-        const auto segment_data_ptr = omega_data_segment_get_data(&data_segment);
+        const auto segment_data_ptr = omega_segment_get_data(&data_segment);
         if (search_context_ptr->case_insensitive) {
             omega_util_apply_byte_transform(segment_data_ptr, data_segment.length, to_lower_, nullptr);
         }

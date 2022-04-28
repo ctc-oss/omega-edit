@@ -63,6 +63,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
         "src/include/omega_edit/search.h" "src/lib/search.cpp"
+        "src/include/omega_edit/segment.h" "src/lib/segment.cpp" "src/lib/impl_/segment_def.hpp"
         "src/include/omega_edit/version.h" "src/lib/version.c"
         "src/include/omega_edit/visit.h" "src/lib/visit.cpp"
         "src/include/omega_edit/session.h" "src/lib/session.cpp" "src/lib/impl_/session_def.hpp"
@@ -73,8 +74,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/filesystem.h" "src/lib/filesystem.cpp"
         "src/lib/impl_/internal_fun.hpp" "src/lib/impl_/internal_fun.cpp"
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
-        "src/lib/impl_/data_def.hpp" "src/lib/impl_/data_segment_def.hpp"
-        "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
+        "src/lib/impl_/data_def.hpp" "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
         "src/lib/impl_/macros.h" "src/include/omega_edit/export.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 

@@ -22,6 +22,8 @@
 #include "change.h"
 #include "edit.h"
 #include "search.h"
+#include "segment.h"
+#include "session.h"
 #include "viewport.h"
 #include <string>
 
@@ -59,6 +61,15 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert_string(omega_session_t *session_ptr,
 OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset,
                                                       const std::string &str) noexcept;
 
+/**
+ * Gets a segment of data from the given session
+ * @param session_ptr session to get the segment of data from
+ * @param offset start offset of the desired segment
+ * @param length length of the desired segment from the given offset
+ * @return string containing the desired segment of data
+ */
+OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
+                                                               int64_t length) noexcept;
 /**
  * Create a search context
  * @param session_ptr session to find patterns in

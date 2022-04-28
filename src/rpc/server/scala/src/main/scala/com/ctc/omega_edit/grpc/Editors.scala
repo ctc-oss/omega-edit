@@ -22,7 +22,6 @@ import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
 
 import java.nio.file.Path

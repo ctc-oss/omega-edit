@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
-#define OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
+#ifndef OMEGA_EDIT_SEGMENT_DEF_HPP
+#define OMEGA_EDIT_SEGMENT_DEF_HPP
 
 #include "data_def.hpp"
 #include "internal_fwd_defs.hpp"
@@ -23,7 +23,7 @@
 /**
  * A segment of data
  */
-struct omega_data_segment_struct {
+struct omega_segment_struct {
     int64_t offset{};   ///< Data offset as changes have been made
     int64_t length{};   ///< Populated data length (in bytes)
     int64_t capacity{}; ///< Data capacity (in bytes)
@@ -32,8 +32,4 @@ struct omega_data_segment_struct {
     int64_t offset_adjustment{};
 };
 
-inline omega_byte_t *omega_data_segment_get_data(omega_data_segment_t *data_segment_ptr) {
-    return omega_data_get_data(&data_segment_ptr->data, std::abs(data_segment_ptr->capacity));
-}
-
-#endif//OMEGA_EDIT_DATA_SEGMENT_DEF_HPP
+#endif//OMEGA_EDIT_SEGMENT_DEF_HPP

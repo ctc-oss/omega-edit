@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "../include/omega_edit/viewport.h"
+#include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/edit.h"
 #include "../include/omega_edit/session.h"
 #include "../include/omega_edit/utility.h"
@@ -105,7 +106,7 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
         if (populate_data_segment_(viewport_ptr->session_ptr, &mut_viewport_ptr->data_segment) != 0) { return nullptr; }
         assert(omega_viewport_get_length(viewport_ptr) == viewport_ptr->data_segment.length);
     }
-    return omega_data_segment_get_data(&mut_viewport_ptr->data_segment);
+    return omega_segment_get_data(&mut_viewport_ptr->data_segment);
 }
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {

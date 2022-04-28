@@ -14,8 +14,10 @@
 
 #include "../include/omega_edit/session.h"
 #include "impl_/change_def.hpp"
+#include "impl_/segment_def.hpp"
 #include "impl_/model_def.hpp"
 #include "impl_/session_def.hpp"
+#include "impl_/internal_fun.hpp"
 #include <cassert>
 
 enum class session_flags { pause_viewport_callbacks = 0x01 };
@@ -23,6 +25,14 @@ enum class session_flags { pause_viewport_callbacks = 0x01 };
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->user_data_ptr;
+}
+
+int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
+                              int64_t offset) {
+    assert(session_ptr);
+    assert(data_segment_ptr);
+    data_segment_ptr->offset = offset;
+    return populate_data_segment_(session_ptr, data_segment_ptr);
 }
 
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
@@ -107,17 +117,17 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
 
 int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->session_flags_ & (int8_t)session_flags::pause_viewport_callbacks) ? 1 : 0;
+    return (session_ptr->session_flags_ & (int8_t) session_flags::pause_viewport_callbacks) ? 1 : 0;
 }
 
 void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ |= (int8_t)session_flags::pause_viewport_callbacks;
+    session_ptr->session_flags_ |= (int8_t) session_flags::pause_viewport_callbacks;
 }
 
 void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ &= ~(int8_t)session_flags::pause_viewport_callbacks;
+    session_ptr->session_flags_ &= ~(int8_t) session_flags::pause_viewport_callbacks;
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
