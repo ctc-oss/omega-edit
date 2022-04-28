@@ -847,13 +847,18 @@
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
-<dt class="sig sig-object cpp" id="_CPPv415omega_session_t">
-<span id="_CPPv315omega_session_t"></span><span id="_CPPv215omega_session_t"></span><span id="omega_session_t"></span><span class="target" id="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_session_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_t</span></span></span><a class="headerlink" href="#_CPPv415omega_session_t" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv414omega_change_t">
+<span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
-<dt class="sig sig-object cpp" id="_CPPv414omega_change_t">
-<span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv415omega_segment_t">
+<span id="_CPPv315omega_segment_t"></span><span id="_CPPv215omega_segment_t"></span><span id="omega_segment_t"></span><span class="target" id="fwd__defs_8h_1a148130cbe6a7ae34b6da06f90df91f12"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_segment_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_segment_t</span></span></span><a class="headerlink" href="#_CPPv415omega_segment_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv415omega_session_t">
+<span id="_CPPv315omega_session_t"></span><span id="_CPPv215omega_session_t"></span><span id="omega_session_t"></span><span class="target" id="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_session_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_t</span></span></span><a class="headerlink" href="#_CPPv415omega_session_t" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
@@ -1178,6 +1183,23 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>associated user data for the given session </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a2bb829327c7cd9be3b0b825196860f02"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_get_segment</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_segment_t</span> <span class="pre">*data_segment_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset)</span></span></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – </p></li>
+<li><p><strong>data_segment_ptr</strong> – </p></li>
+<li><p><strong>offset</strong> – </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>zero on success, non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1522,6 +1544,42 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>masked byte </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a524e27c4333ea1e832b82c3861039d30"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_util_strncmp</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*s1,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*s2,</span> <span class="pre">uint64_t</span> <span class="pre">sz)</span></span></dt>
+<dd><p>Compares sz bytes of two character strings </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>s1</strong> – first character string </p></li>
+<li><p><strong>s2</strong> – second character string </p></li>
+<li><p><strong>sz</strong> – number of bytes to compare </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>zero if sz bytes of the two character strings match, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1ae389798c200cd468c1774e34b232fe6c"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_util_strnicmp</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*s1,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*s2,</span> <span class="pre">uint64_t</span> <span class="pre">sz)</span></span></dt>
+<dd><p>Compares sz bytes of two character strings, without regard to case (case insensitive) </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>s1</strong> – first character string </p></li>
+<li><p><strong>s2</strong> – second character string </p></li>
+<li><p><strong>sz</strong> – number of bytes to compare </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>zero if sz bytes of the two character strings match, non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
