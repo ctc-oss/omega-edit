@@ -13,6 +13,7 @@
 **********************************************************************************************************************/
 
 #include "../include/omega_edit/stl_string_adaptor.hpp"
+#include <cassert>
 
 std::string omega_change_get_string(const omega_change_t *change_ptr) noexcept {
     const auto change_bytes = omega_change_get_bytes(change_ptr);
@@ -35,11 +36,13 @@ int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset
     return omega_edit_overwrite(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
 }
 
-std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset, int64_t length) noexcept {
+std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
+                                             int64_t length) noexcept {
     auto segment_ptr = omega_segment_create(length);
-    auto rc =  omega_session_get_segment(session_ptr, segment_ptr, offset);
+    auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
     assert(0 == rc);
-    std::string result (reinterpret_cast<const char *>(omega_segment_get_data(segment_ptr)), static_cast<size_t>(omega_segment_get_length(segment_ptr)));
+    std::string result(reinterpret_cast<const char *>(omega_segment_get_data(segment_ptr)),
+                       static_cast<size_t>(omega_segment_get_length(segment_ptr)));
     omega_segment_destroy(segment_ptr);
     return result;
 }
