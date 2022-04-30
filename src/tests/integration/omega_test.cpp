@@ -123,8 +123,10 @@ TEST_CASE("File Exists", "[UtilTests]") {
 
 TEST_CASE("File Touch", "[UtilTests]") {
     const char dir_sep = omega_util_directory_separator();
-    const auto exists = std::string("data") + dir_sep + "test1.dat";;
-    const auto dont_exist = std::string("data") + dir_sep + "IDonTExist.DaT";;
+    const auto exists = std::string("data") + dir_sep + "test1.dat";
+    ;
+    const auto dont_exist = std::string("data") + dir_sep + "IDonTExist.DaT";
+    ;
     REQUIRE(omega_util_file_exists(exists.c_str()));
     REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
     auto expected = std::string("data") + dir_sep + "test1-1.dat";
@@ -678,6 +680,19 @@ static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_vi
     }
 }
 
+TEST_CASE("Compare", "[CompareTests]") {
+    REQUIRE(0 == omega_util_strncmp("needle", "needle", 6));
+    REQUIRE(0 != omega_util_strncmp("needle", "needlE", 6));
+    REQUIRE(0 == omega_util_strncmp("needle", "needlE", 5));
+    REQUIRE(0 != omega_util_strncmp("foo", "bar", 3));
+
+    REQUIRE(0 == omega_util_strnicmp("needle", "needle", 6));
+    REQUIRE(0 == omega_util_strnicmp("needle", "needlE", 6));
+    REQUIRE(0 == omega_util_strnicmp("needle", "needlE", 5));
+    REQUIRE(0 == omega_util_strnicmp("Needle", "nEedlE", 5));
+    REQUIRE(0 != omega_util_strnicmp("foo", "bar", 3));
+}
+
 TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
@@ -746,18 +761,39 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(match_context);
     needles_found = 0;
     const std::string replace = "Noodles";
+    auto segment_peek = omega_segment_create(10);
+    REQUIRE(10 == omega_segment_get_capacity(segment_peek));
+    REQUIRE(0 == omega_segment_get_length(segment_peek));
+    REQUIRE(0 > omega_segment_get_offset(segment_peek));
+    REQUIRE(0 == omega_segment_get_offset_adjustment(segment_peek));
     auto pattern_length = omega_search_context_get_length(match_context);
     if (omega_search_next_match(match_context, 1)) {
         const auto advance_context = static_cast<int64_t>(replace.length());
         do {
             const auto pattern_offset = omega_search_context_get_offset(match_context);
+            omega_session_get_segment(session_ptr, segment_peek, pattern_offset);
+            clog << " needle before: " << omega_segment_get_data(segment_peek) << std::endl;
+            REQUIRE(pattern_offset == omega_segment_get_offset(segment_peek));
+            REQUIRE(0 == omega_util_strnicmp("needle", (const char *) omega_segment_get_data(segment_peek), 6));
+            REQUIRE(omega_session_get_segment_string(session_ptr, pattern_offset,
+                                                     omega_segment_get_capacity(segment_peek)) ==
+                    (const char *) omega_segment_get_data(segment_peek));
             omega_session_pause_viewport_event_callbacks(session_ptr);
             omega_edit_delete(session_ptr, pattern_offset, pattern_length);
             omega_session_resume_viewport_event_callbacks(session_ptr);
             omega_edit_insert_string(session_ptr, pattern_offset, replace);
+            omega_session_get_segment(session_ptr, segment_peek, pattern_offset);
+            clog << " needle after: " << omega_segment_get_data(segment_peek) << std::endl;
+            REQUIRE(0 == omega_util_strnicmp((const char *) replace.c_str(),
+                                             (const char *) omega_segment_get_data(segment_peek),
+                                             static_cast<uint64_t>(replace.length())));
+            REQUIRE(omega_session_get_segment_string(session_ptr, pattern_offset,
+                                                     omega_segment_get_capacity(segment_peek)) ==
+                    (const char *) omega_segment_get_data(segment_peek));
             ++needles_found;
         } while (omega_search_next_match(match_context, advance_context));
     }
+    omega_segment_destroy(segment_peek);
     REQUIRE(6 == needles_found);
     omega_search_destroy_context(match_context);
     // Single byte search
@@ -908,7 +944,7 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     omega_util_remove_file("data/session_save.1.dat");
     omega_edit_save(session_ptr, "data/session_save.1.dat", 1, saved_filename);
     REQUIRE(omega_util_paths_equivalent("data/session_save.1.dat", saved_filename));
-    REQUIRE(3 == session_events_count);// SESSION_EVT_SAVE
+    REQUIRE(3 == session_events_count); // SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events
     omega_edit_destroy_session(session_ptr);
     session_events_count = 0;
@@ -926,13 +962,13 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(omega_util_paths_equivalent("data/session_save.1.dat", saved_filename));
     REQUIRE(0 == compare_files("data/session_save.expected.1.dat", "data/session_save.1.dat"));
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
-    REQUIRE(4 == session_events_count);// SESSION_EVT_CLEAR and SESSION_EVT_SAVE
+    REQUIRE(4 == session_events_count); // SESSION_EVT_CLEAR and SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events
     omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr),
                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     omega_util_remove_file("data/session_save.1-1.dat");
-    REQUIRE(5 == session_events_count);// SESSION_EVT_SAVE
+    REQUIRE(5 == session_events_count); // SESSION_EVT_SAVE
     REQUIRE(3 == viewport_events_count);// no additional viewport events
     omega_edit_save(session_ptr, "data/session_save.1.dat", 0, saved_filename);
     REQUIRE(6 == session_events_count);// SESSION_EVT_SAVE

@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "internal_fun.hpp"
+#include "../../include/omega_edit/segment.h"
 #include "../../include/omega_edit/change.h"
 #include "change_def.hpp"
 #include "macros.h"
@@ -46,7 +47,7 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
     return rc;
 }
 
-int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr) noexcept {
+int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr) noexcept {
     assert(session_ptr);
     assert(session_ptr->models_.back());
     assert(data_segment_ptr);
@@ -69,7 +70,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
             // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
             // (the delta).
             auto delta = data_segment_offset - (*iter)->computed_offset;
-            auto data_segment_buffer = omega_data_segment_get_data(data_segment_ptr);
+            auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
             do {
                 // This is how much data remains to be filled
                 const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;

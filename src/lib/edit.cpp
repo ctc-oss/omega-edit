@@ -14,6 +14,7 @@
 
 #include "../include/omega_edit/edit.h"
 #include "../include/omega_edit/change.h"
+#include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/session.h"
 #include "../include/omega_edit/viewport.h"
 #include "impl_/change_def.hpp"
@@ -360,7 +361,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
         viewport_ptr->event_interest_ = event_interest;
-        omega_data_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
+        omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);
         return session_ptr->viewports_.back().get();

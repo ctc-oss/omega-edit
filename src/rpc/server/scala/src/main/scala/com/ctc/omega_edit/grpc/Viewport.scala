@@ -54,7 +54,7 @@ object Viewport {
   case class Updated(id: String, data: String, change: Option[Change])
 }
 
-class Viewport(view: api.Viewport, events: EventStream, cb: ViewportCallback)
+class Viewport(view: api.Viewport, events: EventStream, @deprecated("unused", "") cb: ViewportCallback)
     extends Actor
     with ActorLogging {
   val viewportId: String = self.path.name

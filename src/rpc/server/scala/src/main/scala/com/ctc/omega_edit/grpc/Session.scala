@@ -22,15 +22,14 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
-import com.ctc.omega_edit.grpc.Editors.{Err, Ok}
+import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
+import omega_edit._
 
 import java.nio.file.Path
 import scala.util.{Failure, Success}
-import omega_edit.SearchRequest
-import omega_edit.SearchResponse
 
 object Session {
   type EventStream = Source[Session.Updated, NotUsed]
@@ -69,6 +68,8 @@ object Session {
 
   case class Search(request: SearchRequest) extends Op
 
+  case class Segment(request: SegmentRequest) extends Op
+
   case class Updated(id: String)
 
   trait ChangeDetails {
@@ -78,7 +79,7 @@ object Session {
 
 class Session(
     session: api.Session,
-    @deprecated("unused", "") events: EventStream,
+    events: EventStream,
     @deprecated("unused", "") cb: SessionCallback
 ) extends Actor {
   val sessionId: String = self.path.name
@@ -194,5 +195,8 @@ class Session(
           request.limit
         )
       )
+
+    case Segment(request) =>
+      sender() ! session.getSegment(request.offset, request.length)
   }
 }

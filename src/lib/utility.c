@@ -42,6 +42,7 @@
 #include "../include/omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <assert.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -259,4 +260,20 @@ omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_ma
         default:
             ABORT(LOG_ERROR("unhandled mask kind"););
     }
+}
+
+int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
+    int rc = 0;
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 != (rc = s1[i] - s2[i])) break;
+    }
+    return rc;
+}
+
+int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
+    int rc = 0;
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break;
+    }
+    return rc;
 }

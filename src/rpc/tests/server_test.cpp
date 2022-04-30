@@ -46,6 +46,8 @@ using omega_edit::Editor;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
+using omega_edit::SegmentRequest;
+using omega_edit::SegmentResponse;
 using omega_edit::SearchRequest;
 using omega_edit::SearchResponse;
 using omega_edit::SessionCountResponse;
@@ -638,6 +640,37 @@ public:
         }
     }
 
+    [[nodiscard]] std::string GetSegment(const std::string &session_id, int64_t offset, int64_t length) const {
+        assert(!session_id.empty());
+        SegmentRequest request;
+        SegmentResponse response;
+        ClientContext context;
+
+        request.set_session_id(session_id);
+        request.set_offset(offset);
+        request.set_length(length);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetSegment(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.data();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "";
+        }
+    }
+
     [[nodiscard]] int64_t GetComputedFileSize(const std::string &session_id) const {
         assert(!session_id.empty());
         ObjectId request;
@@ -906,6 +939,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Insert received: " << serial << std::endl;);
         }
 
+        auto segment = server_test_client.GetSegment(session_id, 0, 32);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
+        }
+        assert(segment.length() == 15);
+        assert(segment == "Hello Weird!!!!");
+
         ChangeDetailsResponse change_details;
         auto rc = server_test_client.GetLastChange(session_id, change_details);
         assert(0 == rc);
@@ -1039,6 +1080,14 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] GetCount(CountKind::COUNT_CHECKPOINTS) received: " << count << std::endl;);
         }
+
+        segment = server_test_client.GetSegment(session_id, 0, 32);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
+        }
+        assert(segment.length() == 12);
+        assert(segment == "Hello World!");
 
         reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {
