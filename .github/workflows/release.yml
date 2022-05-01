@@ -168,7 +168,7 @@ jobs:
 
       - name: Move windows and macos jars out
         run: |
-          for folder in "omega-edit-native_2.12" "omega-edit-native_2.13"; do
+          for folder in "omega-edit-native_2.13"; do
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
           done

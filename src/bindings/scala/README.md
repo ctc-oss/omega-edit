@@ -47,7 +47,7 @@ To use these artifacts from SBT you must add the M2 local resolver:
 
 ### sbt dependency
 
-Artifacts are being built for Scala `2.12` and `2.13`.
+Artifacts are being built for Scala `2.13`.
 
 The native binaries are delivered via artifacts that use a classifier to indicate the platform they target.
 

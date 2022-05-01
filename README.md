@@ -128,7 +128,7 @@ This package is normally uploaded to npmjs.com
 
 ### Scala API and Native
 
-This publishes for both Scala version 2.12 and 2.13 to GitHub packages.
+This publishes for Scala version 2.13 to GitHub packages.
 
 - Requires the `GITHUB_TOKEN` environment variable to be set
 
