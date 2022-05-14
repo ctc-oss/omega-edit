@@ -34,7 +34,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES "boost/1.78.0" "catch2/2.13.9" "grpc/1.45.2"
+        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.45.2"
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
