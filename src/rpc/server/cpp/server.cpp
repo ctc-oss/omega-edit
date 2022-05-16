@@ -18,6 +18,7 @@
 #include "omega_edit.h"
 #include "omega_edit/fwd_defs.h"
 #include "omega_edit/stl_string_adaptor.hpp"
+#include <boost/program_options.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <cassert>
@@ -908,25 +909,27 @@ int main(int argc, char **argv) {
 #else
     std::string target_str("localhost:50042");
 #endif
+    namespace po = boost::program_options;
 
-    if (argc > 1) {
-        const std::string arg_val(argv[1]);
-        const std::string arg_str("--target");
-        auto start_pos = arg_val.find(arg_str);
-        if (start_pos != std::string::npos) {
-            start_pos += arg_str.size();
-            if (arg_val[start_pos] == '=') {
-                target_str = arg_val.substr(start_pos + 1);
-            } else {
-                std::cerr << "The only correct argument syntax is --target=" << std::endl;
-                return EXIT_FAILURE;
-            }
-        } else {
-            std::cerr << "The only acceptable argument is --target=" << std::endl;
-            return EXIT_FAILURE;
-        }
+    po::options_description description(std::string("Usage ") + argv[0]);
+
+    //@formatter:off
+    description.add_options()
+            ("help,h", "Display this help message")
+            ("target,t", po::value<std::string>()->default_value(target_str), "Server target URL")
+            ;
+    //@formatter:on
+
+    po::variables_map vm;
+    po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
+    po::notify(vm);
+
+    if (vm.count("help")) {
+        std::cout << description;
+        return EXIT_SUCCESS;
     }
 
+    target_str = vm["target"].as<std::string>();
     RunServer(target_str);
     return EXIT_SUCCESS;
 }
