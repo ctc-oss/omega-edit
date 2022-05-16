@@ -102,7 +102,7 @@ jobs:
 
       - name: Move library file windows
         if: startsWith(matrix.os, 'win')
-        run: mv build/bin/omega_edit.dll lib
+        run: mv build/lib/omega_edit.lib lib/omega_edit.dll
         shell: bash
 
       - name: Setup JDK
