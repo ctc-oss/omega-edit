@@ -1,0 +1,38 @@
+{
+  "name": "rpc-client-tests",
+  "version": "1.0.0",
+  "description": "Ωedit RPC client tests",
+  "main": "index.js",
+  "publisher": "ctc-oss",
+  "repository": {
+    "url": "https://github.com/ctc-oss/omega-edit",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/ctc-oss/omega-edit/issues"
+  },
+  "author": "Shane Dell, Davin Shearer",
+  "license": "Apache-2.0",
+  "dependencies": {},
+  "scripts": {
+    "lint": "yarn run eslint --fix --ext .ts ./test/",
+    "prebuild": "yarn run lint",
+    "test": "mocha --require ts-node/register ./test/*.spec.ts"
+  },
+  "devDependencies": {
+    "@grpc/grpc-js": "^1.6.7",
+    "@types/chai": "^4.3.1",
+    "@types/mocha": "^9.1.1",
+    "@typescript-eslint/eslint-plugin": "^5.24.0",
+    "@typescript-eslint/parser": "^5.24.0",
+    "chai": "^4.3.6",
+    "eslint": "^8.0.1",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-n": "^15.0.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "mocha": "^10.0.0",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.4"
+  }
+}
