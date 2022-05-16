@@ -21,8 +21,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
-        REQUIRES "boost/1.78.0" "grpc/1.44.0"
-        OPTIONS boost:header_only=True
+        REQUIRES "boost/1.79.0" "grpc/1.45.2"
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
@@ -33,7 +32,7 @@ conan_basic_setup()
 
 # Dependencies
 Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.78.0)
+find_package(Boost 1.79.0 COMPONENTS program_options REQUIRED)
 find_package(omega_edit REQUIRED)
 
 if (MSVC)

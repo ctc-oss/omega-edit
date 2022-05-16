@@ -227,8 +227,8 @@ if (BUILD_TESTS)
 
     if (BUILD_RPC)
         add_executable(server_test "src/rpc/tests/server_test.cpp" ${RPC_SOURCE_FILES})
-        target_link_libraries(server_test PRIVATE Boost::program_options ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+        target_link_libraries(server_test PRIVATE Boost::program_options ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         add_dependencies(server_test server)
     endif()
 
