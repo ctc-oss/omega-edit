@@ -26,6 +26,9 @@ object Rat {
     file("packaging/.cpack_ignore"),
     // json files
     file("src/rpc/client/ts/package.json"),
+    file("src/rpc/client/ts/tests/package.json"),
+    file("src/rpc/client/ts/tests/package-lock.json"),
+    file("src/rpc/client/ts/tests/tsconfig.json"),
     file(".devcontainer/devcontainer.json"),
     // cmake build folder
     file("cmake-build-debug"),
