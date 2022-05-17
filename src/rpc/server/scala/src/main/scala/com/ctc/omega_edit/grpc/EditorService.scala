@@ -83,7 +83,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(
       in.sessionId,
       View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest))).mapTo[Result].map {
-      case Ok(id) => CreateViewportResponse(id)
+      case Ok(id) => CreateViewportResponse(in.sessionId, id)
       case Err(c) => throw grpcFailure(c)
     }
 
