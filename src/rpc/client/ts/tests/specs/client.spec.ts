@@ -20,9 +20,21 @@
 import {assert, expect} from 'chai'
 import {getVersion} from '../../src/version'
 import {createSession, destroySession, getComputedFileSize, getSegment, saveSession} from '../../src/session'
-import {del, getChangeCount, getUndoCount, ins, ovr, redo, undo} from '../../src/change'
+import {
+    clr,
+    del,
+    getChangeCount,
+    getLastChange,
+    getLastUndo,
+    getUndoCount,
+    ins,
+    ovr,
+    redo,
+    undo
+} from '../../src/change'
 import {createViewport, destroyViewport, getViewportCount, getViewportData} from "../../src/viewport";
 import { unlinkSync } from 'node:fs';
+import {ChangeKind} from "../../omega_edit_pb";
 
 describe('Version', () => {
     it('Should return version v0.9.3', async () => {
@@ -92,10 +104,24 @@ describe('Editing', () => {
             expect(data).deep.equals(segment)
             let file_size = await getComputedFileSize(session_id)
             expect(data.length).equals(file_size)
+            let last_change = await getLastChange(session_id)
+            expect(data).deep.equals(last_change.getData_asU8())
+            expect(0).to.equal(last_change.getOffset())
+            expect(ChangeKind.CHANGE_INSERT).to.equal(last_change.getKind())
+            expect(1).to.equal(last_change.getSerial())
+            expect(26).to.equal(last_change.getLength())
+            expect(session_id).to.equal(last_change.getSessionId())
             let ovr_change_id = await ovr(session_id, 13, new TextEncoder().encode("NO123456VW")) // overwriting: nopqrstuvw (len: 10)
             expect(ovr_change_id).to.be.a('number').that.equals(2)
             file_size = await getComputedFileSize(session_id)
             expect(data.length).equals(file_size)
+            last_change = await getLastChange(session_id)
+            expect("NO123456VW").deep.equals(new TextDecoder().decode(last_change.getData_asU8()))
+            expect(13).to.equal(last_change.getOffset())
+            expect(ChangeKind.CHANGE_OVERWRITE).to.equal(last_change.getKind())
+            expect(2).to.equal(last_change.getSerial())
+            expect(10).to.equal(last_change.getLength())
+            expect(session_id).to.equal(last_change.getSessionId())
             ovr_change_id = await ovr(session_id, 15, "PQRSTU") // overwriting: 123456 (len: 6), using a string
             expect(ovr_change_id).to.be.a('number').that.equals(3)
             file_size = await getComputedFileSize(session_id)
@@ -156,6 +182,14 @@ describe('Editing', () => {
             expect(new TextEncoder().encode("789")).deep.equals(await getSegment(session_id, 0, file_size))
             expect(2).to.equal(await getChangeCount(session_id))
             expect(2).to.equal(await getUndoCount(session_id))
+
+            let last_undo = await getLastUndo(session_id)
+            expect("456").to.equal(new TextDecoder().decode(last_undo.getData_asU8()))
+            expect(0).to.equal(last_undo.getOffset())
+            expect(ChangeKind.CHANGE_INSERT).to.equal(last_undo.getKind())
+            expect(-3).to.equal(last_undo.getSerial())
+            expect(3).to.equal(last_undo.getLength())
+            expect(session_id).to.equal(last_undo.getSessionId())
 
             change_id = await undo(session_id)
             expect(-2).to.equal(change_id)
@@ -227,6 +261,12 @@ describe('Editing', () => {
 
             // remove test file
             unlinkSync(save_file_name)
+
+            // test clearing changes from a session
+            expect(3).to.equal(await getChangeCount(session_id))
+            let cleared_session_id = await clr(session_id)
+            expect(session_id).to.equal(cleared_session_id)
+            expect(0).to.equal(await getChangeCount(session_id))
         })
     })
 

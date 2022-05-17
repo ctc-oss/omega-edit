@@ -704,6 +704,7 @@ public:
         auto *reactor = context->DefaultReactor();
         const auto change_ptr = omega_session_get_last_change(session_ptr);
         assert(change_ptr);
+        response->set_session_id(session_id);
         response->set_serial(omega_change_get_serial(change_ptr));
         response->set_offset(omega_change_get_offset(change_ptr));
         response->set_length(omega_change_get_length(change_ptr));
@@ -736,6 +737,7 @@ public:
         auto *reactor = context->DefaultReactor();
         const auto change_ptr = omega_session_get_last_undo(session_ptr);
         assert(change_ptr);
+        response->set_session_id(session_id);
         response->set_serial(omega_change_get_serial(change_ptr));
         response->set_offset(omega_change_get_offset(change_ptr));
         response->set_length(omega_change_get_length(change_ptr));

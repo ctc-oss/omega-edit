@@ -18,7 +18,7 @@
  */
 
 import {client} from './settings'
-import {ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../omega_edit_pb'
+import {ChangeDetailsResponse, ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../omega_edit_pb'
 
 export function ins(session_id: string, offset: number, data: string | Uint8Array): Promise<number> {
     return new Promise<number>((resolve, reject) => {
@@ -89,24 +89,60 @@ export function redo(session_id: string): Promise<number> {
     })
 }
 
-export function getChangeCount(sesssion_id: string): Promise<number> {
-    return new Promise<number>((resolve, reject) => {
-        client.getCount(new CountRequest().setSessionId(sesssion_id).setKind(CountKind.COUNT_CHANGES), (err, r) => {
+export function clr(session_id: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        client.clearChanges(new ObjectId().setId(session_id), (err, r) => {
             if (err) {
                 console.log(err.message)
-                return reject('redo error: ' + err.message)
+                return reject('clr error: ' + err.message)
+            }
+            return resolve(r.getId())
+        })
+    })
+}
+
+export function getLastChange(session_id: string): Promise<ChangeDetailsResponse> {
+    return new Promise<ChangeDetailsResponse>((resolve, reject) => {
+        client.getLastChange(new ObjectId().setId(session_id), (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('getLastChange error: ' + err.message)
+            }
+            return resolve(r)
+        })
+    })
+}
+
+export function getLastUndo(session_id: string): Promise<ChangeDetailsResponse> {
+    return new Promise<ChangeDetailsResponse>((resolve, reject) => {
+        client.getLastUndo(new ObjectId().setId(session_id), (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('getLastUndo error: ' + err.message)
+            }
+            return resolve(r)
+        })
+    })
+}
+
+export function getChangeCount(session_id: string): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        client.getCount(new CountRequest().setSessionId(session_id).setKind(CountKind.COUNT_CHANGES), (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('getChangeCount error: ' + err.message)
             }
             return resolve(r.getCount())
         })
     })
 }
 
-export function getUndoCount(sesssion_id: string): Promise<number> {
+export function getUndoCount(session_id: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        client.getCount(new CountRequest().setSessionId(sesssion_id).setKind(CountKind.COUNT_UNDOS), (err, r) => {
+        client.getCount(new CountRequest().setSessionId(session_id).setKind(CountKind.COUNT_UNDOS), (err, r) => {
             if (err) {
                 console.log(err.message)
-                return reject('redo error: ' + err.message)
+                return reject('getUndoCount error: ' + err.message)
             }
             return resolve(r.getCount())
         })
