@@ -18,7 +18,7 @@
  */
 
 import {client} from './settings'
-import {ChangeKind, ChangeRequest} from '../../omega_edit_pb'
+import {ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../../omega_edit_pb'
 
 export function ins(session_id: string, offset: number, data: string | Uint8Array): Promise<number> {
     return new Promise<number>((resolve, reject) => {
@@ -70,6 +70,64 @@ export function ovr(session_id: string, offset: number, data: string | Uint8Arra
             }
 
             return resolve(r.getSerial())
+        })
+    })
+}
+
+export function undo(session_id: string): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        let request = new ObjectId()
+        request.setId(session_id)
+        client.undoLastChange(request, (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('undo error: ' + err.message)
+            }
+            return resolve(r.getSerial())
+        })
+    })
+}
+
+export function redo(session_id: string): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        let request = new ObjectId()
+        request.setId(session_id)
+        client.redoLastUndo(request, (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('redo error: ' + err.message)
+            }
+            return resolve(r.getSerial())
+        })
+    })
+}
+
+export function getChangeCount(sesssion_id: string): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        let request = new CountRequest()
+        request.setSessionId(sesssion_id)
+        request.setKind(CountKind.COUNT_CHANGES)
+        client.getCount(request, (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('redo error: ' + err.message)
+            }
+            return resolve(r.getCount())
+        })
+    })
+}
+
+export function getUndoCount(sesssion_id: string): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+        let request = new CountRequest()
+        request.setSessionId(sesssion_id)
+        request.setKind(CountKind.COUNT_UNDOS)
+        client.getCount(request, (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('redo error: ' + err.message)
+            }
+            return resolve(r.getCount())
         })
     })
 }

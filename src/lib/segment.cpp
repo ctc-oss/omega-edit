@@ -17,7 +17,7 @@
 #include <cassert>
 
 omega_segment_t *omega_segment_create(int64_t capacity) {
-    assert(0 < capacity);
+    assert(0 <= capacity);
     auto *segment_ptr = new omega_segment_t();
     segment_ptr->data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
     segment_ptr->capacity = capacity;

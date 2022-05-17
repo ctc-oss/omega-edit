@@ -45,7 +45,6 @@ organizationName := "Concurrent Technologies Corporation"
 startYear := Some(2021)
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
-pushRemoteCacheConfiguration := pushRemoteCacheConfiguration.value.withOverwrite(true)
 
 libraryDependencies ++= Seq(
   "com.ctc" %% "omega-edit" % omegaVersion,
