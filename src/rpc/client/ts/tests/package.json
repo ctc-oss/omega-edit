@@ -20,7 +20,6 @@
     "test": "mocha --require ts-node/register ./test/*.spec.ts"
   },
   "devDependencies": {
-    "@grpc/grpc-js": "^1.6.7",
     "@types/chai": "^4.3.1",
     "@types/mocha": "^9.1.1",
     "@typescript-eslint/eslint-plugin": "^5.24.0",
@@ -34,5 +33,8 @@
     "mocha": "^10.0.0",
     "ts-node": "^10.7.0",
     "typescript": "^4.6.4"
+  },
+  "resolutions": {
+    "@grpc/grpc-js": "^1.6.7"
   }
 }

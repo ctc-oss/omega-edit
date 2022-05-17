@@ -24,10 +24,12 @@ export function getVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     client.getVersion(new Empty(), (err, v) => {
       if (err) {
+        console.log(err.message)
         return reject('getVersion error: ' + err.message)
       }
 
       if (!v) {
+        console.log('undefined version')
         return reject('undefined version')
       }
 
