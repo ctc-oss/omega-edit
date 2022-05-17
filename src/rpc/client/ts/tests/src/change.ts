@@ -22,11 +22,9 @@ import {ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../.
 
 export function ins(session_id: string, offset: number, data: string | Uint8Array): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new ChangeRequest()
-        request.setSessionId(session_id)
+        let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
         request.setKind(ChangeKind.CHANGE_INSERT)
-        request.setOffset(offset)
-        request.setData((typeof data == 'string')? new TextEncoder().encode(data) : data)
+        request.setData((typeof data == 'string') ? new TextEncoder().encode(data) : data)
         client.submitChange(request, (err, r) => {
             if (err) {
                 console.log(err.message)
@@ -40,10 +38,8 @@ export function ins(session_id: string, offset: number, data: string | Uint8Arra
 
 export function del(session_id: string, offset: number, len: number): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new ChangeRequest()
-        request.setSessionId(session_id)
+        let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
         request.setKind(ChangeKind.CHANGE_DELETE)
-        request.setOffset(offset)
         request.setLength(len)
         client.submitChange(request, (err, r) => {
             if (err) {
@@ -58,11 +54,9 @@ export function del(session_id: string, offset: number, len: number): Promise<nu
 
 export function ovr(session_id: string, offset: number, data: string | Uint8Array): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new ChangeRequest()
-        request.setSessionId(session_id)
+        let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
         request.setKind(ChangeKind.CHANGE_OVERWRITE)
-        request.setOffset(offset)
-        request.setData((typeof data == 'string')? new TextEncoder().encode(data) : data)
+        request.setData((typeof data == 'string') ? new TextEncoder().encode(data) : data)
         client.submitChange(request, (err, r) => {
             if (err) {
                 console.log(err.message)
@@ -76,9 +70,7 @@ export function ovr(session_id: string, offset: number, data: string | Uint8Arra
 
 export function undo(session_id: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new ObjectId()
-        request.setId(session_id)
-        client.undoLastChange(request, (err, r) => {
+        client.undoLastChange(new ObjectId().setId(session_id), (err, r) => {
             if (err) {
                 console.log(err.message)
                 return reject('undo error: ' + err.message)
@@ -90,9 +82,7 @@ export function undo(session_id: string): Promise<number> {
 
 export function redo(session_id: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new ObjectId()
-        request.setId(session_id)
-        client.redoLastUndo(request, (err, r) => {
+        client.redoLastUndo(new ObjectId().setId(session_id), (err, r) => {
             if (err) {
                 console.log(err.message)
                 return reject('redo error: ' + err.message)
@@ -104,10 +94,7 @@ export function redo(session_id: string): Promise<number> {
 
 export function getChangeCount(sesssion_id: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new CountRequest()
-        request.setSessionId(sesssion_id)
-        request.setKind(CountKind.COUNT_CHANGES)
-        client.getCount(request, (err, r) => {
+        client.getCount(new CountRequest().setSessionId(sesssion_id).setKind(CountKind.COUNT_CHANGES), (err, r) => {
             if (err) {
                 console.log(err.message)
                 return reject('redo error: ' + err.message)
@@ -119,10 +106,7 @@ export function getChangeCount(sesssion_id: string): Promise<number> {
 
 export function getUndoCount(sesssion_id: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
-        let request = new CountRequest()
-        request.setSessionId(sesssion_id)
-        request.setKind(CountKind.COUNT_UNDOS)
-        client.getCount(request, (err, r) => {
+        client.getCount(new CountRequest().setSessionId(sesssion_id).setKind(CountKind.COUNT_UNDOS), (err, r) => {
             if (err) {
                 console.log(err.message)
                 return reject('redo error: ' + err.message)

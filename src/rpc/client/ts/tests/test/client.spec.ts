@@ -21,6 +21,7 @@ import {expect} from 'chai'
 import {getVersion} from '../src/version'
 import {createSession, destroySession, getComputedFileSize, getSegment} from '../src/session'
 import {del, getChangeCount, getUndoCount, ins, ovr, redo, undo} from '../src/change'
+import {createViewport, destroyViewport, getViewportCount} from "../src/viewport";
 
 describe('Version', () => {
     it('Should return version v0.9.3', async () => {
@@ -212,5 +213,18 @@ describe('Editing', () => {
             expect(0).to.equal(await getUndoCount(session_id))
         })
     })
+    describe('Viewports', () => {
+        it('Should create and destroy viewports', async () => {
+            let viewport_id = await createViewport("test_vpt_1", session_id, 0, 60)
+            expect("test_vpt_1").to.equal(viewport_id)
+            expect(1).to.equal(await getViewportCount(session_id))
+            viewport_id = await createViewport(undefined, session_id, 60, 60)
+            expect(viewport_id).to.be.a('string').with.length(36)  // viewport_id is a random UUID
+            expect(2).to.equal(await getViewportCount(session_id))
+            let deleted_viewport_id = await destroyViewport(viewport_id)
+            expect(viewport_id).to.equal(deleted_viewport_id)
+            expect(1).to.equal(await getViewportCount(session_id))
+            // viewports are garbage collected when the session is destroyed, so no explicit destruction required
+        })
+    })
 })
-
