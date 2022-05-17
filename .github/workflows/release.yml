@@ -83,16 +83,9 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Build Ωedit mac
-        if: startsWith(matrix.os, 'mac')
+      - name: Build Ωedit
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build build --target omega_edit
-
-      - name: Build Ωedit windows
-        if: startsWith(matrix.os, 'win')
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --target omega_edit
 
       - name: Move library file mac
@@ -102,7 +95,7 @@ jobs:
 
       - name: Move library file windows
         if: startsWith(matrix.os, 'win')
-        run: mv build/lib/omega_edit.lib lib/omega_edit.dll
+        run: mv build/bin/omega_edit.dll lib/
         shell: bash
 
       - name: Setup JDK

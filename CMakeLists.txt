@@ -13,11 +13,14 @@ cmake_minimum_required(VERSION 3.13)
 
 # Project information
 project(omega_edit
-        VERSION 0.9.3
+        VERSION 0.9.4
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
+
+# Make sure windows shared library is created properly
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
