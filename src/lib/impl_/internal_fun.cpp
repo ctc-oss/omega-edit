@@ -54,7 +54,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     const auto &model_ptr = session_ptr->models_.back();
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
-    assert(0 < data_segment_ptr->capacity);
+    assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
     const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
     int64_t read_offset = 0;

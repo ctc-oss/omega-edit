@@ -26,7 +26,7 @@ export function ins(session_id: string, offset: number, data: string | Uint8Arra
         request.setSessionId(session_id)
         request.setKind(ChangeKind.CHANGE_INSERT)
         request.setOffset(offset)
-        request.setData(data)
+        request.setData((typeof data == 'string')? new TextEncoder().encode(data) : data)
         client.submitChange(request, (err, r) => {
             if (err) {
                 console.log(err.message)
@@ -62,7 +62,7 @@ export function ovr(session_id: string, offset: number, data: string | Uint8Arra
         request.setSessionId(session_id)
         request.setKind(ChangeKind.CHANGE_OVERWRITE)
         request.setOffset(offset)
-        request.setData(data)
+        request.setData((typeof data == 'string')? new TextEncoder().encode(data) : data)
         client.submitChange(request, (err, r) => {
             if (err) {
                 console.log(err.message)
