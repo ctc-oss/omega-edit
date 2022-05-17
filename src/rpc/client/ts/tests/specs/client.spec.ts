@@ -17,11 +17,12 @@
  * limitations under the License.
  */
 
-import {expect} from 'chai'
-import {getVersion} from '../src/version'
-import {createSession, destroySession, getComputedFileSize, getSegment} from '../src/session'
-import {del, getChangeCount, getUndoCount, ins, ovr, redo, undo} from '../src/change'
-import {createViewport, destroyViewport, getViewportCount, getViewportData} from "../src/viewport";
+import {assert, expect} from 'chai'
+import {getVersion} from '../../src/version'
+import {createSession, destroySession, getComputedFileSize, getSegment, saveSession} from '../../src/session'
+import {del, getChangeCount, getUndoCount, ins, ovr, redo, undo} from '../../src/change'
+import {createViewport, destroyViewport, getViewportCount, getViewportData} from "../../src/viewport";
+import { unlinkSync } from 'node:fs';
 
 describe('Version', () => {
     it('Should return version v0.9.3', async () => {
@@ -211,6 +212,21 @@ describe('Editing', () => {
             expect(0).to.equal(change_id)
             expect(3).to.equal(await getChangeCount(session_id))
             expect(0).to.equal(await getUndoCount(session_id))
+
+            // Test file saving and reading into a new session
+            let save_file_name = await saveSession(session_id, "save_session_test", true)
+            assert(save_file_name.endsWith("save_session_test"))
+            let session_id_2 = await createSession(save_file_name, "verify_save_session")
+            expect("verify_save_session").to.equal(session_id_2)
+            file_size = await getComputedFileSize(session_id_2)
+            expect(10).to.equal(file_size)
+            segment = await getSegment(session_id_2, 0, file_size)
+            expect(segment).deep.equals(new TextEncoder().encode("0123456789"))
+            let destroyed_session = await destroySession(session_id_2)
+            expect(destroyed_session).to.equal(session_id_2)
+
+            // remove test file
+            unlinkSync(save_file_name)
         })
     })
 

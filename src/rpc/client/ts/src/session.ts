@@ -18,12 +18,7 @@
  */
 
 import {client} from './settings'
-import {
-    CreateSessionRequest,
-    ObjectId,
-    SaveSessionRequest,
-    SegmentRequest,
-} from '../../omega_edit_pb'
+import {CreateSessionRequest, ObjectId, SaveSessionRequest, SegmentRequest,} from '../omega_edit_pb'
 
 export function createSession(path: string | undefined, sessionIdDesired: string | undefined): Promise<string> {
     return new Promise<string>((resolve, reject) => {
@@ -56,12 +51,7 @@ export function destroySession(id: string): Promise<string> {
 
 export function saveSession(sessionId: string, filePath: string, overwrite: boolean): Promise<string> {
     return new Promise<string>((resolve, reject) => {
-        let saveSessionReq = new SaveSessionRequest()
-        saveSessionReq.setSessionId(sessionId)
-        saveSessionReq.setFilePath(filePath)
-        saveSessionReq.setAllowOverwrite(overwrite)
-
-        client.saveSession(saveSessionReq, (err, r) => {
+        client.saveSession(new SaveSessionRequest().setSessionId(sessionId).setFilePath(filePath).setAllowOverwrite(overwrite), (err, r) => {
             if (err) {
                 console.log(err.message)
                 return reject('saveSession error: ' + err.message)
@@ -72,7 +62,7 @@ export function saveSession(sessionId: string, filePath: string, overwrite: bool
     })
 }
 
-export function  getComputedFileSize(sessionId: string): Promise<number> {
+export function getComputedFileSize(sessionId: string): Promise<number> {
     return new Promise<number>((resolve, reject) => {
         let request = new ObjectId()
         request.setId(sessionId)

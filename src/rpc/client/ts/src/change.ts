@@ -18,7 +18,7 @@
  */
 
 import {client} from './settings'
-import {ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../../omega_edit_pb'
+import {ChangeKind, ChangeRequest, CountKind, CountRequest, ObjectId} from '../omega_edit_pb'
 
 export function ins(session_id: string, offset: number, data: string | Uint8Array): Promise<number> {
     return new Promise<number>((resolve, reject) => {
@@ -30,7 +30,6 @@ export function ins(session_id: string, offset: number, data: string | Uint8Arra
                 console.log(err.message)
                 return reject('ins error: ' + err.message)
             }
-
             return resolve(r.getSerial())
         })
     })
@@ -46,7 +45,6 @@ export function del(session_id: string, offset: number, len: number): Promise<nu
                 console.log(err.message)
                 return reject('del error: ' + err.message)
             }
-
             return resolve(r.getSerial())
         })
     })
@@ -62,7 +60,6 @@ export function ovr(session_id: string, offset: number, data: string | Uint8Arra
                 console.log(err.message)
                 return reject('ovr error: ' + err.message)
             }
-
             return resolve(r.getSerial())
         })
     })

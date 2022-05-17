@@ -21,7 +21,7 @@ import {
     CountRequest,
     CreateViewportRequest,
     ObjectId, ViewportDataRequest
-} from '../../omega_edit_pb'
+} from '../omega_edit_pb'
 
 export function createViewport(
     desired_viewport_id: string | undefined,
