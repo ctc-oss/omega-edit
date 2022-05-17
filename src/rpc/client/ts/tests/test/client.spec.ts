@@ -21,7 +21,7 @@ import {expect} from 'chai'
 import {getVersion} from '../src/version'
 import {createSession, destroySession, getComputedFileSize, getSegment} from '../src/session'
 import {del, getChangeCount, getUndoCount, ins, ovr, redo, undo} from '../src/change'
-import {createViewport, destroyViewport, getViewportCount} from "../src/viewport";
+import {createViewport, destroyViewport, getViewportCount, getViewportData} from "../src/viewport";
 
 describe('Version', () => {
     it('Should return version v0.9.3', async () => {
@@ -213,14 +213,41 @@ describe('Editing', () => {
             expect(0).to.equal(await getUndoCount(session_id))
         })
     })
+
     describe('Viewports', () => {
         it('Should create and destroy viewports', async () => {
-            let viewport_id = await createViewport("test_vpt_1", session_id, 0, 60)
+            let viewport_id = await createViewport("test_vpt_1", session_id, 0, 10)
             expect("test_vpt_1").to.equal(viewport_id)
             expect(1).to.equal(await getViewportCount(session_id))
-            viewport_id = await createViewport(undefined, session_id, 60, 60)
+            viewport_id = await createViewport(undefined, session_id, 10, 10)
             expect(viewport_id).to.be.a('string').with.length(36)  // viewport_id is a random UUID
             expect(2).to.equal(await getViewportCount(session_id))
+            let change_id = await ins(session_id, 0, "0123456789ABC")
+            expect(1).to.equal(change_id)
+            let file_size = await getComputedFileSize(session_id)
+            expect(13).to.equal(file_size)
+            let viewport_data = await getViewportData("test_vpt_1")
+            expect("0123456789").to.equal(new TextDecoder().decode(viewport_data))
+            viewport_data = await getViewportData(viewport_id)
+            expect("ABC").to.equal(new TextDecoder().decode(viewport_data))
+            change_id = await del(session_id, 0, 1)
+            expect(2).to.equal(change_id)
+            file_size = await getComputedFileSize(session_id)
+            expect(12).to.equal(file_size)
+            viewport_data = await getViewportData("test_vpt_1")
+            expect("123456789A").to.equal(new TextDecoder().decode(viewport_data))
+            viewport_data = await getViewportData(viewport_id)
+            expect("BC").to.equal(new TextDecoder().decode(viewport_data))
+            change_id = await ovr(session_id, 8, "!@#")
+            expect(3).to.equal(change_id)
+            file_size = await getComputedFileSize(session_id)
+            expect(12).to.equal(file_size)
+            let segment = await getSegment(session_id, 0, file_size)
+            expect(segment).deep.equals(new TextEncoder().encode("12345678!@#C"))
+            viewport_data = await getViewportData("test_vpt_1")
+            expect("12345678!@").to.equal(new TextDecoder().decode(viewport_data))
+            viewport_data = await getViewportData(viewport_id)
+            expect("#C").to.equal(new TextDecoder().decode(viewport_data))
             let deleted_viewport_id = await destroyViewport(viewport_id)
             expect(viewport_id).to.equal(deleted_viewport_id)
             expect(1).to.equal(await getViewportCount(session_id))

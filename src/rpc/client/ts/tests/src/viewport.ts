@@ -20,7 +20,7 @@ import {
     CountKind,
     CountRequest,
     CreateViewportRequest,
-    ObjectId
+    ObjectId, ViewportDataRequest
 } from '../../omega_edit_pb'
 
 export function createViewport(
@@ -64,6 +64,18 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
                 return reject('redo error: ' + err.message)
             }
             return resolve(r.getCount())
+        })
+    })
+}
+
+export function getViewportData(viewport_id: string): Promise<Uint8Array> {
+    return new Promise<Uint8Array>((resolve, reject) => {
+        client.getViewportData(new ViewportDataRequest().setViewportId(viewport_id), (err, r) => {
+            if (err) {
+                console.log(err.message)
+                return reject('redo error: ' + err.message)
+            }
+            return resolve(r.getData_asU8())
         })
     })
 }
