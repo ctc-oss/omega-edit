@@ -19,7 +19,15 @@
 
 import {assert, expect} from 'chai'
 import {getVersion} from '../../src/version'
-import {createSession, destroySession, getComputedFileSize, getSegment, saveSession} from '../../src/session'
+import {
+    createSession,
+    destroySession,
+    getComputedFileSize,
+    getSegment,
+    getSessionCount,
+    saveSession,
+    searchSession
+} from '../../src/session'
 import {
     clr,
     del,
@@ -33,7 +41,7 @@ import {
     undo
 } from '../../src/change'
 import {createViewport, destroyViewport, getViewportCount, getViewportData} from "../../src/viewport";
-import { unlinkSync } from 'node:fs';
+import {unlinkSync} from 'node:fs';
 import {ChangeKind} from "../../omega_edit_pb";
 
 describe('Version', () => {
@@ -47,16 +55,20 @@ describe('Editing', () => {
     let session_id = ""
 
     beforeEach('create a new session', async () => {
+        expect(0).to.equal(await getSessionCount())
         let new_session_id = await createSession(undefined, undefined)
         expect(new_session_id).to.be.a('string').with.length(36)
         expect(new_session_id).to.not.equal(session_id)
+        expect(1).to.equal(await getSessionCount())
         session_id = new_session_id
         //console.log("created session: "+session_id)
     })
 
     afterEach('destroy session', async () => {
+        expect(1).to.equal(await getSessionCount())
         const destroyed_session_id = await destroySession(session_id)
         expect(destroyed_session_id).to.equal(session_id)
+        expect(0).to.equal(await getSessionCount())
         //console.log("destroyed session: "+session_id)
     })
 
@@ -250,7 +262,9 @@ describe('Editing', () => {
             // Test file saving and reading into a new session
             let save_file_name = await saveSession(session_id, "save_session_test", true)
             assert(save_file_name.endsWith("save_session_test"))
+            expect(1).to.equal(await getSessionCount())
             let session_id_2 = await createSession(save_file_name, "verify_save_session")
+            expect(2).to.equal(await getSessionCount())
             expect("verify_save_session").to.equal(session_id_2)
             file_size = await getComputedFileSize(session_id_2)
             expect(10).to.equal(file_size)
@@ -258,6 +272,7 @@ describe('Editing', () => {
             expect(segment).deep.equals(new TextEncoder().encode("0123456789"))
             let destroyed_session = await destroySession(session_id_2)
             expect(destroyed_session).to.equal(session_id_2)
+            expect(1).to.equal(await getSessionCount())
 
             // remove test file
             unlinkSync(save_file_name)
@@ -267,6 +282,32 @@ describe('Editing', () => {
             let cleared_session_id = await clr(session_id)
             expect(session_id).to.equal(cleared_session_id)
             expect(0).to.equal(await getChangeCount(session_id))
+        })
+    })
+
+    describe('Search', () => {
+        it('Should search sessions', async () => {
+            let change_id = await ovr(session_id, 0, new TextEncoder().encode("haystackneedleNEEDLENeEdLeneedhay"))
+            expect(1).to.equal(change_id)
+            let file_size = await getComputedFileSize(session_id)
+            let needles = await searchSession(session_id, "needle", false, 0, 0, undefined)
+            expect([8]).deep.equals(needles)
+            needles = await searchSession(session_id, new TextEncoder().encode("needle"), true, 3, file_size - 3, undefined)
+            expect([8, 14, 20]).deep.equals(needles)
+            needles = await searchSession(session_id, new TextEncoder().encode("needle"), true, 3, file_size - 3, 0)
+            expect([8, 14, 20]).deep.equals(needles)
+            needles = await searchSession(session_id, new TextEncoder().encode("needle"), true, 3, file_size - 3, 2)
+            expect([8, 14]).deep.equals(needles)
+            needles = await searchSession(session_id, "NEEDLE", false, 0, 0, 1)
+            expect([14]).deep.equals(needles)
+            needles = await searchSession(session_id, "NEEDLE", false, 0, 20, undefined)
+            expect([14]).deep.equals(needles)
+            needles = await searchSession(session_id, "NEEDLE", false, 14, 6, undefined)
+            expect([14]).deep.equals(needles)
+            needles = await searchSession(session_id, "NEEDLE", false, 14, 5, undefined)
+            expect([]).deep.equals(needles)
+            needles = await searchSession(session_id, "NEEDLE", false, 0, 19, undefined)
+            expect([]).deep.equals(needles)
         })
     })
 

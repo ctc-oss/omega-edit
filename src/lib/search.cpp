@@ -136,9 +136,10 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
 }
 
 void omega_search_destroy_context(omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
-    assert(search_context_ptr->skip_table_ptr);
-    omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
-    omega_data_destroy(&search_context_ptr->pattern, search_context_ptr->pattern_length);
-    delete search_context_ptr;
+    if(search_context_ptr) {
+        assert(search_context_ptr->skip_table_ptr);
+        omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
+        omega_data_destroy(&search_context_ptr->pattern, search_context_ptr->pattern_length);
+        delete search_context_ptr;
+    }
 }

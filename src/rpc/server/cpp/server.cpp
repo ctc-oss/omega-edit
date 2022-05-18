@@ -845,11 +845,13 @@ public:
         auto *reactor = context->DefaultReactor();
         auto search_context_ptr =
                 omega_search_create_context_string(session_ptr, pattern, offset, length, is_case_insensitive);
-        while (limit && omega_search_next_match(search_context_ptr, 1)) {
-            response->add_match_offset(omega_search_context_get_offset(search_context_ptr));
-            --limit;
+        if (search_context_ptr) {
+            while (limit && omega_search_next_match(search_context_ptr, 1)) {
+                response->add_match_offset(omega_search_context_get_offset(search_context_ptr));
+                --limit;
+            }
+            omega_search_destroy_context(search_context_ptr);
         }
-        omega_search_destroy_context(search_context_ptr);
         response->set_session_id(session_id);
         response->set_pattern(pattern);
         response->set_is_case_insensitive(is_case_insensitive);
