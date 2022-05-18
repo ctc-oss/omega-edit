@@ -129,7 +129,9 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
 }
 
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
-    assert(change_context_ptr);
-    delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
-    delete change_context_ptr;
+    if (change_context_ptr) {
+        assert(change_context_ptr->change_iter.iter_ptr);
+        delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
+        delete change_context_ptr;
+    }
 }

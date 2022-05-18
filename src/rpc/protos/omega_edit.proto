@@ -218,7 +218,7 @@ message SegmentResponse {
 
 message SearchRequest {
   string session_id = 1;
-  string pattern = 2;
+  bytes pattern = 2;
   optional bool is_case_insensitive = 3;
   optional int64 offset = 4;
   optional int64 length = 5;
@@ -227,7 +227,7 @@ message SearchRequest {
 
 message SearchResponse {
   string session_id = 1;
-  string pattern = 2;
+  bytes pattern = 2;
   bool is_case_insensitive = 3;
   int64 offset = 4;
   int64 length = 5;

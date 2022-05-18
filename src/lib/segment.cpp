@@ -17,7 +17,7 @@
 #include <cassert>
 
 omega_segment_t *omega_segment_create(int64_t capacity) {
-    assert(0 < capacity);
+    assert(0 <= capacity);
     auto *segment_ptr = new omega_segment_t();
     segment_ptr->data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
     segment_ptr->capacity = capacity;
@@ -55,7 +55,8 @@ omega_byte_t *omega_segment_get_data(omega_segment_t *segment_ptr) {
 }
 
 void omega_segment_destroy(omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
-    if (7 < omega_segment_get_capacity(segment_ptr)) { delete[] segment_ptr->data.bytes_ptr; }
-    delete segment_ptr;
+    if (segment_ptr) {
+        if (7 < omega_segment_get_capacity(segment_ptr)) { delete[] segment_ptr->data.bytes_ptr; }
+        delete segment_ptr;
+    }
 }
