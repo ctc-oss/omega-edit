@@ -308,6 +308,12 @@ describe('Editing', () => {
             expect([]).deep.equals(needles)
             needles = await searchSession(session_id, "NEEDLE", false, 0, 19, undefined)
             expect([]).deep.equals(needles)
+
+            // try searching an empty session
+            await clr(session_id)
+            expect(0).to.equal(await getChangeCount(session_id))
+            needles = await searchSession(session_id,"needle", true, 0, 0, undefined)
+            expect([]).deep.equals(needles)
         })
     })
 
