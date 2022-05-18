@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { EditorClient } from '../omega_edit_grpc_pb'
+import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
 export const uri = '127.0.0.1:9000'

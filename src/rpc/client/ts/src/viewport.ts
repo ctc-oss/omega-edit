@@ -15,67 +15,76 @@
  * limitations under the License.
  */
 
-import {client} from './settings'
+import { client } from './settings'
 import {
-    CountKind,
-    CountRequest,
-    CreateViewportRequest,
-    ObjectId, ViewportDataRequest
-} from '../omega_edit_pb'
+  CountKind,
+  CountRequest,
+  CreateViewportRequest,
+  ObjectId,
+  ViewportDataRequest,
+} from './omega_edit_pb'
 
 export function createViewport(
-    desired_viewport_id: string | undefined,
-    session_id: string,
-    offset: number,
-    capacity: number
+  desired_viewport_id: string | undefined,
+  session_id: string,
+  offset: number,
+  capacity: number
 ): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-        let request = new CreateViewportRequest()
-        if (desired_viewport_id) request.setViewportIdDesired(desired_viewport_id)
-        request.setSessionId(session_id)
-        request.setOffset(offset)
-        request.setCapacity(capacity)
-        client.createViewport(request, (err, r) => {
-            if (err) {
-                console.log(err.message)
-                return reject('createViewport error: ' + err.message)
-            }
-            return resolve(r.getViewportId())
-        })
+  return new Promise<string>((resolve, reject) => {
+    let request = new CreateViewportRequest()
+    if (desired_viewport_id) request.setViewportIdDesired(desired_viewport_id)
+    request.setSessionId(session_id)
+    request.setOffset(offset)
+    request.setCapacity(capacity)
+    client.createViewport(request, (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('createViewport error: ' + err.message)
+      }
+      return resolve(r.getViewportId())
     })
+  })
 }
 
 export function destroyViewport(id: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-        client.destroyViewport(new ObjectId().setId(id), (err, r) => {
-            if (err) {
-                return reject('deleteViewport error: ' + err.message)
-            }
-            return resolve(r.getId())
-        })
+  return new Promise<string>((resolve, reject) => {
+    client.destroyViewport(new ObjectId().setId(id), (err, r) => {
+      if (err) {
+        return reject('deleteViewport error: ' + err.message)
+      }
+      return resolve(r.getId())
     })
+  })
 }
 
 export function getViewportCount(sesssion_id: string): Promise<number> {
-    return new Promise<number>((resolve, reject) => {
-        client.getCount(new CountRequest().setSessionId(sesssion_id).setKind(CountKind.COUNT_VIEWPORTS), (err, r) => {
-            if (err) {
-                console.log(err.message)
-                return reject('redo error: ' + err.message)
-            }
-            return resolve(r.getCount())
-        })
-    })
+  return new Promise<number>((resolve, reject) => {
+    client.getCount(
+      new CountRequest()
+        .setSessionId(sesssion_id)
+        .setKind(CountKind.COUNT_VIEWPORTS),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('redo error: ' + err.message)
+        }
+        return resolve(r.getCount())
+      }
+    )
+  })
 }
 
 export function getViewportData(viewport_id: string): Promise<Uint8Array> {
-    return new Promise<Uint8Array>((resolve, reject) => {
-        client.getViewportData(new ViewportDataRequest().setViewportId(viewport_id), (err, r) => {
-            if (err) {
-                console.log(err.message)
-                return reject('redo error: ' + err.message)
-            }
-            return resolve(r.getData_asU8())
-        })
-    })
+  return new Promise<Uint8Array>((resolve, reject) => {
+    client.getViewportData(
+      new ViewportDataRequest().setViewportId(viewport_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('redo error: ' + err.message)
+        }
+        return resolve(r.getData_asU8())
+      }
+    )
+  })
 }
