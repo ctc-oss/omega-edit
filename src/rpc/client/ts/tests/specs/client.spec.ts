@@ -26,7 +26,7 @@ import {
   getSegment,
   getSessionCount,
   saveSession,
-  searchSession,
+  searchSession
 } from '../../src/session'
 import {
   clear,
@@ -38,14 +38,9 @@ import {
   insert,
   overwrite,
   redo,
-  undo,
+  undo
 } from '../../src/change'
-import {
-  createViewport,
-  destroyViewport,
-  getViewportCount,
-  getViewportData,
-} from '../../src/viewport'
+import { createViewport, destroyViewport, getViewportCount, getViewportData } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
 
