@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-import { client } from './settings'
 import {
   CountKind,
   CountRequest,
@@ -23,6 +22,8 @@ import {
   ObjectId,
   ViewportDataRequest,
 } from './omega_edit_pb'
+import { getClient } from './settings'
+const client = getClient()
 
 export function createViewport(
   desired_viewport_id: string | undefined,

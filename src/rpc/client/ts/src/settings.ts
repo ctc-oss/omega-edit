@@ -20,6 +20,10 @@
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
-export const uri = '127.0.0.1:9000'
+const uri = '127.0.0.1:9000'
 let creds = grpc.credentials.createInsecure()
-export const client = new EditorClient(uri, creds)
+const client = new EditorClient(uri, creds)
+
+export function getClient(): EditorClient {
+  return client
+}

@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { client } from './settings'
 import {
   CreateSessionRequest,
   ObjectId,
@@ -26,7 +25,8 @@ import {
   SegmentRequest,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { TextEncoder } from 'node:util'
+import { getClient } from './settings'
+const client = getClient()
 
 export function createSession(
   path: string | undefined,
@@ -138,9 +138,7 @@ export function searchSession(
   return new Promise<number[]>((resolve, reject) => {
     let request = new SearchRequest()
       .setSessionId(sessionId)
-      .setPattern(
-        typeof pattern == 'string' ? new TextEncoder().encode(pattern) : pattern
-      )
+      .setPattern(typeof pattern == 'string' ? Buffer.from(pattern) : pattern)
       .setIsCaseInsensitive(isCaseInsensitive)
       .setOffset(offset)
       .setLength(length)

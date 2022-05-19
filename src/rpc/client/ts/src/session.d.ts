@@ -17,24 +17,36 @@
  * limitations under the License.
  */
 
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient } from './settings'
-const client = getClient()
+declare module 'omega-edit/session' {
+  export function createSession(
+    path: string | undefined,
+    sessionIdDesired: string | undefined
+  ): Promise<string>
 
-export function getVersion(): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    client.getVersion(new Empty(), (err, v) => {
-      if (err) {
-        console.log(err.message)
-        return reject('getVersion error: ' + err.message)
-      }
+  export function destroySession(id: string): Promise<string>
 
-      if (!v) {
-        console.log('undefined version')
-        return reject('undefined version')
-      }
+  export function saveSession(
+    sessionId: string,
+    filePath: string,
+    overwrite: boolean
+  ): Promise<string>
 
-      return resolve(`v${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
-    })
-  })
+  export function getComputedFileSize(sessionId: string): Promise<number>
+
+  export function getSegment(
+    sessionId: string,
+    offset: number,
+    len: number
+  ): Promise<Uint8Array>
+
+  export function getSessionCount(): Promise<number>
+
+  export function searchSession(
+    sessionId: string,
+    pattern: string | Uint8Array,
+    isCaseInsensitive: boolean,
+    offset: number,
+    length: number,
+    limit: number | undefined
+  ): Promise<number[]>
 }

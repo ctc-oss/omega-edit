@@ -17,24 +17,14 @@
  * limitations under the License.
  */
 
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient } from './settings'
-const client = getClient()
-
-export function getVersion(): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    client.getVersion(new Empty(), (err, v) => {
-      if (err) {
-        console.log(err.message)
-        return reject('getVersion error: ' + err.message)
-      }
-
-      if (!v) {
-        console.log('undefined version')
-        return reject('undefined version')
-      }
-
-      return resolve(`v${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
-    })
-  })
+declare module 'omega-edit/viewport' {
+  export function createViewport(
+    desired_viewport_id: string | undefined,
+    session_id: string,
+    offset: number,
+    capacity: number
+  ): Promise<string>
+  export function destroyViewport(id: string): Promise<string>
+  export function getViewportCount(sesssion_id: string): Promise<number>
+  export function getViewportData(viewport_id: string): Promise<Uint8Array>
 }
