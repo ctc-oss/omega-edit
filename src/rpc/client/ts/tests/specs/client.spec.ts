@@ -26,7 +26,7 @@ import {
   getSegment,
   getSessionCount,
   saveSession,
-  searchSession,
+  searchSession
 } from '../../src/session'
 import {
   clr,
@@ -38,16 +38,11 @@ import {
   ins,
   ovr,
   redo,
-  undo,
+  undo
 } from '../../src/change'
-import {
-  createViewport,
-  destroyViewport,
-  getViewportCount,
-  getViewportData,
-} from '../../src/viewport'
+import { createViewport, destroyViewport, getViewportCount, getViewportData } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
-import { TextEncoder, TextDecoder } from 'node:util'
+import { TextDecoder, TextEncoder } from 'node:util'
 import { ChangeKind } from '../../src/omega_edit_pb'
 
 describe('Version', () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -e
 # Copyright (c) 2021 Concurrent Technologies Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
@@ -28,12 +28,12 @@ PROTOC="$(yarn bin)/grpc_tools_node_protoc"
 PROTOC_GEN_TS_PATH="$(yarn bin)/protoc-gen-ts"
 PROTOC_GEN_GRPC_PATH="$(yarn bin)/grpc_tools_node_protoc_plugin"
 
-pushd $IN_DIR
+pushd "$IN_DIR" >/dev/null
 $PROTOC \
-    --plugin=protoc-gen-ts=${PROTOC_GEN_TS_PATH} \
-    --plugin=protoc-gen-grpc=${PROTOC_GEN_GRPC_PATH} \
-    --js_out=import_style=commonjs:${OUT_DIR} \
-    --grpc_out=grpc_js:${OUT_DIR} \
-    --ts_out=grpc_js:${TS_OUT_DIR} \
+    --plugin=protoc-gen-ts="${PROTOC_GEN_TS_PATH}" \
+    --plugin=protoc-gen-grpc="${PROTOC_GEN_GRPC_PATH}" \
+    --js_out=import_style=commonjs:"${OUT_DIR}" \
+    --grpc_out=grpc_js:"${OUT_DIR}" \
+    --ts_out=grpc_js:"${TS_OUT_DIR}" \
     omega_edit.proto
-popd
+popd >/dev/null
