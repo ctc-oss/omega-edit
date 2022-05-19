@@ -14,14 +14,14 @@
 for arg in $@; do
     if [[ $arg == "--out" ]]; then
         OUT_DIR="$PWD/out"
+        TS_OUT_DIR="$PWD/out"
     fi
 done
 
 if [[ $# < 1 ]]; then
     OUT_DIR="$PWD/src"
+    TS_OUT_DIR="$PWD/src"
 fi
-
-TS_OUT_DIR="$PWD/src"
 
 IN_DIR="../../protos"
 PROTOC="$(yarn bin)/grpc_tools_node_protoc"

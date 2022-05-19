@@ -17,24 +17,6 @@
  * limitations under the License.
  */
 
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient } from './settings'
-const client = getClient()
-
-export function getVersion(): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    client.getVersion(new Empty(), (err, v) => {
-      if (err) {
-        console.log(err.message)
-        return reject('getVersion error: ' + err.message)
-      }
-
-      if (!v) {
-        console.log('undefined version')
-        return reject('undefined version')
-      }
-
-      return resolve(`v${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
-    })
-  })
+declare module 'omega-edit/version' {
+  export function getVersion(): Promise<string>
 }
