@@ -188,7 +188,7 @@ class Session(
         offset,
         request.length.getOrElse(0),
         session.search(
-          request.pattern,
+          request.pattern.toString,
           offset,
           request.length,
           isCaseInsensitive,

@@ -24,9 +24,47 @@ env:
     echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
 
 jobs:
+  create-release:
+    name: Create Release ✨
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+
+      - name: Check if pre-release ✅
+        run: |
+          if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
+            echo "PRE_RELEASE=true" >> $GITHUB_ENV
+          else
+            echo "PRE_RELEASE=false" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Create release 🔧
+        uses: actions/create-release@v1
+        id: create_release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: "${{ env.PRE_RELEASE }}"
+      
+      - name: Create upload_url file 🔧
+        run: echo "${{ steps.create_release.outputs.upload_url }}" > upload_url
+      
+      - name: Upload upload_url 🔺
+        uses: actions/upload-artifact@v2
+        with:
+          name: upload_url
+          path: upload_url
+
   node-build:
     name: Build ubuntu-latest 🔧
     runs-on: ubuntu-latest
+    needs: [create-release]
     steps:
       - uses: actions/checkout@v2
 
@@ -56,6 +94,7 @@ jobs:
         os: [macos-latest, windows-latest]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: [create-release]
     steps:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
@@ -83,20 +122,19 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Build Ωedit mac
-        if: startsWith(matrix.os, 'mac')
+      - name: Build Ωedit
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      - name: Build Ωedit windows
-        if: startsWith(matrix.os, 'win')
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target omega_edit
-
-      - name: Move library file
+      - name: Move library file mac
+        if: startsWith(matrix.os, 'mac')
         run: mv build/lib/* lib
+        shell: bash
+
+      - name: Move library file windows
+        if: startsWith(matrix.os, 'win')
+        run: mv build/bin/omega_edit.dll lib/
         shell: bash
 
       - name: Setup JDK
@@ -238,34 +276,24 @@ jobs:
           path: src/rpc/server/scala/${{ matrix.os }}-server
           if-no-files-found: error
 
-  release:
-    name: Release ✨
+  node-release:
+    name: Node Release ✨
     runs-on: ubuntu-latest
-    needs: [node-build, server-packaging]
+    needs: [node-build]
     steps:
       - uses: actions/checkout@v2
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
-      - name: Check if pre-release ✅
-        run: |
-          if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
-            echo "PRE_RELEASE=true" >> $GITHUB_ENV
-          else
-            echo "PRE_RELEASE=false" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: Create release 🔧
-        uses: actions/create-release@v1
-        id: create_release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download upload_url
+        uses: actions/download-artifact@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          draft: false
-          prerelease: "${{ env.PRE_RELEASE }}"
+          name: upload_url
+      
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
 
       ##########################
       ## Node release process ##
@@ -293,7 +321,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
           asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
@@ -306,6 +334,25 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
+
+  scala-release:
+    name: Scala Release ✨
+    runs-on: ubuntu-latest
+    needs: [server-packaging]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+      
+      - name: Download upload_url
+        uses: actions/download-artifact@v2
+        with:
+          name: upload_url
+      
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
 
       ###########################
       ## Scala release process ##
@@ -347,7 +394,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip

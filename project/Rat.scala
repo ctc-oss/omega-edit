@@ -26,7 +26,22 @@ object Rat {
     file("packaging/.cpack_ignore"),
     // json files
     file("src/rpc/client/ts/package.json"),
+    file("src/rpc/client/ts/package-lock.json"),
+    file("src/rpc/client/ts/tests/package.json"),
+    file("src/rpc/client/ts/tests/package-lock.json"),
+    file("src/rpc/client/ts/tests/tsconfig.json"),
+    file("src/rpc/client/ts/.prettierrc"),
+    // compiles files
     file(".devcontainer/devcontainer.json"),
+    file("src/rpc/client/ts/src/omega_edit_pb.js"),
+    file("src/rpc/client/ts/out/settings.js.map"),
+    file("src/rpc/client/ts/out/omega_edit_pb.js"),
+    file("src/rpc/client/ts/out/change.js.map"),
+    file("src/rpc/client/ts/out/viewport.js.map"),
+    file("src/rpc/client/ts/out/version.js.map"),
+    file("src/rpc/client/ts/src/omega_edit_pb.d.ts"),
+    file("src/rpc/client/ts/out/session.js.map"),
+    file("src/rpc/client/ts/src/omega_edit_grpc_pb.d.ts"),
     // cmake build folder
     file("cmake-build-debug"),
     file("cmake-build-release"),
