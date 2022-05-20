@@ -58,7 +58,7 @@ To build and run the Scala server on 127.0.0.1:9000, run:
 Now that an RPC server is listening, go to `src/rpc/client/ts`, and run:
 
 ```shell
-`npm run compile-src`
+npm run compile-src
 ```
 
 #### Test the client
