@@ -33,6 +33,42 @@
 
 This package contains the TypeScript types and code needed to interact with the Ωedit library via a gRPC client.
 
+## Testing
+
+### Ωedit Server
+
+#### C++
+
+To test the client, run an Ωedit RPC server on 127.0.0.1:9000, for example, after doing a debug build:
+
+```shell
+./cmake-build-debug/bin/server --target=127.0.0.1:9000
+```
+
+#### Scala
+
+To build and run the Scala server on 127.0.0.1:9000, run:
+
+```shell
+./scala_server.sh serv_build
+```
+### Testing the client
+
+#### Compile the client
+Now that an RPC server is listening, go to `src/rpc/client/ts`, and run:
+
+```shell
+`npm run compile-src`
+```
+
+#### Test the client
+
+Now you can client tests with:
+
+```shell
+npm test
+````
+
 ## User documentation
 
 User documentation is published to https://ctc-oss.github.io/omega-edit/.
