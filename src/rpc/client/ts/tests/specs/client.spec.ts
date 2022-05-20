@@ -55,7 +55,7 @@ describe('Version', () => {
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {
     expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(encode('abc123'))
-
+    expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(Buffer.from('abc123'))
   })
   it('Should decode Uint8Array into string', () => {
     expect('abc123').to.equal(decode(new Uint8Array([97, 98, 99, 49, 50, 51])))
@@ -108,9 +108,7 @@ describe('Editing', () => {
       expect(data).deep.equals(segment)
       let file_size = await getComputedFileSize(session_id)
       expect(data.length).equals(file_size)
-      let del_change_id = await del(
-        session_id, 13, '', 10
-      ) // deleting: nopqrstuvw (len: 10)
+      let del_change_id = await del(session_id, 13, 'nopqrstuvw', 10)
       expect(del_change_id).to.be.a('number').that.equals(change_id + 1)
       file_size = await getComputedFileSize(session_id)
       expect(data.length - 10).equals(file_size)
@@ -385,7 +383,7 @@ describe('Editing', () => {
       expect('0123456789').to.equal(decode(viewport_data))
       viewport_data = await getViewportData(viewport_id)
       expect('ABC').to.equal(decode(viewport_data))
-      change_id = await del(session_id, 0, '', 1)
+      change_id = await del(session_id, 0, 'A', 1)
       expect(2).to.equal(change_id)
       file_size = await getComputedFileSize(session_id)
       expect(12).to.equal(file_size)
