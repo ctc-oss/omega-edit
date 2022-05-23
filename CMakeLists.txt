@@ -31,6 +31,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}")
 
+# GCC needs to pass the -lstdc++fs flag to link C++17 filesystem implementation.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
+    set(FILESYSTEM_LIB stdc++fs)
+endif ()
+
 #######################################################################################################################
 # DEPENDENCIES
 #######################################################################################################################
@@ -47,7 +52,7 @@ conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTING
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
@@ -92,6 +97,7 @@ add_library(omega_edit::omega_edit ALIAS omega_edit)
 set_target_properties(omega_edit PROPERTIES VERSION ${omega_edit_VERSION} SOVERSION ${omega_edit_VERSION_MAJOR})
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
+target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB})
 
 ## Include the install rules if the user wanted them (included by default when top-level)
 string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
@@ -170,7 +176,7 @@ if (BUILD_RPC)
 
     add_executable(server "src/rpc/server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
     target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
-    target_link_libraries(server PRIVATE omega_edit::omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+    target_link_libraries(server PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
     add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
     add_dependencies(server client)
@@ -182,31 +188,31 @@ endif()
 option(BUILD_EXAMPLES "build examples" ON)
 if (BUILD_EXAMPLES)
     add_executable(replace "src/examples/replace.cpp")
-    target_link_libraries(replace PRIVATE omega_edit::omega_edit)
+    target_link_libraries(replace PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(rotate "src/examples/rotate.cpp")
-    target_link_libraries(rotate PRIVATE omega_edit::omega_edit)
+    target_link_libraries(rotate PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(slice "src/examples/slice.cpp")
-    target_link_libraries(slice PRIVATE omega_edit::omega_edit)
+    target_link_libraries(slice PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(peek "src/examples/peek.cpp")
-    target_link_libraries(peek PRIVATE omega_edit::omega_edit)
+    target_link_libraries(peek PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(search "src/examples/search.cpp")
-    target_link_libraries(search PRIVATE omega_edit::omega_edit)
+    target_link_libraries(search PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(simple "src/examples/simple.cpp")
-    target_link_libraries(simple PRIVATE omega_edit::omega_edit)
+    target_link_libraries(simple PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(simple_c "src/examples/simple_c.c")
-    target_link_libraries(simple_c PRIVATE omega_edit::omega_edit)
+    target_link_libraries(simple_c PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(replay "src/examples/replay.cpp")
-    target_link_libraries(replay PRIVATE omega_edit::omega_edit)
+    target_link_libraries(replay PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     add_executable(play "src/examples/play.cpp")
-    target_link_libraries(play PRIVATE omega_edit::omega_edit)
+    target_link_libraries(play PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
     add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif()
 
@@ -222,12 +228,12 @@ if (BUILD_TESTS)
     endif ()
 
     add_executable(omega_test "src/tests/integration/omega_test.cpp" "src/tests/integration/test_util.h")
-    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit)
+    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
     target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
     add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/integration/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
 
     add_executable(generate_file "src/tests/integration/generate_file.cpp" "src/tests/integration/test_util.h")
-    target_link_libraries(generate_file PRIVATE omega_edit::omega_edit)
+    target_link_libraries(generate_file PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     if (BUILD_RPC)
         add_executable(server_test "src/rpc/tests/server_test.cpp" ${RPC_SOURCE_FILES})

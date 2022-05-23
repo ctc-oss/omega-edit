@@ -11,9 +11,14 @@
 cmake_minimum_required(VERSION 3.13)
 project(omega_edit-rpc LANGUAGES C CXX)
 
-# Use C++14
+# Use C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# GCC needs to pass the -lstdc++fs flag to link C++17 filesystem implementation.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
+    set(FILESYSTEM_LIB stdc++fs)
+endif ()
 
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
@@ -32,7 +37,7 @@ include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
 # Dependencies
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.78.0)
 find_package(omega_edit REQUIRED)
 
@@ -94,7 +99,7 @@ SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omeg
 SET(WORKER_QUEUE_SOURCE_FILES "server/cpp/worker_queue/worker_queue.hpp" "server/cpp/worker_queue/worker_queue.cpp")
 
 add_executable(server "server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server PRIVATE omega_edit::omega_edit ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
