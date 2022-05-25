@@ -55,6 +55,15 @@ rm -rf build-rpc-$type
 cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
 cmake --build build-rpc-$type
 build-rpc-$type/bin/server_test
+build-rpc-$type/bin/server --target=127.0.0.1:9000 &
+server_pid=$!
+pushd src/rpc/client/ts/
+npm install
+npm run compile-src
+npm run lint
+npm test
+popd
+kill $!
 
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
@@ -63,3 +72,4 @@ pushd build-tests-integration-$type && ctest -C $type --output-on-failure && pop
 
 cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
 pushd build-tests-$type && ctest -C $type --output-on-failure && popd
+echo "✔ Done! ✨"
