@@ -34,7 +34,11 @@ cpack --config build-shared-$type/CPackSourceConfig.cmake
 cpack --config build-shared-$type/CPackConfig.cmake
 
 rm -rf ./lib/*
-cp -av ${install_dir}/lib/* ./lib
+if [ -d ${install_dir}/lib64/ ]; then
+  cp -av ${install_dir}/lib64/* ./lib
+else
+  cp -av ${install_dir}/lib/* ./lib
+fi
 sbt headerCheckAll
 sbt installM2
 sbt test
