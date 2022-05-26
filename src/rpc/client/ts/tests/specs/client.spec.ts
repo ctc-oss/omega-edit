@@ -407,4 +407,34 @@ describe('Editing', () => {
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
     })
   })
+
+  describe('StressTest', () => {
+    it('Should stress test the editing capabilities', async () => {
+      const full_rotations = 3
+      const data = encode('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\|;:",<.>/?`~')
+      let change_id = await insert(session_id, 0, data)
+      expect(1).to.equal(change_id)
+      const file_size = await getComputedFileSize(session_id)
+      expect(data.length).to.equal(file_size)
+      let viewport_id = await createViewport('test_vpt_1', session_id, file_size - 1, 1)
+      let viewport_2_id = await createViewport('test_vpt_2', session_id, 0, file_size)
+      let viewport_data = await getViewportData(viewport_id)
+      expect('~').to.equal(decode(viewport_data))
+      let rotations = file_size * full_rotations
+      while (rotations--) {
+        viewport_data = await getViewportData(viewport_id)
+        await insert(session_id, 0, ' ')
+        await overwrite(session_id, 0, viewport_data)
+        expect(await undo(session_id) * -1).to.equal(await redo(session_id))
+        change_id = await del(session_id, file_size, ' ', 1)
+        //console.log(decode(await getViewportData(viewport_2_id)))
+      }
+      expect(await getChangeCount(session_id)).to.equal(change_id)
+      expect(1 + (3 * file_size * full_rotations)).to.equal(change_id)
+      expect(data).to.deep.equal(await getViewportData(viewport_2_id))
+      await destroyViewport(viewport_id)
+      await destroyViewport(viewport_2_id)
+      //console.log("Number of changes: " + await getChangeCount(session_id))
+    })
+  })
 })
