@@ -52,6 +52,10 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.2.11" % Test
 )
 
+excludeDependencies ++= Seq(
+  ExclusionRule("org.checkerframework", "checker-compat-qual")
+)
+
 resolvers += Resolver.mavenLocal
 externalResolvers ++= Seq(
   ghb_resolver,
