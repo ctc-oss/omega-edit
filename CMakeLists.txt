@@ -39,6 +39,12 @@ endif ()
 #######################################################################################################################
 # DEPENDENCIES
 #######################################################################################################################
+if (NOT EXISTS "cmake/conan.cmake")
+    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
+            "cmake/conan.cmake"
+            TLS_VERIFY ON)
+endif ()
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
@@ -180,7 +186,7 @@ if (BUILD_RPC)
 
     add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
     add_dependencies(server client)
-endif()
+endif ()
 
 #######################################################################################################################
 # EXAMPLES
@@ -214,7 +220,7 @@ if (BUILD_EXAMPLES)
     add_executable(play "src/examples/play.cpp")
     target_link_libraries(play PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
     add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-endif()
+endif ()
 
 #######################################################################################################################
 # TESTING
@@ -240,12 +246,12 @@ if (BUILD_TESTS)
         target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
         add_dependencies(server_test server)
-    endif()
+    endif ()
 
     include(CTest)
     include(Catch)
     catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
-endif()
+endif ()
 
 #######################################################################################################################
 # DOCUMENTATION
