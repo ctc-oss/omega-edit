@@ -46,9 +46,9 @@ import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 describe('Version', () => {
-  it('Should return version v0.9.7', async () => {
+  it('Should return version v0.9.8', async () => {
     const result = await getVersion()
-    expect(result).to.equal('v0.9.7')
+    expect(result).to.equal('v0.9.8')
   })
 })
 
