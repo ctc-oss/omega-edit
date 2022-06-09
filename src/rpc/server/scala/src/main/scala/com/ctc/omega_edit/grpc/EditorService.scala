@@ -216,7 +216,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
   def undoLastChange(in: ObjectId): Future[ChangeResponse] =
-    (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[ChangeResponse]
+        (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
+          case Ok(id) => ChangeResponse(id)
+          case Err(c) => throw grpcFailure(c)
+        }
         
   //def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
   //(editors ? SessionOp(in.SessionId, Session.Redo(in))).mapTo[ChangeResponse]
