@@ -215,6 +215,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
+  def undoLastChange(in: ObjectId): Future[ChangeResponse] =
+    (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[ChangeResponse]
+        
+  //def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
+  //(editors ? SessionOp(in.SessionId, Session.Redo(in))).mapTo[ChangeResponse]
+
   // segments
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
@@ -228,8 +234,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // unimplementeds
   //
 
-  def undoLastChange(in: ObjectId): Future[ChangeResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+  // def undoLastChange(in: ObjectId): Future[ChangeResponse] =
+  //  grpcFailFut(Status.UNIMPLEMENTED)
 
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     grpcFailFut(Status.UNIMPLEMENTED)

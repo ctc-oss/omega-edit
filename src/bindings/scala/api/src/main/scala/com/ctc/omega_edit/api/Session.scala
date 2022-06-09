@@ -49,6 +49,8 @@ trait Session {
   def delete(offset: Long, len: Long): Result
   def view(offset: Long, size: Long): Viewport
 
+  def undoLast(): Result
+
   def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
   def findChange(id: Long): Option[Change]
 

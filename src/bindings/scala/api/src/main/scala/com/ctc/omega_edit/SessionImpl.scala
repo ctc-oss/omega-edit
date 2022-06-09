@@ -73,6 +73,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def overwrite(s: String, offset: Long): Result =
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
+  def undoLast(): Result =
+    Edit(i.omega_edit_undo_last_change(p))
+
   def view(offset: Long, size: Long): Viewport = {
     val vp =
       i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
