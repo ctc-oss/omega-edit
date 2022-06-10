@@ -221,8 +221,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case Err(c) => throw grpcFailure(c)
         }
         
-  //def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
-  //(editors ? SessionOp(in.SessionId, Session.Redo(in))).mapTo[ChangeResponse]
+  def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
+        (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
+          case Ok(id) => ChangeResponse(id)
+          case Err(c) => throw grpcFailure(c)
+        }
 
   // segments
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
@@ -236,12 +239,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   //
   // unimplementeds
   //
-
-  // def undoLastChange(in: ObjectId): Future[ChangeResponse] =
-  //  grpcFailFut(Status.UNIMPLEMENTED)
-
-  def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
 
   def clearChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)

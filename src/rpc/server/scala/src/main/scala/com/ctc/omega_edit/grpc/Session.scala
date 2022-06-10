@@ -67,6 +67,7 @@ object Session {
   case class LookupChange(id: Long) extends Op
 
   case class UndoLast() extends Op
+  case class RedoUndo() extends Op
 
   case class Search(request: SearchRequest) extends Op
 
@@ -141,6 +142,10 @@ class Session(
     
     case UndoLast() =>
       session.undoLast()
+      sender() ! Ok(sessionId)
+
+    case RedoUndo() =>
+      session.redoUndo()
       sender() ! Ok(sessionId)
 
     case Watch =>

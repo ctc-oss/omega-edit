@@ -50,6 +50,7 @@ trait Session {
   def view(offset: Long, size: Long): Viewport
 
   def undoLast(): Result
+  def redoUndo(): Result
 
   def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
   def findChange(id: Long): Option[Change]
