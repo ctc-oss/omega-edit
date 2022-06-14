@@ -31,7 +31,7 @@ struct last_byte_info_t {
 };
 
 void vpt_change_last_byte_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                              const omega_change_t *) {
+                              const void *) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {

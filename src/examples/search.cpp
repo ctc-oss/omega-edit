@@ -13,8 +13,7 @@
 **********************************************************************************************************************/
 
 #include <iostream>
-#include <omega_edit.h>
-#include <string>
+#include <omega_edit/stl_string_adaptor.hpp>
 
 using namespace std;
 
@@ -29,15 +28,15 @@ int main(int argc, char **argv) {
     const auto start_offset = stoi(argv[3]);
     const auto length = stoi(argv[4]);
     const auto case_insensitive = stoi(argv[5]);
-    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0);
-    if (session_ptr) {
+    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0)) {
+        int num_matches = 0;
         auto search_context =
                 omega_search_create_context(session_ptr, pattern, 0, start_offset, length, case_insensitive);
-        int num_matches = 0;
         while (omega_search_next_match(search_context, 1)) {
-            // TODO: Use a segment to show the match with context (waiting on a merge of that feature)
-            cout << "offset: " << omega_search_context_get_offset(search_context)
-                 << ", length: " << omega_search_context_get_length(search_context) << endl;
+            const auto match_offset = omega_search_context_get_offset(search_context);
+            const auto match_length = omega_search_context_get_length(search_context);
+            cout << "offset: " << match_offset << ", length: " << match_length
+                 << ", segment: " << omega_session_get_segment_string(session_ptr, match_offset, match_length) << endl;
             ++num_matches;
         }
         cout << "matches found: " << num_matches << endl;

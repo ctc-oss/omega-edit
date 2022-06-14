@@ -275,12 +275,13 @@ TEST_CASE("Encoding", "[EncodingTest]") {
 using file_info_t = struct file_info_struct { size_t num_changes{}; };
 
 static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                                      const omega_change_t *change_ptr) {
+                                      const void *session_event_ptr) {
     // Not all session changes are the result of a standard change like delete / insert / overwrite
     switch (session_event) {
         case SESSION_EVT_EDIT:
         case SESSION_EVT_UNDO: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
+            auto file_info_ptr = reinterpret_cast<file_info_t *>(omega_session_get_user_data_ptr(session_ptr));
+            const auto change_ptr = reinterpret_cast<const omega_change_t *>(session_event_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             if (0 < omega_change_get_serial(change_ptr)) {
@@ -587,10 +588,25 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(4 == omega_change_get_length(change_ptr));
             REQUIRE(nullptr == omega_session_get_change(session_ptr, rc + 1));
             REQUIRE(67 == omega_session_get_computed_file_size(session_ptr));
-            REQUIRE(0 <
-                    (rc = omega_edit_overwrite_bytes(session_ptr, 12, reinterpret_cast<const omega_byte_t *>("."), 1)));
+            REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 12, reinterpret_cast<const omega_byte_t *>("."), 1));
             REQUIRE(67 == omega_session_get_computed_file_size(session_ptr));
-            REQUIRE(0 < (rc = omega_edit_insert_string(session_ptr, 0, "+++")));
+            REQUIRE(0 == omega_session_changes_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            omega_session_pause_changes(session_ptr);
+            auto num_changes = omega_session_get_num_changes(session_ptr);
+            REQUIRE(0 != omega_session_changes_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            REQUIRE(0 == omega_edit_insert_string(session_ptr, 0, "+++"));
+            REQUIRE(0 == omega_edit_overwrite_string(session_ptr, 0, "+++"));
+            REQUIRE(0 == omega_edit_delete(session_ptr, 0, 3));
+            REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
+            REQUIRE(num_changes == omega_session_get_num_changes(session_ptr));
+            REQUIRE(67 == omega_session_get_computed_file_size(session_ptr));
+            omega_session_resume_changes(session_ptr);
+            REQUIRE(0 == omega_session_changes_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "+++"));
+            REQUIRE(1 + num_changes == omega_session_get_num_changes(session_ptr));
             REQUIRE(70 == omega_session_get_computed_file_size(session_ptr));
             REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 1, reinterpret_cast<const omega_byte_t *>("."), 0));
             REQUIRE(70 == omega_session_get_computed_file_size(session_ptr));
@@ -651,8 +667,11 @@ struct view_mode_t {
 };
 
 static inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                                  const omega_change_t *change_ptr) {
-    if (change_ptr) { clog << "Change serial: " << omega_change_get_serial(change_ptr) << endl; }
+                                  const void *viewport_event_ptr) {
+    if (viewport_event_ptr) {
+        clog << "Change serial: "
+             << omega_change_get_serial(reinterpret_cast<const omega_change_t *>(viewport_event_ptr)) << endl;
+    }
     clog << dec << "capacity: " << omega_viewport_get_capacity(viewport_ptr)
          << " length: " << omega_viewport_get_length(viewport_ptr)
          << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
@@ -703,20 +722,25 @@ TEST_CASE("Search", "[SearchTests]") {
     view_mode_t view_mode;
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_edit_create_viewport(session_ptr, 0, 1024, 0, vpt_change_cbk, &view_mode, 0);
+    REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
     int needles_found = 0;
     auto needle = "NeEdLe";
     auto needle_length = strlen(needle);
     auto match_context = omega_search_create_context_string(session_ptr, needle);
     REQUIRE(match_context);
+    REQUIRE(1 == omega_session_get_num_search_contexts(session_ptr));
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(0 == needles_found);
     omega_search_destroy_context(match_context);
+    REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
     needles_found = 0;
     match_context = omega_search_create_context_string(session_ptr, needle, 0, 0, 1);
     REQUIRE(match_context);
+    REQUIRE(1 == omega_session_get_num_search_contexts(session_ptr));
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(5 == needles_found);
     omega_search_destroy_context(match_context);
+    REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>(needle), needle_length));
     REQUIRE(0 < omega_edit_delete(session_ptr, 16, needle_length));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 16, needle));
@@ -819,7 +843,8 @@ TEST_CASE("Search", "[SearchTests]") {
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(4 == needles_found);
     needles_found = 0;
-    match_context = omega_search_create_context_string(session_ptr, "a", 0, omega_session_get_computed_file_size(session_ptr) - 2, 0);
+    match_context = omega_search_create_context_string(session_ptr, "a", 0,
+                                                       omega_session_get_computed_file_size(session_ptr) - 2, 0);
     REQUIRE(match_context);
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(3 == needles_found);
@@ -916,14 +941,14 @@ TEST_CASE("Viewports", "[ViewportTests]") {
 }
 
 void session_save_test_session_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                                   const omega_change_t *) {
+                                   const void *) {
     auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr(session_ptr));
     std::clog << "Session Event: " << session_event << std::endl;
     ++*count_ptr;
 }
 
 void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                                    const omega_change_t *) {
+                                    const void *) {
     auto count_ptr = reinterpret_cast<int *>(omega_viewport_get_user_data_ptr(viewport_ptr));
     std::clog << "Viewport Event: " << viewport_event << std::endl;
     ++*count_ptr;
@@ -934,8 +959,8 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     int session_events_count = 0;
     int viewport_events_count = 0;
     auto session_ptr = omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, 0);
-    auto viewport_ptr =
-            omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk, &viewport_events_count, 0);
+    auto viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
+                                                   &viewport_events_count, 0);
     REQUIRE(1 == session_events_count); // SESSION_EVT_CREATE
     REQUIRE(1 == viewport_events_count);// VIEWPORT_EVT_CREATE
     omega_edit_insert_string(session_ptr, 0, "0123456789");
@@ -949,10 +974,10 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     omega_edit_destroy_session(session_ptr);
     session_events_count = 0;
     viewport_events_count = 0;
-    session_ptr =
-            omega_edit_create_session("data/session_save.1.dat", session_save_test_session_cbk, &session_events_count, 0);
-    viewport_ptr =
-            omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk, &viewport_events_count, 0);
+    session_ptr = omega_edit_create_session("data/session_save.1.dat", session_save_test_session_cbk,
+                                            &session_events_count, 0);
+    viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
+                                              &viewport_events_count, 0);
     omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr),
                              "abcdefghijklmnopqrstuvwxyz");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));

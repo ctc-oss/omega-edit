@@ -49,8 +49,7 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                    const omega_change_t *) {
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event, const void *) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
@@ -100,8 +99,7 @@ int main(int argc, char **argv) {
     const auto length = stoll(argv[4]);
     view_mode_t view_mode;
     view_mode.display_mode = char_to_display_mode(argv[1][0]);
-    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0);
-    if (session_ptr) {
+    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0)) {
         omega_edit_create_viewport(session_ptr, offset, length, 0, vpt_change_cbk, &view_mode,
                                    VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
         omega_edit_destroy_session(session_ptr);

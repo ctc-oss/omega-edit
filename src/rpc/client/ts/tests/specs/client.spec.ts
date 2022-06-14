@@ -24,7 +24,7 @@ import {
   destroySession,
   getComputedFileSize,
   getSegment,
-  getSessionCount,
+  getSessionCount, pauseSessionChanges, resumeSessionChanges,
   saveSession,
   searchSession
 } from '../../src/session'
@@ -417,6 +417,11 @@ describe('Editing', () => {
       expect(1).to.equal(change_id)
       const file_size = await getComputedFileSize(session_id)
       expect(data.length).to.equal(file_size)
+      await pauseSessionChanges(session_id)
+      change_id = await insert(session_id, 0, data)
+      expect(0).to.equal(change_id)
+      expect(data.length).to.equal(await getComputedFileSize(session_id))
+      await resumeSessionChanges(session_id)
       let viewport_id = await createViewport('last_byte_vpt', session_id, file_size - 1, 1)
       let viewport_2_id = await createViewport('all_data_vpt', session_id, 0, file_size)
       let viewport_data = await getViewportData(viewport_id)

@@ -14,21 +14,20 @@
 
 #include "../include/omega_edit/session.h"
 #include "impl_/change_def.hpp"
-#include "impl_/segment_def.hpp"
-#include "impl_/model_def.hpp"
-#include "impl_/session_def.hpp"
 #include "impl_/internal_fun.hpp"
+#include "impl_/model_def.hpp"
+#include "impl_/segment_def.hpp"
+#include "impl_/session_def.hpp"
 #include <cassert>
 
-enum class session_flags { pause_viewport_callbacks = 0x01 };
+enum class session_flags { pause_viewport_callbacks = 1, session_changes_paused = 1 << 1 };
 
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->user_data_ptr;
 }
 
-int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
-                              int64_t offset) {
+int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset) {
     assert(session_ptr);
     assert(data_segment_ptr);
     data_segment_ptr->offset = offset;
@@ -38,6 +37,11 @@ int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return (int64_t) session_ptr->viewports_.size();
+}
+
+int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return (int64_t) session_ptr->search_contexts_.size();
 }
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
@@ -130,6 +134,27 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
     session_ptr->session_flags_ &= ~(int8_t) session_flags::pause_viewport_callbacks;
 }
 
+int omega_session_changes_paused(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return (session_ptr->session_flags_ & (int8_t) session_flags::session_changes_paused) ? 1 : 0;
+}
+
+void omega_session_pause_changes(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    if (!omega_session_changes_paused(session_ptr)) {
+        session_ptr->session_flags_ |= (int8_t) session_flags::session_changes_paused;
+        omega_session_notify(session_ptr, SESSION_EVT_CHANGES_PAUSED, nullptr);
+    }
+}
+
+void omega_session_resume_changes(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    if (omega_session_changes_paused(session_ptr)) {
+        session_ptr->session_flags_ &= ~(int8_t) session_flags::session_changes_paused;
+        omega_session_notify(session_ptr, SESSION_EVT_CHANGES_RESUMED, nullptr);
+    }
+}
+
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
@@ -140,6 +165,6 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
     assert(session_ptr);
     if (session_ptr->event_handler &&
         (0 == session_ptr->event_interest_ || session_event & session_ptr->event_interest_)) {
-        (*session_ptr->event_handler)(session_ptr, session_event, change_ptr);
+        (*session_ptr->event_handler)(session_ptr, session_event, reinterpret_cast<const void *>(change_ptr));
     }
 }
