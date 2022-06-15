@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     }
     const auto out_filename = argv[2];
     const auto rotations = stol(argv[3]);
-    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0);
+    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS);
     assert(session_ptr);
     // Create a small viewport at the end of the file to track the last byte.
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1,

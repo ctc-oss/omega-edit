@@ -419,7 +419,7 @@ public:
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
         auto *reactor = context->DefaultReactor();
-        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
+        const auto event_interest = request->has_event_interest() ? request->event_interest() : NO_EVENTS;
         omega_session_t *session_ptr;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);

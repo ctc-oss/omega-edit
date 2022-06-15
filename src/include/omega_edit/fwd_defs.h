@@ -49,6 +49,9 @@ typedef enum {
     VIEWPORT_EVT_UPDATED = 1 << 5   //< Occurs when the viewport itself has been updated
 } omega_viewport_event_t;
 
+#define ALL_EVENTS (~0)
+#define NO_EVENTS (0)
+
 typedef struct omega_change_struct omega_change_t;
 typedef struct omega_search_context_struct omega_search_context_t;
 typedef struct omega_segment_struct omega_segment_t;

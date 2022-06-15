@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
     auto session_ptr = omega_scoped_ptr<omega_session_t>(
-            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, 0), omega_edit_destroy_session);
+            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, NO_EVENTS), omega_edit_destroy_session);
 
     // Report stats
     int deletes = 0;

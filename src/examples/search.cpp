@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     const auto start_offset = stoi(argv[3]);
     const auto length = stoi(argv[4]);
     const auto case_insensitive = stoi(argv[5]);
-    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, 0)) {
+    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS)) {
         int num_matches = 0;
         auto search_context =
                 omega_search_create_context(session_ptr, pattern, 0, start_offset, length, case_insensitive);

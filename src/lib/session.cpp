@@ -164,7 +164,7 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
                           const omega_change_t *change_ptr) {
     assert(session_ptr);
     if (session_ptr->event_handler &&
-        (0 == session_ptr->event_interest_ || session_event & session_ptr->event_interest_)) {
+        (session_event & session_ptr->event_interest_)) {
         (*session_ptr->event_handler)(session_ptr, session_event, reinterpret_cast<const void *>(change_ptr));
     }
 }
