@@ -46,9 +46,9 @@ import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 describe('Version', () => {
-  it('Should return version v0.9.7', async () => {
+  it('Should return version v0.9.8', async () => {
     const result = await getVersion()
-    expect(result).to.equal('v0.9.7')
+    expect(result).to.equal('v0.9.8')
   })
 })
 
@@ -405,6 +405,36 @@ describe('Editing', () => {
       expect(viewport_id).to.equal(deleted_viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
+    })
+  })
+
+  describe('StressTest', () => {
+    it('Should stress test the editing capabilities', async () => {
+      const full_rotations = 3
+      expect(full_rotations).to.be.a('number').greaterThan(0)
+      const data = encode('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\|;:",<.>/?`~')
+      let change_id = await insert(session_id, 0, data)
+      expect(1).to.equal(change_id)
+      const file_size = await getComputedFileSize(session_id)
+      expect(data.length).to.equal(file_size)
+      let viewport_id = await createViewport('last_byte_vpt', session_id, file_size - 1, 1)
+      let viewport_2_id = await createViewport('all_data_vpt', session_id, 0, file_size)
+      let viewport_data = await getViewportData(viewport_id)
+      expect('~').to.equal(decode(viewport_data))
+      let rotations = file_size * full_rotations
+      while (rotations--) {
+        viewport_data = await getViewportData(viewport_id)
+        expect(1 + await insert(session_id, 0, ' ')).to.equal(await overwrite(session_id, 0, viewport_data))
+        expect(await undo(session_id) * -1).to.equal(await redo(session_id))
+        change_id = await del(session_id, file_size, ' ', 1)
+        //console.log(decode(await getViewportData(viewport_2_id)))
+      }
+      expect(await getChangeCount(session_id)).to.equal(change_id)
+      expect(1 + (3 * file_size * full_rotations)).to.equal(change_id)
+      expect(data).to.deep.equal(await getViewportData(viewport_2_id))
+      expect(viewport_id).to.equal(await destroyViewport(viewport_id))
+      expect(viewport_2_id).to.equal(await destroyViewport(viewport_2_id))
+      //console.log("Number of changes: " + await getChangeCount(session_id))
     })
   })
 })

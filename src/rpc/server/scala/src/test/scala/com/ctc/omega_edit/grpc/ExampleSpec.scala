@@ -168,6 +168,10 @@ class ExampleSpec
         )
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
+<<<<<<< HEAD
+=======
+        _ <- service.submitChange(
+>>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
           ChangeRequest(sid,
                         ChangeKind.CHANGE_OVERWRITE,
                         data = Some(ByteString.copyFromUtf8(testString2)))
@@ -175,7 +179,11 @@ class ExampleSpec
         saveResponse2 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
+<<<<<<< HEAD
         saveResponse3_ <- service.undoLastChange(ObjectId(sid))
+=======
+        _ <- service.undoLastChange(ObjectId(sid))
+>>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
         saveResponse3 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
@@ -243,6 +251,7 @@ class ExampleSpec
         contents4 shouldBe testString2
       }
     }
+<<<<<<< HEAD
 
     "clear all session changes" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString
@@ -327,6 +336,8 @@ class ExampleSpec
 
       }
     }
+=======
+>>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
   }
 }
 

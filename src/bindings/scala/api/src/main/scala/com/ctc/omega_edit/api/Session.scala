@@ -52,10 +52,13 @@ trait Session {
   def undoLast(): Result
   def redoUndo(): Result
 
+<<<<<<< HEAD
   def clearChanges(): Result
 
   def getLastChange(): Result
 
+=======
+>>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
   def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
   def findChange(id: Long): Option[Change]
 
