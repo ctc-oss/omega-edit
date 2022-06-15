@@ -68,11 +68,8 @@ private[omega_edit] trait FFI {
   def omega_edit_delete(p: Pointer, offset: Long, len: Long): Long
   def omega_edit_undo_last_change(p: Pointer): Long
   def omega_edit_redo_last_undo(p: Pointer): Long
-<<<<<<< HEAD
   def omega_edit_clear_changes(p: Pointer): Long
   def omega_session_get_last_change(p: Pointer): Long
-=======
->>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
   def omega_edit_create_viewport(
       p: Pointer,
       offset: Long,

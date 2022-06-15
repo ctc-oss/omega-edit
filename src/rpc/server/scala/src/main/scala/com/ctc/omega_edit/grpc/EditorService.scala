@@ -215,7 +215,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
-<<<<<<< HEAD
   // undo redo
 
   def undoLastChange(in: ObjectId): Future[ChangeResponse] =
@@ -245,19 +244,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ChangeResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
-=======
-  def undoLastChange(in: ObjectId): Future[ChangeResponse] =
-        (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
-          case Ok(id) => ChangeResponse(id)
-          case Err(c) => throw grpcFailure(c)
-        }
-        
-  def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
-        (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
-          case Ok(id) => ChangeResponse(id)
-          case Err(c) => throw grpcFailure(c)
-        }
->>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
 
   // segments
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =

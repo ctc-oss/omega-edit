@@ -251,7 +251,6 @@ class ExampleSpec
         contents4 shouldBe testString2
       }
     }
-<<<<<<< HEAD
 
     "clear all session changes" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString
@@ -336,8 +335,6 @@ class ExampleSpec
 
       }
     }
-=======
->>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
   }
 }
 
