@@ -124,9 +124,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
                     (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
         case change_kind_t::CHANGE_OVERWRITE:
             // OVERWRITE changes that happen inside the viewport affect the viewport
-            return ((change_ptr->offset + change_ptr->length) >= omega_viewport_get_offset(viewport_ptr)) &&
-                   (change_ptr->offset <=
-                    (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
+            return omega_viewport_in_segment(viewport_ptr, change_ptr->offset, change_ptr->length);
         default:
             ABORT(LOG_ERROR("Unhandled change kind"););
     }
@@ -134,6 +132,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
 
 static int update_viewports_(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (auto &&viewport_ptr : session_ptr->viewports_) {
+        // possibly adjust the viewport offset if it's floating and other criteria are met
         update_viewport_offset_adjustment_(viewport_ptr.get(), change_ptr);
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
@@ -386,7 +385,7 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    return (!omega_session_changes_paused(session_ptr) && 0 < length && offset < computed_file_size)
+    return !omega_session_changes_paused(session_ptr) && 0 < length && offset < computed_file_size
                    ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
                                                std::min(length, computed_file_size - offset)))
                    : 0;
@@ -394,8 +393,8 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
-    return (!omega_session_changes_paused(session_ptr) && 0 <= length &&
-            offset <= omega_session_get_computed_file_size(session_ptr))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
                    ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
@@ -406,8 +405,8 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    return (!omega_session_changes_paused(session_ptr) && 0 <= length &&
-            offset <= omega_session_get_computed_file_size(session_ptr))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
                    ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }

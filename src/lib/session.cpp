@@ -48,7 +48,7 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
     assert(session_ptr);
     assert(session_ptr->models_.back());
     const auto computed_file_size =
-            (session_ptr->models_.back()->model_segments.empty())
+            session_ptr->models_.back()->model_segments.empty()
                     ? 0
                     : session_ptr->models_.back()->model_segments.back()->computed_offset +
                               session_ptr->models_.back()->model_segments.back()->computed_length;
@@ -71,20 +71,20 @@ int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr)
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return (session_ptr->models_.back()->changes.empty()) ? nullptr : session_ptr->models_.back()->changes.back().get();
+    return session_ptr->models_.back()->changes.empty() ? nullptr : session_ptr->models_.back()->changes.back().get();
 }
 
 const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr) {
     assert(session_ptr);
     assert(session_ptr->models_.back());
-    return (session_ptr->models_.back()->changes_undone.empty())
+    return session_ptr->models_.back()->changes_undone.empty()
                    ? nullptr
                    : session_ptr->models_.back()->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->models_.back()->file_path.empty()) ? nullptr : session_ptr->models_.back()->file_path.c_str();
+    return session_ptr->models_.back()->file_path.empty() ? nullptr : session_ptr->models_.back()->file_path.c_str();
 }
 
 omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr) {
@@ -136,7 +136,7 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
 
 int omega_session_changes_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->session_flags_ & (int8_t) session_flags::session_changes_paused) ? 1 : 0;
+    return session_ptr->session_flags_ & (int8_t) session_flags::session_changes_paused ? 1 : 0;
 }
 
 void omega_session_pause_changes(omega_session_t *session_ptr) {
