@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "../../include/omega_edit/config.h"
+#include "../../include/omega_edit/fwd_defs.h"
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
 #include <condition_variable>
@@ -46,10 +47,10 @@ using omega_edit::Editor;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
-using omega_edit::SegmentRequest;
-using omega_edit::SegmentResponse;
 using omega_edit::SearchRequest;
 using omega_edit::SearchResponse;
+using omega_edit::SegmentRequest;
+using omega_edit::SegmentResponse;
 using omega_edit::SessionCountResponse;
 using omega_edit::VersionResponse;
 using omega_edit::ViewportDataRequest;
@@ -153,6 +154,7 @@ public:
 
         if (file_path) { request.set_file_path(*file_path); }
         if (session_id_desired) { request.set_session_id_desired(*session_id_desired); }
+        request.set_event_interest(ALL_EVENTS);
         std::mutex mu;
         std::condition_variable cv;
         bool done = false;
@@ -365,6 +367,64 @@ public:
         }
     }
 
+    [[nodiscard]] std::string PauseSessionChanges(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->PauseSessionChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
+    [[nodiscard]] std::string ResumeSessionChanges(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->ResumeSessionChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
     [[nodiscard]] std::string PauseViewportEvents(const std::string &session_id) const {
         assert(!session_id.empty());
         ObjectId request;
@@ -498,6 +558,7 @@ public:
         request.set_offset(offset);
         request.set_capacity(capacity);
         request.set_is_floating(is_floating);
+        request.set_event_interest(ALL_EVENTS);
         if (viewport_id_desired) { request.set_viewport_id_desired(*viewport_id_desired); }
 
         std::mutex mu;
@@ -759,7 +820,7 @@ public:
     }
 
     int SearchSession(const std::string &session_id, const std::string &pattern, bool is_case_insensitive,
-                          int64_t offset, int64_t length, int64_t limit, std::vector<int64_t> &match_offset) {
+                      int64_t offset, int64_t length, int64_t limit, std::vector<int64_t> &match_offset) {
         assert(!session_id.empty());
         SearchRequest request;
         SearchResponse response;
@@ -788,9 +849,7 @@ public:
         if (status.ok()) {
             const auto num_matches = response.match_offset_size();
             match_offset.reserve(num_matches);
-            for(int i = 0; i < num_matches; ++i) {
-                match_offset.push_back(response.match_offset(i));
-            }
+            for (int i = 0; i < num_matches; ++i) { match_offset.push_back(response.match_offset(i)); }
             return num_matches;
         } else {
             DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
@@ -942,7 +1001,8 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         auto segment = server_test_client.GetSegment(session_id, 0, 32);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
         }
         assert(segment.length() == 15);
         assert(segment == "Hello Weird!!!!");
@@ -1004,13 +1064,21 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
                      << std::endl;);
         }
 
-        auto match_offsets = std::vector<int64_t >();
+        auto match_offsets = std::vector<int64_t>();
         auto num_matches = server_test_client.SearchSession(session_id, "weird", true, 0, 0, 0, match_offsets);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SearchSession received: " << num_matches
                      << std::endl;);
         }
+
+        auto count = server_test_client.GetCount(session_id, CountKind::COUNT_SEARCH_CONTEXTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_SEARCH_CONTEXTS) received: " << count << std::endl;);
+        }
+        assert(0 == count);
 
         serial = server_test_client.Overwrite(session_id, 7, "orl");
         if (log) {
@@ -1038,7 +1106,7 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        auto count = server_test_client.GetSessionCount();
+        count = server_test_client.GetSessionCount();
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count
@@ -1084,7 +1152,8 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
         segment = server_test_client.GetSegment(session_id, 0, 32);
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
-            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetSegment received length: " << segment.length() << ", data: " << segment << std::endl;);
         }
         assert(segment.length() == 12);
         assert(segment == "Hello World!");

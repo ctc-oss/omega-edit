@@ -76,7 +76,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
-        "src/include/omega_edit/search.h" "src/lib/search.cpp"
+        "src/include/omega_edit/search.h" "src/lib/search.cpp" "src/lib/impl_/search_context_def.h"
         "src/include/omega_edit/segment.h" "src/lib/segment.cpp" "src/lib/impl_/segment_def.hpp"
         "src/include/omega_edit/version.h" "src/lib/version.c"
         "src/include/omega_edit/visit.h" "src/lib/visit.cpp"

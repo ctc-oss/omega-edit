@@ -80,11 +80,9 @@ OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_sessi
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context_string(const omega_session_t *session_ptr,
-                                                                             const std::string &pattern,
-                                                                             int64_t session_offset = 0,
-                                                                             int64_t session_length = 0,
-                                                                             int case_insensitive = 0) noexcept;
+OMEGA_EDIT_EXPORT omega_search_context_t *
+omega_search_create_context_string(omega_session_t *session_ptr, const std::string &pattern, int64_t session_offset = 0,
+                                   int64_t session_length = 0, int case_insensitive = 0) noexcept;
 
 #endif//__cplusplus
 

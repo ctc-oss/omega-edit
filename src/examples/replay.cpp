@@ -29,11 +29,12 @@ using namespace std;
 using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
 
 void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                        const omega_change_t *change_ptr) {
+                        const void *session_event_ptr) {
     switch (session_event) {
         case SESSION_EVT_CREATE:
         case SESSION_EVT_EDIT: {
-            auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
+            auto file_info_ptr = reinterpret_cast<file_info_t *>(omega_session_get_user_data_ptr(session_ptr));
+            const auto change_ptr = reinterpret_cast<const omega_change_t *>(session_event_ptr);
             const auto bytes = omega_change_get_bytes(change_ptr);
             const auto bytes_length = omega_change_get_length(change_ptr);
             // NOTE: This is for demonstration purposes only.  This is not production safe JSON.
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
     auto session_ptr = omega_scoped_ptr<omega_session_t>(
-            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, 0), omega_edit_destroy_session);
+            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, NO_EVENTS), omega_edit_destroy_session);
 
     // Report stats
     int deletes = 0;

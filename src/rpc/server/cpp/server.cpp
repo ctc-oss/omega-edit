@@ -53,10 +53,10 @@ using omega_edit::CreateViewportResponse;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
-using omega_edit::SegmentRequest;
-using omega_edit::SegmentResponse;
 using omega_edit::SearchRequest;
 using omega_edit::SearchResponse;
+using omega_edit::SegmentRequest;
+using omega_edit::SegmentResponse;
 using omega_edit::SessionCountResponse;
 using omega_edit::SessionEvent;
 using omega_edit::SessionEventKind;
@@ -339,7 +339,7 @@ static inline ViewportEventKind omega_viewport_event_to_rpc_event(omega_viewport
 }
 
 void session_event_callback(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                            const omega_change_t *change_ptr) {
+                            const void *session_event_ptr) {
     assert(session_ptr);
     if (session_event != omega_session_event_t::SESSION_EVT_CREATE) {
         const auto session_manager_ptr =
@@ -355,14 +355,17 @@ void session_event_callback(const omega_session_t *session_ptr, omega_session_ev
             session_change_ptr->set_computed_file_size(omega_session_get_computed_file_size(session_ptr));
             session_change_ptr->set_change_count(omega_session_get_num_changes(session_ptr));
             session_change_ptr->set_undo_count(omega_session_get_num_undone_changes(session_ptr));
-            if (change_ptr) { session_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
+            if (session_event_ptr) {
+                session_change_ptr->set_serial(
+                        omega_change_get_serial(reinterpret_cast<const omega_change_t *>(session_event_ptr)));
+            }
             session_event_writer_ptr->push(session_change_ptr);
         }
     }
 }
 
 void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                             const omega_change_t *change_ptr) {
+                             const void *viewport_event_ptr) {
     assert(viewport_ptr);
     if (viewport_event != omega_viewport_event_t::VIEWPORT_EVT_CREATE) {
         const auto session_manager_ptr =
@@ -379,7 +382,10 @@ void viewport_event_callback(const omega_viewport_t *viewport_ptr, omega_viewpor
             viewport_change_ptr->set_viewport_id(viewport_id);
             viewport_change_ptr->set_offset(omega_viewport_get_offset(viewport_ptr));
             viewport_change_ptr->set_viewport_event_kind(omega_viewport_event_to_rpc_event(viewport_event));
-            if (change_ptr) { viewport_change_ptr->set_serial(omega_change_get_serial(change_ptr)); }
+            if (viewport_event_ptr) {
+                viewport_change_ptr->set_serial(
+                        omega_change_get_serial(reinterpret_cast<const omega_change_t *>(viewport_event_ptr)));
+            }
             viewport_change_ptr->set_data(omega_viewport_get_string(viewport_ptr));
             viewport_change_ptr->set_length((int64_t) viewport_change_ptr->data().length());
             viewport_event_writer_ptr->push(viewport_change_ptr);
@@ -413,8 +419,8 @@ public:
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
         auto *reactor = context->DefaultReactor();
-        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
-        omega_session_t *session_ptr = nullptr;
+        const auto event_interest = request->has_event_interest() ? request->event_interest() : NO_EVENTS;
+        omega_session_t *session_ptr;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             session_ptr =
@@ -440,7 +446,7 @@ public:
         const auto change_kind = request->kind();
         const auto offset = request->offset();
         assert(0 <= offset);
-        int64_t change_serial = 0;
+        int64_t change_serial;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             switch (change_kind) {
@@ -474,7 +480,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int64_t change_serial = 0;
+        int64_t change_serial;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_undo_last_change(session_ptr);
@@ -492,7 +498,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int64_t change_serial = 0;
+        int64_t change_serial;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             change_serial = omega_edit_redo_last_undo(session_ptr);
@@ -510,7 +516,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int rc = -1;
+        int rc;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             rc = omega_edit_clear_changes(session_ptr);
@@ -561,6 +567,9 @@ public:
             case CountKind::COUNT_CHECKPOINTS:
                 count = omega_session_get_num_checkpoints(session_ptr);
                 break;
+            case CountKind::COUNT_SEARCH_CONTEXTS:
+                count = omega_session_get_num_search_contexts(session_ptr);
+                break;
             default:
                 reactor->Finish(Status(StatusCode::INVALID_ARGUMENT, std::string("Illegal count kind")));
                 return reactor;
@@ -597,7 +606,7 @@ public:
         const auto session_ptr = session_manager_.get_session_ptr(session_id);
         assert(session_ptr);
         auto *reactor = context->DefaultReactor();
-        int rc = -1;
+        int rc;
         char saved_file_buffer[FILENAME_MAX];
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
@@ -613,6 +622,38 @@ public:
             ss << "ERROR: " << rc << ", saving session: " << session_id << ", to file path: " << file_path;
             reactor->Finish(Status(StatusCode::INTERNAL, ss.str()));
         }
+        return reactor;
+    }
+
+    ServerUnaryReactor *PauseSessionChanges(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
+        {
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
+            omega_session_pause_changes(session_ptr);
+        }
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *ResumeSessionChanges(CallbackServerContext *context, const ObjectId *request,
+                                            ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        auto *reactor = context->DefaultReactor();
+        {
+            std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
+            omega_session_resume_changes(session_ptr);
+        }
+        response->set_id(session_id);
+        reactor->Finish(Status::OK);
         return reactor;
     }
 
@@ -785,7 +826,7 @@ public:
         const auto offset = request->offset();
         const auto capacity = request->capacity();
         const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
-        omega_viewport_t *viewport_ptr = nullptr;
+        omega_viewport_t *viewport_ptr;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, request->is_floating() ? 1 : 0,
@@ -843,9 +884,8 @@ public:
                 request->has_length() ? request->length() : omega_session_get_computed_file_size(session_ptr);
         auto limit = request->has_limit() ? request->limit() : -1;
         auto *reactor = context->DefaultReactor();
-        auto search_context_ptr =
-                omega_search_create_context_string(session_ptr, pattern, offset, length, is_case_insensitive);
-        if (search_context_ptr) {
+        if (auto search_context_ptr =
+                    omega_search_create_context_string(session_ptr, pattern, offset, length, is_case_insensitive)) {
             while (limit && omega_search_next_match(search_context_ptr, 1)) {
                 response->add_match_offset(omega_search_context_get_offset(search_context_ptr));
                 --limit;
