@@ -70,6 +70,7 @@ object Session {
   case class RedoUndo() extends Op
   case class ClearChanges() extends Op
   case class GetLastChange() extends Op
+  case class GetLastUndo() extends Op
 
   case class Search(request: SearchRequest) extends Op
 
@@ -156,6 +157,10 @@ class Session(
 
     case GetLastChange() =>
       session.getLastChange()
+      sender() ! Ok(sessionId)
+
+    case GetLastUndo() =>
+      session.getLastUndo()
       sender() ! Ok(sessionId)
 
     case Watch =>

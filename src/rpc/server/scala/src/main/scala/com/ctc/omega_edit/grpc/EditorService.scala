@@ -259,7 +259,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   //
 
 //  def clearChanges(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+//    grpcFailFut(Status.UNIMPLEMENTED)
 
   def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
@@ -268,10 +268,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     grpcFailFut(Status.UNIMPLEMENTED)
 
 //  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+//    grpcFailFut(Status.UNIMPLEMENTED)
 
-  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+//  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
+//    grpcFailFut(Status.UNIMPLEMENTED)
 }
 
 object EditorService {
