@@ -267,6 +267,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
 
+  def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
+    grpcFailFut(Status.UNIMPLEMENTED)
+
+  def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
+    grpcFailFut(Status.UNIMPLEMENTED)
+
   def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
 
