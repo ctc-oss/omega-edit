@@ -93,6 +93,30 @@ export function getComputedFileSize(sessionId: string): Promise<number> {
   })
 }
 
+export function pauseSessionChanges(sessionId: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.pauseSessionChanges(new ObjectId().setId(sessionId), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('pauseSessionChanges error: ' + err.message)
+      }
+      return resolve(r.getId())
+    })
+  })
+}
+
+export function resumeSessionChanges(sessionId: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.resumeSessionChanges(new ObjectId().setId(sessionId), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('resumeSessionChanges error: ' + err.message)
+      }
+      return resolve(r.getId())
+    })
+  })
+}
+
 export function getSegment(
   sessionId: string,
   offset: number,

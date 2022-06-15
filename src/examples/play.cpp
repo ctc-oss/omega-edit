@@ -81,8 +81,7 @@ int save_changes_cbk(const omega_change_t *change_ptr, void *userdata) {
     return 0;
 }
 
-void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                        const omega_change_t *) {
+void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const void *) {
     switch (session_event) {
         case SESSION_EVT_UNDO:
         case SESSION_EVT_EDIT: {
@@ -129,11 +128,12 @@ void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
 
 void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
                     omega_viewport_event_t viewport_event = VIEWPORT_EVT_UNDEFINED,
-                    const omega_change_t *change_ptr = nullptr) {
+                    const void *viewport_event_ptr = nullptr) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
-            if (change_ptr) {
+            if (viewport_event_ptr) {
+                const auto change_ptr = reinterpret_cast<const omega_change_t *>(viewport_event_ptr);
                 clog << "Change serial: " << omega_change_get_serial(change_ptr)
                      << ", kind: " << omega_change_get_kind_as_char(change_ptr)
                      << ", offset: " << omega_change_get_offset(change_ptr)
@@ -143,8 +143,8 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
                  << " length: " << omega_viewport_get_length(viewport_ptr)
                  << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
             if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
-                auto const *view_mode_ptr = (const view_mode_t *) omega_viewport_get_user_data_ptr(viewport_ptr);
-                switch (view_mode_ptr->display_mode) {
+                switch (reinterpret_cast<const view_mode_t *>(omega_viewport_get_user_data_ptr(viewport_ptr))
+                                ->display_mode) {
                     case display_mode_t::BIT_MODE:
                         clog << " BIT MODE [";
                         write_pretty_bits(omega_viewport_get_data(viewport_ptr),
@@ -184,10 +184,10 @@ int main(int /*argc*/, char ** /*argv*/) {
     file_info.bin_to_hex_buffer = (char *) malloc(file_info.bin_to_hex_buffer_size);
 
     auto session_ptr = omega_scoped_ptr<omega_session_t>(
-            omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info, 0),
+            omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info, ALL_EVENTS),
             omega_edit_destroy_session);
     clog << "File Size: " << omega_session_get_computed_file_size(session_ptr.get()) << endl;
-    auto viewport1_ptr = omega_edit_create_viewport(session_ptr.get(), 0, 100, 0, vpt_change_cbk, &view_mode, 0);
+    auto viewport1_ptr = omega_edit_create_viewport(session_ptr.get(), 0, 100, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
     omega_edit_delete(session_ptr.get(), 0, omega_session_get_computed_file_size(session_ptr.get()));
     assert(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr.get())));
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
@@ -196,7 +196,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_overwrite_string(session_ptr.get(), 5, "-");
     omega_edit_insert_string(session_ptr.get(), 0, "++++");
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
-    auto viewport2_ptr = omega_edit_create_viewport(session_ptr.get(), 50, 10, 0, vpt_change_cbk, &view_mode, 0);
+    auto viewport2_ptr = omega_edit_create_viewport(session_ptr.get(), 50, 10, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_edit_insert(session_ptr.get(), 71, "++++", 4);
     omega_edit_overwrite(session_ptr.get(), 10, ".", 0);

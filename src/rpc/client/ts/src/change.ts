@@ -48,6 +48,7 @@ export function insert(
   })
 }
 
+// function is named del because delete is a keyword
 export function del(
   session_id: string,
   offset: number,
