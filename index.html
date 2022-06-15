@@ -292,7 +292,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1a1486bfa8d1e976151db33e088d7a8bfc"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_edit_destroy_session</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
-<dd><p>Destroy the given session and all associated objects (authors, changes, and viewports) </p>
+<dd><p>Destroy the given session and all associated objects (changes, and viewports) </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>session_ptr</strong> – session to destroy </p>
@@ -381,7 +381,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1ad5789dafd2205e000a3c99269a32ca0f"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_edit_save</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">int</span> <span class="pre">overwrite,</span> <span class="pre">char</span> <span class="pre">*saved_file_path)</span></span></dt>
-<dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new file name will be used as determined by omega_util_available_filename. </p>
+<dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -845,10 +845,28 @@
 <section id="fwd-defs-h">
 <h2>fwd_defs.h<a class="headerlink" href="#fwd-defs-h" title="Permalink to this headline"></a></h2>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.ALL_EVENTS">
+<span class="target" id="fwd__defs_8h_1aed91c5e7fac293ba4fd2181dca73a59e"></span><span class="sig-name descname"><span class="n"><span class="pre">ALL_EVENTS</span></span></span><a class="headerlink" href="#c.ALL_EVENTS" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.NO_EVENTS">
+<span class="target" id="fwd__defs_8h_1add514abcca055aed020fdd963cc84a1e"></span><span class="sig-name descname"><span class="n"><span class="pre">NO_EVENTS</span></span></span><a class="headerlink" href="#c.NO_EVENTS" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv414omega_change_t">
 <span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv422omega_search_context_t">
+<span id="_CPPv322omega_search_context_t"></span><span id="_CPPv222omega_search_context_t"></span><span id="omega_search_context_t"></span><span class="target" id="fwd__defs_8h_1ac42f7f1b319d997e71141ffe151b6ea2"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_search_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_search_context_t</span></span></span><a class="headerlink" href="#_CPPv422omega_search_context_t" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
@@ -868,14 +886,14 @@
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv425omega_session_event_cbk_t">
-<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1a177aaf7319955fe8eff0b6433b40d2a1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
-<dd><p>On session change callback. This under-defined function will be called when an associated session changes. </p>
+<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1af1377a8f25ac3040ac09124eca99fde1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>On session change callback. This under-defined function will be called when a session event occurs. </p>
 </dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv426omega_viewport_event_cbk_t">
-<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1a9ab8cce2a9fd49778902e791078476c1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
-<dd><p>On viewport change callback. This under-defined function will be called when an associated viewport changes. </p>
+<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1ad6597dd1fbbf9919692f0feadc2a3d15"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>On viewport change callback. This under-defined function will be called when an associated viewport event occurs. </p>
 </dd></dl>
 
 </div>
@@ -929,6 +947,16 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE">
 <span id="_CPPv3N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ab87a1e849828c8935d7d8a490b5827a2"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_SAVE</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE">
+<span id="_CPPv3N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span id="_CPPv2N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a9ebe5b97ddda2b3f88b880905314495c"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_PAUSED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE">
+<span id="_CPPv3N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span id="_CPPv2N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a3d62a9fdfb082e87da1701bd867da6ae"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_RESUMED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1000,19 +1028,10 @@
 <section id="search-h">
 <h2>search.h<a class="headerlink" href="#search-h" title="Permalink to this headline"></a></h2>
 <div class="breathe-sectiondef docutils container">
-<p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
-<dl class="cpp type">
-<dt class="sig sig-object cpp" id="_CPPv422omega_search_context_t">
-<span id="_CPPv322omega_search_context_t"></span><span id="_CPPv222omega_search_context_t"></span><span id="omega_search_context_t"></span><span class="target" id="search_8h_1ae21eaf832e8193563d7e51425840f2db"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_search_context_t" title="omega_search_context_t"><span class="n"><span class="pre">omega_search_context_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_search_context_t</span></span></span><a class="headerlink" href="#_CPPv422omega_search_context_t" title="Permalink to this definition"></a><br /></dt>
-<dd><p>Opaque search context </p>
-</dd></dl>
-
-</div>
-<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1a343cec09807e5ba3f43fe9ad580b4dd2"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context_bytes</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
+<span class="target" id="search_8h_1a849c56368e7efdddb2b6d6f95ac0d361"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
 <dd><p>Create a search context </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1033,7 +1052,7 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1a404b06d0100deef604734af070b06a33"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
+<span class="target" id="search_8h_1a67ee211e434b4c2af64e8e1535f655be"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
 <dd><p>Create a search context </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -1220,6 +1239,20 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a23e8476d91ca33fec4aeaba95b7ab9c1"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_session_get_num_search_contexts</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the number of active search contexts </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of active search contexts for </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>number of active search contexts </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
 <span class="target" id="session_8h_1a761c55980dd13db59e5cb1d96fc3da91"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_session_get_num_changes</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
 <dd><p>Given a session, return the current number of active changes </p>
 <dl class="field-list simple">
@@ -1337,6 +1370,42 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>session_ptr</strong> – session to resume viewport on-change callbacks on </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a95c03976cf17f35240dcaf4b78fe253e"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_changes_paused</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Determine if the session is accepting changes or not </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to determine if changes are accepted or not </p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if the session is accepting changes and zero if it is not </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1aaa2838adad9c7f6496bfca7dd53b6b82"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_session_pause_changes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Pauses data changes to the session </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to pause changes to </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1aef10b734d93feb170b2e91ef65b77f67"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_session_resume_changes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Resume data changes to the session </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to resume changes to </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1823,6 +1892,24 @@
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>0 on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="viewport_8h_1acce93b4e7a6bc9c85258824fffcf8bae"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_viewport_in_segment</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
+<dd><p>Determine if the given viewport is in the given segment </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>viewport_ptr</strong> – viewport to determine if it’s in the given segment </p></li>
+<li><p><strong>offset</strong> – beginning offset of the segment </p></li>
+<li><p><strong>length</strong> – length of the segment </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>non-zero if the viewport is in the given segment and zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
