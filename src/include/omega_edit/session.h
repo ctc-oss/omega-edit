@@ -136,7 +136,7 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change(const omega_ses
  * @param session_ptr session to determine if viewport on-change callbacks are paused on
  * @return non-zero if viewport on-change callbacks are paused and zero if they are not
  */
-OMEGA_EDIT_EXPORT int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr);
 
 /**
  * Pause viewport on-change callbacks for the given session
