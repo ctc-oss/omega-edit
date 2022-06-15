@@ -168,10 +168,7 @@ class ExampleSpec
         )
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
-<<<<<<< HEAD
-=======
         _ <- service.submitChange(
->>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
           ChangeRequest(sid,
                         ChangeKind.CHANGE_OVERWRITE,
                         data = Some(ByteString.copyFromUtf8(testString2)))
@@ -179,11 +176,7 @@ class ExampleSpec
         saveResponse2 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
-<<<<<<< HEAD
-        saveResponse3_ <- service.undoLastChange(ObjectId(sid))
-=======
         _ <- service.undoLastChange(ObjectId(sid))
->>>>>>> 039b784f9a6823fc2d9505b833bea72ecb287bbf
         saveResponse3 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
@@ -271,16 +264,18 @@ class ExampleSpec
                         ChangeKind.CHANGE_OVERWRITE,
                         data = Some(ByteString.copyFromUtf8(testString2)))
         )
+
         saveResponse2 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
-        getBeforeChangeCount <- service.getCount(sid,
-                                          CountKind.COUNT_CHANGES)
+        getBeforeChangeCount <- service.getCount(CountRequest(sid,
+                                        CountKind.COUNT_CHANGES))
 
-        _ <- service.clearChanges(objectId(sid))
-        getAfterChangeCount < service.getCount(sid,
-                                                CountKind.COUNT_CHANGES)
+        _ <- service.clearChanges(ObjectId(sid))
 
+        getAfterChangeCount <- service.getCount(CountRequest(sid,
+                                        CountKind.COUNT_CHANGES))
+                                                
         contents1 = Source
           .fromFile(saveResponse1.filePath)
           .mkString // to ensure first saved file not overwritten
@@ -289,7 +284,7 @@ class ExampleSpec
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
         contents2 shouldBe testString2
-        getBeforeChangeCount shouldBe 2
+        getBeforeChangeCount should not be 0
         getAfterChangeCount shouldBe 0
       }
     }
