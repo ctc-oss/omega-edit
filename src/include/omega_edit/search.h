@@ -27,11 +27,6 @@ extern "C" {
 #endif
 
 /**
- * Opaque search context
- */
-typedef struct omega_search_context_t omega_search_context_t;
-
-/**
  * Create a search context
  * @param session_ptr session to find patterns in
  * @param pattern pointer to the pattern to find (as a sequence of bytes)
@@ -44,9 +39,8 @@ typedef struct omega_search_context_t omega_search_context_t;
  * @return search context
  */
 OMEGA_EDIT_EXPORT omega_search_context_t *
-omega_search_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
-                                  int64_t pattern_length, int64_t session_offset, int64_t session_length,
-                                  int case_insensitive);
+omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                  int64_t session_offset, int64_t session_length, int case_insensitive);
 
 /**
  * Create a search context
@@ -60,10 +54,9 @@ omega_search_create_context_bytes(const omega_session_t *session_ptr, const omeg
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context(const omega_session_t *session_ptr,
-                                                                      const char *pattern, int64_t pattern_length,
-                                                                      int64_t session_offset, int64_t session_length,
-                                                                      int case_insensitive);
+OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr, const char *pattern,
+                                                                      int64_t pattern_length, int64_t session_offset,
+                                                                      int64_t session_length, int case_insensitive);
 
 /**
  * Given a search context, get the most recent search offset

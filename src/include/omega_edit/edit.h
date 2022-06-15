@@ -42,7 +42,7 @@ OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_pa
                                                              void *user_data_ptr, int32_t event_interest);
 
 /**
- * Destroy the given session and all associated objects (authors, changes, and viewports)
+ * Destroy the given session and all associated objects (changes, and viewports)
  * @param session_ptr session to destroy
  */
 OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
@@ -95,7 +95,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
 /**
  * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
  * if overwrite is non zero.  If the file exists and overwrite is zero, a new file name will be used as determined by
- * omega_util_available_filename.
+ * omega_util_available_filename.  If the file being edited is overwritten, the affected editing session will be reset.
  * @param session_ptr session to save
  * @param file_path file path to save to
  * @param overwrite set to non-zero if overwriting an existing file is okay, and zero otherwise

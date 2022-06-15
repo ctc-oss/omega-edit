@@ -117,6 +117,15 @@ OMEGA_EDIT_EXPORT int omega_viewport_update(omega_viewport_t *viewport_ptr, int6
                                             int is_floating);
 
 /**
+ * Determine if the given viewport is in the given segment
+ * @param viewport_ptr viewport to determine if it's in the given segment
+ * @param offset beginning offset of the segment
+ * @param length length of the segment
+ * @return non-zero if the viewport is in the given segment and zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offset, int64_t length);
+
+/**
  * Execute the viewport on-change callback with the given change if a viewport on-change callback is defined and if the
  * session where this viewport lives does not currently have viewport on-change callbacks paused
  * @param viewport_ptr viewport for which to execute its on-change callback
