@@ -58,13 +58,14 @@ object Session {
   case object GetNumChanges extends Op
   case object GetNumUndos extends Op
   case object GetNumViewports extends Op
+  case object GetNumSearchContexts extends Op
 
   case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
   case class Insert(data: String, offset: Long) extends Op
   case class Overwrite(data: String, offset: Long) extends Op
 
-  case class LookupChange(id: Long) extends Op
+`  case class LookupChange(id: Long) extends Op
 
   case class UndoLast() extends Op
   case class RedoUndo() extends Op
@@ -191,6 +192,11 @@ class Session(
     case GetNumViewports =>
       sender() ! new Ok(sessionId) with Size {
         def computedSize: Long = session.numViewports
+      }
+
+    case GetNumSearchContexts =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numSearchContexts
       }
 
     case Save(to, overwrite) =>

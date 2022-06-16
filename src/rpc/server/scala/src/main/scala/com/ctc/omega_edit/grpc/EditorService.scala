@@ -162,6 +162,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? SessionOp(in.sessionId, GetNumUndos))
       case CountKind.COUNT_VIEWPORTS =>
         (editors ? SessionOp(in.sessionId, GetNumViewports))
+      case CountKind.COUNT_SEARCH_CONTEXT =>
+        (editors ? SessionOp(in.sessionId, GetNumSearchContexts))
       case CountKind.UNDEFINED_COUNT_KIND =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
       case CountKind.Unrecognized(_) =>

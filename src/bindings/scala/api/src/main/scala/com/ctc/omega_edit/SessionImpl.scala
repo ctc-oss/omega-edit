@@ -49,6 +49,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def numViewports: Long =
     i.omega_session_get_num_viewports(p)
 
+  def numSearchContexts: Long =
+    i.omega_session_get_num_search_contexts(p)
+
   def callback: Option[SessionCallback] =
     Option(i.omega_session_get_event_cbk(p))
 
