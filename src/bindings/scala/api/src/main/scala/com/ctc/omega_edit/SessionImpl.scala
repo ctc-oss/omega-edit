@@ -86,7 +86,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_session_get_last_change(p))
 
   def getLastUndo(): Result =
-    Edit(i.omega_session_get_last_Undo(p))
+    Edit(i.omega_session_get_last_undo(p))
 
   def view(offset: Long, size: Long): Viewport = {
     val vp =
