@@ -65,7 +65,7 @@ object Session {
   case class Insert(data: String, offset: Long) extends Op
   case class Overwrite(data: String, offset: Long) extends Op
 
-`  case class LookupChange(id: Long) extends Op
+  case class LookupChange(id: Long) extends Op
 
   case class UndoLast() extends Op
   case class RedoUndo() extends Op

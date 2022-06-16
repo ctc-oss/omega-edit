@@ -324,12 +324,8 @@ class ExampleSpec
         saveResponse4 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
-        _ <- service.undoLastChange(ObjectId(sid))
-        saveResponse5 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
-
         _ <- service.getLastUndo(ObjectId(sid))
-        saveResponse6 <- service.saveSession(
+        saveResponse5 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
         contents1 = Source
@@ -339,7 +335,6 @@ class ExampleSpec
         contents3 = Source.fromFile(saveResponse3.filePath).mkString
         contents4 = Source.fromFile(saveResponse4.filePath).mkString
         contents5 = Source.fromFile(saveResponse5.filePath).mkString
-        contents6 = Source.fromFile(saveResponse6.filePath).mkString
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -348,8 +343,7 @@ class ExampleSpec
         contents2 shouldBe testString2
         contents3 shouldBe testString3
         contents4 shouldBe testString2
-        contents5 shouldBe testString1
-        contents6 shouldBe testString2
+        contents5 shouldBe testString3
       }
     }
   }
