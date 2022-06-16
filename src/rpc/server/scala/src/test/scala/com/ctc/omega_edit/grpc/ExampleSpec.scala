@@ -290,9 +290,9 @@ class ExampleSpec
       }
     }
     "get last undo" in newSession { sid =>
-      val testString1 = UUID.randomUUID().toString
-      val testString2 = UUID.randomUUID().toString
-      val testString3 = UUID.randomUUID().toString
+      val testString1 = UUID.randomUUID().toString + " chnage1"
+      val testString2 = UUID.randomUUID().toString + " change2"
+      val testString3 = UUID.randomUUID().toString + " change3"
 
       val filePath = tmp.resolve("dat.txt").toString
 
