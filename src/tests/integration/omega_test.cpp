@@ -596,11 +596,11 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 12, reinterpret_cast<const omega_byte_t *>("."), 1));
             REQUIRE(67 == omega_session_get_computed_file_size(session_ptr));
             REQUIRE(0 == omega_session_changes_paused(session_ptr));
-            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_event_callbacks_paused(session_ptr));
             omega_session_pause_changes(session_ptr);
             auto num_changes = omega_session_get_num_changes(session_ptr);
             REQUIRE(0 != omega_session_changes_paused(session_ptr));
-            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_event_callbacks_paused(session_ptr));
             REQUIRE(0 == omega_edit_insert_string(session_ptr, 0, "+++"));
             REQUIRE(0 == omega_edit_overwrite_string(session_ptr, 0, "+++"));
             REQUIRE(0 == omega_edit_delete(session_ptr, 0, 3));
@@ -609,7 +609,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(67 == omega_session_get_computed_file_size(session_ptr));
             omega_session_resume_changes(session_ptr);
             REQUIRE(0 == omega_session_changes_paused(session_ptr));
-            REQUIRE(0 == omega_session_viewport_on_change_callbacks_paused(session_ptr));
+            REQUIRE(0 == omega_session_viewport_event_callbacks_paused(session_ptr));
             REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "+++"));
             REQUIRE(1 + num_changes == omega_session_get_num_changes(session_ptr));
             REQUIRE(70 == omega_session_get_computed_file_size(session_ptr));
