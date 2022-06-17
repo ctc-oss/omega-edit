@@ -16,31 +16,28 @@
 
 package com.ctc.omega_edit.api
 
+import enumeratum.values.IntEnumEntry
+import enumeratum.values.IntEnum
+
 /**
   * Defines the types of events emitted by a session
   */
-sealed trait SessionEvent
-object SessionEvent {
-  case object Undefined extends SessionEvent
-  case object Create extends SessionEvent
-  case object Edit extends SessionEvent
-  case object Undo extends SessionEvent
-  case object Clear extends SessionEvent
-  case object Transform extends SessionEvent
-  case object CreateCheckpoint extends SessionEvent
-  case object DestroyCheckpoint extends SessionEvent
-  case object Save extends SessionEvent
+sealed abstract class SessionEvent(val value: Int) extends IntEnumEntry
+object SessionEvent extends IntEnum[SessionEvent] {
+  case object Undefined extends SessionEvent(0)
+  case object Create extends SessionEvent(1)
+  case object Edit extends SessionEvent(2)
+  case object Undo extends SessionEvent(4)
+  case object Clear extends SessionEvent(8)
+  case object Transform extends SessionEvent(16)
+  case object CreateCheckpoint extends SessionEvent(32)
+  case object DestroyCheckpoint extends SessionEvent(64)
+  case object Save extends SessionEvent(128)
 
-  private[api] def fromNative(v: Int): SessionEvent =
-    v match {
-      case 1 => Create
-      case 2 => Edit
-      case 4 => Undo
-      case 8 => Clear
-      case 16 => Transform
-      case 32 => CreateCheckpoint
-      case 64 => DestroyCheckpoint
-      case 128 => Save
-      case _ => Undefined
-    }
+  val values = findValues
+
+  object Interest {
+    val None = 0
+    val All = ~0
+  }
 }
