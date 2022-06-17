@@ -51,7 +51,7 @@ trait SessionSupport {
     val session = OmegaEdit.newSessionCb(None, (_, e, c) => {
       _event = Some(e)
       _change = Some(c)
-    }, None)
+    }, Some(SessionEvent.Interest.All))
     test(session, cb)
   }
 
