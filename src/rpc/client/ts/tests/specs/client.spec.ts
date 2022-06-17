@@ -369,10 +369,10 @@ describe('Editing', () => {
 
   describe('Viewports', () => {
     it('Should create and destroy viewports', async () => {
-      let viewport_id = await createViewport('test_vpt_1', session_id, 0, 10)
+      let viewport_id = await createViewport('test_vpt_1', session_id, 0, 10, false)
       expect('test_vpt_1').to.equal(viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
-      viewport_id = await createViewport(undefined, session_id, 10, 10)
+      viewport_id = await createViewport(undefined, session_id, 10, 10, false)
       expect(viewport_id).to.be.a('string').with.length(36) // viewport_id is a random UUID
       expect(2).to.equal(await getViewportCount(session_id))
       let change_id = await insert(session_id, 0, '0123456789ABC')
@@ -406,6 +406,34 @@ describe('Editing', () => {
       expect(1).to.equal(await getViewportCount(session_id))
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
     })
+    it('Should handle floating viewports', async() => {
+      let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
+      expect(1).to.equal(change_id)
+      let viewport_id = await createViewport('test_vpt_no_float', session_id, 10, 5, false)
+      let viewport_floating_id = await createViewport('test_vpt_label', session_id, 10, 5, true)
+      let viewport_data = await getViewportData(viewport_floating_id)
+      expect('LABEL').to.equal(decode(viewport_data))
+      viewport_data = await getViewportData(viewport_id)
+      expect('LABEL').to.equal(decode(viewport_data))
+      change_id = await del(session_id, 0, '01234', 5)
+      expect(2).to.equal(change_id)
+      viewport_data = await getViewportData(viewport_floating_id)
+      expect('LABEL').to.equal(decode(viewport_data))
+      viewport_data = await getViewportData(viewport_id)
+      expect('01234').to.equal(decode(viewport_data))
+      let file_size = await getComputedFileSize(session_id)
+      let segment = await getSegment(session_id, 0, file_size)
+      expect(segment).deep.equals(encode('56789LABEL01234567890'))
+      change_id = await insert(session_id, 0, '01234')
+      expect(3).to.equal(change_id)
+      viewport_data = await getViewportData(viewport_floating_id)
+      expect('LABEL').to.equal(decode(viewport_data))
+      viewport_data = await getViewportData(viewport_id)
+      expect('LABEL').to.equal(decode(viewport_data))
+      file_size = await getComputedFileSize(session_id)
+      segment = await getSegment(session_id, 0, file_size)
+      expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
+    })
   })
 
   describe('StressTest', () => {
@@ -422,8 +450,8 @@ describe('Editing', () => {
       expect(0).to.equal(change_id)
       expect(data.length).to.equal(await getComputedFileSize(session_id))
       await resumeSessionChanges(session_id)
-      let viewport_id = await createViewport('last_byte_vpt', session_id, file_size - 1, 1)
-      let viewport_2_id = await createViewport('all_data_vpt', session_id, 0, file_size)
+      let viewport_id = await createViewport('last_byte_vpt', session_id, file_size - 1, 1, false)
+      let viewport_2_id = await createViewport('all_data_vpt', session_id, 0, file_size, false)
       let viewport_data = await getViewportData(viewport_id)
       expect('~').to.equal(decode(viewport_data))
       let rotations = file_size * full_rotations
