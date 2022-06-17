@@ -102,7 +102,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
           case Err(c) => throw grpcFailure(c)
           case ok: Ok with Data =>
-            ViewportDataResponse(ok.id, ok.data.size.toLong, ok.data)
+            ViewportDataResponse.apply(ok.id, length = ok.data.size.toLong, data = ok.data)
           case Ok(id) => ViewportDataResponse(id)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
