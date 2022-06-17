@@ -20,37 +20,47 @@ import com.ctc.omega_edit.{ChangeImpl, FFI, SessionImpl}
 import jnr.ffi.Pointer
 import jnr.ffi.annotations.Delegate
 
-/**
-  * Provides callbacks on session changes.
+/** Provides callbacks on session changes.
+  *
+  * @see
+  *   https://github.com/ctc-oss/omega-edit/wiki/What-is-%CE%A9edit#event-callbacks
+  *   for how to interpret the data passed to callbacks.
   */
 trait SessionCallback {
-  @Delegate private[api] final def invoke(s: Pointer,
-                                          e: Int,
-                                          c: Pointer): Unit = {
-    val change = c match {
-      case null => None
-      case _ => Some(new ChangeImpl(c, FFI.i))
+  @Delegate private[api] final def invoke(
+      s: Pointer,
+      e: Int,
+      c: Pointer
+  ): Unit = {
+    val change = e match {
+      case SessionEvent.Edit.value | SessionEvent.Undo.value =>
+        Some(new ChangeImpl(c, FFI.i))
+      case _ => None
     }
-    handle(new SessionImpl(s, FFI.i), SessionEvent.fromNative(e), change)
+    handle(new SessionImpl(s, FFI.i), SessionEvent.withValue(e), change)
   }
 
-  /**
-    * Called on a Session change
-    * @param v SessionCallback
-    * @param e SessionEvent
-    * @param change Option[Change]
+  /** Called on a Session change
+    * @param v
+    *   SessionCallback
+    * @param e
+    *   SessionEvent
+    * @param change
+    *   Option[Change]
     */
   def handle(v: Session, e: SessionEvent, change: Option[Change]): Unit
 }
 
 object SessionCallback {
 
-  /**
-    * Create a new callback with the provided function.
-    * @param cb The callback function
-    * @return SessionCallback
+  /** Create a new callback with the provided function.
+    * @param cb
+    *   The callback function
+    * @return
+    *   SessionCallback
     */
   def apply(
-      cb: (Session, SessionEvent, Option[Change]) => Unit): SessionCallback =
+      cb: (Session, SessionEvent, Option[Change]) => Unit
+  ): SessionCallback =
     (v: Session, e: SessionEvent, c: Option[Change]) => cb(v, e, c)
 }

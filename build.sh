@@ -39,10 +39,10 @@ if [ -d ${install_dir}/lib64/ ]; then
 else
   cp -av ${install_dir}/lib/* ./lib
 fi
-#sbt headerCheckAll
-#sbt installM2
-#sbt test
-#sbt howMuchCoverage
+sbt headerCheckAll
+sbt installM2
+sbt test
+sbt howMuchCoverage
 
 rm -rf build-static-$type
 cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
