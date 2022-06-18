@@ -59,7 +59,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def destroySession(in: ObjectId): Future[ObjectId] =
     (editors ? Destroy(in.id)).mapTo[Result].map {
-      case Ok(_) => in
+      case Ok(_)  => in
       case Err(c) => throw grpcFailure(c)
     }
 
@@ -74,24 +74,23 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       )
     )).mapTo[Result].map {
       case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString)
-      case Ok(id) => SaveSessionResponse(id)
-      case Err(c) => throw grpcFailure(c)
+      case Ok(id)              => SaveSessionResponse(id)
+      case Err(c)              => throw grpcFailure(c)
     }
 
-  def createViewport(
-      in: CreateViewportRequest): Future[CreateViewportResponse] =
-    (editors ? SessionOp(
-      in.sessionId,
-      View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest))).mapTo[Result].map {
-      case Ok(id) => CreateViewportResponse(in.sessionId, id)
-      case Err(c) => throw grpcFailure(c)
-    }
+  def createViewport(in: CreateViewportRequest): Future[CreateViewportResponse] =
+    (editors ? SessionOp(in.sessionId, View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest)))
+      .mapTo[Result]
+      .map {
+        case Ok(id) => CreateViewportResponse(in.sessionId, id)
+        case Err(c) => throw grpcFailure(c)
+      }
 
   def destroyViewport(in: ObjectId): Future[ObjectId] =
     in match {
       case Viewport.Id(sid, vid) =>
         (editors ? SessionOp(sid, DestroyView(vid))).mapTo[Result].map {
-          case Ok(_) => in
+          case Ok(_)  => in
           case Err(c) => throw grpcFailure(c)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
@@ -103,7 +102,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
           case Err(c) => throw grpcFailure(c)
           case ok: Ok with Data =>
-            ViewportDataResponse(ok.id, ok.data.size.toLong, ok.data)
+            ViewportDataResponse.apply(ok.id, length = ok.data.size.toLong, data = ok.data)
           case Ok(id) => ViewportDataResponse(id)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
@@ -129,11 +128,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           .mapTo[Result]
           .map {
             case ok: Ok with ChangeDetails =>
-              ChangeDetailsResponse(in.sessionId,
-                                    cid,
-                                    offset = ok.change.offset,
-                                    length = ok.change.length)
-            case Ok(_) => ChangeDetailsResponse(in.sessionId)
+              ChangeDetailsResponse(in.sessionId, cid, offset = ok.change.offset, length = ok.change.length)
+            case Ok(_)  => ChangeDetailsResponse(in.sessionId)
             case Err(c) => throw grpcFailure(c)
           }
     }
@@ -141,8 +137,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def getComputedFileSize(in: ObjectId): Future[ComputedFileSizeResponse] =
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Size => ComputedFileSizeResponse(in.id, ok.computedSize)
-      case Err(c) => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
+      case Err(c)           => throw grpcFailure(c)
+      case _                => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
@@ -156,6 +152,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? SessionOp(in.sessionId, GetNumChanges))
       case CountKind.COUNT_CHECKPOINTS =>
         (editors ? SessionOp(in.sessionId, GetNumCheckpoints))
+      case CountKind.COUNT_SEARCH_CONTEXTS =>
+        Future.failed(grpcFailure(Status.UNIMPLEMENTED))
       case CountKind.COUNT_FILE_SIZE =>
         (editors ? SessionOp(in.sessionId, GetSize))
       case CountKind.COUNT_UNDOS =>
@@ -173,10 +171,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case ok: Ok with Size =>
           CountResponse(in.sessionId, in.kind, ok.computedSize)
         case Err(c) => throw grpcFailure(c)
-        case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+        case _      => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
-
-  
 
   /**
     * Event streams
@@ -196,15 +192,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         val f =
           (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
             case ok: Ok with Viewport.Events =>
-              ok.stream.map(u =>
-                ViewportEvent(u.id, serial = u.change.map(_.id)))
+              ok.stream.map(u => ViewportEvent(u.id, serial = u.change.map(_.id)))
             case _ => Source.failed(grpcFailure(Status.UNKNOWN))
           }
         Await.result(f, 1.second)
       case _ =>
-        Source.failed(
-          new GrpcServiceException(
-            Status.INVALID_ARGUMENT.withDescription("malformed viewport id")))
+        Source.failed(new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("malformed viewport id")))
     }
 
   def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] =
@@ -224,7 +217,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ChangeResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
-        
+
+  // redo the last undo
+  
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case Ok(id) => ChangeResponse(id)
@@ -261,15 +256,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .mapTo[Option[api.Segment]] // No `Ok` wrapper
       .flatMap {
         case None => grpcFailFut[SegmentResponse](Status.NOT_FOUND, s"couldn't find segment: $in")
-        case Some(api.Segment(offset, data)) => Future.successful(SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data)))
+        case Some(api.Segment(offset, data)) =>
+          Future.successful(SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data)))
       }
 
   //
   // unimplementeds
   //
-
-//  def clearChanges(in: ObjectId): Future[ObjectId] =
-//    grpcFailFut(Status.UNIMPLEMENTED)
 
   def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
@@ -283,17 +276,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
 
-//  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
-//    grpcFailFut(Status.UNIMPLEMENTED)
-
-//  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
-//    grpcFailFut(Status.UNIMPLEMENTED)
 }
 
 object EditorService {
   def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
-    new GrpcServiceException(
-      if (message.nonEmpty) status.withDescription(message) else status)
+    new GrpcServiceException(if (message.nonEmpty) status.withDescription(message) else status)
 
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
@@ -301,14 +288,13 @@ object EditorService {
   def opForRequest(in: ChangeRequest): Option[Session.Op] =
     in.data.map(_.toStringUtf8).flatMap { data =>
       in.kind match {
-        case CHANGE_INSERT => Some(Session.Insert(data, in.offset))
-        case CHANGE_DELETE => Some(Session.Delete(in.offset, in.length))
+        case CHANGE_INSERT    => Some(Session.Insert(data, in.offset))
+        case CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
         case CHANGE_OVERWRITE => Some(Session.Overwrite(data, in.offset))
-        case _ => None
+        case _                => None
       }
     }
 
-  def bind(iface: String = "127.0.0.1", port: Int = 9000)(
-      implicit system: ActorSystem): Future[Http.ServerBinding] =
+  def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit system: ActorSystem): Future[Http.ServerBinding] =
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
 }

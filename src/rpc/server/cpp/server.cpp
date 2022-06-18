@@ -852,6 +852,7 @@ public:
         assert(viewport_ptr);
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
+            response->set_offset(omega_viewport_get_offset(viewport_ptr));
             response->set_length(omega_viewport_get_length(viewport_ptr));
             response->set_data(omega_viewport_get_string(viewport_ptr));
         }

@@ -151,8 +151,9 @@ message ViewportDataRequest {
 
 message ViewportDataResponse {
   string viewport_id = 1;
-  int64 length = 2;
-  bytes data = 3;
+  int64 offset = 2;
+  int64 length = 3;
+  bytes data = 4;
 }
 
 message CreateSessionRequest {

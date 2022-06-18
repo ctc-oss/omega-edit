@@ -612,6 +612,9 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
 }
 
 int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory) {
+    if (!omega_util_directory_exists(checkpoint_directory) && 0 != omega_util_create_directory(checkpoint_directory)) {
+        LOG_ERROR("failed to create checkpoint directory");
+    }
     char checkpoint_filename[FILENAME_MAX];
     if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
                                  omega_util_normalize_path(checkpoint_directory, nullptr),
