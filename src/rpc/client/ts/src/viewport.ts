@@ -21,6 +21,7 @@ import {
   CreateViewportRequest,
   ObjectId,
   ViewportDataRequest,
+  ViewportDataResponse,
 } from './omega_edit_pb'
 import { getClient } from './settings'
 const client = getClient()
@@ -29,7 +30,8 @@ export function createViewport(
   desired_viewport_id: string | undefined,
   session_id: string,
   offset: number,
-  capacity: number
+  capacity: number,
+  is_floating: boolean
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()
@@ -37,6 +39,7 @@ export function createViewport(
     request.setSessionId(session_id)
     request.setOffset(offset)
     request.setCapacity(capacity)
+    request.setIsFloating(is_floating)
     client.createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -75,8 +78,8 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
   })
 }
 
-export function getViewportData(viewport_id: string): Promise<Uint8Array> {
-  return new Promise<Uint8Array>((resolve, reject) => {
+export function getViewportData(viewport_id: string): Promise<ViewportDataResponse> {
+  return new Promise<ViewportDataResponse>((resolve, reject) => {
     client.getViewportData(
       new ViewportDataRequest().setViewportId(viewport_id),
       (err, r) => {
@@ -84,7 +87,7 @@ export function getViewportData(viewport_id: string): Promise<Uint8Array> {
           console.log(err.message)
           return reject('redo error: ' + err.message)
         }
-        return resolve(r.getData_asU8())
+        return resolve(r)
       }
     )
   })

@@ -66,6 +66,9 @@ object Session {
 
   case class LookupChange(id: Long) extends Op
 
+  case class UndoLast() extends Op
+  case class RedoUndo() extends Op
+
   case class Search(request: SearchRequest) extends Op
 
   case class Segment(request: SegmentRequest) extends Op
@@ -136,6 +139,14 @@ class Session(
           }
         case None => sender() ! Err(Status.NOT_FOUND)
       }
+    
+    case UndoLast() =>
+      session.undoLast()
+      sender() ! Ok(sessionId)
+
+    case RedoUndo() =>
+      session.redoUndo()
+      sender() ! Ok(sessionId)
 
     case Watch =>
       sender() ! new Ok(sessionId) with Events {

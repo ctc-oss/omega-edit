@@ -66,6 +66,8 @@ private[omega_edit] trait FFI {
       len: Long
   ): Long
   def omega_edit_delete(p: Pointer, offset: Long, len: Long): Long
+  def omega_edit_undo_last_change(p: Pointer): Long
+  def omega_edit_redo_last_undo(p: Pointer): Long
   def omega_edit_create_viewport(
       p: Pointer,
       offset: Long,

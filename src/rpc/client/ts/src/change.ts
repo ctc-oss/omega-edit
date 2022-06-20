@@ -48,10 +48,11 @@ export function insert(
   })
 }
 
+// function is named del because delete is a keyword
 export function del(
   session_id: string,
   offset: number,
-  data: string,  // FIXME: This should not be needed
+  data: string | Uint8Array, // FIXME: This should not be needed
   len: number
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {

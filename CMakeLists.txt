@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # Project information
 project(omega_edit
-        VERSION 0.9.7
+        VERSION 0.9.8
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
@@ -39,6 +39,12 @@ endif ()
 #######################################################################################################################
 # DEPENDENCIES
 #######################################################################################################################
+if (NOT EXISTS "cmake/conan.cmake")
+    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
+            "cmake/conan.cmake"
+            TLS_VERIFY ON)
+endif ()
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
 conan_cmake_configure(
@@ -70,7 +76,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
-        "src/include/omega_edit/search.h" "src/lib/search.cpp"
+        "src/include/omega_edit/search.h" "src/lib/search.cpp" "src/lib/impl_/search_context_def.h"
         "src/include/omega_edit/segment.h" "src/lib/segment.cpp" "src/lib/impl_/segment_def.hpp"
         "src/include/omega_edit/version.h" "src/lib/version.c"
         "src/include/omega_edit/visit.h" "src/lib/visit.cpp"
@@ -180,7 +186,7 @@ if (BUILD_RPC)
 
     add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
     add_dependencies(server client)
-endif()
+endif ()
 
 #######################################################################################################################
 # EXAMPLES
@@ -211,10 +217,13 @@ if (BUILD_EXAMPLES)
     add_executable(replay "src/examples/replay.cpp")
     target_link_libraries(replay PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
+    add_executable(transform "src/examples/transform.c")
+    target_link_libraries(transform PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
     add_executable(play "src/examples/play.cpp")
     target_link_libraries(play PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
     add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-endif()
+endif ()
 
 #######################################################################################################################
 # TESTING
@@ -240,12 +249,12 @@ if (BUILD_TESTS)
         target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
         add_dependencies(server_test server)
-    endif()
+    endif ()
 
     include(CTest)
     include(Catch)
     catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
-endif()
+endif ()
 
 #######################################################################################################################
 # DOCUMENTATION
