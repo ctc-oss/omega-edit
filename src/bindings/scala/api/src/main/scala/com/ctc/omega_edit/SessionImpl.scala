@@ -58,6 +58,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def eventInterest_=(eventInterest: Int): Unit =
     i.omega_session_set_event_interest(p, eventInterest)
 
+  def pauseSessionChanges: Long =
+    i.omega_session_pause_changes(p)
+
+  def resumeSessionChanges: Long =
+    i.omega_session_resume_changes(p)
+
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
