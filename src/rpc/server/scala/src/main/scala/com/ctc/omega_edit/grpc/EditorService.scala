@@ -224,17 +224,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   // clear changes
 
-  def clearChanges(in: ObjectId): Future[ChangeResponse] =
+  def clearChanges(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.ClearChanges())).mapTo[Result].map {
-      case Ok(id) => ChangeResponse(id)
+      case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
   
   // get last change
 
-  def getLastChange(in: ObjectId): Future[ChangeResponse] =
+  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
     (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].map {
-      case Ok(id) => ChangeResponse(id)
+      case Ok(id) => ChangeDetailsResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
 
@@ -260,14 +260,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // unimplementeds
   //
 
-  def clearChanges(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+  //def clearChanges(in: ObjectId): Future[ObjectId] =
+  //  grpcFailFut(Status.UNIMPLEMENTED)
 
   def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
 
   def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
+
 //  def clearChanges(in: ObjectId): Future[ObjectId] =
 //    grpcFailFut(Status.UNIMPLEMENTED)
 
