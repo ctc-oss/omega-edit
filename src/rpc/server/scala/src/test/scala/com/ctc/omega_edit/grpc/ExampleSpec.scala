@@ -327,6 +327,65 @@ class ExampleSpec
 
       }
     }
+
+    "get last undo" in newSession { sid =>
+      val testString1 = UUID.randomUUID().toString + " chnage1"
+      val testString2 = UUID.randomUUID().toString + " change2"
+      val testString3 = UUID.randomUUID().toString + " change3"
+
+      val filePath = tmp.resolve("dat.txt").toString
+
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_INSERT,
+                        data = Some(ByteString.copyFromUtf8(testString1)))
+        )
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+
+        _ <- service.submitChange(
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_OVERWRITE,
+                        data = Some(ByteString.copyFromUtf8(testString2)))
+        )
+        saveResponse2 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+
+        _ <- service.submitChange(
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_OVERWRITE,
+                        data = Some(ByteString.copyFromUtf8(testString3)))
+        )
+        saveResponse3 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+
+        _ <- service.undoLastChange(ObjectId(sid))
+        saveResponse4 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+
+
+        _ <- service.getLastUndo(ObjectId(sid))
+        saveResponse5 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+
+        contents1 = Source
+          .fromFile(saveResponse1.filePath)
+          .mkString // to ensure first saved file not overwritten
+        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+        contents3 = Source.fromFile(saveResponse3.filePath).mkString
+        contents4 = Source.fromFile(saveResponse4.filePath).mkString
+        contents5 = Source.fromFile(saveResponse5.filePath).mkString
+      } yield {
+        saveResponse2.filePath should not be saveResponse1.filePath
+        saveResponse3.filePath should not be saveResponse2.filePath
+        saveResponse3.filePath should not be saveResponse1.filePath
+        contents1 shouldBe testString1
+        contents2 shouldBe testString2
+        contents3 shouldBe testString3
+        contents4 shouldBe testString2
+        contents5 shouldBe testString3
+      }
+    }
   }
 }
 

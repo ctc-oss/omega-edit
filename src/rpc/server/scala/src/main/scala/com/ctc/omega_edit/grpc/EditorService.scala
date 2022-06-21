@@ -245,6 +245,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c) => throw grpcFailure(c)
     }
 
+  // get last undo
+
+  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
+    (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
+      case Ok(id) => ChangeDetailsResponse(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
   // segments
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
