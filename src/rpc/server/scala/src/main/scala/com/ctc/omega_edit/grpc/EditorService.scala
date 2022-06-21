@@ -208,15 +208,41 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
 
+  // undo redo
+
   def undoLastChange(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
       case Ok(id) => ChangeResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
-
+        
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case Ok(id) => ChangeResponse(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
+  // clear changes
+
+  def clearChanges(in: ObjectId): Future[ChangeResponse] =
+    (editors ? SessionOp(in.id, Session.ClearChanges())).mapTo[Result].map {
+      case Ok(id) => ChangeResponse(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+  
+  // get last change
+
+  def getLastChange(in: ObjectId): Future[ChangeResponse] =
+    (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].map {
+      case Ok(id) => ChangeResponse(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
+  // get last undo
+
+  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
+    (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
+      case Ok(id) => ChangeDetailsResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
 
@@ -242,6 +268,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
+//  def clearChanges(in: ObjectId): Future[ObjectId] =
+//    grpcFailFut(Status.UNIMPLEMENTED)
 
   def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
@@ -249,11 +277,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
     grpcFailFut(Status.UNIMPLEMENTED)
 
-  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+//  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
+//    grpcFailFut(Status.UNIMPLEMENTED)
 
-  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+//  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
+//    grpcFailFut(Status.UNIMPLEMENTED)
 }
 
 object EditorService {

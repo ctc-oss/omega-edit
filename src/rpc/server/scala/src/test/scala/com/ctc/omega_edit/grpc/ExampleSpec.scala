@@ -155,17 +155,22 @@ class ExampleSpec
 
       for {
         _ <- service.submitChange(
-          ChangeRequest(sid, ChangeKind.CHANGE_INSERT, data = Some(ByteString.copyFromUtf8(testString1)))
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_INSERT,
+                        data = Some(ByteString.copyFromUtf8(testString1)))
         )
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
-        _ <- service.submitChange(
-          ChangeRequest(sid, ChangeKind.CHANGE_OVERWRITE, data = Some(ByteString.copyFromUtf8(testString2)))
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_OVERWRITE,
+                        data = Some(ByteString.copyFromUtf8(testString2)))
         )
-        saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+        saveResponse2 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
-        _ <- service.undoLastChange(ObjectId(sid))
-        saveResponse3 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+        saveResponse3_ <- service.undoLastChange(ObjectId(sid))
+        saveResponse3 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)

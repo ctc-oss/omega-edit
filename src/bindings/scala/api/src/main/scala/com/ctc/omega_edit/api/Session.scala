@@ -52,6 +52,12 @@ trait Session {
   def undoLast(): Result
   def redoUndo(): Result
 
+  def clearChanges(): Result
+
+  def getLastChange(): Result
+
+  def getLastUndo(): Result
+
   def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
   def findChange(id: Long): Option[Change]
 
@@ -61,6 +67,9 @@ trait Session {
   def search(pattern: String, offset: Long, length: Option[Long] = None, caseInsensitive: Boolean = false, limit: Option[Long] = None): List[Long]
 
   def getSegment(offset: Long, length: Long): Option[Segment]
+
+  def pauseSessionChanges(): Result
+  def resumeSessionChanges(): Result
 }
 
 object Session {

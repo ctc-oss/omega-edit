@@ -68,6 +68,7 @@ private[omega_edit] trait FFI {
   def omega_edit_delete(p: Pointer, offset: Long, len: Long): Long
   def omega_edit_undo_last_change(p: Pointer): Long
   def omega_edit_redo_last_undo(p: Pointer): Long
+  def omega_edit_clear_changes(p: Pointer): Long
   def omega_edit_create_viewport(
       p: Pointer,
       offset: Long,
@@ -91,6 +92,10 @@ private[omega_edit] trait FFI {
   def omega_session_get_segment(session: Pointer, segment: Pointer, offset: Long): Int
   def omega_session_get_segment_string(session: Pointer, offset: Long, length: Long): String
   def omega_session_set_event_interest(p: Pointer, eventInterest: Int): Int
+  def omega_session_get_last_change(p: Pointer): Long
+  def omega_session_get_last_undo(p: Pointer): Long
+  def omega_session_pause_changes(p: Pointer): Long
+  def omega_session_resume_changes(p: Pointer): Long
 
   // viewport
 
