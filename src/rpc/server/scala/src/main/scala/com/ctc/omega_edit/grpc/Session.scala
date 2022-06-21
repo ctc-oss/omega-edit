@@ -68,12 +68,9 @@ object Session {
 
   case class UndoLast() extends Op
   case class RedoUndo() extends Op
-<<<<<<< HEAD
-=======
   case class Clear() extends Op
   case class GetLastChange() extends Op
   case class GetLastUndo() extends Op
->>>>>>> session-viewport-pause-resume
 
   case class Search(request: SearchRequest) extends Op
 
@@ -156,8 +153,6 @@ class Session(
     case RedoUndo() =>
       session.redoUndo()
       sender() ! Ok(sessionId)
-<<<<<<< HEAD
-=======
 
     case ClearChanges() =>
       session.clearChanges()
@@ -171,14 +166,13 @@ class Session(
       session.getLastUndo()
       sender() ! Ok(sessionId)
 
-    case PauseSession =>
+    case PauseSession() =>
       session.pauseSessionChanges()
       sender() ! Ok(sessionId)
 
-    case ResumeSession =>
+    case ResumeSession() =>
       session.resumeSessionChanges()
       sender() ! Ok(sessionId)
->>>>>>> session-viewport-pause-resume
 
     case Watch =>
       sender() ! new Ok(sessionId) with Events {
