@@ -68,8 +68,8 @@ trait Session {
 
   def getSegment(offset: Long, length: Long): Option[Segment]
 
-  def pauseSessionChanges(): Result
-  def resumeSessionChanges(): Result
+  def pauseSessionChanges(): Unit
+  def resumeSessionChanges(): Unit
 }
 
 object Session {

@@ -246,7 +246,24 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c) => throw grpcFailure(c)
     }
 
+  // pause session changes
+
+  def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.PauseSession())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+  
+  // resume session changes
+
+  def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.ResumeSession())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+  
   // segments
+
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
       .mapTo[Option[api.Segment]] // No `Ok` wrapper
@@ -263,11 +280,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   //def clearChanges(in: ObjectId): Future[ObjectId] =
   //  grpcFailFut(Status.UNIMPLEMENTED)
 
-  def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+  //def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
+  //  grpcFailFut(Status.UNIMPLEMENTED)
 
-  def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
+  //def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
+  //  grpcFailFut(Status.UNIMPLEMENTED)
 
 //  def clearChanges(in: ObjectId): Future[ObjectId] =
 //    grpcFailFut(Status.UNIMPLEMENTED)
