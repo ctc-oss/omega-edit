@@ -33,6 +33,8 @@ object SessionEvent extends IntEnum[SessionEvent] {
   case object CreateCheckpoint extends SessionEvent(32)
   case object DestroyCheckpoint extends SessionEvent(64)
   case object Save extends SessionEvent(128)
+  case object ChangesPaused extends SessionEvent(256)
+  case object ChangesResumed extends SessionEvent(512)
 
   val values = findValues
 
