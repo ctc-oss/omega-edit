@@ -24,6 +24,11 @@ generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 
+set +e
+checker=""
+which valgrind >/dev/null; [[ $? -eq 0 ]] && checker="valgrind --leak-check=full --show-leak-kinds=all -s"
+set -e
+
 rm -rf "$install_dir"
 
 rm -rf build-shared-$type
@@ -58,7 +63,7 @@ cmake --build build-examples-$type
 rm -rf build-rpc-$type
 cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
 cmake --build build-rpc-$type
-build-rpc-$type/bin/server_test
+$checker build-rpc-$type/bin/server_test
 build-rpc-$type/bin/server --target=127.0.0.1:9000 &
 server_pid=$!
 pushd src/rpc/client/ts/
