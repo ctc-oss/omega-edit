@@ -642,7 +642,7 @@ public:
     }
 
     ServerUnaryReactor *ResumeSessionChanges(CallbackServerContext *context, const ObjectId *request,
-                                            ObjectId *response) override {
+                                             ObjectId *response) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
         const auto session_ptr = session_manager_.get_session_ptr(session_id);

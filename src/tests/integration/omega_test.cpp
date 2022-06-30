@@ -394,9 +394,18 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.6.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.6.dat", "data/test1.actual.checkpoint.6.dat"));
+    auto change_ptr = omega_session_get_last_change(session_ptr);
+    REQUIRE(change_ptr);
+    REQUIRE(3 == omega_change_get_serial(change_ptr));
+    REQUIRE(4 == omega_edit_insert_string(session_ptr, 0, "12345"));
+    REQUIRE(5 == omega_edit_delete(session_ptr, 0, 5));
+    REQUIRE(5 == omega_session_get_num_changes(session_ptr));
+    change_ptr = omega_session_get_last_change(session_ptr);
+    REQUIRE(5 == omega_change_get_serial(change_ptr));
     REQUIRE(0 == omega_edit_destroy_last_checkpoint(session_ptr));
     REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(2 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(nullptr == omega_session_get_last_change(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.7.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.7.dat"));
     omega_edit_destroy_session(session_ptr);
