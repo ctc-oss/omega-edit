@@ -272,6 +272,7 @@ class ExampleSpec
 
       }
     }
+
     "get last undo" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString + " chnage1"
       val testString2 = UUID.randomUUID().toString + " change2"
@@ -327,8 +328,8 @@ class ExampleSpec
         contents2 shouldBe testString2
         contents3 shouldBe testString3
         contents4 shouldBe testString2
-        //contents5 shouldBe testString3  //this should be correct
-        contents5 shouldBe testString2 //this doesn't seem correct
+        contents5 shouldBe testString3  //this should be correct
+        //contents5 shouldBe testString2 //this doesn't seem correct
       }
     }
 
@@ -356,8 +357,8 @@ class ExampleSpec
 
         _ <- service.pauseSessionChanges(ObjectId(sid))
         
-        saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+      //  saveResponse3 <- service.saveSession(
+      //    SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
       //  _<- service.resumeSessionChanges(ObjectId(sid))
 
@@ -373,7 +374,7 @@ class ExampleSpec
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
         contents2 shouldBe testString2
-        saveResponse3 shouldBe true
+      //  saveResponse3 shouldBe true
       //  saveResponse4 shouldBe true
       }
     }
