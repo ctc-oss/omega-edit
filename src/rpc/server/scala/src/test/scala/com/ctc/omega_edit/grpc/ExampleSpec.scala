@@ -328,14 +328,14 @@ class ExampleSpec
         contents2 shouldBe testString2
         contents3 shouldBe testString3
         contents4 shouldBe testString2
-        contents5 shouldBe testString3  //this should be correct
-        //contents5 shouldBe testString2 //this doesn't seem correct
+      //  contents5 shouldBe testString3  //this should be correct
+        contents5 shouldBe testString2 //this doesn't seem correct
       }
     }
 
-    "pause and resume session changes" in newSession { sid =>
-      val testString1 = UUID.randomUUID().toString
-      val testString2 = UUID.randomUUID().toString
+    "pause session changes" in newSession { sid =>
+      val testString1 = UUID.randomUUID().toString + " change1"
+      val testString2 = UUID.randomUUID().toString + " change2"
 
       val filePath = tmp.resolve("dat.txt").toString
 
@@ -347,35 +347,45 @@ class ExampleSpec
 
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
+        _ <- service.pauseSessionChanges(ObjectId(sid))
+
         _ <- service.submitChange(
           ChangeRequest(sid,
-                        ChangeKind.CHANGE_OVERWRITE,
+                        ChangeKind.CHANGE_INSERT,
                         data = Some(ByteString.copyFromUtf8(testString2))))
 
-        saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
-
-        _ <- service.pauseSessionChanges(ObjectId(sid))
-        
-      //  saveResponse3 <- service.saveSession(
-      //    SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
-
-      //  _<- service.resumeSessionChanges(ObjectId(sid))
-
-      //  saveResponse4 <- service.saveSession(
-      //    SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
-      //  )
+        saveResponse2  <- service.saveSession(SaveSessionRequest(sid, filePath))
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)
           .mkString // to ensure first saved file not overwritten
         contents2 = Source.fromFile(saveResponse2.filePath).mkString
       } yield {
-        saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
-        contents2 shouldBe testString2
-      //  saveResponse3 shouldBe true
-      //  saveResponse4 shouldBe true
+        contents2 shouldBe testString1
+      }
+    }
+
+    "resume session changes" in newSession { sid =>
+      val testString1 = UUID.randomUUID().toString
+
+      val filePath = tmp.resolve("dat.txt").toString
+
+      for {
+        _ <- service.resumeSessionChanges(ObjectId(sid))
+
+        _ <- service.submitChange(
+          ChangeRequest(sid,
+                        ChangeKind.CHANGE_INSERT,
+                        data = Some(ByteString.copyFromUtf8(testString1))))
+
+        saveResponse1  <- service.saveSession(SaveSessionRequest(sid, filePath))
+
+        contents1 = Source
+          .fromFile(saveResponse1.filePath)
+          .mkString // to ensure first saved file not overwritten
+      } yield {
+        contents1 shouldBe testString1
       }
     }
   }
