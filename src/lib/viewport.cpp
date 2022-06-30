@@ -122,8 +122,7 @@ void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_
                            const omega_change_t *change_ptr) {
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
-    if (viewport_ptr->event_handler &&
-        (viewport_event & viewport_ptr->event_interest_) &&
+    if (viewport_ptr->event_handler && (viewport_event & viewport_ptr->event_interest_) &&
         !omega_session_viewport_event_callbacks_paused(viewport_ptr->session_ptr)) {
         (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, change_ptr);
     }

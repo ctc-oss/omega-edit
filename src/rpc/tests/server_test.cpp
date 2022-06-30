@@ -908,12 +908,13 @@ private:
 void run_tests(const std::string &target_str, int repetitions, bool log) {
     const int64_t vpt_capacity = 5;
     fs::remove_all(fs::current_path() / "server_test_out");
+    OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] Establishing a channel to Ωedit server on: " << target_str << std::endl;);
         }
-        OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+        //OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
         auto reply = server_test_client.GetOmegaEditVersion();
         if (log) {
