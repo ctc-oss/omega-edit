@@ -77,6 +77,9 @@ object Session {
 
   case class Segment(request: SegmentRequest) extends Op
 
+  case class PauseSession() extends Op
+  case class ResumeSession() extends Op
+
   case class Updated(id: String)
 
   trait ChangeDetails {
@@ -162,6 +165,14 @@ class Session(
 
     case GetLastUndo() =>
       session.getLastUndo()
+      sender() ! Ok(sessionId)
+
+    case PauseSession() =>
+      session.pauseSessionChanges()
+      sender() ! Ok(sessionId)
+
+    case ResumeSession() =>
+      session.resumeSessionChanges()
       sender() ! Ok(sessionId)
 
     case Watch =>
