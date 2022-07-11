@@ -23,7 +23,16 @@ endif ()
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
-# Dependencies
+#######################################################################################################################
+# DEPENDENCIES
+#######################################################################################################################
+if (NOT EXISTS "cmake/conan.cmake")
+    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
+            "cmake/conan.cmake"
+            TLS_VERIFY ON)
+endif ()
+
 include("cmake/conan.cmake")
 
 function(conan_config_set)
@@ -50,7 +59,7 @@ endfunction()
 
 conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
-        REQUIRES "boost/1.78.0" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
+        REQUIRES "boost/1.79.0" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
@@ -62,8 +71,8 @@ include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
 set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.78.0)
-find_package(omega_edit REQUIRED)
+find_package(Boost 1.79.0)
+message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
 if (MSVC)
     set(protoc "build_tools/protoc.exe")
