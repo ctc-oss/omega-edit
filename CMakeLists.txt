@@ -45,15 +45,40 @@ if (NOT EXISTS "cmake/conan.cmake")
             "cmake/conan.cmake"
             TLS_VERIFY ON)
 endif ()
+
 include("cmake/conan.cmake")
-conan_cmake_autodetect(settings)
+
+function(conan_config_set)
+    # Set a config value.
+    # Arguments NAME and VALUE are required
+    # Example usage:
+    #    conan_config_set(NAME general.revision_enabled
+    #                     VALUE 1)
+    #
+    # See: https://docs.conan.io/en/latest/reference/commands/consumer/config.html
+    set(oneValueArgs NAME VALUE)
+    cmake_parse_arguments(CONAN "" "${oneValueArgs}" "" ${ARGN})
+    if(DEFINED CONAN_COMMAND)
+        set(CONAN_CMD ${CONAN_COMMAND})
+    else()
+        conan_check(REQUIRED)
+    endif()
+    message(STATUS "Conan: Setting ${CONAN_NAME} to ${CONAN_VALUE}")
+    execute_process(COMMAND ${CONAN_CMD} config set ${CONAN_NAME}=${CONAN_VALUE} RESULT_VARIABLE return_code)
+    if(NOT "${return_code}" STREQUAL "0")
+        message(FATAL_ERROR "Conan config set failed='${return_code}'")
+    endif()
+endfunction()
+
+conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
-        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.45.2"
+        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
+conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
