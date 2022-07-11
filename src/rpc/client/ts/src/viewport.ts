@@ -78,7 +78,9 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
   })
 }
 
-export function getViewportData(viewport_id: string): Promise<ViewportDataResponse> {
+export function getViewportData(
+  viewport_id: string
+): Promise<ViewportDataResponse> {
   return new Promise<ViewportDataResponse>((resolve, reject) => {
     client.getViewportData(
       new ViewportDataRequest().setViewportId(viewport_id),
