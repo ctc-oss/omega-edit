@@ -24,9 +24,11 @@ import {
   destroySession,
   getComputedFileSize,
   getSegment,
-  getSessionCount, pauseSessionChanges, resumeSessionChanges,
+  getSessionCount,
+  pauseSessionChanges,
+  resumeSessionChanges,
   saveSession,
-  searchSession
+  searchSession,
 } from '../../src/session'
 import {
   clear,
@@ -38,9 +40,14 @@ import {
   insert,
   overwrite,
   redo,
-  undo
+  undo,
 } from '../../src/change'
-import { createViewport, destroyViewport, getViewportCount, getViewportData } from '../../src/viewport'
+import {
+  createViewport,
+  destroyViewport,
+  getViewportCount,
+  getViewportData,
+} from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
@@ -54,8 +61,12 @@ describe('Version', () => {
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {
-    expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(encode('abc123'))
-    expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(Buffer.from('abc123'))
+    expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(
+      encode('abc123')
+    )
+    expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(
+      Buffer.from('abc123')
+    )
   })
   it('Should decode Uint8Array into string', () => {
     expect('abc123').to.equal(decode(new Uint8Array([97, 98, 99, 49, 50, 51])))
@@ -109,7 +120,9 @@ describe('Editing', () => {
       let file_size = await getComputedFileSize(session_id)
       expect(data.length).equals(file_size)
       let del_change_id = await del(session_id, 13, 'nopqrstuvw', 10)
-      expect(del_change_id).to.be.a('number').that.equals(change_id + 1)
+      expect(del_change_id)
+        .to.be.a('number')
+        .that.equals(change_id + 1)
       file_size = await getComputedFileSize(session_id)
       expect(data.length - 10).equals(file_size)
       segment = await getSegment(session_id, 0, file_size)
@@ -135,7 +148,9 @@ describe('Editing', () => {
       expect(26).to.equal(last_change.getLength())
       expect(session_id).to.equal(last_change.getSessionId())
       let overwrite_change_id = await overwrite(
-        session_id, 13, encode('NO123456VW')
+        session_id,
+        13,
+        encode('NO123456VW')
       ) // overwriting: nopqrstuvw (len: 10)
       expect(overwrite_change_id).to.be.a('number').that.equals(2)
       file_size = await getComputedFileSize(session_id)
@@ -147,9 +162,7 @@ describe('Editing', () => {
       expect(2).to.equal(last_change.getSerial())
       expect(10).to.equal(last_change.getLength())
       expect(session_id).to.equal(last_change.getSessionId())
-      overwrite_change_id = await overwrite(
-        session_id, 15, 'PQRSTU'
-      ) // overwriting: 123456 (len: 6), using a string
+      overwrite_change_id = await overwrite(session_id, 15, 'PQRSTU') // overwriting: 123456 (len: 6), using a string
       expect(overwrite_change_id).to.be.a('number').that.equals(3)
       file_size = await getComputedFileSize(session_id)
       expect(data.length).equals(file_size)
@@ -320,42 +333,84 @@ describe('Editing', () => {
   describe('Search', () => {
     it('Should search sessions', async () => {
       let change_id = await overwrite(
-        session_id, 0, encode('haystackneedleNEEDLENeEdLeneedhay')
+        session_id,
+        0,
+        encode('haystackneedleNEEDLENeEdLeneedhay')
       )
       expect(1).to.equal(change_id)
       let file_size = await getComputedFileSize(session_id)
       let needles = await searchSession(
-        session_id, 'needle', false, 0, 0, undefined
+        session_id,
+        'needle',
+        false,
+        0,
+        0,
+        undefined
       )
       expect([8]).deep.equals(needles)
       needles = await searchSession(
-        session_id, encode('needle'), true, 3, file_size - 3, undefined
+        session_id,
+        encode('needle'),
+        true,
+        3,
+        file_size - 3,
+        undefined
       )
       expect([8, 14, 20]).deep.equals(needles)
       needles = await searchSession(
-        session_id, encode('needle'), true, 3, file_size - 3, 0
+        session_id,
+        encode('needle'),
+        true,
+        3,
+        file_size - 3,
+        0
       )
       expect([8, 14, 20]).deep.equals(needles)
       needles = await searchSession(
-        session_id, encode('needle'), true, 3, file_size - 3, 2
+        session_id,
+        encode('needle'),
+        true,
+        3,
+        file_size - 3,
+        2
       )
       expect([8, 14]).deep.equals(needles)
       needles = await searchSession(session_id, 'NEEDLE', false, 0, 0, 1)
       expect([14]).deep.equals(needles)
       needles = await searchSession(
-        session_id, 'NEEDLE', false, 0, 20, undefined
+        session_id,
+        'NEEDLE',
+        false,
+        0,
+        20,
+        undefined
       )
       expect([14]).deep.equals(needles)
       needles = await searchSession(
-        session_id, 'NEEDLE', false, 14, 6, undefined
+        session_id,
+        'NEEDLE',
+        false,
+        14,
+        6,
+        undefined
       )
       expect([14]).deep.equals(needles)
       needles = await searchSession(
-        session_id, 'NEEDLE', false, 14, 5, undefined
+        session_id,
+        'NEEDLE',
+        false,
+        14,
+        5,
+        undefined
       )
       expect([]).deep.equals(needles)
       needles = await searchSession(
-        session_id, 'NEEDLE', false, 0, 19, undefined
+        session_id,
+        'NEEDLE',
+        false,
+        0,
+        19,
+        undefined
       )
       expect([]).deep.equals(needles)
 
@@ -369,7 +424,13 @@ describe('Editing', () => {
 
   describe('Viewports', () => {
     it('Should create and destroy viewports', async () => {
-      let viewport_id = await createViewport('test_vpt_1', session_id, 0, 10, false)
+      let viewport_id = await createViewport(
+        'test_vpt_1',
+        session_id,
+        0,
+        10,
+        false
+      )
       expect('test_vpt_1').to.equal(viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
       viewport_id = await createViewport(undefined, session_id, 10, 10, false)
@@ -406,11 +467,23 @@ describe('Editing', () => {
       expect(1).to.equal(await getViewportCount(session_id))
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
     })
-    it('Should handle floating viewports', async() => {
+    it('Should handle floating viewports', async () => {
       let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
       expect(1).to.equal(change_id)
-      let viewport_id = await createViewport('test_vpt_no_float', session_id, 10, 5, false)
-      let viewport_floating_id = await createViewport('test_vpt_label', session_id, 10, 5, true)
+      let viewport_id = await createViewport(
+        'test_vpt_no_float',
+        session_id,
+        10,
+        5,
+        false
+      )
+      let viewport_floating_id = await createViewport(
+        'test_vpt_label',
+        session_id,
+        10,
+        5,
+        true
+      )
       let viewport_data = await getViewportData(viewport_floating_id)
       expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
       expect(10).to.equal(viewport_data.getOffset())
@@ -446,7 +519,9 @@ describe('Editing', () => {
     it('Should stress test the editing capabilities', async () => {
       const full_rotations = 3
       expect(full_rotations).to.be.a('number').greaterThan(0)
-      const data = encode('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}\|;:",<.>/?`~')
+      const data = encode(
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'
+      )
       let change_id = await insert(session_id, 0, data)
       expect(1).to.equal(change_id)
       const file_size = await getComputedFileSize(session_id)
@@ -456,20 +531,34 @@ describe('Editing', () => {
       expect(0).to.equal(change_id)
       expect(data.length).to.equal(await getComputedFileSize(session_id))
       await resumeSessionChanges(session_id)
-      let viewport_id = await createViewport('last_byte_vpt', session_id, file_size - 1, 1, false)
-      let viewport_2_id = await createViewport('all_data_vpt', session_id, 0, file_size, false)
+      let viewport_id = await createViewport(
+        'last_byte_vpt',
+        session_id,
+        file_size - 1,
+        1,
+        false
+      )
+      let viewport_2_id = await createViewport(
+        'all_data_vpt',
+        session_id,
+        0,
+        file_size,
+        false
+      )
       let viewport_data = await getViewportData(viewport_id)
       expect('~').to.equal(decode(viewport_data.getData_asU8()))
       let rotations = file_size * full_rotations
       while (rotations--) {
         viewport_data = await getViewportData(viewport_id)
-        expect(1 + await insert(session_id, 0, ' ')).to.equal(await overwrite(session_id, 0, decode(viewport_data.getData_asU8())))
-        expect(await undo(session_id) * -1).to.equal(await redo(session_id))
+        expect(1 + (await insert(session_id, 0, ' '))).to.equal(
+          await overwrite(session_id, 0, decode(viewport_data.getData_asU8()))
+        )
+        expect((await undo(session_id)) * -1).to.equal(await redo(session_id))
         change_id = await del(session_id, file_size, ' ', 1)
         //console.log(decode(await getViewportData(viewport_2_id)))
       }
       expect(await getChangeCount(session_id)).to.equal(change_id)
-      expect(1 + (3 * file_size * full_rotations)).to.equal(change_id)
+      expect(1 + 3 * file_size * full_rotations).to.equal(change_id)
       viewport_data = await getViewportData(viewport_2_id)
       expect(data).to.deep.equal(viewport_data.getData_asU8())
       expect(viewport_id).to.equal(await destroyViewport(viewport_id))
