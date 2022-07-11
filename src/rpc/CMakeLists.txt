@@ -48,9 +48,7 @@ function(conan_config_set)
     endif()
 endfunction()
 
-# Enable revisions support.
 conan_config_set(NAME general.revisions_enabled VALUE 1)
-conan_cmake_autodetect(settings)
 conan_cmake_configure(
         REQUIRES "boost/1.78.0" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
         OPTIONS boost:header_only=True
@@ -58,6 +56,7 @@ conan_cmake_configure(
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
+conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
