@@ -976,54 +976,59 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     int viewport_events_count = 0;
     auto session_ptr =
             omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, ALL_EVENTS);
+    REQUIRE(1 == session_events_count);// SESSION_EVT_CREATE
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                                    &viewport_events_count, ALL_EVENTS);
-    REQUIRE(1 == session_events_count); // SESSION_EVT_CREATE
+
+    REQUIRE(2 == session_events_count); // SESSION_EVT_CREATE_VIEWPORT
     REQUIRE(1 == viewport_events_count);// VIEWPORT_EVT_CREATE
     omega_edit_insert_string(session_ptr, 0, "0123456789");
-    REQUIRE(2 == session_events_count); // SESSION_EVT_EDIT
+    REQUIRE(3 == session_events_count); // SESSION_EVT_EDIT
     REQUIRE(2 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_util_remove_file("data/session_save.1.dat");
     omega_edit_save(session_ptr, "data/session_save.1.dat", 1, saved_filename);
     REQUIRE(omega_util_paths_equivalent("data/session_save.1.dat", saved_filename));
-    REQUIRE(3 == session_events_count); // SESSION_EVT_SAVE
+    REQUIRE(4 == session_events_count); // SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events
     omega_edit_destroy_session(session_ptr);
     session_events_count = 0;
     viewport_events_count = 0;
     session_ptr = omega_edit_create_session("data/session_save.1.dat", session_save_test_session_cbk,
                                             &session_events_count, ALL_EVENTS);
+    REQUIRE(1 == session_events_count);
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                               &viewport_events_count, ALL_EVENTS);
+    REQUIRE(2 == session_events_count);
+    REQUIRE(1 == viewport_events_count);
     omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr),
                              "abcdefghijklmnopqrstuvwxyz");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
-    REQUIRE(2 == session_events_count);
+    REQUIRE(3 == session_events_count);
     REQUIRE(2 == viewport_events_count);
     omega_edit_save(session_ptr, "data/session_save.1.dat", 1, saved_filename);
     REQUIRE(omega_util_paths_equivalent("data/session_save.1.dat", saved_filename));
     REQUIRE(0 == compare_files("data/session_save.expected.1.dat", "data/session_save.1.dat"));
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
-    REQUIRE(4 == session_events_count); // SESSION_EVT_CLEAR and SESSION_EVT_SAVE
+    REQUIRE(5 == session_events_count); // SESSION_EVT_CLEAR and SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events
     omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr),
                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     omega_util_remove_file("data/session_save.1-1.dat");
-    REQUIRE(5 == session_events_count); // SESSION_EVT_SAVE
-    REQUIRE(3 == viewport_events_count);// no additional viewport events
+    REQUIRE(6 == session_events_count); // SESSION_EVT_SAVE
+    REQUIRE(3 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_edit_save(session_ptr, "data/session_save.1.dat", 0, saved_filename);
-    REQUIRE(6 == session_events_count);// SESSION_EVT_SAVE
+    REQUIRE(7 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent("data/session_save.1-1.dat", saved_filename));
     REQUIRE(0 == compare_files("data/session_save.expected.2.dat", "data/session_save.1-1.dat"));
     omega_util_remove_file("data/session_save.1-2.dat");
     omega_edit_save(session_ptr, "data/session_save.1.dat", 0, saved_filename);
-    REQUIRE(7 == session_events_count);// SESSION_EVT_SAVE
+    REQUIRE(8 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent("data/session_save.1-2.dat", saved_filename));
     REQUIRE(0 == compare_files("data/session_save.expected.2.dat", "data/session_save.1-2.dat"));
     omega_util_remove_file("data/session_save.1-3.dat");
     omega_edit_save(session_ptr, "data/session_save.1.dat", 0, saved_filename);
-    REQUIRE(8 == session_events_count);// SESSION_EVT_SAVE
+    REQUIRE(9 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent("data/session_save.1-3.dat", saved_filename));
     REQUIRE(0 == compare_files("data/session_save.expected.2.dat", "data/session_save.1-3.dat"));
     omega_edit_destroy_session(session_ptr);

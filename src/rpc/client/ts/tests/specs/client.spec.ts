@@ -516,7 +516,7 @@ describe('Editing', () => {
   })
 
   describe('StressTest', () => {
-    const full_rotations = 2
+    const full_rotations = 10
     it('Should stress test the editing capabilities (' + full_rotations + ' rotations)', async () => {
       expect(full_rotations).to.be.a('number').greaterThan(0)
       const data = encode(
@@ -557,8 +557,8 @@ describe('Editing', () => {
         expect((await undo(session_id)) * -1).to.equal(await redo(session_id))
         change_id = await del(session_id, file_size, ' ', 1)
         viewport_data = await getViewportData(viewport_2_id)
-        console.log(decode(viewport_data.getData_asU8()))
-        console.log("Number of changes: " + await getChangeCount(session_id) + " of " + expected_num_changes)
+        //console.log(decode(viewport_data.getData_asU8()))
+        //console.log("Number of changes: " + await getChangeCount(session_id) + " of " + expected_num_changes)
       }
       expect(await getChangeCount(session_id)).to.equal(change_id)
       expect(expected_num_changes).to.equal(change_id)
@@ -566,7 +566,7 @@ describe('Editing', () => {
       expect(data).to.deep.equal(viewport_data.getData_asU8())
       expect(viewport_id).to.equal(await destroyViewport(viewport_id))
       expect(viewport_2_id).to.equal(await destroyViewport(viewport_2_id))
-      console.log("Number of changes: " + await getChangeCount(session_id))
-    })
-  }).timeout(5)
+      //console.log("Number of changes: " + await getChangeCount(session_id))
+    }).timeout(10000 * full_rotations)
+  })
 })
