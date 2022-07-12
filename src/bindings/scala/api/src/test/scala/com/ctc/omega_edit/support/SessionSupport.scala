@@ -48,10 +48,14 @@ trait SessionSupport {
       def event: Option[SessionEvent] = _event
       def change: Option[Option[Change]] = _change
     }
-    val session = OmegaEdit.newSessionCb(None, (_, e, c) => {
-      _event = Some(e)
-      _change = Some(c)
-    }, Some(SessionEvent.Interest.All))
+    val session = OmegaEdit.newSessionCb(
+      None,
+      (_, e, c) => {
+        _event = Some(e)
+        _change = Some(c)
+      },
+      Some(SessionEvent.Interest.All)
+    )
     test(session, cb)
   }
 

@@ -72,7 +72,7 @@ lazy val api = project
       Seq(
         "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
-        "org.scalatest" %% "scalatest" % "3.2.11" % Test
+        "org.scalatest" %% "scalatest" % "3.2.12" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,

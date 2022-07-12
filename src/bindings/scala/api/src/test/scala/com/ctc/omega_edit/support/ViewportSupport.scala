@@ -27,7 +27,7 @@ trait ViewportSupport {
   class WithCallback(
       var data: Option[String] = None,
       var event: Option[ViewportEvent] = None,
-      var change: Option[Change] = None,
+      var change: Option[Change] = None
   ) {
     override def toString(): String = s"WithCallback($data, $event, $change)"
   }

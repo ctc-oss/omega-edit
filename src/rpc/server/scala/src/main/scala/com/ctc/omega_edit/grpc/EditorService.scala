@@ -50,7 +50,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
-    (editors ? Create(in.sessionIdDesired, in.filePath.map(Paths.get(_)), in.eventInterest))
+    (editors ? Create(
+      in.sessionIdDesired,
+      in.filePath.map(Paths.get(_)),
+      in.eventInterest
+    ))
       .mapTo[Result]
       .map {
         case Ok(id) => CreateSessionResponse(id)
@@ -78,8 +82,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c)              => throw grpcFailure(c)
     }
 
-  def createViewport(in: CreateViewportRequest): Future[CreateViewportResponse] =
-    (editors ? SessionOp(in.sessionId, View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest)))
+  def createViewport(
+      in: CreateViewportRequest
+  ): Future[CreateViewportResponse] =
+    (editors ? SessionOp(
+      in.sessionId,
+      View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest)
+    ))
       .mapTo[Result]
       .map {
         case Ok(id) => CreateViewportResponse(in.sessionId, id)
@@ -102,7 +111,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
           case Err(c) => throw grpcFailure(c)
           case ok: Ok with Data =>
-            ViewportDataResponse.apply(ok.id, length = ok.data.size.toLong, data = ok.data)
+            ViewportDataResponse
+              .apply(ok.id, length = ok.data.size.toLong, data = ok.data)
           case Ok(id) => ViewportDataResponse(id)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
@@ -128,7 +138,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           .mapTo[Result]
           .map {
             case ok: Ok with ChangeDetails =>
-              ChangeDetailsResponse(in.sessionId, cid, offset = ok.change.offset, length = ok.change.length)
+              ChangeDetailsResponse(
+                in.sessionId,
+                cid,
+                offset = ok.change.offset,
+                length = ok.change.length
+              )
             case Ok(_)  => ChangeDetailsResponse(in.sessionId)
             case Err(c) => throw grpcFailure(c)
           }
@@ -138,7 +153,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Size => ComputedFileSizeResponse(in.id, ok.computedSize)
       case Err(c)           => throw grpcFailure(c)
-      case _                => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
+      case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
@@ -169,11 +184,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case ok: Ok with Size =>
           CountResponse(in.sessionId, in.kind, ok.computedSize)
         case Err(c) => throw grpcFailure(c)
-        case _      => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+        case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
 
-  /**
-    * Event streams
+  /** Event streams
     */
   def subscribeToSessionEvents(in: ObjectId): Source[SessionEvent, NotUsed] = {
     val f = (editors ? SessionOp(in.id, Session.Watch)).mapTo[Result].map {
@@ -190,12 +204,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         val f =
           (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
             case ok: Ok with Viewport.Events =>
-              ok.stream.map(u => ViewportEvent(u.id, serial = u.change.map(_.id)))
+              ok.stream
+                .map(u => ViewportEvent(u.id, serial = u.change.map(_.id)))
             case _ => Source.failed(grpcFailure(Status.UNKNOWN))
           }
         Await.result(f, 1.second)
       case _ =>
-        Source.failed(new GrpcServiceException(Status.INVALID_ARGUMENT.withDescription("malformed viewport id")))
+        Source.failed(
+          new GrpcServiceException(
+            Status.INVALID_ARGUMENT.withDescription("malformed viewport id")
+          )
+        )
     }
 
   def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] =
@@ -206,7 +225,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // search
 
   def searchSession(in: SearchRequest): Future[SearchResponse] =
-    (editors ? SessionOp(in.sessionId, Session.Search(in))).mapTo[SearchResponse] // No `Ok` wrapper
+    (editors ? SessionOp(in.sessionId, Session.Search(in)))
+      .mapTo[SearchResponse] // No `Ok` wrapper
 
   // undo redo
 
@@ -215,7 +235,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ChangeResponse(id)
       case Err(c) => throw grpcFailure(c)
     }
-        
+
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case Ok(id) => ChangeResponse(id)
@@ -229,7 +249,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
-  
+
   // get last change
 
   def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
@@ -253,7 +273,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
-  
+
   // resume session changes
 
   def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
@@ -261,29 +281,35 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
-  
+
   // segments
 
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
       .mapTo[Option[api.Segment]] // No `Ok` wrapper
       .flatMap {
-        case None => grpcFailFut[SegmentResponse](Status.NOT_FOUND, s"couldn't find segment: $in")
+        case None =>
+          grpcFailFut[SegmentResponse](
+            Status.NOT_FOUND,
+            s"couldn't find segment: $in"
+          )
         case Some(api.Segment(offset, data)) =>
-          Future.successful(SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data)))
+          Future.successful(
+            SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
+          )
       }
 
   //
   // unimplementeds
   //
 
-  //def clearChanges(in: ObjectId): Future[ObjectId] =
+  // def clearChanges(in: ObjectId): Future[ObjectId] =
   //  grpcFailFut(Status.UNIMPLEMENTED)
 
-  //def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
+  // def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
   //  grpcFailFut(Status.UNIMPLEMENTED)
 
-  //def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
+  // def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
   //  grpcFailFut(Status.UNIMPLEMENTED)
 
 //  def clearChanges(in: ObjectId): Future[ObjectId] =
@@ -304,7 +330,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
 object EditorService {
   def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
-    new GrpcServiceException(if (message.nonEmpty) status.withDescription(message) else status)
+    new GrpcServiceException(
+      if (message.nonEmpty) status.withDescription(message) else status
+    )
 
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
@@ -319,6 +347,8 @@ object EditorService {
       }
     }
 
-  def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit system: ActorSystem): Future[Http.ServerBinding] =
+  def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit
+      system: ActorSystem
+  ): Future[Http.ServerBinding] =
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
 }

@@ -19,8 +19,7 @@ package com.ctc.omega_edit.api
 import enumeratum.values.IntEnumEntry
 import enumeratum.values.IntEnum
 
-/**
-  * Defines the types of events emitted by a session
+/** Defines the types of events emitted by a session
   */
 sealed abstract class SessionEvent(val value: Int) extends IntEnumEntry
 object SessionEvent extends IntEnum[SessionEvent] {
