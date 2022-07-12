@@ -35,7 +35,11 @@ object Editors {
   def props() = Props(new Editors)
 
   case class Find(id: String)
-  case class Create(id: Option[String], path: Option[Path], eventInterest: Option[Int])
+  case class Create(
+      id: Option[String],
+      path: Option[Path],
+      eventInterest: Option[Int]
+  )
   case class Destroy(id: String)
   case object SessionCount
 
@@ -77,7 +81,14 @@ class Editors extends Actor with ActorLogging {
             input.queue.offer(Session.Updated(id))
             ()
           }
-          context.actorOf(Session.props(OmegaEdit.newSessionCb(path, cb, eventInterest), stream, cb), id)
+          context.actorOf(
+            Session.props(
+              OmegaEdit.newSessionCb(path, cb, eventInterest),
+              stream,
+              cb
+            ),
+            id
+          )
           sender() ! Ok(id)
       }
 

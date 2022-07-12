@@ -18,4 +18,5 @@ package com.ctc.omega_edit.spi
 
 case class VersionMismatch(api: String, native: String)
     extends IllegalStateException(
-      s"Native library mismatch: api: $api, native: $native")
+      s"Native library mismatch: api: $api, native: $native"
+    )
