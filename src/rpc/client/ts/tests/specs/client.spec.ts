@@ -516,8 +516,8 @@ describe('Editing', () => {
   })
 
   describe('StressTest', () => {
-    it('Should stress test the editing capabilities', async () => {
-      const full_rotations = 3
+    const full_rotations = 10
+    it('Should stress test the editing capabilities (' + full_rotations + ' rotations)', async () => {
       expect(full_rotations).to.be.a('number').greaterThan(0)
       const data = encode(
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'
@@ -548,6 +548,7 @@ describe('Editing', () => {
       let viewport_data = await getViewportData(viewport_id)
       expect('~').to.equal(decode(viewport_data.getData_asU8()))
       let rotations = file_size * full_rotations
+      const expected_num_changes = 1 + 3 * file_size * full_rotations
       while (rotations--) {
         viewport_data = await getViewportData(viewport_id)
         expect(1 + (await insert(session_id, 0, ' '))).to.equal(
@@ -555,15 +556,17 @@ describe('Editing', () => {
         )
         expect((await undo(session_id)) * -1).to.equal(await redo(session_id))
         change_id = await del(session_id, file_size, ' ', 1)
-        //console.log(decode(await getViewportData(viewport_2_id)))
+        viewport_data = await getViewportData(viewport_2_id)
+        //console.log(decode(viewport_data.getData_asU8()))
+        //console.log("Number of changes: " + await getChangeCount(session_id) + " of " + expected_num_changes)
       }
       expect(await getChangeCount(session_id)).to.equal(change_id)
-      expect(1 + 3 * file_size * full_rotations).to.equal(change_id)
+      expect(expected_num_changes).to.equal(change_id)
       viewport_data = await getViewportData(viewport_2_id)
       expect(data).to.deep.equal(viewport_data.getData_asU8())
       expect(viewport_id).to.equal(await destroyViewport(viewport_id))
       expect(viewport_2_id).to.equal(await destroyViewport(viewport_2_id))
       //console.log("Number of changes: " + await getChangeCount(session_id))
-    })
+    }).timeout(10000 * full_rotations)
   })
 })
