@@ -2,13 +2,13 @@
   Copyright (c) 2021 Concurrent Technologies Corporation.
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-  with the License.  You may obtain a copy of the License at                                                    
+  with the License.  You may obtain a copy of the License at
 
       http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software is distributed under the License is       
-  distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-  implied.  See the License for the specific language governing permissions and limitations under the License.  
+  Unless required by applicable law or agreed to in writing, software is distributed under the License is
+  distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+  implied.  See the License for the specific language governing permissions and limitations under the License.
 -->
 
 <div align="center">
@@ -32,6 +32,44 @@
 ## Goal
 
 This package contains the TypeScript types and code needed to interact with the Ωedit library via a gRPC client.
+
+## Testing
+
+### Ωedit Server
+
+#### C++
+
+To test the client, run an Ωedit RPC server on 127.0.0.1:9000, for example, after doing a debug build:
+
+```shell
+./cmake-build-debug/bin/server --target=127.0.0.1:9000
+```
+
+#### Scala
+
+To build and run the Scala server on 127.0.0.1:9000, run:
+
+```shell
+./scala_server.sh serv_build
+```
+
+### Testing the client
+
+#### Compile the client
+
+Now that an RPC server is listening, go to `src/rpc/client/ts`, and run:
+
+```shell
+npm run compile-src
+```
+
+#### Test the client
+
+Now you can client tests with:
+
+```shell
+npm test
+```
 
 ## User documentation
 

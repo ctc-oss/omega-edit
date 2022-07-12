@@ -11,21 +11,60 @@
 cmake_minimum_required(VERSION 3.13)
 project(omega_edit-rpc LANGUAGES C CXX)
 
-# Use C++14
+# Use C++17
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# GCC needs to pass the -lstdc++fs flag to link C++17 filesystem implementation.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
+    set(FILESYSTEM_LIB stdc++fs)
+endif ()
 
 # Get verbose output from the makefile (useful for debugging the build)
 set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
+#######################################################################################################################
+# DEPENDENCIES
+#######################################################################################################################
+if (NOT EXISTS "cmake/conan.cmake")
+    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
+            "cmake/conan.cmake"
+            TLS_VERIFY ON)
+endif ()
+
 include("cmake/conan.cmake")
-conan_cmake_autodetect(settings)
+
+function(conan_config_set)
+    # Set a config value.
+    # Arguments NAME and VALUE are required
+    # Example usage:
+    #    conan_config_set(NAME general.revision_enabled
+    #                     VALUE 1)
+    #
+    # See: https://docs.conan.io/en/latest/reference/commands/consumer/config.html
+    set(oneValueArgs NAME VALUE)
+    cmake_parse_arguments(CONAN "" "${oneValueArgs}" "" ${ARGN})
+    if(DEFINED CONAN_COMMAND)
+        set(CONAN_CMD ${CONAN_COMMAND})
+    else()
+        conan_check(REQUIRED)
+    endif()
+    message(STATUS "Conan: Setting ${CONAN_NAME} to ${CONAN_VALUE}")
+    execute_process(COMMAND ${CONAN_CMD} config set ${CONAN_NAME}=${CONAN_VALUE} RESULT_VARIABLE return_code)
+    if(NOT "${return_code}" STREQUAL "0")
+        message(FATAL_ERROR "Conan config set failed='${return_code}'")
+    endif()
+endfunction()
+
+conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
-        REQUIRES "boost/1.79.0" "grpc/1.45.2"
+        REQUIRES "boost/1.79.0" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
+conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
@@ -33,6 +72,8 @@ conan_basic_setup()
 # Dependencies
 Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0 COMPONENTS program_options REQUIRED)
+message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
+
 find_package(omega_edit REQUIRED)
 
 if (MSVC)
@@ -93,11 +134,11 @@ SET(RPC_SOURCE_FILES "${omega_proto_cpp_srcs}" "${omega_proto_cpp_hdrs}" "${omeg
 SET(WORKER_QUEUE_SOURCE_FILES "server/cpp/worker_queue/worker_queue.hpp" "server/cpp/worker_queue/worker_queue.cpp")
 
 add_executable(server "server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-target_link_libraries(server PRIVATE omega_edit::omega_edit Boost::program_options ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server PRIVATE omega_edit::omega_edit Boost::program_options ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
 add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
 add_dependencies(server client)
 
 add_executable(server_test "tests/server_test.cpp" ${RPC_SOURCE_FILES})
-target_link_libraries(server_test PRIVATE Boost::program_options ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+target_link_libraries(server_test PRIVATE Boost::program_options ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 add_dependencies(server_test server)

@@ -1,6 +1,6 @@
 {
   "name": "omega-edit",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "OmegaEdit gRPC Client TypeScript Types",
   "publisher": "ctc-oss",
   "repository": {
@@ -31,6 +31,7 @@
     "@types/mocha": "^9.1.1",
     "@types/node": "^17.0.21",
     "chai": "^4.3.6",
+    "fastestsmallesttextencoderdecoder": "^1.0.22",
     "google-protobuf": "^3.19.4",
     "grpc-tools": "^1.11.2",
     "grpc_tools_node_protoc_ts": "^5.3.2",

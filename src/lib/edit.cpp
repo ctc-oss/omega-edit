@@ -14,6 +14,7 @@
 
 #include "../include/omega_edit/edit.h"
 #include "../include/omega_edit/change.h"
+#include "../include/omega_edit/search.h"
 #include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/session.h"
 #include "../include/omega_edit/viewport.h"
@@ -123,9 +124,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
                     (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
         case change_kind_t::CHANGE_OVERWRITE:
             // OVERWRITE changes that happen inside the viewport affect the viewport
-            return ((change_ptr->offset + change_ptr->length) >= omega_viewport_get_offset(viewport_ptr)) &&
-                   (change_ptr->offset <=
-                    (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
+            return omega_viewport_in_segment(viewport_ptr, change_ptr->offset, change_ptr->length);
         default:
             ABORT(LOG_ERROR("Unhandled change kind"););
     }
@@ -133,6 +132,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
 
 static int update_viewports_(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (auto &&viewport_ptr : session_ptr->viewports_) {
+        // possibly adjust the viewport offset if it's floating and other criteria are met
         update_viewport_offset_adjustment_(viewport_ptr.get(), change_ptr);
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
@@ -336,6 +336,9 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { fclose(model_ptr->file_ptr); }
     }
+    while (!session_ptr->search_contexts_.empty()) {
+        omega_search_destroy_context(session_ptr->search_contexts_.back().get());
+    }
     while (!session_ptr->viewports_.empty()) { omega_edit_destroy_viewport(session_ptr->viewports_.back().get()); }
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
@@ -382,7 +385,7 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    return (0 < length && offset < computed_file_size)
+    return !omega_session_changes_paused(session_ptr) && 0 < length && offset < computed_file_size
                    ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
                                                std::min(length, computed_file_size - offset)))
                    : 0;
@@ -390,7 +393,8 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
-    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
                    ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
@@ -401,7 +405,8 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
                    ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
@@ -412,7 +417,8 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
                                int64_t offset, int64_t length, char const *checkpoint_directory) {
-    if (0 == omega_edit_create_checkpoint(session_ptr, checkpoint_directory)) {
+    if (!omega_session_changes_paused(session_ptr) &&
+        0 == omega_edit_create_checkpoint(session_ptr, checkpoint_directory)) {
         auto in_file = session_ptr->models_.back()->file_path;
         auto out_file = in_file + "_";
         if (0 == omega_util_apply_byte_transform_to_file(in_file.c_str(), out_file.c_str(), transform, user_data_ptr,
@@ -449,9 +455,10 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int ove
         return -1;
     }
     const auto temp_filename_str = std::string(temp_filename);
-    auto count = temp_filename_str.empty() ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
-                                           : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
-                                                      temp_filename_str.c_str(), omega_util_directory_separator());
+    const auto count = temp_filename_str.empty()
+                               ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                               : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                          temp_filename_str.c_str(), omega_util_directory_separator());
     if (count < 0 || FILENAME_MAX <= count) {
         LOG_ERROR("snprintf failed");
         return -2;
@@ -569,7 +576,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 }
 
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
-    if (!session_ptr->models_.back()->changes.empty()) {
+    if (!omega_session_changes_paused(session_ptr) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
         session_ptr->models_.back()->changes.pop_back();
         int64_t length = 0;
@@ -597,7 +604,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     int64_t rc = 0;
-    if (!session_ptr->models_.back()->changes_undone.empty()) {
+    if (!omega_session_changes_paused(session_ptr) && !session_ptr->models_.back()->changes_undone.empty()) {
         rc = update_(session_ptr, session_ptr->models_.back()->changes_undone.back());
         session_ptr->models_.back()->changes_undone.pop_back();
     }
@@ -605,6 +612,9 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
 }
 
 int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory) {
+    if (!omega_util_directory_exists(checkpoint_directory) && 0 != omega_util_create_directory(checkpoint_directory)) {
+        LOG_ERROR("failed to create checkpoint directory");
+    }
     char checkpoint_filename[FILENAME_MAX];
     if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
                                  omega_util_normalize_path(checkpoint_directory, nullptr),

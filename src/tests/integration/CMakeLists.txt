@@ -20,7 +20,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
 
 include("cmake/conan.cmake")
 conan_cmake_autodetect(settings)
-conan_cmake_configure(REQUIRES "catch2/2.13.8" GENERATORS cmake cmake_find_package)
+conan_cmake_configure(REQUIRES "catch2/2.13.9" GENERATORS cmake cmake_find_package)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()

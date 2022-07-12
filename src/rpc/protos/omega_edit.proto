@@ -29,6 +29,8 @@ service Editor {
   rpc UndoLastChange(ObjectId) returns (ChangeResponse);
   rpc RedoLastUndo(ObjectId) returns (ChangeResponse);
   rpc ClearChanges(ObjectId) returns (ObjectId);
+  rpc PauseSessionChanges(ObjectId) returns (ObjectId);
+  rpc ResumeSessionChanges(ObjectId) returns (ObjectId);
   rpc PauseViewportEvents(ObjectId) returns (ObjectId);
   rpc ResumeViewportEvents(ObjectId) returns (ObjectId);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
@@ -67,6 +69,8 @@ enum SessionEventKind {
   SESSION_EVT_CREATE_CHECKPOINT = 32;
   SESSION_EVT_DESTROY_CHECKPOINT = 64;
   SESSION_EVT_SAVE = 128;
+  SESSION_EVT_CHANGES_PAUSED = 256;
+  SESSION_EVT_CHANGES_RESUMED = 512;
 }
 
 enum ViewportEventKind {
@@ -86,6 +90,7 @@ enum CountKind {
   COUNT_UNDOS = 3;
   COUNT_VIEWPORTS = 4;
   COUNT_CHECKPOINTS = 5;
+  COUNT_SEARCH_CONTEXTS = 6;
 }
 
 message CountRequest {
@@ -146,8 +151,9 @@ message ViewportDataRequest {
 
 message ViewportDataResponse {
   string viewport_id = 1;
-  int64 length = 2;
-  bytes data = 3;
+  int64 offset = 2;
+  int64 length = 3;
+  bytes data = 4;
 }
 
 message CreateSessionRequest {

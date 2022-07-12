@@ -58,6 +58,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def eventInterest_=(eventInterest: Int): Unit =
     i.omega_session_set_event_interest(p, eventInterest)
 
+  def pauseSessionChanges(): Unit =
+    i.omega_session_pause_changes(p)
+
+  def resumeSessionChanges(): Unit =
+    i.omega_session_resume_changes(p)
+
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
@@ -72,6 +78,21 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def overwrite(s: String, offset: Long): Result =
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
+
+  def undoLast(): Result =
+    Edit(i.omega_edit_undo_last_change(p))
+
+  def redoUndo(): Result =
+    Edit(i.omega_edit_redo_last_undo(p))
+
+  def clearChanges(): Result = 
+    Edit(i.omega_edit_clear_changes(p))
+
+  def getLastChange(): Result =
+    Edit(i.omega_session_get_last_change(p))
+
+  def getLastUndo(): Result =
+    Edit(i.omega_session_get_last_undo(p))
 
   def view(offset: Long, size: Long): Viewport = {
     val vp =

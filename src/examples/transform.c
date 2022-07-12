@@ -12,40 +12,24 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
-#include <iostream>
-#include <omega_edit/stl_string_adaptor.hpp>
+/**
+* This application can be used to test out applying byte transforms with Omega Edit.
+*/
+#include <ctype.h>
+#include <omega_edit.h>
+#include <stdio.h>
 
-using namespace std;
+omega_byte_t to_lower(omega_byte_t byte, void *unused) { return (omega_byte_t) tolower(byte); }
+omega_byte_t to_upper(omega_byte_t byte, void *unused) { return (omega_byte_t) toupper(byte); }
 
 int main(int argc, char **argv) {
-    if (argc != 6) {
-        cerr << "This program finds patterns from the infile using Ωedit.\n\nUSAGE: " << argv[0]
-             << " infile pattern offset length case_insensitive" << endl;
+    if (argc != 4) {
+        fprintf(stderr, "Usage: %s <transform> infile outfile\n", argv[0]);
         return -1;
     }
-    const auto in_filename = argv[1];
-    const auto pattern = argv[2];
-    const auto start_offset = stoi(argv[3]);
-    const auto length = stoi(argv[4]);
-    const auto case_insensitive = stoi(argv[5]);
-    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS)) {
-        int num_matches = 0;
-        auto search_context =
-                omega_search_create_context(session_ptr, pattern, 0, start_offset, length, case_insensitive);
-        while (omega_search_next_match(search_context, 1)) {
-            const auto match_offset = omega_search_context_get_offset(search_context);
-            const auto match_length = omega_search_context_get_length(search_context);
-            cout << "offset: " << match_offset << ", length: " << match_length
-                 << ", segment: " << omega_session_get_segment_string(session_ptr, match_offset, match_length) << endl;
-            ++num_matches;
-        }
-        cout << "matches found: " << num_matches << endl;
-        omega_edit_destroy_session(session_ptr);
-    } else {
-        cerr << "failed to create session, probably because the infile doesn't exist or is readable, or the offset "
-                "and/or length are out of range for the given input file"
-             << endl;
-        return -1;
-    }
+    omega_session_t *session_ptr = omega_edit_create_session(argv[2], NULL, NULL, NO_EVENTS);
+    omega_edit_apply_transform(session_ptr, (argv[1][0] == 'l') ? &to_lower : &to_upper, NULL, 0, 0, "./.checkpoints");
+    omega_edit_save(session_ptr, argv[3], 1, NULL);
+    omega_edit_destroy_session(session_ptr);
     return 0;
 }

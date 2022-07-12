@@ -66,9 +66,18 @@ object Session {
 
   case class LookupChange(id: Long) extends Op
 
+  case class UndoLast() extends Op
+  case class RedoUndo() extends Op
+  case class ClearChanges() extends Op
+  case class GetLastChange() extends Op
+  case class GetLastUndo() extends Op
+
   case class Search(request: SearchRequest) extends Op
 
   case class Segment(request: SegmentRequest) extends Op
+
+  case class PauseSession() extends Op
+  case class ResumeSession() extends Op
 
   case class Updated(id: String)
 
@@ -136,6 +145,34 @@ class Session(
           }
         case None => sender() ! Err(Status.NOT_FOUND)
       }
+    
+    case UndoLast() =>
+      session.undoLast()
+      sender() ! Ok(sessionId)
+
+    case RedoUndo() =>
+      session.redoUndo()
+      sender() ! Ok(sessionId)
+
+    case ClearChanges() =>
+      session.clearChanges()
+      sender() ! Ok(sessionId)
+
+    case GetLastChange() =>
+      session.getLastChange()
+      sender() ! Ok(sessionId)
+
+    case GetLastUndo() =>
+      session.getLastUndo()
+      sender() ! Ok(sessionId)
+
+    case PauseSession() =>
+      session.pauseSessionChanges()
+      sender() ! Ok(sessionId)
+
+    case ResumeSession() =>
+      session.resumeSessionChanges()
+      sender() ! Ok(sessionId)
 
     case Watch =>
       sender() ! new Ok(sessionId) with Events {

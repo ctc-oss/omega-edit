@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "../../include/omega_edit/config.h"
+#include "../../include/omega_edit/fwd_defs.h"
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
 #include <boost/program_options.hpp>
@@ -167,6 +168,7 @@ public:
 
         if (file_path) { request.set_file_path(*file_path); }
         if (session_id_desired) { request.set_session_id_desired(*session_id_desired); }
+        request.set_event_interest(ALL_EVENTS);
         std::mutex mu;
         std::condition_variable cv;
         bool done = false;
@@ -379,6 +381,64 @@ public:
         }
     }
 
+    [[nodiscard]] std::string PauseSessionChanges(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->PauseSessionChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
+    [[nodiscard]] std::string ResumeSessionChanges(const std::string &session_id) const {
+        assert(!session_id.empty());
+        ObjectId request;
+        ObjectId response;
+        ClientContext context;
+
+        request.set_id(session_id);
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->ResumeSessionChanges(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            return response.id();
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return "RPC failed";
+        }
+    }
+
     [[nodiscard]] std::string PauseViewportEvents(const std::string &session_id) const {
         assert(!session_id.empty());
         ObjectId request;
@@ -512,6 +572,7 @@ public:
         request.set_offset(offset);
         request.set_capacity(capacity);
         request.set_is_floating(is_floating);
+        request.set_event_interest(ALL_EVENTS);
         if (viewport_id_desired) { request.set_viewport_id_desired(*viewport_id_desired); }
 
         std::mutex mu;
@@ -861,12 +922,13 @@ private:
 void run_tests(const std::string &target_str, int repetitions, int ms_pause_between_reps, bool log) {
     const int64_t vpt_capacity = 5;
     fs::remove_all(fs::current_path() / "server_test_out");
+    OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
                      << "] Establishing a channel to Ωedit server on: " << target_str << std::endl;);
         }
-        OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+        //OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
         auto reply = server_test_client.GetOmegaEditVersion();
         if (log) {
@@ -1025,6 +1087,14 @@ void run_tests(const std::string &target_str, int repetitions, int ms_pause_betw
                      << std::endl;);
         }
 
+        auto count = server_test_client.GetCount(session_id, CountKind::COUNT_SEARCH_CONTEXTS);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions
+                     << "] GetCount(CountKind::COUNT_SEARCH_CONTEXTS) received: " << count << std::endl;);
+        }
+        assert(0 == count);
+
         serial = server_test_client.Overwrite(session_id, 7, "orl");
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
@@ -1051,7 +1121,7 @@ void run_tests(const std::string &target_str, int repetitions, int ms_pause_betw
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] SaveSession received: " << reply << std::endl;);
         }
 
-        auto count = server_test_client.GetSessionCount();
+        count = server_test_client.GetSessionCount();
         if (log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] GetSessionCount received: " << count

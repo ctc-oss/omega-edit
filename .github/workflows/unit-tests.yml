@@ -27,6 +27,9 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup Valgrind 🔬
+        if: runner.os == 'Linux'
+        run: sudo apt-get -y install valgrind
       - name: Setup Java ☕
         uses: actions/setup-java@v2
         with:
@@ -37,7 +40,10 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install Conan 💪
+        id: conan
         uses: turtlebrowser/get-conan@main
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
       - name: Checkout 🛎️
@@ -51,10 +57,14 @@ jobs:
         run: |
           cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-rpc
-      - name: Test Ωedit RPC 📋
+      - name: Test Ωedit RPC on macOS 📋
         if: runner.os == 'macOS'
         run: |
           build-rpc/bin/server_test
+      - name: Test Ωedit RPC on Linux 📋
+        if: runner.os == 'Linux'
+        run: |
+          valgrind build-rpc/bin/server_test
       - name: Prepare, and Build Ωedit Integration Tests 🔧
         run: |
           cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"

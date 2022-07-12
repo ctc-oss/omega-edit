@@ -70,7 +70,8 @@ OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *s
  * @param offset
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset);
+OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
+                                                int64_t offset);
 
 /**
  * Given a session, return the number of active viewports
@@ -78,6 +79,13 @@ OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_p
  * @return number of active viewports
  */
 OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the number of active search contexts
+ * @param session_ptr session to get the number of active search contexts for
+ * @return number of active search contexts
+ */
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of active changes
@@ -128,7 +136,7 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change(const omega_ses
  * @param session_ptr session to determine if viewport on-change callbacks are paused on
  * @return non-zero if viewport on-change callbacks are paused and zero if they are not
  */
-OMEGA_EDIT_EXPORT int omega_session_viewport_on_change_callbacks_paused(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr);
 
 /**
  * Pause viewport on-change callbacks for the given session
@@ -141,6 +149,25 @@ OMEGA_EDIT_EXPORT void omega_session_pause_viewport_event_callbacks(omega_sessio
  * @param session_ptr session to resume viewport on-change callbacks on
  */
 OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr);
+
+/**
+ * Determine if the session is accepting changes or not
+ * @param session_ptr session to determine if changes are accepted or not
+ * @return non-zero if the session is accepting changes and zero if it is not
+ */
+OMEGA_EDIT_EXPORT int omega_session_changes_paused(const omega_session_t *session_ptr);
+
+/**
+ * Pauses data changes to the session
+ * @param session_ptr session to pause changes to
+ */
+OMEGA_EDIT_EXPORT void omega_session_pause_changes(omega_session_t *session_ptr);
+
+/**
+ * Resume data changes to the session
+ * @param session_ptr session to resume changes to
+ */
+OMEGA_EDIT_EXPORT void omega_session_resume_changes(omega_session_t *session_ptr);
 
 /**
 * Given a session, return the current number of session checkpoints

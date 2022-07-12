@@ -24,6 +24,11 @@ generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 
+set +e
+checker=""
+which valgrind >/dev/null; [[ $? -eq 0 ]] && checker="valgrind --leak-check=full --show-leak-kinds=all -s"
+set -e
+
 rm -rf "$install_dir"
 
 rm -rf build-shared-$type
@@ -34,7 +39,11 @@ cpack --config build-shared-$type/CPackSourceConfig.cmake
 cpack --config build-shared-$type/CPackConfig.cmake
 
 rm -rf ./lib/*
-cp -av ${install_dir}/lib/* ./lib
+if [ -d ${install_dir}/lib64/ ]; then
+  cp -av ${install_dir}/lib64/* ./lib
+else
+  cp -av ${install_dir}/lib/* ./lib
+fi
 sbt headerCheckAll
 sbt installM2
 sbt test
@@ -54,7 +63,16 @@ cmake --build build-examples-$type
 rm -rf build-rpc-$type
 cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
 cmake --build build-rpc-$type
-build-rpc-$type/bin/server_test
+$checker build-rpc-$type/bin/server_test
+build-rpc-$type/bin/server --target=127.0.0.1:9000 &
+server_pid=$!
+pushd src/rpc/client/ts/
+npm install
+npm run compile-src
+npm run lint
+npm test
+popd
+kill $!
 
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
@@ -63,3 +81,4 @@ pushd build-tests-integration-$type && ctest -C $type --output-on-failure && pop
 
 cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
 pushd build-tests-$type && ctest -C $type --output-on-failure && popd
+echo "✔ Done! ✨"

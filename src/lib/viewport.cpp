@@ -14,15 +14,12 @@
 
 #include "../include/omega_edit/viewport.h"
 #include "../include/omega_edit/segment.h"
-#include "../include/omega_edit/edit.h"
 #include "../include/omega_edit/session.h"
-#include "../include/omega_edit/utility.h"
 #include "impl_/internal_fun.hpp"
 #include "impl_/session_def.hpp"
 #include "impl_/viewport_def.hpp"
 #include <cassert>
 #include <cstdlib>
-#include <memory>
 
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
@@ -44,7 +41,7 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
             std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
                              omega_viewport_get_offset(viewport_ptr),
                      static_cast<int64_t>(0));
-    return (capacity < remaining_file_size) ? capacity : remaining_file_size;
+    return capacity < remaining_file_size ? capacity : remaining_file_size;
 }
 
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
@@ -75,7 +72,7 @@ int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_
 
 int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return (viewport_ptr->data_segment.is_floating) ? 1 : 0;
+    return viewport_ptr->data_segment.is_floating ? 1 : 0;
 }
 
 int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
@@ -111,16 +108,22 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    return (viewport_ptr->data_segment.capacity < 0) ? 1 : 0;
+    return viewport_ptr->data_segment.capacity < 0 ? 1 : 0;
+}
+
+int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offset, int64_t length) {
+    return (offset + length) >= omega_viewport_get_offset(viewport_ptr) &&
+                           offset <= omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)
+                   ? 1
+                   : 0;
 }
 
 void omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
                            const omega_change_t *change_ptr) {
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
-    if (viewport_ptr->event_handler &&
-        (0 == viewport_ptr->event_interest_ || viewport_event & viewport_ptr->event_interest_) &&
-        !omega_session_viewport_on_change_callbacks_paused(viewport_ptr->session_ptr)) {
+    if (viewport_ptr->event_handler && (viewport_event & viewport_ptr->event_interest_) &&
+        !omega_session_viewport_event_callbacks_paused(viewport_ptr->session_ptr)) {
         (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, change_ptr);
     }
 }
