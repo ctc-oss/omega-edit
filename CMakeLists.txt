@@ -73,7 +73,6 @@ endfunction()
 conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
         REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
-        OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "bin, protoc* -> ./build_tools"
         IMPORTS "bin, grpc_*_plugin* -> ./build_tools"
@@ -83,8 +82,8 @@ conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTING
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
-set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.79.0)
+Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+find_package(Boost 1.79.0 COMPONENTS program_options REQUIRED)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
 #######################################################################################################################
@@ -207,7 +206,7 @@ if (BUILD_RPC)
 
     add_executable(server "src/rpc/server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
     target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
-    target_link_libraries(server PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+    target_link_libraries(server PRIVATE omega_edit::omega_edit Boost::program_options ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
 
     add_custom_target(client SOURCES "${omega_grpc_js_pb}" "${omega_js_pb}")
     add_dependencies(server client)
@@ -271,8 +270,8 @@ if (BUILD_TESTS)
 
     if (BUILD_RPC)
         add_executable(server_test "src/rpc/tests/server_test.cpp" ${RPC_SOURCE_FILES})
-        target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+        target_link_libraries(server_test PRIVATE Boost::program_options ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         add_dependencies(server_test server)
     endif ()
 

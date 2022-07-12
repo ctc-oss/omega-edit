@@ -16,6 +16,7 @@
 #include "../../include/omega_edit/fwd_defs.h"
 #include "../../lib/impl_/macros.h"
 #include "omega_edit.grpc.pb.h"
+#include <boost/program_options.hpp>
 #include <condition_variable>
 #include <csignal>
 #include <filesystem>
@@ -60,7 +61,9 @@ using omega_edit::ViewportEventKind;
 
 std::mutex write_mutex;
 
+
 #ifdef OMEGA_BUILD_UNIX
+#include <ctime>// for nanosleep
 pid_t spawn_process(const char *program, char **arg_list) {
     pid_t ch_pid = fork();
     if (ch_pid == -1) {
@@ -102,6 +105,17 @@ void spawn_widows_process(PROCESS_INFORMATION &pi, TCHAR *cmd) {
     }
 }
 #endif
+
+static inline void sleep_ms(int milliseconds) {
+#ifdef OMEGA_BUILD_UNIX
+    struct timespec ts;
+    ts.tv_sec = milliseconds / 1000;
+    ts.tv_nsec = (milliseconds % 1000) * 1000000;
+    nanosleep(&ts, NULL);
+#else
+    Sleep(milliseconds);
+#endif
+}
 
 class OmegaEditServiceClient final {
 public:
@@ -905,7 +919,7 @@ private:
     std::vector<std::unique_ptr<std::thread>> viewport_subscription_handler_threads_;
 };
 
-void run_tests(const std::string &target_str, int repetitions, bool log) {
+void run_tests(const std::string &target_str, int repetitions, int ms_pause_between_reps, bool log) {
     const int64_t vpt_capacity = 5;
     fs::remove_all(fs::current_path() / "server_test_out");
     OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
@@ -1226,7 +1240,10 @@ void run_tests(const std::string &target_str, int repetitions, bool log) {
             const std::scoped_lock write_lock(write_mutex);
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] DestroySession received: " << reply
                      << std::endl;);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] Pausing " << ms_pause_between_reps << "ms"
+                     << std::endl;);
         }
+        sleep_ms(ms_pause_between_reps);
     }
 }
 
@@ -1242,23 +1259,32 @@ int main(int argc, char **argv) {
     std::string target_str("localhost:50042");
 #endif
 
-    if (argc > 1) {
-        const std::string arg_val = argv[1];
-        const std::string arg_str("--target");
-        size_t start_pos = arg_val.find(arg_str);
-        if (start_pos != std::string::npos) {
-            start_pos += arg_str.size();
-            if (arg_val[start_pos] == '=') {
-                target_str = arg_val.substr(start_pos + 1);
-            } else {
-                std::cerr << "The only correct argument syntax is --target=" << std::endl;
-                return EXIT_FAILURE;
-            }
-        } else {
-            std::cerr << "The only acceptable argument is --target=" << std::endl;
-            return EXIT_FAILURE;
-        }
+    namespace po = boost::program_options;
+
+    po::options_description description(std::string("Usage ") + argv[0]);
+
+    //@formatter:off
+    description.add_options()
+            ("help,h", "Display this help message")
+            ("target,t", po::value<std::string>()->default_value(target_str), "Server target URL")
+            ("reps,r", po::value<int>()->default_value(99),"Test repetitions")
+            ("pause,p", po::value<int>()->default_value(10), "Pause this many milliseconds between test repetitions")
+            ;
+    //@formatter:on
+
+    po::variables_map vm;
+    po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
+    po::notify(vm);
+
+    if (vm.count("help")) {
+        std::cout << description;
+        return EXIT_SUCCESS;
     }
+
+    target_str = vm["target"].as<std::string>();
+    auto const reps = vm["reps"].as<int>();
+    auto const pause = vm["pause"].as<int>();
+
     // change current working path to that of this executable
     fs::current_path(fs::path(argv[0]).parent_path());
     bool run_server = true;
@@ -1282,7 +1308,7 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    run_tests(target_str, 99, true);
+    run_tests(target_str, reps, pause, true);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);
