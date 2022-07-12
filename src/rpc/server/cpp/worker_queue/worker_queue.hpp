@@ -70,6 +70,12 @@ namespace omega_edit {
          */
         void push(std::shared_ptr<void> const &item);
 
+        /**
+         * Determine if the queue is empty or not
+         * @return true if the queue is empty, and false otherwise
+         */
+        [[nodiscard]] bool empty() const;
+
     private:
         /**
          * Entry point for the worker thread

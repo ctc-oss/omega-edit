@@ -165,6 +165,7 @@ public:
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         if (session_event_subscription_iter != session_event_subscriptions_.end()) {
+            assert(session_event_subscription_iter->second->empty());
             session_event_subscription_iter->second->Finish(Status::OK);
         }
     }
@@ -239,6 +240,7 @@ public:
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         if (viewport_event_subscription_iter != viewport_event_subscriptions_.end()) {
+            assert(viewport_event_subscription_iter->second->empty());
             viewport_event_subscription_iter->second->Finish(Status::OK);
         }
     }

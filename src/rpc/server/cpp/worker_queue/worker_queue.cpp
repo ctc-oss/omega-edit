@@ -90,4 +90,6 @@ namespace omega_edit {
         }
     }
 
+    bool IWorkerQueue::empty() const { return queue_.empty(); }
+
 }// namespace omega_edit
