@@ -22,9 +22,8 @@ import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import java.nio.file.Path
 import scala.util.Try
 
-/**
-  * The top level type in OmegaEdit, maintains the data and all instances related to it.
-  * Provides mutators and viewport factory methods.
+/** The top level type in OmegaEdit, maintains the data and all instances
+  * related to it. Provides mutators and viewport factory methods.
   */
 trait Session {
   def size: Long
@@ -59,13 +58,24 @@ trait Session {
 
   def getLastUndo(): Result
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback, eventInterest: Int): Viewport
+  def viewCb(
+      offset: Long,
+      size: Long,
+      cb: ViewportCallback,
+      eventInterest: Int
+  ): Viewport
   def findChange(id: Long): Option[Change]
 
   def save(to: Path): Try[Path]
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
 
-  def search(pattern: String, offset: Long, length: Option[Long] = None, caseInsensitive: Boolean = false, limit: Option[Long] = None): List[Long]
+  def search(
+      pattern: String,
+      offset: Long,
+      length: Option[Long] = None,
+      caseInsensitive: Boolean = false,
+      limit: Option[Long] = None
+  ): List[Long]
 
   def getSegment(offset: Long, length: Long): Option[Segment]
 

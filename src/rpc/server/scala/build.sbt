@@ -49,7 +49,7 @@ publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 libraryDependencies ++= Seq(
   "com.ctc" %% "omega-edit" % omegaVersion,
   "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
-  "org.scalatest" %% "scalatest" % "3.2.11" % Test
+  "org.scalatest" %% "scalatest" % "3.2.12" % Test
 )
 
 excludeDependencies ++= Seq(

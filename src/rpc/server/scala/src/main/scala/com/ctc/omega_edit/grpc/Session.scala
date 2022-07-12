@@ -45,12 +45,21 @@ object Session {
     def path: Path
   }
 
-  def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
+  def props(
+      session: api.Session,
+      events: EventStream,
+      cb: SessionCallback
+  ): Props =
     Props(new Session(session, events, cb))
 
   sealed trait Op
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
-  case class View(offset: Long, capacity: Long, id: Option[String], eventInterest: Option[Int]) extends Op
+  case class View(
+      offset: Long,
+      capacity: Long,
+      id: Option[String],
+      eventInterest: Option[Int]
+  ) extends Op
   case class DestroyView(id: String) extends Op
   case object Watch extends Op
   case object GetSize extends Op
@@ -110,7 +119,14 @@ class Session(
             input.queue.offer(Viewport.Updated(fqid, v.data, c))
             ()
           }
-          context.actorOf(Viewport.props(session.viewCb(off, cap, cb, eventInterest.getOrElse(0)), stream, cb), vid)
+          context.actorOf(
+            Viewport.props(
+              session.viewCb(off, cap, cb, eventInterest.getOrElse(0)),
+              stream,
+              cb
+            ),
+            vid
+          )
           sender() ! Ok(fqid)
       }
 
@@ -146,7 +162,7 @@ class Session(
           }
         case None => sender() ! Err(Status.NOT_FOUND)
       }
-    
+
     case UndoLast() =>
       session.undoLast()
       sender() ! Ok(sessionId)

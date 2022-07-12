@@ -34,16 +34,16 @@ object NativeBuildInfo {
   def matches(info: NativeBuildInfo): Boolean = {
     val thisOs = System.getProperty("os.name").toLowerCase match {
       case "linux" => Some("linux")
-      case Mac() => Some("macos")
-      case Win() => Some("windows")
-      case _ => None
+      case Mac()   => Some("macos")
+      case Win()   => Some("windows")
+      case _       => None
     }
 
     val libOs = info.sharedLibraryOs
     val libArch = info.sharedLibraryArch
     (thisOs, System.getProperty("os.arch")) match {
       case (Some(`libOs`), `libArch`) => true
-      case _ => false
+      case _                          => false
     }
   }
 }
