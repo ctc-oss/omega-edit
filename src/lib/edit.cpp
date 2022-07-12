@@ -367,6 +367,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);
+        omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, nullptr);
         return session_ptr->viewports_.back().get();
     }
     return nullptr;
@@ -376,8 +377,10 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
+            auto session_ptr = viewport_ptr->session_ptr;
             omega_data_destroy(&(*iter)->data_segment.data, omega_viewport_get_capacity(iter->get()));
             viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
+            omega_session_notify(session_ptr, SESSION_EVT_DESTROY_VIEWPORT, nullptr);
             break;
         }
     }
