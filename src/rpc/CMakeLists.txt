@@ -74,6 +74,8 @@ set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
+find_package(omega_edit REQUIRED)
+
 if (MSVC)
     set(protoc "build_tools/protoc.exe")
     set(grpc_cpp_plugin "build_tools/grpc_cpp_plugin.exe")
