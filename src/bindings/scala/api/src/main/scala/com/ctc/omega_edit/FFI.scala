@@ -89,8 +89,16 @@ private[omega_edit] trait FFI {
   def omega_session_get_num_checkpoints(p: Pointer): Long
   def omega_session_get_num_undone_changes(p: Pointer): Long
   def omega_session_get_num_viewports(p: Pointer): Long
-  def omega_session_get_segment(session: Pointer, segment: Pointer, offset: Long): Int
-  def omega_session_get_segment_string(session: Pointer, offset: Long, length: Long): String
+  def omega_session_get_segment(
+      session: Pointer,
+      segment: Pointer,
+      offset: Long
+  ): Int
+  def omega_session_get_segment_string(
+      session: Pointer,
+      offset: Long,
+      length: Long
+  ): String
   def omega_session_set_event_interest(p: Pointer, eventInterest: Int): Int
   def omega_session_get_last_change(p: Pointer): Long
   def omega_session_get_last_undo(p: Pointer): Long
