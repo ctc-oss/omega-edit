@@ -16,8 +16,7 @@
 
 package com.ctc.omega_edit.api
 
-/**
-  * A view of data within a Session
+/** A view of data within a Session
   */
 trait Viewport {
   def length: Long
