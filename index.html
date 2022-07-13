@@ -1437,14 +1437,14 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="session_8h_1af19e20855126ed71a7465facdc568d07"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_session_notify</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_session_event_t</span> <span class="pre">session_event,</span> <span class="pre">const</span> <span class="pre">omega_change_t</span> <span class="pre">*change_ptr)</span></span></dt>
+<span class="target" id="session_8h_1a8b4e7ed600bc9af74fada8b9366b17c2"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_session_notify</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_session_event_t</span> <span class="pre">session_event,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*event_ptr)</span></span></dt>
 <dd><p>Call the registered session event handler </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>session_ptr</strong> – session whose event handler to call </p></li>
 <li><p><strong>session_event</strong> – session event </p></li>
-<li><p><strong>change_ptr</strong> – pointer to the change </p></li>
+<li><p><strong>event_ptr</strong> – pointer to the change </p></li>
 </ul>
 </dd>
 </dl>
@@ -1927,13 +1927,13 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="viewport_8h_1a517e1d161c7d7a5858e0583123bbb6b6"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_viewport_notify</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">omega_viewport_event_t</span> <span class="pre">viewport_event,</span> <span class="pre">const</span> <span class="pre">omega_change_t</span> <span class="pre">*change_ptr)</span></span></dt>
+<span class="target" id="viewport_8h_1a14a189f02a743ff8608f620939d1a525"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_viewport_notify</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">omega_viewport_event_t</span> <span class="pre">viewport_event,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*event_ptr)</span></span></dt>
 <dd><p>Execute the viewport on-change callback with the given change if a viewport on-change callback is defined and if the session where this viewport lives does not currently have viewport on-change callbacks paused </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>viewport_ptr</strong> – viewport for which to execute its on-change callback </p></li>
-<li><p><strong>change_ptr</strong> – change responsible for the viewport change (if any) </p></li>
+<li><p><strong>event_ptr</strong> – change responsible for the viewport change (if any) </p></li>
 </ul>
 </dd>
 </dl>
