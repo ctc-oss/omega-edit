@@ -1,6 +1,6 @@
 {
   "name": "omega-edit",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "description": "OmegaEdit gRPC Client TypeScript Types",
   "publisher": "ctc-oss",
   "repository": {
