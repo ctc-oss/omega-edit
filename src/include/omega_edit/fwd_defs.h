@@ -31,7 +31,7 @@ typedef enum {
     SESSION_EVT_TRANSFORM = 1 << 4,         //< Occurs when the session has successfully processed a transform
     SESSION_EVT_CREATE_CHECKPOINT = 1 << 5, //< Occurs when the session has successfully created a checkpoint
     SESSION_EVT_DESTROY_CHECKPOINT = 1 << 6,//< Occurs when the session has successfully destroyed a checkpoint
-    SESSION_EVT_SAVE = 1 << 7,              //< Occurs when the session has been successfully saved
+    SESSION_EVT_SAVE = 1 << 7,              //< Occurs when the session has been successfully saved to file
     SESSION_EVT_CHANGES_PAUSED = 1 << 8,    //< Occurs when session changes have been paused
     SESSION_EVT_CHANGES_RESUMED = 1 << 9,   //< Occurs when session changes have been resumed
     SESSION_EVT_CREATE_VIEWPORT = 1 << 10,  //< Occurs when the session has successfully created a viewport

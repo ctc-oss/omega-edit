@@ -366,8 +366,8 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->event_interest_ = event_interest;
         omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
-        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);
-        omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, nullptr);
+        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, session_ptr->viewports_.back().get());
+        omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, session_ptr->viewports_.back().get());
         return session_ptr->viewports_.back().get();
     }
     return nullptr;
@@ -379,8 +379,8 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
         if (viewport_ptr == iter->get()) {
             auto session_ptr = viewport_ptr->session_ptr;
             omega_data_destroy(&(*iter)->data_segment.data, omega_viewport_get_capacity(iter->get()));
-            viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
-            omega_session_notify(session_ptr, SESSION_EVT_DESTROY_VIEWPORT, nullptr);
+            session_ptr->viewports_.erase(std::next(iter).base());
+            omega_session_notify(session_ptr, SESSION_EVT_DESTROY_VIEWPORT, viewport_ptr);
             break;
         }
     }
@@ -558,7 +558,7 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int ove
         omega_session_resume_viewport_event_callbacks(session_ptr);
     }
     if (saved_file_path) { omega_util_normalize_path(file_path, saved_file_path); }
-    omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);
+    omega_session_notify(session_ptr, SESSION_EVT_SAVE, saved_file_path);
     return 0;
 }
 
