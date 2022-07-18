@@ -14,9 +14,19 @@
 # Please see the documentation for all configuration options:
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
+---
+name: Dependabot
+on:
+  workflow_dispatch:
+
 version: 2
 updates:
   - package-ecosystem: "npm" # See documentation for possible values
-    directory: "src/rpc/client/ts" # Location of package manifests
+    directory: "/src/rpc/client/ts" # Location of package manifests
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "github-actions" # See documentation for possible values
+    directory: "/" # Location of package manifests
+    schedule:
+      interval: "daily"
