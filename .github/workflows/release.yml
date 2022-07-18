@@ -195,12 +195,12 @@ jobs:
           java-version: 8
 
       - name: Download macos Native JARs
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: macos-latest-artifacts
 
       - name: Download windows Native JARs
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: windows-latest-artifacts
 
@@ -286,7 +286,7 @@ jobs:
         run: ${{ env.export_cmd }}
 
       - name: Download upload_url
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: upload_url
       
@@ -305,7 +305,7 @@ jobs:
           node-version: ${{ env.node_version }}
 
       - name: Download node release file 🔻
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: omega-edit-v${{ env.PKG_VERSION }}.tgz
@@ -345,7 +345,7 @@ jobs:
         run: ${{ env.export_cmd }}
       
       - name: Download upload_url
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: upload_url
       
@@ -364,19 +364,19 @@ jobs:
           java-version: 8
       
       - name: Download macos server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: macos-latest-server
           path: macos-latest-server
 
       - name: Download linux server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: ubuntu-latest-server
           path: ubuntu-latest-server
 
       - name: Download windows server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: windows-latest-server
           path: windows-latest-server
