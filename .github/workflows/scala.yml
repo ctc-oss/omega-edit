@@ -65,7 +65,7 @@ jobs:
         run: sbt installM2
 
       - name: Archive M2
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
