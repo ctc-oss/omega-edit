@@ -47,7 +47,7 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
       - name: Checkout 🛎️
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
