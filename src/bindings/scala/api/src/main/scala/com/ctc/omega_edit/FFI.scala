@@ -104,8 +104,6 @@ private[omega_edit] trait FFI {
       length: Long
   ): String
   def omega_session_set_event_interest(p: Pointer, eventInterest: Int): Int
-  def omega_session_get_last_change(p: Pointer): Long
-  def omega_session_get_last_undo(p: Pointer): Long
   def omega_session_pause_changes(p: Pointer): Unit
   def omega_session_resume_changes(p: Pointer): Unit
 
