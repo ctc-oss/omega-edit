@@ -16,7 +16,7 @@
 
 version: 2
 updates:
-  - package-ecosystem: "yarn" # See documentation for possible values
+  - package-ecosystem: "npm" # See documentation for possible values
     directory: "src/rpc/client/ts" # Location of package manifests
     schedule:
       interval: "weekly"
