@@ -53,8 +53,8 @@ jobs:
 
       - name: Setup SBT
         run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
 
       - name: Check Scala headers
