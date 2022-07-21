@@ -28,7 +28,7 @@ jobs:
     name: Create Release ✨
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
@@ -56,7 +56,7 @@ jobs:
         run: echo "${{ steps.create_release.outputs.upload_url }}" > upload_url
       
       - name: Upload upload_url 🔺
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: upload_url
           path: upload_url
@@ -66,7 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
@@ -83,7 +83,7 @@ jobs:
           yarn package
 
       - name: Upload ${{ env.NODE_FILE }} 🔺
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
@@ -100,7 +100,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - uses: actions/checkout@v2.3.5
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -112,7 +112,7 @@ jobs:
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -138,10 +138,16 @@ jobs:
         shell: bash
 
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.4.1
         with:
           distribution: adopt
           java-version: 8
+
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
 
       - name: Package Scala Native
         env:
@@ -149,7 +155,7 @@ jobs:
         run: sbt native/publishM2
 
       - name: Upload Native JARs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/omega-edit-native*
@@ -160,14 +166,14 @@ jobs:
     name: Publish Scala API and Native packages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.3.5
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
           
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -189,18 +195,24 @@ jobs:
         shell: bash
 
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.4.1
         with:
           distribution: adopt
           java-version: 8
 
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
+
       - name: Download macos Native JARs
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: macos-latest-artifacts
 
       - name: Download windows Native JARs
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: windows-latest-artifacts
 
@@ -241,7 +253,7 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - uses: actions/checkout@v2.3.5
+      - uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -250,10 +262,16 @@ jobs:
         shell: bash
 
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.4.1
         with:
           distribution: adopt
           java-version: 8
+
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
 
       - name: Package scala reference server
         env:
@@ -270,7 +288,7 @@ jobs:
         shell: bash
 
       - name: Upload {{ matrix.os }} server
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-server
           path: src/rpc/server/scala/${{ matrix.os }}-server
@@ -281,12 +299,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [node-build]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
       - name: Download upload_url
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: upload_url
       
@@ -299,13 +317,13 @@ jobs:
       ## Node release process ##
       ##########################
       - name: Setup Node 📐
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: ${{ env.node_version }}
 
       - name: Download node release file 🔻
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: omega-edit-v${{ env.PKG_VERSION }}.tgz
@@ -340,12 +358,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: [server-packaging]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
       
       - name: Download upload_url
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: upload_url
       
@@ -358,25 +376,31 @@ jobs:
       ## Scala release process ##
       ###########################
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.4.1
         with:
           distribution: adopt
           java-version: 8
-      
+
+      - name: Setup SBT
+        run: |
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
+        working-directory: /tmp
+
       - name: Download macos server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: macos-latest-server
           path: macos-latest-server
 
       - name: Download linux server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: ubuntu-latest-server
           path: ubuntu-latest-server
 
       - name: Download windows server
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: windows-latest-server
           path: windows-latest-server

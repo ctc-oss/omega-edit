@@ -24,8 +24,8 @@ jobs:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
@@ -46,15 +46,15 @@ jobs:
           mv _install/lib/* ./lib
 
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3.4.1
         with:
           distribution: adopt
           java-version: 8
 
       - name: Setup SBT
         run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
+          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
+          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
 
       - name: Check Scala headers
@@ -65,7 +65,7 @@ jobs:
         run: sbt installM2
 
       - name: Archive M2
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*

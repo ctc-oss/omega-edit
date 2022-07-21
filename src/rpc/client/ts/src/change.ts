@@ -26,7 +26,6 @@ import {
   ObjectId,
 } from './omega_edit_pb'
 import { getClient } from './settings'
-import assert = require('assert')
 const client = getClient()
 
 export function insert(
@@ -52,15 +51,12 @@ export function insert(
 export function del(
   session_id: string,
   offset: number,
-  data: string | Uint8Array, // FIXME: This should not be needed
   len: number
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
     request.setKind(ChangeKind.CHANGE_DELETE)
     request.setLength(len)
-    request.setData(typeof data == 'string' ? Buffer.from(data) : data)
-    assert(len == request.getData().length)
     client.submitChange(request, (err, r) => {
       if (err) {
         console.log(err.message)
