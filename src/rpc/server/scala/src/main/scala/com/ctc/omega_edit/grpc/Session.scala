@@ -89,6 +89,9 @@ object Session {
   case class PauseSession() extends Op
   case class ResumeSession() extends Op
 
+  case class PauseViewportEvents() extends Op
+  case class ResumeViewportEvents() extends Op
+
   case class Updated(id: String)
 
   trait ChangeDetails {
@@ -189,6 +192,14 @@ class Session(
 
     case ResumeSession() =>
       session.resumeSessionChanges()
+      sender() ! Ok(sessionId)
+
+    case PauseViewportEvents() =>
+      session.pauseViewportEvents()
+      sender() ! Ok(sessionId)
+
+    case ResumeViewportEvents() =>
+      session.resumeViewportEvents()
       sender() ! Ok(sessionId)
 
     case Watch =>
