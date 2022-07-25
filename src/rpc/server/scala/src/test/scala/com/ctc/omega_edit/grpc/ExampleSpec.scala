@@ -161,56 +161,6 @@ class ExampleSpec
       }
     }
 
-    "undo changes" in newSession { sid =>
-      val testString1 = UUID.randomUUID().toString
-      val testString2 = UUID.randomUUID().toString
-
-      val filePath = tmp.resolve("dat.txt").toString
-
-      for {
-        _ <- service.submitChange(
-          ChangeRequest(
-            sid,
-            ChangeKind.CHANGE_INSERT,
-            data = Some(ByteString.copyFromUtf8(testString1))
-          )
-        )
-
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
-
-        _ <- service.submitChange(
-          ChangeRequest(
-            sid,
-            ChangeKind.CHANGE_OVERWRITE,
-            data = Some(ByteString.copyFromUtf8(testString2))
-          )
-        )
-
-        saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
-        )
-
-        _ <- service.undoLastChange(ObjectId(sid))
-
-        saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
-        )
-
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
-        contents3 = Source.fromFile(saveResponse3.filePath).mkString
-      } yield {
-        saveResponse2.filePath should not be saveResponse1.filePath
-        saveResponse3.filePath should not be saveResponse2.filePath
-        saveResponse3.filePath should not be saveResponse1.filePath
-        contents1 shouldBe testString1
-        contents2 shouldBe testString2
-        contents3 shouldBe testString1
-      }
-    }
-
     "redo last undo" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString
       val testString2 = UUID.randomUUID().toString
@@ -225,6 +175,7 @@ class ExampleSpec
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
+
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
         _ <- service.submitChange(
@@ -234,19 +185,20 @@ class ExampleSpec
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
+
         saveResponse2 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
         _ <- service.undoLastChange(ObjectId(sid))
+
         saveResponse3 <- service.saveSession(
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
         _ <- service.redoLastUndo(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
-        )
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)
@@ -265,6 +217,53 @@ class ExampleSpec
         contents2 shouldBe testString2
         contents3 shouldBe testString1
         contents4 shouldBe testString2
+      }
+    }
+
+    "clear all session changes" in newSession { sid =>
+      val testString1 = UUID.randomUUID().toString
+      val testString2 = UUID.randomUUID().toString
+
+      val filePath = tmp.resolve("dat.txt").toString
+
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            data = Some(ByteString.copyFromUtf8(testString1))
+          )
+        )
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+
+        _ <- service.submitChange(
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_OVERWRITE,
+            data = Some(ByteString.copyFromUtf8(testString2))
+          )
+        )
+        saveResponse2 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
+        getBeforeChangeCount <- service.getCount(CountRequest(sid,
+                                        CountKind.COUNT_CHANGES))
+
+        _ <- service.clearChanges(ObjectId(sid))
+
+        getAfterChangeCount <- service.getCount(CountRequest(sid,
+                                        CountKind.COUNT_CHANGES))
+
+        contents1 = Source
+          .fromFile(saveResponse1.filePath)
+          .mkString // to ensure first saved file not overwritten
+        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+      } yield {
+        saveResponse2.filePath should not be saveResponse1.filePath
+        contents1 shouldBe testString1
+        contents2 shouldBe testString2
+        getBeforeChangeCount should not be (0)
+        //getAfterChangeCount shouldBe (0)
       }
     }
 
