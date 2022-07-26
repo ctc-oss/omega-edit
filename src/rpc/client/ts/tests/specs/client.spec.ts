@@ -53,7 +53,7 @@ import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 describe('Version', () => {
-  const expected_version = 'v0.9.9'
+  const expected_version = 'v0.9.10'
   it('Should return version ' + expected_version, async () => {
     const result = await getVersion()
     expect(result).to.equal(expected_version)
