@@ -67,6 +67,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def resumeSessionChanges(): Unit =
     i.omega_session_resume_changes(p)
 
+  def pauseViewportEvents(): Unit =
+    i.omega_session_pause_viewport_event_callbacks(p)
+
+  def resumeViewportEvents(): Unit =
+    i.omega_session_resume_viewport_event_callbacks(p)
+
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 

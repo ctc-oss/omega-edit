@@ -24,16 +24,18 @@ extern "C" {
  */
 typedef enum {
     SESSION_EVT_UNDEFINED = 0,
-    SESSION_EVT_CREATE = 1,                 //< Occurs when the session is successfully created
+    SESSION_EVT_CREATE = 1,                 //< Occurs when the session has been successfully created
     SESSION_EVT_EDIT = 1 << 1,              //< Occurs when the session has successfully processed an edit
     SESSION_EVT_UNDO = 1 << 2,              //< Occurs when the session has successfully processed an undo
     SESSION_EVT_CLEAR = 1 << 3,             //< Occurs when the session has successfully processed a clear
     SESSION_EVT_TRANSFORM = 1 << 4,         //< Occurs when the session has successfully processed a transform
     SESSION_EVT_CREATE_CHECKPOINT = 1 << 5, //< Occurs when the session has successfully created a checkpoint
     SESSION_EVT_DESTROY_CHECKPOINT = 1 << 6,//< Occurs when the session has successfully destroyed a checkpoint
-    SESSION_EVT_SAVE = 1 << 7,              //< Occurs when the session has been successfully saved
-    SESSION_EVT_CHANGES_PAUSED = 1 << 8,    //< Occurs when the session changes have been paused
-    SESSION_EVT_CHANGES_RESUMED = 1 << 9    //< Occurs when the session changes have been resumed
+    SESSION_EVT_SAVE = 1 << 7,              //< Occurs when the session has been successfully saved to file
+    SESSION_EVT_CHANGES_PAUSED = 1 << 8,    //< Occurs when session changes have been paused
+    SESSION_EVT_CHANGES_RESUMED = 1 << 9,   //< Occurs when session changes have been resumed
+    SESSION_EVT_CREATE_VIEWPORT = 1 << 10,  //< Occurs when the session has successfully created a viewport
+    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11, //< Occurs when the session has successfully destroyed a viewport
 } omega_session_event_t;
 
 /**
@@ -41,7 +43,7 @@ typedef enum {
  */
 typedef enum {
     VIEWPORT_EVT_UNDEFINED = 0,
-    VIEWPORT_EVT_CREATE = 1,        //< Occurs when the viewport is successfully created
+    VIEWPORT_EVT_CREATE = 1,        //< Occurs when the viewport has been successfully created
     VIEWPORT_EVT_EDIT = 1 << 1,     //< Occurs when an edit affects the viewport
     VIEWPORT_EVT_UNDO = 1 << 2,     //< Occurs when an undo affects the viewport
     VIEWPORT_EVT_CLEAR = 1 << 3,    //< Occurs when a clear affects the viewport

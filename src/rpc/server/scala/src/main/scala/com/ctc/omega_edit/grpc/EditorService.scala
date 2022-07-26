@@ -284,6 +284,22 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c) => throw grpcFailure(c)
     }
 
+  // pause viewport events
+
+  def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.PauseViewportEvents())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
+  // resume viewport events
+
+  def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.ResumeViewportEvents())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
   // segments
 
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
@@ -300,16 +316,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
           )
       }
-
-  //
-  // unimplementeds
-  //
-
-  def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
-
-  def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
-    grpcFailFut(Status.UNIMPLEMENTED)
 
 }
 

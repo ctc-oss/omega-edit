@@ -180,10 +180,10 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_
  * Call the registered session event handler
  * @param session_ptr session whose event handler to call
  * @param session_event session event
- * @param change_ptr pointer to the change
+ * @param event_ptr pointer to the change
  */
 OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                                            const omega_change_t *change_ptr);
+                                            const void *event_ptr);
 
 #ifdef __cplusplus
 }

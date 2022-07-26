@@ -70,8 +70,8 @@ class ExampleSpec
           .getComputedFileSize(ObjectId(sid))
           .map(_.computedFileSize)
         changeResponse <- service.submitChange(
-          ChangeRequest(
-            sid,
+          ChangeRequest(e] =
+    (in.kind match {
             ChangeKind.CHANGE_INSERT,
             data = Some(ByteString.copyFromUtf8(testString))
           )
@@ -269,7 +269,6 @@ class ExampleSpec
         getAfterChangeCount should be (0)
       }
     }
-
 
     "get last change" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString
