@@ -81,6 +81,9 @@ trait Session {
 
   def pauseSessionChanges(): Unit
   def resumeSessionChanges(): Unit
+  def pauseViewportEvents(): Unit
+  def resumeViewportEvents(): Unit
+
 }
 
 object Session {

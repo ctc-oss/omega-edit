@@ -69,6 +69,8 @@ private[omega_edit] trait FFI {
   def omega_edit_undo_last_change(p: Pointer): Long
   def omega_edit_redo_last_undo(p: Pointer): Long
   def omega_edit_clear_changes(p: Pointer): Long
+  def omega_session_get_last_change(p: Pointer): Long
+  def omega_session_get_last_undo(p: Pointer): Long
 
   def omega_edit_create_viewport(
       p: Pointer,
