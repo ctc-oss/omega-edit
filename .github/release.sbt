@@ -70,6 +70,7 @@ lazy val api = project
     name := "omega-edit",
     libraryDependencies ++= {
       Seq(
+        "com.beachape" %% "enumeratum" % "1.7.0",
         "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
         "org.scalatest" %% "scalatest" % "3.2.12" % Test
