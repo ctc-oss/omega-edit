@@ -70,11 +70,7 @@ class ExampleSpec
           .getComputedFileSize(ObjectId(sid))
           .map(_.computedFileSize)
         changeResponse <- service.submitChange(
-          ChangeRequest(e] =
-    (in.kind match {
-            ChangeKind.CHANGE_INSERT,
-            data = Some(ByteString.copyFromUtf8(testString))
-          )
+            ChangeRequest(sid, ChangeKind.CHANGE_INSERT, data = Some(ByteString.copyFromUtf8(testString)))
         )
         sizeAfter <- service
           .getComputedFileSize(ObjectId(sid))
