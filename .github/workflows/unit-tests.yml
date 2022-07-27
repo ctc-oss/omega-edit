@@ -27,6 +27,8 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Setup Valgrind 🔬
         if: runner.os == 'Linux'
         run: sudo apt-get -y install valgrind
@@ -47,8 +49,6 @@ jobs:
         run: echo "${{ steps.conan.outputs.version }}"
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug

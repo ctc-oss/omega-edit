@@ -24,13 +24,13 @@ jobs:
         run: |
           brew install ninja doxygen graphviz sphinx-doc
           sudo pip3 install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap
+      - name: Checkout Source 🛎️
+        uses: actions/checkout@v3
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
       - name: Setup cmake 🔧
         uses:
           lukka/get-cmake@latest
-      - name: Checkout Source 🛎️
-        uses: actions/checkout@v3
       - name: Prepare and Build Docs 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
