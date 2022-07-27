@@ -148,6 +148,7 @@ jobs:
           curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
           sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
+        shell: bash
 
       - name: Package Scala Native
         env:
@@ -205,6 +206,7 @@ jobs:
           curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
           sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
+        shell: bash
 
       - name: Download macos Native JARs
         uses: actions/download-artifact@v3
@@ -272,6 +274,7 @@ jobs:
           curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
           sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
+        shell: bash
 
       - name: Package scala reference server
         env:
@@ -386,6 +389,7 @@ jobs:
           curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
           sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
         working-directory: /tmp
+        shell: bash
 
       - name: Download macos server
         uses: actions/download-artifact@v3
