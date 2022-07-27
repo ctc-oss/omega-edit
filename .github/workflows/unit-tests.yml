@@ -33,8 +33,9 @@ jobs:
       - name: Setup Java ☕
         uses: actions/setup-java@v3.4.1
         with:
-          distribution: adopt
+          distribution: temurin
           java-version: 8
+          cache: sbt
       - name: Setup Python 🐍
         uses: actions/setup-python@v4
         with:
