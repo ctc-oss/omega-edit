@@ -62,11 +62,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release]
     steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
       - name: Check if git tag matches package version ✅
         run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
         shell: bash
@@ -92,11 +92,11 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
       - name: Check if git tag matches package version ✅
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
@@ -138,10 +138,11 @@ jobs:
     name: Publish Scala API and Native packages
     runs-on: ubuntu-latest
     steps:
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
       - name: Checkout 🛎️
         uses: actions/checkout@v3
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+        shell: bash
       - name: Setup Java ☕
         uses: actions/setup-java@v3.4.1
         with:
@@ -203,11 +204,11 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
       - name: Setup Java ☕
         uses: actions/setup-java@v3.4.1
         with:
@@ -239,10 +240,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [node-build]
     steps:
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
       - name: Checkout 🛎️
         uses: actions/checkout@v3
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
       - name: Download upload_url 🔻
         uses: actions/download-artifact@v3
         with:
@@ -293,10 +294,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [server-packaging]
     steps:
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
       - name: Checkout 🛎️
         uses: actions/checkout@v3
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
       - name: Download upload_url 🔻
         uses: actions/download-artifact@v3
         with:
