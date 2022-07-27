@@ -31,7 +31,6 @@ jobs:
       - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
-
       - name: Check if pre-release ✅
         run: |
           if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
@@ -40,7 +39,6 @@ jobs:
             echo "PRE_RELEASE=false" >> $GITHUB_ENV
           fi
         shell: bash
-
       - name: Create release 🔧
         uses: actions/create-release@v1
         id: create_release
@@ -51,10 +49,8 @@ jobs:
           release_name: ${{ github.ref }}
           draft: false
           prerelease: "${{ env.PRE_RELEASE }}"
-      
       - name: Create upload_url file 🔧
         run: echo "${{ steps.create_release.outputs.upload_url }}" > upload_url
-      
       - name: Upload upload_url 🔺
         uses: actions/upload-artifact@v3
         with:
@@ -66,22 +62,19 @@ jobs:
     runs-on: ubuntu-latest
     needs: [create-release]
     steps:
-      - uses: actions/checkout@v3
-
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Check if git tag matches package version ✅
         run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
         shell: bash
-
       - name: Create package tarball file 🔧
         run: |
           cd src/rpc/client/ts
           yarn install
           yarn package
-
       - name: Upload ${{ env.NODE_FILE }} 🔺
         uses: actions/upload-artifact@v3
         with:
@@ -99,62 +92,40 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Check if git tag matches package version ✅
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
       - name: Install Conan
         uses: turtlebrowser/get-conan@main
-
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
-
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
       - name: Build Ωedit
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
-
       - name: Move library file mac
         if: startsWith(matrix.os, 'mac')
         run: mv build/lib/* lib
         shell: bash
-
       - name: Move library file windows
         if: startsWith(matrix.os, 'win')
         run: mv build/bin/omega_edit.dll lib/
         shell: bash
-
-      - name: Setup JDK
-        uses: actions/setup-java@v3.4.1
-        with:
-          distribution: adopt
-          java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
-          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-        shell: bash
-
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt native/publishM2
-
       - name: Upload Native JARs
         uses: actions/upload-artifact@v3
         with:
@@ -167,64 +138,44 @@ jobs:
     name: Publish Scala API and Native packages
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
-
-      - uses: actions/setup-python@v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
         with:
-          python-version: '3.x'
-
-      - name: Install Conan
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+      - name: Install Conan 💪
+        id: conan
         uses: turtlebrowser/get-conan@main
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.12
-        with:
-          cmake-version: '3.16.x'
-
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
       - name: Build Ωedit
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
-
       - name: Move library file
         run: mv build/lib/* lib
         shell: bash
-
-      - name: Setup JDK
-        uses: actions/setup-java@v3.4.1
-        with:
-          distribution: adopt
-          java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
-          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-        shell: bash
-
       - name: Download macos Native JARs
         uses: actions/download-artifact@v3
         with:
           name: macos-latest-artifacts
-
       - name: Download windows Native JARs
         uses: actions/download-artifact@v3
         with:
           name: windows-latest-artifacts
-
       - name: Move windows and macos jars out
         run: |
           for folder in "omega-edit-native_2.13"; do
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
             mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
           done
-
       - name: Package Scala Native
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -232,12 +183,10 @@ jobs:
           mv build.sbt .github/build.sbt
           mv .github/release.sbt build.sbt
           sbt native/publish
-
       - name: Package Scala API
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt api/publish
-
       - name: Package Scala SPI
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -254,28 +203,17 @@ jobs:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
-
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-
-      - name: Setup JDK
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Setup Java ☕
         uses: actions/setup-java@v3.4.1
         with:
-          distribution: adopt
+          distribution: temurin
           java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
-          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-        shell: bash
-
+          cache: sbt
       - name: Package scala reference server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -289,8 +227,7 @@ jobs:
           mv ${{ matrix.os }}-server ../../${{ matrix.os }}-server
         working-directory: src/rpc/server/scala
         shell: bash
-
-      - name: Upload {{ matrix.os }} server
+      - name: Upload {{ matrix.os }} server 🔺
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-server
@@ -302,15 +239,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [node-build]
     steps:
-      - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
-
-      - name: Download upload_url
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Download upload_url 🔻
         uses: actions/download-artifact@v3
         with:
           name: upload_url
-      
       - name: Add upload_url to GITHUB_ENV
         run: |
           UPLOAD_URL=$(cat upload_url)
@@ -324,19 +260,16 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: ${{ env.node_version }}
-
       - name: Download node release file 🔻
         uses: actions/download-artifact@v3
         with:
           name: omega-edit-v${{ env.PKG_VERSION }}.tgz
           path: omega-edit-v${{ env.PKG_VERSION }}.tgz
-
       - name: Move out node package file 🛻
         run: |
           mv omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
           mv omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
           rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
-
       - name: Upload node release tarball 🔺
         uses: actions/upload-release-asset@v1
         env:
@@ -346,7 +279,6 @@ jobs:
           asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
           asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tar.gz
           asset_content_type: application/tar+gzip
-
       - name: Publish node package to npm registry 🚀
         run: |
           cp src/rpc/client/ts/package.json .
@@ -361,15 +293,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [server-packaging]
     steps:
-      - uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
-      
-      - name: Download upload_url
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Download upload_url 🔻
         uses: actions/download-artifact@v3
         with:
           name: upload_url
-      
       - name: Add upload_url to GITHUB_ENV
         run: |
           UPLOAD_URL=$(cat upload_url)
@@ -378,37 +309,27 @@ jobs:
       ###########################
       ## Scala release process ##
       ###########################
-      - name: Setup JDK
+      - name: Setup Java ☕
         uses: actions/setup-java@v3.4.1
         with:
-          distribution: adopt
+          distribution: temurin
           java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
-          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-        shell: bash
-
-      - name: Download macos server
+          cache: sbt
+      - name: Download macos server 🔻
         uses: actions/download-artifact@v3
         with:
           name: macos-latest-server
           path: macos-latest-server
-
-      - name: Download linux server
+      - name: Download linux server 🔻
         uses: actions/download-artifact@v3
         with:
           name: ubuntu-latest-server
           path: ubuntu-latest-server
-
-      - name: Download windows server
+      - name: Download windows server 🔻
         uses: actions/download-artifact@v3
         with:
           name: windows-latest-server
           path: windows-latest-server
-
       - name: Combine all servers into one zip
         run: |
           mkdir -p omega-edit-scala-server-${{ env.PKG_VERSION }}
@@ -416,7 +337,6 @@ jobs:
           mv windows-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/windows
           mv ubuntu-latest-server omega-edit-scala-server-${{ env.PKG_VERSION }}/linux
           zip -r "omega-edit-scala-server-${{ env.PKG_VERSION }}.zip" omega-edit-scala-server-${{ env.PKG_VERSION }}
-
       - name: Upload scala reference server 🔺
         uses: actions/upload-release-asset@v1.0.2
         env:

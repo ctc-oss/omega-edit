@@ -24,19 +24,21 @@ jobs:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
         with:
-          python-version: '3.x'
-
-      - name: Install Conan
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+      - name: Install Conan 💪
+        id: conan
         uses: turtlebrowser/get-conan@main
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1
-        with:
-          cmake-version: '3.16.x'
-
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
       - name: Build Ωedit
         run: |
           rm -rf build || true
@@ -44,38 +46,20 @@ jobs:
           cmake --build build --target omega_edit
           cmake --install build --prefix "${PWD}/_install"
           mv _install/lib/* ./lib
-
-      - name: Setup JDK
-        uses: actions/setup-java@v3.4.1
-        with:
-          distribution: adopt
-          java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.7.1/sbt-1.7.1.tgz
-          sudo tar xvzf sbt-1.7.1.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-        shell: bash
-
       - name: Check Scala headers
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt headerCheckAll
-
       - name: Package Scala API
         run: sbt installM2
-
       - name: Archive M2
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
-
       - name: Coverage report
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt howMuchCoverage
-
       - name: Build Scala gRPC Reference Impl
         if: startsWith(matrix.os, 'ubuntu')
         env:
