@@ -179,13 +179,13 @@ public:
             assert(session_ptr);
             const auto session_to_id_iter = session_to_id_.find(session_ptr);
             assert(session_to_id_iter != session_to_id_.end());
-            session_to_id_.erase(session_to_id_iter);
-            id_to_session_.erase(id_to_session_iter);
             destroy_session_subscription(session_id);
             for (auto iter = id_to_viewport_.begin(); iter != id_to_viewport_.end(); iter = id_to_viewport_.begin()) {
                 destroy_viewport(iter->first);
             }
             omega_edit_destroy_session(session_ptr);
+            session_to_id_.erase(session_to_id_iter);
+            id_to_session_.erase(id_to_session_iter);
             //DBG(CLOG << LOCATION << "destroyed: " << session_id << std::endl;);
         }
     }
@@ -254,10 +254,10 @@ public:
             assert(viewport_ptr);
             const auto viewport_to_id_iter = viewport_to_id_.find(viewport_ptr);
             assert(viewport_to_id_iter != viewport_to_id_.end());
-            viewport_to_id_.erase(viewport_to_id_iter);
-            id_to_viewport_.erase(id_to_viewport_iter);
             destroy_viewport_subscription(viewport_id);
             omega_edit_destroy_viewport(viewport_ptr);
+            viewport_to_id_.erase(viewport_to_id_iter);
+            id_to_viewport_.erase(id_to_viewport_iter);
             assert(viewport_to_id_.size() == omega_session_get_num_viewports(omega_viewport_get_session(viewport_ptr)));
         }
     }
@@ -388,7 +388,7 @@ void handle_viewport_event(const omega_viewport_t *viewport_ptr, omega_viewport_
     assert(!viewport_id.empty());
     const auto viewport_event_writer_ptr = session_manager_ptr->get_viewport_subscription(viewport_id);
     if (viewport_event_writer_ptr) {
-        // This session is subscribed, so populate the RPC message and push it onto the worker queue
+        // This viewport is subscribed, so populate the RPC message and push it onto the worker queue
         const auto session_id = session_manager_ptr->get_session_id(omega_viewport_get_session(viewport_ptr));
         assert(!session_id.empty());
         const auto viewport_change_ptr = std::make_shared<ViewportEvent>();

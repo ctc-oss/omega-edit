@@ -51,8 +51,15 @@ import {
 import { unlinkSync } from 'node:fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
+import {getClient, waitForReady} from "../../src/settings";
+
+const deadline = new Date()
+deadline.setSeconds(deadline.getSeconds() + 10)
 
 describe('Version', () => {
+  beforeEach('Ensure the client is ready', async () => {
+    expect(await waitForReady(getClient(), deadline))
+  })
   const expected_version = 'v0.9.13'
   it('Should return version ' + expected_version, async () => {
     const result = await getVersion()
@@ -61,6 +68,9 @@ describe('Version', () => {
 })
 
 describe('Encode/Decode', () => {
+  beforeEach('Ensure the client is ready', async () => {
+    expect(await waitForReady(getClient(), deadline))
+  })
   it('Should encode string into Uint8Array', () => {
     expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(
       encode('abc123')
@@ -77,7 +87,8 @@ describe('Encode/Decode', () => {
 describe('Editing', () => {
   let session_id = ''
 
-  beforeEach('create a new session', async () => {
+  beforeEach('Create a new session', async () => {
+    expect(await waitForReady(getClient(), deadline))
     expect(0).to.equal(await getSessionCount())
     let new_session_id = await createSession(undefined, undefined)
     expect(new_session_id).to.be.a('string').with.length(36)
@@ -87,7 +98,7 @@ describe('Editing', () => {
     //console.log("created session: "+session_id)
   })
 
-  afterEach('destroy session', async () => {
+  afterEach('Destroy session', async () => {
     expect(1).to.equal(await getSessionCount())
     const destroyed_session_id = await destroySession(session_id)
     expect(destroyed_session_id).to.equal(session_id)
@@ -466,6 +477,7 @@ describe('Editing', () => {
       let deleted_viewport_id = await destroyViewport(viewport_id)
       expect(viewport_id).to.equal(deleted_viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
+      //console.log("Destroying 1 viewport by destroying the session")
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
     })
     it('Should handle floating viewports', async () => {

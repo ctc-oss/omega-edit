@@ -28,7 +28,8 @@ jobs:
     name: Create Release ✨
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
       - name: Check if pre-release ✅
@@ -68,7 +69,7 @@ jobs:
         run: ${{ env.export_cmd }}
         shell: bash
       - name: Check if git tag matches package version ✅
-        run: if [[ ${{env.GIT_TAG}} != ${{env.PKG_VERSION}} ]]; then exit 1; else exit 0; fi
+        run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
       - name: Create package tarball file 🔧
         run: |
