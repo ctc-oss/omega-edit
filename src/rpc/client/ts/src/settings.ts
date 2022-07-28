@@ -23,7 +23,23 @@ import * as grpc from '@grpc/grpc-js'
 const uri = '127.0.0.1:9000'
 let creds = grpc.credentials.createInsecure()
 const client = new EditorClient(uri, creds)
+export const ALL_EVENTS = ~0
 
 export function getClient(): EditorClient {
   return client
+}
+
+export function waitForReady(
+  client: EditorClient,
+  deadline: grpc.Deadline
+): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
+    client.waitForReady(deadline, (err) => {
+      if (err) {
+        console.log(err.message)
+        return reject(false)
+      }
+      return resolve(true)
+    })
+  })
 }

@@ -67,7 +67,6 @@ cmake --build build-rpc-$type
 $checker build-rpc-$type/bin/server_test
 build-rpc-$type/bin/server --target=127.0.0.1:9000 &
 server_pid=$!
-sleep 2
 pushd src/rpc/client/ts/
 npm install
 npm run compile-src
@@ -79,7 +78,6 @@ kill $server_pid
 if [ $test_scala_server -ne 0 ]; then
   pushd src/rpc/server/scala
   sbt run
-  sleep 2
   popd
   pushd src/rpc/client/ts/
   npm install
