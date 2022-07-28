@@ -25,7 +25,7 @@ import {
   SegmentRequest,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import {ALL_EVENTS, getClient} from './settings'
+import { ALL_EVENTS, getClient } from './settings'
 const client = getClient()
 
 export function createSession(
