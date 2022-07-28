@@ -60,7 +60,7 @@ describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {
     expect(await waitForReady(getClient(), deadline))
   })
-  const expected_version = 'v0.9.13'
+  const expected_version = 'v0.9.14'
   it('Should return version ' + expected_version, async () => {
     const result = await getVersion()
     expect(result).to.equal(expected_version)
