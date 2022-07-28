@@ -33,7 +33,8 @@ trait Session {
   def numCheckpoints: Long
   def numUndos: Long
   def numViewports: Long
-
+  def numSearchContexts: Long
+  
   def callback: Option[SessionCallback]
 
   def eventInterest: Int
@@ -80,6 +81,9 @@ trait Session {
 
   def pauseSessionChanges(): Unit
   def resumeSessionChanges(): Unit
+  def pauseViewportEvents(): Unit
+  def resumeViewportEvents(): Unit
+
 }
 
 object Session {

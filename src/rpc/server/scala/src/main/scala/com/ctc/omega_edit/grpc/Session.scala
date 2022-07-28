@@ -67,6 +67,7 @@ object Session {
   case object GetNumChanges extends Op
   case object GetNumUndos extends Op
   case object GetNumViewports extends Op
+  case object GetNumSearchContexts extends Op
 
   case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
@@ -87,6 +88,9 @@ object Session {
 
   case class PauseSession() extends Op
   case class ResumeSession() extends Op
+
+  case class PauseViewportEvents() extends Op
+  case class ResumeViewportEvents() extends Op
 
   case class Updated(id: String)
 
@@ -190,6 +194,14 @@ class Session(
       session.resumeSessionChanges()
       sender() ! Ok(sessionId)
 
+    case PauseViewportEvents() =>
+      session.pauseViewportEvents()
+      sender() ! Ok(sessionId)
+
+    case ResumeViewportEvents() =>
+      session.resumeViewportEvents()
+      sender() ! Ok(sessionId)
+
     case Watch =>
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
@@ -218,6 +230,11 @@ class Session(
     case GetNumViewports =>
       sender() ! new Ok(sessionId) with Size {
         def computedSize: Long = session.numViewports
+      }
+
+    case GetNumSearchContexts =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numSearchContexts
       }
 
     case Save(to, overwrite) =>
