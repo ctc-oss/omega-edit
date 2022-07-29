@@ -15,8 +15,8 @@
   "scripts": {
     "compile-src": "./compile-proto.sh",
     "prepackage": "run-script-os",
-    "prepackage:default": "./compile-proto.sh && tsc -p ./ && ./compile-proto.sh --out && cp .npmignore package.json README.md out && cp -r src/*.d.ts out",
-    "prepackage:windows": "./compile-proto.sh && tsc -p ./ && ./compile-proto.sh --out && copy .npmignore package.json README.md out && copy -r src/*.d.ts out",
+    "prepackage:default": "./compile-proto.sh && tsc -p ./ && ./compile-proto.sh --out && cp .npmignore package.json README.md out && cp -r src/*.ts out",
+    "prepackage:windows": "./compile-proto.sh && tsc -p ./ && ./compile-proto.sh --out && copy .npmignore package.json README.md out && copy -r src/*.ts out",
     "package": "cd out && yarn pack && cd ../",
     "postpackage": "run-script-os",
     "postpackage:default": "rm -rf out/*.d.ts out/.npmignore out/package.json out/README.md && mv out/omega-edit* .",

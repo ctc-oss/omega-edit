@@ -14,3 +14,4 @@ omega_edit_*.ts
 **/*.js
 **/*.js.map
 package
+**/out/
