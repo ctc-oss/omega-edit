@@ -48,15 +48,40 @@ import {
   getViewportCount,
   getViewportData,
   pauseViewportEvents,
-  resumeViewportEvents,
+  resumeViewportEvents
 } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
-import { ChangeKind } from '../../src/omega_edit_pb'
+import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { getClient, waitForReady } from '../../src/settings'
 
 const deadline = new Date()
 deadline.setSeconds(deadline.getSeconds() + 10)
+
+function subscribeViewport(viewport_id: string) {
+  getClient()
+    .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
+    .on('data', (viewportEvent) => {
+      let event = viewportEvent.getViewportEventKind()
+      let session_id = viewportEvent.getSessionId()
+      let viewport_id = viewportEvent.getViewportId()
+      console.log(
+        'viewport: ' + session_id + ':' + viewport_id + ', event: ' + event
+      )
+      if (2 == event) {
+        console.log(
+          'serial: ' +
+            viewportEvent.getSerial() +
+            ', offset: ' +
+            viewportEvent.getOffset() +
+            ', length: ' +
+            viewportEvent.getLength() +
+            ', data: ' +
+            decode(viewportEvent.getData())
+        )
+      }
+    })
+}
 
 describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {
@@ -483,6 +508,7 @@ describe('Editing', () => {
       expect(1).to.equal(await getViewportCount(session_id))
       viewport_id = await createViewport(undefined, session_id, 10, 10, false)
       expect(viewport_id).to.be.a('string').with.length(36) // viewport_id is a random UUID
+      subscribeViewport(viewport_id)
       expect(2).to.equal(await getViewportCount(session_id))
       let change_id = await insert(session_id, 0, '0123456789ABC')
       expect(1).to.equal(change_id)
@@ -500,6 +526,7 @@ describe('Editing', () => {
       expect('123456789A').to.equal(decode(viewport_data.getData_asU8()))
       viewport_data = await getViewportData(viewport_id)
       expect('BC').to.equal(decode(viewport_data.getData_asU8()))
+      //await unsubscribeViewport(viewport_id)
       change_id = await overwrite(session_id, 8, '!@#')
       expect(3).to.equal(change_id)
       file_size = await getComputedFileSize(session_id)
