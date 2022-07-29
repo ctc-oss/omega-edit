@@ -70,7 +70,7 @@ include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
 # Dependencies
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0 COMPONENTS program_options REQUIRED)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 

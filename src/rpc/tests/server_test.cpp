@@ -919,10 +919,18 @@ private:
     std::vector<std::unique_ptr<std::thread>> viewport_subscription_handler_threads_;
 };
 
-void run_tests(const std::string &target_str, int repetitions, int ms_pause_between_reps, bool log) {
+void run_tests(const std::string &target_str, int repetitions, int ms_pause_between_reps, bool log, int64_t connect_deadline_in_seconds) {
     const int64_t vpt_capacity = 5;
     fs::remove_all(fs::current_path() / "server_test_out");
-    OmegaEditServiceClient server_test_client(grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
+    auto grpcChannel = grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials());
+    if (log) {
+        DBG(CLOG << LOCATION << "Waiting for up to " << connect_deadline_in_seconds << " seconds to connect to the RPC channel" << std::endl;);
+    }
+    assert (grpcChannel->WaitForConnected(std::chrono::system_clock::now() + std::chrono::seconds(connect_deadline_in_seconds)));
+    if (log) {
+        DBG(CLOG << LOCATION << "RPC channel connected" << std::endl;);
+    }
+    OmegaEditServiceClient server_test_client(grpcChannel);
     while (repetitions--) {
         if (log) {
             DBG(CLOG << LOCATION << "[Remaining: " << repetitions
@@ -1300,15 +1308,13 @@ int main(int argc, char **argv) {
         char *arg_list[] = {(char *) server_program.c_str(), (char *) target.c_str(), nullptr};
         server_pid = spawn_process(server_program.c_str(), arg_list);
         DBG(CLOG << LOCATION << "Ωedit " << server_program << " pid: " << server_pid << std::endl;);
-        // TODO: Check to see if the server is up and serving instead of using sleep
-        sleep(2);// sleep 2 seconds for the server to come online
 #else
         auto cmd = server_program.string() + " " + "--target=" + target_str + ".exe";
         spawn_widows_process(pi, (TCHAR *) cmd.c_str());
 #endif
     }
 
-    run_tests(target_str, reps, pause, true);
+    run_tests(target_str, reps, pause, true, 10);
     if (run_server) {
 #ifdef OMEGA_BUILD_UNIX
         kill(server_pid, SIGTERM);

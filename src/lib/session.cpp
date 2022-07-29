@@ -161,9 +161,9 @@ int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
 }
 
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                          const omega_change_t *change_ptr) {
+                          const void *event_ptr) {
     assert(session_ptr);
     if (session_ptr->event_handler && (session_event & session_ptr->event_interest_)) {
-        (*session_ptr->event_handler)(session_ptr, session_event, reinterpret_cast<const void *>(change_ptr));
+        (*session_ptr->event_handler)(session_ptr, session_event, event_ptr);
     }
 }

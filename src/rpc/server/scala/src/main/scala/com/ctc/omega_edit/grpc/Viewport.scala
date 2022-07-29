@@ -42,7 +42,7 @@ object Viewport {
     def unapply(oid: ObjectId): Option[(String, String)] =
       oid.id.split("-") match {
         case Array(s, v) => Some((s, v))
-        case _ => None
+        case _           => None
       }
 
     def uuid(): String = UUID.randomUUID().toString.take(8)
@@ -54,8 +54,11 @@ object Viewport {
   case class Updated(id: String, data: String, change: Option[Change])
 }
 
-class Viewport(view: api.Viewport, events: EventStream, @deprecated("unused", "") cb: ViewportCallback)
-    extends Actor
+class Viewport(
+    view: api.Viewport,
+    events: EventStream,
+    @deprecated("unused", "") cb: ViewportCallback
+) extends Actor
     with ActorLogging {
   val viewportId: String = self.path.name
 

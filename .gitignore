@@ -50,3 +50,5 @@ lib/*
 **/*jar
 
 **/.vscode/settings.json
+
+.metals

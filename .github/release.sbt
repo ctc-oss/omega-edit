@@ -17,17 +17,17 @@
 import BuildSupport._
 import play.api.libs.json._
 
-lazy val packageData = Json.parse(
-  scala.io.Source.fromFile("src/rpc/client/ts/package.json"
-).mkString).as[JsObject]
+lazy val packageData = Json
+  .parse(scala.io.Source.fromFile("src/rpc/client/ts/package.json").mkString)
+  .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
 lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
 lazy val ghb_resolver = (
   s"GitHub ${ghb_repo_owner} Apache Maven Packages"
-  at
-  s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+    at
+      s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
 
 lazy val commonSettings = {
@@ -35,7 +35,9 @@ lazy val commonSettings = {
     organization := "com.ctc",
     scalaVersion := "2.13.8",
     version := omegaVersion,
-    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    licenses += ("Apache-2.0", new URL(
+      "https://www.apache.org/licenses/LICENSE-2.0.txt"
+    )),
     organizationName := "Concurrent Technologies Corporation",
     // git.useGitDescribe := true,
     // git.gitUncommittedChanges := false,
@@ -48,7 +50,7 @@ lazy val commonSettings = {
       "maven.pkg.github.com",
       ghb_repo_owner,
       System.getenv("GITHUB_TOKEN")
-    ),
+    )
   )
 }
 
@@ -68,9 +70,10 @@ lazy val api = project
     name := "omega-edit",
     libraryDependencies ++= {
       Seq(
+        "com.beachape" %% "enumeratum" % "1.7.0",
         "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
-        "com.github.jnr" % "jnr-ffi" % "2.2.11",
-        "org.scalatest" %% "scalatest" % "3.2.11" % Test
+        "com.github.jnr" % "jnr-ffi" % "2.2.12",
+        "org.scalatest" %% "scalatest" % "3.2.12" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
@@ -104,7 +107,9 @@ lazy val native = project
     name := "omega-edit-native",
     artifactClassifier := Some(platform.id),
     Compile / packageBin / mappings += {
-      baseDirectory.map(_ / s"$libdir/${mapping._1}").value -> s"${version.value}/${mapping._2}"
+      baseDirectory
+        .map(_ / s"$libdir/${mapping._1}")
+        .value -> s"${version.value}/${mapping._2}"
     },
     Compile / packageDoc / publishArtifact := false,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
@@ -115,10 +120,16 @@ lazy val native = project
       "sharedLibraryArch" -> System.getProperty("os.arch"),
       "sharedLibraryPath" -> s"${version.value}/${mapping._2}"
     ),
-    buildInfoOptions += BuildInfoOption.Traits("com.ctc.omega_edit.spi.NativeBuildInfo"),
+    buildInfoOptions += BuildInfoOption.Traits(
+      "com.ctc.omega_edit.spi.NativeBuildInfo"
+    ),
     packagedArtifacts ++= Map(
-      Artifact("omega-edit-native", "windows-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"),
-      Artifact("omega-edit-native", "macos-64") -> file(s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"),
+      Artifact("omega-edit-native", "windows-64") -> file(
+        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
+      ),
+      Artifact("omega-edit-native", "macos-64") -> file(
+        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"
+      )
     )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
@@ -131,6 +142,12 @@ lazy val spi = project
   )
   .enablePlugins(GitVersioning)
 
-addCommandAlias("install", "; clean; native/publishM2; test; api/publishM2; spi/publishM2")
+addCommandAlias(
+  "install",
+  "; clean; native/publishM2; test; api/publishM2; spi/publishM2"
+)
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
-addCommandAlias("publishAll", "; clean; +native/publish; +api/publish; +spi/publish")
+addCommandAlias(
+  "publishAll",
+  "; clean; +native/publish; +api/publish; +spi/publish"
+)

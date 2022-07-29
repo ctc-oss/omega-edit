@@ -33,6 +33,10 @@ declare module 'omega-edit/session' {
 
   export function getComputedFileSize(sessionId: string): Promise<number>
 
+  export function pauseSessionChanges(sessionId: string): Promise<string>
+
+  export function resumeSessionChanges(sessionId: string): Promise<string>
+
   export function getSegment(
     sessionId: string,
     offset: number,

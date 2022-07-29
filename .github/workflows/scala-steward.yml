@@ -9,9 +9,21 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-omega_edit_*.js
-omega_edit_*.ts
-**/*.js
-**/*.js.map
-package
-**/out/
+---
+name: Scala Steward
+on:
+  schedule:
+    # This workflow will launch at 00:00 every Sunday
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  scala-steward:
+    runs-on: ubuntu-latest
+    name: Scala Steward
+    steps:
+      - name: Scala Steward
+        uses: scala-steward-org/scala-steward-action@v2
+        with:
+          github-token: ${{ secrets.SCALA_STEWARD_TOKEN }}
+          author-email: scala.steward@noreply.ctc.com

@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # Project information
 project(omega_edit
-        VERSION 0.9.8
+        VERSION 0.9.15
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
@@ -82,7 +82,7 @@ conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTING
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup()
 
-Set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
+set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0 COMPONENTS program_options REQUIRED)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 

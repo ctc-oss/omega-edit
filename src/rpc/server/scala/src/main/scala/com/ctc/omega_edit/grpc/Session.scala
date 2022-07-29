@@ -45,12 +45,21 @@ object Session {
     def path: Path
   }
 
-  def props(session: api.Session, events: EventStream, cb: SessionCallback): Props =
+  def props(
+      session: api.Session,
+      events: EventStream,
+      cb: SessionCallback
+  ): Props =
     Props(new Session(session, events, cb))
 
   sealed trait Op
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
-  case class View(offset: Long, capacity: Long, id: Option[String], eventInterest: Option[Int]) extends Op
+  case class View(
+      offset: Long,
+      capacity: Long,
+      id: Option[String],
+      eventInterest: Option[Int]
+  ) extends Op
   case class DestroyView(id: String) extends Op
   case object Watch extends Op
   case object GetSize extends Op
@@ -58,6 +67,7 @@ object Session {
   case object GetNumChanges extends Op
   case object GetNumUndos extends Op
   case object GetNumViewports extends Op
+  case object GetNumSearchContexts extends Op
 
   case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
@@ -78,6 +88,9 @@ object Session {
 
   case class PauseSession() extends Op
   case class ResumeSession() extends Op
+
+  case class PauseViewportEvents() extends Op
+  case class ResumeViewportEvents() extends Op
 
   case class Updated(id: String)
 
@@ -109,7 +122,14 @@ class Session(
             input.queue.offer(Viewport.Updated(fqid, v.data, c))
             ()
           }
-          context.actorOf(Viewport.props(session.viewCb(off, cap, cb, eventInterest.getOrElse(0)), stream, cb), vid)
+          context.actorOf(
+            Viewport.props(
+              session.viewCb(off, cap, cb, eventInterest.getOrElse(0)),
+              stream,
+              cb
+            ),
+            vid
+          )
           sender() ! Ok(fqid)
       }
 
@@ -145,7 +165,7 @@ class Session(
           }
         case None => sender() ! Err(Status.NOT_FOUND)
       }
-    
+
     case UndoLast() =>
       session.undoLast()
       sender() ! Ok(sessionId)
@@ -172,6 +192,14 @@ class Session(
 
     case ResumeSession() =>
       session.resumeSessionChanges()
+      sender() ! Ok(sessionId)
+
+    case PauseViewportEvents() =>
+      session.pauseViewportEvents()
+      sender() ! Ok(sessionId)
+
+    case ResumeViewportEvents() =>
+      session.resumeViewportEvents()
       sender() ! Ok(sessionId)
 
     case Watch =>
@@ -202,6 +230,11 @@ class Session(
     case GetNumViewports =>
       sender() ! new Ok(sessionId) with Size {
         def computedSize: Long = session.numViewports
+      }
+
+    case GetNumSearchContexts =>
+      sender() ! new Ok(sessionId) with Size {
+        def computedSize: Long = session.numSearchContexts
       }
 
     case Save(to, overwrite) =>

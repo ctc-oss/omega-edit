@@ -23,7 +23,7 @@ import {
   ViewportDataRequest,
   ViewportDataResponse,
 } from './omega_edit_pb'
-import { getClient } from './settings'
+import { ALL_EVENTS, getClient } from './settings'
 const client = getClient()
 
 export function createViewport(
@@ -40,6 +40,7 @@ export function createViewport(
     request.setOffset(offset)
     request.setCapacity(capacity)
     request.setIsFloating(is_floating)
+    request.setEventInterest(ALL_EVENTS)
     client.createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)

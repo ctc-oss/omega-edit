@@ -20,40 +20,39 @@
 import { ChangeDetailsResponse } from './omega_edit_pb'
 
 declare module 'omega-edit/change' {
-  export const insert: (
+  export function insert(
     session_id: string,
     offset: number,
     data: string | Uint8Array
-  ) => Promise<number>
+  ): Promise<number>
 
-  export const del: (
+  export function del(
     session_id: string,
     offset: number,
-    data: string,
     len: number
-  ) => Promise<number>
+  ): Promise<number>
 
-  export const overwrite: (
+  export function overwrite(
     session_id: string,
     offset: number,
     data: string | Uint8Array
-  ) => Promise<number>
+  ): Promise<number>
 
-  export const undo: (session_id: string) => Promise<number>
+  export function undo(session_id: string): Promise<number>
 
-  export const redo: (session_id: string) => Promise<number>
+  export function redo(session_id: string): Promise<number>
 
-  export const clear: (session_id: string) => Promise<string>
+  export function clear(session_id: string): Promise<string>
 
-  export const getLastChange: (
+  export function getLastChange(
     session_id: string
-  ) => Promise<ChangeDetailsResponse>
+  ): Promise<ChangeDetailsResponse>
 
   export const getLastUndo: (
     session_id: string
   ) => Promise<ChangeDetailsResponse>
 
-  export const getChangeCount: (session_id: string) => Promise<number>
+  export function getChangeCount(session_id: string): Promise<number>
 
-  export const getUndoCount: (session_id: string) => Promise<number>
+  export function getUndoCount(session_id: string): Promise<number>
 }

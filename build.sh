@@ -19,6 +19,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 #type="Release"
 #generator="Unix Makefiles"
 
+test_scala_server=0
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
@@ -72,7 +73,20 @@ npm run compile-src
 npm run lint
 npm test
 popd
-kill $!
+kill $server_pid
+
+if [ $test_scala_server -ne 0 ]; then
+  pushd src/rpc/server/scala
+  sbt run
+  popd
+  pushd src/rpc/client/ts/
+  npm install
+  npm run compile-src
+  npm run lint
+  npm test
+  popd
+  # TODO: kill the Scala RPC server
+fi
 
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"

@@ -25,7 +25,7 @@ trait TestSupport extends SessionSupport with ViewportSupport {
       case Changed(id) =>
         session.findChange(id) match {
           case Some(c) => c
-          case None => throw new RuntimeException(s"Change $id not found")
+          case None    => throw new RuntimeException(s"Change $id not found")
         }
       case Change.Fail => throw new RuntimeException("Change failed")
     }

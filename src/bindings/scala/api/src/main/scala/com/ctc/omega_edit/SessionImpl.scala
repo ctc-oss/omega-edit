@@ -49,6 +49,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def numViewports: Long =
     i.omega_session_get_num_viewports(p)
 
+  def numSearchContexts: Long =
+    i.omega_session_get_num_search_contexts(p)
+
   def callback: Option[SessionCallback] =
     Option(i.omega_session_get_event_cbk(p))
 
@@ -63,6 +66,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def resumeSessionChanges(): Unit =
     i.omega_session_resume_changes(p)
+
+  def pauseViewportEvents(): Unit =
+    i.omega_session_pause_viewport_event_callbacks(p)
+
+  def resumeViewportEvents(): Unit =
+    i.omega_session_resume_viewport_event_callbacks(p)
 
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
@@ -85,7 +94,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
 
-  def clearChanges(): Result = 
+  def clearChanges(): Result =
     Edit(i.omega_edit_clear_changes(p))
 
   def getLastChange(): Result =
