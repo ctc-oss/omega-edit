@@ -22,7 +22,7 @@ lazy val packageData = Json
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
-name := "example-grpc-server"
+name := "omega-edit-grpc-server"
 scalaVersion := "2.13.8"
 
 lazy val ghb_repo_owner = "ctc-oss"
@@ -46,9 +46,12 @@ startYear := Some(2021)
 publishConfiguration := publishConfiguration.value.withOverwrite(true)
 publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
 
+fork := true
+
 libraryDependencies ++= Seq(
   "com.ctc" %% "omega-edit" % omegaVersion,
   "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+  "com.monovore" %% "decline" % "2.3.0",
   "org.scalatest" %% "scalatest" % "3.2.12" % Test
 )
 
@@ -64,4 +67,4 @@ externalResolvers ++= Seq(
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 
-enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaAppPackaging, UniversalPlugin)
+enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaServerAppPackaging, UniversalPlugin)
