@@ -47,6 +47,8 @@ import {
   destroyViewport,
   getViewportCount,
   getViewportData,
+  pauseViewportEvents,
+  resumeViewportEvents,
 } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
@@ -343,6 +345,40 @@ describe('Editing', () => {
   })
 
   describe('Search', () => {
+    it('Should work with replace', async () => {
+      let change_id = await overwrite(
+        session_id,
+        0,
+        encode('Hey there is hay in my Needles')
+      )
+      expect(change_id).to.equal(1)
+      let pattern = 'is hay'
+      let replace = 'are needles'
+      let needles = await searchSession(
+        session_id,
+        pattern,
+        false,
+        0,
+        0,
+        undefined
+      )
+      expect([10]).deep.equals(needles)
+      await pauseViewportEvents(session_id)
+      await del(session_id, 10, pattern.length)
+      await resumeViewportEvents(session_id)
+      await insert(session_id, 10, replace)
+      pattern = 'needles'
+      replace = 'hay'
+      needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
+      expect([14, 28]).deep.equals(needles)
+      await pauseViewportEvents(session_id)
+      await del(session_id, 28, pattern.length)
+      await resumeViewportEvents(session_id)
+      await insert(session_id, 28, replace)
+      let file_size = await getComputedFileSize(session_id)
+      let segment = await getSegment(session_id, 0, file_size)
+      expect(segment).deep.equals(encode('Hey there are needles in my hay'))
+    })
     it('Should search sessions', async () => {
       let change_id = await overwrite(
         session_id,

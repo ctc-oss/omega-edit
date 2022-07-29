@@ -51,9 +51,9 @@ export function createViewport(
   })
 }
 
-export function destroyViewport(id: string): Promise<string> {
+export function destroyViewport(viewport_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.destroyViewport(new ObjectId().setId(id), (err, r) => {
+    client.destroyViewport(new ObjectId().setId(viewport_id), (err, r) => {
       if (err) {
         return reject('deleteViewport error: ' + err.message)
       }
@@ -93,5 +93,29 @@ export function getViewportData(
         return resolve(r)
       }
     )
+  })
+}
+
+export function pauseViewportEvents(viewport_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.pauseViewportEvents(new ObjectId().setId(viewport_id), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('pauseViewportEvents error: ' + err.message)
+      }
+      return resolve(viewport_id)
+    })
+  })
+}
+
+export function resumeViewportEvents(viewport_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.resumeViewportEvents(new ObjectId().setId(viewport_id), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('resumeViewportEvents error: ' + err.message)
+      }
+      return resolve(viewport_id)
+    })
   })
 }
