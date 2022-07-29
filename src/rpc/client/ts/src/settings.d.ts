@@ -18,7 +18,13 @@
  */
 
 import { EditorClient } from './omega_edit_grpc_pb'
+import * as grpc from '@grpc/grpc-js'
 
 declare module 'omega-edit/settings' {
+  export const ALL_EVENTS
   export function getClient(): EditorClient
+  export function waitForReady(
+    client: EditorClient,
+    deadline: grpc.Deadline
+  ): Promise<boolean>
 }

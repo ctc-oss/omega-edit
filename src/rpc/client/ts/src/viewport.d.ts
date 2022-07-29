@@ -17,14 +17,18 @@
  * limitations under the License.
  */
 
+import { ViewportDataResponse } from './omega_edit_pb'
 declare module 'omega-edit/viewport' {
   export function createViewport(
     desired_viewport_id: string | undefined,
     session_id: string,
     offset: number,
-    capacity: number
+    capacity: number,
+    is_floating: boolean
   ): Promise<string>
   export function destroyViewport(id: string): Promise<string>
   export function getViewportCount(sesssion_id: string): Promise<number>
-  export function getViewportData(viewport_id: string): Promise<Uint8Array>
+  export function getViewportData(
+    viewport_id: string
+  ): Promise<ViewportDataResponse>
 }
