@@ -17,14 +17,39 @@
 package com.ctc.omega_edit.grpc
 
 import akka.actor.ActorSystem
+import com.monovore.decline._
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.concurrent.Await
 
-object boot extends App {
-  implicit val sys: ActorSystem = ActorSystem("omega-grpc")
+object boot
+    extends CommandApp(
+      name = "omega-edit-grpc-server",
+      header = "",
+      main = Opts
+        .option[Int]("port", short = "p", metavar = "port_num", help = "Set the gRPC port to listen on. Default: 9000")
+        .withDefault(9000)
+        .map(new boot(_).run())
+    )
+
+class boot(port: Int) {
+  implicit val sys: ActorSystem = ActorSystem("omega-grpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
-  EditorService.bind().foreach { binding =>
-    println(s"gRPC server bound to: ${binding.localAddress}")
+  def run() = {
+    val done =
+      for {
+        binding <- EditorService.bind(port = port)
+
+        _ = println(s"gRPC server bound to: ${binding.localAddress}")
+
+        done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
+
+        _ = println(s"exiting...")
+      } yield done
+
+    Await.result(done, atMost = Duration.Inf)
+    ()
   }
 }
