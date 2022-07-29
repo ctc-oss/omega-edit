@@ -51,7 +51,7 @@ import {
 import { unlinkSync } from 'node:fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-import {getClient, waitForReady} from "../../src/settings";
+import { getClient, waitForReady } from '../../src/settings'
 
 const deadline = new Date()
 deadline.setSeconds(deadline.getSeconds() + 10)
@@ -60,7 +60,7 @@ describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {
     expect(await waitForReady(getClient(), deadline))
   })
-  const expected_version = 'v0.9.14'
+  const expected_version = 'v0.9.15'
   it('Should return version ' + expected_version, async () => {
     const result = await getVersion()
     expect(result).to.equal(expected_version)
