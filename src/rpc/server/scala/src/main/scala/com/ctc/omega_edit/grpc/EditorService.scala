@@ -328,14 +328,14 @@ object EditorService {
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
 
+  def getData(in: ChangeRequest): String = in.data.map(_.toStringUtf8).getOrElse("")
+
   def opForRequest(in: ChangeRequest): Option[Session.Op] =
-    in.data.map(_.toStringUtf8).flatMap { data =>
-      in.kind match {
-        case CHANGE_INSERT    => Some(Session.Insert(data, in.offset))
-        case CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
-        case CHANGE_OVERWRITE => Some(Session.Overwrite(data, in.offset))
-        case _                => None
-      }
+    in.kind match {
+      case CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
+      case CHANGE_INSERT    => Some(Session.Insert(getData(in), in.offset))
+      case CHANGE_OVERWRITE => Some(Session.Overwrite(getData(in), in.offset))
+      case _                => None
     }
 
   def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit
