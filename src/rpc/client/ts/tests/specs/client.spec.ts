@@ -40,15 +40,14 @@ import {
   insert,
   overwrite,
   redo,
-  undo,
+  rep,
+  undo
 } from '../../src/change'
 import {
   createViewport,
   destroyViewport,
   getViewportCount,
-  getViewportData,
-  pauseViewportEvents,
-  resumeViewportEvents,
+  getViewportData
 } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
 import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
@@ -388,18 +387,12 @@ describe('Editing', () => {
         undefined
       )
       expect([10]).deep.equals(needles)
-      await pauseViewportEvents(session_id)
-      await del(session_id, 10, pattern.length)
-      await resumeViewportEvents(session_id)
-      await insert(session_id, 10, replace)
+      await rep(session_id, 10, pattern.length, replace)
       pattern = 'needles'
       replace = 'hay'
       needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
       expect([14, 28]).deep.equals(needles)
-      await pauseViewportEvents(session_id)
-      await del(session_id, 28, pattern.length)
-      await resumeViewportEvents(session_id)
-      await insert(session_id, 28, replace)
+      await rep(session_id, 28, pattern.length, replace)
       let file_size = await getComputedFileSize(session_id)
       let segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('Hey there are needles in my hay'))

@@ -19,7 +19,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 #type="Release"
 #generator="Unix Makefiles"
 
-test_scala_server=0
+test_scala_server=1
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
