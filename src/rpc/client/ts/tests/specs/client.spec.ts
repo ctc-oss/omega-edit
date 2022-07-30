@@ -47,14 +47,41 @@ import {
   destroyViewport,
   getViewportCount,
   getViewportData,
+  pauseViewportEvents,
+  resumeViewportEvents
 } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
-import { ChangeKind } from '../../src/omega_edit_pb'
+import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { getClient, waitForReady } from '../../src/settings'
 
 const deadline = new Date()
 deadline.setSeconds(deadline.getSeconds() + 10)
+
+function subscribeViewport(viewport_id: string) {
+  getClient()
+    .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
+    .on('data', (viewportEvent) => {
+      let event = viewportEvent.getViewportEventKind()
+      let session_id = viewportEvent.getSessionId()
+      let viewport_id = viewportEvent.getViewportId()
+      console.log(
+        'viewport: ' + session_id + ':' + viewport_id + ', event: ' + event
+      )
+      if (2 == event) {
+        console.log(
+          'serial: ' +
+            viewportEvent.getSerial() +
+            ', offset: ' +
+            viewportEvent.getOffset() +
+            ', length: ' +
+            viewportEvent.getLength() +
+            ', data: ' +
+            decode(viewportEvent.getData())
+        )
+      }
+    })
+}
 
 describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {
@@ -343,6 +370,40 @@ describe('Editing', () => {
   })
 
   describe('Search', () => {
+    it('Should work with replace', async () => {
+      let change_id = await overwrite(
+        session_id,
+        0,
+        encode('Hey there is hay in my Needles')
+      )
+      expect(change_id).to.equal(1)
+      let pattern = 'is hay'
+      let replace = 'are needles'
+      let needles = await searchSession(
+        session_id,
+        pattern,
+        false,
+        0,
+        0,
+        undefined
+      )
+      expect([10]).deep.equals(needles)
+      await pauseViewportEvents(session_id)
+      await del(session_id, 10, pattern.length)
+      await resumeViewportEvents(session_id)
+      await insert(session_id, 10, replace)
+      pattern = 'needles'
+      replace = 'hay'
+      needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
+      expect([14, 28]).deep.equals(needles)
+      await pauseViewportEvents(session_id)
+      await del(session_id, 28, pattern.length)
+      await resumeViewportEvents(session_id)
+      await insert(session_id, 28, replace)
+      let file_size = await getComputedFileSize(session_id)
+      let segment = await getSegment(session_id, 0, file_size)
+      expect(segment).deep.equals(encode('Hey there are needles in my hay'))
+    })
     it('Should search sessions', async () => {
       let change_id = await overwrite(
         session_id,
@@ -447,6 +508,7 @@ describe('Editing', () => {
       expect(1).to.equal(await getViewportCount(session_id))
       viewport_id = await createViewport(undefined, session_id, 10, 10, false)
       expect(viewport_id).to.be.a('string').with.length(36) // viewport_id is a random UUID
+      subscribeViewport(viewport_id)
       expect(2).to.equal(await getViewportCount(session_id))
       let change_id = await insert(session_id, 0, '0123456789ABC')
       expect(1).to.equal(change_id)
@@ -464,6 +526,7 @@ describe('Editing', () => {
       expect('123456789A').to.equal(decode(viewport_data.getData_asU8()))
       viewport_data = await getViewportData(viewport_id)
       expect('BC').to.equal(decode(viewport_data.getData_asU8()))
+      //await unsubscribeViewport(viewport_id)
       change_id = await overwrite(session_id, 8, '!@#')
       expect(3).to.equal(change_id)
       file_size = await getComputedFileSize(session_id)
