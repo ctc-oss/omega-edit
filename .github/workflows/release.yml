@@ -222,7 +222,7 @@ jobs:
         run: |
           sbt universal:packageBin
           cd target/universal/
-          SERVER_RELEASE_FILE=$(echo example-grpc-server-${{ env.PKG_VERSION }}*)
+          SERVER_RELEASE_FILE=$(echo omega-edit-grpc-server-${{ env.PKG_VERSION }}*)
           unzip $SERVER_RELEASE_FILE
           rm -rf $SERVER_RELEASE_FILE
           mv $(echo ${SERVER_RELEASE_FILE%.zip*}) ${{ matrix.os }}-server
