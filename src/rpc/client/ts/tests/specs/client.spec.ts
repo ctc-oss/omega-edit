@@ -117,8 +117,9 @@ describe('Editing', () => {
     expect(await waitForReady(getClient(), deadline))
     expect(0).to.equal(await getSessionCount())
     let new_session_id = await createSession(undefined, undefined)
-    expect(new_session_id).to.be.a('string').with.length(36)
-    expect(new_session_id).to.not.equal(session_id)
+    expect(new_session_id).to.be.a('string').and.not.equal(session_id)
+    // C++ RPC server uses 36 character UUIDs and the Scala server uses 8 character IDs
+    expect(new_session_id.length).to.satisfy((l) => l === 36 || l === 8)
     expect(1).to.equal(await getSessionCount())
     session_id = new_session_id
     //console.log("created session: "+session_id)
@@ -291,9 +292,8 @@ describe('Editing', () => {
       expect(0).to.equal(await getChangeCount(session_id))
       expect(4).to.equal(await getUndoCount(session_id))
 
-      // Try undo when there is nothing left to undo (expect change_id to be zero)
-      change_id = await undo(session_id)
-      expect(0).to.equal(change_id)
+      // Try undo when there is nothing left to undo
+      undo(session_id).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: undo failed'))
       file_size = await getComputedFileSize(session_id)
       expect(0).to.equal(file_size)
       expect(await getSegment(session_id, 0, file_size)).to.be.empty
@@ -329,9 +329,8 @@ describe('Editing', () => {
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('0123456789'))
 
-      // Try redo when there is noting left to redo (expect change_id to be zero)
-      change_id = await redo(session_id)
-      expect(0).to.equal(change_id)
+      // Try redo when there is noting left to redo
+      redo(session_id).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: redo failed'))
       expect(3).to.equal(await getChangeCount(session_id))
       expect(0).to.equal(await getUndoCount(session_id))
 
@@ -600,10 +599,9 @@ describe('Editing', () => {
         const file_size = await getComputedFileSize(session_id)
         expect(data.length).to.equal(file_size)
         await pauseSessionChanges(session_id)
-        change_id = await insert(session_id, 0, data)
-        expect(0).to.equal(change_id)
-        expect(data.length).to.equal(await getComputedFileSize(session_id))
+        insert(session_id, 0, data).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: insert failed'))
         await resumeSessionChanges(session_id)
+        expect(data.length).to.equal(await getComputedFileSize(session_id))
         let viewport_id = await createViewport(
           'last_byte_vpt',
           session_id,

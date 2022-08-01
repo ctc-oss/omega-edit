@@ -30,6 +30,30 @@ import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 const client = getClient()
 
+// function is named del because delete is a keyword
+export function del(
+    session_id: string,
+    offset: number,
+    len: number
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
+    request.setKind(ChangeKind.CHANGE_DELETE)
+    request.setLength(len)
+    client.submitChange(request, (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('del error: ' + err.message)
+      }
+      const serial = r.getSerial()
+      if (0 == serial) {
+        return reject(new Error("del failed"))
+      }
+      return resolve(serial)
+    })
+  })
+}
+
 export function insert(
   session_id: string,
   offset: number,
@@ -44,27 +68,11 @@ export function insert(
         console.log(err.message)
         return reject('insert error: ' + err.message)
       }
-      return resolve(r.getSerial())
-    })
-  })
-}
-
-// function is named del because delete is a keyword
-export function del(
-  session_id: string,
-  offset: number,
-  len: number
-): Promise<number> {
-  return new Promise<number>((resolve, reject) => {
-    let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
-    request.setKind(ChangeKind.CHANGE_DELETE)
-    request.setLength(len)
-    client.submitChange(request, (err, r) => {
-      if (err) {
-        console.log(err.message)
-        return reject('del error: ' + err.message)
+      const serial = r.getSerial()
+      if (0 == serial) {
+        return reject(new Error("insert failed"))
       }
-      return resolve(r.getSerial())
+      return resolve(serial)
     })
   })
 }
@@ -83,7 +91,11 @@ export function overwrite(
         console.log(err.message)
         return reject('overwrite error: ' + err.message)
       }
-      return resolve(r.getSerial())
+      const serial = r.getSerial()
+      if (0 == serial) {
+        return reject(new Error("overwrite failed"))
+      }
+      return resolve(serial)
     })
   })
 }
@@ -96,16 +108,9 @@ export function rep(
 ): Promise<number> {
   return new Promise<number>(async (resolve, reject) => {
     await pauseViewportEvents(session_id)
-    let change_id = await del(session_id, offset, remove_bytes_count)
+    await del(session_id, offset, remove_bytes_count)
     await resumeViewportEvents(session_id)
-    if (0 == change_id) {
-      return reject('replace: delete failed')
-    }
-    change_id = await insert(session_id, offset, replace)
-    if (0 == change_id) {
-      return reject('replace: insert failed')
-    }
-    return resolve(change_id)
+    return resolve(await insert(session_id, offset, replace))
   })
 }
 
@@ -116,7 +121,11 @@ export function undo(session_id: string): Promise<number> {
         console.log(err.message)
         return reject('undo error: ' + err.message)
       }
-      return resolve(r.getSerial())
+      const serial = r.getSerial()
+      if (0 == serial) {
+        return reject(new Error("undo failed"))
+      }
+      return resolve(serial)
     })
   })
 }
@@ -128,7 +137,11 @@ export function redo(session_id: string): Promise<number> {
         console.log(err.message)
         return reject('redo error: ' + err.message)
       }
-      return resolve(r.getSerial())
+      const serial = r.getSerial()
+      if (0 == serial) {
+        return reject(new Error("redo failed"))
+      }
+      return resolve(serial)
     })
   })
 }
