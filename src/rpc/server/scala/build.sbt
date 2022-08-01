@@ -52,7 +52,7 @@ libraryDependencies ++= Seq(
   "com.ctc" %% "omega-edit" % omegaVersion,
   "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
   "com.monovore" %% "decline" % "2.3.0",
-  "org.scalatest" %% "scalatest" % "3.2.12" % Test
+  "org.scalatest" %% "scalatest" % "3.2.13" % Test
 )
 
 excludeDependencies ++= Seq(
@@ -67,4 +67,9 @@ externalResolvers ++= Seq(
 
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 
-enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaServerAppPackaging, UniversalPlugin)
+enablePlugins(
+  AkkaGrpcPlugin,
+  GitVersioning,
+  JavaServerAppPackaging,
+  UniversalPlugin
+)

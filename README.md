@@ -150,7 +150,7 @@ sbt universial:packageBin
 Zip file will be located at
 
 ```bash
-src/rpc/server/scala/target/universal/example-grpc-server-${VERSION}.zip
+src/rpc/server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
 ```
 
 ## Development

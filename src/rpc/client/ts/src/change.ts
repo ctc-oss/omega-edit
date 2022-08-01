@@ -26,6 +26,8 @@ import {
   ObjectId,
 } from './omega_edit_pb'
 import { getClient } from './settings'
+import { pauseViewportEvents, resumeViewportEvents } from './viewport'
+
 const client = getClient()
 
 export function insert(
@@ -83,6 +85,27 @@ export function overwrite(
       }
       return resolve(r.getSerial())
     })
+  })
+}
+
+export function rep(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replace: string | Uint8Array
+): Promise<number> {
+  return new Promise<number>(async (resolve, reject) => {
+    await pauseViewportEvents(session_id)
+    let change_id = await del(session_id, offset, remove_bytes_count)
+    await resumeViewportEvents(session_id)
+    if (0 == change_id) {
+      return reject('replace: delete failed')
+    }
+    change_id = await insert(session_id, offset, replace)
+    if (0 == change_id) {
+      return reject('replace: insert failed')
+    }
+    return resolve(change_id)
   })
 }
 
