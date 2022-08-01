@@ -122,12 +122,15 @@ export function resumeViewportEvents(viewport_id: string): Promise<string> {
 
 export function unsubscribeViewport(viewport_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.unsubscribeToViewportEvents(new ObjectId().setId(viewport_id), (err, r) => {
-      if (err) {
-        console.log(err.message)
-        return reject('viewportUnsubscribe error: ' + err.message)
+    client.unsubscribeToViewportEvents(
+      new ObjectId().setId(viewport_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('viewportUnsubscribe error: ' + err.message)
+        }
+        return resolve(r.getId())
       }
-      return resolve(r.getId())
-    })
+    )
   })
 }
