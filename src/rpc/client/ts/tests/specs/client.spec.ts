@@ -62,10 +62,9 @@ function subscribeViewport(viewport_id: string) {
     .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
     .on('data', (viewportEvent) => {
       let event = viewportEvent.getViewportEventKind()
-      let session_id = viewportEvent.getSessionId()
       let viewport_id = viewportEvent.getViewportId()
       console.log(
-        'viewport: ' + session_id + ':' + viewport_id + ', event: ' + event
+        'viewport: ' + viewport_id + ', event: ' + event
       )
       if (2 == event) {
         console.log(
