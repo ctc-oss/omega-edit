@@ -226,7 +226,9 @@ public:
     inline std::string add_viewport(omega_viewport_t *viewport_ptr, const std::string *viewport_id_desired = nullptr) {
         assert(viewport_ptr);
         // Don't use const here because it prevents the automatic move on return
-        auto viewport_id = viewport_id_desired ? *viewport_id_desired : create_uuid();
+        auto viewport_id = viewport_id_desired
+                                   ? *viewport_id_desired
+                                   : get_session_id(omega_viewport_get_session(viewport_ptr)) + ":" + create_uuid();
         assert(!viewport_id.empty());
         assert(id_to_viewport_.find(viewport_id) == id_to_viewport_.end());
         //DBG(CLOG << LOCATION << "adding: " << viewport_id << std::endl;);
