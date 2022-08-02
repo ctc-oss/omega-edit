@@ -45,7 +45,7 @@ object Viewport {
         case _           => None
       }
 
-    def uuid(): String = UUID.randomUUID().toString.take(8)
+    def uuid(): String = UUID.randomUUID().toString
   }
 
   trait Op

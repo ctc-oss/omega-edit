@@ -110,7 +110,7 @@ class Session(
     case View(off, cap, id, eventInterest) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
-      val fqid = s"$sessionId-$vid"
+      val fqid = s"$sessionId:$vid"
 
       context.child(fqid) match {
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
@@ -140,10 +140,6 @@ class Session(
           s ! PoisonPill
           sender() ! Ok(vid)
       }
-
-    case Push(data) =>
-      session.insert(data, 0)
-      sender() ! Ok(sessionId)
 
     case Insert(data, offset) =>
       session.insert(data, offset)
