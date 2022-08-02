@@ -203,12 +203,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
             case ok: Ok with Viewport.Events =>
               ok.stream
-                .map(u =>
+                .map(u => // TODO: Populate all of the viewport event, not just some of it
                   ViewportEvent(
                     u.id,
                     serial = u.change.map(_.id),
-                    offset = u.change.map(_.offset),
-                    length = u.change.map(_.length),
                     data = Option(ByteString.copyFromUtf8(u.data))
                   )
                 )
