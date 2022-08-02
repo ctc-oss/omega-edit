@@ -182,24 +182,44 @@ class Session(
       }
 
     case UndoLast() =>
-      session.undoLast()
-      sender() ! Ok(sessionId)
+      session.undoLast() match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case RedoUndo() =>
-      session.redoUndo()
-      sender() ! Ok(sessionId)
+      session.redoUndo() match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case ClearChanges() =>
       session.clearChanges()
       sender() ! Ok(sessionId)
 
     case GetLastChange() =>
-      session.getLastChange()
-      sender() ! Ok(sessionId)
+      session.getLastChange() match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case GetLastUndo() =>
-      session.getLastUndo()
-      sender() ! Ok(sessionId)
+      session.getLastUndo() match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case PauseSession() =>
       session.pauseSessionChanges()

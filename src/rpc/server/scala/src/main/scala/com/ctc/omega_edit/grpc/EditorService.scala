@@ -123,8 +123,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Some(op) =>
         (editors ? SessionOp(in.sessionId, op)).mapTo[Result].map {
           case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
-          case Err(c) => throw grpcFailure(c)
-          case Ok(_) => throw grpcFailure(Status.INTERNAL, "no serial available for change response")
+          case Err(c)             => throw grpcFailure(c)
+          case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
         }
     }
 
@@ -237,16 +237,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def undoLastChange(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
-      case Ok(id) => ChangeResponse(id)
-      case Err(c) => throw grpcFailure(c)
+      case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
+      case Err(c)             => throw grpcFailure(c)
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // redo the last undo
 
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
-      case Ok(id) => ChangeResponse(id)
-      case Err(c) => throw grpcFailure(c)
+      case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
+      case Err(c)             => throw grpcFailure(c)
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // clear changes
@@ -261,16 +263,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
     (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].map {
-      case Ok(id) => ChangeDetailsResponse(id)
-      case Err(c) => throw grpcFailure(c)
+      case ok: Ok with Serial => ChangeDetailsResponse(ok.id, ok.serial)
+      case Err(c)             => throw grpcFailure(c)
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // get last undo
 
   def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
-      case Ok(id) => ChangeDetailsResponse(id)
-      case Err(c) => throw grpcFailure(c)
+      case ok: Ok with Serial => ChangeDetailsResponse(ok.id, ok.serial)
+      case Err(c)             => throw grpcFailure(c)
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // pause session changes
