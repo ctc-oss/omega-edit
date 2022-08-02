@@ -94,6 +94,10 @@ object Session {
 
   case class Updated(id: String)
 
+  trait Serial {
+    def serial: Long
+  }
+
   trait ChangeDetails {
     def change: Change
   }
@@ -142,16 +146,31 @@ class Session(
       }
 
     case Insert(data, offset) =>
-      session.insert(data, offset)
-      sender() ! Ok(sessionId)
+      session.insert(data, offset) match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case Overwrite(data, offset) =>
-      session.overwrite(data, offset)
-      sender() ! Ok(sessionId)
+      session.overwrite(data, offset) match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case Delete(offset, length) =>
-      session.delete(offset, length)
-      sender() ! Ok(sessionId)
+      session.delete(offset, length) match {
+        case Change.Changed(serial0) =>
+          sender() ! new Ok(sessionId) with Serial {
+            val serial = serial0
+          }
+        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case LookupChange(id) =>
       session.findChange(id) match {

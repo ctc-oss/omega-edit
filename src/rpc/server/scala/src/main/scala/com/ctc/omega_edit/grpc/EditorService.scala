@@ -122,8 +122,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         grpcFailFut(Status.INVALID_ARGUMENT, "undefined change kind")
       case Some(op) =>
         (editors ? SessionOp(in.sessionId, op)).mapTo[Result].map {
-          case Ok(id) => ChangeResponse(id)
+          case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
           case Err(c) => throw grpcFailure(c)
+          case Ok(_) => throw grpcFailure(Status.INTERNAL, "no serial available for change response")
         }
     }
 
