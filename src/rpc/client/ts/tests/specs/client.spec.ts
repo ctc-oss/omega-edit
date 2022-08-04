@@ -63,9 +63,7 @@ function subscribeViewport(viewport_id: string) {
     .on('data', (viewportEvent) => {
       let event = viewportEvent.getViewportEventKind()
       let viewport_id = viewportEvent.getViewportId()
-      console.log(
-        'viewport: ' + viewport_id + ', event: ' + event
-      )
+      console.log('viewport: ' + viewport_id + ', event: ' + event)
       if (2 == event) {
         console.log(
           'serial: ' +
