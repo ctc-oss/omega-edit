@@ -103,8 +103,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def clearChanges(): Result =
     Edit(i.omega_edit_clear_changes(p))
 
-  def getLastChange(): Result =
-    Edit(i.omega_session_get_last_change(p))
+  def getLastChange(): Change =
+    new ChangeImpl(i.omega_session_get_last_change(p), i)
 
   def getLastUndo(): Result =
     Edit(i.omega_session_get_last_undo(p))

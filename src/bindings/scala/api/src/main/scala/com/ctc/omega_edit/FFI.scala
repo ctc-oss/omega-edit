@@ -86,7 +86,7 @@ private[omega_edit] trait FFI {
   def omega_session_get_computed_file_size(p: Pointer): Long
   def omega_session_get_event_cbk(p: Pointer): SessionCallback
   def omega_session_get_event_interest(p: Pointer): Int
-  def omega_session_get_last_change(p: Pointer): Long
+  def omega_session_get_last_change(p: Pointer): Pointer
   def omega_session_get_last_undo(p: Pointer): Long
   def omega_session_get_num_changes(p: Pointer): Long
   def omega_session_get_num_checkpoints(p: Pointer): Long

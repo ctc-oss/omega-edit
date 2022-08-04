@@ -54,7 +54,7 @@ trait Session {
 
   def clearChanges(): Result
 
-  def getLastChange(): Result
+  def getLastChange(): Change
 
   def getLastUndo(): Result
 

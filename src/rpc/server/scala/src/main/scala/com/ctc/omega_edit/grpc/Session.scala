@@ -220,20 +220,8 @@ class Session(
       sender() ! Ok(sessionId)
 
     case GetLastChange() =>
-      session.getLastChange() match {
-        case Change.Changed(serial) =>
-          session
-            .findChange(serial)
-            .fold(
-              sender() ! Err(Status.NOT_FOUND.withDescription(s"couldn't find change $serial in session $sessionId"))
-            ) { change0 =>
-              sender() ! new Ok(sessionId) with ChangeDetails {
-                val change = change0
-              }
-            }
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail =>
-          sender() ! Err(Status.NOT_FOUND.withDescription(s"couldn't get last change in session $sessionId"))
+      sender() ! new Ok(sessionId) with ChangeDetails {
+        val change = session.getLastChange()
       }
 
     case GetLastUndo() =>
