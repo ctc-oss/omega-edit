@@ -53,6 +53,16 @@ object Session {
     Props(new Session(session, events, cb))
 
   sealed trait Op
+  object Op {
+    def unapply(in: ChangeRequest): Option[Session.Op] =
+      in.kind match {
+        case ChangeKind.CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
+        case ChangeKind.CHANGE_INSERT    => Some(Session.Insert(EditorService.getData(in), in.offset))
+        case ChangeKind.CHANGE_OVERWRITE => Some(Session.Overwrite(EditorService.getData(in), in.offset))
+        case _                           => None
+      }
+
+  }
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
   case class View(
       offset: Long,
@@ -69,7 +79,6 @@ object Session {
   case object GetNumViewports extends Op
   case object GetNumSearchContexts extends Op
 
-  case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
   case class Insert(data: String, offset: Long) extends Op
   case class Overwrite(data: String, offset: Long) extends Op
@@ -96,6 +105,18 @@ object Session {
 
   trait Serial {
     def serial: Long
+  }
+
+  object Serial {
+    def ok(sessionId: String, serial0: Long): Ok with Serial =
+      new Ok(sessionId) with Serial {
+        val serial = serial0
+      }
+
+    def paused(sessionId: String): Ok with Serial =
+      new Ok(sessionId) with Serial {
+        val serial: Long = 0L
+      }
   }
 
   trait ChangeDetails {
@@ -147,29 +168,26 @@ class Session(
 
     case Insert(data, offset) =>
       session.insert(data, offset) match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Overwrite(data, offset) =>
       session.overwrite(data, offset) match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Delete(offset, length) =>
       session.delete(offset, length) match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case LookupChange(id) =>
@@ -183,20 +201,18 @@ class Session(
 
     case UndoLast() =>
       session.undoLast() match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case RedoUndo() =>
       session.redoUndo() match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case ClearChanges() =>
@@ -205,20 +221,27 @@ class Session(
 
     case GetLastChange() =>
       session.getLastChange() match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          session
+            .findChange(serial)
+            .fold(
+              sender() ! Err(Status.NOT_FOUND.withDescription(s"couldn't find change $serial in session $sessionId"))
+            ) { change0 =>
+              sender() ! new Ok(sessionId) with ChangeDetails {
+                val change = change0
+              }
+            }
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail =>
+          sender() ! Err(Status.NOT_FOUND.withDescription(s"couldn't get last change in session $sessionId"))
       }
 
     case GetLastUndo() =>
       session.getLastUndo() match {
-        case Change.Changed(serial0) =>
-          sender() ! new Ok(sessionId) with Serial {
-            val serial = serial0
-          }
-        case Change.Fail => sender() ! Err(Status.NOT_FOUND)
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case PauseSession() =>

@@ -30,7 +30,6 @@ import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
-import omega_edit.ChangeKind._
 import omega_edit._
 
 import java.nio.file.Paths
@@ -117,15 +116,20 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     }
 
   def submitChange(in: ChangeRequest): Future[ChangeResponse] =
-    opForRequest(in) match {
-      case None =>
-        grpcFailFut(Status.INVALID_ARGUMENT, "undefined change kind")
-      case Some(op) =>
-        (editors ? SessionOp(in.sessionId, op)).mapTo[Result].map {
-          case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
-          case Err(c)             => throw grpcFailure(c)
-          case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+    in match {
+      case Session.Op(op) =>
+        (editors ? SessionOp(in.sessionId, op)).mapTo[Result].flatMap {
+          case ok: Ok with Serial =>
+            val res = ChangeResponse(ok.id, ok.serial)
+            println(s"${in.sessionId} $op => $res")
+            Future.successful(res)
+          case Err(c) =>
+            println(s"${in.sessionId} $op => $c")
+            grpcFailFut(c)
+          case _ => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
         }
+      case _ =>
+        grpcFailFut(Status.INVALID_ARGUMENT, "undefined change kind")
     }
 
   def getChangeDetails(in: SessionEvent): Future[ChangeDetailsResponse] =
@@ -262,10 +266,19 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // get last change
 
   def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
-    (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].map {
-      case ok: Ok with Serial => ChangeDetailsResponse(ok.id, ok.serial)
-      case Err(c)             => throw grpcFailure(c)
-      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+    (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].flatMap {
+      case ok: Ok with ChangeDetails =>
+        Future.successful(
+          ChangeDetailsResponse(
+            ok.id,
+            serial = ok.change.id,
+            offset = ok.change.offset,
+            length = ok.change.length,
+            data = Option(ByteString.copyFrom(ok.change.data))
+          )
+        )
+      case Err(c) => grpcFailFut(c)
+      case _      => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // get last undo
@@ -338,14 +351,6 @@ object EditorService {
     Future.failed(grpcFailure(status, message))
 
   def getData(in: ChangeRequest): String = in.data.map(_.toStringUtf8).getOrElse("")
-
-  def opForRequest(in: ChangeRequest): Option[Session.Op] =
-    in.kind match {
-      case CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
-      case CHANGE_INSERT    => Some(Session.Insert(getData(in), in.offset))
-      case CHANGE_OVERWRITE => Some(Session.Overwrite(getData(in), in.offset))
-      case _                => None
-    }
 
   def bind(iface: String = "127.0.0.1", port: Int = 9000)(
       implicit
