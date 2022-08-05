@@ -32,9 +32,9 @@ const client = getClient()
 
 // function is named del because delete is a keyword
 export function del(
-    session_id: string,
-    offset: number,
-    len: number
+  session_id: string,
+  offset: number,
+  len: number
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -47,7 +47,7 @@ export function del(
       }
       const serial = r.getSerial()
       if (0 == serial) {
-        return reject(new Error("del failed"))
+        return reject(new Error('del failed'))
       }
       return resolve(serial)
     })
@@ -70,7 +70,7 @@ export function insert(
       }
       const serial = r.getSerial()
       if (0 == serial) {
-        return reject(new Error("insert failed"))
+        return reject(new Error('insert failed'))
       }
       return resolve(serial)
     })
@@ -93,7 +93,7 @@ export function overwrite(
       }
       const serial = r.getSerial()
       if (0 == serial) {
-        return reject(new Error("overwrite failed"))
+        return reject(new Error('overwrite failed'))
       }
       return resolve(serial)
     })
@@ -123,7 +123,7 @@ export function undo(session_id: string): Promise<number> {
       }
       const serial = r.getSerial()
       if (0 == serial) {
-        return reject(new Error("undo failed"))
+        return reject(new Error('undo failed'))
       }
       return resolve(serial)
     })
@@ -139,7 +139,7 @@ export function redo(session_id: string): Promise<number> {
       }
       const serial = r.getSerial()
       if (0 == serial) {
-        return reject(new Error("redo failed"))
+        return reject(new Error('redo failed'))
       }
       return resolve(serial)
     })

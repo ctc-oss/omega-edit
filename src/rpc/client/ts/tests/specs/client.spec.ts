@@ -41,13 +41,13 @@ import {
   overwrite,
   redo,
   rep,
-  undo
+  undo,
 } from '../../src/change'
 import {
   createViewport,
   destroyViewport,
   getViewportCount,
-  getViewportData
+  getViewportData,
 } from '../../src/viewport'
 import { unlinkSync } from 'node:fs'
 import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
@@ -62,11 +62,8 @@ function subscribeViewport(viewport_id: string) {
     .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
     .on('data', (viewportEvent) => {
       let event = viewportEvent.getViewportEventKind()
-      let session_id = viewportEvent.getSessionId()
       let viewport_id = viewportEvent.getViewportId()
-      console.log(
-        'viewport: ' + session_id + ':' + viewport_id + ', event: ' + event
-      )
+      console.log('viewport: ' + viewport_id + ', event: ' + event)
       if (2 == event) {
         console.log(
           'serial: ' +
@@ -293,7 +290,11 @@ describe('Editing', () => {
       expect(4).to.equal(await getUndoCount(session_id))
 
       // Try undo when there is nothing left to undo
-      undo(session_id).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: undo failed'))
+      undo(session_id).catch((e) =>
+        expect(e)
+          .to.be.an('error')
+          .with.property('message', 'Error: undo failed')
+      )
       file_size = await getComputedFileSize(session_id)
       expect(0).to.equal(file_size)
       expect(await getSegment(session_id, 0, file_size)).to.be.empty
@@ -330,7 +331,11 @@ describe('Editing', () => {
       expect(segment).deep.equals(encode('0123456789'))
 
       // Try redo when there is noting left to redo
-      redo(session_id).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: redo failed'))
+      redo(session_id).catch((e) =>
+        expect(e)
+          .to.be.an('error')
+          .with.property('message', 'Error: redo failed')
+      )
       expect(3).to.equal(await getChangeCount(session_id))
       expect(0).to.equal(await getUndoCount(session_id))
 
@@ -499,7 +504,7 @@ describe('Editing', () => {
       expect('test_vpt_1').to.equal(viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
       viewport_id = await createViewport(undefined, session_id, 10, 10, false)
-      expect(viewport_id).to.be.a('string').with.length(36) // viewport_id is a random UUID
+      expect(viewport_id).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
       subscribeViewport(viewport_id)
       expect(2).to.equal(await getViewportCount(session_id))
       let change_id = await insert(session_id, 0, '0123456789ABC')
@@ -599,7 +604,11 @@ describe('Editing', () => {
         const file_size = await getComputedFileSize(session_id)
         expect(data.length).to.equal(file_size)
         await pauseSessionChanges(session_id)
-        insert(session_id, 0, data).catch(e => expect(e).to.be.an('error').with.property('message', 'Error: insert failed'))
+        insert(session_id, 0, data).catch((e) =>
+          expect(e)
+            .to.be.an('error')
+            .with.property('message', 'Error: insert failed')
+        )
         await resumeSessionChanges(session_id)
         expect(data.length).to.equal(await getComputedFileSize(session_id))
         let viewport_id = await createViewport(

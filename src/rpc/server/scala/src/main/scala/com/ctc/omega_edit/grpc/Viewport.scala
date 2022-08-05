@@ -40,12 +40,12 @@ object Viewport {
   case class Id(session: String, view: String)
   object Id {
     def unapply(oid: ObjectId): Option[(String, String)] =
-      oid.id.split("-") match {
+      oid.id.split(":") match {
         case Array(s, v) => Some((s, v))
         case _           => None
       }
 
-    def uuid(): String = UUID.randomUUID().toString.take(8)
+    def uuid(): String = UUID.randomUUID().toString
   }
 
   trait Op
