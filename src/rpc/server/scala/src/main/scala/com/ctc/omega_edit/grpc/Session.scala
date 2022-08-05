@@ -30,6 +30,7 @@ import omega_edit._
 
 import java.nio.file.Path
 import scala.util.{Failure, Success}
+import com.google.protobuf.ByteString
 
 object Session {
   type EventStream = Source[Session.Updated, NotUsed]
@@ -121,6 +122,29 @@ object Session {
 
   trait ChangeDetails {
     def change: Change
+
+    def toChangeResponse(sessionId: String): ChangeDetailsResponse =
+      ChangeDetailsResponse(
+        sessionId,
+        serial = change.id,
+        kind = change.operation match {
+          case api.Change.Delete    => ChangeKind.CHANGE_DELETE
+          case api.Change.Insert    => ChangeKind.CHANGE_INSERT
+          case api.Change.Overwrite => ChangeKind.CHANGE_OVERWRITE
+          case api.Change.Undefined => ChangeKind.UNDEFINED_CHANGE
+        },
+        offset = change.offset,
+        length = change.length,
+        data = Option(ByteString.copyFrom(change.data))
+      )
+
+  }
+
+  object ChangeDetails {
+    def ok(sessionId: String, change0: Change): Ok with ChangeDetails =
+      new Ok(sessionId) with ChangeDetails {
+        val change = change0
+      }
   }
 }
 
@@ -220,16 +244,13 @@ class Session(
       sender() ! Ok(sessionId)
 
     case GetLastChange() =>
-      sender() ! new Ok(sessionId) with ChangeDetails {
-        val change = session.getLastChange()
+      session.getLastChange().fold(sender() ! Err(Status.NOT_FOUND)) { change =>
+        sender() ! ChangeDetails.ok(sessionId, change)
       }
 
     case GetLastUndo() =>
-      session.getLastUndo() match {
-        case Change.Changed(serial) =>
-          sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      session.getLastUndo().fold(sender() ! Err(Status.NOT_FOUND)) { change =>
+        sender() ! ChangeDetails.ok(sessionId, change)
       }
 
     case PauseSession() =>
