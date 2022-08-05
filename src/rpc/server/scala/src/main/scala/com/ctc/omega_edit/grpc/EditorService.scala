@@ -121,12 +121,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? SessionOp(in.sessionId, op)).mapTo[Result].flatMap {
           case ok: Ok with Serial =>
             val res = ChangeResponse(ok.id, ok.serial)
-            println(s"${in.sessionId} $op => $res")
             Future.successful(res)
-          case Err(c) =>
-            println(s"${in.sessionId} $op => $c")
-            grpcFailFut(c)
-          case _ => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
+          case Err(c) => grpcFailFut(c)
+          case _      => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
         }
       case _ =>
         grpcFailFut(Status.INVALID_ARGUMENT, "undefined change kind")
@@ -156,7 +153,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Size => ComputedFileSizeResponse(in.id, ok.computedSize)
       case Err(c)           => throw grpcFailure(c)
-      case _                => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
+      case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
@@ -187,7 +184,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case ok: Ok with Size =>
           CountResponse(in.sessionId, in.kind, ok.computedSize)
         case Err(c) => throw grpcFailure(c)
-        case _      => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+        case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
 
   /** Event streams
@@ -243,7 +240,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // redo the last undo
@@ -252,7 +249,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // clear changes
@@ -266,20 +263,22 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // get last change
 
   def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
-    (editors ? SessionOp(in.id, Session.GetLastChange())).mapTo[Result].flatMap {
-      case ok: Ok with ChangeDetails =>
-        Future.successful(
-          ChangeDetailsResponse(
-            ok.id,
-            serial = ok.change.id,
-            offset = ok.change.offset,
-            length = ok.change.length,
-            data = Option(ByteString.copyFrom(ok.change.data))
+    (editors ? SessionOp(in.id, Session.GetLastChange()))
+      .mapTo[Result]
+      .flatMap {
+        case ok: Ok with ChangeDetails =>
+          Future.successful(
+            ChangeDetailsResponse(
+              ok.id,
+              serial = ok.change.id,
+              offset = ok.change.offset,
+              length = ok.change.length,
+              data = Option(ByteString.copyFrom(ok.change.data))
+            )
           )
-        )
-      case Err(c) => grpcFailFut(c)
-      case _      => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
-    }
+        case Err(c) => grpcFailFut(c)
+        case _      => grpcFailFut(Status.UNKNOWN, s"unable to compute $in")
+      }
 
   // get last undo
 
@@ -287,7 +286,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeDetailsResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // pause session changes
@@ -309,18 +308,22 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   // pause viewport events
 
   def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
-    (editors ? SessionOp(in.id, Session.PauseViewportEvents())).mapTo[Result].map {
-      case Ok(id) => ObjectId(id)
-      case Err(c) => throw grpcFailure(c)
-    }
+    (editors ? SessionOp(in.id, Session.PauseViewportEvents()))
+      .mapTo[Result]
+      .map {
+        case Ok(id) => ObjectId(id)
+        case Err(c) => throw grpcFailure(c)
+      }
 
   // resume viewport events
 
   def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
-    (editors ? SessionOp(in.id, Session.ResumeViewportEvents())).mapTo[Result].map {
-      case Ok(id) => ObjectId(id)
-      case Err(c) => throw grpcFailure(c)
-    }
+    (editors ? SessionOp(in.id, Session.ResumeViewportEvents()))
+      .mapTo[Result]
+      .map {
+        case Ok(id) => ObjectId(id)
+        case Err(c) => throw grpcFailure(c)
+      }
 
   // segments
 
@@ -350,10 +353,10 @@ object EditorService {
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
 
-  def getData(in: ChangeRequest): String = in.data.map(_.toStringUtf8).getOrElse("")
+  def getData(in: ChangeRequest): String =
+    in.data.map(_.toStringUtf8).getOrElse("")
 
-  def bind(iface: String = "127.0.0.1", port: Int = 9000)(
-      implicit
+  def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit
       system: ActorSystem
   ): Future[Http.ServerBinding] =
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
