@@ -70,7 +70,11 @@ class ExampleSpec
           .getComputedFileSize(ObjectId(sid))
           .map(_.computedFileSize)
         changeResponse <- service.submitChange(
-            ChangeRequest(sid, ChangeKind.CHANGE_INSERT, data = Some(ByteString.copyFromUtf8(testString)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            data = Some(ByteString.copyFromUtf8(testString))
+          )
         )
         sizeAfter <- service
           .getComputedFileSize(ObjectId(sid))
@@ -194,7 +198,8 @@ class ExampleSpec
 
         _ <- service.redoLastUndo(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)
@@ -243,16 +248,16 @@ class ExampleSpec
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
-        getBeforeChangeCount <- service.getCount(CountRequest(sid,
-                                        CountKind.COUNT_CHANGES))
-                                        .map(_.count)
+        getBeforeChangeCount <- service
+          .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
+          .map(_.count)
 
         _ <- service.clearChanges(ObjectId(sid))
 
-        getAfterChangeCount <- service.getCount(CountRequest(sid,
-                                        CountKind.COUNT_CHANGES))
-                                        .map(_.count)
-                                                
+        getAfterChangeCount <- service
+          .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
+          .map(_.count)
+
         contents1 = Source
           .fromFile(saveResponse1.filePath)
           .mkString // to ensure first saved file not overwritten
@@ -262,7 +267,7 @@ class ExampleSpec
         contents1 shouldBe testString1
         contents2 shouldBe testString2
         getBeforeChangeCount should not be (0)
-        getAfterChangeCount should be (0)
+        getAfterChangeCount should be(0)
       }
     }
 
@@ -274,24 +279,29 @@ class ExampleSpec
 
       for {
         _ <- service.submitChange(
-          ChangeRequest(sid,
-                        ChangeKind.CHANGE_INSERT,
-                        data = Some(ByteString.copyFromUtf8(testString1)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            data = Some(ByteString.copyFromUtf8(testString1))
+          )
         )
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
         _ <- service.submitChange(
-          ChangeRequest(sid,
-                        ChangeKind.CHANGE_OVERWRITE,
-                        data = Some(ByteString.copyFromUtf8(testString2)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_OVERWRITE,
+            data = Some(ByteString.copyFromUtf8(testString2))
+          )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         _ <- service.getLastChange(ObjectId(sid))
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
-       
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)
@@ -316,35 +326,45 @@ class ExampleSpec
 
       for {
         _ <- service.submitChange(
-          ChangeRequest(sid,
-                        ChangeKind.CHANGE_INSERT,
-                        data = Some(ByteString.copyFromUtf8(testString1)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            data = Some(ByteString.copyFromUtf8(testString1))
+          )
         )
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
         _ <- service.submitChange(
-          ChangeRequest(sid,
-                        ChangeKind.CHANGE_OVERWRITE,
-                        data = Some(ByteString.copyFromUtf8(testString2)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_OVERWRITE,
+            data = Some(ByteString.copyFromUtf8(testString2))
+          )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         _ <- service.submitChange(
-          ChangeRequest(sid,
-                        ChangeKind.CHANGE_OVERWRITE,
-                        data = Some(ByteString.copyFromUtf8(testString3)))
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_OVERWRITE,
+            data = Some(ByteString.copyFromUtf8(testString3))
+          )
         )
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         _ <- service.undoLastChange(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         _ <- service.getLastUndo(ObjectId(sid))
         saveResponse5 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false)))
+          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+        )
 
         contents1 = Source
           .fromFile(saveResponse1.filePath)
@@ -361,7 +381,8 @@ class ExampleSpec
         contents2 shouldBe testString2
         contents3 shouldBe testString3
         contents4 shouldBe testString2
-        contents5 shouldBe testString2      }
+        contents5 shouldBe testString2
+      }
     }
 
     "pause session changes" in newSession { sid =>

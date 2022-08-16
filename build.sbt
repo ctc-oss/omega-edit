@@ -39,6 +39,8 @@ lazy val commonSettings = {
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
     publishMavenStyle := true,
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
     credentials += Credentials(
       "GitHub Package Registry",
       "maven.pkg.github.com",
