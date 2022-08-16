@@ -95,7 +95,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     *   https://github.com/ctc-oss/omega-edit/wiki#undo
     */
   def undoLast(): Result =
-    Edit(-i.omega_edit_undo_last_change(p))
+    Edit(i.omega_edit_undo_last_change(p))
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
