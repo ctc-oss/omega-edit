@@ -28,7 +28,12 @@ object boot
       name = "omega-edit-grpc-server",
       header = "",
       main = Opts
-        .option[Int]("port", short = "p", metavar = "port_num", help = "Set the gRPC port to listen on. Default: 9000")
+        .option[Int](
+          "port",
+          short = "p",
+          metavar = "port_num",
+          help = "Set the gRPC port to listen on. Default: 9000"
+        )
         .withDefault(9000)
         .map(new boot(_).run())
     )
