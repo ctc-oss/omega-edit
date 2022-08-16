@@ -57,10 +57,13 @@ object Session {
   object Op {
     def unapply(in: ChangeRequest): Option[Session.Op] =
       in.kind match {
-        case ChangeKind.CHANGE_DELETE    => Some(Session.Delete(in.offset, in.length))
-        case ChangeKind.CHANGE_INSERT    => Some(Session.Insert(EditorService.getData(in), in.offset))
-        case ChangeKind.CHANGE_OVERWRITE => Some(Session.Overwrite(EditorService.getData(in), in.offset))
-        case _                           => None
+        case ChangeKind.CHANGE_DELETE =>
+          Some(Session.Delete(in.offset, in.length))
+        case ChangeKind.CHANGE_INSERT =>
+          Some(Session.Insert(EditorService.getData(in), in.offset))
+        case ChangeKind.CHANGE_OVERWRITE =>
+          Some(Session.Overwrite(EditorService.getData(in), in.offset))
+        case _ => None
       }
 
   }
