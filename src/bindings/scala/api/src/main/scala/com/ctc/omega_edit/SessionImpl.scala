@@ -89,13 +89,17 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   /** omega_edit_undo_last_change returns the *negative* serial number of the
-    * change, so negate it to use same success/fail logic.
+    * change, so perform different matching for change id
     *
     * @see
     *   https://github.com/ctc-oss/omega-edit/wiki#undo
     */
   def undoLast(): Result =
-    Edit(i.omega_edit_undo_last_change(p))
+    i.omega_edit_undo_last_change(p) match {
+      case 0          => Change.Paused
+      case v if v > 0 => Change.Fail
+      case v          => Changed(v)
+    }
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
