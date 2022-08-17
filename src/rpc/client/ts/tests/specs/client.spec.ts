@@ -494,34 +494,46 @@ describe('Editing', () => {
 
   describe('Viewports', () => {
     it('Should create and destroy viewports', async () => {
-      let viewport_id = await createViewport(
+      let viewport_id_1 = await createViewport(
         'test_vpt_1',
         session_id,
         0,
         10,
         false
       )
-      expect('test_vpt_1').to.equal(viewport_id)
+      if (viewport_id_1.includes(':')) {
+        /* The Scala RPC server always prepends the session ID and colon to viewport IDs */
+        expect(session_id + ':test_vpt_1').to.equal(viewport_id_1)
+      } else {
+        /* The C++ RPC server uses the desired viewport ID as given */
+        expect('test_vpt_1').to.equal(viewport_id_1)
+      }
       expect(1).to.equal(await getViewportCount(session_id))
-      viewport_id = await createViewport(undefined, session_id, 10, 10, false)
-      expect(viewport_id).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
-      subscribeViewport(viewport_id)
+      let viewport_id_2 = await createViewport(
+        undefined,
+        session_id,
+        10,
+        10,
+        false
+      )
+      expect(viewport_id_2).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
+      subscribeViewport(viewport_id_2)
       expect(2).to.equal(await getViewportCount(session_id))
       let change_id = await insert(session_id, 0, '0123456789ABC')
       expect(1).to.equal(change_id)
       let file_size = await getComputedFileSize(session_id)
       expect(13).to.equal(file_size)
-      let viewport_data = await getViewportData('test_vpt_1')
+      let viewport_data = await getViewportData(viewport_id_1)
       expect('0123456789').to.equal(decode(viewport_data.getData_asU8()))
-      viewport_data = await getViewportData(viewport_id)
+      viewport_data = await getViewportData(viewport_id_2)
       expect('ABC').to.equal(decode(viewport_data.getData_asU8()))
       change_id = await del(session_id, 0, 1)
       expect(2).to.equal(change_id)
       file_size = await getComputedFileSize(session_id)
       expect(12).to.equal(file_size)
-      viewport_data = await getViewportData('test_vpt_1')
+      viewport_data = await getViewportData(viewport_id_1)
       expect('123456789A').to.equal(decode(viewport_data.getData_asU8()))
-      viewport_data = await getViewportData(viewport_id)
+      viewport_data = await getViewportData(viewport_id_2)
       expect('BC').to.equal(decode(viewport_data.getData_asU8()))
       //await unsubscribeViewport(viewport_id)
       change_id = await overwrite(session_id, 8, '!@#')
@@ -530,12 +542,12 @@ describe('Editing', () => {
       expect(12).to.equal(file_size)
       let segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('12345678!@#C'))
-      viewport_data = await getViewportData('test_vpt_1')
+      viewport_data = await getViewportData(viewport_id_1)
       expect('12345678!@').to.equal(decode(viewport_data.getData_asU8()))
-      viewport_data = await getViewportData(viewport_id)
+      viewport_data = await getViewportData(viewport_id_2)
       expect('#C').to.equal(decode(viewport_data.getData_asU8()))
-      let deleted_viewport_id = await destroyViewport(viewport_id)
-      expect(viewport_id).to.equal(deleted_viewport_id)
+      let deleted_viewport_id = await destroyViewport(viewport_id_2)
+      expect(viewport_id_2).to.equal(deleted_viewport_id)
       expect(1).to.equal(await getViewportCount(session_id))
       //console.log("Destroying 1 viewport by destroying the session")
       // viewports are garbage collected when the session is destroyed, so no explicit destruction required
