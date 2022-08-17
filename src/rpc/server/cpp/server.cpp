@@ -965,7 +965,8 @@ void RunServer(const std::string &server_address) {
 
     // Finally, assemble the server.
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    DBG(CLOG << LOCATION << "Ωedit server listening on: " << server_address << std::endl;);
+    DBG(CLOG << LOCATION << "Ωedit server (v" << omega_version_major() << "." << omega_version_minor() << "."
+             << omega_version_patch() << ") listening on: " << server_address << std::endl;);
 
     // Wait for the server to shut down. Note that some other thread must be
     // responsible for shutting down the server for this call to ever return.
