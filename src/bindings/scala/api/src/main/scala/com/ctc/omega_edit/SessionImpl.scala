@@ -96,9 +96,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     */
   def undoLast(): Result =
     i.omega_edit_undo_last_change(p) match {
-      case 0          => Change.Paused
-      case v if v > 0 => Change.Fail
-      case v          => Changed(v)
+      case 0 => Change.Fail
+      case v => Changed(v)
     }
 
   def redoUndo(): Result =
