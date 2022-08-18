@@ -376,21 +376,21 @@ describe('Editing', () => {
   describe('Search', () => {
     it('Should work with replace on character data', async () => {
       let change_id = await overwrite(
-          session_id,
-          0,
-          'Hey there is hay in my Needles'
+        session_id,
+        0,
+        'Hey there is hay in my Needles'
       )
       expect(change_id).to.equal(1)
       expect(30).to.equal(await getComputedFileSize(session_id))
       let pattern = 'is hay'
       let replace = 'are needles'
       let needles = await searchSession(
-          session_id,
-          pattern,
-          false,
-          0,
-          0,
-          undefined
+        session_id,
+        pattern,
+        false,
+        0,
+        0,
+        undefined
       )
       expect([10]).deep.equals(needles)
       await rep(session_id, 10, pattern.length, replace)
@@ -405,38 +405,67 @@ describe('Editing', () => {
     })
     it('Should work with replace on binary data', async () => {
       let change_id = await overwrite(
-          session_id,
-          0,
-          new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])
+        session_id,
+        0,
+        new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])
       )
       expect(change_id).to.equal(1)
       let file_size = await getComputedFileSize(session_id)
       let segment = await getSegment(session_id, 0, file_size)
-      expect(new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])).deep.equals(segment)
+      expect(new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])).deep.equals(
+        segment
+      )
       let pattern_bytes = new Uint8Array([6, 5, 4])
       let replace_bytes = new Uint8Array([4, 5, 6])
-      let needles = await searchSession(session_id, pattern_bytes, false, 0, 0, undefined)
+      let needles = await searchSession(
+        session_id,
+        pattern_bytes,
+        false,
+        0,
+        0,
+        undefined
+      )
       expect([1]).deep.equals(needles)
       await rep(session_id, 1, pattern_bytes.length, replace_bytes)
       file_size = await getComputedFileSize(session_id)
       segment = await getSegment(session_id, 0, file_size)
-      expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(segment)
+      expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(
+        segment
+      )
       pattern_bytes = new Uint8Array([123])
       replace_bytes = new Uint8Array([1, 2, 3])
-      needles = await searchSession(session_id, pattern_bytes, false, 0, 0, undefined)
+      needles = await searchSession(
+        session_id,
+        pattern_bytes,
+        false,
+        0,
+        0,
+        undefined
+      )
       expect([0]).deep.equals(needles)
       await rep(session_id, 0, pattern_bytes.length, replace_bytes)
       file_size = await getComputedFileSize(session_id)
       segment = await getSegment(session_id, 0, file_size)
-      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(segment)
+      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(
+        segment
+      )
       pattern_bytes = new Uint8Array([254, 255])
       replace_bytes = new Uint8Array([10])
-      needles = await searchSession(session_id, pattern_bytes, false, 0, 0, undefined)
+      needles = await searchSession(
+        session_id,
+        pattern_bytes,
+        false,
+        0,
+        0,
+        undefined
+      )
       expect([9]).deep.equals(needles)
       await rep(session_id, 9, pattern_bytes.length, replace_bytes)
       file_size = await getComputedFileSize(session_id)
       segment = await getSegment(session_id, 0, file_size)
-      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(segment)
+      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(
+        segment
+      )
     })
     it('Should search sessions', async () => {
       let change_id = await overwrite(
