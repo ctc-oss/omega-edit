@@ -16,6 +16,7 @@
 
 package com.ctc.omega_edit.grpc
 
+import com.ctc.omega_edit.api.OmegaEdit
 import akka.actor.ActorSystem
 import com.monovore.decline._
 
@@ -43,11 +44,12 @@ class boot(port: Int) {
   implicit val ec: ExecutionContext = sys.dispatcher
 
   def run() = {
+    val v = OmegaEdit.version()
     val done =
       for {
         binding <- EditorService.bind(port = port)
 
-        _ = println(s"gRPC server bound to: ${binding.localAddress}")
+        _ = println(s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}")
 
         done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
 
