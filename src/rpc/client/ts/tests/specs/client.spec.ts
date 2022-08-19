@@ -101,6 +101,7 @@ describe('Encode/Decode', () => {
     expect(new Uint8Array([97, 98, 99, 49, 50, 51])).deep.equals(
       Buffer.from('abc123')
     )
+    expect(encode('abc123')).deep.equals(Buffer.from('abc123'))
   })
   it('Should decode Uint8Array into string', () => {
     expect('abc123').to.equal(decode(new Uint8Array([97, 98, 99, 49, 50, 51])))
@@ -321,7 +322,7 @@ describe('Editing', () => {
       expect(2).to.equal(await getChangeCount(session_id))
       expect(2).to.equal(await getUndoCount(session_id))
 
-      change_id = await insert(session_id, 0, encode('0123456'))
+      change_id = await insert(session_id, 0, '0123456')
       expect(3).to.equal(change_id)
       expect(3).to.equal(await getChangeCount(session_id))
       expect(0).to.equal(await getUndoCount(session_id))
@@ -373,13 +374,167 @@ describe('Editing', () => {
   })
 
   describe('Search', () => {
-    it('Should work with replace', async () => {
+    it('Should search sessions', async () => {
+      let change_id = await overwrite(
+          session_id,
+          0,
+          'haystackneedleNEEDLENeEdLeneedhay'
+      )
+      expect(1).to.equal(change_id)
+      let file_size = await getComputedFileSize(session_id)
+      let needles = await searchSession(
+          session_id,
+          'needle',
+          false,
+          0,
+          0,
+          undefined
+      )
+      expect([8]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'needle',
+          true,
+          3,
+          file_size - 3,
+          undefined
+      )
+      expect([8, 14, 20]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'needle',
+          true,
+          3,
+          file_size - 3,
+          0
+      )
+      expect([8, 14, 20]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'needle',
+          true,
+          3,
+          file_size - 3,
+          2
+      )
+      expect([8, 14]).deep.equals(needles)
+      needles = await searchSession(session_id, 'NEEDLE', false, 0, 0, 1)
+      expect([14]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'NEEDLE',
+          false,
+          0,
+          20,
+          undefined
+      )
+      expect([14]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'NEEDLE',
+          false,
+          14,
+          6,
+          undefined
+      )
+      expect([14]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'NEEDLE',
+          false,
+          14,
+          5,
+          undefined
+      )
+      expect([]).deep.equals(needles)
+      needles = await searchSession(
+          session_id,
+          'NEEDLE',
+          false,
+          0,
+          19,
+          undefined
+      )
+      expect([]).deep.equals(needles)
+
+      // try searching an empty session
+      await clear(session_id)
+      expect(0).to.equal(await getChangeCount(session_id))
+      needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
+      expect([]).deep.equals(needles)
+    })
+    it('Should work with replace on binary data', async () => {
+      let change_id = await overwrite(
+          session_id,
+          0,
+          new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])
+      )
+      expect(change_id).to.equal(1)
+      let file_size = await getComputedFileSize(session_id)
+      let segment = await getSegment(session_id, 0, file_size)
+      expect(new Uint8Array([123, 6, 5, 4, 7, 8, 9, 254, 255])).deep.equals(
+          segment
+      )
+      let pattern_bytes = new Uint8Array([6, 5, 4])
+      let replace_bytes = new Uint8Array([4, 5, 6])
+      let needles = await searchSession(
+          session_id,
+          pattern_bytes,
+          false,
+          0,
+          0,
+          undefined
+      )
+      expect([1]).deep.equals(needles)
+      await rep(session_id, 1, pattern_bytes.length, replace_bytes)
+      file_size = await getComputedFileSize(session_id)
+      segment = await getSegment(session_id, 0, file_size)
+      expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(
+          segment
+      )
+      pattern_bytes = new Uint8Array([123])
+      replace_bytes = new Uint8Array([1, 2, 3])
+      needles = await searchSession(
+          session_id,
+          pattern_bytes,
+          false,
+          0,
+          0,
+          undefined
+      )
+      expect([0]).deep.equals(needles)
+      await rep(session_id, 0, pattern_bytes.length, replace_bytes)
+      file_size = await getComputedFileSize(session_id)
+      segment = await getSegment(session_id, 0, file_size)
+      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 254, 255])).deep.equals(
+          segment
+      )
+      pattern_bytes = new Uint8Array([254, 255])
+      replace_bytes = new Uint8Array([10])
+      needles = await searchSession(
+          session_id,
+          pattern_bytes,
+          false,
+          0,
+          0,
+          undefined
+      )
+      expect([9]).deep.equals(needles)
+      await rep(session_id, 9, pattern_bytes.length, replace_bytes)
+      file_size = await getComputedFileSize(session_id)
+      segment = await getSegment(session_id, 0, file_size)
+      expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(
+          segment
+      )
+    })
+    it('Should work with replace on character data', async () => {
       let change_id = await overwrite(
         session_id,
         0,
-        encode('Hey there is hay in my Needles')
+        'Hey there is hay in my Needles'
       )
       expect(change_id).to.equal(1)
+      expect(30).to.equal(await getComputedFileSize(session_id))
       let pattern = 'is hay'
       let replace = 'are needles'
       let needles = await searchSession(
@@ -400,95 +555,6 @@ describe('Editing', () => {
       let file_size = await getComputedFileSize(session_id)
       let segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('Hey there are needles in my hay'))
-    })
-    it('Should search sessions', async () => {
-      let change_id = await overwrite(
-        session_id,
-        0,
-        encode('haystackneedleNEEDLENeEdLeneedhay')
-      )
-      expect(1).to.equal(change_id)
-      let file_size = await getComputedFileSize(session_id)
-      let needles = await searchSession(
-        session_id,
-        'needle',
-        false,
-        0,
-        0,
-        undefined
-      )
-      expect([8]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        encode('needle'),
-        true,
-        3,
-        file_size - 3,
-        undefined
-      )
-      expect([8, 14, 20]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        encode('needle'),
-        true,
-        3,
-        file_size - 3,
-        0
-      )
-      expect([8, 14, 20]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        encode('needle'),
-        true,
-        3,
-        file_size - 3,
-        2
-      )
-      expect([8, 14]).deep.equals(needles)
-      needles = await searchSession(session_id, 'NEEDLE', false, 0, 0, 1)
-      expect([14]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        'NEEDLE',
-        false,
-        0,
-        20,
-        undefined
-      )
-      expect([14]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        'NEEDLE',
-        false,
-        14,
-        6,
-        undefined
-      )
-      expect([14]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        'NEEDLE',
-        false,
-        14,
-        5,
-        undefined
-      )
-      expect([]).deep.equals(needles)
-      needles = await searchSession(
-        session_id,
-        'NEEDLE',
-        false,
-        0,
-        19,
-        undefined
-      )
-      expect([]).deep.equals(needles)
-
-      // try searching an empty session
-      await clear(session_id)
-      expect(0).to.equal(await getChangeCount(session_id))
-      needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
-      expect([]).deep.equals(needles)
     })
   })
 
