@@ -174,30 +174,32 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
   ): List[Long] = {
-    val context =
-      i.omega_search_create_context(
-        p,
-        pattern,
-        0,
-        offset,
-        length.getOrElse(0),
-        caseInsensitive
-      )
-
-    try {
-      Iterator
-        .unfold(context -> 0) { case (context, numMatches) =>
-          Option.when(
-            limit.map(numMatches < _).getOrElse(true) && i
-              .omega_search_next_match(context, 1) > 0
-          )(
-            i.omega_search_context_get_offset(
-              context
-            ) -> (context, numMatches + 1)
-          )
-        }
-        .toList
-    } finally i.omega_search_destroy_context(context)
+    i.omega_search_create_context(
+      p,
+      pattern,
+      0,
+      offset,
+      length.getOrElse(0),
+      caseInsensitive
+    ) match {
+      case null     => List[Long]()
+      case context  => {
+        try {
+          Iterator
+            .unfold(context -> 0) { case (context, numMatches) =>
+              Option.when(
+                limit.map(numMatches < _).getOrElse(true) && i
+                  .omega_search_next_match(context, 1) > 0
+              )(
+                i.omega_search_context_get_offset(
+                  context
+                ) -> (context, numMatches + 1)
+              )
+            }
+            .toList
+        } finally i.omega_search_destroy_context(context)
+      }
+    }
   }
 
   def getSegment(offset: Long, length: Long): Option[Segment] = {

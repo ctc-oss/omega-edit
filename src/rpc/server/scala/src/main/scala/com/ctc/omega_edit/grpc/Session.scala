@@ -328,7 +328,7 @@ class Session(
         offset,
         request.length.getOrElse(0),
         session.search(
-          request.pattern.toString,
+          request.pattern.toString("utf-8"), // need to decode using "utf-8" not doing so causes errors searching
           offset,
           request.length,
           isCaseInsensitive,
