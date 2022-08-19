@@ -266,7 +266,7 @@ TEST_CASE("File Transformer", "[TransformerTest]") {
 
 TEST_CASE("Encoding", "[EncodingTest]") {
     auto in_string = string("Hello World!");
-    auto in = reinterpret_cast<const omega_byte_t *>(in_string.c_str());
+    auto in = reinterpret_cast<const omega_byte_t *>(in_string.data());
     char encoded_buffer[1024];
     omega_byte_t decoded_buffer[1024];
     omega_encode_bin2hex(in, encoded_buffer, in_string.size());
