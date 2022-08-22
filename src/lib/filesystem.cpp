@@ -96,7 +96,7 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     do {
         if (++i >= 1000) {
             // stop after 999 filenames exist
-            return NULL;
+            return nullptr;
         }
         auto const len = fs::path(dirname)
                                  .append(basename + "-" + std::to_string(i) + extension)
