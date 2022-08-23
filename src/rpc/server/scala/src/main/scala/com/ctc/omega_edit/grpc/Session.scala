@@ -30,6 +30,7 @@ import omega_edit._
 
 import java.nio.file.Path
 import scala.util.{Failure, Success}
+import com.google.protobuf.ByteString
 
 object Session {
   type EventStream = Source[Session.Updated, NotUsed]
@@ -53,6 +54,19 @@ object Session {
     Props(new Session(session, events, cb))
 
   sealed trait Op
+  object Op {
+    def unapply(in: ChangeRequest): Option[Session.Op] =
+      in.kind match {
+        case ChangeKind.CHANGE_DELETE =>
+          Some(Session.Delete(in.offset, in.length))
+        case ChangeKind.CHANGE_INSERT =>
+          Some(Session.Insert(EditorService.getData(in), in.offset))
+        case ChangeKind.CHANGE_OVERWRITE =>
+          Some(Session.Overwrite(EditorService.getData(in), in.offset))
+        case _ => None
+      }
+
+  }
   case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
   case class View(
       offset: Long,
@@ -69,7 +83,6 @@ object Session {
   case object GetNumViewports extends Op
   case object GetNumSearchContexts extends Op
 
-  case class Push(data: String) extends Op
   case class Delete(offset: Long, length: Long) extends Op
   case class Insert(data: String, offset: Long) extends Op
   case class Overwrite(data: String, offset: Long) extends Op
@@ -94,8 +107,47 @@ object Session {
 
   case class Updated(id: String)
 
+  trait Serial {
+    def serial: Long
+  }
+
+  object Serial {
+    def ok(sessionId: String, serial0: Long): Ok with Serial =
+      new Ok(sessionId) with Serial {
+        val serial = serial0
+      }
+
+    def paused(sessionId: String): Ok with Serial =
+      new Ok(sessionId) with Serial {
+        val serial: Long = 0L
+      }
+  }
+
   trait ChangeDetails {
     def change: Change
+
+    def toChangeResponse(sessionId: String): ChangeDetailsResponse =
+      ChangeDetailsResponse(
+        sessionId,
+        serial = change.id,
+        kind = change.operation match {
+          case api.Change.Delete    => ChangeKind.CHANGE_DELETE
+          case api.Change.Insert    => ChangeKind.CHANGE_INSERT
+          case api.Change.Overwrite => ChangeKind.CHANGE_OVERWRITE
+          case api.Change.Undefined => ChangeKind.UNDEFINED_CHANGE
+        },
+        offset = change.offset,
+        length = change.length,
+        data = Option(ByteString.copyFrom(change.data))
+      )
+
+  }
+
+  object ChangeDetails {
+    def ok(sessionId: String, change0: Change): Ok with ChangeDetails =
+      new Ok(sessionId) with ChangeDetails {
+        val change = change0
+      }
   }
 }
 
@@ -110,7 +162,7 @@ class Session(
     case View(off, cap, id, eventInterest) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
-      val fqid = s"$sessionId-$vid"
+      val fqid = s"$sessionId:$vid"
 
       context.child(fqid) match {
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
@@ -141,21 +193,29 @@ class Session(
           sender() ! Ok(vid)
       }
 
-    case Push(data) =>
-      session.insert(data, 0)
-      sender() ! Ok(sessionId)
-
     case Insert(data, offset) =>
-      session.insert(data, offset)
-      sender() ! Ok(sessionId)
+      session.insert(data, offset) match {
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case Overwrite(data, offset) =>
-      session.overwrite(data, offset)
-      sender() ! Ok(sessionId)
+      session.overwrite(data, offset) match {
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case Delete(offset, length) =>
-      session.delete(offset, length)
-      sender() ! Ok(sessionId)
+      session.delete(offset, length) match {
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case LookupChange(id) =>
       session.findChange(id) match {
@@ -167,24 +227,34 @@ class Session(
       }
 
     case UndoLast() =>
-      session.undoLast()
-      sender() ! Ok(sessionId)
+      session.undoLast() match {
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case RedoUndo() =>
-      session.redoUndo()
-      sender() ! Ok(sessionId)
+      session.redoUndo() match {
+        case Change.Changed(serial) =>
+          sender() ! Serial.ok(sessionId, serial)
+        case Change.Paused => sender() ! Serial.paused(sessionId)
+        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
+      }
 
     case ClearChanges() =>
       session.clearChanges()
       sender() ! Ok(sessionId)
 
     case GetLastChange() =>
-      session.getLastChange()
-      sender() ! Ok(sessionId)
+      session.getLastChange().fold(sender() ! Err(Status.NOT_FOUND)) { change =>
+        sender() ! ChangeDetails.ok(sessionId, change)
+      }
 
     case GetLastUndo() =>
-      session.getLastUndo()
-      sender() ! Ok(sessionId)
+      session.getLastUndo().fold(sender() ! Err(Status.NOT_FOUND)) { change =>
+        sender() ! ChangeDetails.ok(sessionId, change)
+      }
 
     case PauseSession() =>
       session.pauseSessionChanges()

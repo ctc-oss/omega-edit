@@ -29,11 +29,11 @@ std::string omega_viewport_get_string(const omega_viewport_t *viewport_ptr) noex
 }
 
 int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t offset, const std::string &str) noexcept {
-    return omega_edit_insert(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
+    return omega_edit_insert(session_ptr, offset, str.data(), static_cast<int64_t>(str.length()));
 }
 
 int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset, const std::string &str) noexcept {
-    return omega_edit_overwrite(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
+    return omega_edit_overwrite(session_ptr, offset, str.data(), static_cast<int64_t>(str.length()));
 }
 
 std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
@@ -50,6 +50,6 @@ std::string omega_session_get_segment_string(const omega_session_t *session_ptr,
 omega_search_context_t *omega_search_create_context_string(omega_session_t *session_ptr, const std::string &pattern,
                                                            int64_t session_offset, int64_t session_length,
                                                            int case_insensitive) noexcept {
-    return omega_search_create_context(session_ptr, pattern.c_str(), static_cast<int64_t>(pattern.length()),
+    return omega_search_create_context(session_ptr, pattern.data(), static_cast<int64_t>(pattern.length()),
                                        session_offset, session_length, case_insensitive);
 }

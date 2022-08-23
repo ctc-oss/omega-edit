@@ -9,44 +9,5 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
-# generated files
-.DS_Store
-Release
-_install/
-build*/
-cmake-build*/
-node_modules/
-venv/
-yarn.lock
-
-# log files
-*.log
-
-# IDE files
-.idea/
-
-# Ignore addon files
-**/*.node
-
-# Ignore packaged files
-**/*.tar.gz
-**/*.tgz
-
-# Ignore java generated files
-**/*.class
-
-# Ignore generated binding files
-**/*.dylib
-**/*.o
-**/*.so
-
-# sbt
-!lib/.gitkeep
-**/*jar
-**/target/*
-.bsp
-lib/*
-
-**/.vscode/settings.json
-
-.metals
+# Scala Steward: Reformat with scalafmt 3.5.9
+e0174d9997db27de2535298b464fb0a963e76cf8

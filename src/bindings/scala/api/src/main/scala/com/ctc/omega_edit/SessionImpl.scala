@@ -88,8 +88,17 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def overwrite(s: String, offset: Long): Result =
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
+  /** omega_edit_undo_last_change returns the *negative* serial number of the
+    * change, so perform different matching for change id
+    *
+    * @see
+    *   https://github.com/ctc-oss/omega-edit/wiki#undo
+    */
   def undoLast(): Result =
-    Edit(i.omega_edit_undo_last_change(p))
+    i.omega_edit_undo_last_change(p) match {
+      case 0 => Change.Fail
+      case v => Changed(v)
+    }
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
@@ -97,11 +106,11 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def clearChanges(): Result =
     Edit(i.omega_edit_clear_changes(p))
 
-  def getLastChange(): Result =
-    Edit(i.omega_session_get_last_change(p))
+  def getLastChange(): Option[Change] =
+    Option(i.omega_session_get_last_change(p)).map(new ChangeImpl(_, i))
 
-  def getLastUndo(): Result =
-    Edit(i.omega_session_get_last_undo(p))
+  def getLastUndo(): Option[Change] =
+    Option(i.omega_session_get_last_undo(p)).map(new ChangeImpl(_, i))
 
   def view(offset: Long, size: Long): Viewport = {
     val vp =
@@ -207,7 +216,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 private object Edit {
   def apply(op: => Long): Change.Result =
     op match {
-      case 0 => Change.Fail
-      case v => Changed(v)
+      case 0          => Change.Paused
+      case v if v < 0 => Change.Fail
+      case v          => Changed(v)
     }
 }

@@ -26,9 +26,11 @@ declare module 'omega-edit/viewport' {
     capacity: number,
     is_floating: boolean
   ): Promise<string>
-  export function destroyViewport(id: string): Promise<string>
+  export function destroyViewport(viewport_id: string): Promise<string>
   export function getViewportCount(sesssion_id: string): Promise<number>
   export function getViewportData(
     viewport_id: string
   ): Promise<ViewportDataResponse>
+  export function pauseViewportEvents(viewport_id: string): Promise<string>
+  export function resumeViewportEvents(viewport_id: string): Promise<string>
 }

@@ -19,7 +19,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 #type="Release"
 #generator="Unix Makefiles"
 
-test_scala_server=0
+test_scala_server=1
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
@@ -77,7 +77,9 @@ kill $server_pid
 
 if [ $test_scala_server -ne 0 ]; then
   pushd src/rpc/server/scala
-  sbt run
+  sbt stage
+  ./target/universal/stage/bin/omega-edit-grpc-server --port 9000 &
+  server_pid=$!
   popd
   pushd src/rpc/client/ts/
   npm install
@@ -85,7 +87,7 @@ if [ $test_scala_server -ne 0 ]; then
   npm run lint
   npm test
   popd
-  # TODO: kill the Scala RPC server
+  kill $server_pid
 fi
 
 rm -rf build-tests-integration-$type

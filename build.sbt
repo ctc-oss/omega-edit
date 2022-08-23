@@ -39,6 +39,8 @@ lazy val commonSettings = {
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
     publishMavenStyle := true,
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
     credentials += Credentials(
       "GitHub Package Registry",
       "maven.pkg.github.com",
@@ -80,7 +82,7 @@ lazy val api = project
         "com.beachape" %% "enumeratum" % "1.7.0",
         "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
-        "org.scalatest" %% "scalatest" % "3.2.12" % Test
+        "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,

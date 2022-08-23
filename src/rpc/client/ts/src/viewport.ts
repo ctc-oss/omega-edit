@@ -51,9 +51,9 @@ export function createViewport(
   })
 }
 
-export function destroyViewport(id: string): Promise<string> {
+export function destroyViewport(viewport_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.destroyViewport(new ObjectId().setId(id), (err, r) => {
+    client.destroyViewport(new ObjectId().setId(viewport_id), (err, r) => {
       if (err) {
         return reject('deleteViewport error: ' + err.message)
       }
@@ -91,6 +91,45 @@ export function getViewportData(
           return reject('redo error: ' + err.message)
         }
         return resolve(r)
+      }
+    )
+  })
+}
+
+export function pauseViewportEvents(viewport_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.pauseViewportEvents(new ObjectId().setId(viewport_id), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('pauseViewportEvents error: ' + err.message)
+      }
+      return resolve(r.getId())
+    })
+  })
+}
+
+export function resumeViewportEvents(viewport_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.resumeViewportEvents(new ObjectId().setId(viewport_id), (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('resumeViewportEvents error: ' + err.message)
+      }
+      return resolve(r.getId())
+    })
+  })
+}
+
+export function unsubscribeViewport(viewport_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    client.unsubscribeToViewportEvents(
+      new ObjectId().setId(viewport_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('viewportUnsubscribe error: ' + err.message)
+        }
+        return resolve(r.getId())
       }
     )
   })

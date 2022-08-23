@@ -34,7 +34,7 @@ trait Session {
   def numUndos: Long
   def numViewports: Long
   def numSearchContexts: Long
-  
+
   def callback: Option[SessionCallback]
 
   def eventInterest: Int
@@ -54,9 +54,9 @@ trait Session {
 
   def clearChanges(): Result
 
-  def getLastChange(): Result
+  def getLastChange(): Option[Change]
 
-  def getLastUndo(): Result
+  def getLastUndo(): Option[Change]
 
   def viewCb(
       offset: Long,

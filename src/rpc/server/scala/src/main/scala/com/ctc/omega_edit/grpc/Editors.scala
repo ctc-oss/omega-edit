@@ -57,7 +57,7 @@ object Editors {
   }
 
   private def idFor(path: Option[Path]): String = path match {
-    case None    => UUID.randomUUID().toString.take(8)
+    case None    => UUID.randomUUID().toString
     case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
   }
 }
