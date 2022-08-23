@@ -24,7 +24,7 @@ import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { cleanup, custom_setup } from './common'
 
-describe('Basic Editing', () => {
+describe('Editing', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
