@@ -177,7 +177,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     i.omega_search_create_context_bytes(
       p,
       pattern,
-      0,
+      pattern.length.toLong,
       offset,
       length.getOrElse(0),
       caseInsensitive
