@@ -328,7 +328,7 @@ class Session(
         offset,
         request.length.getOrElse(0),
         session.search(
-          request.pattern.toString("utf-8"),
+          request.pattern.toByteArray,
           offset,
           request.length,
           isCaseInsensitive,

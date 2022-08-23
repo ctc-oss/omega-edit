@@ -168,13 +168,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   }
 
   def search(
-      pattern: String,
+      pattern: Array[Byte],
       offset: Long,
       length: Option[Long] = None,
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
   ): List[Long] = {
-    i.omega_search_create_context(
+    i.omega_search_create_context_bytes(
       p,
       pattern,
       0,
@@ -182,7 +182,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       length.getOrElse(0),
       caseInsensitive
     ) match {
-      case null     => List[Long]()
+      case null     => List.empty[Long]
       case context  => {
         try {
           Iterator
