@@ -70,7 +70,7 @@ trait Session {
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
 
   def search(
-      pattern: String,
+      pattern: Array[Byte],
       offset: Long,
       length: Option[Long] = None,
       caseInsensitive: Boolean = false,
