@@ -66,6 +66,7 @@ class Viewport(
     case Get =>
       sender() ! new Ok(viewportId) with Data {
         def data: ByteString = ByteString.copyFromUtf8(view.data)
+        def offset: Long = view.offset
       }
 
     case Watch =>

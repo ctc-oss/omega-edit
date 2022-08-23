@@ -21,7 +21,7 @@
     "postpackage": "run-script-os",
     "postpackage:default": "rm -rf out/*.d.ts out/.npmignore out/package.json out/README.md && mv out/omega-edit* .",
     "postpackage:windows": "del /q out/*.d.ts out/.npmignore out/package.json out/README.md && move out/omega-edit* .",
-    "test": "mocha --exit --require ts-node/register ./tests/specs/*.spec.ts",
+    "test": "mocha --exit -j 1 --require ts-node/register ./tests/specs/*.spec.ts",
     "lint": "yarn run prettier src -c"
   },
   "devDependencies": {
