@@ -49,6 +49,8 @@ TEST_CASE("Version check", "[VersionCheck]") {
     const auto version = (major << 24) + (minor << 16) + patch;
     REQUIRE(0 < omega_version());
     REQUIRE(version == omega_version());
+    const auto libtype = omega_libtype();
+    REQUIRE(((strcmp("static", libtype) == 0) || (strcmp("shared", libtype) == 0)));
 }
 
 TEST_CASE("License check", "[LicenseCheck]") {
@@ -129,9 +131,7 @@ TEST_CASE("File Exists", "[UtilTests]") {
 TEST_CASE("File Touch", "[UtilTests]") {
     const char dir_sep = omega_util_directory_separator();
     const auto exists = std::string("data") + dir_sep + "test1.dat";
-    ;
     const auto dont_exist = std::string("data") + dir_sep + "IDonTExist.DaT";
-    ;
     REQUIRE(omega_util_file_exists(exists.c_str()));
     REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
     auto expected = std::string("data") + dir_sep + "test1-1.dat";
