@@ -85,7 +85,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   ): Future[CreateViewportResponse] =
     (editors ? SessionOp(
       in.sessionId,
-      View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest)
+      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired, in.eventInterest)
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateViewportResponse(in.sessionId, id)

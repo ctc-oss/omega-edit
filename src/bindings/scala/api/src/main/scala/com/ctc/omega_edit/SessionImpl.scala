@@ -112,15 +112,16 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def getLastUndo(): Option[Change] =
     Option(i.omega_session_get_last_undo(p)).map(new ChangeImpl(_, i))
 
-  def view(offset: Long, size: Long): Viewport = {
+  def view(offset: Long, size: Long, isFloating: Boolean): Viewport = {
     val vp =
-      i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
+      i.omega_edit_create_viewport(p, offset, size, isFloating, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(
       offset: Long,
       size: Long,
+      isFloating: Boolean = false,
       cb: ViewportCallback,
       eventInterest: Int
   ): Viewport = {
@@ -128,7 +129,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       p,
       offset,
       size,
-      false,
+      isFloating,
       cb,
       null,
       eventInterest
