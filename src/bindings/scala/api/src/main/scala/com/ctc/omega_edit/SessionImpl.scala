@@ -77,13 +77,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_delete(p, offset, len))
 
   def insert(b: Array[Byte], offset: Long): Result =
-    Edit(i.omega_edit_insert_bytes(p, offset, b, 0))
-
+    Edit(i.omega_edit_insert_bytes(p, offset, b, b.length.toLong))
+    
   def insert(s: String, offset: Long): Result =
     Edit(i.omega_edit_insert(p, offset, s, 0))
 
   def overwrite(b: Array[Byte], offset: Long): Result =
-    Edit(i.omega_edit_overwrite_bytes(p, offset, b, 0))
+    Edit(i.omega_edit_overwrite_bytes(p, offset, b, b.length.toLong))
 
   def overwrite(s: String, offset: Long): Result =
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
@@ -209,9 +209,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     try {
       val result = i.omega_session_get_segment(p, sp, offset)
 
-      Option.when(result == 0)(
-        Segment(offset, i.omega_segment_get_data(sp).getBytes)
-      )
+      Option.when(result == 0) {
+        val data = i.omega_segment_get_data(sp)
+        val out = Array.ofDim[Byte](length.toInt)
+        data.get(0, out, 0, length.toInt)
+        Segment(offset, out)
+      }
     } finally i.omega_segment_destroy(sp)
   }
 }

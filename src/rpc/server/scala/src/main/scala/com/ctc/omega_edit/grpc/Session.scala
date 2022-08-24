@@ -60,9 +60,9 @@ object Session {
         case ChangeKind.CHANGE_DELETE =>
           Some(Session.Delete(in.offset, in.length))
         case ChangeKind.CHANGE_INSERT =>
-          Some(Session.Insert(EditorService.getData(in), in.offset))
+          in.data.map(Session.Insert(_, in.offset))
         case ChangeKind.CHANGE_OVERWRITE =>
-          Some(Session.Overwrite(EditorService.getData(in), in.offset))
+          in.data.map(Session.Overwrite(_, in.offset))
         case _ => None
       }
 
@@ -85,8 +85,8 @@ object Session {
   case object GetNumSearchContexts extends Op
 
   case class Delete(offset: Long, length: Long) extends Op
-  case class Insert(data: String, offset: Long) extends Op
-  case class Overwrite(data: String, offset: Long) extends Op
+  case class Insert(data: ByteString, offset: Long) extends Op
+  case class Overwrite(data: ByteString, offset: Long) extends Op
 
   case class LookupChange(id: Long) extends Op
 
@@ -195,7 +195,7 @@ class Session(
       }
 
     case Insert(data, offset) =>
-      session.insert(data, offset) match {
+      session.insert(data.toByteArray(), offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
@@ -203,7 +203,7 @@ class Session(
       }
 
     case Overwrite(data, offset) =>
-      session.overwrite(data, offset) match {
+      session.overwrite(data.toByteArray(), offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)

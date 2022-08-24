@@ -175,7 +175,7 @@ private[omega_edit] trait FFI {
   def omega_segment_get_length(p: Pointer): Long
   def omega_segment_get_offset(p: Pointer): Long
   def omega_segment_get_offset_adjustment(p: Pointer): Long
-  def omega_segment_get_data(p: Pointer): String
+  def omega_segment_get_data(p: Pointer): Pointer
   def omega_segment_destroy(p: Pointer): Unit
 
   // find
