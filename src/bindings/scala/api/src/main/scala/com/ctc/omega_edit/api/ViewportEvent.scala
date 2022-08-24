@@ -28,7 +28,7 @@ object ViewportEvent extends IntEnum[ViewportEvent] {
   case object Undo extends ViewportEvent(4)
   case object Clear extends ViewportEvent(8)
   case object Transform extends ViewportEvent(16)
-  case object Modified extends ViewportEvent(32)
+  case object Modify extends ViewportEvent(32)
 
   val values = findValues
 
