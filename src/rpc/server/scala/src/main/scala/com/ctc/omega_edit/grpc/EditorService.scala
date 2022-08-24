@@ -204,16 +204,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   // Method to get ViewportEventKind based on Int
-  def getViewportEventKind(e: Int): omega_edit.ViewportEventKind = {
-    e match {
-      case 1  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CREATE
-      case 2  => omega_edit.ViewportEventKind.VIEWPORT_EVT_EDIT
-      case 4  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDO
-      case 8  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CLEAR
-      case 16 => omega_edit.ViewportEventKind.VIEWPORT_EVT_TRANSFORM
-      case 32 => omega_edit.ViewportEventKind.VIEWPORT_EVT_MODIFY
-      case _  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDEFINED
-    }
+  def getViewportEventKind(e: Int): omega_edit.ViewportEventKind = e match {
+    case 1  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CREATE
+    case 2  => omega_edit.ViewportEventKind.VIEWPORT_EVT_EDIT
+    case 4  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDO
+    case 8  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CLEAR
+    case 16 => omega_edit.ViewportEventKind.VIEWPORT_EVT_TRANSFORM
+    case 32 => omega_edit.ViewportEventKind.VIEWPORT_EVT_MODIFY
+    case _  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDEFINED
   }
 
   def subscribeToViewportEvents(in: ObjectId): Source[ViewportEvent, NotUsed] =
