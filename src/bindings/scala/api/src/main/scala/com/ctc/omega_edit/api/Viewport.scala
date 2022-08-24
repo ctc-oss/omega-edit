@@ -20,7 +20,7 @@ package com.ctc.omega_edit.api
   */
 trait Viewport {
   def length: Long
-  def data: String
+  def data: Array[Byte]
 
   def callback: Option[ViewportCallback]
   def eventInterest: Int

@@ -53,7 +53,7 @@ object Viewport {
   case object Watch extends Op
   case class Updated(
     id: String,
-    data: String,
+    data: ByteString,
     offset: Long,
     event: api.ViewportEvent,
     change: Option[Change]
@@ -71,7 +71,7 @@ class Viewport(
   def receive: Receive = {
     case Get =>
       sender() ! new Ok(viewportId) with Data {
-        def data: ByteString = ByteString.copyFromUtf8(view.data)
+        def data: ByteString = ByteString.copyFrom(view.data)
         def offset: Long = view.offset
       }
 
