@@ -341,8 +341,8 @@ static inline ViewportEventKind omega_viewport_event_to_rpc_event(omega_viewport
             return ViewportEventKind::VIEWPORT_EVT_CLEAR;
         case VIEWPORT_EVT_TRANSFORM:
             return ViewportEventKind::VIEWPORT_EVT_TRANSFORM;
-        case VIEWPORT_EVT_UPDATED:
-            return ViewportEventKind::VIEWPORT_EVT_UPDATED;
+        case VIEWPORT_EVT_MODIFY:
+            return ViewportEventKind::VIEWPORT_EVT_MODIFY;
         default:
             abort();
     }
