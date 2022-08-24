@@ -13,7 +13,7 @@
  **********************************************************************************************************************/
 
 /**
- * @file stl_string_adaptor.h
+ * @file stl_string_adaptor.hpp
  * @brief C++ convenience functions for using STL strings.
  */
 
