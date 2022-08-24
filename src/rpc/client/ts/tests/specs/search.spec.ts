@@ -144,9 +144,9 @@ describe('Searching', () => {
     await rep(session_id, 0, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 254, 255])).deep.equals(
-      segment
-    )
+    expect(
+      new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 254, 255])
+    ).deep.equals(segment)
     pattern_bytes = new Uint8Array([0, 254, 255])
     replace_bytes = new Uint8Array([10])
     needles = await searchSession(

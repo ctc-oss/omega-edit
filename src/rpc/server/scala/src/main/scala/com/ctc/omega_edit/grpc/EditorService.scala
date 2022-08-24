@@ -85,7 +85,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   ): Future[CreateViewportResponse] =
     (editors ? SessionOp(
       in.sessionId,
-      View(in.offset, in.capacity, in.viewportIdDesired, in.eventInterest)
+      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired, in.eventInterest)
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateViewportResponse(in.sessionId, id)
@@ -203,6 +203,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     Await.result(f, 1.second)
   }
 
+  // Method to get ViewportEventKind based on Int
+  def getViewportEventKind(e: Int): omega_edit.ViewportEventKind = e match {
+    case 1  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CREATE
+    case 2  => omega_edit.ViewportEventKind.VIEWPORT_EVT_EDIT
+    case 4  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDO
+    case 8  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CLEAR
+    case 16 => omega_edit.ViewportEventKind.VIEWPORT_EVT_TRANSFORM
+    case 32 => omega_edit.ViewportEventKind.VIEWPORT_EVT_MODIFY
+    case _  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDEFINED
+  }
+
   def subscribeToViewportEvents(in: ObjectId): Source[ViewportEvent, NotUsed] =
     in match {
       case Viewport.Id(sid, vid) =>
@@ -210,11 +221,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
             case ok: Ok with Viewport.Events =>
               ok.stream
-                .map(u => // TODO: Populate all of the viewport event, not just some of it
+                .map(u =>
                   ViewportEvent(
-                    u.id,
+                    sessionId = u.id,
+                    viewportId = vid,
                     serial = u.change.map(_.id),
-                    data = Option(ByteString.copyFromUtf8(u.data))
+                    data = Option(ByteString.copyFromUtf8(u.data)),
+                    length = Some(u.data.size.toLong),
+                    offset = Some(u.offset),
+                    viewportEventKind = getViewportEventKind(u.event.value)
                   )
                 )
             case _ => Source.failed(grpcFailure(Status.UNKNOWN))

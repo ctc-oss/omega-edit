@@ -71,6 +71,7 @@ object Session {
   case class View(
       offset: Long,
       capacity: Long,
+      isFloating: Boolean,
       id: Option[String],
       eventInterest: Option[Int]
   ) extends Op
@@ -159,7 +160,7 @@ class Session(
   val sessionId: String = self.path.name
 
   def receive: Receive = {
-    case View(off, cap, id, eventInterest) =>
+    case View(off, cap, isFloating, id, eventInterest) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId:$vid"
@@ -170,13 +171,13 @@ class Session(
           val (input, stream) = Source
             .queue[Viewport.Updated](1, OverflowStrategy.dropHead)
             .preMaterialize()
-          val cb = ViewportCallback { (v, _, c) =>
-            input.queue.offer(Viewport.Updated(fqid, v.data, c))
+          val cb = ViewportCallback { (v, e, c) =>
+            input.queue.offer(Viewport.Updated(fqid, v.data, off, e, c))
             ()
           }
           context.actorOf(
             Viewport.props(
-              session.viewCb(off, cap, cb, eventInterest.getOrElse(0)),
+              session.viewCb(off, cap, isFloating, cb, eventInterest.getOrElse(0)),
               stream,
               cb
             ),

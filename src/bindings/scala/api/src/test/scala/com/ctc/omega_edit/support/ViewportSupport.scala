@@ -19,10 +19,10 @@ package com.ctc.omega_edit.support
 import com.ctc.omega_edit.api._
 
 trait ViewportSupport {
-  def view(offset: Long, capacity: Long, session: Session)(
+  def view(offset: Long, capacity: Long, isFloating: Boolean, session: Session)(
       test: (Session, Viewport) => Unit
   ): Unit =
-    test(session, session.view(offset, capacity))
+    test(session, session.view(offset, capacity, isFloating))
 
   class WithCallback(
       var data: Option[String] = None,
@@ -32,13 +32,14 @@ trait ViewportSupport {
     override def toString(): String = s"WithCallback($data, $event, $change)"
   }
 
-  def viewWithCallback(offset: Long, capacity: Long, session: Session)(
+  def viewWithCallback(offset: Long, capacity: Long, isFloating: Boolean, session: Session)(
       test: (Session, WithCallback) => Unit
   ): Unit = {
     val cb = new WithCallback()
     session.viewCb(
       offset,
       capacity,
+      isFloating,
       (v, e, c) => {
         cb.data = Some(v.data)
         cb.event = Some(e)
