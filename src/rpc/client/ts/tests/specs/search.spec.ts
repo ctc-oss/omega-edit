@@ -125,43 +125,43 @@ describe('Searching', () => {
     )
     expect([1]).deep.equals(needles)
     await rep(session_id, 1, pattern_bytes.length, replace_bytes)
-    // file_size = await getComputedFileSize(session_id)
-    // segment = await getSegment(session_id, 0, file_size)
-    // expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 0, 254, 255])).deep.equals(
-    //   segment
-    // )
-    // pattern_bytes = new Uint8Array([123])
-    // replace_bytes = new Uint8Array([1, 2, 3])
-    // needles = await searchSession(
-    //   session_id,
-    //   pattern_bytes,
-    //   false,
-    //   0,
-    //   0,
-    //   undefined
-    // )
-    // expect([0]).deep.equals(needles)
-    // await rep(session_id, 0, pattern_bytes.length, replace_bytes)
-    // file_size = await getComputedFileSize(session_id)
-    // segment = await getSegment(session_id, 0, file_size)
-    // expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 254, 255])).deep.equals(
-    //   segment
-    // )
-    // pattern_bytes = new Uint8Array([0, 254, 255])
-    // replace_bytes = new Uint8Array([10])
-    // needles = await searchSession(
-    //   session_id,
-    //   pattern_bytes,
-    //   false,
-    //   0,
-    //   0,
-    //   undefined
-    // )
-    // expect([9]).deep.equals(needles)
-    // await rep(session_id, 9, pattern_bytes.length, replace_bytes)
-    // file_size = await getComputedFileSize(session_id)
-    // segment = await getSegment(session_id, 0, file_size)
-    // expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(segment)
+    file_size = await getComputedFileSize(session_id)
+    segment = await getSegment(session_id, 0, file_size)
+    expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 0, 254, 255])).deep.equals(
+      segment
+    )
+    pattern_bytes = new Uint8Array([123])
+    replace_bytes = new Uint8Array([1, 2, 3])
+    needles = await searchSession(
+      session_id,
+      pattern_bytes,
+      false,
+      0,
+      0,
+      undefined
+    )
+    expect([0]).deep.equals(needles)
+    await rep(session_id, 0, pattern_bytes.length, replace_bytes)
+    file_size = await getComputedFileSize(session_id)
+    segment = await getSegment(session_id, 0, file_size)
+    expect(
+      new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 254, 255])
+    ).deep.equals(segment)
+    pattern_bytes = new Uint8Array([0, 254, 255])
+    replace_bytes = new Uint8Array([10])
+    needles = await searchSession(
+      session_id,
+      pattern_bytes,
+      false,
+      0,
+      0,
+      undefined
+    )
+    expect([9]).deep.equals(needles)
+    await rep(session_id, 9, pattern_bytes.length, replace_bytes)
+    file_size = await getComputedFileSize(session_id)
+    segment = await getSegment(session_id, 0, file_size)
+    expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(segment)
   })
 
   it('Should work with replace on character data', async () => {
