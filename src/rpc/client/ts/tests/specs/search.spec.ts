@@ -108,6 +108,7 @@ describe('Searching', () => {
     )
     expect(change_id).to.equal(1)
     let file_size = await getComputedFileSize(session_id)
+    expect(10).to.equal(file_size)
     let segment = await getSegment(session_id, 0, file_size)
     expect(new Uint8Array([123, 6, 5, 4, 7, 8, 9, 0, 254, 255])).deep.equals(
       segment
