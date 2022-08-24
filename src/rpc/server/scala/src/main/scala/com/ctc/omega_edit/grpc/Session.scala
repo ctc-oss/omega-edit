@@ -194,7 +194,7 @@ class Session(
       }
 
     case Insert(data, offset) =>
-      session.insert(data, offset) match {
+      session.insert(data.toByteArray(), offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
