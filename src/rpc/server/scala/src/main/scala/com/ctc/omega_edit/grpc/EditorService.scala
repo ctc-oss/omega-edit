@@ -226,7 +226,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
                     sessionId = u.id,
                     viewportId = vid,
                     serial = u.change.map(_.id),
-                    data = Option(ByteString.copyFromUtf8(u.data)),
+                    data = Option(u.data),
                     length = Some(u.data.size.toLong),
                     offset = Some(u.offset),
                     viewportEventKind = getViewportEventKind(u.event.value)
@@ -365,9 +365,6 @@ object EditorService {
 
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
-
-  def getData(in: ChangeRequest): String =
-    in.data.map(_.toStringUtf8).getOrElse("")
 
   def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit
       system: ActorSystem

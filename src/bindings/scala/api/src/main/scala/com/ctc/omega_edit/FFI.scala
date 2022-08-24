@@ -111,7 +111,7 @@ private[omega_edit] trait FFI {
 
   // viewport
 
-  def omega_viewport_get_data(p: Pointer): String
+  def omega_viewport_get_data(p: Pointer): Pointer
   def omega_viewport_get_event_cbk(p: Pointer): ViewportCallback
   def omega_viewport_get_event_interest(p: Pointer): Int
   def omega_viewport_get_length(p: Pointer): Long

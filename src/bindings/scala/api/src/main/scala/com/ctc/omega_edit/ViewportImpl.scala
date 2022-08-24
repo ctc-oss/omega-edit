@@ -23,8 +23,12 @@ import com.ctc.omega_edit.api.ViewportCallback
 private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   require(p != null, "native viewport pointer was null")
 
-  def data: String =
-    i.omega_viewport_get_data(p)
+  def data: Array[Byte] = {
+    val data = i.omega_viewport_get_data(p)
+    val out = Array.ofDim[Byte](length.toInt)
+    data.get(0, out, 0, length.toInt)
+    out
+  }
 
   def callback: Option[ViewportCallback] =
     Option(i.omega_viewport_get_event_cbk(p))
@@ -53,7 +57,7 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   def update(offset: Long, capacity: Long): Boolean =
     i.omega_viewport_modify(p, offset, capacity, 0) == 0
 
-  override def toString: String = data
+  override def toString: String = data.mkString // TODO: probably render instead as hex
 
   def isFloating: Boolean = 
     i.omega_viewport_is_floating(p)

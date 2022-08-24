@@ -25,7 +25,7 @@ trait ViewportSupport {
     test(session, session.view(offset, capacity, isFloating))
 
   class WithCallback(
-      var data: Option[String] = None,
+      var data: Option[Array[Byte]] = None,
       var event: Option[ViewportEvent] = None,
       var change: Option[Change] = None
   ) {
