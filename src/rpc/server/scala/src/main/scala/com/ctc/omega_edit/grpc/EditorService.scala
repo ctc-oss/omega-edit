@@ -210,11 +210,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
             case ok: Ok with Viewport.Events =>
               ok.stream
-                .map(u => // TODO: Populate all of the viewport event, not just some of it
+                .map(u =>
                   ViewportEvent(
-                    u.id,
+                    sessionId = u.id,
+                    viewportId = vid,
                     serial = u.change.map(_.id),
-                    data = Option(ByteString.copyFromUtf8(u.data))
+                    data = Option(ByteString.copyFromUtf8(u.data)),
+                    length = Some(u.data.size.toLong),
+                    offset = Some(u.offset),
+                    viewportEventKind = omega_edit.ViewportEventKind.VIEWPORT_EVT_UPDATED
                   )
                 )
             case _ => Source.failed(grpcFailure(Status.UNKNOWN))

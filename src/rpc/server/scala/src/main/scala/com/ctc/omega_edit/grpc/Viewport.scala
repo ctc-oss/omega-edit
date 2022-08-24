@@ -51,7 +51,7 @@ object Viewport {
   trait Op
   case object Get extends Op
   case object Watch extends Op
-  case class Updated(id: String, data: String, change: Option[Change])
+  case class Updated(id: String, data: String, offset: Long, change: Option[Change])
 }
 
 class Viewport(

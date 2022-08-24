@@ -172,7 +172,7 @@ class Session(
             .queue[Viewport.Updated](1, OverflowStrategy.dropHead)
             .preMaterialize()
           val cb = ViewportCallback { (v, _, c) =>
-            input.queue.offer(Viewport.Updated(fqid, v.data, c))
+            input.queue.offer(Viewport.Updated(fqid, v.data, off, c))
             ()
           }
           context.actorOf(
