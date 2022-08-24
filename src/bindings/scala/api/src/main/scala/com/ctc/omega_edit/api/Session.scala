@@ -47,7 +47,7 @@ trait Session {
   def overwrite(b: Array[Byte], offset: Long): Result
 
   def delete(offset: Long, len: Long): Result
-  def view(offset: Long, size: Long): Viewport
+  def view(offset: Long, size: Long, isFloating: Boolean): Viewport
 
   def undoLast(): Result
   def redoUndo(): Result
@@ -61,6 +61,7 @@ trait Session {
   def viewCb(
       offset: Long,
       size: Long,
+      isFloating: Boolean,
       cb: ViewportCallback,
       eventInterest: Int
   ): Viewport
@@ -70,7 +71,7 @@ trait Session {
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
 
   def search(
-      pattern: String,
+      pattern: Array[Byte],
       offset: Long,
       length: Option[Long] = None,
       caseInsensitive: Boolean = false,

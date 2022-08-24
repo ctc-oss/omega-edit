@@ -48,7 +48,7 @@ typedef enum {
     VIEWPORT_EVT_UNDO = 1 << 2,     //< Occurs when an undo affects the viewport
     VIEWPORT_EVT_CLEAR = 1 << 3,    //< Occurs when a clear affects the viewport
     VIEWPORT_EVT_TRANSFORM = 1 << 4,//< Occurs when a transform affects the viewport
-    VIEWPORT_EVT_UPDATED = 1 << 5   //< Occurs when the viewport itself has been updated
+    VIEWPORT_EVT_MODIFY = 1 << 5    //< Occurs when the viewport itself has been modified
 } omega_viewport_event_t;
 
 #define ALL_EVENTS (~0)

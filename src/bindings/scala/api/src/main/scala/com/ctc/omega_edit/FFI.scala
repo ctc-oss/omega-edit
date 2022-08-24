@@ -117,8 +117,9 @@ private[omega_edit] trait FFI {
   def omega_viewport_get_length(p: Pointer): Long
   def omega_viewport_get_offset(p: Pointer): Long
   def omega_viewport_get_capacity(p: Pointer): Long
+  def omega_viewport_is_floating(p: Pointer): Boolean
   def omega_viewport_set_event_interest(p: Pointer, eventInterest: Int): Int
-  def omega_viewport_update(
+  def omega_viewport_modify(
       p: Pointer,
       offset: Long,
       capacity: Long,
@@ -174,7 +175,7 @@ private[omega_edit] trait FFI {
   def omega_segment_get_length(p: Pointer): Long
   def omega_segment_get_offset(p: Pointer): Long
   def omega_segment_get_offset_adjustment(p: Pointer): Long
-  def omega_segment_get_data(p: Pointer): String
+  def omega_segment_get_data(p: Pointer): Pointer
   def omega_segment_destroy(p: Pointer): Unit
 
   // find

@@ -909,12 +909,12 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
-        REQUIRE(0 == omega_viewport_update(viewport_ptr, offset, 10 + (offset % 40), 0));
+        REQUIRE(0 == omega_viewport_modify(viewport_ptr, offset, 10 + (offset % 40), 0));
     }
 
     // Change the display mode from character mode to bit mode
     view_mode.display_mode = display_mode_t::BIT_MODE;
-    REQUIRE(0 == omega_viewport_update(viewport_ptr, 0, 20, 0));
+    REQUIRE(0 == omega_viewport_modify(viewport_ptr, 0, 20, 0));
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 3, "++++"));

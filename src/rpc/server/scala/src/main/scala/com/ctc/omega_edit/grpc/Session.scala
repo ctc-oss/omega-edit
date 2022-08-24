@@ -60,9 +60,9 @@ object Session {
         case ChangeKind.CHANGE_DELETE =>
           Some(Session.Delete(in.offset, in.length))
         case ChangeKind.CHANGE_INSERT =>
-          Some(Session.Insert(EditorService.getData(in), in.offset))
+          in.data.map(Session.Insert(_, in.offset))
         case ChangeKind.CHANGE_OVERWRITE =>
-          Some(Session.Overwrite(EditorService.getData(in), in.offset))
+          in.data.map(Session.Overwrite(_, in.offset))
         case _ => None
       }
 
@@ -71,6 +71,7 @@ object Session {
   case class View(
       offset: Long,
       capacity: Long,
+      isFloating: Boolean,
       id: Option[String],
       eventInterest: Option[Int]
   ) extends Op
@@ -84,8 +85,8 @@ object Session {
   case object GetNumSearchContexts extends Op
 
   case class Delete(offset: Long, length: Long) extends Op
-  case class Insert(data: String, offset: Long) extends Op
-  case class Overwrite(data: String, offset: Long) extends Op
+  case class Insert(data: ByteString, offset: Long) extends Op
+  case class Overwrite(data: ByteString, offset: Long) extends Op
 
   case class LookupChange(id: Long) extends Op
 
@@ -159,7 +160,7 @@ class Session(
   val sessionId: String = self.path.name
 
   def receive: Receive = {
-    case View(off, cap, id, eventInterest) =>
+    case View(off, cap, isFloating, id, eventInterest) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId:$vid"
@@ -170,13 +171,13 @@ class Session(
           val (input, stream) = Source
             .queue[Viewport.Updated](1, OverflowStrategy.dropHead)
             .preMaterialize()
-          val cb = ViewportCallback { (v, _, c) =>
-            input.queue.offer(Viewport.Updated(fqid, v.data, c))
+          val cb = ViewportCallback { (v, e, c) =>
+            input.queue.offer(Viewport.Updated(fqid, v.data, off, e, c))
             ()
           }
           context.actorOf(
             Viewport.props(
-              session.viewCb(off, cap, cb, eventInterest.getOrElse(0)),
+              session.viewCb(off, cap, isFloating, cb, eventInterest.getOrElse(0)),
               stream,
               cb
             ),
@@ -194,7 +195,7 @@ class Session(
       }
 
     case Insert(data, offset) =>
-      session.insert(data, offset) match {
+      session.insert(data.toByteArray(), offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
@@ -202,7 +203,7 @@ class Session(
       }
 
     case Overwrite(data, offset) =>
-      session.overwrite(data, offset) match {
+      session.overwrite(data.toByteArray(), offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
@@ -328,7 +329,7 @@ class Session(
         offset,
         request.length.getOrElse(0),
         session.search(
-          request.pattern.toString,
+          request.pattern.toByteArray,
           offset,
           request.length,
           isCaseInsensitive,

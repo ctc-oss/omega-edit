@@ -51,7 +51,13 @@ object Viewport {
   trait Op
   case object Get extends Op
   case object Watch extends Op
-  case class Updated(id: String, data: String, change: Option[Change])
+  case class Updated(
+    id: String,
+    data: String,
+    offset: Long,
+    event: api.ViewportEvent,
+    change: Option[Change]
+  )
 }
 
 class Viewport(
@@ -66,6 +72,7 @@ class Viewport(
     case Get =>
       sender() ! new Ok(viewportId) with Data {
         def data: ByteString = ByteString.copyFromUtf8(view.data)
+        def offset: Long = view.offset
       }
 
     case Watch =>

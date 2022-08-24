@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
                 cerr << "Error deleting" << endl;
                 return -1;
             }
-            omega_viewport_update(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4, 0);
+            omega_viewport_modify(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4, 0);
         }
     }
     clog << "Saving " << omega_session_get_num_changes(session_ptr) << " changes to " << out_filename << " of size "

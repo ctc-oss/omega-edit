@@ -77,13 +77,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     Edit(i.omega_edit_delete(p, offset, len))
 
   def insert(b: Array[Byte], offset: Long): Result =
-    Edit(i.omega_edit_insert_bytes(p, offset, b, 0))
-
+    Edit(i.omega_edit_insert_bytes(p, offset, b, b.length.toLong))
+    
   def insert(s: String, offset: Long): Result =
     Edit(i.omega_edit_insert(p, offset, s, 0))
 
   def overwrite(b: Array[Byte], offset: Long): Result =
-    Edit(i.omega_edit_overwrite_bytes(p, offset, b, 0))
+    Edit(i.omega_edit_overwrite_bytes(p, offset, b, b.length.toLong))
 
   def overwrite(s: String, offset: Long): Result =
     Edit(i.omega_edit_overwrite(p, offset, s, 0))
@@ -112,15 +112,16 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def getLastUndo(): Option[Change] =
     Option(i.omega_session_get_last_undo(p)).map(new ChangeImpl(_, i))
 
-  def view(offset: Long, size: Long): Viewport = {
+  def view(offset: Long, size: Long, isFloating: Boolean): Viewport = {
     val vp =
-      i.omega_edit_create_viewport(p, offset, size, false, null, null, 0)
+      i.omega_edit_create_viewport(p, offset, size, isFloating, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(
       offset: Long,
       size: Long,
+      isFloating: Boolean = false,
       cb: ViewportCallback,
       eventInterest: Int
   ): Viewport = {
@@ -128,7 +129,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       p,
       offset,
       size,
-      false,
+      isFloating,
       cb,
       null,
       eventInterest
@@ -168,36 +169,38 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   }
 
   def search(
-      pattern: String,
+      pattern: Array[Byte],
       offset: Long,
       length: Option[Long] = None,
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
   ): List[Long] = {
-    val context =
-      i.omega_search_create_context(
-        p,
-        pattern,
-        0,
-        offset,
-        length.getOrElse(0),
-        caseInsensitive
-      )
-
-    try {
-      Iterator
-        .unfold(context -> 0) { case (context, numMatches) =>
-          Option.when(
-            limit.map(numMatches < _).getOrElse(true) && i
-              .omega_search_next_match(context, 1) > 0
-          )(
-            i.omega_search_context_get_offset(
-              context
-            ) -> (context, numMatches + 1)
-          )
-        }
-        .toList
-    } finally i.omega_search_destroy_context(context)
+    i.omega_search_create_context_bytes(
+      p,
+      pattern,
+      pattern.length.toLong,
+      offset,
+      length.getOrElse(0),
+      caseInsensitive
+    ) match {
+      case null     => List.empty[Long]
+      case context  => {
+        try {
+          Iterator
+            .unfold(context -> 0) { case (context, numMatches) =>
+              Option.when(
+                limit.map(numMatches < _).getOrElse(true) && i
+                  .omega_search_next_match(context, 1) > 0
+              )(
+                i.omega_search_context_get_offset(
+                  context
+                ) -> (context, numMatches + 1)
+              )
+            }
+            .toList
+        } finally i.omega_search_destroy_context(context)
+      }
+    }
   }
 
   def getSegment(offset: Long, length: Long): Option[Segment] = {
@@ -206,9 +209,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     try {
       val result = i.omega_session_get_segment(p, sp, offset)
 
-      Option.when(result == 0)(
-        Segment(offset, i.omega_segment_get_data(sp).getBytes)
-      )
+      Option.when(result == 0) {
+        val data = i.omega_segment_get_data(sp)
+        val out = Array.ofDim[Byte](length.toInt)
+        data.get(0, out, 0, length.toInt)
+        Segment(offset, out)
+      }
     } finally i.omega_segment_destroy(sp)
   }
 }

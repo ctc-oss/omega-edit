@@ -82,7 +82,7 @@ enum ViewportEventKind {
   VIEWPORT_EVT_UNDO = 4;
   VIEWPORT_EVT_CLEAR = 8;
   VIEWPORT_EVT_TRANSFORM = 16;
-  VIEWPORT_EVT_UPDATED = 32;
+  VIEWPORT_EVT_MODIFY = 32;
 }
 
 enum CountKind {

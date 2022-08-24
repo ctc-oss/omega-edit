@@ -113,7 +113,7 @@ OMEGA_EDIT_EXPORT int32_t omega_viewport_set_event_interest(omega_viewport_t *vi
  * "float" as bytes are inserted or deleted before the start of this viewport
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity,
+OMEGA_EDIT_EXPORT int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity,
                                             int is_floating);
 
 /**

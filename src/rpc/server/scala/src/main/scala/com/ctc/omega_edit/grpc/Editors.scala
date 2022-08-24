@@ -54,6 +54,7 @@ object Editors {
 
   trait Data {
     def data: ByteString
+    def offset: Long
   }
 
   private def idFor(path: Option[Path]): String = path match {

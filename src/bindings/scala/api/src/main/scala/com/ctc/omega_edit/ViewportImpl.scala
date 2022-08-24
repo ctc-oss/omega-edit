@@ -51,7 +51,10 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
     update(offset, capacity)
 
   def update(offset: Long, capacity: Long): Boolean =
-    i.omega_viewport_update(p, offset, capacity, 0) == 0
+    i.omega_viewport_modify(p, offset, capacity, 0) == 0
 
   override def toString: String = data
+
+  def isFloating: Boolean = 
+    i.omega_viewport_is_floating(p)
 }

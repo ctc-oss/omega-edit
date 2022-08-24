@@ -35,6 +35,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   //        0123456789012345
   //            |    ||    |
   val as = "bbbbabbbbaabbbba"
+  val binary = Array[Byte](1, 2, 3, 4, 0, 5, 6)
 
   "a session" must {
     "be empty" in emptySession { s =>
@@ -45,6 +46,11 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "have bytes" in session(Array[Byte]('a', 'b', 'c')) { s =>
       s.isEmpty shouldBe false
       s.size shouldBe 3
+    }
+
+    "handle binary" in session(binary) { s =>
+      s.size shouldBe binary.length
+      s.getSegment(0, binary.length.toLong).map(_.data shouldBe binary)
     }
 
     "have string" in session("abc") { s =>
@@ -123,32 +129,32 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
   "search" should {
     "find nothing if nothing is there" in session(numbers) { s =>
-      s.search("abc", 0) shouldBe List.empty
+      s.search("abc".getBytes, 0) shouldBe List.empty
     }
 
     "find a single match" in session(numbers) { s =>
-      s.search("345", 0) shouldBe List(2)
+      s.search("345".getBytes, 0) shouldBe List(2)
     }
 
     "find multiple matches" in session(as) { s =>
-      s.search("a", 0) shouldBe List(4, 9, 10, 15)
+      s.search("a".getBytes, 0) shouldBe List(4, 9, 10, 15)
     }
 
     "respect offsets" in session(as) { s =>
-      s.search("a", 1) shouldBe List(4, 9, 10, 15)
-      s.search("a", 5) shouldBe List(9, 10, 15)
+      s.search("a".getBytes, 1) shouldBe List(4, 9, 10, 15)
+      s.search("a".getBytes, 5) shouldBe List(9, 10, 15)
     }
 
     "respect len" in session(as) { s =>
-      s.search("a", 0, Some(as.length.toLong - 2)) shouldBe List(4, 9, 10)
+      s.search("a".getBytes, 0, Some(as.length.toLong - 2)) shouldBe List(4, 9, 10)
     }
 
     "respect caseInsensitive" in session(as) { s =>
-      s.search("A", 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
+      s.search("A".getBytes, 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
     }
 
     "respect limit" in session(as) { s =>
-      s.search("a", 0, limit = Some(2)) shouldBe List(4, 9)
+      s.search("a".getBytes, 0, limit = Some(2)) shouldBe List(4, 9)
     }
   }
 

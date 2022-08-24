@@ -75,7 +75,7 @@ int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->data_segment.is_floating ? 1 : 0;
 }
 
-int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
+int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
     assert(viewport_ptr);
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
@@ -87,7 +87,7 @@ int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_
             viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             omega_data_create(&viewport_ptr->data_segment.data, capacity);
-            omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UPDATED, nullptr);
+            omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_MODIFY, nullptr);
         }
         return 0;
     }
