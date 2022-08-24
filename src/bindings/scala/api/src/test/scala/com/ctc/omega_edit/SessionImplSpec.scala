@@ -35,6 +35,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   //        0123456789012345
   //            |    ||    |
   val as = "bbbbabbbbaabbbba"
+  val binary = Array[Byte](1, 2, 3, 4, 0, 5, 6)
 
   "a session" must {
     "be empty" in emptySession { s =>
@@ -45,6 +46,11 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "have bytes" in session(Array[Byte]('a', 'b', 'c')) { s =>
       s.isEmpty shouldBe false
       s.size shouldBe 3
+    }
+
+    "handle binary" in session(binary) { s =>
+      s.size shouldBe binary.length
+      s.getSegment(0, binary.length.toLong).map(_.data shouldBe binary)
     }
 
     "have string" in session("abc") { s =>
