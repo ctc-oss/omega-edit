@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file stl_string_adaptor.h
+ * @brief C++ convenience functions for using STL strings.
+ */
+
 #ifndef OMEGA_EDIT_STL_STRING_ADAPTOR_HPP
 #define OMEGA_EDIT_STL_STRING_ADAPTOR_HPP
 

@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file license.h
+ * @brief Function to get the license text associated with omega-edit.
+ */
+
 #ifndef OMEGA_EDIT_LICENSE_H
 #define OMEGA_EDIT_LICENSE_H
 

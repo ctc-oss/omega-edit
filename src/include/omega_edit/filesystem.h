@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file filesystem.h
+ * @brief Filesystem functions.
+ */
+
 #ifndef OMEGA_EDIT_FILESYSTEM_H
 #define OMEGA_EDIT_FILESYSTEM_H
 

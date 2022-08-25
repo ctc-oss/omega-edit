@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file session.h
+ * @brief Functions that operate on editing sessions (omega_session_t).
+ */
+
 #ifndef OMEGA_EDIT_SESSION_H
 #define OMEGA_EDIT_SESSION_H
 

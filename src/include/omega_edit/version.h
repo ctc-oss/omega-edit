@@ -14,6 +14,11 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
+/**
+ * @file version.h
+ * @brief Functions that return version information.
+ */
+
 #ifndef OMEGA_EDIT_VERSION_H
 #define OMEGA_EDIT_VERSION_H
 

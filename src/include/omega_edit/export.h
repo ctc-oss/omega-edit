@@ -12,6 +12,11 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
+/**
+ * @file export.h
+ * @brief Export macros.
+ */
+
 #ifndef OMEGA_EDIT_EXPORT_H
 #define OMEGA_EDIT_EXPORT_H
 

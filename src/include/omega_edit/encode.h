@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file encode.h
+ * @brief Encoding functions.
+ */
+
 #ifndef OMEGA_EDIT_ENCODE_H
 #define OMEGA_EDIT_ENCODE_H
 
