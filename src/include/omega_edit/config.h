@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file config.h
+ * @brief Configuration settings.
+ */
+
 #ifndef OMEGA_EDIT_CONFIG_H
 #define OMEGA_EDIT_CONFIG_H
 

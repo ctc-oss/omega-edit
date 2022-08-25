@@ -14,6 +14,11 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
+/**
+ * @file scoped_ptr.hpp
+ * @brief Define a scoped smart pointer that can be used for Resource Acquisition Is Initialization (RAII) in C++ code.
+ */
+
 #ifndef OMEGA_EDIT_SCOPED_PTR_H
 #define OMEGA_EDIT_SCOPED_PTR_H
 

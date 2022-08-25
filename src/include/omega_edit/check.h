@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file check.h
+ * @brief Function to assert the integrity of the internal editing model.
+ */
+
 #ifndef OMEGA_EDIT_CHECK_H
 #define OMEGA_EDIT_CHECK_H
 

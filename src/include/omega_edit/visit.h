@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file visit.h
+ * @brief Functions that enable visiting changes in an editing session.
+ */
+
 #ifndef OMEGA_EDIT_VISIT_H
 #define OMEGA_EDIT_VISIT_H
 

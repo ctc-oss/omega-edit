@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file search.h
+ * @brief Functions that enable searching within an editing session.
+ */
+
 #ifndef OMEGA_EDIT_SEARCH_H
 #define OMEGA_EDIT_SEARCH_H
 

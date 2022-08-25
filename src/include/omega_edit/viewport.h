@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file viewport.h
+ * @brief Functions that operate on viewports (omega_viewport_t).
+ */
+
 #ifndef OMEGA_EDIT_VIEWPORT_H
 #define OMEGA_EDIT_VIEWPORT_H
 

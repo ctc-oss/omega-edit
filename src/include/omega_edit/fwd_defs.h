@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file fwd_defs.h
+ * @brief Forward definitions.
+ */
+
 #ifndef OMEGA_EDIT_FWD_DEFS_H
 #define OMEGA_EDIT_FWD_DEFS_H
 
