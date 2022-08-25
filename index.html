@@ -97,6 +97,7 @@
 <p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p>
 <section id="byte-h">
 <h2>byte.h<a class="headerlink" href="#byte-h" title="Permalink to this heading"></a></h2>
+<p>omega_byte_t definition. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
@@ -108,6 +109,7 @@
 </section>
 <section id="change-h">
 <h2>change.h<a class="headerlink" href="#change-h" title="Permalink to this heading"></a></h2>
+<p>Functions that operate on editing changes (omega_change_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -198,6 +200,7 @@
 </section>
 <section id="check-h">
 <h2>check.h<a class="headerlink" href="#check-h" title="Permalink to this heading"></a></h2>
+<p>Function to assert the integrity of the internal editing model. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -218,6 +221,7 @@
 </section>
 <section id="config-h">
 <h2>config.h<a class="headerlink" href="#config-h" title="Permalink to this heading"></a></h2>
+<p>Configuration settings. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
@@ -269,6 +273,7 @@
 </section>
 <section id="edit-h">
 <h2>edit.h<a class="headerlink" href="#edit-h" title="Permalink to this heading"></a></h2>
+<p>Main editing functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -420,6 +425,10 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1a9fabcc3c2f2347dfd12034b0ee63965d"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_edit_insert_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*bytes,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
 <dd><p>Insert a number of bytes at the given offset </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -439,6 +448,10 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1a5bfbfe8ae81ed0d29226116c5fe815c2"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_edit_insert</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*cstr,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
 <dd><p>Insert a C string at the given offset </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -458,6 +471,10 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1a4240ceeb56bf6b76f8441d34a625606c"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_edit_overwrite_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*bytes,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
 <dd><p>Overwrite bytes at the given offset with the given new bytes </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -477,6 +494,10 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1ac7cbed793c40ec77dd642254a0beb4f7"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_edit_overwrite</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*cstr,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
 <dd><p>Overwrite bytes at the given offset with the given new C string </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -548,6 +569,7 @@
 </section>
 <section id="encode-h">
 <h2>encode.h<a class="headerlink" href="#encode-h" title="Permalink to this heading"></a></h2>
+<p>Encoding functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -590,6 +612,7 @@
 </section>
 <section id="export-h">
 <h2>export.h<a class="headerlink" href="#export-h" title="Permalink to this heading"></a></h2>
+<p>Export macros. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
@@ -621,6 +644,7 @@
 </section>
 <section id="filesystem-h">
 <h2>filesystem.h<a class="headerlink" href="#filesystem-h" title="Permalink to this heading"></a></h2>
+<p>Filesystem functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -845,6 +869,7 @@
 </section>
 <section id="fwd-defs-h">
 <h2>fwd_defs.h<a class="headerlink" href="#fwd-defs-h" title="Permalink to this heading"></a></h2>
+<p>Forward definitions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
@@ -1018,6 +1043,7 @@
 </section>
 <section id="license-h">
 <h2>license.h<a class="headerlink" href="#license-h" title="Permalink to this heading"></a></h2>
+<p>Function to get the license text associated with omega-edit. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -1035,9 +1061,11 @@
 </section>
 <section id="scoped-ptr-hpp">
 <h2>scoped_ptr.hpp<a class="headerlink" href="#scoped-ptr-hpp" title="Permalink to this heading"></a></h2>
+<p>Define a scoped smart pointer that can be used for Resource Acquisition Is Initialization (RAII) in C++ code. </p>
 </section>
 <section id="search-h">
 <h2>search.h<a class="headerlink" href="#search-h" title="Permalink to this heading"></a></h2>
+<p>Functions that enable searching within an editing session. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -1142,6 +1170,7 @@
 </section>
 <section id="session-h">
 <h2>session.h<a class="headerlink" href="#session-h" title="Permalink to this heading"></a></h2>
+<p>Functions that operate on editing sessions (omega_session_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -1454,9 +1483,11 @@
 </section>
 <section id="stl-string-adaptor-hpp">
 <h2>stl_string_adaptor.hpp<a class="headerlink" href="#stl-string-adaptor-hpp" title="Permalink to this heading"></a></h2>
+<p>C++ convenience functions for using STL strings. </p>
 </section>
 <section id="utility-h">
 <h2>utility.h<a class="headerlink" href="#utility-h" title="Permalink to this heading"></a></h2>
+<p>Various utility functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
@@ -1668,6 +1699,7 @@
 </section>
 <section id="version-h">
 <h2>version.h<a class="headerlink" href="#version-h" title="Permalink to this heading"></a></h2>
+<p>Functions that return version information. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -1729,6 +1761,7 @@
 </section>
 <section id="viewport-h">
 <h2>viewport.h<a class="headerlink" href="#viewport-h" title="Permalink to this heading"></a></h2>
+<p>Functions that operate on viewports (omega_viewport_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
@@ -1943,6 +1976,7 @@
 </section>
 <section id="visit-h">
 <h2>visit.h<a class="headerlink" href="#visit-h" title="Permalink to this heading"></a></h2>
+<p>Functions that enable visiting changes in an editing session. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
