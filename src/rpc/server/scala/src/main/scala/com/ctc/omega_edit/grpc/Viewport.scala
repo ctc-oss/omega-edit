@@ -40,27 +40,39 @@ object Viewport {
   case class Id(session: String, view: String)
   object Id {
     def unapply(oid: ObjectId): Option[(String, String)] =
-      oid.id.split("-") match {
+      oid.id.split(":") match {
         case Array(s, v) => Some((s, v))
         case _           => None
       }
 
-    def uuid(): String = UUID.randomUUID().toString.take(8)
+    def uuid(): String = UUID.randomUUID().toString
   }
 
   trait Op
   case object Get extends Op
   case object Watch extends Op
-  case class Updated(id: String, data: String, change: Option[Change])
+  case class Updated(
+    id: String,
+    data: ByteString,
+    offset: Long,
+    event: api.ViewportEvent,
+    change: Option[Change]
+  )
 }
 
-class Viewport(view: api.Viewport, events: EventStream, cb: ViewportCallback) extends Actor with ActorLogging {
+class Viewport(
+    view: api.Viewport,
+    events: EventStream,
+    @deprecated("unused", "") cb: ViewportCallback
+) extends Actor
+    with ActorLogging {
   val viewportId: String = self.path.name
 
   def receive: Receive = {
     case Get =>
       sender() ! new Ok(viewportId) with Data {
-        def data: ByteString = ByteString.copyFromUtf8(view.data)
+        def data: ByteString = ByteString.copyFrom(view.data)
+        def offset: Long = view.offset
       }
 
     case Watch =>

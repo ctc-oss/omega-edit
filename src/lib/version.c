@@ -15,6 +15,7 @@
  **********************************************************************************************************************/
 
 #include "../include/omega_edit/version.h"
+#include "../include/omega_edit/export.h"
 
 #ifndef OMEGA_EDIT_VERSION_MAJOR
 #define OMEGA_EDIT_VERSION_MAJOR 0
@@ -31,7 +32,14 @@
 #define OMEGA_EDIT_VERSION                                                                                             \
     (((OMEGA_EDIT_VERSION_MAJOR) << 24) + ((OMEGA_EDIT_VERSION_MINOR) << 16) + (OMEGA_EDIT_VERSION_PATCH))
 
+#ifdef OMEGA_EDIT_STATIC_DEFINE
+#define OMEGA_EDIT_LIBTYPE "static"
+#else
+#define OMEGA_EDIT_LIBTYPE "shared"
+#endif
+
 int omega_version_major() { return OMEGA_EDIT_VERSION_MAJOR; }
 int omega_version_minor() { return OMEGA_EDIT_VERSION_MINOR; }
 int omega_version_patch() { return OMEGA_EDIT_VERSION_PATCH; }
 int omega_version() { return OMEGA_EDIT_VERSION; }
+char const *omega_libtype() { return OMEGA_EDIT_LIBTYPE; }

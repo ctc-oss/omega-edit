@@ -14,6 +14,8 @@
 
 #include "../include/omega_edit/edit.h"
 #include "../include/omega_edit/change.h"
+#include "../include/omega_edit/search.h"
+#include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/session.h"
 #include "../include/omega_edit/viewport.h"
 #include "impl_/change_def.hpp"
@@ -65,12 +67,13 @@ static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, cons
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
         // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
+        // allocate its capacity plus one, so we can null-terminate it
         change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
@@ -83,12 +86,13 @@ static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, cons
     change_ptr->serial = serial;
     change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
-    change_ptr->length = (length) ? length : static_cast<int64_t>(strlen((const char *) bytes));
+    change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
         // small bytes optimization
         memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
         change_ptr->data.sm_bytes[change_ptr->length] = '\0';
     } else {
+        // allocate its capacity plus one, so we can null-terminate it
         change_ptr->data.bytes_ptr = new omega_byte_t[change_ptr->length + 1];
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
@@ -120,9 +124,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
                     (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
         case change_kind_t::CHANGE_OVERWRITE:
             // OVERWRITE changes that happen inside the viewport affect the viewport
-            return ((change_ptr->offset + change_ptr->length) >= omega_viewport_get_offset(viewport_ptr)) &&
-                   (change_ptr->offset <=
-                    (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)));
+            return omega_viewport_in_segment(viewport_ptr, change_ptr->offset, change_ptr->length);
         default:
             ABORT(LOG_ERROR("Unhandled change kind"););
     }
@@ -130,6 +132,7 @@ static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr
 
 static int update_viewports_(const omega_session_t *session_ptr, const omega_change_t *change_ptr) {
     for (auto &&viewport_ptr : session_ptr->viewports_) {
+        // possibly adjust the viewport offset if it's floating and other criteria are met
         update_viewport_offset_adjustment_(viewport_ptr.get(), change_ptr);
         if (change_affects_viewport_(viewport_ptr.get(), change_ptr)) {
             viewport_ptr->data_segment.capacity =
@@ -153,8 +156,8 @@ static inline omega_model_segment_ptr_t clone_model_segment_(const omega_model_s
 
 static inline void free_model_changes_(omega_model_struct *model_ptr) {
     for (auto &&change_ptr : model_ptr->changes) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
     model_ptr->changes.clear();
@@ -162,18 +165,18 @@ static inline void free_model_changes_(omega_model_struct *model_ptr) {
 
 static inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
     for (auto &&change_ptr : model_ptr->changes_undone) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE && 7 < change_ptr->length) {
-            delete[] const_cast<omega_change_t *>(change_ptr.get())->data.bytes_ptr;
+        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+            omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
     model_ptr->changes_undone.clear();
 }
 
-static inline void free_session_changes_(omega_session_t *session_ptr) {
+static inline void free_session_changes_(const omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) { free_model_changes_(model_ptr.get()); }
 }
 
-static inline void free_session_changes_undone_(omega_session_t *session_ptr) {
+static inline void free_session_changes_undone_(const omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) { free_model_changes_undone_(model_ptr.get()); }
 }
 
@@ -183,7 +186,7 @@ static inline void free_session_changes_undone_(omega_session_t *session_ptr) {
  that is covered by adjusting, or removing, the READ, INSERT, and OVERWRITE segments accordingly.  The model expects to
  take in changes with original offsets and lengths and the model will calculate computed offsets and lengths.
  -------------------------------------------------------------------------------------------------------------------- */
-static int update_model_helper_(omega_model_t *model_ptr, const_omega_change_ptr_t &change_ptr) {
+static int update_model_helper_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) {
     int64_t read_offset = 0;
 
     if (model_ptr->model_segments.empty()) {
@@ -282,8 +285,7 @@ static int update_model_(omega_model_t *model_ptr, const_omega_change_ptr_t &cha
 }
 
 static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t change_ptr) {
-    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    if (change_ptr->offset <= computed_file_size) {
+    if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
         if (omega_change_get_serial(change_ptr.get()) < 0) {
             // This is a previously undone change that is being redone, so flip the serial number back to positive
             const_cast<omega_change_t *>(change_ptr.get())->serial *= -1;
@@ -300,7 +302,8 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
     return -1;
 }
 
-omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr) {
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
+                                           int32_t event_interest) {
     FILE *file_ptr = nullptr;
     if (file_path && file_path[0] != '\0') {
         file_ptr = fopen(file_path, "rb");
@@ -308,12 +311,16 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     }
     off_t file_size = 0;
     if (file_ptr) {
-        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) { return nullptr; }
+        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) {
+            fclose(file_ptr);
+            return nullptr;
+        }
         file_size = FTELL(file_ptr);
     }
     const auto session_ptr = new omega_session_t;
     session_ptr->event_handler = cbk;
     session_ptr->user_data_ptr = user_data_ptr;
+    session_ptr->event_interest_ = event_interest;
     session_ptr->num_changes_adjustment_ = 0;
     session_ptr->models_.push_back(std::make_unique<omega_model_t>());
     session_ptr->models_.back()->file_ptr = file_ptr;
@@ -329,6 +336,9 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
     for (auto &&model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { fclose(model_ptr->file_ptr); }
     }
+    while (!session_ptr->search_contexts_.empty()) {
+        omega_search_destroy_context(session_ptr->search_contexts_.back().get());
+    }
     while (!session_ptr->viewports_.empty()) { omega_edit_destroy_viewport(session_ptr->viewports_.back().get()); }
     free_session_changes_(session_ptr);
     free_session_changes_undone_(session_ptr);
@@ -340,7 +350,8 @@ void omega_edit_destroy_session(omega_session_t *session_ptr) {
 }
 
 omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
-                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr, int is_floating) {
+                                             int is_floating, omega_viewport_event_cbk_t cbk, void *user_data_ptr,
+                                             int32_t event_interest) {
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         const auto viewport_ptr = std::make_shared<omega_viewport_t>();
         viewport_ptr->session_ptr = session_ptr;
@@ -349,12 +360,14 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
         viewport_ptr->data_segment.is_floating = (bool) is_floating;
         viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
         viewport_ptr->data_segment.length = 0;
-        viewport_ptr->data_segment.data.bytes_ptr = (7 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
+        omega_data_create(&viewport_ptr->data_segment.data, capacity);
         viewport_ptr->event_handler = cbk;
         viewport_ptr->user_data_ptr = user_data_ptr;
-        omega_data_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
+        viewport_ptr->event_interest_ = event_interest;
+        omega_segment_get_data(&viewport_ptr->data_segment)[0] = '\0';
         session_ptr->viewports_.push_back(viewport_ptr);
-        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, nullptr);
+        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CREATE, session_ptr->viewports_.back().get());
+        omega_session_notify(session_ptr, SESSION_EVT_CREATE_VIEWPORT, session_ptr->viewports_.back().get());
         return session_ptr->viewports_.back().get();
     }
     return nullptr;
@@ -364,8 +377,10 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
-            if (7 < omega_viewport_get_capacity(iter->get())) { delete[](*iter)->data_segment.data.bytes_ptr; }
-            viewport_ptr->session_ptr->viewports_.erase(std::next(iter).base());
+            auto session_ptr = viewport_ptr->session_ptr;
+            omega_data_destroy(&(*iter)->data_segment.data, omega_viewport_get_capacity(iter->get()));
+            session_ptr->viewports_.erase(std::next(iter).base());
+            omega_session_notify(session_ptr, SESSION_EVT_DESTROY_VIEWPORT, viewport_ptr);
             break;
         }
     }
@@ -373,17 +388,17 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    return (0 < length && offset < computed_file_size)
-                   ? update_(session_ptr, del_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, std::min(length, computed_file_size - offset)))
+    return !omega_session_changes_paused(session_ptr) && 0 < length && offset < computed_file_size
+                   ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
+                                               std::min(length, computed_file_size - offset)))
                    : 0;
 }
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
-    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ins_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, bytes, length))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
+                   ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
 
@@ -393,9 +408,9 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    return (0 <= length && offset <= omega_session_get_computed_file_size(session_ptr))
-                   ? update_(session_ptr, ovr_(1 + static_cast<int64_t>(omega_session_get_num_changes(session_ptr)),
-                                               offset, bytes, length))
+    return !omega_session_changes_paused(session_ptr) && 0 <= length &&
+                           offset <= omega_session_get_computed_file_size(session_ptr)
+                   ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
                    : 0;
 }
 
@@ -405,7 +420,8 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
                                int64_t offset, int64_t length, char const *checkpoint_directory) {
-    if (0 == omega_edit_create_checkpoint(session_ptr, checkpoint_directory)) {
+    if (!omega_session_changes_paused(session_ptr) &&
+        0 == omega_edit_create_checkpoint(session_ptr, checkpoint_directory)) {
         auto in_file = session_ptr->models_.back()->file_path;
         auto out_file = in_file + "_";
         if (0 == omega_util_apply_byte_transform_to_file(in_file.c_str(), out_file.c_str(), transform, user_data_ptr,
@@ -432,17 +448,20 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
     return -1;
 }
 
-int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
+int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path) {
     char temp_filename[FILENAME_MAX];
+    if (saved_file_path) { saved_file_path[0] = '\0'; }
     omega_util_dirname(file_path, temp_filename);
+    if (!temp_filename[0]) { omega_util_get_current_dir(temp_filename); }
     if (!omega_util_directory_exists(temp_filename) && 0 != omega_util_create_directory(temp_filename)) {
         LOG_ERROR("failed to create directory: " << omega_util_normalize_path(temp_filename, nullptr));
         return -1;
     }
     const auto temp_filename_str = std::string(temp_filename);
-    auto count = (temp_filename_str.empty()) ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
-                                             : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
-                                                        temp_filename_str.c_str(), omega_util_directory_separator());
+    const auto count = temp_filename_str.empty()
+                               ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                               : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                          temp_filename_str.c_str(), omega_util_directory_separator());
     if (count < 0 || FILENAME_MAX <= count) {
         LOG_ERROR("snprintf failed");
         return -2;
@@ -497,8 +516,17 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         write_offset += segment->computed_length;
     }
     fclose(temp_fptr);
+    bool reset_session = false;
     if (omega_util_file_exists(file_path)) {
         if (overwrite) {
+            // reset the session if we're overwriting the file being edited
+            reset_session = (omega_session_get_file_path(session_ptr) &&
+                             omega_util_paths_equivalent(file_path, omega_session_get_file_path(session_ptr)));
+            if (reset_session) {
+                assert(session_ptr->models_.front()->file_ptr);
+                fclose(session_ptr->models_.front()->file_ptr);
+                session_ptr->models_.front()->file_ptr = nullptr;
+            }
             if (0 != omega_util_remove_file(file_path)) {
                 LOG_ERROR("removing file failed: " << strerror(errno));
                 return -7;
@@ -514,8 +542,23 @@ int omega_edit_save(const omega_session_t *session_ptr, const char *file_path, i
         LOG_ERROR("rename failed: " << strerror(errno));
         return -9;
     }
-    if (saved_file_path) { strncpy(saved_file_path, file_path, FILENAME_MAX); }
-    omega_session_notify(session_ptr, SESSION_EVT_SAVE, nullptr);
+    if (reset_session) {
+        assert(!session_ptr->models_.front()->file_ptr);
+        auto file_ptr = fopen(file_path, "rb");
+        if (!file_ptr) {
+            LOG_ERROR("fopen failed: " << strerror(errno));
+            return -10;
+        }
+        // session to point to the overwritten file, then suspend viewport callbacks, clear the changes, then resume the
+        // viewport callbacks.  A session clear event will be triggered in the clear changes call to indicate to the
+        // user that the edit history is cleared, affecting undo/redo.
+        session_ptr->models_.front()->file_ptr = file_ptr;
+        omega_session_pause_viewport_event_callbacks(session_ptr);
+        omega_edit_clear_changes(session_ptr);
+        omega_session_resume_viewport_event_callbacks(session_ptr);
+    }
+    if (saved_file_path) { omega_util_normalize_path(file_path, saved_file_path); }
+    omega_session_notify(session_ptr, SESSION_EVT_SAVE, saved_file_path);
     return 0;
 }
 
@@ -536,7 +579,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 }
 
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
-    if (!session_ptr->models_.back()->changes.empty()) {
+    if (!omega_session_changes_paused(session_ptr) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
         session_ptr->models_.back()->changes.pop_back();
         int64_t length = 0;
@@ -564,7 +607,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     int64_t rc = 0;
-    if (!session_ptr->models_.back()->changes_undone.empty()) {
+    if (!omega_session_changes_paused(session_ptr) && !session_ptr->models_.back()->changes_undone.empty()) {
         rc = update_(session_ptr, session_ptr->models_.back()->changes_undone.back());
         session_ptr->models_.back()->changes_undone.pop_back();
     }
@@ -572,6 +615,9 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
 }
 
 int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory) {
+    if (!omega_util_directory_exists(checkpoint_directory) && 0 != omega_util_create_directory(checkpoint_directory)) {
+        LOG_ERROR("failed to create checkpoint directory");
+    }
     char checkpoint_filename[FILENAME_MAX];
     if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
                                  omega_util_normalize_path(checkpoint_directory, nullptr),

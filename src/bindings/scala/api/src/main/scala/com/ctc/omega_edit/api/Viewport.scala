@@ -16,12 +16,15 @@
 
 package com.ctc.omega_edit.api
 
-/**
-  * A view of data within a Session
+/** A view of data within a Session
   */
 trait Viewport {
   def length: Long
-  def data: String
+  def data: Array[Byte]
+
+  def callback: Option[ViewportCallback]
+  def eventInterest: Int
+  def eventInterest_=(eventInterest: Int): Unit
 
   def offset: Long
   def capacity: Long

@@ -30,7 +30,7 @@ breathe_projects = {"omega_edit": ""}
 # -- Project information -----------------------------------------------------
 
 project = 'omega_edit'
-copyright = '2021-2022, Concurrent Technologies Corporation'
+copyright = '2021 Concurrent Technologies Corporation'
 author = 'Concurrent Technologies Corporation'
 
 # -- General configuration ---------------------------------------------------
@@ -50,6 +50,7 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
+    'sphinx_rtd_dark_mode',
     'sphinx_sitemap',
     'breathe'
 ]

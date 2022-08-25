@@ -35,6 +35,7 @@ object Change {
   case object Undefined extends Op
 
   sealed trait Result
+  case object Paused extends Result
   case object Fail extends Result
   case class Changed(id: Long) extends Result
 }

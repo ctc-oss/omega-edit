@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file byte.h
+ * @brief omega_byte_t definition.
+ */
+
 #ifndef OMEGA_EDIT_BYTE_H
 #define OMEGA_EDIT_BYTE_H
 

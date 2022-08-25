@@ -22,17 +22,21 @@
 #include <vector>
 
 using omega_model_ptr_t = std::unique_ptr<omega_model_t>;
+using omega_models_t = std::vector<omega_model_ptr_t>;
+using omega_search_context_ptr_t = std::shared_ptr<omega_search_context_t>;
+using omega_search_contexts_t = std::vector<omega_search_context_ptr_t>;
 using omega_viewport_ptr_t = std::shared_ptr<omega_viewport_t>;
 using omega_viewports_t = std::vector<omega_viewport_ptr_t>;
-using omega_models_t = std::vector<omega_model_ptr_t>;
 
 struct omega_session_struct {
-    omega_session_event_cbk_t event_handler{};///< User callback when the session changes
-    void *user_data_ptr{};                    ///< Pointer to associated user-provided data
-    omega_viewports_t viewports_{};           ///< Collection of viewports in this session
-    omega_models_t models_{};                 ///< Edit models (internal)
-    int64_t num_changes_adjustment_{};        ///< Numer of changes in checkpoints
-    int8_t session_flags_{};                  ///< Internal state flags
+    omega_session_event_cbk_t event_handler{}; ///< User callback when the session changes
+    void *user_data_ptr{};                     ///< Pointer to associated user-provided data
+    int32_t event_interest_;                   ///< Events of interest
+    omega_viewports_t viewports_{};            ///< Collection of viewports in this session
+    omega_search_contexts_t search_contexts_{};///< Collection of active search contexts
+    omega_models_t models_{};                  ///< Edit models (internal)
+    int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
+    int8_t session_flags_{};                   ///< Internal state flags
 };
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

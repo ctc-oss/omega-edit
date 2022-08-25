@@ -22,12 +22,11 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     cmake \
     doxygen \
     git \
-    googletest \
     graphviz \
+    ninja-build \
     python3-breathe \
     python3-sphinx \
     python3-pip \
-    swig \
     valgrind
 
 # Install python3 modules using pip

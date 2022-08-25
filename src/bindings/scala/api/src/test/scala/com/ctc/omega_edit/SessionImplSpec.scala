@@ -16,14 +16,27 @@
 
 package com.ctc.omega_edit
 
+import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.Changed
-import com.ctc.omega_edit.api.{Change, SessionEvent}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.nio.file.{Files, Paths}
+import java.util.UUID
+import scala.util.Success
+
 class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
+
+  val numbers = "123456789"
+  //        0         1
+  //        0123456789012345
+  //            |    ||    |
+  val as = "bbbbabbbbaabbbba"
+  val binary = Array[Byte](1, 2, 3, 4, 0, 5, 6)
+
   "a session" must {
     "be empty" in emptySession { s =>
       s.isEmpty shouldBe true
@@ -35,9 +48,20 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       s.size shouldBe 3
     }
 
+    "handle binary" in session(binary) { s =>
+      s.size shouldBe binary.length
+      s.getSegment(0, binary.length.toLong).map(_.data shouldBe binary)
+    }
+
     "have string" in session("abc") { s =>
       s.isEmpty shouldBe false
       s.size shouldBe 3
+    }
+
+    "throw if file doesnt exist" in {
+      assertThrows[IllegalArgumentException](
+        OmegaEdit.newSession(Some(Paths.get("/does-not-exist")))
+      )
     }
   }
 
@@ -50,6 +74,97 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "include the change" in emptySessionWithCallback { (s, cb) =>
       s.insert("bar", 0)
       cb.change.flatten.value.operation shouldBe Change.Insert
+    }
+  }
+
+  "saving" should {
+    /* On MacOSX, temp files are in /tmp which is a symlink to /private/tmp.
+     * Session.save() seems to resolve symlinks, so we resolve our paths
+     * to ensure they match what is returned. */
+    val tmp = Files.createTempDirectory("omega").toRealPath()
+    tmp.toFile.deleteOnExit()
+
+    "save empty session" in emptySession { s =>
+      val empty = tmp.resolve(Paths.get("empty.txt"))
+      s.save(empty) shouldBe Success(empty)
+
+      fileContents(empty) shouldBe ""
+    }
+
+    "save data from session" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      val expected = UUID.randomUUID().toString
+
+      s.insert(expected, 0)
+      s.save(dat) shouldBe Success(dat)
+
+      fileContents(dat) shouldBe expected
+    }
+
+    "overwrite if exists" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      dat.toFile.exists() shouldBe true
+      val expected = UUID.randomUUID().toString
+
+      s.insert(expected, 0)
+      s.save(dat, OverwriteStrategy.OverwriteExisting) shouldBe Success(dat)
+
+      fileContents(dat) shouldBe expected
+    }
+
+    "use generated path if exists" in emptySession { s =>
+      val dat = tmp.resolve(Paths.get("dat.txt"))
+      dat.toFile.exists() shouldBe true
+
+      val expected = UUID.randomUUID().toString
+      s.insert(expected, 0)
+
+      val r = s.save(dat, OverwriteStrategy.GenerateFilename)
+      r.isSuccess shouldBe true
+      r should not matchPattern { case Success(`dat`) => }
+
+      fileContents(r.get) shouldBe expected
+    }
+  }
+
+  "search" should {
+    "find nothing if nothing is there" in session(numbers) { s =>
+      s.search("abc".getBytes, 0) shouldBe List.empty
+    }
+
+    "find a single match" in session(numbers) { s =>
+      s.search("345".getBytes, 0) shouldBe List(2)
+    }
+
+    "find multiple matches" in session(as) { s =>
+      s.search("a".getBytes, 0) shouldBe List(4, 9, 10, 15)
+    }
+
+    "respect offsets" in session(as) { s =>
+      s.search("a".getBytes, 1) shouldBe List(4, 9, 10, 15)
+      s.search("a".getBytes, 5) shouldBe List(9, 10, 15)
+    }
+
+    "respect len" in session(as) { s =>
+      s.search("a".getBytes, 0, Some(as.length.toLong - 2)) shouldBe List(4, 9, 10)
+    }
+
+    "respect caseInsensitive" in session(as) { s =>
+      s.search("A".getBytes, 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
+    }
+
+    "respect limit" in session(as) { s =>
+      s.search("a".getBytes, 0, limit = Some(2)) shouldBe List(4, 9)
+    }
+  }
+
+  "segments" should {
+    "find stuff" in session(numbers) { s =>
+      s.getSegment(3, 4) match {
+        case Some(Segment(3, data)) =>
+          data should equal(numbers.substring(3, 3 + 4).getBytes())
+        case _ => fail()
+      }
     }
   }
 }

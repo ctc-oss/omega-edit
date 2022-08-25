@@ -23,45 +23,46 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
   "views" should {
-    "limit data" in session("abc")(view(0, 1, _) { (s, v) =>
+    "limit data" in session("abc")(view(0, 1, false, _) { (s, v) =>
       s.size shouldBe 3
-      v.data shouldBe "a"
+      v.data shouldBe "a".getBytes()
     })
 
-    "offset data" in session("abc")(view(1, 1, _) { (s, v) =>
+    "offset data" in session("abc")(view(1, 1, false, _) { (s, v) =>
       s.size shouldBe 3
-      v.data shouldBe "b"
+      v.data shouldBe "b".getBytes()
     })
 
-    "move" in session("abc")(view(1, 1, _) { (_, v) =>
-      v.data shouldBe "b"
+    "move" in session("abc")(view(1, 1, false, _) { (_, v) =>
+      v.data shouldBe "b".getBytes()
       v.move(0)
-      v.data shouldBe "a"
+      v.data shouldBe "a".getBytes()
     })
 
-    "resize" in session("abc")(view(0, 1, _) { (_, v) =>
-      v.data shouldBe "a"
+    "resize" in session("abc")(view(0, 1, false, _) { (_, v) =>
+      v.data shouldBe "a".getBytes()
       v.resize(2)
-      v.data shouldBe "ab"
+      v.data shouldBe "ab".getBytes()
     })
 
-    "move and resize" in session("abc")(view(0, 1, _) { (_, v) =>
-      v.data shouldBe "a"
+    "move and resize" in session("abc")(view(0, 1, false, _) { (_, v) =>
+      v.data shouldBe "a".getBytes()
       v.update(1, 2)
-      v.data shouldBe "bc"
+      v.data shouldBe "bc".getBytes()
     })
   }
 
   "a callback" should {
-    "be updated" in emptySession(viewWithCallback(0, 1, _) { (s, v) =>
+    "be updated" in emptySession(viewWithCallback(0, 1, false, _) { (s, v) =>
       s.insert("foo", 0)
-      v.data shouldBe Some("f")
+      withClue(v) { v.data.map(_ shouldBe "f".getBytes()) }
     })
 
-    "include the change type" in emptySession(viewWithCallback(0, 1, _) { (s, v) =>
-      s.insert("foo", 0)
-      v.change shouldBe defined
-      v.change.get.operation shouldBe Change.Insert
+    "include the change type" in emptySession(viewWithCallback(0, 1, false, _) {
+      (s, v) =>
+        s.insert("foo", 0)
+        v.change shouldBe defined
+        v.change.get.operation shouldBe Change.Insert
     })
   }
 }

@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file stl_string_adaptor.hpp
+ * @brief C++ convenience functions for using STL strings.
+ */
+
 #ifndef OMEGA_EDIT_STL_STRING_ADAPTOR_HPP
 #define OMEGA_EDIT_STL_STRING_ADAPTOR_HPP
 
@@ -22,6 +27,8 @@
 #include "change.h"
 #include "edit.h"
 #include "search.h"
+#include "segment.h"
+#include "session.h"
 #include "viewport.h"
 #include <string>
 
@@ -30,23 +37,14 @@
  * @param change_ptr change to get the data from
  * @return change data as a string
  */
-OMEGA_EDIT_EXPORT inline std::string omega_change_get_string(const omega_change_t *change_ptr) noexcept {
-    const auto change_bytes = omega_change_get_bytes(change_ptr);
-    if (change_bytes) {
-        return {reinterpret_cast<const char *>(change_bytes), static_cast<size_t>(omega_change_get_length(change_ptr))};
-    }
-    return {};
-}
+OMEGA_EDIT_EXPORT std::string omega_change_get_string(const omega_change_t *change_ptr) noexcept;
 
 /**
  * Given a viewport, return the viewport data as a string
  * @param viewport_ptr viewport to get the viewport data from
  * @return viewport data as a string
  */
-OMEGA_EDIT_EXPORT inline std::string omega_viewport_get_string(const omega_viewport_t *viewport_ptr) noexcept {
-    return {reinterpret_cast<const char *>(omega_viewport_get_data(viewport_ptr)),
-            static_cast<size_t>(omega_viewport_get_length(viewport_ptr))};
-}
+OMEGA_EDIT_EXPORT std::string omega_viewport_get_string(const omega_viewport_t *viewport_ptr) noexcept;
 
 /**
  * Insert a string at the given offset
@@ -55,10 +53,8 @@ OMEGA_EDIT_EXPORT inline std::string omega_viewport_get_string(const omega_viewp
  * @param str string to insert at the given offset
  * @return positive change serial number on success, zero otherwise
  */
-OMEGA_EDIT_EXPORT inline int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t offset,
-                                                          const std::string &str) noexcept {
-    return omega_edit_insert(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
-}
+OMEGA_EDIT_EXPORT int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t offset,
+                                                   const std::string &str) noexcept;
 
 /**
  * Overwrite bytes at the given offset with the given new string
@@ -67,11 +63,18 @@ OMEGA_EDIT_EXPORT inline int64_t omega_edit_insert_string(omega_session_t *sessi
  * @param str new string to overwrite the old bytes with
  * @return positive change serial number on success, zero otherwise
  */
-OMEGA_EDIT_EXPORT inline int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset,
-                                                             const std::string &str) noexcept {
-    return omega_edit_overwrite(session_ptr, offset, str.c_str(), static_cast<int64_t>(str.length()));
-}
+OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset,
+                                                      const std::string &str) noexcept;
 
+/**
+ * Gets a segment of data from the given session
+ * @param session_ptr session to get the segment of data from
+ * @param offset start offset of the desired segment
+ * @param length length of the desired segment from the given offset
+ * @return string containing the desired segment of data
+ */
+OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
+                                                               int64_t length) noexcept;
 /**
  * Create a search context
  * @param session_ptr session to find patterns in
@@ -82,14 +85,9 @@ OMEGA_EDIT_EXPORT inline int64_t omega_edit_overwrite_string(omega_session_t *se
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-OMEGA_EDIT_EXPORT inline omega_search_context_t *omega_search_create_context_string(const omega_session_t *session_ptr,
-                                                                                    const std::string &pattern,
-                                                                                    int64_t session_offset = 0,
-                                                                                    int64_t session_length = 0,
-                                                                                    int case_insensitive = 0) noexcept {
-    return omega_search_create_context(session_ptr, pattern.c_str(), static_cast<int64_t>(pattern.length()),
-                                       session_offset, session_length, case_insensitive);
-}
+OMEGA_EDIT_EXPORT omega_search_context_t *
+omega_search_create_context_string(omega_session_t *session_ptr, const std::string &pattern, int64_t session_offset = 0,
+                                   int64_t session_length = 0, int case_insensitive = 0) noexcept;
 
 #endif//__cplusplus
 

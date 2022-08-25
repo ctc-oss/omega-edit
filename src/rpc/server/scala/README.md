@@ -23,10 +23,11 @@ Scala gRPC reference implementation using Akka.
 
 From the root project of Ωedit
 
-1. From within `src/bindings/scala` install the Ωedit bindings by running `sbt +install`
+1. From within `src/bindings/scala` install the Ωedit bindings by running `sbt installM2`
 2. From within `src/rpc/server/scala` launch the gRPC server by running `sbt run`
 
 ## Reference
+
 - https://doc.akka.io/docs/akka-grpc
 
 ## License

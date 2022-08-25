@@ -31,7 +31,7 @@ struct last_byte_info_t {
 };
 
 void vpt_change_last_byte_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                              const omega_change_t *) {
+                              const void *) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
@@ -67,11 +67,11 @@ int main(int argc, char **argv) {
     }
     const auto out_filename = argv[2];
     const auto rotations = stol(argv[3]);
-    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr);
+    auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS);
     assert(session_ptr);
     // Create a small viewport at the end of the file to track the last byte.
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, omega_session_get_computed_file_size(session_ptr) - 1,
-                                                   4, vpt_change_last_byte_cbk, &last_byte_info, 0);
+                                                   4, 0, vpt_change_last_byte_cbk, &last_byte_info, 0);
     assert(viewport_ptr);
     if (last_byte_info.has_last_byte) {
         for (auto i = 0; i < rotations; ++i) {
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
                 cerr << "Error deleting" << endl;
                 return -1;
             }
-            omega_viewport_update(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4, 0);
+            omega_viewport_modify(viewport_ptr, omega_session_get_computed_file_size(session_ptr) - 1, 4, 0);
         }
     }
     clog << "Saving " << omega_session_get_num_changes(session_ptr) << " changes to " << out_filename << " of size "

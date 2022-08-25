@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file config.h
+ * @brief Configuration settings.
+ */
+
 #ifndef OMEGA_EDIT_CONFIG_H
 #define OMEGA_EDIT_CONFIG_H
 
@@ -26,7 +31,7 @@
  **********************************************************************************************************************/
 
 // Define to enable debugging
-//#define DEBUG
+#define DEBUG
 
 // Default maximum viewport capacity
 #ifndef OMEGA_VIEWPORT_CAPACITY_LIMIT

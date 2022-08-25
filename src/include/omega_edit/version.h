@@ -14,6 +14,11 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
+/**
+ * @file version.h
+ * @brief Functions that return version information.
+ */
+
 #ifndef OMEGA_EDIT_VERSION_H
 #define OMEGA_EDIT_VERSION_H
 
@@ -46,6 +51,14 @@ OMEGA_EDIT_EXPORT int omega_version_patch();
  * @return the integer representation of the version of the library
  */
 OMEGA_EDIT_EXPORT int omega_version();
+
+/**
+ * Returns "shared" if the library has been built as a shared library, or "static" if the library is built as a static
+ * library
+ * @return "shared" if the library has been built as a shared library, or "static" if the library is built as a static
+ * library
+ */
+OMEGA_EDIT_EXPORT char const *omega_libtype();
 
 #ifdef __cplusplus
 }

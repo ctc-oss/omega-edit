@@ -15,8 +15,6 @@ on:
   push:
     branches:
       - '**'
-  pull_request:
-    types: [opened, synchronize, reopened]
 
 jobs:
   linux-mac:
@@ -26,67 +24,45 @@ jobs:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
         with:
-          python-version: '3.x'
-
-      - name: Install Conan
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+      - name: Install Conan 💪
+        id: conan
         uses: turtlebrowser/get-conan@main
-
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1
-        with:
-          cmake-version: '3.16.x'
-
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
       - name: Build Ωedit
         run: |
           rm -rf build || true
-          mkdir -p build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build . --target omega_edit
-          mv lib/* ../lib
-
-      - name: Setup JDK
-        uses: actions/setup-java@v2
-        with:
-          distribution: adopt
-          java-version: 8
-
-      - name: Setup SBT
-        run: |
-          curl -LO https://github.com/sbt/sbt/releases/download/v1.6.2/sbt-1.6.2.tgz
-          sudo tar xvzf sbt-1.6.2.tgz -C /usr/local --strip-components=1
-        working-directory: /tmp
-
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake --build build --target omega_edit
+          cmake --install build --prefix "${PWD}/_install"
+          mv _install/lib/* ./lib
       - name: Check Scala headers
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt headerCheckAll
-        working-directory: src/bindings/scala
-
-      - name: Package Scala API and Linux so
-        if: startsWith(matrix.os, 'ubuntu')
-        run: sbt +test +publishM2
-        working-directory: src/bindings/scala
-
-      - name: Package Mac dylib
-        if: startsWith(matrix.os, 'mac')
-        run: sbt +test +native/publishM2
-        working-directory: src/bindings/scala
-
+      - name: Package Scala API
+        run: sbt installM2
       - name: Archive M2
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
-
       - name: Coverage report
         if: startsWith(matrix.os, 'ubuntu')
         run: sbt howMuchCoverage
-        working-directory: src/bindings/scala
-
       - name: Build Scala gRPC Reference Impl
         if: startsWith(matrix.os, 'ubuntu')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt test
         working-directory: src/rpc/server/scala

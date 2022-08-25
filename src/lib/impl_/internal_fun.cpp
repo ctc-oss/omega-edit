@@ -14,6 +14,7 @@
 
 #include "internal_fun.hpp"
 #include "../../include/omega_edit/change.h"
+#include "../../include/omega_edit/segment.h"
 #include "change_def.hpp"
 #include "macros.h"
 #include "model_def.hpp"
@@ -46,14 +47,14 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
     return rc;
 }
 
-int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segment_t *data_segment_ptr) noexcept {
+int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr) noexcept {
     assert(session_ptr);
     assert(session_ptr->models_.back());
     assert(data_segment_ptr);
     const auto &model_ptr = session_ptr->models_.back();
     data_segment_ptr->length = 0;
     if (model_ptr->model_segments.empty()) { return 0; }
-    assert(0 < data_segment_ptr->capacity);
+    assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
     const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
     int64_t read_offset = 0;
@@ -69,7 +70,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
             // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
             // (the delta).
             auto delta = data_segment_offset - (*iter)->computed_offset;
-            auto data_segment_buffer = omega_data_segment_get_data(data_segment_ptr);
+            auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
             do {
                 // This is how much data remains to be filled
                 const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
@@ -101,6 +102,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_data_segmen
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
             } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
+            assert(data_segment_ptr->length <= data_segment_capacity);
+            // data segment buffer allocation is its capacity plus one, so we can null-terminate it
             data_segment_buffer[data_segment_ptr->length] = '\0';
             return 0;
         }
@@ -118,8 +121,7 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
     out_stream << R"({"serial": )" << omega_change_get_serial(change_ptr) << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
                << R"(, "length": )" << omega_change_get_length(change_ptr);
-    const auto bytes = omega_change_get_bytes(change_ptr);
-    if (bytes) {
+    if (const auto bytes = omega_change_get_bytes(change_ptr); bytes) {
         out_stream << R"(, "bytes": ")" << std::string((char const *) bytes, omega_change_get_length(change_ptr))
                    << R"(")";
     }

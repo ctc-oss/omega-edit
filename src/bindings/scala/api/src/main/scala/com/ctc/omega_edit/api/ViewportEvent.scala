@@ -16,27 +16,24 @@
 
 package com.ctc.omega_edit.api
 
-/**
-  * Defines the types of events emitted by a viewport
-  */
-sealed trait ViewportEvent
-object ViewportEvent {
-  case object Undefined extends ViewportEvent
-  case object Create extends ViewportEvent
-  case object Edit extends ViewportEvent
-  case object Undo extends ViewportEvent
-  case object Clear extends ViewportEvent
-  case object Transform extends ViewportEvent
-  case object Updated extends ViewportEvent
+import enumeratum.values._
 
-  private[api] def fromNative(v: Int): ViewportEvent =
-    v match {
-      case 1  => Create
-      case 2  => Edit
-      case 4  => Undo
-      case 8  => Clear
-      case 16 => Transform
-      case 32 => Updated
-      case _  => Undefined
-    }
+/** Defines the types of events emitted by a viewport
+  */
+sealed abstract class ViewportEvent(val value: Int) extends IntEnumEntry
+object ViewportEvent extends IntEnum[ViewportEvent] {
+  case object Undefined extends ViewportEvent(0)
+  case object Create extends ViewportEvent(1)
+  case object Edit extends ViewportEvent(2)
+  case object Undo extends ViewportEvent(4)
+  case object Clear extends ViewportEvent(8)
+  case object Transform extends ViewportEvent(16)
+  case object Modify extends ViewportEvent(32)
+
+  val values = findValues
+
+  object Interest {
+    val None = 0
+    val All = ~0
+  }
 }

@@ -20,47 +20,51 @@ import sbt._
 object Rat {
 
   lazy val excludes = Seq(
-
     // git files
     file(".git"),
-
+    // ignore files
+    file("packaging/.cpack_ignore"),
     // json files
     file("src/rpc/client/ts/package.json"),
+    file("src/rpc/client/ts/package-lock.json"),
+    file("src/rpc/client/ts/tests/package.json"),
+    file("src/rpc/client/ts/tests/package-lock.json"),
+    file("src/rpc/client/ts/tests/tsconfig.json"),
+    file("src/rpc/client/ts/.prettierrc"),
+    // compiles files
     file(".devcontainer/devcontainer.json"),
-
+    file("src/rpc/client/ts/src/omega_edit_pb.js"),
+    file("src/rpc/client/ts/out/settings.js.map"),
+    file("src/rpc/client/ts/out/omega_edit_pb.js"),
+    file("src/rpc/client/ts/out/change.js.map"),
+    file("src/rpc/client/ts/out/viewport.js.map"),
+    file("src/rpc/client/ts/out/version.js.map"),
+    file("src/rpc/client/ts/src/omega_edit_pb.d.ts"),
+    file("src/rpc/client/ts/out/session.js.map"),
+    file("src/rpc/client/ts/src/omega_edit_grpc_pb.d.ts"),
     // cmake build folder
     file("cmake-build-debug"),
     file("cmake-build-release"),
-
     // cmake plugins
     file("cmake/"),
     file("src/rpc/cmake/"),
     file("src/tests/integration/cmake/"),
-
     // ide folders
     file(".idea"),
     file(".run"),
     file(".vscode"),
-
     // target and build dirs
     file("target"),
     file("build"),
-
     // data files for tests
     file("src/examples/data/"),
     file("src/tests/integration/data/"),
-
     // ignore lib files
     file("lib"),
-
     // ignore generated files
     file("server/core/src/main/java/org.ctc.omegaedit"),
-    file("src/bindings/java/omega_edit_wrap.cxx"),
-    file("src/bindings/java/omega_edit_wrap.h"),
-
     // omega-edit logo picture
     file("images/OmegaEditLogo.png"),
-
     // node generated files
     file("src/rpc/client/ts/node_modules"),
     file("src/rpc/client/ts/omega_edit_grpc_pb.d.ts"),
@@ -68,13 +72,12 @@ object Rat {
     file("src/rpc/client/ts/omega_edit_pb.d.ts"),
     file("src/rpc/client/ts/omega_edit_pb.js"),
     file("src/rpc/client/ts/yarn.lock")
-    
   )
 
   lazy val HPP_LICENSE_NAME = "HPP License"
 
   lazy val HPP_LICENSE_TEXT =
-"""
+    """
 This file has been merged from multiple headers. Please don't edit it directly
 Copyright (c) 2021-2022 Two Blue Cubes Ltd. All rights reserved.
 

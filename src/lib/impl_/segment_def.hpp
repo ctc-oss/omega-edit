@@ -12,8 +12,24 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/*
- * List all the functions exported by the OmegaEdit library
+#ifndef OMEGA_EDIT_SEGMENT_DEF_HPP
+#define OMEGA_EDIT_SEGMENT_DEF_HPP
+
+#include "data_def.hpp"
+#include "internal_fwd_defs.hpp"
+#include <cstdint>
+#include <cstdlib>
+
+/**
+ * A segment of data
  */
-omega_edit = require('../../module/omega_edit')
-console.log(Object.keys(omega_edit))
+struct omega_segment_struct {
+    int64_t offset{};   ///< Data offset as changes have been made
+    int64_t length{};   ///< Populated data length (in bytes)
+    int64_t capacity{}; ///< Data capacity (in bytes)
+    omega_data_t data{};///< Copy of the data itself
+    bool is_floating{};
+    int64_t offset_adjustment{};
+};
+
+#endif//OMEGA_EDIT_SEGMENT_DEF_HPP

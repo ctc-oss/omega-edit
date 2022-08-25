@@ -17,26 +17,27 @@ on:
       - main
 
 jobs:
-  deploy-documentation:
+  deploy-docs:
     runs-on: macos-latest
     steps:
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
+      - name: Install Prerequisites 📚
+        run: |
+          brew install ninja doxygen graphviz sphinx-doc
+          sudo pip3 install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap
+      - name: Checkout Source 🛎️
+        uses: actions/checkout@v3
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
       - name: Setup cmake 🔧
         uses:
           lukka/get-cmake@latest
-      - name: Checkout Source 🛎️
-        uses: actions/checkout@v2
-      - name: Prepare and Build 🔧
+      - name: Prepare and Build Docs 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
-          cmake --build build
+          cmake --build build --target sphinx
+          touch build/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: build # The deployment folder should match the name of the artifact.
+          folder: build/docs/sphinx # The deployment folder should match the name of the artifact.

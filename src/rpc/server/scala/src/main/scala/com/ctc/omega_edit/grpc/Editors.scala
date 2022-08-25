@@ -22,25 +22,26 @@ import akka.stream.scaladsl.Source
 import akka.util.Timeout
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
-import com.ctc.omega_edit.grpc.Session
-import com.ctc.omega_edit.grpc.Viewport
 
 import java.nio.file.Path
 import java.util.{Base64, UUID}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
-/**
-  * The Editors actor manages the backend Sessions
+/** The Editors actor manages the backend Sessions
   */
 object Editors {
   def props() = Props(new Editors)
 
   case class Find(id: String)
-  case class Create(id: Option[String], path: Option[Path])
+  case class Create(
+      id: Option[String],
+      path: Option[Path],
+      eventInterest: Option[Int]
+  )
   case class Destroy(id: String)
+  case object SessionCount
 
   ///
 
@@ -53,19 +54,12 @@ object Editors {
 
   trait Data {
     def data: ByteString
+    def offset: Long
   }
 
   private def idFor(path: Option[Path]): String = path match {
-    case None    => UUID.randomUUID().toString.take(8)
+    case None    => UUID.randomUUID().toString
     case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
-  }
-
-  private def sessionFor(path: Option[Path], cb: SessionCallback): api.Session = path match {
-    case None =>
-      val session = OmegaEdit.newSessionCb(None, cb)
-      session.insert(List.fill(Session.defaultSize)(" ").mkString, 0)
-      session
-    case path => OmegaEdit.newSessionCb(path, cb)
   }
 }
 
@@ -74,16 +68,28 @@ class Editors extends Actor with ActorLogging {
   implicit val timeout = Timeout(1.second)
 
   def receive: Receive = {
-    case Create(sid, path) =>
+    case Create(sid, path, eventInterest) =>
       val id = sid.getOrElse(idFor(path))
       context.child(id) match {
         case Some(_) =>
           sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           import context.system
-          val (input, stream) = Source.queue[Session.Updated](1, OverflowStrategy.dropHead).preMaterialize()
-          val cb = SessionCallback((_, _, _) => input.queue.offer(Session.Updated(id)))
-          context.actorOf(Session.props(sessionFor(path, cb), stream, cb), id)
+          val (input, stream) = Source
+            .queue[Session.Updated](1, OverflowStrategy.dropHead)
+            .preMaterialize()
+          val cb = SessionCallback { (_, _, _) =>
+            input.queue.offer(Session.Updated(id))
+            ()
+          }
+          context.actorOf(
+            Session.props(
+              OmegaEdit.newSessionCb(path, cb, eventInterest),
+              stream,
+              cb
+            ),
+            id
+          )
           sender() ! Ok(id)
       }
 
@@ -98,9 +104,13 @@ class Editors extends Actor with ActorLogging {
           sender() ! Ok(id)
       }
 
+    case SessionCount =>
+      sender() ! context.children.size
+
     case SessionOp(id, op) =>
       context.child(id) match {
-        case None    => sender() ! Err(Status.NOT_FOUND.withDescription("session not found"))
+        case None =>
+          sender() ! Err(Status.NOT_FOUND.withDescription("session not found"))
         case Some(s) => s forward op
       }
 

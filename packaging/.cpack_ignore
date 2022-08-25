@@ -1,0 +1,14 @@
+\\.DS_Store
+\\.editorconfig
+\\.git*
+\\.git/
+\\.idea/
+\\.run/
+\\.venv/
+\\.vscode/
+_install/
+build-*
+build/
+cmake-build*
+docker/
+venv/

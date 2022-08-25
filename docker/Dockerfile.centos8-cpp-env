@@ -19,7 +19,6 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
   make \
   autoconf \
   automake \
-  boost-static \
   dos2unix \
   gcc \
   gcc-c++ \
@@ -33,7 +32,6 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
   python3-sphinx \
   doxygen \
   graphviz \
-  swig \
   ninja-build \
   valgrind \
   wget \
@@ -41,5 +39,6 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
 
 RUN pip3 install \
     breathe \
+    conan \
     sphinx_rtd_theme \
     sphinx-sitemap

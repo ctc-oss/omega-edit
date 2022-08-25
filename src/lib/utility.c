@@ -42,6 +42,7 @@
 #include "../include/omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <assert.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ int omega_util_mkstemp(char *tmpl) {
 }
 
 int omega_util_touch(const char *file_name, int create) {
-    int fd = OPEN(file_name, (create) ? O_RDWR | O_CREAT : O_RDWR, 0644);
+    int fd = OPEN(file_name, create ? O_RDWR | O_CREAT : O_RDWR, 0644);
     if (fd < 0) {
         if (!create && errno == ENOENT) {
             return 0;
@@ -132,7 +133,7 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
     int64_t remaining = byte_count;
     omega_byte_t buff[1024 * 8];
     while (remaining) {
-        const int64_t count = ((int64_t) sizeof(buff) > remaining) ? remaining : (int64_t) sizeof(buff);
+        const int64_t count = (int64_t) sizeof(buff) > remaining ? remaining : (int64_t) sizeof(buff);
         if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
             count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) {
             break;
@@ -190,6 +191,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
                                             int64_t length) {
     assert(in_path);
     assert(out_path);
+    assert(transform);
     assert(0 <= offset);
     assert(0 <= length);
     FILE *in_fp = fopen(in_path, "rb");
@@ -198,7 +200,10 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
     int64_t in_file_length = FTELL(in_fp);
     if (0 == length) { length = in_file_length - offset; }
     do {
-        if (length < 1 || in_file_length <= offset || in_file_length < offset + length) { break; }
+        if (length < 1 || in_file_length <= offset || in_file_length < offset + length) {
+            LOG_ERROR("transform out of range");
+            break;
+        }
         FILE *out_fp = fopen(out_path, "wb");
         assert(out_fp);
         if (omega_util_write_segment_to_file(in_fp, 0, offset, out_fp) != offset ||
@@ -259,4 +264,20 @@ omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_ma
         default:
             ABORT(LOG_ERROR("unhandled mask kind"););
     }
+}
+
+int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
+    int rc = 0;
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 != (rc = s1[i] - s2[i])) break;
+    }
+    return rc;
+}
+
+int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
+    int rc = 0;
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break;
+    }
+    return rc;
 }

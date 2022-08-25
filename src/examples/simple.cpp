@@ -18,11 +18,14 @@
 using namespace std;
 
 inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                           const omega_change_t *change_ptr) {
+                           const void *viewport_event_ptr) {
     switch (viewport_event) {
         case VIEWPORT_EVT_CREATE:
         case VIEWPORT_EVT_EDIT: {
-            char change_kind = (change_ptr) ? omega_change_get_kind_as_char(change_ptr) : 'R';
+            char change_kind = (viewport_event_ptr)
+                                       ? omega_change_get_kind_as_char(
+                                                 reinterpret_cast<const omega_change_t *>(viewport_event_ptr))
+                                       : 'R';
             clog << change_kind << ": [" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
             break;
         }
@@ -32,8 +35,9 @@ inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_
 }
 
 int main() {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr);
-    omega_edit_create_viewport(session_ptr, 0, 100, vpt_change_cbk, nullptr, 0);
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, nullptr,
+                               VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
     omega_edit_insert_string(session_ptr, 0, "Hello Weird!!!!");
     omega_edit_overwrite_string(session_ptr, 7, "orl");
     omega_edit_delete(session_ptr, 11, 3);

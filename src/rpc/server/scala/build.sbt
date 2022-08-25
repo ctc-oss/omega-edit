@@ -15,24 +15,61 @@
  */
 
 import BuildSupport._
+import play.api.libs.json._
 
-name := "example-grpc-server"
-scalaVersion := "2.13.6"
+lazy val packageData = Json
+  .parse(scala.io.Source.fromFile("../../client/ts/package.json").mkString)
+  .as[JsObject]
+lazy val omegaVersion = packageData("version").as[String]
 
-git.useGitDescribe := true
-git.gitUncommittedChanges := false
+name := "omega-edit-grpc-server"
+scalaVersion := "2.13.8"
+
+lazy val ghb_repo_owner = "ctc-oss"
+lazy val ghb_repo = "omega-edit"
+lazy val ghb_resolver = (
+  s"GitHub ${ghb_repo_owner} Apache Maven Packages"
+    at
+      s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
+)
+
+credentials += Credentials(
+  "GitHub Package Registry",
+  "maven.pkg.github.com",
+  ghb_repo_owner,
+  System.getenv("GITHUB_TOKEN")
+)
 
 licenses := Seq(("Apache-2.0", apacheLicenseUrl))
 organizationName := "Concurrent Technologies Corporation"
 startYear := Some(2021)
+publishConfiguration := publishConfiguration.value.withOverwrite(true)
+publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+
+fork := true
 
 libraryDependencies ++= Seq(
-  "com.ctc" %% "omega-edit" % version.value,
-  "com.ctc" %% "omega-edit-native" % version.value classifier s"${arch.id}",
-  "org.scalatest" %% "scalatest" % "3.2.11" % Test
+  "com.ctc" %% "omega-edit" % omegaVersion,
+  "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+  "com.monovore" %% "decline" % "2.3.0",
+  "org.scalatest" %% "scalatest" % "3.2.13" % Test
+)
+
+excludeDependencies ++= Seq(
+  ExclusionRule("org.checkerframework", "checker-compat-qual")
 )
 
 resolvers += Resolver.mavenLocal
+externalResolvers ++= Seq(
+  ghb_resolver,
+  Resolver.mavenLocal
+)
+
 Compile / PB.protoSources += baseDirectory.value / "../../protos"
 
-enablePlugins(AkkaGrpcPlugin, GitVersioning, JavaAppPackaging, UniversalPlugin)
+enablePlugins(
+  AkkaGrpcPlugin,
+  GitVersioning,
+  JavaServerAppPackaging,
+  UniversalPlugin
+)

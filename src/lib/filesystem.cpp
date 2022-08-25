@@ -14,10 +14,11 @@
 
 #include "../include/omega_edit/filesystem.h"
 #include "impl_/macros.h"
-#include <boost/filesystem.hpp>
 #include <cassert>
+#include <filesystem>
+#include <string>
 
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 int omega_util_file_exists(const char *path) { return (fs::is_regular_file(path)) ? 1 : 0; }
 
@@ -30,6 +31,8 @@ int omega_util_remove_file(char const *path) { return (fs::remove(path)) ? 0 : 1
 int omega_util_remove_directory(char const *path) { return (fs::remove(path)) ? 0 : 1; }
 
 int64_t omega_util_file_size(char const *path) { return static_cast<int64_t>(fs::file_size(path)); }
+
+int omega_util_paths_equivalent(char const *path1, char const *path2) { return fs::equivalent(path1, path2) ? 1 : 0; }
 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
@@ -53,8 +56,8 @@ char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
     assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const len = (drop_suffix) ? fs::path(path).stem().string().copy(buffer, FILENAME_MAX)
-                                   : fs::path(path).filename().string().copy(buffer, FILENAME_MAX);
+    auto const len = drop_suffix ? fs::path(path).stem().string().copy(buffer, FILENAME_MAX)
+                                 : fs::path(path).filename().string().copy(buffer, FILENAME_MAX);
     buffer[len] = '\0';
     return buffer;
 }
@@ -87,13 +90,13 @@ char *omega_util_available_filename(char const *path, char *buffer) {
         return buffer;
     }
     int i = 0;
-    const char *dirname = omega_util_dirname(path, NULL);
-    const char *extension = omega_util_file_extension(path, NULL);
-    const std::string basename = omega_util_basename(path, NULL, 1);
+    const std::string dirname(omega_util_dirname(path, nullptr));
+    const std::string extension(omega_util_file_extension(path, nullptr));
+    const std::string basename(omega_util_basename(path, nullptr, 1));
     do {
-        if (++i == 99) {
-            // stop after 99 filenames exist
-            return NULL;
+        if (++i >= 1000) {
+            // stop after 999 filenames exist
+            return nullptr;
         }
         auto const len = fs::path(dirname)
                                  .append(basename + "-" + std::to_string(i) + extension)

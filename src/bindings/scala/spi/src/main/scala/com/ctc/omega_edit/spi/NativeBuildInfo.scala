@@ -29,13 +29,14 @@ trait NativeBuildInfo {
 
 object NativeBuildInfo {
   private val Mac = """mac.+""".r
+  private val Win = """windows.+""".r
 
   def matches(info: NativeBuildInfo): Boolean = {
     val thisOs = System.getProperty("os.name").toLowerCase match {
-      case "linux"   => Some("linux")
-      case Mac()     => Some("macos")
-      case "windows" => Some("windows")
-      case _         => None
+      case "linux" => Some("linux")
+      case Mac()   => Some("macos")
+      case Win()   => Some("windows")
+      case _       => None
     }
 
     val libOs = info.sharedLibraryOs

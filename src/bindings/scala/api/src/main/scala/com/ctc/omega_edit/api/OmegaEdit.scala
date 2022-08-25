@@ -22,28 +22,42 @@ import com.ctc.omega_edit.SessionImpl
 import java.nio.file.Path
 import scala.util.Try
 
-/**
-  * The entrypoint to the OmegaEdit library.
-  * Provides Session instances and version information.
+/** The entrypoint to the OmegaEdit library. Provides Session instances and
+  * version information.
   */
 object OmegaEdit extends OmegaEdit {
-  def newSession(path: Option[Path]): Session = new SessionImpl(
-    ffi.omega_edit_create_session(path.map(_.toString).orNull, null, null),
-    ffi
-  )
+  def newSession(path: Option[Path]): Session =
+    newSessionCb(path, null, None)
 
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session = new SessionImpl(
-    ffi.omega_edit_create_session(path.map(_.toString).orNull, cb, null),
-    ffi
-  )
+  def newSessionCb(
+      path: Option[Path],
+      cb: SessionCallback,
+      eventInterest: Option[Int]
+  ): Session = {
+    require(path.forall(_.toFile.exists()), "specified path does not exist")
+    new SessionImpl(
+      ffi.omega_edit_create_session(
+        path.map(_.toString).orNull,
+        cb,
+        null,
+        eventInterest.getOrElse(0)
+      ),
+      ffi
+    )
+  }
 
   def version(): Version =
-    Version(ffi.omega_version_major(), ffi.omega_version_minor(), ffi.omega_version_patch())
+    Version(
+      ffi.omega_version_major(),
+      ffi.omega_version_minor(),
+      ffi.omega_version_patch()
+    )
 
-  /**
-    * Not strictly required to call this prior to interacting with the API, though this
-    * function is the convenient way to check that the native library is ready to use.
-    * @return Try[Version]
+  /** Not strictly required to call this prior to interacting with the API,
+    * though this function is the convenient way to check that the native
+    * library is ready to use.
+    * @return
+    *   Try[Version]
     */
   def initialize(): Try[Version] =
     Try(version())
@@ -52,5 +66,9 @@ object OmegaEdit extends OmegaEdit {
 trait OmegaEdit {
   def version(): Version
   def newSession(path: Option[Path]): Session
-  def newSessionCb(path: Option[Path], cb: SessionCallback): Session
+  def newSessionCb(
+      path: Option[Path],
+      cb: SessionCallback,
+      eventInterest: Option[Int]
+  ): Session
 }

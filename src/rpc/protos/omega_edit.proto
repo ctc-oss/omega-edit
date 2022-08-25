@@ -21,7 +21,7 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc GetOmegaVersion(google.protobuf.Empty) returns (VersionResponse);
+  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
@@ -29,6 +29,8 @@ service Editor {
   rpc UndoLastChange(ObjectId) returns (ChangeResponse);
   rpc RedoLastUndo(ObjectId) returns (ChangeResponse);
   rpc ClearChanges(ObjectId) returns (ObjectId);
+  rpc PauseSessionChanges(ObjectId) returns (ObjectId);
+  rpc ResumeSessionChanges(ObjectId) returns (ObjectId);
   rpc PauseViewportEvents(ObjectId) returns (ObjectId);
   rpc ResumeViewportEvents(ObjectId) returns (ObjectId);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
@@ -38,12 +40,74 @@ service Editor {
   rpc GetLastChange(ObjectId) returns (ChangeDetailsResponse);
   rpc GetLastUndo(ObjectId) returns (ChangeDetailsResponse);
   rpc GetComputedFileSize(ObjectId) returns (ComputedFileSizeResponse);
-  rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
-  rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+  rpc GetCount(CountRequest) returns (CountResponse);
+  rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
+  rpc GetSegment(SegmentRequest) returns (SegmentResponse);
+  rpc SearchSession(SearchRequest) returns (SearchResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
   rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+  rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
+  rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+}
+
+enum ChangeKind {
+  UNDEFINED_CHANGE = 0;
+  CHANGE_DELETE = 1;
+  CHANGE_INSERT = 2;
+  CHANGE_OVERWRITE = 3;
+}
+
+enum SessionEventKind {
+  SESSION_EVT_UNDEFINED = 0;
+  SESSION_EVT_CREATE = 1;
+  SESSION_EVT_EDIT = 2;
+  SESSION_EVT_UNDO = 4;
+  SESSION_EVT_CLEAR = 8;
+  SESSION_EVT_TRANSFORM = 16;
+  SESSION_EVT_CREATE_CHECKPOINT = 32;
+  SESSION_EVT_DESTROY_CHECKPOINT = 64;
+  SESSION_EVT_SAVE = 128;
+  SESSION_EVT_CHANGES_PAUSED = 256;
+  SESSION_EVT_CHANGES_RESUMED = 512;
+  SESSION_EVT_CREATE_VIEWPORT = 1024;
+  SESSION_EVT_DESTROY_VIEWPORT = 2048;
+}
+
+enum ViewportEventKind {
+  VIEWPORT_EVT_UNDEFINED = 0;
+  VIEWPORT_EVT_CREATE = 1;
+  VIEWPORT_EVT_EDIT = 2;
+  VIEWPORT_EVT_UNDO = 4;
+  VIEWPORT_EVT_CLEAR = 8;
+  VIEWPORT_EVT_TRANSFORM = 16;
+  VIEWPORT_EVT_MODIFY = 32;
+}
+
+enum CountKind {
+  UNDEFINED_COUNT_KIND = 0;
+  COUNT_FILE_SIZE = 1;
+  COUNT_CHANGES = 2;
+  COUNT_UNDOS = 3;
+  COUNT_VIEWPORTS = 4;
+  COUNT_CHECKPOINTS = 5;
+  COUNT_SEARCH_CONTEXTS = 6;
+}
+
+message CountRequest {
+  string session_id = 1;
+  CountKind kind = 2;
+}
+
+message CountResponse {
+  string session_id = 1;
+  CountKind kind = 2;
+  int64 count = 3;
+}
+
+message SessionCountResponse {
+  int64 count = 1;
 }
 
 message VersionResponse {
@@ -54,13 +118,6 @@ message VersionResponse {
 
 message ObjectId {
   string id = 1;
-}
-
-enum ChangeKind {
-  UNDEFINED_CHANGE = 0;
-  CHANGE_DELETE = 1;
-  CHANGE_INSERT = 2;
-  CHANGE_OVERWRITE = 3;
 }
 
 message ChangeRequest {
@@ -82,10 +139,12 @@ message CreateViewportRequest {
   int64 offset = 3;
   bool is_floating = 4;
   optional string viewport_id_desired = 5;
+  optional int32 event_interest = 6;
 }
 
 message CreateViewportResponse {
-  string viewport_id = 1;
+  string session_id = 1;
+  string viewport_id = 2;
 }
 
 message ViewportDataRequest {
@@ -94,13 +153,15 @@ message ViewportDataRequest {
 
 message ViewportDataResponse {
   string viewport_id = 1;
-  int64 length = 2;
-  bytes data = 3;
+  int64 offset = 2;
+  int64 length = 3;
+  bytes data = 4;
 }
 
 message CreateSessionRequest {
   optional string file_path = 1;
   optional string session_id_desired = 2;
+  optional int32 event_interest = 3;
 }
 
 message CreateSessionResponse {
@@ -110,6 +171,7 @@ message CreateSessionResponse {
 message SaveSessionRequest {
   string session_id = 1;
   string file_path = 2;
+  optional bool allow_overwrite = 3;
 }
 
 message SaveSessionResponse {
@@ -117,40 +179,23 @@ message SaveSessionResponse {
   string file_path = 2;
 }
 
-enum SessionEventKind {
-  SESSION_EVT_UNDEFINED = 0;
-  SESSION_EVT_CREATE = 1;
-  SESSION_EVT_EDIT = 2;
-  SESSION_EVT_UNDO = 4;
-  SESSION_EVT_CLEAR = 8;
-  SESSION_EVT_TRANSFORM = 16;
-  SESSION_EVT_CREATE_CHECKPOINT = 32;
-  SESSION_EVT_DESTROY_CHECKPOINT = 64;
-  SESSION_EVT_SAVE = 128;
-}
-
 message SessionEvent {
   string session_id = 1;
   SessionEventKind session_event_kind = 2;
-  optional int64 serial = 3;
-}
-
-enum ViewportEventKind {
-  VIEWPORT_EVT_UNDEFINED = 0;
-  VIEWPORT_EVT_CREATE = 1;
-  VIEWPORT_EVT_EDIT = 2;
-  VIEWPORT_EVT_UNDO = 4;
-  VIEWPORT_EVT_CLEAR = 8;
-  VIEWPORT_EVT_TRANSFORM = 16;
-  VIEWPORT_EVT_UPDATED = 32;
+  int64 computed_file_size = 3;
+  int64 change_count = 4;
+  int64 undo_count = 5;
+  optional int64 serial = 6;
 }
 
 message ViewportEvent {
-  string viewport_id = 1;
-  ViewportEventKind viewport_event_kind = 2;
-  optional int64 serial = 3;
-  optional int64 length = 4;
-  optional bytes data = 5;
+  string session_id = 1;
+  string viewport_id = 2;
+  ViewportEventKind viewport_event_kind = 3;
+  optional int64 serial = 4;
+  optional int64 offset = 5;
+  optional int64 length = 6;
+  optional bytes data = 7;
 }
 
 message ChangeDetailsResponse {
@@ -165,4 +210,34 @@ message ChangeDetailsResponse {
 message ComputedFileSizeResponse {
   string session_id = 1;
   int64 computed_file_size = 2;
+}
+
+message SegmentRequest {
+  string session_id = 1;
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message SegmentResponse {
+  string session_id = 1;
+  int64 offset = 2;
+  bytes data = 3;
+}
+
+message SearchRequest {
+  string session_id = 1;
+  bytes pattern = 2;
+  optional bool is_case_insensitive = 3;
+  optional int64 offset = 4;
+  optional int64 length = 5;
+  optional int64 limit = 6;
+}
+
+message SearchResponse {
+  string session_id = 1;
+  bytes pattern = 2;
+  bool is_case_insensitive = 3;
+  int64 offset = 4;
+  int64 length = 5;
+  repeated int64 match_offset = 6;
 }

@@ -19,9 +19,9 @@ size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_lengt
     assert(src);
     assert(dst);
     static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
-    size_t i, j = 0;
+    size_t j = 0;
 
-    for (i = 0; i < src_length; ++i) {
+    for (size_t i = 0; i < src_length; ++i) {
         dst[j++] = HEX_CONVERSION_TABLE[src[i] >> 4];
         dst[j++] = HEX_CONVERSION_TABLE[src[i] & 15];
     }
@@ -33,10 +33,12 @@ size_t omega_encode_hex2bin(const char *src, omega_byte_t *dst, size_t src_lengt
     assert(src);
     assert(dst);
     const size_t dst_length = src_length >> 1;
-    size_t i = 0, j = 0;
+    size_t i = 0;
+    size_t j = 0;
 
     while (i < dst_length) {
-        omega_byte_t c = src[j++], d;
+        omega_byte_t c = src[j++];
+        omega_byte_t d;
 
         if (c >= '0' && c <= '9') {
             d = (c - '0') << 4;

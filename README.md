@@ -26,7 +26,9 @@
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/alerts/)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/context:cpp)
 [![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/context:javascript)
+[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/ctc-oss/omega-edit.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/ctc-oss/omega-edit/context:python)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_shield)
+[![Join the chat at https://gitter.im/ctc-oss/community](https://badges.gitter.im/ctc-oss/community.svg)](https://gitter.im/ctc-oss/community)
 
 </div>
 
@@ -53,17 +55,11 @@ Studio Code also works well.
 - **conan** C/C++ package manager
 - **make** or **ninja** for running the build scripts
 - **nvm** or **nodeenv** for using specific versions of node.js
-- **node-gyp** (to run `package.json` scripts)
-  - `npm install -g node-gyp`
 - **doxygen** to generate API documentation (https://www.doxygen.nl)
 - **sphinx** to generate user documentation (https://www.sphinx-doc.org)
   - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
 - **scala/sbt/java**
-
-### Development requirements:
-
-- **swig** to generate language bindings (http://www.swig.org/svn.html)
 
 ## Build the core library (C/C++)
 
@@ -75,113 +71,92 @@ Studio Code also works well.
 pip install conan
 ```
 
-### Configure debug build:
+### Configure a debug build:
+
+Depending on your linking needs, Ωedit can be built as either as a static (e.g., libomega_edit.a) or shared (e.g., libomega_edit.so) library.
+
+- #### Static:
 
 ```bash
 cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 ```
 
-### Run debug build:
+- #### Shared:
+
+```bash
+cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES
+```
+
+### Build the configured build:
 
 ```bash
 cmake --build cmake-build-debug
 ```
 
-### Run unit tests:
+### Run the test suite:
 
 ```bash
-cd cmake-build-debug/src/tests/
-./omega_test -d yes --order lex
-cd ../../../
+cmake -S src/tests -B cmake-build-tests -DCMAKE_BUILD_TYPE=Debug
+pushd cmake-build-tests && ctest -C Debug --output-on-failure && popd
 ```
-
-## Build Node bindings
-
-The SWIG bindings are generated for Node v14, so we need to setup the environment accordingly.  There are several reasonable ways to do this.  Here are two options:
-
-#### **OPTION 1:** Use nvm ([Node Version Manager](https://github.com/nvm-sh/nvm))
-
-Using Node v14 in nvm looks like this:
-
-```bash
-nvm use 14
-```
-
-#### **OPTION 2:** Setup a Node v14 virtual environment using [nodeenv](https://pypi.org/project/nodeenv/)
-
-```bash
-nodeenv --node=14.16.0 venv
-```
-
-Activate the Node virtual environment:
-
-```bash
-source ./venv/bin/activate
-```
-
-#### Building and testing
-
-Using Node v14 (by whatever method), build the bindings, and run an example:
-
-```bash
-node ci
-node src/examples/omega_simple.js
-```
-
-## Creating Java Native/Shared Library - Manual
-
-### Create C++ binary
-
-```bash
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build cmake-build-debug
-```
-
-### Create wrapper binary
-
-```bash
-g++ -std=c++11 -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin src/bindings/java/omega_edit_wrap.cxx -o lib/omega_edit_wrap.o
-```
-
-### Create library file
-
-```bash
-g++ -std=c++11 -dynamiclib -o lib/libomega_edit.dylib cmake-build-debug/libomega_edit.a lib/omega_edit_wrap.o -lc
-```
-
-## Running API
-
-For the Scala code the `build.sbt` runs everything listed above automatically. This is to ensure the environment is setup so that the API can run without errors.
-
-Command to start up API:
-
-```
-sbt run
-```
-
-If you navigate to `http://localhost:9000/no_params?methodName=omega_license_get` in the browser you get the license text.
 
 ## Packaging Ωedit
 
-Package file follows naming pattern `omega_edit-$omegaEditVer`, eg `omega_edit-1.0.0-0.1.0-SNAPSHOT.zip`.
-The `libomega_edit.*` files that are stored in `lib` are added the package when the command is ran.
+### TypeScript Client
 
+This package is normally uploaded to npmjs.com
+
+:exclamation: Node needs to be installed but shouldn't matter what version you use. :exclamation:
+
+- Create local `.tgz` file
+
+  ```bash
+  cd src/rpc/client/ts
+  yarn install # if not ran before
+  yarn package
+  ```
+
+  - File will be at
+
+    ```bash
+    src/rpc/client/ts/omega-edit-v${VERSION}.tgz
+    ```
+
+- Publish `.tgz` file to npmjs -- requires auth
+
+  ```bash
+  yarn publish omega-edit-v${VERSION}.tgz
+  ```
+
+### Scala API and Native
+
+This publishes for Scala version 2.13 to GitHub packages.
+
+- Requires the `GITHUB_TOKEN` environment variable to be set
+
+```bash
+sbt publishAll
 ```
-sbt universal:packageBin
+
+### Scala Reference Server
+
+This packages the reference Scala server to a local zip folder
+
+```bash
+cd src/rpc/server/scala
+sbt universial:packageBin
+```
+
+Zip file will be located at
+
+```bash
+src/rpc/server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
 ```
 
 ## Development
 
 Currently, the repo holds bindings for both java and node.
 
-### Regenerate Node and Java bindings using SWIG (as required)
-
-If any header files have been added, removed, or changed, regenerate the API wrapper code using SWIG:
-
-```bash
-swig -javascript -node -v -c++ -outdir src/bindings/node src/bindings/node/omega_edit.i
-swig -v -c++ -java -outdir src/bindings/java src/bindings/java/omega_edit.i
-```
 ## Versioning
 
 Ωedit follows [Semantic Versioning](http://semver.org/).

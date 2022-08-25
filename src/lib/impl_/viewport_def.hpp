@@ -16,14 +16,15 @@
 #define OMEGA_EDIT_VIEWPORT_DEF_HPP
 
 #include "../../include/omega_edit/fwd_defs.h"
-#include "data_segment_def.hpp"
 #include "internal_fwd_defs.hpp"
+#include "segment_def.hpp"
 
 struct omega_viewport_struct {
     omega_session_t *session_ptr{};            ///< Session that owns this viewport instance
-    omega_data_segment_t data_segment{};       ///< Viewport data
+    omega_segment_t data_segment{};            ///< Viewport data
     omega_viewport_event_cbk_t event_handler{};///< User callback when the viewport changes
     void *user_data_ptr{};                     ///< Pointer to associated user-provided data
+    int32_t event_interest_{};                 ///< Events of interest
 };
 
 #endif//OMEGA_EDIT_VIEWPORT_DEF_HPP

@@ -45,10 +45,20 @@ edit.h
 ------
 .. doxygenfile:: edit.h
 
-encodings.h
+encode.h
 -----------
 
-.. doxygenfile:: encodings.h
+.. doxygenfile:: encode.h
+
+export.h
+-----------
+
+.. doxygenfile:: export.h
+
+filesystem.h
+----------
+
+.. doxygenfile:: filesystem.h
 
 fwd_defs.h
 ----------

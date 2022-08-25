@@ -17,14 +17,28 @@
 package com.ctc.omega_edit.api
 
 import com.ctc.omega_edit.api.Change.Result
+import com.ctc.omega_edit.api.Session.OverwriteStrategy
 
-/**
-  * The top level type in OmegaEdit, maintains the data and all instances related to it.
-  * Provides mutators and viewport factory methods.
+import java.nio.file.Path
+import scala.util.Try
+
+/** The top level type in OmegaEdit, maintains the data and all instances
+  * related to it. Provides mutators and viewport factory methods.
   */
 trait Session {
   def size: Long
-  def isEmpty: Boolean
+  def isEmpty: Boolean = size == 0
+
+  def numChanges: Long
+  def numCheckpoints: Long
+  def numUndos: Long
+  def numViewports: Long
+  def numSearchContexts: Long
+
+  def callback: Option[SessionCallback]
+
+  def eventInterest: Int
+  def eventInterest_=(eventInterest: Int): Unit
 
   def insert(s: String, offset: Long): Result
   def insert(b: Array[Byte], offset: Long): Result
@@ -33,8 +47,50 @@ trait Session {
   def overwrite(b: Array[Byte], offset: Long): Result
 
   def delete(offset: Long, len: Long): Result
-  def view(offset: Long, size: Long): Viewport
+  def view(offset: Long, size: Long, isFloating: Boolean): Viewport
 
-  def viewCb(offset: Long, size: Long, cb: ViewportCallback): Viewport
+  def undoLast(): Result
+  def redoUndo(): Result
+
+  def clearChanges(): Result
+
+  def getLastChange(): Option[Change]
+
+  def getLastUndo(): Option[Change]
+
+  def viewCb(
+      offset: Long,
+      size: Long,
+      isFloating: Boolean,
+      cb: ViewportCallback,
+      eventInterest: Int
+  ): Viewport
   def findChange(id: Long): Option[Change]
+
+  def save(to: Path): Try[Path]
+  def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
+
+  def search(
+      pattern: Array[Byte],
+      offset: Long,
+      length: Option[Long] = None,
+      caseInsensitive: Boolean = false,
+      limit: Option[Long] = None
+  ): List[Long]
+
+  def getSegment(offset: Long, length: Long): Option[Segment]
+
+  def pauseSessionChanges(): Unit
+  def resumeSessionChanges(): Unit
+  def pauseViewportEvents(): Unit
+  def resumeViewportEvents(): Unit
+
+}
+
+object Session {
+  sealed trait OverwriteStrategy
+  object OverwriteStrategy {
+    case object OverwriteExisting extends OverwriteStrategy
+    case object GenerateFilename extends OverwriteStrategy
+  }
 }

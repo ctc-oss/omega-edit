@@ -26,7 +26,6 @@ RUN apt-get update && apt-get -y install \
   cmake \
   autoconf \
   automake \
-  libboost-all-dev \
   locales-all \
   dos2unix \
   rsync \
@@ -38,11 +37,11 @@ RUN apt-get update && apt-get -y install \
   python3-sphinx \
   doxygen \
   graphviz \
-  swig \
   valgrind \
   wget \
   && apt-get clean
 
 RUN pip3 install \
+    conan \
     sphinx_rtd_theme \
     sphinx-sitemap

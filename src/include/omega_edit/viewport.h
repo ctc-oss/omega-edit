@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file viewport.h
+ * @brief Functions that operate on viewports (omega_viewport_t).
+ */
+
 #ifndef OMEGA_EDIT_VIEWPORT_H
 #define OMEGA_EDIT_VIEWPORT_H
 
@@ -83,6 +88,28 @@ OMEGA_EDIT_EXPORT int omega_viewport_is_floating(const omega_viewport_t *viewpor
 OMEGA_EDIT_EXPORT void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr);
 
 /**
+ *  Given a session, return the viewport event callback
+ * @param viewport_ptr viewport to return the event callback from
+ * @return viewport event callback
+ */
+OMEGA_EDIT_EXPORT omega_viewport_event_cbk_t omega_viewport_get_event_cbk(const omega_viewport_t *viewport_ptr);
+
+/**
+ * Given a viewport, return the viewport event interest
+ * @param viewport_ptr viewport to return the viewport event interest from
+ * @return viewport event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_viewport_get_event_interest(const omega_viewport_t *viewport_ptr);
+
+/**
+ *  Set the viewport event interest to the given viewport event interest for the the given viewport
+ * @param viewport_ptr viewport
+ * @param event_interest desired viewport event interest
+ * @return viewport event interest
+ */
+OMEGA_EDIT_EXPORT int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_t event_interest);
+
+/**
  * Change viewport settings
  * @param viewport_ptr viewport to change settings on
  * @param offset offset for the viewport
@@ -91,17 +118,26 @@ OMEGA_EDIT_EXPORT void *omega_viewport_get_user_data_ptr(const omega_viewport_t 
  * "float" as bytes are inserted or deleted before the start of this viewport
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_viewport_update(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity,
+OMEGA_EDIT_EXPORT int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity,
                                             int is_floating);
+
+/**
+ * Determine if the given viewport is in the given segment
+ * @param viewport_ptr viewport to determine if it's in the given segment
+ * @param offset beginning offset of the segment
+ * @param length length of the segment
+ * @return non-zero if the viewport is in the given segment and zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offset, int64_t length);
 
 /**
  * Execute the viewport on-change callback with the given change if a viewport on-change callback is defined and if the
  * session where this viewport lives does not currently have viewport on-change callbacks paused
  * @param viewport_ptr viewport for which to execute its on-change callback
- * @param change_ptr change responsible for the viewport change (if any)
+ * @param event_ptr change responsible for the viewport change (if any)
  */
 OMEGA_EDIT_EXPORT void omega_viewport_notify(const omega_viewport_t *viewport_ptr,
-                                             omega_viewport_event_t viewport_event, const omega_change_t *change_ptr);
+                                             omega_viewport_event_t viewport_event, const void *event_ptr);
 
 #ifdef __cplusplus
 }
