@@ -24,7 +24,8 @@ object BuildSupport {
     def id: String = s"$os-$bits"
     def _id: String = s"${os}_$bits"
   }
-  val libdir: String = "../../../../lib"
+  case class Arch(id: String, _id: String, os: String, arch: String)
+  val libdir: String = "../../../../../lib" // path relative to the native projects directory
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
@@ -70,6 +71,21 @@ object BuildSupport {
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
     Platform(os, arch)
+  }
+
+  lazy val arch: Arch = {
+    val os = System.getProperty("os.name").toLowerCase match {
+      case "linux" => "linux"
+      case Mac()   => "macos"
+      case Win()   => "windows"
+    }
+
+    val arch = System.getProperty("os.arch").toLowerCase match {
+      case Amd(bits) => bits
+      case x86(bits) => bits
+      case arch      => throw new IllegalStateException(s"unknown arch: $arch")
+    }
+    Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
   }
 
   def pair(name: String): (String, String) = name -> s"${platform._id}/$name"

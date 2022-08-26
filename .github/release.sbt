@@ -18,7 +18,7 @@ import BuildSupport._
 import play.api.libs.json._
 
 lazy val packageData = Json
-  .parse(scala.io.Source.fromFile("src/rpc/client/ts/package.json").mkString)
+  .parse(scala.io.Source.fromFile("../../client/ts/package.json").mkString)
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -63,7 +63,7 @@ lazy val omega_edit = project
   .aggregate(api, spi, native)
 
 lazy val api = project
-  .in(file("src/bindings/scala/api"))
+  .in(file("api"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -71,7 +71,7 @@ lazy val api = project
     libraryDependencies ++= {
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.0",
-        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
+        "com.ctc" %% s"omega-edit-native" % version.value,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
@@ -100,7 +100,7 @@ lazy val api = project
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val native = project
-  .in(file("src/bindings/scala/native"))
+  .in(file("native"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -125,17 +125,51 @@ lazy val native = project
     ),
     packagedArtifacts ++= Map(
       Artifact("omega-edit-native", "windows-64") -> file(
-        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
+        s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
       ),
       Artifact("omega-edit-native", "macos-64") -> file(
-        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"
+        s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"
       )
     )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
+lazy val serv = project
+  .in(file("serv"))
+  .dependsOn(spi)
+  .settings(commonSettings)
+  .settings(
+    name := "omega-edit-grpc-server",
+    libraryDependencies ++= {
+      Seq(
+        "com.ctc" %% "omega-edit" % omegaVersion,
+        "com.ctc" %% "omega-edit-native" % omegaVersion,
+        "com.monovore" %% "decline" % "2.3.0",
+        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+      )
+    },
+    excludeDependencies ++= Seq(
+      ExclusionRule("org.checkerframework", "checker-compat-qual")
+    ),
+    scalacOptions ~= adjustScalacOptionsForScalatest,
+    resolvers += Resolver.mavenLocal,
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal
+    ),
+    Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+  )
+  .enablePlugins(
+    AkkaGrpcPlugin,
+    GitVersioning,
+    JavaServerAppPackaging,
+    UniversalPlugin
+  )
+  
 lazy val spi = project
-  .in(file("src/bindings/scala/spi"))
+  .in(file("spi"))
   .settings(commonSettings)
   .settings(
     name := "omega-edit-spi"

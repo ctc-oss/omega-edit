@@ -25,8 +25,7 @@ function build_api {
 }
 
 function serv {
-    currentDir=${PWD}
-    cd src/rpc/server/scala && sbt run
+    sbt runServer
 }
 
 function serv_build {
@@ -34,4 +33,6 @@ function serv_build {
     serv
 }
 
+cd src/rpc/server/scala
 $@
+cd ../../../../
