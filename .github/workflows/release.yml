@@ -333,11 +333,14 @@ jobs:
           sbt serv/Universal/packageBin
         shell: bash
 
-      - name: Add windows and macos jars to server bundle
+      - name: Fix folder name for gRPC Scala server
         run: |
           mv \
             src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
+          unzip omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
+          mv omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
+          zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-grpc-server-${{ env.PKG_VERSION }}
 
       - name: Upload scala reference server 🔺
         uses: actions/upload-release-asset@v1.0.2
@@ -345,6 +348,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
+          asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
