@@ -43,10 +43,8 @@ new_classpath=$$(echo $$new_classpath |\\
 lazy val batchExtras = s"""setlocal ENABLEDELAYEDEXPANSION
 set "NEW_CLASSPATH=%APP_CLASSPATH%"
 set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
-set "LINUX_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
-set "MACOS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
-set "NEW_CLASSPATH=%NEW_CLASSPATH:!LINUX_JAR_FILE!=!WINDOWS_JAR_FILE!%"
-set "NEW_CLASSPATH=%NEW_CLASSPATH:!MACOS_JAR_FILE!=!WINDOWS_JAR_FILE!%""""
+set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar=!WINDOWS_JAR_FILE!%"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar=!WINDOWS_JAR_FILE!%""""
 
 lazy val commonSettings = {
   Seq(
