@@ -26,17 +26,21 @@ lazy val ghb_resolver = (
       s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
 
-lazy val bashNewClassPath = (
-  if (platform.os == "macos") {
-    s"""declare new_classpath=\"$$app_classpath:$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.id}.jar:$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.id}.jar\""""
-  }
-  else {
-    s"""declare new_classpath=\"$$app_classpath:$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.id}.jar:$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.id}.jar\""""
-  }
-)
-lazy val batNewClassPath = (
-  s"""set \"NEW_CLASSPATH=%APP_CLASSPATH%;%APP_LIB_DIR%\\com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.id}.jar;%APP_LIB_DIR%\\com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.id}.jar\""""
-)
+// Can be removed later and only be in .github/release.sbt -- mostly used for
+// getting all 3 jars working inside of one package
+lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
+declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+declare linux_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+declare macos_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
+new_classpath=$$(echo $$new_classpath | sed -e "s/$${linux_jar_file}/$${macos_jar_file}/" | sed -e "s/$${windows_jar_file}/$${macos_jar_file}/")"""
+
+lazy val batchExtras = s"""setlocal ENABLEDELAYEDEXPANSION
+set "NEW_CLASSPATH=%APP_CLASSPATH%"
+set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+set "LINUX_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+set "MACOS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:!LINUX_JAR_FILE!=!WINDOWS_JAR_FILE!%"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:!MACOS_JAR_FILE!=!WINDOWS_JAR_FILE!%""""
 
 lazy val commonSettings = {
   Seq(
@@ -105,7 +109,10 @@ lazy val api = project
     pomPostProcess := filterScopedDependenciesFromPom,
     // ensure the native jar is published locally for tests
     resolvers += Resolver.mavenLocal,
-    externalResolvers += ghb_resolver,
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal
+    ),
     Compile / Keys.compile :=
       (Compile / Keys.compile)
         .dependsOn(native / publishM2)
@@ -178,8 +185,8 @@ lazy val serv = project
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
     publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
-    bashScriptExtraDefines += bashNewClassPath,
-    batScriptExtraDefines += batNewClassPath
+    bashScriptExtraDefines += bashExtras,
+    batScriptExtraDefines += batchExtras
   )
   .enablePlugins(
     AkkaGrpcPlugin,

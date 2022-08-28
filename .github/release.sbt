@@ -30,6 +30,24 @@ lazy val ghb_resolver = (
       s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
 
+// mostly used for getting all 3 jars working inside of one package
+lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
+declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+declare linux_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+declare macos_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
+new_classpath=$$(echo $$new_classpath |\\
+  sed -e "s/$${linux_jar_file}/$${macos_jar_file}/" | \\
+  sed -e "s/$${windows_jar_file}/$${macos_jar_file}/"\\
+)"""
+
+lazy val batchExtras = s"""setlocal ENABLEDELAYEDEXPANSION
+set "NEW_CLASSPATH=%APP_CLASSPATH%"
+set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+set "LINUX_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+set "MACOS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:!LINUX_JAR_FILE!=!WINDOWS_JAR_FILE!%"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:!MACOS_JAR_FILE!=!WINDOWS_JAR_FILE!%""""
+
 lazy val commonSettings = {
   Seq(
     organization := "com.ctc",
@@ -71,7 +89,7 @@ lazy val api = project
     libraryDependencies ++= {
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.0",
-        "com.ctc" %% s"omega-edit-native" % version.value,
+        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
@@ -143,7 +161,15 @@ lazy val serv = project
     libraryDependencies ++= {
       Seq(
         "com.ctc" %% "omega-edit" % omegaVersion,
-        "com.ctc" %% "omega-edit-native" % omegaVersion,
+        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+        arch.os match {
+          case "linux"  => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-${arch.arch}"
+          case _        => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-${arch.arch}"
+        },
+        arch.os match {
+          case "windows"  => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-${arch.arch}"
+          case _          => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-${arch.arch}"
+        },
         "com.monovore" %% "decline" % "2.3.0",
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
@@ -159,7 +185,9 @@ lazy val serv = project
     ),
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    bashScriptExtraDefines += bashExtras,
+    batScriptExtraDefines += batchExtras
   )
   .enablePlugins(
     AkkaGrpcPlugin,

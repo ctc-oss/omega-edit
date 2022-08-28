@@ -326,30 +326,18 @@ jobs:
       - name: Package scala reference server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt serv/Universal/packageBin
-        working-directory: src/rpc/server/scala
+        run: |
+          mv src/rpc/server/scala/build.sbt .github/build.sbt
+          mv .github/release.sbt src/rpc/server/scala/build.sbt
+          cd src/rpc/server/scala
+          sbt serv/Universal/packageBin
         shell: bash
-
-      - name: Download macos Native JARs
-        uses: actions/download-artifact@v3
-        with:
-          name: macos-latest-artifacts
-
-      - name: Download windows Native JARs
-        uses: actions/download-artifact@v3
-        with:
-          name: windows-latest-artifacts
 
       - name: Add windows and macos jars to server bundle
         run: |
-          mv src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip .
-          unzip omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
-          rm -rf omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
-          for folder in "omega-edit-native_2.13"; do
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-*.jar omega-edit-grpc-server-${{ env.PKG_VERSION }}/lib
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-*.jar omega-edit-grpc-server-${{ env.PKG_VERSION }}/lib
-          done
-          zip -r omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip omega-edit-grpc-server-${{ env.PKG_VERSION }}
+          mv \
+            src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
+            omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
 
       - name: Upload scala reference server 🔺
         uses: actions/upload-release-asset@v1.0.2
