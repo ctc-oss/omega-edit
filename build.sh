@@ -45,10 +45,6 @@ if [ -d ${install_dir}/lib64/ ]; then
 else
   cp -av ${install_dir}/lib/* ./lib
 fi
-sbt headerCheckAll
-sbt installM2
-sbt test
-sbt howMuchCoverage
 
 rm -rf build-static-$type
 cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
@@ -65,6 +61,7 @@ rm -rf build-rpc-$type
 cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
 cmake --build build-rpc-$type
 $checker build-rpc-$type/bin/server_test
+kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
 build-rpc-$type/bin/server --target=127.0.0.1:9000 &
 server_pid=$!
 pushd src/rpc/client/ts/
@@ -77,9 +74,14 @@ kill $server_pid
 
 if [ $test_scala_server -ne 0 ]; then
   pushd src/rpc/server/scala
-  sbt stage
-  ./target/universal/stage/bin/omega-edit-grpc-server --port 9000 &
+  sbt installM2
+  sbt pkgServer
+  pushd serv/target/universal/
+  unzip -o *.zip
+  kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
+  ./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
   server_pid=$!
+  popd
   popd
   pushd src/rpc/client/ts/
   npm install
@@ -89,6 +91,7 @@ if [ $test_scala_server -ne 0 ]; then
   popd
   kill $server_pid
 fi
+kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
 
 rm -rf build-tests-integration-$type
 cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
