@@ -220,3 +220,7 @@ addCommandAlias(
   "runServer",
   "; clean; serv/run"
 )
+addCommandAlias(
+  "pkgServer",
+  "; clean; serv/Universal/packageBin"
+)

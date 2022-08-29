@@ -14,17 +14,73 @@
   limitations under the License.
 -->
 
-Ωedit Scala gRPC Server
+Ωedit Scala API, Native Bindings, SPI and gRPC Server
 ===
 
-Scala gRPC reference implementation using Akka.
+- Scala Native bindings to shared library
+- Scala API to call native bindings
+- Scala SPI for determing different build info
+- Scala gRPC reference implementation using Akka.
 
-## Execution
+## Copile and Install
 
-From the root project of Ωedit
+For all of these subsections you will need to be inside of folder `src/rpc/server/scala`
 
-1. From within `src/bindings/scala` install the Ωedit bindings by running `sbt installM2`
-2. From within `src/rpc/server/scala` launch the gRPC server by running `sbt run`
+### API
+
+```bash
+sbt api/publishM2
+```
+
+### Native
+
+```bash
+sbt native/publishM2
+```
+
+### SPI
+
+```bash
+sbt spi/publishM2
+```
+
+### All at once
+
+This will also run the unit tests
+
+```bash
+sbt installM2
+```
+
+## Running the server
+
+To run the gRPC scala server, inside of `src/rpc/server/scala` run:
+
+```bash
+sbt serv/run
+```
+
+OR
+
+```bash
+sbt runServer
+```
+
+
+## Packaging the server
+
+To package the gRPC scala server, inside of `src/rpc/server/scala` run:
+
+```bash
+sbt serv/Universal/packageBin
+```
+
+OR
+
+```bash
+sbt pkgServer
+```
+
 
 ## Reference
 
