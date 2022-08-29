@@ -340,7 +340,7 @@ jobs:
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           unzip omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           mv omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
-          zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-grpc-server-${{ env.PKG_VERSION }}
+          zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-scala-server-${{ env.PKG_VERSION }}
 
       - name: Upload scala reference server 🔺
         uses: actions/upload-release-asset@v1.0.2
