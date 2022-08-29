@@ -32,7 +32,7 @@ lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
 declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
 declare linux_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
 declare macos_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
-if [[ $$OS_TYPE == "darwin"* ]]; then
+if [[ $$OSTYPE == "darwin"* ]]; then
   new_classpath=$$(echo $$new_classpath |\\
     sed -e "s/$${linux_jar_file}/$${macos_jar_file}/" | \\
     sed -e "s/$${windows_jar_file}/$${macos_jar_file}/"\\
