@@ -44,6 +44,7 @@ service Editor {
   rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
   rpc GetSegment(SegmentRequest) returns (SegmentResponse);
   rpc SearchSession(SearchRequest) returns (SearchResponse);
+  rpc GetByteFrequencyProfile(ByteFrequencyProfileRequest) returns (ByteFrequencyProfileResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
@@ -240,4 +241,17 @@ message SearchResponse {
   int64 offset = 4;
   int64 length = 5;
   repeated int64 match_offset = 6;
+}
+
+message ByteFrequencyProfileRequest {
+  string session_id = 1;
+  optional int64 offset = 2;
+  optional int64 length = 3;
+}
+
+message ByteFrequencyProfileResponse {
+  string session_id = 1;
+  optional int64 offset = 2;
+  optional int64 length = 3;
+  repeated int64 frequency = 4;
 }

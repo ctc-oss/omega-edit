@@ -38,6 +38,8 @@ using grpc::ServerWriteReactor;
 using grpc::Status;
 using grpc::StatusCode;
 
+using omega_edit::ByteFrequencyProfileRequest;
+using omega_edit::ByteFrequencyProfileResponse;
 using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
@@ -910,7 +912,7 @@ public:
         const auto is_case_insensitive = request->has_is_case_insensitive() && request->is_case_insensitive();
         const auto offset = request->has_offset() ? request->offset() : 0;
         const auto length =
-                request->has_length() ? request->length() : omega_session_get_computed_file_size(session_ptr);
+                request->has_length() ? request->length() : omega_session_get_computed_file_size(session_ptr) - offset;
         auto limit = request->has_limit() ? request->limit() : -1;
         auto *reactor = context->DefaultReactor();
         if (auto search_context_ptr =
@@ -926,6 +928,28 @@ public:
         response->set_is_case_insensitive(is_case_insensitive);
         response->set_offset(offset);
         response->set_length(length);
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
+    ServerUnaryReactor *GetByteFrequencyProfile(CallbackServerContext *context,
+                                                const ByteFrequencyProfileRequest *request,
+                                                ByteFrequencyProfileResponse *response) override {
+        const auto &session_id = request->session_id();
+        assert(!session_id.empty());
+        const auto session_ptr = session_manager_.get_session_ptr(session_id);
+        assert(session_ptr);
+        const auto offset = request->has_offset() ? request->offset() : 0;
+        const auto length =
+                request->has_length() ? request->length() : omega_session_get_computed_file_size(session_ptr) - offset;
+        auto *reactor = context->DefaultReactor();
+        omega_byte_frequency_profile_t byte_frequency_profile;
+        const auto rc = omega_session_profile(session_ptr, &byte_frequency_profile, offset, length);
+        assert(rc == 0);
+        response->set_session_id(session_id);
+        response->set_offset(offset);
+        response->set_length(length);
+        for (const auto i : byte_frequency_profile) { response->add_frequency(i); }
         reactor->Finish(Status::OK);
         return reactor;
     }

@@ -46,6 +46,9 @@ target_link_libraries(replay PRIVATE omega_edit::omega_edit)
 add_executable(transform transform.c)
 target_link_libraries(transform PRIVATE omega_edit::omega_edit)
 
+add_executable(profile profile.c)
+target_link_libraries(profile PRIVATE omega_edit::omega_edit)
+
 add_executable(play play.cpp)
 target_link_libraries(play PRIVATE omega_edit::omega_edit)
 add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

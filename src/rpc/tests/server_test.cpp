@@ -31,6 +31,8 @@ using grpc::ClientContext;
 using grpc::ClientReader;
 using grpc::Status;
 
+using omega_edit::ByteFrequencyProfileRequest;
+using omega_edit::ByteFrequencyProfileResponse;
 using omega_edit::ChangeDetailsResponse;
 using omega_edit::ChangeKind;
 using omega_edit::ChangeRequest;
@@ -857,6 +859,42 @@ public:
         }
     }
 
+    int ProfileSession(const std::string &session_id, int64_t offset, int64_t length, std::vector<int64_t> &profile) {
+        assert(!session_id.empty());
+        ByteFrequencyProfileRequest request;
+        ByteFrequencyProfileResponse response;
+        ClientContext context;
+
+        request.set_session_id(session_id);
+        request.set_offset(offset);
+        request.set_length(length);
+
+        std::mutex mu;
+        std::condition_variable cv;
+        bool done = false;
+        Status status;
+        stub_->async()->GetByteFrequencyProfile(&context, &request, &response, [&mu, &cv, &done, &status](Status s) {
+            status = std::move(s);
+            std::scoped_lock lock(mu);
+            done = true;
+            cv.notify_one();
+        });
+        std::unique_lock lock(mu);
+        cv.wait(lock, [&done] { return done; });
+
+        if (status.ok()) {
+            const auto profile_size = response.frequency_size();
+            assert(256 == profile_size);
+            profile.clear();
+            profile.reserve(profile_size);
+            for (int i = 0; i < profile_size; ++i) { profile.push_back(response.frequency(i)); }
+            return 0;
+        } else {
+            DBG(CLOG << LOCATION << status.error_code() << ": " << status.error_message() << std::endl;);
+            return -1;
+        }
+    }
+
     static void HandleViewportChanges(std::unique_ptr<ClientContext> context_ptr,
                                       std::unique_ptr<ClientReader<ViewportEvent>> reader_ptr) {
         assert(reader_ptr);
@@ -910,12 +948,12 @@ void run_tests(const std::string &target_str, int repetitions, bool log, int64_t
     fs::remove_all(fs::current_path() / "server_test_out");
     auto grpcChannel = grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials());
     if (log) {
-        DBG(CLOG << LOCATION << "Waiting for up to " << connect_deadline_in_seconds << " seconds to connect to the RPC channel" << std::endl;);
+        DBG(CLOG << LOCATION << "Waiting for up to " << connect_deadline_in_seconds
+                 << " seconds to connect to the RPC channel" << std::endl;);
     }
-    assert (grpcChannel->WaitForConnected(std::chrono::system_clock::now() + std::chrono::seconds(connect_deadline_in_seconds)));
-    if (log) {
-        DBG(CLOG << LOCATION << "RPC channel connected" << std::endl;);
-    }
+    assert(grpcChannel->WaitForConnected(std::chrono::system_clock::now() +
+                                         std::chrono::seconds(connect_deadline_in_seconds)));
+    if (log) { DBG(CLOG << LOCATION << "RPC channel connected" << std::endl;); }
     OmegaEditServiceClient server_test_client(grpcChannel);
     while (repetitions--) {
         if (log) {
@@ -1166,6 +1204,17 @@ void run_tests(const std::string &target_str, int repetitions, bool log, int64_t
         }
         assert(segment.length() == 12);
         assert(segment == "Hello World!");
+        std::vector<int64_t> profile;
+        rc = server_test_client.ProfileSession(session_id, 1, 9, profile);
+        if (log) {
+            const std::scoped_lock write_lock(write_mutex);
+            DBG(CLOG << LOCATION << "[Remaining: " << repetitions << "] ProfileSession received: " << rc << std::endl;);
+        }
+        assert(3 == profile['l']);
+        assert(2 == profile['o']);
+        assert(1 == profile['e']);
+        assert(0 == profile['H']);
+        assert(0 == profile['d']);
 
         reply = server_test_client.SaveSession(session_id, save_file.string(), false);
         if (log) {

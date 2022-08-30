@@ -502,6 +502,7 @@ TEST_CASE("Model Tests", "[ModelTests]") {
 TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
+    omega_byte_frequency_profile_t byte_frequency_profile;
     const auto session_ptr = omega_edit_create_session(nullptr, session_change_cbk, &file_info, ALL_EVENTS);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
@@ -515,6 +516,8 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(0 == omega_change_get_offset(change_ptr));
     REQUIRE(2 == omega_change_get_length(change_ptr));
     REQUIRE("00" == omega_change_get_string(change_ptr));
+    REQUIRE(0 == omega_session_profile(session_ptr, &byte_frequency_profile, 0, 0));
+    REQUIRE(2 == byte_frequency_profile['0']);
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(2 == omega_session_get_computed_file_size(session_ptr));
@@ -555,6 +558,8 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(10 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
     REQUIRE(20 == omega_session_get_computed_file_size(session_ptr));
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 10, "*****+*****"));
+    REQUIRE(0 == omega_session_profile(session_ptr, &byte_frequency_profile, 0, 0));
+    REQUIRE(10 == byte_frequency_profile['*']);
     REQUIRE(!omega_change_is_undone(omega_session_get_last_change(session_ptr)));
     REQUIRE(11 == omega_session_get_num_changes(session_ptr));
     REQUIRE(11 == omega_change_get_serial(omega_session_get_last_change(session_ptr)));
