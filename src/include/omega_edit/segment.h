@@ -12,6 +12,11 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
+/**
+ * @file segment.h
+ * @brief Functions that create and operate on segments (omega_segment_t).
+ */
+
 #ifndef OMEGA_EDIT_SEGMENT_H
 #define OMEGA_EDIT_SEGMENT_H
 

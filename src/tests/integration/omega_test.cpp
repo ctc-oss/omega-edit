@@ -49,6 +49,9 @@ TEST_CASE("Version check", "[VersionCheck]") {
     const auto version = (major << 24) + (minor << 16) + patch;
     REQUIRE(0 < omega_version());
     REQUIRE(version == omega_version());
+    REQUIRE(major == ((omega_version() >> 24) & 0xFF));
+    REQUIRE(minor == ((omega_version() >> 16) & 0xFF));
+    REQUIRE(patch == (omega_version() & 0xFF));
     const auto libtype = omega_libtype();
     REQUIRE(((strcmp("static", libtype) == 0) || (strcmp("shared", libtype) == 0)));
 }

@@ -18,7 +18,7 @@ import BuildSupport._
 import play.api.libs.json._
 
 lazy val packageData = Json
-  .parse(scala.io.Source.fromFile("src/rpc/client/ts/package.json").mkString)
+  .parse(scala.io.Source.fromFile("../../client/ts/package.json").mkString)
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -29,6 +29,29 @@ lazy val ghb_resolver = (
     at
       s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
+
+// mostly used for getting all 3 jars working inside of one package
+lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
+declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+declare linux_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+declare macos_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar"
+if [[ $$OSTYPE == "darwin"* ]]; then
+  new_classpath=$$(echo $$new_classpath |\\
+    sed -e "s/$${linux_jar_file}/$${macos_jar_file}/" | \\
+    sed -e "s/$${windows_jar_file}/$${macos_jar_file}/"\\
+  )
+else
+  new_classpath=$$(echo $$new_classpath |\\
+    sed -e "s/$${macos_jar_file}/$${linux_jar_file}/" | \\
+    sed -e "s/$${windows_jar_file}/$${linux_jar_file}/"\\
+  )
+fi"""
+
+lazy val batchExtras = s"""
+set "NEW_CLASSPATH=%APP_CLASSPATH%"
+set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar=!WINDOWS_JAR_FILE!%"
+set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar=!WINDOWS_JAR_FILE!%""""
 
 lazy val commonSettings = {
   Seq(
@@ -63,7 +86,7 @@ lazy val omega_edit = project
   .aggregate(api, spi, native)
 
 lazy val api = project
-  .in(file("src/bindings/scala/api"))
+  .in(file("api"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -100,7 +123,7 @@ lazy val api = project
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val native = project
-  .in(file("src/bindings/scala/native"))
+  .in(file("native"))
   .dependsOn(spi)
   .settings(commonSettings)
   .settings(
@@ -125,17 +148,61 @@ lazy val native = project
     ),
     packagedArtifacts ++= Map(
       Artifact("omega-edit-native", "windows-64") -> file(
-        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
+        s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
       ),
       Artifact("omega-edit-native", "macos-64") -> file(
-        s"omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"
+        s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-64.jar"
       )
     )
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
+lazy val serv = project
+  .in(file("serv"))
+  .dependsOn(spi)
+  .settings(commonSettings)
+  .settings(
+    name := "omega-edit-grpc-server",
+    libraryDependencies ++= {
+      Seq(
+        "com.ctc" %% "omega-edit" % omegaVersion,
+        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+        arch.os match {
+          case "linux"  => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-${arch.arch}"
+          case _        => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-${arch.arch}"
+        },
+        arch.os match {
+          case "windows"  => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-${arch.arch}"
+          case _          => "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-${arch.arch}"
+        },
+        "com.monovore" %% "decline" % "2.3.0",
+        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+      )
+    },
+    excludeDependencies ++= Seq(
+      ExclusionRule("org.checkerframework", "checker-compat-qual")
+    ),
+    scalacOptions ~= adjustScalacOptionsForScalatest,
+    resolvers += Resolver.mavenLocal,
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal
+    ),
+    Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    bashScriptExtraDefines += bashExtras,
+    batScriptExtraDefines += batchExtras
+  )
+  .enablePlugins(
+    AkkaGrpcPlugin,
+    GitVersioning,
+    JavaServerAppPackaging,
+    UniversalPlugin
+  )
+  
 lazy val spi = project
-  .in(file("src/bindings/scala/spi"))
+  .in(file("spi"))
   .settings(commonSettings)
   .settings(
     name := "omega-edit-spi"

@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file utility.h
+ * @brief Various utility functions.
+ */
+
 #ifndef OMEGA_EDIT_UTILITY_H
 #define OMEGA_EDIT_UTILITY_H
 

@@ -14,6 +14,11 @@
  * limitations under the License.                                                                                     *
  **********************************************************************************************************************/
 
+/**
+ * @file version.h
+ * @brief Functions that return version information.
+ */
+
 #ifndef OMEGA_EDIT_VERSION_H
 #define OMEGA_EDIT_VERSION_H
 
@@ -44,6 +49,12 @@ OMEGA_EDIT_EXPORT int omega_version_patch();
 /**
  * Get the integer representation of the version of the library
  * @return the integer representation of the version of the library
+ * @code
+ *      auto version = omega_version();
+ *      auto major = (version >> 24) & 0xFF;
+ *      auto minor = (version >> 16) & 0xFF;
+ *      auto patch = version & 0xFF;
+ * @endcode
  */
 OMEGA_EDIT_EXPORT int omega_version();
 

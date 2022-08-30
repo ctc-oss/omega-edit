@@ -12,6 +12,11 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
+/**
+ * @file edit.h
+ * @brief Main editing functions.
+ */
+
 #ifndef OMEGA_EDIT_EDIT_H
 #define OMEGA_EDIT_EDIT_H
 
@@ -122,6 +127,9 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_delete(omega_session_t *session_ptr, int64_
  * @param bytes bytes to insert at the given offset
  * @param length number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
+ * @warning If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this
+ * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
+ * and should not be used in production code.  In production code, explicitly pass in the length.
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset,
                                                   const omega_byte_t *bytes, int64_t length);
@@ -134,6 +142,9 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, 
  * @param length length of the C string to insert (if 0, strlen will be used to calculate the length of null-terminated
  * bytes)
  * @return positive change serial number on success, zero otherwise
+ * @warning If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this
+ * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
+ * and should not be used in production code.  In production code, explicitly pass in the length.
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr,
                                             int64_t length);
@@ -145,6 +156,9 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert(omega_session_t *session_ptr, int64_
  * @param bytes new bytes to overwrite the old bytes with
  * @param length number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
+ * @warning If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this
+ * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
+ * and should not be used in production code.  In production code, explicitly pass in the length.
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
                                                      const omega_byte_t *bytes, int64_t length);
@@ -156,6 +170,9 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_bytes(omega_session_t *session_pt
  * @param cstr new C string to overwrite the old bytes with
  * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
  * @return positive change serial number on success, zero otherwise
+ * @warning If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this
+ * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
+ * and should not be used in production code.  In production code, explicitly pass in the length.
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
                                                int64_t length);

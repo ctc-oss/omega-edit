@@ -40,3 +40,4 @@ jobs:
 
       - name: Run Rat Check
         run: $SBT ratCheck || (cat target/rat.txt; exit 1)
+        working-directory: src/rpc/server/scala

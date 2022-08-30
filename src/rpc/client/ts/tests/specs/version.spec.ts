@@ -27,7 +27,7 @@ describe('Version', () => {
     expect(await waitForReady(getClient(), deadline))
   })
 
-  const expected_version = 'v0.9.18'
+  const expected_version = 'v0.9.20'
 
   it('Should return version ' + expected_version, async () => {
     const result = await getVersion()
