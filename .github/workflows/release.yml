@@ -114,7 +114,7 @@ jobs:
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
 
-      - name: Install Conan
+      - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
 
       - name: Setup cmake 🔧
@@ -127,28 +127,28 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Build Ωedit
+      - name: Build Ωedit 🏗️
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      - name: Move library file mac
+      - name: Move library file mac 🚚
         if: startsWith(matrix.os, 'mac')
-        run: mv build/lib/* lib
+        run: mv -v build/lib/* lib
         shell: bash
 
-      - name: Move library file windows
+      - name: Move library file windows 🚚
         if: startsWith(matrix.os, 'win')
-        run: mv build/bin/omega_edit.dll lib/
+        run: mv -v build/bin/omega_edit.dll lib/
         shell: bash
 
-      - name: Package Scala Native
+      - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt native/publishM2
         working-directory: src/rpc/server/scala
 
-      - name: Upload Native JARs
+      - name: Upload Native JARs 🔺
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-artifacts
@@ -184,51 +184,45 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Build Ωedit
+      - name: Build Ωedit 🏗️
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      - name: Move library file
-        run: mv build/lib/* lib
+      - name: Move library file 🚚
+        run: mv -v build/lib/* lib
         shell: bash
 
-      - name: Download macos Native JARs
+      - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
           name: macos-latest-artifacts
 
-      - name: Download windows Native JARs
+      - name: Download windows Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
           name: windows-latest-artifacts
 
-      - name: Move windows and macos jars out
+      - name: Move windows and macos jars out 🚚
         run: |
           for folder in "omega-edit-native_2.13"; do
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
-            mv ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
+            mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
+            mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
           done
 
-      - name: Package Scala Native
+      - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv src/rpc/server/scala/build.sbt .github/build.sbt
-          mv .github/release.sbt src/rpc/server/scala/build.sbt
+          mv -v src/rpc/server/scala/build.sbt .github/build.sbt
+          mv -v .github/release.sbt src/rpc/server/scala/build.sbt
           cd src/rpc/server/scala
           sbt native/publish
 
-      - name: Package Scala API
+      - name: Package Scala API 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt api/publish
-        working-directory: src/rpc/server/scala
-
-      - name: Package Scala SPI
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: sbt spi/publish
         working-directory: src/rpc/server/scala
 
   node-release:
@@ -269,8 +263,8 @@ jobs:
 
       - name: Move out node package file 🛻
         run: |
-          mv omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
-          mv omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
+          mv -v omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
+          mv -v omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
           rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
 
       - name: Upload node release tarball 🔺
@@ -285,7 +279,7 @@ jobs:
 
       - name: Publish node package to npm registry 🚀
         run: |
-          cp src/rpc/client/ts/package.json .
+          cp -v src/rpc/client/ts/package.json .
           yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
           rm -rf package.json
         env:
@@ -323,26 +317,26 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Package scala reference server
+      - name: Package Scala RPC server 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv src/rpc/server/scala/build.sbt .github/build.sbt
-          mv .github/release.sbt src/rpc/server/scala/build.sbt
+          mv -v src/rpc/server/scala/build.sbt .github/build.sbt
+          mv -v .github/release.sbt src/rpc/server/scala/build.sbt
           cd src/rpc/server/scala
           sbt serv/Universal/packageBin
         shell: bash
 
-      - name: Fix folder name for gRPC Scala server
+      - name: Fix folder name for Scala RPC server 🔧
         run: |
-          mv \
+          mv -v \
             src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           unzip omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
-          mv omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
+          mv -v omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
           zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-scala-server-${{ env.PKG_VERSION }}
 
-      - name: Upload scala reference server 🔺
+      - name: Upload Scala RPC server 🔺
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
