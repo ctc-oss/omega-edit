@@ -53,16 +53,9 @@ cmake --install build-static-$type/packaging --prefix "$install_dir"  --config $
 cpack --config build-static-$type/CPackSourceConfig.cmake
 cpack --config build-static-$type/CPackConfig.cmake
 
-rm -rf build-examples-$type
-cmake -G "$generator" -S src/examples -B build-examples-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
-cmake --build build-examples-$type
-
-rm -rf build-rpc-$type
-cmake -G "$generator" -S src/rpc -B build-rpc-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
-cmake --build build-rpc-$type
-$checker build-rpc-$type/bin/server_test
+$checker build-static-$type/bin/server_test
 kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
-build-rpc-$type/bin/server --target=127.0.0.1:9000 &
+build-static-$type/bin/server --target=127.0.0.1:9000 &
 server_pid=$!
 pushd src/rpc/client/ts/
 npm install

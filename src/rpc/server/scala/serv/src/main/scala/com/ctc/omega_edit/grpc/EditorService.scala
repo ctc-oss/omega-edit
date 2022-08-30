@@ -355,6 +355,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           )
       }
 
+  //
+  // unimplemented
+  //
+
+  def getByteFrequencyProfile(in: omega_edit.ByteFrequencyProfileRequest): Future[ByteFrequencyProfileResponse] =
+    grpcFailFut(Status.UNIMPLEMENTED)
 }
 
 object EditorService {
