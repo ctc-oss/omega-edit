@@ -50,10 +50,9 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
           cmake --install build --prefix "${PWD}/_install"
-          mv _install/lib/* ./lib
+          mv -v _install/lib/* ./lib
 
       - name: Check Scala headers
-        if: startsWith(matrix.os, 'ubuntu')
         run: sbt headerCheckAll
         working-directory: src/rpc/server/scala
 
@@ -69,13 +68,13 @@ jobs:
           if-no-files-found: error
 
       - name: Coverage report
-        if: startsWith(matrix.os, 'ubuntu')
         run: sbt howMuchCoverage
         working-directory: src/rpc/server/scala
 
-      - name: Build Scala gRPC Reference Impl
-        if: startsWith(matrix.os, 'ubuntu')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test Scala API
         run: sbt test
+        working-directory: src/rpc/server/scala
+
+      - name: Build and package Scala RPC server
+        run: sbt pkgServer
         working-directory: src/rpc/server/scala
