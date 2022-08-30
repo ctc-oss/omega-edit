@@ -35,7 +35,7 @@ import {
   redo,
   undo,
 } from '../../src/change'
-import { unlinkSync } from 'node:fs'
+import { unlinkSync } from 'fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { cleanup, custom_setup } from './common'
