@@ -17,7 +17,15 @@ project(omega_edit
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
-message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION}")
+
+option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
+
+## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
+if (DEFINED omega_edit_SHARED_LIBS)
+    set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
+endif ()
+
+message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared libs: ${BUILD_SHARED_LIBS})")
 
 # Make sure windows shared library is created properly
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -117,12 +125,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/macros.h" "src/include/omega_edit/export.h"
         "src/lib/impl_/internal_fwd_defs.hpp")
 
-## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
-if (DEFINED omega_edit_SHARED_LIBS)
-    set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
-endif ()
-
-# Create the library archive for static linking
+# Create the library
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 add_library(omega_edit::omega_edit ALIAS omega_edit)
 set_target_properties(omega_edit PROPERTIES VERSION ${omega_edit_VERSION} SOVERSION ${omega_edit_VERSION_MAJOR})

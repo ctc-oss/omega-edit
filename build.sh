@@ -33,7 +33,7 @@ set -e
 rm -rf "$install_dir"
 
 rm -rf build-shared-$type
-cmake -G "$generator" -S . -B build-shared-$type -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
+cmake -G "$generator" -S . -B build-shared-$type -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
 cmake --build build-shared-$type
 cmake --install build-shared-$type/packaging --prefix "$install_dir"  --config $type
 cpack --config build-shared-$type/CPackSourceConfig.cmake
