@@ -68,7 +68,9 @@ kill $server_pid
 if [ $test_scala_server -ne 0 ]; then
   pushd src/rpc/server/scala
   sbt installM2
+  sbt test
   sbt pkgServer
+  sbt serv/test
   pushd serv/target/universal/
   unzip -o *.zip
   kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true

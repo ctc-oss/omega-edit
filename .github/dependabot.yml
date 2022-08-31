@@ -20,8 +20,10 @@ updates:
     directory: "/src/rpc/client/ts"
     schedule:
       interval: "weekly"
+    workflow_dispatch:
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    workflow_dispatch:
