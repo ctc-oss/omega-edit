@@ -73,7 +73,7 @@ trait Session {
   def search(
       pattern: Array[Byte],
       offset: Long,
-      length: Option[Long] = None,
+      length: Long,
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
   ): List[Long]

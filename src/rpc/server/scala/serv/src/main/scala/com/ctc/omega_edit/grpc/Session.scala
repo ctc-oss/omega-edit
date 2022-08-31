@@ -38,8 +38,8 @@ object Session {
     def stream: EventStream
   }
 
-  trait Size {
-    def computedSize: Long
+  trait Count {
+    def count: Long
   }
 
   trait SavedTo {
@@ -115,7 +115,7 @@ object Session {
   object Serial {
     def ok(sessionId: String, serial0: Long): Ok with Serial =
       new Ok(sessionId) with Serial {
-        val serial = serial0
+        val serial: Long = serial0
       }
 
     def paused(sessionId: String): Ok with Serial =
@@ -147,7 +147,7 @@ object Session {
   object ChangeDetails {
     def ok(sessionId: String, change0: Change): Ok with ChangeDetails =
       new Ok(sessionId) with ChangeDetails {
-        val change = change0
+        val change: Change = change0
       }
   }
 }
@@ -195,7 +195,7 @@ class Session(
       }
 
     case Insert(data, offset) =>
-      session.insert(data.toByteArray(), offset) match {
+      session.insert(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
@@ -203,7 +203,7 @@ class Session(
       }
 
     case Overwrite(data, offset) =>
-      session.overwrite(data.toByteArray(), offset) match {
+      session.overwrite(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
         case Change.Paused => sender() ! Serial.paused(sessionId)
@@ -279,33 +279,33 @@ class Session(
       }
 
     case GetSize =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.size
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.size
       }
 
     case GetNumChanges =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.numChanges
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numChanges
       }
 
     case GetNumCheckpoints =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.numCheckpoints
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numCheckpoints
       }
 
     case GetNumUndos =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.numUndos
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numUndos
       }
 
     case GetNumViewports =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.numViewports
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numViewports
       }
 
     case GetNumSearchContexts =>
-      sender() ! new Ok(sessionId) with Size {
-        def computedSize: Long = session.numSearchContexts
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numSearchContexts
       }
 
     case Save(to, overwrite) =>
@@ -321,17 +321,17 @@ class Session(
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
       val offset = request.offset.getOrElse(0L)
-
+      val length = request.length.getOrElse(0L)
       sender() ! SearchResponse.of(
         sessionId,
         request.pattern,
         isCaseInsensitive,
         offset,
-        request.length.getOrElse(0),
+        length,
         session.search(
           request.pattern.toByteArray,
           offset,
-          request.length,
+          length,
           isCaseInsensitive,
           request.limit
         )

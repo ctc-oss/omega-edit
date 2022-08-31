@@ -18,7 +18,11 @@
 #include "impl_/model_def.hpp"
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
+#include "omega_edit/segment.h"
 #include <cassert>
+#include <cstring>
+
+#define PROFILE_SEGMENT_CAPACITY (1024 * 8)
 
 enum class session_flags { pause_viewport_callbacks = 1, session_changes_paused = 1 << 1 };
 
@@ -166,4 +170,25 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
     if (session_ptr->event_handler && (session_event & session_ptr->event_interest_)) {
         (*session_ptr->event_handler)(session_ptr, session_event, event_ptr);
     }
+}
+
+int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequency_profile_t *profile_ptr,
+                          int64_t offset, int64_t length) {
+    assert(session_ptr);
+    assert(profile_ptr);
+    assert(0 <= offset);
+    length = length ? length : omega_session_get_computed_file_size(session_ptr) - offset;
+    assert(0 <= length);
+    assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
+    memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
+    auto segment_ptr = omega_segment_create(std::min(length, (int64_t) PROFILE_SEGMENT_CAPACITY));
+    while (length) {
+        if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
+        const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
+        const auto segment_data = omega_segment_get_data(segment_ptr);
+        for (auto i = 0; i < profile_length; ++i) { ++(*profile_ptr)[segment_data[i]]; }
+        offset += profile_length;
+        length -= profile_length;
+    }
+    return 0;
 }

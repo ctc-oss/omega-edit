@@ -245,6 +245,9 @@ if (BUILD_EXAMPLES)
     add_executable(transform "src/examples/transform.c")
     target_link_libraries(transform PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
+    add_executable(profile "src/examples/profile.c")
+    target_link_libraries(profile PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
     add_executable(play "src/examples/play.cpp")
     target_link_libraries(play PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
     add_custom_command(TARGET play POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/data" "$<TARGET_FILE_DIR:play>/data/examples" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
@@ -270,7 +273,7 @@ if (BUILD_TESTS)
     target_link_libraries(generate_file PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     if (BUILD_RPC)
-        add_executable(server_test "src/rpc/tests/server_test.cpp" ${RPC_SOURCE_FILES})
+        add_executable(server_test "src/rpc/server/cpp/tests/server_test.cpp" ${RPC_SOURCE_FILES})
         target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
         target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
         add_dependencies(server_test server)

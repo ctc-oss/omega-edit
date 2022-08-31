@@ -33,6 +33,8 @@ extern "C" {
 #include <stdint.h>
 #endif
 
+typedef int64_t omega_byte_frequency_profile_t[256];
+
 /**
  * Given a session, return the file path being edited (if known)
  * @param session_ptr session to return the file path from
@@ -69,10 +71,10 @@ OMEGA_EDIT_EXPORT int32_t omega_session_set_event_interest(omega_session_t *sess
 OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
 
 /**
- *
- * @param session_ptr
- * @param data_segment_ptr
- * @param offset
+ * Given a session and offset, populate a data segment
+ * @param session_ptr session to get a segment of data from
+ * @param data_segment_ptr data segment to populate
+ * @param offset session offset to begin getting data from
  * @return zero on success, non-zero otherwise
  */
 OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
@@ -189,6 +191,18 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_
  */
 OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                             const void *event_ptr);
+
+/**
+ * Given a session, offset and length, populate a byte frequency profile
+ * @param session_ptr session to profile
+ * @param profile_ptr pointer to the byte frequency profile to populate
+ * @param offset where in the session to begin profiling
+ * @param length number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session)
+ * @return zero on success and non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_session_profile(const omega_session_t *session_ptr,
+                                            omega_byte_frequency_profile_t *profile_ptr, int64_t offset,
+                                            int64_t length);
 
 #ifdef __cplusplus
 }

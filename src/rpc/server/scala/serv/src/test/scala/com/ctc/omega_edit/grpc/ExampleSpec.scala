@@ -18,6 +18,7 @@ package com.ctc.omega_edit.grpc
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
+import com.ctc.omega_edit.api
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import omega_edit._
@@ -25,21 +26,18 @@ import org.scalatest.Assertion
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpecLike
 
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 import java.util.UUID
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.io.Source
-import com.ctc.omega_edit.api
+import scala.util.Using
 
 /** This unit test is more for demonstration of the testability of the gRPC
   * components than actual coverage
   */
-class ExampleSpec
-    extends AsyncWordSpecLike
-    with Matchers
-    with EditorServiceSupport {
-  val tmp = Files.createTempDirectory("omega")
+class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupport {
+  val tmp: Path = Files.createTempDirectory("omega")
   tmp.toFile.deleteOnExit()
 
   "client" should useService { implicit service =>
@@ -49,8 +47,9 @@ class ExampleSpec
 
     "have zero sessions when initialized" in service
       .getSessionCount(Empty())
-      .map { case SessionCountResponse(count, _) =>
-        count should be(0)
+      .map {
+        case SessionCountResponse(count, _) =>
+          count should be(0)
       }
 
     "create session" in service.createSession(CreateSessionRequest()).map { v =>
@@ -59,8 +58,9 @@ class ExampleSpec
 
     "have one session counted after creation" in service
       .getSessionCount(Empty())
-      .map { case SessionCountResponse(count, _) =>
-        count should be(1)
+      .map {
+        case SessionCountResponse(count, _) =>
+          count should be(1)
       }
 
     "update session data" in newSession { sid =>
@@ -81,9 +81,11 @@ class ExampleSpec
           .map(_.computedFileSize)
       } yield {
         sizeBefore shouldBe 0
-        changeResponse should matchPattern { case ChangeResponse(`sid`, _, _) =>
+        changeResponse should matchPattern {
+          case ChangeResponse(`sid`, _, _) =>
         }
-        changeResponse should matchPattern { case ChangeResponse(`sid`, _, _) =>
+        changeResponse should matchPattern {
+          case ChangeResponse(`sid`, _, _) =>
         }
         sizeAfter shouldBe testString.length
       }
@@ -117,7 +119,7 @@ class ExampleSpec
         saveResponse <- service.saveSession(
           SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString)
         )
-        contents = Source.fromFile(saveResponse.filePath).mkString
+        contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
       } yield {
         contents shouldBe testString
       }
@@ -150,10 +152,9 @@ class ExampleSpec
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -201,12 +202,11 @@ class ExampleSpec
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
-        contents3 = Source.fromFile(saveResponse3.filePath).mkString
-        contents4 = Source.fromFile(saveResponse4.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -258,15 +258,14 @@ class ExampleSpec
           .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
           .map(_.count)
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
         contents2 shouldBe testString2
-        getBeforeChangeCount should not be (0)
+        getBeforeChangeCount should not be 0
         getAfterChangeCount should be(0)
       }
     }
@@ -303,17 +302,15 @@ class ExampleSpec
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
-        contents3 = Source.fromFile(saveResponse3.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
         contents2 shouldBe testString2
-        contents2 shouldBe testString2
-
+        contents3 shouldBe testString2
       }
     }
 
@@ -366,13 +363,12 @@ class ExampleSpec
           SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
         )
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
-        contents3 = Source.fromFile(saveResponse3.filePath).mkString
-        contents4 = Source.fromFile(saveResponse4.filePath).mkString
-        contents5 = Source.fromFile(saveResponse5.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
+        contents5 = Using(Source.fromFile(saveResponse5.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -414,10 +410,9 @@ class ExampleSpec
 
         saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
-        contents2 = Source.fromFile(saveResponse2.filePath).mkString
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         contents1 shouldBe testString1
         contents2 shouldBe testString1
@@ -442,9 +437,8 @@ class ExampleSpec
 
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
 
-        contents1 = Source
-          .fromFile(saveResponse1.filePath)
-          .mkString // to ensure first saved file not overwritten
+        // to ensure first saved file not overwritten
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
       } yield {
         contents1 shouldBe testString1
       }
@@ -463,9 +457,7 @@ trait EditorServiceSupport {
     import service.system.dispatcher
     service
       .createSession(
-        CreateSessionRequest(eventInterest =
-          Some(api.SessionEvent.Interest.All)
-        )
+        CreateSessionRequest(eventInterest = Some(api.SessionEvent.Interest.All))
       )
       .map(_.sessionId)
       .flatMap(test)

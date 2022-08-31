@@ -129,32 +129,32 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
   "search" should {
     "find nothing if nothing is there" in session(numbers) { s =>
-      s.search("abc".getBytes, 0) shouldBe List.empty
+      s.search("abc".getBytes, 0, 0) shouldBe List.empty
     }
 
     "find a single match" in session(numbers) { s =>
-      s.search("345".getBytes, 0) shouldBe List(2)
+      s.search("345".getBytes, 0, 0) shouldBe List(2)
     }
 
     "find multiple matches" in session(as) { s =>
-      s.search("a".getBytes, 0) shouldBe List(4, 9, 10, 15)
+      s.search("a".getBytes, 0, 0) shouldBe List(4, 9, 10, 15)
     }
 
     "respect offsets" in session(as) { s =>
-      s.search("a".getBytes, 1) shouldBe List(4, 9, 10, 15)
-      s.search("a".getBytes, 5) shouldBe List(9, 10, 15)
+      s.search("a".getBytes, 1, 0) shouldBe List(4, 9, 10, 15)
+      s.search("a".getBytes, 5, 0) shouldBe List(9, 10, 15)
     }
 
     "respect len" in session(as) { s =>
-      s.search("a".getBytes, 0, Some(as.length.toLong - 2)) shouldBe List(4, 9, 10)
+      s.search("a".getBytes, 0, as.length.toLong - 2) shouldBe List(4, 9, 10)
     }
 
     "respect caseInsensitive" in session(as) { s =>
-      s.search("A".getBytes, 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
+      s.search("A".getBytes, 0, 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
     }
 
     "respect limit" in session(as) { s =>
-      s.search("a".getBytes, 0, limit = Some(2)) shouldBe List(4, 9)
+      s.search("a".getBytes, 0, 0, limit = Some(2)) shouldBe List(4, 9)
     }
   }
 
