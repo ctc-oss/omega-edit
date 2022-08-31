@@ -95,6 +95,9 @@ set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0 REQUIRED)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
+# Don't add RPATH so we can manipulate the library search path using the environment at runtime
+set(CMAKE_MACOSX_RPATH OFF)
+
 #######################################################################################################################
 # CORE LIBRARY
 #######################################################################################################################
