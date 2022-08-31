@@ -12,7 +12,7 @@
 # generated files
 .DS_Store
 Release
-_install/
+_install*/
 build*/
 cmake-build*/
 node_modules/
