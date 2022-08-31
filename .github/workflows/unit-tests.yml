@@ -52,20 +52,16 @@ jobs:
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build --target omega_edit
+          cmake --build build
           cmake --install build/packaging --prefix "${PWD}/_install"  --config Debug
-      - name: Prepare, and Build Ωedit RPC 🔧
-        run: |
-          cmake -S src/rpc -B build-rpc -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
-          cmake --build build-rpc
       - name: Test Ωedit RPC on macOS 📋
         if: runner.os == 'macOS'
         run: |
-          build-rpc/bin/server_test
+          build/bin/server_test
       - name: Test Ωedit RPC on Linux 📋
         if: runner.os == 'Linux'
         run: |
-          valgrind build-rpc/bin/server_test
+          valgrind build/bin/server_test
       - name: Prepare, and Build Ωedit Integration Tests 🔧
         run: |
           cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
