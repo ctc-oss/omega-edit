@@ -19,10 +19,7 @@ package com.ctc.omega_edit
 import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
-  GenerateFilename,
-  OverwriteExisting
-}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
 import jnr.ffi.Pointer
 
 import java.nio.ByteBuffer
@@ -78,7 +75,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def insert(b: Array[Byte], offset: Long): Result =
     Edit(i.omega_edit_insert_bytes(p, offset, b, b.length.toLong))
-    
+
   def insert(s: String, offset: Long): Result =
     Edit(i.omega_edit_insert(p, offset, s, 0))
 
@@ -171,37 +168,36 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def search(
       pattern: Array[Byte],
       offset: Long,
-      length: Option[Long] = None,
+      length: Long,
       caseInsensitive: Boolean = false,
       limit: Option[Long] = None
-  ): List[Long] = {
+  ): List[Long] =
     i.omega_search_create_context_bytes(
       p,
       pattern,
       pattern.length.toLong,
       offset,
-      length.getOrElse(0),
+      length,
       caseInsensitive
     ) match {
-      case null     => List.empty[Long]
-      case context  => {
+      case null => List.empty[Long]
+      case context =>
         try {
           Iterator
-            .unfold(context -> 0) { case (context, numMatches) =>
-              Option.when(
-                limit.map(numMatches < _).getOrElse(true) && i
-                  .omega_search_next_match(context, 1) > 0
-              )(
-                i.omega_search_context_get_offset(
-                  context
-                ) -> (context, numMatches + 1)
-              )
+            .unfold(context -> 0) {
+              case (context, numMatches) =>
+                Option.when(
+                  limit.forall(numMatches < _) && i
+                    .omega_search_next_match(context, 1) > 0
+                )(
+                  i.omega_search_context_get_offset(
+                    context
+                  ) -> (context, numMatches + 1)
+                )
             }
             .toList
         } finally i.omega_search_destroy_context(context)
-      }
     }
-  }
 
   def getSegment(offset: Long, length: Long): Option[Segment] = {
     val sp = i.omega_segment_create(length)

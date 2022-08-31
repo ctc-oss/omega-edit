@@ -34,7 +34,7 @@ object Viewport {
     def stream: EventStream
   }
 
-  def props(view: api.Viewport, stream: EventStream, cb: ViewportCallback) =
+  def props(view: api.Viewport, stream: EventStream, cb: ViewportCallback): Props =
     Props(new Viewport(view, stream, cb))
 
   case class Id(session: String, view: String)

@@ -32,7 +32,7 @@ import scala.util.{Failure, Success}
 /** The Editors actor manages the backend Sessions
   */
 object Editors {
-  def props() = Props(new Editors)
+  def props(): Props = Props(new Editors)
 
   case class Find(id: String)
   case class Create(
@@ -65,7 +65,7 @@ object Editors {
 
 class Editors extends Actor with ActorLogging {
   import Editors._
-  implicit val timeout = Timeout(1.second)
+  implicit val timeout: Timeout = Timeout(1.second)
 
   def receive: Receive = {
     case Create(sid, path, eventInterest) =>

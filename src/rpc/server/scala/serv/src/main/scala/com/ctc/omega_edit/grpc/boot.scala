@@ -43,7 +43,7 @@ class boot(port: Int) {
   implicit val sys: ActorSystem = ActorSystem("omega-grpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
-  def run() = {
+  def run(): Unit = {
     val v = OmegaEdit.version()
     val done =
       for {

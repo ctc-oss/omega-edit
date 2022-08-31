@@ -156,7 +156,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def getComputedFileSize(in: ObjectId): Future[ComputedFileSizeResponse] =
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
-      case ok: Ok with Size => ComputedFileSizeResponse(in.id, ok.computedSize)
+      case ok: Ok with Count => ComputedFileSizeResponse(in.id, ok.count)
       case Err(c)           => throw grpcFailure(c)
       case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
@@ -186,8 +186,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         Future.failed(grpcFailure(Status.UNKNOWN, s"unrecognized kind: $in"))
     }).mapTo[Result]
       .map {
-        case ok: Ok with Size =>
-          CountResponse(in.sessionId, in.kind, ok.computedSize)
+        case ok: Ok with Count =>
+          CountResponse(in.sessionId, in.kind, ok.count)
         case Err(c) => throw grpcFailure(c)
         case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
