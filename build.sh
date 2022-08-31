@@ -32,30 +32,30 @@ set -e
 
 rm -rf "$install_dir"
 
-rm -rf build-shared-$type
-cmake -G "$generator" -S . -B build-shared-$type -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
-cmake --build build-shared-$type
-cmake --install build-shared-$type/packaging --prefix "$install_dir"  --config $type
-cpack --config build-shared-$type/CPackSourceConfig.cmake
-cpack --config build-shared-$type/CPackConfig.cmake
+rm -rf "build-shared-$type"
+cmake -G "$generator" -S . -B "build-shared-$type" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+cmake --build "build-shared-$type"
+cmake --install "build-shared-$type/packaging" --prefix "$install_dir"  --config "$type"
+cpack --config "build-shared-$type/CPackSourceConfig.cmake"
+cpack --config "build-shared-$type/CPackConfig.cmake"
 
 rm -rf ./lib/*
-if [ -d ${install_dir}/lib64/ ]; then
-  cp -av ${install_dir}/lib64/* ./lib
+if [ -d "${install_dir}/lib64/" ]; then
+  cp -av "${install_dir}/lib64/"* ./lib
 else
-  cp -av ${install_dir}/lib/* ./lib
+  cp -av "${install_dir}/lib/"* ./lib
 fi
 
-rm -rf build-static-$type
-cmake -G "$generator" -S . -B build-static-$type -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=$build_docs -DCMAKE_BUILD_TYPE=$type
-cmake --build build-static-$type
-cmake --install build-static-$type/packaging --prefix "$install_dir"  --config $type
-cpack --config build-static-$type/CPackSourceConfig.cmake
-cpack --config build-static-$type/CPackConfig.cmake
+rm -rf "build-static-$type"
+cmake -G "$generator" -S . -B "build-static-$type" -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+cmake --build "build-static-$type"
+cmake --install "build-static-$type/packaging" --prefix "$install_dir"  --config "$type"
+cpack --config "build-static-$type/CPackSourceConfig.cmake"
+cpack --config "build-static-$type/CPackConfig.cmake"
 
-$checker build-static-$type/bin/server_test
-kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
-build-static-$type/bin/server --target=127.0.0.1:9000 &
+$checker "build-static-$type/bin/server_test"
+kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+"build-static-$type/bin/server" --target=127.0.0.1:9000 &
 server_pid=$!
 pushd src/rpc/client/ts/
 npm install
@@ -72,8 +72,8 @@ if [ $test_scala_server -ne 0 ]; then
   sbt pkgServer
   sbt serv/test
   pushd serv/target/universal/
-  unzip -o *.zip
-  kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
+  unzip -o "*.zip"
+  kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
   ./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
   server_pid=$!
   popd
@@ -86,13 +86,13 @@ if [ $test_scala_server -ne 0 ]; then
   popd
   kill $server_pid
 fi
-kill $( lsof -i:9000 | sed -n '2p' | awk '{print $2}' ) >/dev/null 2>&1 || true
+kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
 
-rm -rf build-tests-integration-$type
-cmake -G "$generator" -S src/tests/integration -B build-tests-integration-$type -DCMAKE_BUILD_TYPE=$type -DCMAKE_PREFIX_PATH="$install_dir"
-cmake --build build-tests-integration-$type
-pushd build-tests-integration-$type && ctest -C $type --output-on-failure && popd
+rm -rf "build-tests-integration-$type"
+cmake -G "$generator" -S src/tests/integration -B "build-tests-integration-$type" -DCMAKE_BUILD_TYPE="$type" -DCMAKE_PREFIX_PATH="$install_dir"
+cmake --build "build-tests-integration-$type"
+pushd "build-tests-integration-$type" && ctest -C "$type" --output-on-failure && popd
 
-cmake -G "$generator" -S src/tests -B build-tests-$type -DCMAKE_BUILD_TYPE=$type
-pushd build-tests-$type && ctest -C $type --output-on-failure && popd
+cmake -G "$generator" -S src/tests -B "build-tests-$type" -DCMAKE_BUILD_TYPE="$type"
+pushd "build-tests-$type" && ctest -C "$type" --output-on-failure && popd
 echo "✔ Done! ✨"
