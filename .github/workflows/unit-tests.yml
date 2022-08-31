@@ -51,9 +51,9 @@ jobs:
         uses: lukka/get-cmake@latest
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug --install-prefix "${PWD}/_install"
           cmake --build build
-          cmake --install build/packaging --prefix "${PWD}/_install"  --config Debug
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
       - name: Test Ωedit RPC on macOS 📋
         if: runner.os == 'macOS'
         run: |
@@ -67,12 +67,14 @@ jobs:
           cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
           cmake --build build-tests-integration
       - name: Run Ωedit Integration Tests 📋
+        working-directory: build-tests-integration
         run: |
-          cd build-tests-integration
           ctest -C Debug --output-on-failure
-      - name: Run Tests 📋
-        if: runner.os != 'Windows'
+      - name: Build Tests 🔧
         run: |
           cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
-          cd build-tests
+      - name: Run Tests 📋
+        if: runner.os != 'Windows'
+        working-directory: build-tests
+        run: |
           ctest -C Debug --output-on-failure
