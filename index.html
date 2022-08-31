@@ -1172,6 +1172,14 @@
 <h2>session.h<a class="headerlink" href="#session-h" title="Permalink to this heading"></a></h2>
 <p>Functions that operate on editing sessions (omega_session_t). </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
+<dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv430omega_byte_frequency_profile_t">
+<span id="_CPPv330omega_byte_frequency_profile_t"></span><span id="_CPPv230omega_byte_frequency_profile_t"></span><span id="omega_byte_frequency_profile_t"></span><span class="target" id="session_8h_1a9417a5d85330e64b6f5967ef0c22038c"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_frequency_profile_t</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">256</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#_CPPv430omega_byte_frequency_profile_t" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
@@ -1249,12 +1257,13 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="session_8h_1a2bb829327c7cd9be3b0b825196860f02"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_get_segment</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_segment_t</span> <span class="pre">*data_segment_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset)</span></span></dt>
-<dd><dl class="field-list simple">
+<dd><p>Given a session and offset, populate a data segment </p>
+<dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>session_ptr</strong> – </p></li>
-<li><p><strong>data_segment_ptr</strong> – </p></li>
-<li><p><strong>offset</strong> – </p></li>
+<li><p><strong>session_ptr</strong> – session to get a segment of data from </p></li>
+<li><p><strong>data_segment_ptr</strong> – data segment to populate </p></li>
+<li><p><strong>offset</strong> – session offset to begin getting data from </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1475,6 +1484,25 @@
 <li><p><strong>session_event</strong> – session event </p></li>
 <li><p><strong>event_ptr</strong> – pointer to the change </p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a5527487ee82528925a8216d94ce8e1f4"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_profile</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_byte_frequency_profile_t</span> <span class="pre">*profile_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
+<dd><p>Given a session, offset and length, populate a byte frequency profile </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to profile </p></li>
+<li><p><strong>profile_ptr</strong> – pointer to the byte frequency profile to populate </p></li>
+<li><p><strong>offset</strong> – where in the session to begin profiling </p></li>
+<li><p><strong>length</strong> – number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session) </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
