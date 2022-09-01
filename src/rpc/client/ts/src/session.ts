@@ -172,6 +172,13 @@ export function profileSession(
   })
 }
 
+// Given a computed profile, return the total number of bytes in the 7-bit ASCII range
+export function numAscii(profile: number[]): number {
+  return profile.slice(0, 128).reduce((accumulator, current) => {
+    return accumulator + current
+  }, 0)
+}
+
 export function searchSession(
   sessionId: string,
   pattern: string | Uint8Array,

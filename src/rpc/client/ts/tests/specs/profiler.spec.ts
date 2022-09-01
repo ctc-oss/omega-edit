@@ -18,7 +18,11 @@
  */
 
 import { expect } from 'chai'
-import { getComputedFileSize, profileSession } from '../../src/session'
+import {
+  getComputedFileSize,
+  numAscii,
+  profileSession,
+} from '../../src/session'
 import { overwrite } from '../../src/change'
 import { cleanup, custom_setup } from './common'
 
@@ -57,6 +61,7 @@ describe('Profiing', () => {
           return accumulator + current
         }, 0)
       ).to.equal(file_size)
+      expect(numAscii(profile)).to.equal(file_size)
       expect(profile['a'.charCodeAt(0)]).to.equal(7)
       expect(profile['b'.charCodeAt(0)]).to.equal(8)
       expect(profile['c'.charCodeAt(0)]).to.equal(1)
@@ -86,6 +91,7 @@ describe('Profiing', () => {
           return accumulator + current
         }, 0)
       ).to.equal(file_size)
+      expect(numAscii(profile)).to.equal(file_size - 1)
       expect(profile[0]).to.equal(3)
       expect(profile[1]).to.equal(4)
       expect(profile[2]).to.equal(2)
