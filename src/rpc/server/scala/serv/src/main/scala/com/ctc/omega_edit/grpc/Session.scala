@@ -29,6 +29,7 @@ import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import omega_edit._
 
 import java.nio.file.Path
+import scala.collection.immutable.ArraySeq
 import scala.util.{Failure, Success}
 import com.google.protobuf.ByteString
 
@@ -95,6 +96,8 @@ object Session {
   case class ClearChanges() extends Op
   case class GetLastChange() extends Op
   case class GetLastUndo() extends Op
+
+  case class Profile(request: ByteFrequencyProfileRequest) extends Op
 
   case class Search(request: SearchRequest) extends Op
 
@@ -318,10 +321,20 @@ class Session(
           sender() ! Err(Status.UNKNOWN)
       }
 
+    case Profile(request) =>
+      val offset = request.offset.getOrElse(0L)
+      val length = request.length.getOrElse(session.size - offset)
+      sender() ! ByteFrequencyProfileResponse.of(
+        sessionId,
+        offset,
+        length,
+        ArraySeq.unsafeWrapArray(session.profile(offset, length).get)
+      )
+
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
       val offset = request.offset.getOrElse(0L)
-      val length = request.length.getOrElse(0L)
+      val length = request.length.getOrElse(session.size - offset)
       sender() ! SearchResponse.of(
         sessionId,
         request.pattern,

@@ -158,7 +158,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
   }
 
-  "profile" should {
+  "profiler" should {
     "profile character data" in session(as) { s =>
         val prof : Array[Long] = s.profile(0, 0).get
         prof('a') shouldBe 4

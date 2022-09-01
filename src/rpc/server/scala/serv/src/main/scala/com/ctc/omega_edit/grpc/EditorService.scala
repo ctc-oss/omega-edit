@@ -248,6 +248,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
     Future.successful(in)
 
+  def profileSession(in: ByteFrequencyProfileRequest): Future[ByteFrequencyProfileResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Profile(in)))
+        .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
+
   // search
 
   def searchSession(in: SearchRequest): Future[SearchResponse] =

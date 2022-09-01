@@ -28,6 +28,7 @@ import org.scalatest.wordspec.AsyncWordSpecLike
 
 import java.nio.file.{Files, Path}
 import java.util.UUID
+import scala.collection.immutable.ArraySeq
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
@@ -62,6 +63,34 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         case SessionCountResponse(count, _) =>
           count should be(1)
       }
+
+    "profile session data" in newSession { sid =>
+      val testString = ByteString.copyFromUtf8("5555544443332210122333444455555")
+      val len = testString.size()
+      val expectedProfile = ArraySeq(
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0)
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            data = Some(testString)
+          )
+        )
+        profileResponse <- service.profileSession(ByteFrequencyProfileRequest(sid))
+      } yield {
+          profileResponse should matchPattern {
+              case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>
+          }
+      }
+    }
 
     "update session data" in newSession { sid =>
       val testString = UUID.randomUUID().toString
