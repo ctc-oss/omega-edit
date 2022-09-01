@@ -16,10 +16,10 @@
 
 package com.ctc.omega_edit
 
-import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
+import com.ctc.omega_edit.api._
 import jnr.ffi.Pointer
 
 import java.nio.ByteBuffer
@@ -164,6 +164,14 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         Failure(new RuntimeException(s"Failed to save session to file, $ec"))
     }
   }
+
+    def profile(): Option[Array[Long]] = {
+        val profile = new Array[Long](256)
+        val result = i.omega_session_profile(p, profile, 0, 0)
+        Option.when(result == 0) {
+            profile
+        }
+    }
 
   def search(
       pattern: Array[Byte],

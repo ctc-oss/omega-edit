@@ -158,6 +158,12 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
   }
 
+  "profile" should {
+    "profile data" in session(as) { s =>
+        val profile = s.profile().get
+        profile['a'] shouldBe 4
+    }
+  }
   "segments" should {
     "find stuff" in session(numbers) { s =>
       s.getSegment(3, 4) match {
