@@ -84,7 +84,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             data = Some(testString)
           )
         )
-        profileResponse <- service.profileSession(ByteFrequencyProfileRequest(sid))
+        profileResponse <- service.getByteFrequencyProfile(ByteFrequencyProfileRequest(sid))
       } yield {
           profileResponse should matchPattern {
               case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>

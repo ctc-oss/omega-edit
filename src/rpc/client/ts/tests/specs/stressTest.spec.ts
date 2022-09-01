@@ -71,10 +71,8 @@ describe('StressTest', () => {
       expect(data.length).to.equal(file_size)
 
       await pauseSessionChanges(session_id)
-      insert(session_id, 0, data).catch((e) =>
-        expect(e)
-          .to.be.an('error')
-          .with.property('message', 'Error: insert failed')
+      await insert(session_id, 0, data).catch((e) =>
+        expect(e).to.be.an('error').with.property('message', 'insert failed')
       )
       await resumeSessionChanges(session_id)
       expect(data.length).to.equal(await getComputedFileSize(session_id))

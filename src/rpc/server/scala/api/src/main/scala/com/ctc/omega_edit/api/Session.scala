@@ -69,7 +69,6 @@ trait Session {
 
   def save(to: Path): Try[Path]
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
-
   def profile(offset: Long, length: Long): Option[Array[Long]]
 
   def search(
