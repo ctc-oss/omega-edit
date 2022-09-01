@@ -251,7 +251,7 @@ message ByteFrequencyProfileRequest {
 
 message ByteFrequencyProfileResponse {
   string session_id = 1;
-  optional int64 offset = 2;
-  optional int64 length = 3;
+  int64 offset = 2;
+  int64 length = 3;
   repeated int64 frequency = 4;
 }

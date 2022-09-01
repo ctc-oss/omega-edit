@@ -18,6 +18,7 @@
  */
 
 import {
+  ByteFrequencyProfileRequest,
   CreateSessionRequest,
   ObjectId,
   SaveSessionRequest,
@@ -121,14 +122,14 @@ export function resumeSessionChanges(sessionId: string): Promise<string> {
 export function getSegment(
   sessionId: string,
   offset: number,
-  len: number
+  length: number
 ): Promise<Uint8Array> {
   return new Promise<Uint8Array>((resolve, reject) => {
     client.getSegment(
       new SegmentRequest()
         .setSessionId(sessionId)
         .setOffset(offset)
-        .setLength(len),
+        .setLength(length),
       (err, r) => {
         if (err) {
           console.log(err.message)
@@ -152,21 +153,47 @@ export function getSessionCount(): Promise<number> {
   })
 }
 
+export function profileSession(
+  sessionId: string,
+  offset: number | undefined,
+  length: number | undefined
+): Promise<number[]> {
+  return new Promise<number[]>((resolve, reject) => {
+    let request = new ByteFrequencyProfileRequest().setSessionId(sessionId)
+    if (offset && offset >= 0) request.setOffset(offset)
+    if (length && length > 0) request.setLength(length)
+    client.getByteFrequencyProfile(request, (err, r) => {
+      if (err) {
+        console.log(err.message)
+        return reject('searchSession error: ' + err.message)
+      }
+      return resolve(r.getFrequencyList())
+    })
+  })
+}
+
+// Given a computed profile, return the total number of bytes in the 7-bit ASCII range
+export function numAscii(profile: number[]): number {
+  return profile.slice(0, 128).reduce((accumulator, current) => {
+    return accumulator + current
+  }, 0)
+}
+
 export function searchSession(
   sessionId: string,
   pattern: string | Uint8Array,
-  isCaseInsensitive: boolean,
-  offset: number,
-  length: number,
+  isCaseInsensitive: boolean | undefined,
+  offset: number | undefined,
+  length: number | undefined,
   limit: number | undefined
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
     let request = new SearchRequest()
       .setSessionId(sessionId)
       .setPattern(typeof pattern == 'string' ? Buffer.from(pattern) : pattern)
-      .setIsCaseInsensitive(isCaseInsensitive)
-      .setOffset(offset)
-      .setLength(length)
+      .setIsCaseInsensitive(isCaseInsensitive ? isCaseInsensitive : false)
+    if (offset && offset >= 0) request.setOffset(offset)
+    if (length && length > 0) request.setLength(length)
     if (limit && limit > 0) request.setLimit(limit)
     client.searchSession(request, (err, r) => {
       if (err) {

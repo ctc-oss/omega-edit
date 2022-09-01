@@ -16,10 +16,10 @@
 
 package com.ctc.omega_edit
 
-import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
+import com.ctc.omega_edit.api._
 import jnr.ffi.Pointer
 
 import java.nio.ByteBuffer
@@ -165,6 +165,11 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
 
+  def profile(offset: Long, length: Long): Option[Array[Long]] = {
+      val profile = new Array[Long](256)
+      Option.when(i.omega_session_profile(p, profile, offset, length) == 0) { profile }
+  }
+
   def search(
       pattern: Array[Byte],
       offset: Long,
@@ -213,6 +218,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       }
     } finally i.omega_segment_destroy(sp)
   }
+
 }
 
 private object Edit {

@@ -248,6 +248,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
     Future.successful(in)
 
+  // profile
+
+  def getByteFrequencyProfile(in: ByteFrequencyProfileRequest): Future[ByteFrequencyProfileResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Profile(in)))
+        .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
+
   // search
 
   def searchSession(in: SearchRequest): Future[SearchResponse] =
@@ -354,13 +360,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
           )
       }
-
-  //
-  // unimplemented
-  //
-
-  def getByteFrequencyProfile(in: omega_edit.ByteFrequencyProfileRequest): Future[ByteFrequencyProfileResponse] =
-    grpcFailFut(Status.UNIMPLEMENTED)
 }
 
 object EditorService {

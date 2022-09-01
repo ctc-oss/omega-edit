@@ -61,6 +61,7 @@ for objtype in shared static; do
   echo "Running $type tests with $objtype linking..."
   LD_LIBRARY_PATH="./lib" DYLD_LIBRARY_DIR="$LD_LIBRARY_PATH" $checker "build-$objtype-$type/bin/server_test"
   kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+  sleep 2
   LD_LIBRARY_PATH="./lib" DYLD_LIBRARY_DIR="$LD_LIBRARY_PATH" "build-$objtype-$type/bin/server" --target=127.0.0.1:9000 &
   server_pid=$!
   pushd src/rpc/client/ts/
