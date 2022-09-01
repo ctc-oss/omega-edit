@@ -165,13 +165,10 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
 
-    def profile(): Option[Array[Long]] = {
-        val profile = new Array[Long](256)
-        val result = i.omega_session_profile(p, profile, 0, 0)
-        Option.when(result == 0) {
-            profile
-        }
-    }
+  def profile(offset: Long, length: Long): Option[Array[Long]] = {
+      val profile = new Array[Long](256)
+      Option.when(i.omega_session_profile(p, profile, offset, length) == 0) { profile }
+  }
 
   def search(
       pattern: Array[Byte],
@@ -221,6 +218,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       }
     } finally i.omega_segment_destroy(sp)
   }
+
 }
 
 private object Edit {
