@@ -1,0 +1,204 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#                                                                                                               
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at                                                    
+#                                                                                                               
+#     http://www.apache.org/licenses/LICENSE-2.0                                                                
+#                                                                                                               
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
+# implied.  See the License for the specific language governing permissions and limitations under the License.  
+
+---
+name: Unit Tests
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build-lib-cpp-tests:
+    strategy:
+      matrix:
+        os: [ windows-latest, macos-latest, ubuntu-latest ]
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setup Valgrind 🔬
+        if: runner.os == 'Linux'
+        run: sudo apt-get -y install valgrind
+
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Conan 💪
+        id: conan
+        uses: turtlebrowser/get-conan@main
+
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
+
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
+
+      - name: Prepare, Build, and Install Ωedit 🔧
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
+          cmake --build build
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
+
+      - name: Copy library file linux 🚚
+        if: runner.os == 'Linux'
+        run: cp _install/lib/libomega_edit.so ./lib/
+      
+      - name: Copy library file mac 🚚
+        if: runner.os == 'macOS'
+        run: cp _install/lib/libomega_edit.dylib ./lib/
+
+      - name: Copy library file windows 🚚
+        if: runner.os == 'Windows'
+        run: cp _install/bin/omega_edit.dll ./lib/
+        shell: bash
+
+      - name: Test Ωedit RPC on macOS 📋
+        if: runner.os == 'macOS'
+        run: |
+          build/bin/server_test
+
+      - name: Test Ωedit RPC on Linux with valgrind 📋
+        if: runner.os == 'Linux'
+        run: |
+          valgrind build/bin/server_test
+
+      - name: Prepare, and Build Ωedit Integration Tests 🔧
+        run: |
+          cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
+          cmake --build build-tests-integration
+
+      - name: Run Ωedit Integration Tests 📋
+        working-directory: build-tests-integration
+        run: |
+          ctest -C Debug --output-on-failure
+
+      - name: Build Tests 🔧
+        run: |
+          cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Run Tests 📋
+        if: runner.os != 'Windows'
+        working-directory: build-tests
+        run: |
+          ctest -C Debug --output-on-failure
+
+      - name: Upload Native JARs - Macos 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'macOS'
+        with:
+          name: libomega_edit.dylib
+          path: lib/libomega_edit.dylib
+
+      - name: Upload Native JARs - Linux 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'Linux'
+        with:
+          name: libomega_edit.so
+          path: lib/libomega_edit.so
+
+      - name: Upload Native JARs - Windows 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'Windows'
+        with:
+          name: omega_edit.dll
+          path: lib/omega_edit.dll
+
+  scala-tests:
+    needs: [build-lib-cpp-tests]
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it seems to hang
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+
+      - name: Download macos library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'macOS'
+        with:
+          name: libomega_edit.dylib
+          path: ./lib/libomega_edit.dylib
+
+      - name: Download linux library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'Linux'
+        with:
+          name: libomega_edit.so
+          path: lib/libomega_edit.so
+
+      - name: Download windows library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'Windows'
+        with:
+          name: omega_edit.dll
+          path: lib/omega_edit.dll
+
+      - name: Move out library file 🛻
+        run: |
+          if [[ ${{ runner.os }} == 'Linux' ]]; then
+            LIB_FILENAME="libomega_edit.so"
+          elif [[ ${{ runner.os }} == 'macOS' ]]; then
+            LIB_FILENAME="libomega_edit.dylib"
+          else
+            LIB_FILENAME="omega_edit.dll"
+          fi
+
+          mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
+          mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
+          rm -rf "lib/${LIB_FILENAME}_dir"
+        shell: bash # this here bc when Windows is added its needed
+
+      - name: Check Scala headers ✔️
+        run: sbt headerCheckAll
+        working-directory: src/rpc/server/scala
+
+      - name: Package Scala API 🎁
+        run: sbt installM2 # runs test so specifically running sbt test not needed
+        working-directory: src/rpc/server/scala
+
+      - name: Archive M2 🔺
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}-artifacts
+          path: ~/.m2/repository/com/ctc/*
+          if-no-files-found: error
+
+      - name: Coverage report 📋
+        run: sbt howMuchCoverage
+        working-directory: src/rpc/server/scala
+
+      - name: Test Scala RPC server 📋
+        run: sbt serv/test
+        working-directory: src/rpc/server/scala
