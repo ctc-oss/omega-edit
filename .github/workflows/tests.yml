@@ -101,7 +101,6 @@ jobs:
           cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
 
       - name: Run Tests 📋
-        if: runner.os != 'Windows'
         working-directory: build-tests
         run: |
           ctest -C Debug --output-on-failure
