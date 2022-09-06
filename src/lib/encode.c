@@ -41,11 +41,11 @@ size_t omega_encode_hex2bin(const char *src, omega_byte_t *dst, size_t src_lengt
         omega_byte_t d;
 
         if (c >= '0' && c <= '9') {
-            d = (c - '0') << 4;
+            d = (omega_byte_t) ((c - '0') << 4);
         } else if (c >= 'a' && c <= 'f') {
-            d = (c - 'a' + 10) << 4;
+            d = (omega_byte_t) ((c - 'a' + 10) << 4);
         } else if (c >= 'A' && c <= 'F') {
-            d = (c - 'A' + 10) << 4;
+            d = (omega_byte_t) ((c - 'A' + 10) << 4);
         } else {
             return 0;
         }
