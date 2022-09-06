@@ -35,17 +35,17 @@ describe('Searching', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   it('Should search sessions', async () => {
-    let change_id = await overwrite(
+    const change_id = await overwrite(
       session_id,
       0,
       'haystackneedleNEEDLENeEdLeneedhay'
     )
     expect(1).to.equal(change_id)
-    let file_size = await getComputedFileSize(session_id)
+    const file_size = await getComputedFileSize(session_id)
     let needles = await searchSession(
       session_id,
       'needle',
@@ -101,7 +101,7 @@ describe('Searching', () => {
   })
 
   it('Should work with replace on binary data', async () => {
-    let change_id = await overwrite(
+    const change_id = await overwrite(
       session_id,
       0,
       new Uint8Array([123, 6, 5, 4, 7, 8, 9, 0, 254, 255])
@@ -165,7 +165,7 @@ describe('Searching', () => {
   })
 
   it('Should work with replace on character data', async () => {
-    let change_id = await overwrite(
+    const change_id = await overwrite(
       session_id,
       0,
       'Hey there is hay in my Needles'
@@ -189,8 +189,8 @@ describe('Searching', () => {
     needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
     expect([14, 28]).deep.equals(needles)
     await rep(session_id, 28, pattern.length, replace)
-    let file_size = await getComputedFileSize(session_id)
-    let segment = await getSegment(session_id, 0, file_size)
+    const file_size = await getComputedFileSize(session_id)
+    const segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('Hey there are needles in my hay'))
   })
 })

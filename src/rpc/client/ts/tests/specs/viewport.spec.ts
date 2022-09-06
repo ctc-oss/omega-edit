@@ -61,11 +61,11 @@ describe('Viewports', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   it('Should create and destroy viewports', async () => {
-    let viewport_id_1 = await createViewport(
+    const viewport_id_1 = await createViewport(
       'test_vpt_1',
       session_id,
       0,
@@ -81,7 +81,7 @@ describe('Viewports', () => {
     }
     expect(1).to.equal(await getViewportCount(session_id))
 
-    let viewport_id_2 = await createViewport(
+    const viewport_id_2 = await createViewport(
       undefined,
       session_id,
       10,
@@ -123,7 +123,7 @@ describe('Viewports', () => {
     file_size = await getComputedFileSize(session_id)
     expect(12).to.equal(file_size)
 
-    let segment = await getSegment(session_id, 0, file_size)
+    const segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('12345678!@#C'))
 
     viewport_data = await getViewportData(viewport_id_1)
@@ -132,7 +132,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_id_2)
     expect('#C').to.equal(decode(viewport_data.getData_asU8()))
 
-    let deleted_viewport_id = await destroyViewport(viewport_id_2)
+    const deleted_viewport_id = await destroyViewport(viewport_id_2)
     expect(viewport_id_2).to.equal(deleted_viewport_id)
     // expect(1).to.equal(await getViewportCount(session_id))
   })
@@ -141,14 +141,14 @@ describe('Viewports', () => {
     let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
     expect(1).to.equal(change_id)
 
-    let viewport_id = await createViewport(
+    const viewport_id = await createViewport(
       'test_vpt_no_float',
       session_id,
       10,
       5,
       false
     )
-    let viewport_floating_id = await createViewport(
+    const viewport_floating_id = await createViewport(
       'test_vpt_label',
       session_id,
       10,

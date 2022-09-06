@@ -34,13 +34,13 @@ describe('Profiing', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   describe('Profiler', () => {
     it('Should profile an empty session', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      let profile = await profileSession(session_id, 0, 0)
+      const profile = await profileSession(session_id, 0, 0)
       expect(profile.length).to.equal(256)
       expect(
         profile.reduce((accumulator, current) => {
@@ -49,10 +49,10 @@ describe('Profiing', () => {
       ).to.equal(0)
     })
     it('Should profile character data', async () => {
-      let content = 'abaabbbaaaabbbbc'
-      let change_id = await overwrite(session_id, 0, content)
+      const content = 'abaabbbaaaabbbbc'
+      const change_id = await overwrite(session_id, 0, content)
       expect(1).to.equal(change_id)
-      let file_size = await getComputedFileSize(session_id)
+      const file_size = await getComputedFileSize(session_id)
       expect(content.length).equals(file_size)
       let profile = await profileSession(session_id, 0, 0)
       expect(profile.length).to.equal(256)
@@ -79,10 +79,10 @@ describe('Profiing', () => {
       expect(profile['d'.charCodeAt(0)]).to.equal(0)
     })
     it('Should profile binary data', async () => {
-      let content = new Uint8Array([0, 0, 1, 1, 1, 2, 2, 1, 3, 0, 255])
-      let change_id = await overwrite(session_id, 0, content)
+      const content = new Uint8Array([0, 0, 1, 1, 1, 2, 2, 1, 3, 0, 255])
+      const change_id = await overwrite(session_id, 0, content)
       expect(1).to.equal(change_id)
-      let file_size = await getComputedFileSize(session_id)
+      const file_size = await getComputedFileSize(session_id)
       expect(content.length).equals(file_size)
       let profile = await profileSession(session_id, 0, 0)
       expect(profile.length).to.equal(256)

@@ -22,7 +22,7 @@ import { getClient, waitForReady } from '../../src/settings'
 import {
   createSession,
   destroySession,
-  // getSessionCount,
+  getSessionCount,
 } from '../../src/session'
 
 export const deadline = new Date()
@@ -31,20 +31,18 @@ deadline.setSeconds(deadline.getSeconds() + 10)
 export async function custom_setup() {
   let session_id = ''
   expect(await waitForReady(getClient(), deadline))
-  // expect(0).to.equal(await getSessionCount())
 
-  let new_session_id = await createSession(undefined, undefined)
+  const new_session_id = await createSession(undefined, undefined)
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
 
   // C++ RPC server uses 36 character UUIDs and the Scala server uses 8 character IDs
   expect(new_session_id.length).to.satisfy((l) => l === 36 || l === 8)
-  // expect(1).to.equal(await getSessionCount())
+  expect(1).to.be.lessThanOrEqual(await getSessionCount())
   return new_session_id
 }
 
 export async function cleanup(session_id: string) {
-  // expect(1).to.equal(await getSessionCount())
+  expect(1).to.be.lessThanOrEqual(await getSessionCount())
   const destroyed_session_id = await destroySession(session_id)
   expect(destroyed_session_id).to.equal(session_id)
-  // expect(0).to.equal(await getSessionCount())
 }
