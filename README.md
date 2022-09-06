@@ -34,8 +34,7 @@
 
 ## Goal
 
-The goal of this project is to provide an open source library for building editors that can handle massive files,
-multiple authors, and multiple viewports.
+The goal of this project is to provide an open source library for building editors that can handle massive files, and multiple viewports.
 
 ## User documentation
 
