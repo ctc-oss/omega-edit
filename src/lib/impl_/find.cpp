@@ -45,7 +45,7 @@ const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_l
     if (needle_length > haystack_length) { return nullptr; }
     if (needle_length == 1) {
         auto *result = (const unsigned char *) std::memchr(haystack, *needle, haystack_length);
-        return (result) ? result : nullptr;
+        return result ? result : nullptr;
     }
     const auto needle_length_minus_1 = needle_length - 1;
     const unsigned char last_needle_char = needle[needle_length_minus_1];

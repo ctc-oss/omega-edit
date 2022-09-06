@@ -54,7 +54,7 @@ OMEGA_EDIT_EXPORT std::string omega_viewport_get_string(const omega_viewport_t *
  * @return positive change serial number on success, zero otherwise
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t offset,
-                                                   const std::string &str) noexcept;
+                                                   const std::string_view &str) noexcept;
 
 /**
  * Overwrite bytes at the given offset with the given new string
@@ -64,7 +64,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert_string(omega_session_t *session_ptr,
  * @return positive change serial number on success, zero otherwise
  */
 OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset,
-                                                      const std::string &str) noexcept;
+                                                      const std::string_view &str) noexcept;
 
 /**
  * Gets a segment of data from the given session
@@ -85,9 +85,11 @@ OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_sessi
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
  */
-OMEGA_EDIT_EXPORT omega_search_context_t *
-omega_search_create_context_string(omega_session_t *session_ptr, const std::string &pattern, int64_t session_offset = 0,
-                                   int64_t session_length = 0, int case_insensitive = 0) noexcept;
+OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context_string(omega_session_t *session_ptr,
+                                                                             const std::string_view &pattern,
+                                                                             int64_t session_offset = 0,
+                                                                             int64_t session_length = 0,
+                                                                             int case_insensitive = 0) noexcept;
 
 #endif//__cplusplus
 

@@ -33,7 +33,7 @@
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <utime.h>
+#include <sys/stat.h>
 #ifndef O_BINARY
 #define O_BINARY (0)
 #endif
@@ -52,7 +52,6 @@ int omega_util_mkstemp(char *tmpl) {
     static uint64_t value;
     const size_t len = strlen(tmpl);
     char *template;
-    int count, fd;
     int saved_errno = errno;
 
     if (len < 6 || 0 != strcmp(&tmpl[len - 6], "XXXXXX")) {
@@ -70,7 +69,7 @@ int omega_util_mkstemp(char *tmpl) {
     value += random() ^ getpid();
 #endif
 
-    for (count = 0; count < TMP_MAX; value += 7777, ++count) {
+    for (int count = 0; count < TMP_MAX; value += 7777, ++count) {
         uint64_t v = value;
 
         // Fill in the random bits.
@@ -86,7 +85,7 @@ int omega_util_mkstemp(char *tmpl) {
         v /= 62;
         template[5] = letters[v % 62];
 
-        fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
+        int fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
         if (fd >= 0) {
             errno = saved_errno;
             return fd;
@@ -100,6 +99,21 @@ int omega_util_mkstemp(char *tmpl) {
     return -1;
 }
 
+static inline int omega_util_utime_(const char * file_name) {
+#ifdef OMEGA_BUILD_WINDOWS
+    if (utime(file_name, NULL)) {
+        DBG(perror("omega_util_utime_"););
+        return -1;
+    }
+#else
+    if (utimensat(AT_FDCWD, file_name, NULL, AT_SYMLINK_NOFOLLOW)) {
+        DBG(perror("omega_util_utime_"););
+        return -1;
+    }
+#endif
+    return 0;
+}
+
 int omega_util_touch(const char *file_name, int create) {
     int fd = OPEN(file_name, create ? O_RDWR | O_CREAT : O_RDWR, 0644);
     if (fd < 0) {
@@ -111,7 +125,7 @@ int omega_util_touch(const char *file_name, int create) {
         }
     }
     close(fd);
-    if (utime(file_name, NULL)) {
+    if (omega_util_utime_(file_name)) {
         DBG(perror("omega_util_touch"););
         return -1;
     }
@@ -147,10 +161,9 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
     assert(buffer);
     if (shift_left > 0 && shift_left < 8) {
         omega_byte_t shift_right = 8 - shift_left;
-        omega_byte_t mask = ((1 << shift_left) - 1) << shift_right;
+        omega_byte_t mask = (omega_byte_t) (((1 << shift_left) - 1) << shift_right);
         omega_byte_t bits1 = 0;
-        int64_t i;
-        for (i = len - 1; i >= 0; --i) {
+        for (int64_t i = len - 1; i >= 0; --i) {
             const unsigned char bits2 = buffer[i] & mask;
             buffer[i] <<= shift_left;
             buffer[i] |= bits1 >> shift_right;
@@ -165,10 +178,9 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
     assert(buffer);
     if (shift_right > 0 && shift_right < 8) {
         omega_byte_t shift_left = 8 - shift_right;
-        omega_byte_t mask = (1 << shift_right) - 1;
+        omega_byte_t mask = (omega_byte_t) ((1 << shift_right) - 1);
         omega_byte_t bits1 = 0;
-        int64_t i;
-        for (i = len - 1; i >= 0; --i) {
+        for (int64_t i = len - 1; i >= 0; --i) {
             const unsigned char bits2 = buffer[i] & mask;
             buffer[i] >>= shift_right;
             buffer[i] |= bits1 << shift_left;
@@ -182,8 +194,7 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
 void omega_util_apply_byte_transform(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform,
                                      void *user_data_ptr) {
     assert(buffer);
-    int64_t i;
-    for (i = 0; i < len; ++i) { buffer[i] = transform(buffer[i], user_data_ptr); }
+    for (int64_t i = 0; i < len; ++i) { buffer[i] = transform(buffer[i], user_data_ptr); }
 }
 
 int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out_path,

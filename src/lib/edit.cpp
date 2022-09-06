@@ -155,7 +155,7 @@ static inline omega_model_segment_ptr_t clone_model_segment_(const omega_model_s
 }
 
 static inline void free_model_changes_(omega_model_struct *model_ptr) {
-    for (auto &&change_ptr : model_ptr->changes) {
+    for (const auto &change_ptr : model_ptr->changes) {
         if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
             omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
@@ -164,7 +164,7 @@ static inline void free_model_changes_(omega_model_struct *model_ptr) {
 }
 
 static inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
-    for (auto &&change_ptr : model_ptr->changes_undone) {
+    for (const auto &change_ptr : model_ptr->changes_undone) {
         if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
             omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
@@ -274,7 +274,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const const_omega_chan
     return -1;
 }
 
-static int update_model_(omega_model_t *model_ptr, const_omega_change_ptr_t &change_ptr) {
+static int update_model_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) {
     if (change_ptr->kind == change_kind_t::CHANGE_OVERWRITE) {
         // Overwrite will model just like a DELETE, followed by an INSERT
         const_omega_change_ptr_t const_change_ptr = del_(0, change_ptr->offset, change_ptr->length);
@@ -333,7 +333,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
     assert(session_ptr);
-    for (auto &&model_ptr : session_ptr->models_) {
+    for (const auto &model_ptr : session_ptr->models_) {
         if (model_ptr->file_ptr) { fclose(model_ptr->file_ptr); }
     }
     while (!session_ptr->search_contexts_.empty()) {
@@ -588,9 +588,8 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
             length = FTELL(session_ptr->models_.back()->file_ptr);
         }
         initialize_model_segments_(session_ptr->models_.back()->model_segments, length);
-        for (auto iter = session_ptr->models_.back()->changes.begin();
-             iter != session_ptr->models_.back()->changes.end(); ++iter) {
-            if (0 > update_model_(session_ptr->models_.back().get(), *iter)) { return -1; }
+        for (const auto &change : session_ptr->models_.back()->changes) {
+            if (0 > update_model_(session_ptr->models_.back().get(), change)) { return -1; }
         }
 
         // Negate the undone change's serial number to indicate that the change has been undone
