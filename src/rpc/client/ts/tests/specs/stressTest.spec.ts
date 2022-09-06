@@ -51,7 +51,7 @@ describe('StressTest', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   it(

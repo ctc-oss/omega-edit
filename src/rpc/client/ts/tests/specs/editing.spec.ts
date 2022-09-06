@@ -32,7 +32,7 @@ describe('Editing', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   describe('Insert', () => {
