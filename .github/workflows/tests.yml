@@ -177,7 +177,7 @@ jobs:
           mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
           mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
           rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # this here bc when Windows is added its needed
+        shell: bash # here for when Windows is added
 
       - name: Check Scala headers ✔️
         run: sbt headerCheckAll
@@ -201,3 +201,91 @@ jobs:
       - name: Test Scala RPC server 📋
         run: sbt serv/test
         working-directory: src/rpc/server/scala
+
+  typescript-tests:
+    needs: [scala-tests]
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it some tests don't function properly
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.4.1
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+
+      - name: Download macos library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'macOS'
+        with:
+          name: libomega_edit.dylib
+          path: ./lib/libomega_edit.dylib
+
+      - name: Download linux library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'Linux'
+        with:
+          name: libomega_edit.so
+          path: lib/libomega_edit.so
+
+      - name: Download windows library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'Windows'
+        with:
+          name: omega_edit.dll
+          path: lib/omega_edit.dll
+
+      - name: Move out library file 🛻
+        run: |
+          if [[ ${{ runner.os }} == 'Linux' ]]; then
+            LIB_FILENAME="libomega_edit.so"
+          elif [[ ${{ runner.os }} == 'macOS' ]]; then
+            LIB_FILENAME="libomega_edit.dylib"
+          else
+            LIB_FILENAME="omega_edit.dll"
+          fi
+
+          mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
+          mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
+          rm -rf "lib/${LIB_FILENAME}_dir"
+        shell: bash # here for when Windows is added
+
+      - name: Package Scala API 🎁
+        run: sbt installM2 # runs test so specifically running sbt test not needed
+        working-directory: src/rpc/server/scala
+
+      - name: Package & Run Scala RPC server 📋
+        run: |
+          sbt pkgServer
+          cd serv/target/universal/
+          unzip -o "*.zip"
+          kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+          ./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
+          server_pid=$!
+          echo "server_pid=$server_pid" >> $GITHUB_ENV
+        shell: bash # here for when windows is added
+        working-directory: src/rpc/server/scala
+
+      - name: Yarn - Install
+        run: yarn install
+        shell: bash # here for when windows is added
+        working-directory: src/rpc/client/ts
+      
+      - name: Yarn - Compile SRC
+        run: yarn compile-src
+        shell: bash # here for when windows is added
+        working-directory: src/rpc/client/ts
+
+      - name: Yarn Test
+        run: yarn test
+        shell: bash # here for when windows is added
+        working-directory: src/rpc/client/ts
+
+      - name: Kill Scala RPC Server
+        run: kill -9 ${{ env.server_pid }}
+        shell: bash # here for when windows is added
