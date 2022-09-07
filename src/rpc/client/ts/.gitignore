@@ -15,3 +15,5 @@ omega_edit_*.ts
 **/*.js.map
 package
 **/out/
+omega-edit-grpc-server-*
+server_pid
