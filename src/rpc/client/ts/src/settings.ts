@@ -20,7 +20,8 @@
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
-const uri = '127.0.0.1:9000'
+const port = process.env.PORT || '9000'
+const uri = `127.0.0.1:${port}`
 let creds = grpc.credentials.createInsecure()
 const client = new EditorClient(uri, creds)
 export const ALL_EVENTS = ~0

@@ -23,9 +23,9 @@
     "postpackage": "run-script-os",
     "postpackage:default": "rm -rf out/*.d.ts out/.npmignore out/package.json out/README.md && mv out/omega-edit* .",
     "postpackage:windows": "del /q out/*.d.ts out/.npmignore out/package.json out/README.md && move out/omega-edit* .",
-    "pretest": "node -e \"require('./runTests.ts').runScalaServer()\"",
-    "test": "mocha --exit --require ts-node/register ./tests/specs/*.spec.ts",
-    "posttest": "node -e \"require('./runTests.ts').stopScalaServer()\"",
+    "pretest": "node runTests.ts runScalaServer",
+    "test": "mocha --exit --require ts-node/register ./tests/specs/*.spec.ts || yarn posttest",
+    "posttest": "node runTests.ts stopScalaServer",
     "lint": "yarn run prettier src -c"
   },
   "devDependencies": {
