@@ -93,18 +93,17 @@ lazy val `omega-edit` = project
     name := "omega-edit",
     publish / skip := true
   )
-  .aggregate(api, spi, native)
+  .aggregate(api, spi, native, serv)
 
 lazy val api = project
   .in(file("api"))
-  .dependsOn(spi)
+  .dependsOn(spi, native % "test->compile")
   .settings(commonSettings)
   .settings(
     name := "omega-edit",
     libraryDependencies ++= {
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.0",
-        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
@@ -115,20 +114,6 @@ lazy val api = project
     buildInfoPackage := organization.value + ".omega_edit",
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
-    // ensure the native jar is published locally for tests
-    resolvers += Resolver.mavenLocal,
-    externalResolvers ++= Seq(
-      ghb_resolver,
-      Resolver.mavenLocal
-    ),
-    Compile / Keys.compile :=
-      (Compile / Keys.compile)
-        .dependsOn(native / publishM2)
-        .value,
-    Test / Keys.test :=
-      (Test / Keys.test)
-        .dependsOn(native / publishM2)
-        .value
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -139,6 +124,7 @@ lazy val native = project
   .settings(
     name := "omega-edit-native",
     artifactClassifier := Some(platform.id),
+    exportJars := true,
     Compile / packageBin / mappings += {
       baseDirectory
         .map(_ / s"$libdir/${mapping._1}")
@@ -169,14 +155,12 @@ lazy val spi = project
 
 lazy val serv = project
   .in(file("serv"))
-  .dependsOn(spi)
+  .dependsOn(api, native)
   .settings(commonSettings)
   .settings(
     name := "omega-edit-grpc-server",
     libraryDependencies ++= {
       Seq(
-        "com.ctc" %% "omega-edit" % omegaVersion,
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
         "com.monovore" %% "decline" % "2.3.0",
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
@@ -206,10 +190,6 @@ lazy val serv = project
 addCommandAlias(
   "installM2",
   "; clean; native/publishM2; test; api/publishM2; spi/publishM2"
-)
-addCommandAlias(
-  "installLocal",
-  "; clean; native/publishLocal; test; api/publishLocal; spi/publishLocal"
 )
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
 addCommandAlias(
