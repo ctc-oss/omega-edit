@@ -84,6 +84,8 @@ OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_sessi
  * will track the computed session length
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
+ * @warning Ensure that the pattern length does not exceed the session_length - session_offset.  This is considered an
+ * error and a null pointer will be returned.
  */
 OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context_string(omega_session_t *session_ptr,
                                                                              const std::string_view &pattern,
