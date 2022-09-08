@@ -1072,6 +1072,14 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="search_8h_1a849c56368e7efdddb2b6d6f95ac0d361"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
 <dd><p>Create a search context </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Ensure that the pattern_length does not exceed the session_length - session_offset. This is considered an error and a null pointer will be returned. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -1093,6 +1101,14 @@
 <dt class="sig sig-object cpp">
 <span class="target" id="search_8h_1a67ee211e434b4c2af64e8e1535f655be"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
 <dd><p>Create a search context </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Ensure that the pattern_length does not exceed the session_length - session_offset. This is considered an error and a null pointer will be returned. </p>
+</div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
