@@ -15,10 +15,20 @@
 syntax = "proto3";
 
 import "google/protobuf/empty.proto";
+import "scalapb/scalapb.proto";
 
 package omega_edit;
 
 option cc_enable_arenas = true;
+
+option (scalapb.options) = {
+  /* ScalaPB is weird: required fields have default values in the generated code.
+
+     This disables *all* default constructor values, which can be annoying for messages with optional values that now need to pass `None` explicitly. However, it is better than having
+     default values for required fields, which the programmer wouldn't notice are actually required.
+   */
+  no_default_values_in_constructor: true;
+};
 
 service Editor {
   rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);

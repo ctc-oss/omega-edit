@@ -76,7 +76,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       )
     )).mapTo[Result].map {
       case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString)
-      case Ok(id)              => SaveSessionResponse(id)
+      case Ok(id)              => throw grpcFailure(Status.INTERNAL, s"didn't receive path for save of session $id")
       case Err(c)              => throw grpcFailure(c)
     }
 
@@ -115,7 +115,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
                 length = ok.data.size.toLong,
                 data = ok.data
               )
-          case Ok(id) => ViewportDataResponse(id)
+          case Ok(id) => throw grpcFailure(Status.INTERNAL, s"didn't receive data for viewport $id")
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
     }
@@ -142,14 +142,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         (editors ? SessionOp(in.sessionId, LookupChange(cid)))
           .mapTo[Result]
           .map {
-            case ok: Ok with ChangeDetails =>
-              ChangeDetailsResponse(
-                in.sessionId,
-                cid,
-                offset = ok.change.offset,
-                length = ok.change.length
-              )
-            case Ok(_)  => ChangeDetailsResponse(in.sessionId)
+            case ok: Ok with ChangeDetails => ok.toChangeResponse(in.sessionId)
+            case Ok(_)  => throw grpcFailure(Status.INTERNAL, s"didn't receive data for change details of session ${in.sessionId}")
             case Err(c) => throw grpcFailure(c)
           }
     }
@@ -157,8 +151,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def getComputedFileSize(in: ObjectId): Future[ComputedFileSizeResponse] =
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Count => ComputedFileSizeResponse(in.id, ok.count)
-      case Err(c)           => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
+      case Err(c)            => throw grpcFailure(c)
+      case _                 => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
@@ -189,7 +183,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case ok: Ok with Count =>
           CountResponse(in.sessionId, in.kind, ok.count)
         case Err(c) => throw grpcFailure(c)
-        case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+        case _      => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
       }
 
   /** Event streams
@@ -197,7 +191,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def subscribeToSessionEvents(in: ObjectId): Source[SessionEvent, NotUsed] = {
     val f = (editors ? SessionOp(in.id, Session.Watch)).mapTo[Result].map {
       case ok: Ok with Session.Events =>
-        ok.stream.map(u => SessionEvent(u.id))
+        // TODO: this isn't a valid implementation
+        ok.stream.map(u => SessionEvent.defaultInstance.copy(sessionId = u.id))
       case _ => Source.failed(grpcFailure(Status.UNKNOWN))
     }
     Await.result(f, 1.second)
@@ -252,7 +247,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def getByteFrequencyProfile(in: ByteFrequencyProfileRequest): Future[ByteFrequencyProfileResponse] =
     (editors ? SessionOp(in.sessionId, Session.Profile(in)))
-        .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
+      .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
 
   // search
 
@@ -266,7 +261,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // redo the last undo
@@ -275,7 +270,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // clear changes
@@ -305,7 +300,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
       case ok: Ok with ChangeDetails => ok.toChangeResponse(ok.id)
       case Err(c)                    => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                         => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // pause session changes
@@ -371,7 +366,8 @@ object EditorService {
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
 
-  def bind(iface: String = "127.0.0.1", port: Int = 9000)(implicit
+  def bind(iface: String = "127.0.0.1", port: Int = 9000)(
+      implicit
       system: ActorSystem
   ): Future[Http.ServerBinding] =
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
