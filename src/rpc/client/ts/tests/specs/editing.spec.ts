@@ -18,11 +18,36 @@
  */
 
 import { expect } from 'chai'
-import { getComputedFileSize, getSegment } from '../../src/session'
+import {getComputedFileSize, getSegment, unsubscribeSession} from '../../src/session'
 import { del, getLastChange, insert, overwrite } from '../../src/change'
-import { ChangeKind } from '../../src/omega_edit_pb'
+import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { cleanup, custom_setup } from './common'
+import { getClient } from '../../src/settings'
+
+let session_callbacks = new Map()
+
+async function subscribeSession(session_id: string) {
+  await getClient()
+    .subscribeToSessionEvents(new ObjectId().setId(session_id))
+    .on('data', (sessionEvent) => {
+      session_callbacks.set(
+        session_id,
+        session_callbacks.has(session_id)
+          ? 1 + session_callbacks.get(session_id)
+          : 1
+      )
+      const event = sessionEvent.getSessionEventKind()
+      console.log(
+        'session: ' +
+          session_id +
+          ', event: ' +
+          event +
+          ', count: ' +
+          session_callbacks.get(session_id)
+      )
+    })
+}
 
 describe('Editing', () => {
   let session_id = ''
@@ -41,12 +66,15 @@ describe('Editing', () => {
       const data = encode('abcghijklmnopqrstuvwxyz')
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
+      await subscribeSession(session_id)
       change_id = await insert(session_id, 3, encode('def'))
       expect(change_id).to.be.a('number').that.equals(2)
       const file_size = await getComputedFileSize(session_id)
       expect(data.length + 3).equals(file_size)
       const segment = await getSegment(session_id, 0, file_size)
       expect(encode('abcdefghijklmnopqrstuvwxyz')).deep.equals(segment)
+      console.log(session_callbacks)
+      expect(1).to.equal(session_callbacks.get(session_id)) // session subscribed for 1 event
     })
   })
 
@@ -54,12 +82,16 @@ describe('Editing', () => {
     it('Should delete some data', async () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
       const data = encode('abcdefghijklmnopqrstuvwxyz')
+      await subscribeSession(session_id)
+      expect(false).to.equal(session_callbacks.has(session_id))
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
       let segment = await getSegment(session_id, 0, data.length)
       expect(data).deep.equals(segment)
       let file_size = await getComputedFileSize(session_id)
       expect(data.length).equals(file_size)
+      expect(1).to.equal(session_callbacks.get(session_id))
+      await unsubscribeSession(session_id)
       const del_change_id = await del(session_id, 13, 10)
       expect(del_change_id)
         .to.be.a('number')
@@ -68,6 +100,7 @@ describe('Editing', () => {
       expect(data.length - 10).equals(file_size)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmxyz'))
+      expect(1).to.equal(session_callbacks.get(session_id)) // unsubscribed before the second event
     })
   })
 

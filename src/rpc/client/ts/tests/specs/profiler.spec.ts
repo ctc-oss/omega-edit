@@ -26,7 +26,7 @@ import {
 import { overwrite } from '../../src/change'
 import { cleanup, custom_setup } from './common'
 
-describe('Profiing', () => {
+describe('Profiling', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {

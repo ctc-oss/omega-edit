@@ -163,13 +163,15 @@ public:
 
     [[nodiscard]] inline size_t get_session_count() const { return session_to_id_.size(); }
 
-    inline void destroy_session_subscription(const std::string &session_id) {
+    inline SessionEventWriter *destroy_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         if (session_event_subscription_iter != session_event_subscriptions_.end()) {
             assert(session_event_subscription_iter->second->empty());
             session_event_subscription_iter->second->Finish(Status::OK);
+            return session_event_subscription_iter->second;
         }
+        return nullptr;
     }
 
     void destroy_session(const std::string &session_id) {
@@ -181,10 +183,10 @@ public:
             assert(session_ptr);
             const auto session_to_id_iter = session_to_id_.find(session_ptr);
             assert(session_to_id_iter != session_to_id_.end());
-            destroy_session_subscription(session_id);
             for (auto iter = id_to_viewport_.begin(); iter != id_to_viewport_.end(); iter = id_to_viewport_.begin()) {
                 destroy_viewport(iter->first);
             }
+            destroy_session_subscription(session_id);
             omega_edit_destroy_session(session_ptr);
             session_to_id_.erase(session_to_id_iter);
             id_to_session_.erase(id_to_session_iter);
@@ -240,13 +242,15 @@ public:
         return viewport_id;
     }
 
-    void destroy_viewport_subscription(const std::string &viewport_id) {
+    ViewportEventWriter *destroy_viewport_subscription(const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         if (viewport_event_subscription_iter != viewport_event_subscriptions_.end()) {
             assert(viewport_event_subscription_iter->second->empty());
             viewport_event_subscription_iter->second->Finish(Status::OK);
+            return viewport_event_subscription_iter->second;
         }
+        return nullptr;
     }
 
     void destroy_viewport(const std::string &viewport_id) {
@@ -459,7 +463,6 @@ public:
                 session_ptr, request->has_session_id_desired() ? &request->session_id_desired() : nullptr);
         assert(!session_id.empty());
         assert(session_id == session_manager_.get_session_id(session_ptr));
-        handle_session_event(session_ptr, omega_session_event_t::SESSION_EVT_CREATE, nullptr);
         response->set_session_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -865,7 +868,6 @@ public:
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
-        handle_viewport_event(viewport_ptr, omega_viewport_event_t::VIEWPORT_EVT_CREATE, nullptr);
         response->set_session_id(session_id);
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
@@ -964,6 +966,18 @@ public:
         return writer;
     }
 
+    ServerUnaryReactor *UnsubscribeToSessionEvents(CallbackServerContext *context, const ObjectId *request,
+                                                   ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        auto writer = session_manager_.destroy_session_subscription(session_id);
+        assert(writer);
+        response->set_id(session_id);
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerWriteReactor<ViewportEvent> *SubscribeToViewportEvents(CallbackServerContext *context,
                                                                  const ObjectId *request) override {
         const auto &viewport_id = request->id();
@@ -971,6 +985,18 @@ public:
         auto writer = session_manager_.create_viewport_subscription(context, viewport_id);
         assert(writer);
         return writer;
+    }
+
+    ServerUnaryReactor *UnsubscribeToViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                                    ObjectId *response) override {
+        const auto &viewport_id = request->id();
+        assert(!viewport_id.empty());
+        auto writer = session_manager_.destroy_viewport_subscription(viewport_id);
+        assert(writer);
+        response->set_id(viewport_id);
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
     }
 };
 

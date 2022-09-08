@@ -127,7 +127,7 @@ export function unsubscribeViewport(viewport_id: string): Promise<string> {
       (err, r) => {
         if (err) {
           console.log(err.message)
-          return reject('viewportUnsubscribe error: ' + err.message)
+          return reject('unsubscribeViewport error: ' + err.message)
         }
         return resolve(r.getId())
       }
