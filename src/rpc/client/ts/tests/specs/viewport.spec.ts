@@ -31,23 +31,32 @@ import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { ObjectId } from '../../src/omega_edit_pb'
 import { cleanup, custom_setup } from './common'
 
+let vpt_callbacks = new Map()
+
 function subscribeViewport(viewport_id: string) {
   getClient()
     .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
     .on('data', (viewportEvent) => {
+      vpt_callbacks.set(
+        viewport_id,
+        vpt_callbacks.has(viewport_id) ? 1 + vpt_callbacks.get(viewport_id) : 1
+      )
       let event = viewportEvent.getViewportEventKind()
       // let viewport_id = viewportEvent.getViewportId()
       // console.log('viewport: ' + viewport_id + ', event: ' + event)
       if (2 == event) {
         console.log(
-          'serial: ' +
+          'viewport_id: ' +
+            viewport_id +
+            ', serial: ' +
             viewportEvent.getSerial() +
             ', offset: ' +
             viewportEvent.getOffset() +
             ', length: ' +
             viewportEvent.getLength() +
             ', data: ' +
-            decode(viewportEvent.getData())
+            decode(viewportEvent.getData()) +
+            ', callbacks: ' + vpt_callbacks.get(viewport_id)
         )
       }
     })
@@ -92,6 +101,7 @@ describe('Viewports', () => {
     expect(viewport_id_2).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
     subscribeViewport(viewport_id_2)
     expect(2).to.equal(await getViewportCount(session_id))
+    expect(false).to.equal(vpt_callbacks.has(viewport_id_2))
 
     let change_id = await insert(session_id, 0, '0123456789ABC')
     expect(1).to.equal(change_id)
@@ -105,6 +115,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_id_2)
     expect('ABC').to.equal(decode(viewport_data.getData_asU8()))
 
+    expect(1).to.equal(vpt_callbacks.get(viewport_id_2))
     change_id = await del(session_id, 0, 1)
     expect(2).to.equal(change_id)
 
@@ -117,6 +128,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_id_2)
     expect('BC').to.equal(decode(viewport_data.getData_asU8()))
 
+    expect(2).to.equal(vpt_callbacks.get(viewport_id_2))
     change_id = await overwrite(session_id, 8, '!@#')
     expect(3).to.equal(change_id)
 
@@ -134,6 +146,7 @@ describe('Viewports', () => {
 
     const deleted_viewport_id = await destroyViewport(viewport_id_2)
     expect(viewport_id_2).to.equal(deleted_viewport_id)
+    expect(3).to.equal(vpt_callbacks.get(viewport_id_2))
     // expect(1).to.equal(await getViewportCount(session_id))
   })
 
