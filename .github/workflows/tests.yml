@@ -262,12 +262,7 @@ jobs:
       - name: Package & Run Scala RPC server 📋
         run: |
           sbt pkgServer
-          cd serv/target/universal/
-          unzip -o "*.zip"
-          kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
-          ./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
-          server_pid=$!
-          echo "server_pid=$server_pid" >> $GITHUB_ENV
+          cp -r serv/target/universal/omega-edit-grpc-server*.zip ../../client/ts
         shell: bash # here for when windows is added
         working-directory: src/rpc/server/scala
 
@@ -282,10 +277,6 @@ jobs:
         working-directory: src/rpc/client/ts
 
       - name: Yarn Test
-        run: yarn test
+        run: yarn test # auto spins scala server up and down
         shell: bash # here for when windows is added
         working-directory: src/rpc/client/ts
-
-      - name: Kill Scala RPC Server
-        run: kill -9 ${{ env.server_pid }}
-        shell: bash # here for when windows is added
