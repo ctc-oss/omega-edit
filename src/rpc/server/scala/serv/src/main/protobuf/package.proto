@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+import "scalapb/scalapb.proto";
+
+package omega_edit;
+
+option (scalapb.options) = {
+  scope: PACKAGE
+  
+  /* proto3 has *no* notion of required fields, so all fields have default values in the
+    generated code. (`optional` affects the output type in Scala, i.e., whether to add an
+    `Option`.)
+
+    We can override how this is mapped to Scala by disabling *all* default constructor values,
+    which can be annoying for messages with optional values that now need to pass `None`
+    explicitly. However, it is better than having default values for required fields, which the
+    programmer wouldn't notice are actually required.
+  */
+  no_default_values_in_constructor: true;
+};
+
