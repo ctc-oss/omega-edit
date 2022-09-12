@@ -60,8 +60,7 @@ function(conan_config_set)
     # Set a config value.
     # Arguments NAME and VALUE are required
     # Example usage:
-    #    conan_config_set(NAME general.revision_enabled
-    #                     VALUE 1)
+    #    conan_config_set(NAME general.revision_enabled VALUE 1)
     #
     # See: https://docs.conan.io/en/latest/reference/commands/consumer/config.html
     set(oneValueArgs NAME VALUE)
@@ -72,7 +71,7 @@ function(conan_config_set)
         conan_check(REQUIRED)
     endif()
     message(STATUS "Conan: Setting ${CONAN_NAME} to ${CONAN_VALUE}")
-    execute_process(COMMAND ${CONAN_CMD} config set ${CONAN_NAME}=${CONAN_VALUE} RESULT_VARIABLE return_code)
+    execute_process(COMMAND ${CONAN_CMD} config set "${CONAN_NAME}=${CONAN_VALUE}" RESULT_VARIABLE return_code)
     if(NOT "${return_code}" STREQUAL "0")
         message(FATAL_ERROR "Conan config set failed='${return_code}'")
     endif()
@@ -80,7 +79,7 @@ endfunction()
 
 conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
-        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.45.2@#4124668439356e3a496b04b0b2595223"
+        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.48.0"
         OPTIONS boost:header_only=True
         OPTIONS grpc:cpp_plugin=True
         OPTIONS grpc:csharp_plugin=False
@@ -96,7 +95,7 @@ conan_cmake_configure(
 conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
-conan_basic_setup()
+conan_basic_setup(TARGETS)
 
 set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.79.0 REQUIRED)
@@ -201,8 +200,9 @@ if (BUILD_RPC)
     SET(WORKER_QUEUE_SOURCE_FILES "src/rpc/server/cpp/worker_queue/worker_queue.hpp" "src/rpc/server/cpp/worker_queue/worker_queue.cpp")
 
     add_executable(server "src/rpc/server/cpp/server.cpp" ${WORKER_QUEUE_SOURCE_FILES} ${RPC_SOURCE_FILES})
-    target_include_directories(server PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
-    target_link_libraries(server PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
+    target_include_directories(server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" ${CONAN_INCLUDE_DIRS})
+    target_link_directories(server PRIVATE ${CONAN_LIB_DIRS})
+    target_link_libraries(server PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB} ${CONAN_LIBS})
 endif ()
 
 #######################################################################################################################
@@ -266,8 +266,9 @@ if (BUILD_TESTS)
 
     if (BUILD_RPC)
         add_executable(server_test "src/rpc/server/cpp/tests/server_test.cpp" ${RPC_SOURCE_FILES})
-        target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS_GRPC} ${CONAN_LIBS_PROTOBUF} ${CONAN_LIBS_C-ARES} ${CONAN_LIBS_ABSEIL} ${CONAN_LIBS_RE2} ${CONAN_LIBS_ZLIB})
-        target_include_directories(server_test PRIVATE "${CONAN_INCLUDE_DIRS_BOOST}" "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" "${CONAN_INCLUDE_DIRS_GRPC}" "${CONAN_INCLUDE_DIRS_PROTOBUF}")
+        target_include_directories(server_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/src/rpc/protos/cpp/" ${CONAN_INCLUDE_DIRS})
+        target_link_directories(server_test PRIVATE ${CONAN_LIB_DIRS})
+        target_link_libraries(server_test PRIVATE ${FILESYSTEM_LIB} ${CONAN_LIBS})
         add_dependencies(server_test server)
     endif ()
 
