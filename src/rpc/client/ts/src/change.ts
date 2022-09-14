@@ -106,7 +106,7 @@ export function rep(
   remove_bytes_count: number,
   replace: string | Uint8Array
 ): Promise<number> {
-  return new Promise<number>(async (resolve, reject) => {
+  return new Promise<number>(async (resolve) => {
     await pauseViewportEvents(session_id)
     await del(session_id, offset, remove_bytes_count)
     await resumeViewportEvents(session_id)

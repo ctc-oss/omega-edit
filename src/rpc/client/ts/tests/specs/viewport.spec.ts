@@ -18,7 +18,7 @@
  */
 
 import { expect } from 'chai'
-import { getClient } from '../../src/settings'
+import { ALL_EVENTS, getClient } from '../../src/settings'
 import { del, insert, overwrite } from '../../src/change'
 import { getComputedFileSize, getSegment } from '../../src/session'
 import {
@@ -29,16 +29,21 @@ import {
   unsubscribeViewport,
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
+import {
+  EventSubscriptionRequest,
+  ViewportEventKind,
+} from '../../src/omega_edit_pb'
 import { cleanup, custom_setup } from './common'
 
 let viewport_callbacks = new Map()
 
-async function subscribeViewport(viewport_id: string) {
+async function subscribeViewport(viewport_id: string, interest?: number) {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(viewport_id)
+  if (interest) {
+    subscriptionRequest.setInterest(interest)
+  }
   await getClient()
-    .subscribeToViewportEvents(
-      new EventSubscriptionRequest().setId(viewport_id)
-    )
+    .subscribeToViewportEvents(subscriptionRequest)
     .on('data', (viewportEvent) => {
       viewport_callbacks.set(
         viewport_id,
@@ -56,7 +61,7 @@ async function subscribeViewport(viewport_id: string) {
           ', count: ' +
           viewport_callbacks.get(viewport_id)
       )
-      if (2 == event) {
+      if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
         console.log(
           'viewport_id: ' +
             viewport_id +
@@ -144,13 +149,19 @@ describe('Viewports', () => {
 
     expect(2).to.equal(viewport_callbacks.get(viewport_id_2))
 
+    // Toggle off interest in edit events
+    await subscribeViewport(
+      viewport_id_2,
+      ALL_EVENTS & ~ViewportEventKind.VIEWPORT_EVT_EDIT
+    )
+
     change_id = await overwrite(session_id, 8, '!@#')
     expect(3).to.equal(change_id)
 
     file_size = await getComputedFileSize(session_id)
     expect(12).to.equal(file_size)
 
-    const segment = await getSegment(session_id, 0, file_size)
+    let segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('12345678!@#C'))
 
     viewport_data = await getViewportData(viewport_id_1)
@@ -158,6 +169,16 @@ describe('Viewports', () => {
 
     viewport_data = await getViewportData(viewport_id_2)
     expect('#C').to.equal(decode(viewport_data.getData_asU8()))
+    expect(2).to.equal(viewport_callbacks.get(viewport_id_2))
+
+    // Toggle on interest in all events
+    await subscribeViewport(viewport_id_2)
+    change_id = await del(session_id, 0, 2)
+    expect(4).to.equal(change_id)
+
+    file_size = await getComputedFileSize(session_id)
+    segment = await getSegment(session_id, 0, file_size)
+    expect(encode('345678!@#C')).deep.equals(segment)
 
     const deleted_viewport_id = await destroyViewport(viewport_id_2)
     expect(viewport_id_2).to.equal(deleted_viewport_id)

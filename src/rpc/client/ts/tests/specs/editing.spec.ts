@@ -24,16 +24,27 @@ import {
   unsubscribeSession,
 } from '../../src/session'
 import { del, getLastChange, insert, overwrite } from '../../src/change'
-import { ChangeKind, EventSubscriptionRequest } from '../../src/omega_edit_pb'
+import {
+  ChangeKind,
+  EventSubscriptionRequest,
+  SessionEventKind,
+} from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { cleanup, custom_setup } from './common'
-import { getClient } from '../../src/settings'
+import { ALL_EVENTS, getClient } from '../../src/settings'
 
 let session_callbacks = new Map()
 
-async function subscribeSession(session_id: string): Promise<string> {
+async function subscribeSession(
+  session_id: string,
+  interest?: number
+): Promise<string> {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
+  if (interest) {
+    subscriptionRequest.setInterest(interest)
+  }
   await getClient()
-    .subscribeToSessionEvents(new EventSubscriptionRequest().setId(session_id))
+    .subscribeToSessionEvents(subscriptionRequest)
     .on('data', (sessionEvent) => {
       session_callbacks.set(
         session_id,
@@ -41,12 +52,11 @@ async function subscribeSession(session_id: string): Promise<string> {
           ? 1 + session_callbacks.get(session_id)
           : 1
       )
-      const event = sessionEvent.getSessionEventKind()
       console.log(
         'session: ' +
           session_id +
           ', event: ' +
-          event +
+          sessionEvent.getSessionEventKind() +
           ', count: ' +
           session_callbacks.get(session_id)
       )
@@ -69,10 +79,17 @@ describe('Editing', () => {
     it('Should insert a string', async () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
       const data = encode('abcghijklmnopqrstuvwxyz')
+      // Subscribe to all events but edit events
+      const subscribed_session_id = await subscribeSession(
+        session_id,
+        ALL_EVENTS & ~SessionEventKind.SESSION_EVT_EDIT
+      )
+      expect(session_id).to.equal(subscribed_session_id)
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
-      const subscribed_session_id = await subscribeSession(session_id)
-      expect(session_id).to.equal(subscribed_session_id)
+      expect(false).to.equal(session_callbacks.has(session_id))
+      // Subscribe to all events
+      await subscribeSession(session_id)
       change_id = await insert(session_id, 3, encode('def'))
       expect(change_id).to.be.a('number').that.equals(2)
       const file_size = await getComputedFileSize(session_id)

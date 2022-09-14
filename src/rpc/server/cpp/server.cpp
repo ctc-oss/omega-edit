@@ -79,6 +79,11 @@ using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWri
 
 static inline std::string create_uuid() { return boost::uuids::to_string(boost::uuids::random_generator()()); }
 
+static inline bool print_if_false(const bool assertion, const std::string &message) {
+    if (!assertion) { CLOG << LOCATION << message << std::endl; }
+    return assertion;
+}
+
 class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public omega_edit::IWorkerQueue {
     const CallbackServerContext *context_;
     const std::string session_id_;
@@ -164,15 +169,13 @@ public:
 
     [[nodiscard]] inline size_t get_session_count() const { return session_to_id_.size(); }
 
-    inline SessionEventWriter *destroy_session_subscription(const std::string &session_id) {
+    inline void destroy_session_subscription(const std::string &session_id) {
         assert(!session_id.empty());
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         if (session_event_subscription_iter != session_event_subscriptions_.end()) {
             assert(session_event_subscription_iter->second->empty());
             session_event_subscription_iter->second->Finish(Status::OK);
-            return session_event_subscription_iter->second;
         }
-        return nullptr;
     }
 
     void destroy_session(const std::string &session_id) {
@@ -207,12 +210,12 @@ public:
         assert(!session_id.empty());
         // Don't use const here because it prevents the automatic move on return
         auto session_ptr = id_to_session_[session_id];
-        assert(session_ptr);
+        assert(print_if_false(session_ptr, session_id + " not found"));
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
-                                                    const std::string &session_id, int32_t interest) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id,
+                                                    int32_t interest) {
         assert(!session_id.empty());
         omega_session_set_event_interest(get_session_ptr(session_id), interest);
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
@@ -244,15 +247,13 @@ public:
         return viewport_id;
     }
 
-    ViewportEventWriter *destroy_viewport_subscription(const std::string &viewport_id) {
+    void destroy_viewport_subscription(const std::string &viewport_id) {
         assert(!viewport_id.empty());
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         if (viewport_event_subscription_iter != viewport_event_subscriptions_.end()) {
             assert(viewport_event_subscription_iter->second->empty());
             viewport_event_subscription_iter->second->Finish(Status::OK);
-            return viewport_event_subscription_iter->second;
         }
-        return nullptr;
     }
 
     void destroy_viewport(const std::string &viewport_id) {
@@ -974,8 +975,7 @@ public:
                                                    ObjectId *response) override {
         const auto &session_id = request->id();
         assert(!session_id.empty());
-        auto writer = session_manager_.destroy_session_subscription(session_id);
-        assert(writer);
+        session_manager_.destroy_session_subscription(session_id);
         response->set_id(session_id);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
@@ -996,8 +996,7 @@ public:
                                                     ObjectId *response) override {
         const auto &viewport_id = request->id();
         assert(!viewport_id.empty());
-        auto writer = session_manager_.destroy_viewport_subscription(viewport_id);
-        assert(writer);
+        session_manager_.destroy_viewport_subscription(viewport_id);
         response->set_id(viewport_id);
         auto *reactor = context->DefaultReactor();
         reactor->Finish(Status::OK);
