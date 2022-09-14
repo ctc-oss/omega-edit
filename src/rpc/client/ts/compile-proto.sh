@@ -11,14 +11,14 @@ set -e
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-for arg in $@; do
+for arg in "$@"; do
     if [[ $arg == "--out" ]]; then
         OUT_DIR="$PWD/out"
         TS_OUT_DIR="$PWD/out"
     fi
 done
 
-if [[ $# < 1 ]]; then
+if [[ $# -lt 1 ]]; then
     OUT_DIR="$PWD/src"
     TS_OUT_DIR="$PWD/src"
 fi

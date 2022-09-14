@@ -52,6 +52,7 @@ using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
 using omega_edit::CreateViewportResponse;
+using omega_edit::EventSubscriptionRequest;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
@@ -211,8 +212,9 @@ public:
     }
 
     SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
-                                                    const std::string &session_id) {
+                                                    const std::string &session_id, int32_t interest) {
         assert(!session_id.empty());
+        omega_session_set_event_interest(get_session_ptr(session_id), interest);
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
                        ? session_event_subscription_iter->second
@@ -287,8 +289,9 @@ public:
     }
 
     inline ViewportEventWriter *create_viewport_subscription(const CallbackServerContext *context,
-                                                             const std::string &viewport_id) {
+                                                             const std::string &viewport_id, int32_t interest) {
         assert(!viewport_id.empty());
+        omega_viewport_set_event_interest(get_viewport_ptr(viewport_id), interest);
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
                        ? viewport_event_subscription_iter->second
@@ -958,10 +961,11 @@ public:
 
     // Subscription services
     ServerWriteReactor<SessionEvent> *SubscribeToSessionEvents(CallbackServerContext *context,
-                                                               const ObjectId *request) override {
+                                                               const EventSubscriptionRequest *request) override {
         const auto &session_id = request->id();
+        const auto interest = request->has_interest() ? request->interest() : ALL_EVENTS;
         assert(!session_id.empty());
-        auto writer = session_manager_.create_session_subscription(context, session_id);
+        auto writer = session_manager_.create_session_subscription(context, session_id, interest);
         assert(writer);
         return writer;
     }
@@ -979,10 +983,11 @@ public:
     }
 
     ServerWriteReactor<ViewportEvent> *SubscribeToViewportEvents(CallbackServerContext *context,
-                                                                 const ObjectId *request) override {
+                                                                 const EventSubscriptionRequest *request) override {
         const auto &viewport_id = request->id();
+        const auto interest = request->has_interest() ? request->interest() : ALL_EVENTS;
         assert(!viewport_id.empty());
-        auto writer = session_manager_.create_viewport_subscription(context, viewport_id);
+        auto writer = session_manager_.create_viewport_subscription(context, viewport_id, interest);
         assert(writer);
         return writer;
     }

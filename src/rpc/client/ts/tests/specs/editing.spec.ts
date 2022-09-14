@@ -24,7 +24,7 @@ import {
   unsubscribeSession,
 } from '../../src/session'
 import { del, getLastChange, insert, overwrite } from '../../src/change'
-import { ChangeKind, ObjectId } from '../../src/omega_edit_pb'
+import { ChangeKind, EventSubscriptionRequest } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { cleanup, custom_setup } from './common'
 import { getClient } from '../../src/settings'
@@ -33,7 +33,7 @@ let session_callbacks = new Map()
 
 async function subscribeSession(session_id: string): Promise<string> {
   await getClient()
-    .subscribeToSessionEvents(new ObjectId().setId(session_id))
+    .subscribeToSessionEvents(new EventSubscriptionRequest().setId(session_id))
     .on('data', (sessionEvent) => {
       session_callbacks.set(
         session_id,

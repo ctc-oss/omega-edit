@@ -47,10 +47,15 @@ service Editor {
   rpc GetByteFrequencyProfile(ByteFrequencyProfileRequest) returns (ByteFrequencyProfileResponse);
 
   // Event streams
-  rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
-  rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+  rpc SubscribeToSessionEvents(EventSubscriptionRequest) returns (stream SessionEvent);
+  rpc SubscribeToViewportEvents(EventSubscriptionRequest) returns (stream ViewportEvent);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+}
+
+message EventSubscriptionRequest {
+  string id = 1;
+  optional int32 interest = 2;
 }
 
 enum ChangeKind {

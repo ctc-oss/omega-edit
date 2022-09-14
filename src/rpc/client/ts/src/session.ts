@@ -26,7 +26,7 @@ import {
   SegmentRequest,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { ALL_EVENTS, getClient } from './settings'
+import { getClient } from './settings'
 const client = getClient()
 
 export function createSession(
@@ -38,7 +38,6 @@ export function createSession(
     if (sessionIdDesired && sessionIdDesired.length)
       request.setSessionIdDesired(sessionIdDesired)
     if (path && path.length) request.setFilePath(path)
-    request.setEventInterest(ALL_EVENTS)
     client.createSession(request, (err, r) => {
       if (err) {
         console.log(err.message)

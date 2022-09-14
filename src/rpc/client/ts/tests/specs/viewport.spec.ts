@@ -29,14 +29,16 @@ import {
   unsubscribeViewport,
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-import { ObjectId } from '../../src/omega_edit_pb'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 import { cleanup, custom_setup } from './common'
 
 let viewport_callbacks = new Map()
 
 async function subscribeViewport(viewport_id: string) {
   await getClient()
-    .subscribeToViewportEvents(new ObjectId().setId(viewport_id))
+    .subscribeToViewportEvents(
+      new EventSubscriptionRequest().setId(viewport_id)
+    )
     .on('data', (viewportEvent) => {
       viewport_callbacks.set(
         viewport_id,

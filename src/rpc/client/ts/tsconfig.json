@@ -36,7 +36,7 @@
     "inlineSourceMap": false,
     "preserveConstEnums": true,
     "strictNullChecks": true,
-    "noUnusedParameters": false
+    "noUnusedParameters": true
   },
-  "exclude": ["node_modules", "tests", ".d.ts"]
+  "exclude": ["node_modules", "tests", "**/*.d.ts"]
 }

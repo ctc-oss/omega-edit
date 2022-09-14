@@ -46,6 +46,7 @@ using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
 using omega_edit::CreateViewportResponse;
 using omega_edit::Editor;
+using omega_edit::EventSubscriptionRequest;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
@@ -927,7 +928,7 @@ public:
 
     std::thread::id SubscribeOnChangeViewport(const std::string &viewport_id) {
         assert(!viewport_id.empty());
-        ObjectId request;
+        EventSubscriptionRequest request;
         auto context_ptr = std::make_unique<ClientContext>();
 
         request.set_id(viewport_id);
