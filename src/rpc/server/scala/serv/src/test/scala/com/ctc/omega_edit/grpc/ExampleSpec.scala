@@ -127,7 +127,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
     "listen to session events" in newSession { sid =>
       import service.system
       service
-        .subscribeToSessionEvents(ObjectId(sid))
+        .subscribeToSessionEvents(EventSubscriptionRequest(sid, None))
         .idleTimeout(2.seconds)
         .runWith(Sink.headOption)
         .map {
