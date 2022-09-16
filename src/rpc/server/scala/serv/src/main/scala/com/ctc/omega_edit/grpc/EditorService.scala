@@ -189,7 +189,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   /** Event streams
     */
   def subscribeToSessionEvents(in: EventSubscriptionRequest): Source[SessionEvent, NotUsed] = {
-    val f = (editors ? SessionOp(in.id, Session.Watch)).mapTo[Result].map {
+    val f = (editors ? SessionOp(in.id, (Session.Watch(in.interest)))).mapTo[Result].map {
       case ok: Ok with Session.Events => ok.stream
       case _                          => Source.failed(grpcFailure(Status.UNKNOWN))
     }
