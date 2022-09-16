@@ -25,7 +25,7 @@ import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
+import com.ctc.omega_edit.api.{Change, ViewportCallback}
 import omega_edit._
 
 import java.nio.file.Path
@@ -34,7 +34,7 @@ import scala.util.{Failure, Success}
 import com.google.protobuf.ByteString
 
 object Session {
-  type EventStream = Source[Session.Updated, NotUsed]
+  type EventStream = Source[SessionEvent, NotUsed]
   trait Events {
     def stream: EventStream
   }
@@ -49,10 +49,9 @@ object Session {
 
   def props(
       session: api.Session,
-      events: EventStream,
-      cb: SessionCallback
+      events: EventStream
   ): Props =
-    Props(new Session(session, events, cb))
+    Props(new Session(session, events))
 
   sealed trait Op
   object Op {
@@ -77,7 +76,7 @@ object Session {
       eventInterest: Option[Int]
   ) extends Op
   case class DestroyView(id: String) extends Op
-  case object Watch extends Op
+  case class Watch(eventInterest: Option[Int]) extends Op
   case object GetSize extends Op
   case object GetNumCheckpoints extends Op
   case object GetNumChanges extends Op
@@ -108,8 +107,6 @@ object Session {
 
   case class PauseViewportEvents() extends Op
   case class ResumeViewportEvents() extends Op
-
-  case class Updated(id: String)
 
   trait Serial {
     def serial: Long
@@ -157,8 +154,7 @@ object Session {
 
 class Session(
     session: api.Session,
-    events: EventStream,
-    @deprecated("unused", "") cb: SessionCallback
+    events: EventStream
 ) extends Actor {
   val sessionId: String = self.path.name
 
@@ -172,17 +168,26 @@ class Session(
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           val (input, stream) = Source
-            .queue[Viewport.Updated](1, OverflowStrategy.dropHead)
+            .queue[ViewportEvent](1, OverflowStrategy.dropHead)
             .preMaterialize()
           val cb = ViewportCallback { (v, e, c) =>
-            input.queue.offer(Viewport.Updated(fqid, ByteString.copyFrom(v.data), off, e, c))
+            input.queue.offer(
+              ViewportEvent(
+                sessionId = fqid,
+                viewportId = vid,
+                serial = c.map(_.id),
+                data = Option(ByteString.copyFrom(v.data)),
+                length = Some(v.data.size.toLong),
+                offset = Some(off),
+                viewportEventKind = ViewportEventKind.fromValue(e.value)
+              )
+            )
             ()
           }
           context.actorOf(
             Viewport.props(
               session.viewCb(off, cap, isFloating, cb, eventInterest.getOrElse(0)),
-              stream,
-              cb
+              stream
             ),
             vid
           )
@@ -276,7 +281,7 @@ class Session(
       session.resumeViewportEvents()
       sender() ! Ok(sessionId)
 
-    case Watch =>
+    case Watch(eventInterest) =>
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }

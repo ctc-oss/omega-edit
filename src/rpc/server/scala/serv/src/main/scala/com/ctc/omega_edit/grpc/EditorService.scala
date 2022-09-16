@@ -143,7 +143,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           .mapTo[Result]
           .map {
             case ok: Ok with ChangeDetails => ok.toChangeResponse(in.sessionId)
-            case Ok(_)  => throw grpcFailure(Status.INTERNAL, s"didn't receive data for change details of session ${in.sessionId}")
+            case Ok(_) =>
+              throw grpcFailure(Status.INTERNAL, s"didn't receive data for change details of session ${in.sessionId}")
             case Err(c) => throw grpcFailure(c)
           }
     }

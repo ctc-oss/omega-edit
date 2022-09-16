@@ -20,9 +20,10 @@ import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
+import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
+import omega_edit._
 
 import java.nio.file.Path
 import java.util.{Base64, UUID}
@@ -76,17 +77,24 @@ class Editors extends Actor with ActorLogging {
         case None =>
           import context.system
           val (input, stream) = Source
-            .queue[Session.Updated](1, OverflowStrategy.dropHead)
+            .queue[SessionEvent](1, OverflowStrategy.dropHead)
             .preMaterialize()
-          val cb = SessionCallback { (_, _, _) =>
-            input.queue.offer(Session.Updated(id))
+          val cb = SessionCallback { (session, event, change) =>
+            input.queue.offer(SessionEvent.defaultInstance
+            .copy(
+              sessionId = id,
+              sessionEventKind = SessionEventKind.fromValue(event.value),
+              serial = change.map(_.id),
+              computedFileSize = session.size,
+              changeCount = session.numChanges,
+              undoCount = session.numUndos
+            ))
             ()
           }
           context.actorOf(
             Session.props(
               OmegaEdit.newSessionCb(path, cb, eventInterest),
-              stream,
-              cb
+              stream
             ),
             id
           )
