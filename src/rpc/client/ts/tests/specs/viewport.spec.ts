@@ -33,16 +33,20 @@ import {
   EventSubscriptionRequest,
   ViewportEventKind,
 } from '../../src/omega_edit_pb'
+// @ts-ignore
 import { cleanup, custom_setup } from './common'
 
 let viewport_callbacks = new Map()
 
-async function subscribeViewport(viewport_id: string, interest?: number) {
+async function subscribeViewport(
+  viewport_id: string,
+  interest?: number
+): Promise<string> {
   let subscriptionRequest = new EventSubscriptionRequest().setId(viewport_id)
   if (interest) {
     subscriptionRequest.setInterest(interest)
   }
-  await getClient()
+  getClient()
     .subscribeToViewportEvents(subscriptionRequest)
     .on('data', (viewportEvent) => {
       viewport_callbacks.set(
@@ -78,6 +82,7 @@ async function subscribeViewport(viewport_id: string, interest?: number) {
         )
       }
     })
+  return viewport_id
 }
 
 describe('Viewports', () => {
@@ -97,57 +102,59 @@ describe('Viewports', () => {
       session_id,
       0,
       10,
-      false
+      false,
+      undefined
     )
     if (viewport_id_1.includes(':')) {
       /* The Scala RPC server always prepends the session ID and colon to viewport IDs */
-      expect(session_id + ':test_vpt_1').to.equal(viewport_id_1)
+      expect(viewport_id_1).to.equal(session_id + ':test_vpt_1')
     } else {
       /* The C++ RPC server uses the desired viewport ID as given */
-      expect('test_vpt_1').to.equal(viewport_id_1)
+      expect(viewport_id_1).to.equal('test_vpt_1')
     }
-    expect(1).to.equal(await getViewportCount(session_id))
+    expect(await getViewportCount(session_id)).to.equal(1)
 
     const viewport_id_2 = await createViewport(
       undefined,
       session_id,
       10,
       10,
-      false
+      false,
+      undefined
     )
 
     expect(viewport_id_2).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
-    await subscribeViewport(viewport_id_2)
-    expect(2).to.equal(await getViewportCount(session_id))
-    expect(false).to.equal(viewport_callbacks.has(viewport_id_2))
+    expect(await subscribeViewport(viewport_id_2)).to.equal(viewport_id_2)
+    expect(await getViewportCount(session_id)).to.equal(2)
+    expect(viewport_callbacks.has(viewport_id_2)).to.be.false
 
     let change_id = await insert(session_id, 0, '0123456789ABC')
-    expect(1).to.equal(change_id)
+    expect(change_id).to.equal(1)
 
     let file_size = await getComputedFileSize(session_id)
-    expect(13).to.equal(file_size)
+    expect(file_size).to.equal(13)
 
     let viewport_data = await getViewportData(viewport_id_1)
-    expect('0123456789').to.equal(decode(viewport_data.getData_asU8()))
+    expect(decode(viewport_data.getData_asU8())).to.equal('0123456789')
 
     viewport_data = await getViewportData(viewport_id_2)
-    expect('ABC').to.equal(decode(viewport_data.getData_asU8()))
+    expect(decode(viewport_data.getData_asU8())).to.equal('ABC')
 
-    expect(1).to.equal(viewport_callbacks.get(viewport_id_2))
+    expect(viewport_callbacks.get(viewport_id_2)).to.equal(1)
 
     change_id = await del(session_id, 0, 1)
-    expect(2).to.equal(change_id)
+    expect(change_id).to.equal(2)
 
     file_size = await getComputedFileSize(session_id)
-    expect(12).to.equal(file_size)
+    expect(file_size).to.equal(12)
 
     viewport_data = await getViewportData(viewport_id_1)
-    expect('123456789A').to.equal(decode(viewport_data.getData_asU8()))
+    expect(decode(viewport_data.getData_asU8())).to.equal('123456789A')
 
     viewport_data = await getViewportData(viewport_id_2)
-    expect('BC').to.equal(decode(viewport_data.getData_asU8()))
+    expect(decode(viewport_data.getData_asU8())).to.equal('BC')
 
-    expect(2).to.equal(viewport_callbacks.get(viewport_id_2))
+    expect(viewport_callbacks.get(viewport_id_2)).to.equal(2)
 
     // Toggle off interest in edit events
     await subscribeViewport(
@@ -156,75 +163,79 @@ describe('Viewports', () => {
     )
 
     change_id = await overwrite(session_id, 8, '!@#')
-    expect(3).to.equal(change_id)
+    expect(change_id).to.equal(3)
 
     file_size = await getComputedFileSize(session_id)
-    expect(12).to.equal(file_size)
+    expect(file_size).to.equal(12)
 
     let segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('12345678!@#C'))
 
     viewport_data = await getViewportData(viewport_id_1)
-    expect('12345678!@').to.equal(decode(viewport_data.getData_asU8()))
+    expect(decode(viewport_data.getData_asU8())).to.equal('12345678!@')
 
     viewport_data = await getViewportData(viewport_id_2)
-    expect('#C').to.equal(decode(viewport_data.getData_asU8()))
-    expect(2).to.equal(viewport_callbacks.get(viewport_id_2))
+    expect(decode(viewport_data.getData_asU8())).to.equal('#C')
+    expect(viewport_callbacks.get(viewport_id_2)).to.equal(2)
 
     // Toggle on interest in all events
     await subscribeViewport(viewport_id_2)
     change_id = await del(session_id, 0, 2)
-    expect(4).to.equal(change_id)
+    expect(change_id).to.equal(4)
 
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(encode('345678!@#C')).deep.equals(segment)
+    expect(segment).deep.equals(encode('345678!@#C'))
 
     const deleted_viewport_id = await destroyViewport(viewport_id_2)
-    expect(viewport_id_2).to.equal(deleted_viewport_id)
-    expect(3).to.equal(viewport_callbacks.get(viewport_id_2))
-    // expect(1).to.equal(await getViewportCount(session_id))
+    expect(deleted_viewport_id).to.equal(viewport_id_2)
+    expect(viewport_callbacks.get(viewport_id_2)).to.equal(3)
+    expect(await getViewportCount(session_id)).to.equal(1)
   })
 
   it('Should handle floating viewports', async () => {
     let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
-    expect(1).to.equal(change_id)
+    expect(change_id).to.equal(1)
 
     const viewport_id = await createViewport(
       'test_vpt_no_float',
       session_id,
       10,
       5,
-      false
+      false,
+      undefined
     )
-    await subscribeViewport(viewport_id)
+    expect(await subscribeViewport(viewport_id)).to.equal(viewport_id)
     const viewport_floating_id = await createViewport(
       'test_vpt_label',
       session_id,
       10,
       5,
-      true
+      true,
+      undefined
     )
-    await subscribeViewport(viewport_floating_id)
+    expect(await subscribeViewport(viewport_floating_id)).to.equal(
+      viewport_floating_id
+    )
     let viewport_data = await getViewportData(viewport_floating_id)
 
-    expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
-    expect(10).to.equal(viewport_data.getOffset())
+    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getOffset()).to.equal(10)
 
     viewport_data = await getViewportData(viewport_id)
-    expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
-    expect(10).to.equal(viewport_data.getOffset())
+    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getOffset()).to.equal(10)
 
     change_id = await del(session_id, 0, 5)
-    expect(2).to.equal(change_id)
+    expect(change_id).to.equal(2)
 
     viewport_data = await getViewportData(viewport_floating_id)
-    expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
-    expect(5).to.equal(viewport_data.getOffset())
+    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getOffset()).to.equal(5)
 
     viewport_data = await getViewportData(viewport_id)
-    expect(10).to.equal(viewport_data.getOffset())
-    expect('01234').to.equal(decode(viewport_data.getData_asU8()))
+    expect(viewport_data.getOffset()).to.equal(10)
+    expect(decode(viewport_data.getData_asU8())).to.equal('01234')
 
     let file_size = await getComputedFileSize(session_id)
     let segment = await getSegment(session_id, 0, file_size)
@@ -232,20 +243,20 @@ describe('Viewports', () => {
 
     await unsubscribeViewport(viewport_id)
     change_id = await insert(session_id, 0, '01234')
-    expect(3).to.equal(change_id)
+    expect(change_id).to.equal(3)
 
     viewport_data = await getViewportData(viewport_floating_id)
-    expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
-    expect(10).to.equal(viewport_data.getOffset())
+    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getOffset()).to.equal(10)
 
     viewport_data = await getViewportData(viewport_id)
-    expect('LABEL').to.equal(decode(viewport_data.getData_asU8()))
-    expect(10).to.equal(viewport_data.getOffset())
+    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getOffset()).to.equal(10)
 
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
-    expect(1).to.equal(viewport_callbacks.get(viewport_id)) // unsubscribed before second event
-    expect(2).to.equal(viewport_callbacks.get(viewport_floating_id))
+    expect(viewport_callbacks.get(viewport_id)).to.equal(1) // unsubscribed before second event
+    expect(viewport_callbacks.get(viewport_floating_id)).to.equal(2)
   })
 })

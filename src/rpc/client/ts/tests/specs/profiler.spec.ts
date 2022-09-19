@@ -24,6 +24,7 @@ import {
   profileSession,
 } from '../../src/session'
 import { overwrite } from '../../src/change'
+// @ts-ignore
 import { cleanup, custom_setup } from './common'
 
 describe('Profiling', () => {
@@ -51,9 +52,9 @@ describe('Profiling', () => {
     it('Should profile character data', async () => {
       const content = 'abaabbbaaaabbbbc'
       const change_id = await overwrite(session_id, 0, content)
-      expect(1).to.equal(change_id)
+      expect(change_id).to.be.a('number').that.equals(1)
       const file_size = await getComputedFileSize(session_id)
-      expect(content.length).equals(file_size)
+      expect(file_size).equals(content.length)
       let profile = await profileSession(session_id, 0, 0)
       expect(profile.length).to.equal(256)
       expect(
@@ -81,9 +82,9 @@ describe('Profiling', () => {
     it('Should profile binary data', async () => {
       const content = new Uint8Array([0, 0, 1, 1, 1, 2, 2, 1, 3, 0, 255])
       const change_id = await overwrite(session_id, 0, content)
-      expect(1).to.equal(change_id)
+      expect(change_id).to.be.a('number').that.equals(1)
       const file_size = await getComputedFileSize(session_id)
-      expect(content.length).equals(file_size)
+      expect(file_size).equals(content.length)
       let profile = await profileSession(session_id, 0, 0)
       expect(profile.length).to.equal(256)
       expect(

@@ -30,6 +30,7 @@ import {
   SessionEventKind,
 } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
+// @ts-ignore
 import { cleanup, custom_setup } from './common'
 import { ALL_EVENTS, getClient } from '../../src/settings'
 
@@ -43,7 +44,7 @@ async function subscribeSession(
   if (interest) {
     subscriptionRequest.setInterest(interest)
   }
-  await getClient()
+  getClient()
     .subscribeToSessionEvents(subscriptionRequest)
     .on('data', (sessionEvent) => {
       session_callbacks.set(
@@ -77,27 +78,27 @@ describe('Editing', () => {
 
   describe('Insert', () => {
     it('Should insert a string', async () => {
-      expect(0).to.equal(await getComputedFileSize(session_id))
+      expect(await getComputedFileSize(session_id)).to.equal(0)
       const data = encode('abcghijklmnopqrstuvwxyz')
       // Subscribe to all events but edit events
       const subscribed_session_id = await subscribeSession(
         session_id,
         ALL_EVENTS & ~SessionEventKind.SESSION_EVT_EDIT
       )
-      expect(session_id).to.equal(subscribed_session_id)
+      expect(subscribed_session_id).to.equal(session_id)
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
-      expect(false).to.equal(session_callbacks.has(session_id))
+      expect(session_callbacks.has(session_id)).to.be.false
       // Subscribe to all events
       await subscribeSession(session_id)
       change_id = await insert(session_id, 3, encode('def'))
       expect(change_id).to.be.a('number').that.equals(2)
       const file_size = await getComputedFileSize(session_id)
-      expect(data.length + 3).equals(file_size)
+      expect(file_size).to.equal(data.length + 3)
       const segment = await getSegment(session_id, 0, file_size)
-      expect(encode('abcdefghijklmnopqrstuvwxyz')).deep.equals(segment)
+      expect(segment).deep.equals(encode('abcdefghijklmnopqrstuvwxyz'))
       console.log(session_callbacks)
-      expect(1).to.equal(session_callbacks.get(session_id)) // session subscribed for 1 event
+      expect(session_callbacks.get(session_id)).to.equal(1) // session subscribed for 1 event
     })
   })
 
@@ -106,46 +107,46 @@ describe('Editing', () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
       const data = encode('abcdefghijklmnopqrstuvwxyz')
       await subscribeSession(session_id)
-      expect(false).to.equal(session_callbacks.has(session_id))
+      expect(session_callbacks.has(session_id)).to.be.false
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
       let segment = await getSegment(session_id, 0, data.length)
-      expect(data).deep.equals(segment)
+      expect(segment).deep.equals(data)
       let file_size = await getComputedFileSize(session_id)
-      expect(data.length).equals(file_size)
-      expect(1).to.equal(session_callbacks.get(session_id))
+      expect(file_size).equals(data.length)
+      expect(session_callbacks.get(session_id)).to.equal(1)
       await unsubscribeSession(session_id)
       const del_change_id = await del(session_id, 13, 10)
       expect(del_change_id)
         .to.be.a('number')
         .that.equals(change_id + 1)
       file_size = await getComputedFileSize(session_id)
-      expect(data.length - 10).equals(file_size)
+      expect(file_size).equals(data.length - 10)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmxyz'))
-      expect(1).to.equal(session_callbacks.get(session_id)) // unsubscribed before the second event
+      expect(session_callbacks.get(session_id)).to.equal(1) // unsubscribed before the second event
     })
   })
 
   describe('Overwrite', () => {
     it('Should overwrite some data', async () => {
-      expect(0).to.equal(await getComputedFileSize(session_id))
+      expect(await getComputedFileSize(session_id)).to.equal(0)
       const data = encode('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
       let change_id = await insert(session_id, 0, data)
       await subscribeSession(session_id)
-      expect(false).to.equal(session_callbacks.has(session_id))
+      expect(session_callbacks.has(session_id)).to.be.false
       expect(change_id).to.be.a('number').that.equals(1)
       let segment = await getSegment(session_id, 0, data.length)
-      expect(data).deep.equals(segment)
+      expect(segment).deep.equals(data)
       let file_size = await getComputedFileSize(session_id)
-      expect(data.length).equals(file_size)
+      expect(file_size).equals(data.length)
       let last_change = await getLastChange(session_id)
-      expect(data).deep.equals(last_change.getData_asU8())
-      expect(0).to.equal(last_change.getOffset())
-      expect(ChangeKind.CHANGE_INSERT).to.equal(last_change.getKind())
-      expect(1).to.equal(last_change.getSerial())
-      expect(27).to.equal(last_change.getLength())
-      expect(session_id).to.equal(last_change.getSessionId())
+      expect(last_change.getData_asU8()).deep.equals(data)
+      expect(last_change.getOffset()).to.equal(0)
+      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_INSERT)
+      expect(last_change.getSerial()).to.equal(1)
+      expect(last_change.getLength()).to.equal(27)
+      expect(last_change.getSessionId()).to.equal(session_id)
       let overwrite_change_id = await overwrite(
         session_id,
         13,
@@ -153,39 +154,39 @@ describe('Editing', () => {
       ) // overwriting: nopqrstuvw (len: 10)
       expect(overwrite_change_id).to.be.a('number').that.equals(2)
       file_size = await getComputedFileSize(session_id)
-      expect(data.length).equals(file_size)
+      expect(file_size).to.equal(data.length)
       last_change = await getLastChange(session_id)
-      expect('NO123456VW').deep.equals(decode(last_change.getData_asU8()))
-      expect(13).to.equal(last_change.getOffset())
-      expect(ChangeKind.CHANGE_OVERWRITE).to.equal(last_change.getKind())
-      expect(2).to.equal(last_change.getSerial())
-      expect(10).to.equal(last_change.getLength())
-      expect(session_id).to.equal(last_change.getSessionId())
-      expect(1).to.equal(session_callbacks.get(session_id))
+      expect(decode(last_change.getData_asU8())).deep.equals('NO123456VW')
+      expect(last_change.getOffset()).to.equal(13)
+      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
+      expect(last_change.getSerial()).to.equal(2)
+      expect(last_change.getLength()).to.equal(10)
+      expect(last_change.getSessionId()).to.equal(session_id)
+      expect(session_callbacks.get(session_id)).to.equal(1)
       overwrite_change_id = await overwrite(session_id, 15, 'PQRSTU') // overwriting: 123456 (len: 6), using a string
       expect(overwrite_change_id).to.be.a('number').that.equals(3)
       file_size = await getComputedFileSize(session_id)
-      expect(data.length).equals(file_size)
+      expect(file_size).equals(data.length)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyΩ'))
-      expect(2).to.equal(session_callbacks.get(session_id))
+      expect(session_callbacks.get(session_id)).to.equal(2)
       await unsubscribeSession(session_id)
       // To overwrite a 2-byte character with a single-byte character, we need to delete the 2-byte character and insert the single-byte character
       change_id = await del(session_id, 25, 2)
-      expect(4).to.equal(change_id)
+      expect(change_id).to.be.a('number').that.equals(4)
       file_size = await getComputedFileSize(session_id)
-      expect(data.length - 2).equals(file_size)
+      expect(file_size).equals(data.length - 2)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxy'))
-      expect(2).to.equal(session_callbacks.get(session_id))
+      expect(session_callbacks.get(session_id)).to.equal(2)
       await subscribeSession(session_id)
       change_id = await insert(session_id, 25, 'z')
-      expect(5).to.equal(change_id)
+      expect(change_id).to.equal(5)
       file_size = await getComputedFileSize(session_id)
-      expect(data.length - 1).equals(file_size)
+      expect(file_size).equals(data.length - 1)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyz'))
-      expect(3).to.equal(session_callbacks.get(session_id))
+      expect(session_callbacks.get(session_id)).to.equal(3)
     })
   })
 })

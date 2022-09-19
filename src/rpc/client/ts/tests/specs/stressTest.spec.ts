@@ -37,10 +37,56 @@ import {
   getViewportData,
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
+// @ts-ignore
 import { cleanup, custom_setup } from './common'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
+import { ALL_EVENTS, getClient } from '../../src/settings'
 
-const deadline = new Date()
-deadline.setSeconds(deadline.getSeconds() + 10)
+let session_callbacks = new Map()
+
+async function subscribeSession(
+  session_id: string,
+  interest?: number
+): Promise<string> {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
+  if (interest) {
+    subscriptionRequest.setInterest(interest)
+  }
+  getClient()
+    .subscribeToSessionEvents(subscriptionRequest)
+    .on('data', () => {
+      session_callbacks.set(
+        session_id,
+        session_callbacks.has(session_id)
+          ? 1 + session_callbacks.get(session_id)
+          : 1
+      )
+    })
+  return session_id
+}
+
+let viewport_callbacks = new Map()
+
+async function subscribeViewport(
+  viewport_id: string,
+  interest?: number
+): Promise<string> {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(viewport_id)
+  if (interest) {
+    subscriptionRequest.setInterest(interest)
+  }
+  getClient()
+    .subscribeToViewportEvents(subscriptionRequest)
+    .on('data', () => {
+      viewport_callbacks.set(
+        viewport_id,
+        viewport_callbacks.has(viewport_id)
+          ? 1 + viewport_callbacks.get(viewport_id)
+          : 1
+      )
+    })
+  return viewport_id
+}
 
 describe('StressTest', () => {
   const full_rotations = 10
@@ -64,36 +110,41 @@ describe('StressTest', () => {
       const data = encode(
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'
       )
+      await subscribeSession(session_id, ALL_EVENTS)
       let change_id = await insert(session_id, 0, data)
 
-      expect(1).to.equal(change_id)
+      expect(change_id).to.equal(1)
       const file_size = await getComputedFileSize(session_id)
-      expect(data.length).to.equal(file_size)
+      expect(file_size).to.equal(data.length)
 
       await pauseSessionChanges(session_id)
       await insert(session_id, 0, data).catch((e) =>
         expect(e).to.be.an('error').with.property('message', 'insert failed')
       )
       await resumeSessionChanges(session_id)
-      expect(data.length).to.equal(await getComputedFileSize(session_id))
+      expect(await getComputedFileSize(session_id)).to.equal(data.length)
 
       const viewport_id = await createViewport(
         'last_byte_vpt',
         session_id,
         file_size - 1,
         1,
-        false
+        false,
+        undefined
       )
       const viewport_2_id = await createViewport(
         'all_data_vpt',
         session_id,
         0,
         file_size,
-        false
+        false,
+        undefined
       )
+      await subscribeViewport(viewport_id, ALL_EVENTS)
+      await subscribeViewport(viewport_2_id, ALL_EVENTS)
       let viewport_data = await getViewportData(viewport_id)
 
-      expect('~').to.equal(decode(viewport_data.getData_asU8()))
+      expect(decode(viewport_data.getData_asU8())).to.equal('~')
 
       let rotations = file_size * full_rotations
       const expected_num_changes = 1 + 3 * file_size * full_rotations
@@ -110,15 +161,20 @@ describe('StressTest', () => {
         viewport_data = await getViewportData(viewport_2_id)
       }
 
-      expect(await getChangeCount(session_id)).to.equal(change_id)
-      expect(expected_num_changes).to.equal(change_id)
+      expect(change_id)
+        .to.equal(await getChangeCount(session_id))
+        .and.to.equal(expected_num_changes)
 
       viewport_data = await getViewportData(viewport_2_id)
 
-      expect(data).to.deep.equal(viewport_data.getData_asU8())
-      expect(viewport_id).to.equal(await destroyViewport(viewport_id))
-      expect(viewport_2_id).to.equal(await destroyViewport(viewport_2_id))
-      expect(file_size).to.equal(await getComputedFileSize(session_id))
+      expect(viewport_data.getData_asU8()).to.deep.equal(data)
+      expect(await destroyViewport(viewport_id)).to.equal(viewport_id)
+      expect(await destroyViewport(viewport_2_id)).to.equal(viewport_2_id)
+      expect(await getComputedFileSize(session_id)).to.equal(file_size)
+
+      // TODO: Create tests for these counts
+      console.log(session_callbacks)
+      console.log(viewport_callbacks)
     }
   ).timeout(10000 * full_rotations)
 })

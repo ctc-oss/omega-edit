@@ -25,6 +25,7 @@ import {
 } from '../../src/session'
 import { clear, getChangeCount, overwrite, rep } from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
+// @ts-ignore
 import { cleanup, custom_setup } from './common'
 
 describe('Searching', () => {
@@ -44,7 +45,7 @@ describe('Searching', () => {
       0,
       'haystackneedleNEEDLENeEdLeneedhay'
     )
-    expect(1).to.equal(change_id)
+    expect(change_id).to.be.a('number').that.equals(1)
     const file_size = await getComputedFileSize(session_id)
     let needles = await searchSession(
       session_id,
@@ -54,7 +55,7 @@ describe('Searching', () => {
       0,
       undefined
     )
-    expect([8]).deep.equals(needles)
+    expect(needles).deep.equals([8])
     needles = await searchSession(
       session_id,
       'needle',
@@ -63,7 +64,7 @@ describe('Searching', () => {
       file_size - 3,
       undefined
     )
-    expect([8, 14, 20]).deep.equals(needles)
+    expect(needles).deep.equals([8, 14, 20])
     needles = await searchSession(
       session_id,
       'needle',
@@ -72,7 +73,7 @@ describe('Searching', () => {
       file_size - 3,
       0
     )
-    expect([8, 14, 20]).deep.equals(needles)
+    expect(needles).deep.equals([8, 14, 20])
     needles = await searchSession(
       session_id,
       'needle',
@@ -81,23 +82,24 @@ describe('Searching', () => {
       file_size - 3,
       2
     )
-    expect([8, 14]).deep.equals(needles)
+    expect(needles).deep.equals([8, 14])
     needles = await searchSession(session_id, 'NEEDLE', false, 0, 0, 1)
-    expect([14]).deep.equals(needles)
+    expect(needles).deep.equals([14])
     needles = await searchSession(session_id, 'NEEDLE', false, 0, 20, undefined)
-    expect([14]).deep.equals(needles)
+    expect(needles).deep.equals([14])
     needles = await searchSession(session_id, 'NEEDLE', false, 14, 6, undefined)
-    expect([14]).deep.equals(needles)
+    expect(needles).deep.equals([14])
     needles = await searchSession(session_id, 'NEEDLE', false, 14, 5, undefined)
-    expect([]).deep.equals(needles)
+    expect(needles).to.be.empty
     needles = await searchSession(session_id, 'NEEDLE', false, 0, 19, undefined)
-    expect([]).deep.equals(needles)
+    expect(needles).to.be.empty
+    expect(await getChangeCount(session_id)).to.equal(1)
 
     // try searching an empty session
     await clear(session_id)
-    expect(0).to.equal(await getChangeCount(session_id))
+    expect(await getChangeCount(session_id)).to.equal(0)
     needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
-    expect([]).deep.equals(needles)
+    expect(needles).to.be.empty
   })
 
   it('Should work with replace on binary data', async () => {
@@ -108,10 +110,10 @@ describe('Searching', () => {
     )
     expect(change_id).to.equal(1)
     let file_size = await getComputedFileSize(session_id)
-    expect(10).to.equal(file_size)
+    expect(file_size).to.equal(10)
     let segment = await getSegment(session_id, 0, file_size)
-    expect(new Uint8Array([123, 6, 5, 4, 7, 8, 9, 0, 254, 255])).deep.equals(
-      segment
+    expect(segment).deep.equals(
+      new Uint8Array([123, 6, 5, 4, 7, 8, 9, 0, 254, 255])
     )
     let pattern_bytes = new Uint8Array([6, 5, 4])
     let replace_bytes = new Uint8Array([4, 5, 6])
@@ -123,12 +125,12 @@ describe('Searching', () => {
       0,
       undefined
     )
-    expect([1]).deep.equals(needles)
+    expect(needles).deep.equals([1])
     await rep(session_id, 1, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(new Uint8Array([123, 4, 5, 6, 7, 8, 9, 0, 254, 255])).deep.equals(
-      segment
+    expect(segment).deep.equals(
+      new Uint8Array([123, 4, 5, 6, 7, 8, 9, 0, 254, 255])
     )
     pattern_bytes = new Uint8Array([123])
     replace_bytes = new Uint8Array([1, 2, 3])
@@ -140,13 +142,13 @@ describe('Searching', () => {
       0,
       undefined
     )
-    expect([0]).deep.equals(needles)
+    expect(needles).deep.equals([0])
     await rep(session_id, 0, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(
+    expect(segment).deep.equals(
       new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 254, 255])
-    ).deep.equals(segment)
+    )
     pattern_bytes = new Uint8Array([0, 254, 255])
     replace_bytes = new Uint8Array([10])
     needles = await searchSession(
@@ -157,11 +159,11 @@ describe('Searching', () => {
       0,
       undefined
     )
-    expect([9]).deep.equals(needles)
+    expect(needles).deep.equals([9])
     await rep(session_id, 9, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).deep.equals(segment)
+    expect(segment).deep.equals(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
   })
 
   it('Should work with replace on character data', async () => {
@@ -171,7 +173,7 @@ describe('Searching', () => {
       'Hey there is hay in my Needles'
     )
     expect(change_id).to.equal(1)
-    expect(30).to.equal(await getComputedFileSize(session_id))
+    expect(await getComputedFileSize(session_id)).to.equal(30)
     let pattern = 'is hay'
     let replace = 'are needles'
     let needles = await searchSession(
@@ -182,15 +184,16 @@ describe('Searching', () => {
       0,
       undefined
     )
-    expect([10]).deep.equals(needles)
+    expect(needles).deep.equals([10])
     await rep(session_id, 10, pattern.length, replace)
     pattern = 'needles'
     replace = 'hay'
     needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
-    expect([14, 28]).deep.equals(needles)
+    expect(needles).deep.equals([14, 28])
     await rep(session_id, 28, pattern.length, replace)
     const file_size = await getComputedFileSize(session_id)
     const segment = await getSegment(session_id, 0, file_size)
+    expect(segment.length).to.equal(file_size)
     expect(segment).deep.equals(encode('Hey there are needles in my hay'))
   })
 })

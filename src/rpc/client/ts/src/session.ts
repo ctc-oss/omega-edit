@@ -31,12 +31,14 @@ const client = getClient()
 
 export function createSession(
   path: string | undefined,
-  sessionIdDesired: string | undefined
+  session_id_desired: string | undefined,
+  event_interest: number | undefined
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateSessionRequest()
-    if (sessionIdDesired && sessionIdDesired.length)
-      request.setSessionIdDesired(sessionIdDesired)
+    if (session_id_desired && session_id_desired.length)
+      request.setSessionIdDesired(session_id_desired)
+    if (event_interest) request.setEventInterest(event_interest)
     if (path && path.length) request.setFilePath(path)
     client.createSession(request, (err, r) => {
       if (err) {
@@ -61,15 +63,15 @@ export function destroySession(id: string): Promise<string> {
 }
 
 export function saveSession(
-  sessionId: string,
-  filePath: string,
+  session_id: string,
+  file_path: string,
   overwrite: boolean
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     client.saveSession(
       new SaveSessionRequest()
-        .setSessionId(sessionId)
-        .setFilePath(filePath)
+        .setSessionId(session_id)
+        .setFilePath(file_path)
         .setAllowOverwrite(overwrite),
       (err, r) => {
         if (err) {
@@ -82,9 +84,9 @@ export function saveSession(
   })
 }
 
-export function getComputedFileSize(sessionId: string): Promise<number> {
+export function getComputedFileSize(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    client.getComputedFileSize(new ObjectId().setId(sessionId), (err, r) => {
+    client.getComputedFileSize(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.log(err.message)
         return reject('getComputedFileSize error: ' + err.message)
@@ -94,9 +96,9 @@ export function getComputedFileSize(sessionId: string): Promise<number> {
   })
 }
 
-export function pauseSessionChanges(sessionId: string): Promise<string> {
+export function pauseSessionChanges(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.pauseSessionChanges(new ObjectId().setId(sessionId), (err, r) => {
+    client.pauseSessionChanges(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.log(err.message)
         return reject('pauseSessionChanges error: ' + err.message)
@@ -106,9 +108,9 @@ export function pauseSessionChanges(sessionId: string): Promise<string> {
   })
 }
 
-export function resumeSessionChanges(sessionId: string): Promise<string> {
+export function resumeSessionChanges(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.resumeSessionChanges(new ObjectId().setId(sessionId), (err, r) => {
+    client.resumeSessionChanges(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.log(err.message)
         return reject('resumeSessionChanges error: ' + err.message)
@@ -134,14 +136,14 @@ export function unsubscribeSession(session_id: string): Promise<string> {
 }
 
 export function getSegment(
-  sessionId: string,
+  session_id: string,
   offset: number,
   length: number
 ): Promise<Uint8Array> {
   return new Promise<Uint8Array>((resolve, reject) => {
     client.getSegment(
       new SegmentRequest()
-        .setSessionId(sessionId)
+        .setSessionId(session_id)
         .setOffset(offset)
         .setLength(length),
       (err, r) => {
@@ -168,12 +170,12 @@ export function getSessionCount(): Promise<number> {
 }
 
 export function profileSession(
-  sessionId: string,
+  session_id: string,
   offset: number | undefined,
   length: number | undefined
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
-    let request = new ByteFrequencyProfileRequest().setSessionId(sessionId)
+    let request = new ByteFrequencyProfileRequest().setSessionId(session_id)
     if (offset && offset >= 0) request.setOffset(offset)
     if (length && length > 0) request.setLength(length)
     client.getByteFrequencyProfile(request, (err, r) => {
@@ -194,18 +196,18 @@ export function numAscii(profile: number[]): number {
 }
 
 export function searchSession(
-  sessionId: string,
+  session_id: string,
   pattern: string | Uint8Array,
-  isCaseInsensitive: boolean | undefined,
+  is_case_insensitive: boolean | undefined,
   offset: number | undefined,
   length: number | undefined,
   limit: number | undefined
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
     let request = new SearchRequest()
-      .setSessionId(sessionId)
+      .setSessionId(session_id)
       .setPattern(typeof pattern == 'string' ? Buffer.from(pattern) : pattern)
-      .setIsCaseInsensitive(isCaseInsensitive ? isCaseInsensitive : false)
+      .setIsCaseInsensitive(is_case_insensitive ? is_case_insensitive : false)
     if (offset && offset >= 0) request.setOffset(offset)
     if (length && length > 0) request.setLength(length)
     if (limit && limit > 0) request.setLimit(limit)
