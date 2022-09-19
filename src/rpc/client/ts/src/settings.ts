@@ -24,7 +24,8 @@ const port = process.env.PORT || '9000'
 const uri = `127.0.0.1:${port}`
 let creds = grpc.credentials.createInsecure()
 const client = new EditorClient(uri, creds)
-export const ALL_EVENTS = ~0
+export const NO_EVENTS = 0
+export const ALL_EVENTS = ~NO_EVENTS
 
 export function getClient(): EditorClient {
   return client

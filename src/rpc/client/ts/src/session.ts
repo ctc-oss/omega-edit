@@ -36,10 +36,10 @@ export function createSession(
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateSessionRequest()
-    if (session_id_desired && session_id_desired.length)
+    if (session_id_desired !== undefined && session_id_desired.length > 0)
       request.setSessionIdDesired(session_id_desired)
-    if (event_interest) request.setEventInterest(event_interest)
-    if (path && path.length) request.setFilePath(path)
+    if (event_interest !== undefined) request.setEventInterest(event_interest)
+    if (path !== undefined && path.length > 0) request.setFilePath(path)
     client.createSession(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -176,8 +176,8 @@ export function profileSession(
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
     let request = new ByteFrequencyProfileRequest().setSessionId(session_id)
-    if (offset && offset >= 0) request.setOffset(offset)
-    if (length && length > 0) request.setLength(length)
+    if (offset !== undefined && offset >= 0) request.setOffset(offset)
+    if (length !== undefined && length > 0) request.setLength(length)
     client.getByteFrequencyProfile(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -207,10 +207,10 @@ export function searchSession(
     let request = new SearchRequest()
       .setSessionId(session_id)
       .setPattern(typeof pattern == 'string' ? Buffer.from(pattern) : pattern)
-      .setIsCaseInsensitive(is_case_insensitive ? is_case_insensitive : false)
-    if (offset && offset >= 0) request.setOffset(offset)
-    if (length && length > 0) request.setLength(length)
-    if (limit && limit > 0) request.setLimit(limit)
+      .setIsCaseInsensitive(is_case_insensitive ?? false)
+    if (offset !== undefined && offset >= 0) request.setOffset(offset)
+    if (length !== undefined && length > 0) request.setLength(length)
+    if (limit !== undefined && limit > 0) request.setLimit(limit)
     client.searchSession(request, (err, r) => {
       if (err) {
         console.log(err.message)

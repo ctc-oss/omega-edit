@@ -36,12 +36,13 @@ export function createViewport(
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()
-    if (desired_viewport_id) request.setViewportIdDesired(desired_viewport_id)
+    if (desired_viewport_id !== undefined && desired_viewport_id.length > 0)
+      request.setViewportIdDesired(desired_viewport_id)
     request.setSessionId(session_id)
     request.setOffset(offset)
     request.setCapacity(capacity)
     request.setIsFloating(is_floating)
-    if (event_interest) request.setEventInterest(event_interest)
+    if (event_interest !== undefined) request.setEventInterest(event_interest)
     client.createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)
