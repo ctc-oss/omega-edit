@@ -129,16 +129,14 @@ describe('StressTest', () => {
         session_id,
         file_size - 1,
         1,
-        false,
-        undefined
+        false
       )
       const viewport_2_id = await createViewport(
         'all_data_vpt',
         session_id,
         0,
         file_size,
-        false,
-        undefined
+        false
       )
       await subscribeViewport(viewport_id, ALL_EVENTS)
       await subscribeViewport(viewport_2_id, ALL_EVENTS)

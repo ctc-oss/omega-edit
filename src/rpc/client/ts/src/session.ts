@@ -32,7 +32,7 @@ const client = getClient()
 export function createSession(
   path: string | undefined,
   session_id_desired: string | undefined,
-  event_interest: number | undefined
+  event_interest?: number
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateSessionRequest()

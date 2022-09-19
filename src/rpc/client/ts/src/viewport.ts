@@ -32,7 +32,7 @@ export function createViewport(
   offset: number,
   capacity: number,
   is_floating: boolean,
-  event_interest: number | undefined
+  event_interest?: number
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()

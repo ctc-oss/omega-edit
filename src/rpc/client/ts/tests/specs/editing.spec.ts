@@ -41,9 +41,7 @@ async function subscribeSession(
   interest?: number
 ): Promise<string> {
   let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
-  if (interest) {
-    subscriptionRequest.setInterest(interest)
-  }
+  if (interest !== undefined) subscriptionRequest.setInterest(interest)
   getClient()
     .subscribeToSessionEvents(subscriptionRequest)
     .on('data', (sessionEvent) => {

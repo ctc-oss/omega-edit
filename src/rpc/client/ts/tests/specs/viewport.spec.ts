@@ -102,8 +102,7 @@ describe('Viewports', () => {
       session_id,
       0,
       10,
-      false,
-      undefined
+      false
     )
     if (viewport_id_1.includes(':')) {
       /* The Scala RPC server always prepends the session ID and colon to viewport IDs */
@@ -119,8 +118,7 @@ describe('Viewports', () => {
       session_id,
       10,
       10,
-      false,
-      undefined
+      false
     )
 
     expect(viewport_id_2).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
@@ -202,8 +200,7 @@ describe('Viewports', () => {
       session_id,
       10,
       5,
-      false,
-      undefined
+      false
     )
     expect(await subscribeViewport(viewport_id)).to.equal(viewport_id)
     const viewport_floating_id = await createViewport(
@@ -211,8 +208,7 @@ describe('Viewports', () => {
       session_id,
       10,
       5,
-      true,
-      undefined
+      true
     )
     expect(await subscribeViewport(viewport_floating_id)).to.equal(
       viewport_floating_id
