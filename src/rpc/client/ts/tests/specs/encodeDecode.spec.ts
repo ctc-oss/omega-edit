@@ -19,15 +19,10 @@
 
 import { expect } from 'chai'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-import { getClient, waitForReady } from '../../src/settings'
 // @ts-ignore
 import { deadline } from './common'
 
 describe('Encode/Decode', () => {
-  beforeEach('Ensure the client is ready', async () => {
-    expect(await waitForReady(getClient(), deadline))
-  })
-
   it('Should encode string into Uint8Array', () => {
     expect(encode('abc123'))
       .deep.equals(Buffer.from('abc123'))
