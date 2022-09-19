@@ -105,7 +105,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString.size.toLong,
+            length = testString.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString))
           )
         )
@@ -147,7 +147,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString.size.toLong,
+            length = testString.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString))
           )
         )
@@ -172,7 +172,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -183,7 +183,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -213,7 +213,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -225,7 +225,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -276,7 +276,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -287,7 +287,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -329,7 +329,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -340,7 +340,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -378,7 +378,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -389,7 +389,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -402,7 +402,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_OVERWRITE,
             offset = 0,
-            length = testString3.size.toLong,
+            length = testString3.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString3))
           )
         )
@@ -450,7 +450,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
@@ -464,7 +464,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString2.size.toLong,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -493,7 +493,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString1.size.toLong,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
