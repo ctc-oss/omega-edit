@@ -54,14 +54,14 @@ omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte
 
 /**
  * Create a search context
- * @param session_ptr session to find patterns in
+ * @param session_ptr session to find the pattern in
  * @param pattern pointer to the pattern to find (as a C string)
  * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
  * bytes)
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
- * will track the computed session length
- * @param case_insensitive zero for case sensitive matching and non-zero otherwise
+ * will search to the end of the session
+ * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
  * @return search context
  * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
  * have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for

@@ -53,8 +53,8 @@ OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_pa
 OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
 
 /**
- * Create a new viewport for the given author, returns a pointer to the new viewport
- * @param session_ptr author wanting the new viewport
+ * Create a new viewport, returns a pointer to the new viewport
+ * @param session_ptr session to create the new viewport in
  * @param offset offset for the new viewport
  * @param capacity desired capacity of the new viewport
  * @param is_floating 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to
@@ -99,8 +99,8 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
 
 /**
  * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
- * if overwrite is non zero.  If the file exists and overwrite is zero, a new file name will be used as determined by
- * omega_util_available_filename.  If the file being edited is overwritten, the affected editing session will be reset.
+ * if overwrite is non zero.  If the file exists and overwrite is zero, a new unique file name will be used as determined
+ * by omega_util_available_filename.  If the file being edited is overwritten, the affected editing session will be reset.
  * @param session_ptr session to save
  * @param file_path file path to save to
  * @param overwrite set to non-zero if overwriting an existing file is okay, and zero otherwise

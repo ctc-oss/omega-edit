@@ -20,16 +20,29 @@
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
-const port = process.env.PORT || '9000'
-const uri = `127.0.0.1:${port}`
+const port = process.env.OMEGA_EDIT_SERVER_PORT || '9000'
+const host = process.env.OMEGA_EDIT_SERVER_HOST || '127.0.0.1'
+const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
+
 let creds = grpc.credentials.createInsecure()
 const client = new EditorClient(uri, creds)
+
 export const ALL_EVENTS = ~0
 
+/**
+ * Gets the connected editor client
+ * @return connected editor client
+ */
 export function getClient(): EditorClient {
   return client
 }
 
+/**
+ * Returns true when the client is connected and ready to handle requests
+ * @param client editor client to wait until its ready
+ * @param deadline limit on the amount of time to wait
+ * @return true of the client is ready to handle requests, and false if it is not ready
+ */
 export function waitForReady(
   client: EditorClient,
   deadline: grpc.Deadline
