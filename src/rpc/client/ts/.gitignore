@@ -12,9 +12,9 @@
 **/*.js
 **/*.js.map
 **/out/
+.server_pid
 doc/
 omega-edit-grpc-server-*
 omega_edit_*.js
 omega_edit_*.ts
 package
-server_pid

@@ -16,30 +16,44 @@
 
 package com.ctc.omega_edit.grpc
 
-import com.ctc.omega_edit.api.OmegaEdit
 import akka.actor.ActorSystem
+import cats.implicits.catsSyntaxTuple2Semigroupal
+import com.ctc.omega_edit.api.OmegaEdit
 import com.monovore.decline._
 
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 
 object boot
     extends CommandApp(
       name = "omega-edit-grpc-server",
       header = "",
-      main = Opts
-        .option[Int](
-          "port",
-          short = "p",
-          metavar = "port_num",
-          help = "Set the gRPC port to listen on. Default: 9000"
-        )
-        .withDefault(9000)
-        .map(new boot(_).run())
+      main = {
+        val iface_opt = Opts
+          .option[String](
+            "interface",
+            short = "i",
+            metavar = "interface_str",
+            help = "Set the gRPC interface to bind to. Default: 127.0.0.1"
+          )
+          .withDefault("127.0.0.1")
+
+        val port_opt = Opts
+          .option[Int](
+            "port",
+            short = "p",
+            metavar = "port_num",
+            help = "Set the gRPC port to listen on. Default: 9000"
+          )
+          .withDefault(9000)
+
+        (iface_opt, port_opt).mapN { (iface, port) =>
+          new boot(iface, port).run()
+        }
+      }
     )
 
-class boot(port: Int) {
+class boot(iface: String, port: Int) {
   implicit val sys: ActorSystem = ActorSystem("omega-grpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
@@ -47,7 +61,7 @@ class boot(port: Int) {
     val v = OmegaEdit.version()
     val done =
       for {
-        binding <- EditorService.bind(port = port)
+        binding <- EditorService.bind(iface = iface, port = port)
 
         _ = println(s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}")
 

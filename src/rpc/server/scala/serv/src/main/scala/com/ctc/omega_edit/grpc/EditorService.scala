@@ -366,7 +366,7 @@ object EditorService {
   def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
 
-  def bind(iface: String = "127.0.0.1", port: Int = 9000)(
+  def bind(iface: String, port: Int)(
       implicit
       system: ActorSystem
   ): Future[Http.ServerBinding] =
