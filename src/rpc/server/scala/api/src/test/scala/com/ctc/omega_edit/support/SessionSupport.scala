@@ -21,6 +21,7 @@ import com.ctc.omega_edit.api.{Change, OmegaEdit, Session, SessionEvent}
 
 import java.nio.file.Path
 import scala.io.Source
+import scala.util.Using
 
 trait SessionSupport {
   def emptySession(test: api.Session => Unit): Unit =
@@ -59,5 +60,5 @@ trait SessionSupport {
     test(session, cb)
   }
 
-  def fileContents(at: Path): String = Source.fromFile(at.toFile).mkString
+  def fileContents(at: Path): String = Using(Source.fromFile(at.toFile))(source => source.mkString).get
 }

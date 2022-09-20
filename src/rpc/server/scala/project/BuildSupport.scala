@@ -1,5 +1,7 @@
 import sbt.URL
 
+import scala.util.matching.Regex
+
 /*
  * Copyright 2021 Concurrent Technologies Corporation
  *
@@ -31,10 +33,10 @@ object BuildSupport {
   )
 
   // some regexes for arch parsing
-  val Mac = """mac.+""".r
-  val Win = """windows.+""".r
-  val Amd = """amd(\d+)""".r
-  val x86 = """x86_(\d+)""".r
+  val Mac: Regex = """mac.+""".r
+  val Win: Regex = """windows.+""".r
+  val Amd: Regex = """amd(\d+)""".r
+  val x86: Regex = """x86_(\d+)""".r
 
   // https://stackoverflow.com/a/51416386
   def filterScopedDependenciesFromPom(node: XmlNode): XmlNode =
@@ -89,7 +91,7 @@ object BuildSupport {
   }
 
   def pair(name: String): (String, String) = name -> s"${platform._id}/$name"
-  lazy val mapping = {
+  lazy val mapping: (String, String) = {
     val Mac = """mac.+""".r
     System.getProperty("os.name").toLowerCase match {
       case "linux" => pair("libomega_edit.so")

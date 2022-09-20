@@ -42,6 +42,11 @@ extern "C" {
  * will track the computed session length
  * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return search context
+ * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
+ * have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for
+ * testing and should not be used in production code. In production code, explicitly pass in the length.
+ * @warning Ensure that the pattern_length does not exceed the session_length - session_offset.  This is considered an
+ * error and a null pointer will be returned.
  */
 OMEGA_EDIT_EXPORT omega_search_context_t *
 omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
@@ -58,6 +63,11 @@ omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte
  * will track the computed session length
  * @param case_insensitive zero for case sensitive matching and non-zero otherwise
  * @return search context
+ * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
+ * have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for
+ * testing and should not be used in production code. In production code, explicitly pass in the length.
+ * @warning Ensure that the pattern_length does not exceed the session_length - session_offset.  This is considered an
+ * error and a null pointer will be returned.
  */
 OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr, const char *pattern,
                                                                       int64_t pattern_length, int64_t session_offset,

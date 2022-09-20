@@ -23,26 +23,30 @@
     "postpackage": "run-script-os",
     "postpackage:default": "rm -rf out/*.d.ts out/.npmignore out/package.json out/README.md && mv out/omega-edit* .",
     "postpackage:windows": "del /q out/*.d.ts out/.npmignore out/package.json out/README.md && move out/omega-edit* .",
-    "test": "mocha --exit --require ts-node/register ./tests/specs/*.spec.ts",
+    "pretest": "node runTests.ts runScalaServer",
+    "test": "mocha --exit --require ts-node/register ./tests/specs/*.spec.ts || yarn posttest",
+    "posttest": "node runTests.ts stopScalaServer",
     "lint": "yarn run prettier src -c"
   },
   "devDependencies": {
-    "@grpc/grpc-js": "^1.6.7",
     "@types/chai": "^4.3.1",
-    "@types/google-protobuf": "^3.15.5",
     "@types/mocha": "^9.1.1",
-    "@types/node": "^18.0.6",
     "chai": "^4.3.6",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
-    "google-protobuf": "^3.19.4",
+    "glob": "^8.0.3",
     "grpc-tools": "^1.11.2",
     "grpc_tools_node_protoc_ts": "^5.3.2",
     "mocha": "^10.0.0",
-    "ts-node": "^10.7.0",
-    "typescript": "^4.6.4"
-  },
-  "dependencies": {
     "prettier": "^2.6.2",
     "run-script-os": "^1.1.6"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.7.0",
+    "@types/google-protobuf": "^3.15.5",
+    "@types/node": "^18.7.18",
+    "google-protobuf": "^3.19.4",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.8.3",
+    "unzip-stream": "^0.3.1"
   }
 }

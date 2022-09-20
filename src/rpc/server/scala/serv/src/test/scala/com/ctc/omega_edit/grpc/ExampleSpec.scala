@@ -53,7 +53,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           count should be(0)
       }
 
-    "create session" in service.createSession(CreateSessionRequest()).map { v =>
+    "create session" in service.createSession(CreateSessionRequest.defaultInstance).map { v =>
       v.sessionId shouldNot be(empty)
     }
 
@@ -81,10 +81,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString.size.toLong,
             data = Some(testString)
           )
         )
-        profileResponse <- service.getByteFrequencyProfile(ByteFrequencyProfileRequest(sid))
+        profileResponse <- service.getByteFrequencyProfile(ByteFrequencyProfileRequest(sid, offset = None, length = None))
       } yield {
           profileResponse should matchPattern {
               case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>
@@ -102,6 +104,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString))
           )
         )
@@ -142,11 +146,13 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString))
           )
         )
         saveResponse <- service.saveSession(
-          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString)
+          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString, allowOverwrite = None)
         )
         contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
       } yield {
@@ -165,15 +171,19 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -202,16 +212,20 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -261,15 +275,19 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -310,15 +328,19 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -355,15 +377,19 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
@@ -375,6 +401,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_OVERWRITE,
+            offset = 0,
+            length = testString3.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString3))
           )
         )
@@ -421,11 +449,13 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         _ <- service.pauseSessionChanges(ObjectId(sid))
 
@@ -433,11 +463,13 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString2.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString2))
           )
         )
 
-        saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         // to ensure first saved file not overwritten
         contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
@@ -460,11 +492,13 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString1.length.toLong,
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath))
+        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
         // to ensure first saved file not overwritten
         contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
@@ -486,7 +520,7 @@ trait EditorServiceSupport {
     import service.system.dispatcher
     service
       .createSession(
-        CreateSessionRequest(eventInterest = Some(api.SessionEvent.Interest.All))
+        CreateSessionRequest(filePath = None, eventInterest = Some(api.SessionEvent.Interest.All), sessionIdDesired = None)
       )
       .map(_.sessionId)
       .flatMap(test)

@@ -48,7 +48,7 @@ describe('Undo/Redo', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   it('Should undo and redo changes', async () => {
@@ -106,7 +106,7 @@ describe('Undo/Redo', () => {
     expect(2).to.equal(await getChangeCount(session_id))
     expect(2).to.equal(await getUndoCount(session_id))
 
-    let last_undo = await getLastUndo(session_id)
+    const last_undo = await getLastUndo(session_id)
     expect('456').to.equal(decode(last_undo.getData_asU8()))
     expect(0).to.equal(last_undo.getOffset())
     expect(ChangeKind.CHANGE_INSERT).to.equal(last_undo.getKind())
@@ -175,14 +175,14 @@ describe('Undo/Redo', () => {
     expect(0).to.equal(await getUndoCount(session_id))
 
     // Test file saving and reading into a new session
-    let save_file_name = await saveSession(
+    const save_file_name = await saveSession(
       session_id,
       'save_session_test',
       true
     )
     assert(save_file_name.endsWith('save_session_test'))
     expect(1).to.equal(await getSessionCount())
-    let session_id_2 = await createSession(
+    const session_id_2 = await createSession(
       save_file_name,
       'verify_save_session'
     )
@@ -192,7 +192,7 @@ describe('Undo/Redo', () => {
     expect(10).to.equal(file_size)
     segment = await getSegment(session_id_2, 0, file_size)
     expect(segment).deep.equals(encode('0123456789'))
-    let destroyed_session = await destroySession(session_id_2)
+    const destroyed_session = await destroySession(session_id_2)
     expect(destroyed_session).to.equal(session_id_2)
     expect(1).to.equal(await getSessionCount())
 
@@ -201,7 +201,7 @@ describe('Undo/Redo', () => {
 
     // test clearing changes from a session
     expect(3).to.equal(await getChangeCount(session_id))
-    let cleared_session_id = await clear(session_id)
+    const cleared_session_id = await clear(session_id)
     expect(session_id).to.equal(cleared_session_id)
     expect(0).to.equal(await getChangeCount(session_id))
   })

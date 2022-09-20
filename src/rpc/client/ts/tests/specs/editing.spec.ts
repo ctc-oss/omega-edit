@@ -32,7 +32,7 @@ describe('Editing', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   describe('Insert', () => {
@@ -43,9 +43,9 @@ describe('Editing', () => {
       expect(change_id).to.be.a('number').that.equals(1)
       change_id = await insert(session_id, 3, encode('def'))
       expect(change_id).to.be.a('number').that.equals(2)
-      let file_size = await getComputedFileSize(session_id)
+      const file_size = await getComputedFileSize(session_id)
       expect(data.length + 3).equals(file_size)
-      let segment = await getSegment(session_id, 0, file_size)
+      const segment = await getSegment(session_id, 0, file_size)
       expect(encode('abcdefghijklmnopqrstuvwxyz')).deep.equals(segment)
     })
   })
@@ -60,7 +60,7 @@ describe('Editing', () => {
       expect(data).deep.equals(segment)
       let file_size = await getComputedFileSize(session_id)
       expect(data.length).equals(file_size)
-      let del_change_id = await del(session_id, 13, 10)
+      const del_change_id = await del(session_id, 13, 10)
       expect(del_change_id)
         .to.be.a('number')
         .that.equals(change_id + 1)

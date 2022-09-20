@@ -51,7 +51,7 @@ describe('StressTest', () => {
   })
 
   afterEach('Destroy session', async () => {
-    cleanup(session_id)
+    await cleanup(session_id)
   })
 
   it(
@@ -77,14 +77,14 @@ describe('StressTest', () => {
       await resumeSessionChanges(session_id)
       expect(data.length).to.equal(await getComputedFileSize(session_id))
 
-      let viewport_id = await createViewport(
+      const viewport_id = await createViewport(
         'last_byte_vpt',
         session_id,
         file_size - 1,
         1,
         false
       )
-      let viewport_2_id = await createViewport(
+      const viewport_2_id = await createViewport(
         'all_data_vpt',
         session_id,
         0,
@@ -118,6 +118,7 @@ describe('StressTest', () => {
       expect(data).to.deep.equal(viewport_data.getData_asU8())
       expect(viewport_id).to.equal(await destroyViewport(viewport_id))
       expect(viewport_2_id).to.equal(await destroyViewport(viewport_2_id))
+      expect(file_size).to.equal(await getComputedFileSize(session_id))
     }
   ).timeout(10000 * full_rotations)
 })
