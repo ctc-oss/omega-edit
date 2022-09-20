@@ -27,6 +27,7 @@ object Rat {
     // json files
     file("src/rpc/client/ts/package.json"),
     file("src/rpc/client/ts/package-lock.json"),
+    file("src/rpc/client/ts/typedoc.json"),
     file("src/rpc/client/ts/tests/package.json"),
     file("src/rpc/client/ts/tests/package-lock.json"),
     file("src/rpc/client/ts/tests/tsconfig.json"),

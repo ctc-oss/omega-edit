@@ -19,11 +19,14 @@
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './settings'
-const client = getClient()
 
+/**
+ * Gets the string version of the server editor library
+ * @return string version of the server editor library
+ */
 export function getVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    client.getVersion(new Empty(), (err, v) => {
+    getClient().getVersion(new Empty(), (err, v) => {
       if (err) {
         console.log(err.message)
         return reject('getVersion error: ' + err.message)
