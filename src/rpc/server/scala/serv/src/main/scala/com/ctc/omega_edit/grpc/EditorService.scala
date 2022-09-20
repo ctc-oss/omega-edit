@@ -23,11 +23,13 @@ import akka.http.scaladsl.Http
 import akka.pattern.ask
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
+import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
+import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
@@ -35,8 +37,6 @@ import omega_edit._
 import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import com.ctc.omega_edit.api
-import com.google.protobuf.ByteString
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(1.second)
@@ -214,9 +214,23 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     }
 
   def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] =
-    Future.successful(in)
+    (editors ? SessionOp(in.id, Session.Unwatch)).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
-    Future.successful(in)
+    ObjectId(in.id) match {
+      case Viewport.Id(sid, vid) =>
+        (editors ? ViewportOp(sid, vid, Viewport.Unwatch)).mapTo[Result].map {
+          case Ok(id) => ObjectId(id)
+          case Err(c) => throw grpcFailure(c)
+        }
+      case _ =>
+        throw new GrpcServiceException(
+          Status.INVALID_ARGUMENT.withDescription("malformed viewport id")
+        )
+    }
 
   // profile
 
@@ -333,13 +347,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
+  def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
+    Future.failed(grpcFailure(status, message))
+
   def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
     new GrpcServiceException(
       if (message.nonEmpty) status.withDescription(message) else status
     )
-
-  def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
-    Future.failed(grpcFailure(status, message))
 
   def bind(iface: String, port: Int)(
       implicit

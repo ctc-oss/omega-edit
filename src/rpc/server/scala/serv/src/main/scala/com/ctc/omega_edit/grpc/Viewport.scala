@@ -21,7 +21,7 @@ import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.grpc.Editors.{Data, Ok}
-import com.ctc.omega_edit.grpc.Viewport.{EventStream, Events, Get, Watch}
+import com.ctc.omega_edit.grpc.Viewport.{EventStream, Events, Get, Unwatch, Watch}
 import com.google.protobuf.ByteString
 import omega_edit.ObjectId
 
@@ -51,6 +51,8 @@ object Viewport {
   trait Op
   case object Get extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
+
+  case object Unwatch extends Op
 }
 
 class Viewport(
@@ -74,5 +76,10 @@ class Viewport(
       sender() ! new Ok(viewportId) with Events {
         def stream: EventStream = events
       }
+
+    case Unwatch =>
+        println(s"Unwatch viewportId $viewportId")
+        view.eventInterest = 0
+        sender() ! Ok(viewportId)
   }
 }

@@ -76,6 +76,7 @@ object Session {
   ) extends Op
   case class DestroyView(id: String) extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
+  case object Unwatch extends Op
   case object GetSize extends Op
   case object GetNumCheckpoints extends Op
   case object GetNumChanges extends Op
@@ -287,6 +288,11 @@ class Session(
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }
+
+    case Unwatch =>
+      println(s"Unwatch sessionId $sessionId")
+      session.eventInterest = 0
+      sender() ! Ok(sessionId)
 
     case GetSize =>
       sender() ! new Ok(sessionId) with Count {
