@@ -12,9 +12,11 @@
 
 import BuildSupport._
 import play.api.libs.json._
+import scala.io.Source
+import scala.util.Using
 
 lazy val packageData = Json
-  .parse(scala.io.Source.fromFile("../../client/ts/package.json").mkString)
+  .parse(Using(Source.fromFile("../../client/ts/package.json"))(source => source.mkString).get)
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 

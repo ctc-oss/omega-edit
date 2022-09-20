@@ -35,7 +35,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   //        0123456789012345
   //            |    ||    |
   val as = "bbbbabbbbaabbbba"
-  val binary = Array[Byte](1, 2, 3, 4, 0, 5, 6)
+  val binary: Array[Byte] = Array[Byte](1, 2, 3, 4, 0, 5, 6)
 
   "a session" must {
     "be empty" in emptySession { s =>

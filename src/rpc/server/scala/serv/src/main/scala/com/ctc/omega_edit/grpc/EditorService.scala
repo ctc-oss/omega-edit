@@ -164,17 +164,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def getCount(in: CountRequest): Future[CountResponse] =
     (in.kind match {
       case CountKind.COUNT_CHANGES =>
-        (editors ? SessionOp(in.sessionId, GetNumChanges))
+        editors ? SessionOp(in.sessionId, GetNumChanges)
       case CountKind.COUNT_CHECKPOINTS =>
-        (editors ? SessionOp(in.sessionId, GetNumCheckpoints))
+        editors ? SessionOp(in.sessionId, GetNumCheckpoints)
       case CountKind.COUNT_SEARCH_CONTEXTS =>
         Future.failed(grpcFailure(Status.UNIMPLEMENTED))
       case CountKind.COUNT_FILE_SIZE =>
-        (editors ? SessionOp(in.sessionId, GetSize))
+        editors ? SessionOp(in.sessionId, GetSize)
       case CountKind.COUNT_UNDOS =>
-        (editors ? SessionOp(in.sessionId, GetNumUndos))
+        editors ? SessionOp(in.sessionId, GetNumUndos)
       case CountKind.COUNT_VIEWPORTS =>
-        (editors ? SessionOp(in.sessionId, GetNumViewports))
+        editors ? SessionOp(in.sessionId, GetNumViewports)
       case CountKind.UNDEFINED_COUNT_KIND =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
       case CountKind.Unrecognized(_) =>
