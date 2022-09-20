@@ -119,8 +119,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       offset: Long,
       size: Long,
       isFloating: Boolean = false,
-      cb: ViewportCallback,
-      eventInterest: Int
+      cb: ViewportCallback
   ): Viewport = {
     val vp = i.omega_edit_create_viewport(
       p,
@@ -129,7 +128,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       isFloating,
       cb,
       null,
-      eventInterest
+      0
     )
     new ViewportImpl(vp, i)
   }

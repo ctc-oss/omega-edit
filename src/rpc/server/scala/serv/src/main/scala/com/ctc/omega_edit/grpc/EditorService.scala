@@ -51,8 +51,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     (editors ? Create(
       in.sessionIdDesired,
-      in.filePath.map(Paths.get(_)),
-      in.eventInterest
+      in.filePath.map(Paths.get(_))
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateSessionResponse(id)
@@ -85,7 +84,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   ): Future[CreateViewportResponse] =
     (editors ? SessionOp(
       in.sessionId,
-      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired, in.eventInterest)
+      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired)
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateViewportResponse(in.sessionId, id)

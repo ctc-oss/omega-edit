@@ -145,7 +145,6 @@ message CreateViewportRequest {
   int64 offset = 3;
   bool is_floating = 4;
   optional string viewport_id_desired = 5;
-  optional int32 event_interest = 6;
 }
 
 message CreateViewportResponse {
@@ -167,7 +166,6 @@ message ViewportDataResponse {
 message CreateSessionRequest {
   optional string file_path = 1;
   optional string session_id_desired = 2;
-  optional int32 event_interest = 3;
 }
 
 message CreateSessionResponse {

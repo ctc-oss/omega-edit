@@ -18,7 +18,6 @@ package com.ctc.omega_edit.grpc
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Sink
-import com.ctc.omega_edit.api
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import omega_edit._
@@ -122,17 +121,31 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
     "listen to session events" in newSession { sid =>
       import service.system
-      service
-        .subscribeToSessionEvents(EventSubscriptionRequest(sid, None))
+
+      val testString = ByteString.copyFromUtf8(UUID.randomUUID().toString)
+      val events = service
+        .subscribeToSessionEvents(EventSubscriptionRequest(sid, None)) // None implies subscribe to all
         .idleTimeout(2.seconds)
         .runWith(Sink.headOption)
-        .map {
-          case Some(e) =>
-            e should matchPattern {
-              case SessionEvent(`sid`, _, _, _, _, _, _) =>
-            }
-          case None => fail("no message received")
-        }
+
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = testString.size.toLong,
+            data = Some(testString)
+          )
+        )
+        res <- events
+      } yield res match {
+        case Some(e) =>
+          e should matchPattern {
+            case SessionEvent(`sid`, _, _, _, _, _, _) =>
+          }
+        case None => fail("no message received")
+      }
     }
 
     "save session" in newSession { sid =>
@@ -518,7 +531,6 @@ trait EditorServiceSupport {
       .createSession(
         CreateSessionRequest(
           filePath = None,
-          eventInterest = Some(api.SessionEvent.Interest.All),
           sessionIdDesired = None
         )
       )

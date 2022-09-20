@@ -38,8 +38,7 @@ object Editors {
   case class Find(id: String)
   case class Create(
       id: Option[String],
-      path: Option[Path],
-      eventInterest: Option[Int]
+      path: Option[Path]
   )
   case class Destroy(id: String)
   case object SessionCount
@@ -69,7 +68,7 @@ class Editors extends Actor with ActorLogging {
   implicit val timeout: Timeout = Timeout(1.second)
 
   def receive: Receive = {
-    case Create(sid, path, eventInterest) =>
+    case Create(sid, path) =>
       val id = sid.getOrElse(idFor(path))
       context.child(id) match {
         case Some(_) =>
@@ -93,7 +92,7 @@ class Editors extends Actor with ActorLogging {
           }
           context.actorOf(
             Session.props(
-              OmegaEdit.newSessionCb(path, cb, eventInterest),
+              OmegaEdit.newSessionCb(path, cb),
               stream
             ),
             id

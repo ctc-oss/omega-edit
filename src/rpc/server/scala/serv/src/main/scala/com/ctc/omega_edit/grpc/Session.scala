@@ -72,8 +72,7 @@ object Session {
       offset: Long,
       capacity: Long,
       isFloating: Boolean,
-      id: Option[String],
-      eventInterest: Option[Int]
+      id: Option[String]
   ) extends Op
   case class DestroyView(id: String) extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
@@ -159,7 +158,7 @@ class Session(
   val sessionId: String = self.path.name
 
   def receive: Receive = {
-    case View(off, cap, isFloating, id, eventInterest) =>
+    case View(off, cap, isFloating, id) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId:$vid"
@@ -186,7 +185,7 @@ class Session(
           }
           context.actorOf(
             Viewport.props(
-              session.viewCb(off, cap, isFloating, cb, eventInterest.getOrElse(0)),
+              session.viewCb(off, cap, isFloating, cb),
               stream
             ),
             vid
@@ -282,7 +281,9 @@ class Session(
       sender() ! Ok(sessionId)
 
     case Watch(eventInterest) =>
-      eventInterest.foreach(interest => session.eventInterest = interest)
+      println(s"Watch(${eventInterest}) on sessionId $sessionId, callback ${session.callback}, previous eventInterest ${session.eventInterest}")
+      session.eventInterest = eventInterest.getOrElse(api.SessionEvent.Interest.All)
+      println(s"Watch(${eventInterest}) on sessionId $sessionId, callback ${session.callback}, previous eventInterest ${session.eventInterest}")
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }
