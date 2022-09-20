@@ -14,5 +14,6 @@
 # limitations under the License.
 
 # Ignore artifacts
-out
+doc/
+out/
 **/omega_edit_*

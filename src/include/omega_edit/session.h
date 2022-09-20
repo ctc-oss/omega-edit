@@ -165,7 +165,7 @@ OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_sessi
 OMEGA_EDIT_EXPORT int omega_session_changes_paused(const omega_session_t *session_ptr);
 
 /**
- * Pauses data changes to the session
+ * Pause data changes to the session
  * @param session_ptr session to pause changes to
  */
 OMEGA_EDIT_EXPORT void omega_session_pause_changes(omega_session_t *session_ptr);

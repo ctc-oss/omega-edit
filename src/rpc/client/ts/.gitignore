@@ -9,11 +9,12 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-omega_edit_*.js
-omega_edit_*.ts
 **/*.js
 **/*.js.map
-package
 **/out/
+.server_pid
+doc/
 omega-edit-grpc-server-*
-server_pid
+omega_edit_*.js
+omega_edit_*.ts
+package
