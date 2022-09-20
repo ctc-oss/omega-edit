@@ -31,14 +31,12 @@ const client = getClient()
 
 export function createSession(
   path: string | undefined,
-  session_id_desired: string | undefined,
-  event_interest?: number
+  session_id_desired: string | undefined
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateSessionRequest()
     if (session_id_desired !== undefined && session_id_desired.length > 0)
       request.setSessionIdDesired(session_id_desired)
-    if (event_interest !== undefined) request.setEventInterest(event_interest)
     if (path !== undefined && path.length > 0) request.setFilePath(path)
     client.createSession(request, (err, r) => {
       if (err) {

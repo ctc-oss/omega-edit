@@ -32,7 +32,7 @@ export async function custom_setup() {
   let session_id = ''
   expect(await waitForReady(getClient(), deadline))
 
-  const new_session_id = await createSession(undefined, undefined, undefined)
+  const new_session_id = await createSession(undefined, undefined)
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
 
   // C++ RPC server uses 36 character UUIDs and the Scala server uses 8 character IDs

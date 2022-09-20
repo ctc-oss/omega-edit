@@ -31,8 +31,7 @@ export function createViewport(
   session_id: string,
   offset: number,
   capacity: number,
-  is_floating: boolean,
-  event_interest?: number
+  is_floating: boolean
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()
@@ -42,7 +41,6 @@ export function createViewport(
     request.setOffset(offset)
     request.setCapacity(capacity)
     request.setIsFloating(is_floating)
-    if (event_interest !== undefined) request.setEventInterest(event_interest)
     client.createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)

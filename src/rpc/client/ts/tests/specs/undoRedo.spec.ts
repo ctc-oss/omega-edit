@@ -182,8 +182,7 @@ describe('Undo/Redo', () => {
     expect(await getSessionCount()).to.equal(1)
     const session_id_2 = await createSession(
       save_file_name,
-      'verify_save_session',
-      undefined
+      'verify_save_session'
     )
     expect(await getSessionCount()).to.equal(2)
     expect(session_id_2).to.equal('verify_save_session')
