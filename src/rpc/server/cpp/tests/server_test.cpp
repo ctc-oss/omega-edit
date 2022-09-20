@@ -157,7 +157,6 @@ public:
 
         if (file_path) { request.set_file_path(*file_path); }
         if (session_id_desired) { request.set_session_id_desired(*session_id_desired); }
-        request.set_event_interest(ALL_EVENTS);
         std::mutex mu;
         std::condition_variable cv;
         bool done = false;
@@ -561,7 +560,6 @@ public:
         request.set_offset(offset);
         request.set_capacity(capacity);
         request.set_is_floating(is_floating);
-        request.set_event_interest(ALL_EVENTS);
         if (viewport_id_desired) { request.set_viewport_id_desired(*viewport_id_desired); }
 
         std::mutex mu;

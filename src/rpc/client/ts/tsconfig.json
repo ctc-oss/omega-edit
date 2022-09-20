@@ -38,5 +38,5 @@
     "strictNullChecks": true,
     "noUnusedParameters": true
   },
-  "exclude": ["node_modules", "tests", "runTests.ts", "**/*.d.ts]
+  "exclude": ["node_modules", "tests", "runTests.ts", "**/*.d.ts"]
 }
