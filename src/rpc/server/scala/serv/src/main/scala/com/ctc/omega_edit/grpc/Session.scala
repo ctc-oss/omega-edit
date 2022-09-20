@@ -281,7 +281,8 @@ class Session(
       session.resumeViewportEvents()
       sender() ! Ok(sessionId)
 
-    case Watch(_) =>
+    case Watch(eventInterest) =>
+      eventInterest.foreach(interest => session.eventInterest = interest)
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }
