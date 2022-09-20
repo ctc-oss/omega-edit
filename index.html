@@ -309,11 +309,11 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1ad0bd62ec200acc6ab467dd9dcb430990"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_viewport_t</span> <span class="pre">*</span> <span class="pre">omega_edit_create_viewport</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">capacity,</span> <span class="pre">int</span> <span class="pre">is_floating,</span> <span class="pre">omega_viewport_event_cbk_t</span> <span class="pre">cbk,</span> <span class="pre">void</span> <span class="pre">*user_data_ptr,</span> <span class="pre">int32_t</span> <span class="pre">event_interest)</span></span></dt>
-<dd><p>Create a new viewport for the given author, returns a pointer to the new viewport </p>
+<dd><p>Create a new viewport, returns a pointer to the new viewport </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>session_ptr</strong> – author wanting the new viewport </p></li>
+<li><p><strong>session_ptr</strong> – session to create the new viewport in </p></li>
 <li><p><strong>offset</strong> – offset for the new viewport </p></li>
 <li><p><strong>capacity</strong> – desired capacity of the new viewport </p></li>
 <li><p><strong>is_floating</strong> – 0 if the viewport is to remain fixed at the given offset, non-zero if the viewport is expected to “float” as bytes are inserted or deleted before the start of this viewport </p></li>
@@ -387,7 +387,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="edit_8h_1ad5789dafd2205e000a3c99269a32ca0f"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_edit_save</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">int</span> <span class="pre">overwrite,</span> <span class="pre">char</span> <span class="pre">*saved_file_path)</span></span></dt>
-<dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
+<dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new unique file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -1112,12 +1112,12 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>session_ptr</strong> – session to find patterns in </p></li>
+<li><p><strong>session_ptr</strong> – session to find the pattern in </p></li>
 <li><p><strong>pattern</strong> – pointer to the pattern to find (as a C string) </p></li>
 <li><p><strong>pattern_length</strong> – length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) </p></li>
 <li><p><strong>session_offset</strong> – start searching at this offset within the session </p></li>
-<li><p><strong>session_length</strong> – search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length </p></li>
-<li><p><strong>case_insensitive</strong> – zero for case sensitive matching and non-zero otherwise </p></li>
+<li><p><strong>session_length</strong> – search from the starting offset within the session up to this many bytes, if set to zero, it will search to the end of the session </p></li>
+<li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
@@ -1456,7 +1456,7 @@
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
 <span class="target" id="session_8h_1aaa2838adad9c7f6496bfca7dd53b6b82"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_session_pause_changes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
-<dd><p>Pauses data changes to the session </p>
+<dd><p>Pause data changes to the session </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>session_ptr</strong> – session to pause changes to </p>
