@@ -67,35 +67,34 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
     "profile session data" in newSession { sid =>
       val testString = ByteString.copyFromUtf8("5555544443332210122333444455555")
       val len = testString.size()
-      val expectedProfile = ArraySeq(
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0)
+      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0)
       for {
         _ <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString.size.toLong,
+            length = len.toLong,
             data = Some(testString)
           )
         )
-        profileResponse <- service.getByteFrequencyProfile(ByteFrequencyProfileRequest(sid, offset = None, length = None))
-      } yield {
-          profileResponse should matchPattern {
-              case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>
-          }
+        profileResponse <- service.getByteFrequencyProfile(
+          ByteFrequencyProfileRequest(sid, offset = None, length = None)
+        )
+      } yield profileResponse should matchPattern {
+        case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>
       }
     }
 
     "update session data" in newSession { sid =>
-      val testString = UUID.randomUUID().toString
+      val testString = ByteString.copyFromUtf8(UUID.randomUUID().toString)
       for {
         sizeBefore <- service
           .getComputedFileSize(ObjectId(sid))
@@ -105,8 +104,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             sid,
             ChangeKind.CHANGE_INSERT,
             offset = 0,
-            length = testString.length.toLong,
-            data = Some(ByteString.copyFromUtf8(testString))
+            length = testString.size.toLong,
+            data = Some(testString)
           )
         )
         sizeAfter <- service
@@ -117,10 +116,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         changeResponse should matchPattern {
           case ChangeResponse(`sid`, _, _) =>
         }
-        changeResponse should matchPattern {
-          case ChangeResponse(`sid`, _, _) =>
-        }
-        sizeAfter shouldBe testString.length
+        sizeAfter shouldBe testString.size
       }
     }
 
@@ -520,7 +516,11 @@ trait EditorServiceSupport {
     import service.system.dispatcher
     service
       .createSession(
-        CreateSessionRequest(filePath = None, eventInterest = Some(api.SessionEvent.Interest.All), sessionIdDesired = None)
+        CreateSessionRequest(
+          filePath = None,
+          eventInterest = Some(api.SessionEvent.Interest.All),
+          sessionIdDesired = None
+        )
       )
       .map(_.sessionId)
       .flatMap(test)
