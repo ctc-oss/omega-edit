@@ -50,7 +50,7 @@ object Viewport {
 
   trait Op
   case object Get extends Op
-  case object Watch extends Op
+  case class Watch(eventInterest: Option[Int]) extends Op
 }
 
 class Viewport(
@@ -67,7 +67,10 @@ class Viewport(
         def offset: Long = view.offset
       }
 
-    case Watch =>
+    case Watch(eventInterest) =>
+      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, previous eventInterest ${view.eventInterest}")
+      view.eventInterest = eventInterest.getOrElse(api.ViewportEvent.Interest.All)
+      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, current eventInterest ${view.eventInterest}")
       sender() ! new Ok(viewportId) with Events {
         def stream: EventStream = events
       }

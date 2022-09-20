@@ -283,7 +283,7 @@ class Session(
     case Watch(eventInterest) =>
       println(s"Watch(${eventInterest}) on sessionId $sessionId, callback ${session.callback}, previous eventInterest ${session.eventInterest}")
       session.eventInterest = eventInterest.getOrElse(api.SessionEvent.Interest.All)
-      println(s"Watch(${eventInterest}) on sessionId $sessionId, callback ${session.callback}, previous eventInterest ${session.eventInterest}")
+      println(s"Watch(${eventInterest}) on sessionId $sessionId, callback ${session.callback}, current eventInterest ${session.eventInterest}")
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }
