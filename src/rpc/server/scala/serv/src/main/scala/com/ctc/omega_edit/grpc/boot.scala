@@ -27,7 +27,11 @@ import scala.concurrent.{Await, ExecutionContext}
 object boot
     extends CommandApp(
       name = "omega-edit-grpc-server",
-      header = "",
+      header = "Ωedit gRPC server",
+      version = {
+        val v = OmegaEdit.version()
+        s"v${v.major}.${v.minor}.${v.patch}"
+      },
       main = {
         val default_interface = scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_HOST", "127.0.0.1")
         val interface_opt = Opts
