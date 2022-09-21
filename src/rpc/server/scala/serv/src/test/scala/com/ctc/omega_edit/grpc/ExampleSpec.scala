@@ -125,7 +125,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
       val testString = ByteString.copyFromUtf8(UUID.randomUUID().toString)
       val events = service
         .subscribeToSessionEvents(EventSubscriptionRequest(sid, None)) // None implies subscribe to all
-        .idleTimeout(2.seconds)
+        .idleTimeout(1.second)
         .runWith(Sink.headOption)
 
       for {
