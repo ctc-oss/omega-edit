@@ -29,26 +29,28 @@ object boot
       name = "omega-edit-grpc-server",
       header = "",
       main = {
-        val iface_opt = Opts
+        val default_interface = scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_HOST", "127.0.0.1")
+        val interface_opt = Opts
           .option[String](
             "interface",
             short = "i",
             metavar = "interface_str",
-            help = "Set the gRPC interface to bind to. Default: 127.0.0.1"
+            help = s"Set the gRPC interface to bind to. Default: $default_interface"
           )
-          .withDefault("127.0.0.1")
+          .withDefault(default_interface)
 
+        val default_port = scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_PORT", "9000")
         val port_opt = Opts
           .option[Int](
             "port",
             short = "p",
             metavar = "port_num",
-            help = "Set the gRPC port to listen on. Default: 9000"
+            help = s"Set the gRPC port to listen on. Default: $default_port"
           )
-          .withDefault(9000)
+          .withDefault(default_port.toInt)
 
-        (iface_opt, port_opt).mapN { (iface, port) =>
-          new boot(iface, port).run()
+        (interface_opt, port_opt).mapN { (interface, port) =>
+          new boot(interface, port).run()
         }
       }
     )
