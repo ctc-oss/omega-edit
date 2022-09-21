@@ -990,8 +990,8 @@ private:
     std::vector<std::unique_ptr<std::thread>> viewport_subscription_handler_threads_;
 };
 
-auto OmegaEditServiceClient::SessionCallbackCount = std::map<std::string, int32_t, std::less<>>();
-auto OmegaEditServiceClient::ViewportCallbackCount = std::map<std::string, int32_t, std::less<>>();
+std::map<std::string, int32_t, std::less<>> OmegaEditServiceClient::SessionCallbackCount = std::map<std::string, int32_t, std::less<>>();
+std::map<std::string, int32_t, std::less<>> OmegaEditServiceClient::ViewportCallbackCount = std::map<std::string, int32_t, std::less<>>();
 
 void run_tests(const std::string &target_str, int repetitions, bool log, int64_t connect_deadline_in_seconds) {
     const int64_t vpt_capacity = 5;
