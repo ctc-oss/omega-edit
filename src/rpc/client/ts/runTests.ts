@@ -33,10 +33,14 @@ async function startServer(filePath) {
     ? `./${filePath}/bin/omega-edit-grpc-server.bat`
     : `./${filePath}/bin/omega-edit-grpc-server`
 
-  const server_process = spawn(scriptName, [`--interface=${host}`, `--port=${port}`], {
-    stdio: 'ignore',
-    detached: true,
-  })
+  const server_process = spawn(
+    scriptName,
+    [`--interface=${host}`, `--port=${port}`],
+    {
+      stdio: 'ignore',
+      detached: true,
+    }
+  )
 
   fs.writeFileSync('.server_pid', server_process.pid.toString())
 }

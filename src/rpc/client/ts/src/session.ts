@@ -44,7 +44,8 @@ export function createSession(
     let request = new CreateSessionRequest()
     if (session_id_desired !== undefined && session_id_desired.length > 0)
       request.setSessionIdDesired(session_id_desired)
-    if (file_path !== undefined && file_path.length > 0) request.setFilePath(file_path)
+    if (file_path !== undefined && file_path.length > 0)
+      request.setFilePath(file_path)
     getClient().createSession(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -171,14 +172,14 @@ export function resumeSessionChanges(session_id: string): Promise<string> {
 export function unsubscribeSession(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().unsubscribeToSessionEvents(
-        new ObjectId().setId(session_id),
-        (err, r) => {
-          if (err) {
-            console.log(err.message)
-            return reject('unsubscribeSession error: ' + err.message)
-          }
-          return resolve(r.getId())
+      new ObjectId().setId(session_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('unsubscribeSession error: ' + err.message)
         }
+        return resolve(r.getId())
+      }
     )
   })
 }

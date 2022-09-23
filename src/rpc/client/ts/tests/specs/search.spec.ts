@@ -23,7 +23,7 @@ import {
   getSegment,
   searchSession,
 } from '../../src/session'
-import { clear, getChangeCount, overwrite, rep } from '../../src/change'
+import { clear, getChangeCount, overwrite, replace } from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
 import { cleanup, custom_setup } from './common'
@@ -126,7 +126,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([1])
-    await rep(session_id, 1, pattern_bytes.length, replace_bytes)
+    await replace(session_id, 1, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(
@@ -143,7 +143,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([0])
-    await rep(session_id, 0, pattern_bytes.length, replace_bytes)
+    await replace(session_id, 0, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(
@@ -160,7 +160,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([9])
-    await rep(session_id, 9, pattern_bytes.length, replace_bytes)
+    await replace(session_id, 9, pattern_bytes.length, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
@@ -174,23 +174,30 @@ describe('Searching', () => {
     )
     expect(change_id).to.equal(1)
     expect(await getComputedFileSize(session_id)).to.equal(30)
-    let pattern = 'is hay'
-    let replace = 'are needles'
+    let pattern_chars = 'is hay'
+    let replace_chars = 'are needles'
     let needles = await searchSession(
       session_id,
-      pattern,
+      pattern_chars,
       false,
       0,
       0,
       undefined
     )
     expect(needles).deep.equals([10])
-    await rep(session_id, 10, pattern.length, replace)
-    pattern = 'needles'
-    replace = 'hay'
-    needles = await searchSession(session_id, pattern, true, 0, 0, undefined)
+    await replace(session_id, 10, pattern_chars.length, replace_chars)
+    pattern_chars = 'needles'
+    replace_chars = 'hay'
+    needles = await searchSession(
+      session_id,
+      pattern_chars,
+      true,
+      0,
+      0,
+      undefined
+    )
     expect(needles).deep.equals([14, 28])
-    await rep(session_id, 28, pattern.length, replace)
+    await replace(session_id, 28, pattern_chars.length, replace_chars)
     const file_size = await getComputedFileSize(session_id)
     const segment = await getSegment(session_id, 0, file_size)
     expect(segment.length).to.equal(file_size)

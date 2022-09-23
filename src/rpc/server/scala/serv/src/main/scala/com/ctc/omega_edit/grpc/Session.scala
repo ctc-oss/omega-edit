@@ -168,7 +168,7 @@ class Session(
         case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           val (input, stream) = Source
-            .queue[ViewportEvent](1, OverflowStrategy.dropHead)
+            .queue[ViewportEvent](5, OverflowStrategy.backpressure)
             .preMaterialize()
           val cb = ViewportCallback { (v, e, c) =>
             input.queue.offer(

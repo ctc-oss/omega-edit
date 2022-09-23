@@ -31,7 +31,7 @@ import {
 } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
-import { cleanup, custom_setup } from './common'
+import { check_callback_count, cleanup, custom_setup } from './common'
 import { ALL_EVENTS, getClient } from '../../src/settings'
 
 let session_callbacks = new Map()
@@ -51,14 +51,28 @@ async function subscribeSession(
           ? 1 + session_callbacks.get(session_id)
           : 1
       )
-      console.log(
-        'session: ' +
-          session_id +
-          ', event: ' +
-          sessionEvent.getSessionEventKind() +
-          ', count: ' +
-          session_callbacks.get(session_id)
-      )
+      const event = sessionEvent.getSessionEventKind()
+      if (SessionEventKind.SESSION_EVT_EDIT == event) {
+        console.log(
+          'session: ' +
+            session_id +
+            ', event: ' +
+            sessionEvent.getSessionEventKind() +
+            ', serial: ' +
+            sessionEvent.getSerial() +
+            ', count: ' +
+            session_callbacks.get(session_id)
+        )
+      } else {
+        console.log(
+          'session: ' +
+            session_id +
+            ', event: ' +
+            sessionEvent.getSessionEventKind() +
+            ', count: ' +
+            session_callbacks.get(session_id)
+        )
+      }
     })
   return session_id
 }
@@ -86,7 +100,7 @@ describe('Editing', () => {
       expect(subscribed_session_id).to.equal(session_id)
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
-      expect(session_callbacks.has(session_id)).to.be.false
+      await check_callback_count(session_callbacks, session_id, 0)
       // Subscribe to all events
       await subscribeSession(session_id)
       change_id = await insert(session_id, 3, encode('def'))
@@ -95,8 +109,7 @@ describe('Editing', () => {
       expect(file_size).to.equal(data.length + 3)
       const segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmnopqrstuvwxyz'))
-      console.log(session_callbacks)
-      expect(session_callbacks.get(session_id)).to.equal(1) // session subscribed for 1 event
+      await check_callback_count(session_callbacks, session_id, 1)
     })
   })
 
@@ -105,14 +118,14 @@ describe('Editing', () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
       const data = encode('abcdefghijklmnopqrstuvwxyz')
       await subscribeSession(session_id)
-      expect(session_callbacks.has(session_id)).to.be.false
+      await check_callback_count(session_callbacks, session_id, 0)
       let change_id = await insert(session_id, 0, data)
       expect(change_id).to.be.a('number').that.equals(1)
       let segment = await getSegment(session_id, 0, data.length)
       expect(segment).deep.equals(data)
       let file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
-      expect(session_callbacks.get(session_id)).to.equal(1)
+      await check_callback_count(session_callbacks, session_id, 1)
       await unsubscribeSession(session_id)
       const del_change_id = await del(session_id, 13, 10)
       expect(del_change_id)
@@ -122,7 +135,7 @@ describe('Editing', () => {
       expect(file_size).equals(data.length - 10)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmxyz'))
-      expect(session_callbacks.get(session_id)).to.equal(1) // unsubscribed before the second event
+      await check_callback_count(session_callbacks, session_id, 1) // unsubscribed before the second event
     })
   })
 
@@ -132,7 +145,7 @@ describe('Editing', () => {
       const data = encode('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
       let change_id = await insert(session_id, 0, data)
       await subscribeSession(session_id)
-      expect(session_callbacks.has(session_id)).to.be.false
+      await check_callback_count(session_callbacks, session_id, 0)
       expect(change_id).to.be.a('number').that.equals(1)
       let segment = await getSegment(session_id, 0, data.length)
       expect(segment).deep.equals(data)
@@ -160,14 +173,14 @@ describe('Editing', () => {
       expect(last_change.getSerial()).to.equal(2)
       expect(last_change.getLength()).to.equal(10)
       expect(last_change.getSessionId()).to.equal(session_id)
-      expect(session_callbacks.get(session_id)).to.equal(1)
+      await check_callback_count(session_callbacks, session_id, 1)
       overwrite_change_id = await overwrite(session_id, 15, 'PQRSTU') // overwriting: 123456 (len: 6), using a string
       expect(overwrite_change_id).to.be.a('number').that.equals(3)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyΩ'))
-      expect(session_callbacks.get(session_id)).to.equal(2)
+      await check_callback_count(session_callbacks, session_id, 2)
       await unsubscribeSession(session_id)
       // To overwrite a 2-byte character with a single-byte character, we need to delete the 2-byte character and insert the single-byte character
       change_id = await del(session_id, 25, 2)
@@ -176,7 +189,7 @@ describe('Editing', () => {
       expect(file_size).equals(data.length - 2)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxy'))
-      expect(session_callbacks.get(session_id)).to.equal(2)
+      await check_callback_count(session_callbacks, session_id, 2)
       await subscribeSession(session_id)
       change_id = await insert(session_id, 25, 'z')
       expect(change_id).to.equal(5)
@@ -184,7 +197,7 @@ describe('Editing', () => {
       expect(file_size).equals(data.length - 1)
       segment = await getSegment(session_id, 0, file_size)
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyz'))
-      expect(session_callbacks.get(session_id)).to.equal(3)
+      await check_callback_count(session_callbacks, session_id, 3)
     })
   })
 })
