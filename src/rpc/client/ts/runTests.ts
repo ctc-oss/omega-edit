@@ -8,7 +8,7 @@ const port = process.env.OMEGA_EDIT_SERVER_PORT || '9000'
 const host = process.env.OMEGA_EDIT_SERVER_HOST || '127.0.0.1'
 
 // Function for delaying some amount of time
-export async function delay(milliseconds: number) {
+async function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
