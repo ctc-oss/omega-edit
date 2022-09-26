@@ -38,23 +38,27 @@ async function startServer(filePath) {
     ? `./${filePath}/bin/omega-edit-grpc-server.bat`
     : `./${filePath}/bin/omega-edit-grpc-server`
 
-  const server_process = spawn(scriptName, [`--interface=${host}`, `--port=${port}`], {
-    stdio: 'ignore',
-    detached: true,
-  })
+  const server_process = spawn(
+    scriptName,
+    [`--interface=${host}`, `--port=${port}`],
+    {
+      stdio: 'ignore',
+      detached: true,
+    }
+  )
 
   fs.writeFileSync('.server_pid', server_process.pid.toString())
 }
 
 // Method to getFilePath based on the name of the server package
 async function getFilePath() {
-  var serverFilePaths = await glob.sync('omega-edit-grpc-server-*', {
+  const serverFilePaths = await glob.sync('omega-edit-grpc-server-*', {
     cwd: '.',
   })
 
-  var serverFilePath = ''
+  let serverFilePath = ''
 
-  for (var i = 0; i < serverFilePaths.length; i++) {
+  for (let i = 0; i < serverFilePaths.length; i++) {
     if (serverFilePaths[i].includes('.zip')) {
       serverFilePath = serverFilePaths[i].replace('.zip', '')
       break
@@ -66,7 +70,7 @@ async function getFilePath() {
 
 // Stop Scala gRPC server
 async function stopServer() {
-  var serverFilePath = await getFilePath()
+  const serverFilePath = await getFilePath()
   if (serverFilePath === '') exit(1)
 
   if (fs.existsSync('.server_pid')) {
@@ -79,11 +83,13 @@ async function stopServer() {
 
 // Run server by first extracting server then starting it
 async function runScalaServer() {
-  var serverFilePath = await getFilePath()
+  const serverFilePath = await getFilePath()
   if (serverFilePath === '') exit(1)
 
   await extractServer(serverFilePath)
   await startServer(serverFilePath)
+  // wait 10 seconds for the server to come online
+  await delay(10000)
   exit(0)
 }
 
@@ -94,8 +100,6 @@ module.exports = {
 
 if (process.argv.includes('runScalaServer')) {
   runScalaServer()
-  // wait 10 seconds for the server to come online
-  delay(10000)
 } else if (process.argv.includes('stopScalaServer')) {
   stopServer()
 }
