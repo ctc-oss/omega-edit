@@ -56,13 +56,16 @@ async function getFilePath() {
     }
   }
 
-  return serverFilePath
+  return (serverFilePath !== '' && fs.existsSync(`${serverFilePath}.zip`)) ? serverFilePath : ''
 }
 
 // Stop Scala gRPC server
 async function stopServer() {
   var serverFilePath = await getFilePath()
-  if (serverFilePath === '') exit(1)
+  if (serverFilePath === '') {
+    console.error("server file path not found")
+    exit(1)
+  }
 
   if (fs.existsSync('.server_pid')) {
     process.kill(fs.readFileSync('.server_pid').toString())
@@ -75,7 +78,10 @@ async function stopServer() {
 // Run server by first extracting server then starting it
 async function runScalaServer() {
   var serverFilePath = await getFilePath()
-  if (serverFilePath === '') exit(1)
+  if (serverFilePath === '') {
+    console.error("server file path not found")
+    exit(1)
+  }
 
   await extractServer(serverFilePath)
   await startServer(serverFilePath)
