@@ -23,6 +23,7 @@ const glob = require('glob')
 const fs = require('fs')
 const os = require('os')
 const unzip = require('unzip-stream')
+
 const port = process.env.OMEGA_EDIT_SERVER_PORT || '9000'
 const host = process.env.OMEGA_EDIT_SERVER_HOST || '127.0.0.1'
 
@@ -43,7 +44,7 @@ async function extractServer(filePath) {
 }
 
 // Run Scala gRPC server
-async function startServer(filePath) {
+function startServer(filePath) {
   if (!os.platform().toLowerCase().startsWith('win')) {
     execFileSync('chmod', ['+x', `${filePath}/bin/omega-edit-grpc-server`])
   }
@@ -65,13 +66,13 @@ async function startServer(filePath) {
       detached: true,
     }
   )
-
+  console.log(`Server PID: ${server_process.pid.toString()}`)
   fs.writeFileSync('.server_pid', server_process.pid.toString())
 }
 
 // Method to getFilePath based on the name of the server package
-async function getFilePath() {
-  const serverFilePaths = await glob.sync('omega-edit-grpc-server-*', {
+function getFilePath() {
+  const serverFilePaths = glob.sync('omega-edit-grpc-server-*', {
     cwd: '.',
   })
 
@@ -90,16 +91,18 @@ async function getFilePath() {
 }
 
 // Stop Scala gRPC server
-async function stopServer() {
-  const serverFilePath = await getFilePath()
+function stopServer() {
+  const serverFilePath = getFilePath()
   if (serverFilePath === '') {
     console.error('server file path not found')
     exit(1)
   }
 
   if (fs.existsSync('.server_pid')) {
-    process.kill(fs.readFileSync('.server_pid').toString())
+    const pid = fs.readFileSync('.server_pid').toString()
+    process.kill(pid)
     fs.rmSync('.server_pid')
+    console.log(`Server with PID ${pid} has been shutdown`)
   }
 
   fs.rmdirSync(serverFilePath, { recursive: true })
@@ -107,14 +110,14 @@ async function stopServer() {
 
 // Run server by first extracting server then starting it
 async function runScalaServer() {
-  const serverFilePath = await getFilePath()
-  if (serverFilePath === '') {
+  const filePath = getFilePath()
+  if (filePath === '') {
     console.error('server file path not found')
     exit(1)
   }
-
-  await extractServer(serverFilePath)
-  await startServer(serverFilePath)
+  extractServer(filePath)
+    .then(() => startServer(filePath))
+    .catch((err) => console.error(err))
 }
 
 module.exports = {
@@ -123,7 +126,7 @@ module.exports = {
 }
 
 if (process.argv.includes('runScalaServer')) {
-  runScalaServer()
+  runScalaServer().then(() => exit(0))
 } else if (process.argv.includes('stopScalaServer')) {
   stopServer()
 }

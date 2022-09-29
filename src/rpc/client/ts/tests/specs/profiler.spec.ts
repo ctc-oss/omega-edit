@@ -40,14 +40,16 @@ describe('Profiing', () => {
   describe('Profiler', () => {
     it('Should profile an empty session', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const profile = await profileSession(session_id, 0, 0)
-      expect(profile.length).to.equal(256)
-      expect(
-        profile.reduce((accumulator, current) => {
-          return accumulator + current
-        }, 0)
-      ).to.equal(0)
+      profileSession(session_id, 0, 0).then((profile) => {
+        expect(profile.length).to.equal(256)
+        expect(
+          profile.reduce((accumulator, current) => {
+            return accumulator + current
+          }, 0)
+        ).to.equal(0)
+      })
     })
+
     it('Should profile character data', async () => {
       const content = 'abaabbbaaaabbbbc'
       const change_id = await overwrite(session_id, 0, content)
