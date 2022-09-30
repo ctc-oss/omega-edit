@@ -43,6 +43,34 @@ describe('Encode/Decode', () => {
     expect('abc123').to.equal(decode(new Uint8Array([97, 98, 99, 49, 50, 51])))
   })
 
+  it('Should handle ASCII conversions', () => {
+    const asciiChars = [
+      'T',
+      'h',
+      'i',
+      's',
+      ' ',
+      'i',
+      's',
+      ' ',
+      'a',
+      ' ',
+      't',
+      'e',
+      's',
+      't',
+      '.',
+      '\n',
+    ]
+    const asciiDecimalVals = [
+      84, 104, 105, 115, 32, 105, 115, 32, 97, 32, 116, 101, 115, 116, 46, 10,
+    ]
+    for (let i = 0; i < asciiChars.length; ++i) {
+      expect(asciiChars[i].charCodeAt(0)).to.equal(asciiDecimalVals[i])
+      expect(String.fromCharCode(asciiDecimalVals[i])).to.equal(asciiChars[i])
+    }
+  })
+
   it('Should handle binary, octal, and hex conversions, and representations', () => {
     const hexList = [
       0x93, 0x5d, 0xde, 0x35, 0xef, 0x12, 0x4e, 0x32, 0x89, 0xef, 0x12, 0x3a,
