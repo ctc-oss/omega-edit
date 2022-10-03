@@ -99,6 +99,11 @@ lazy val `omega-edit` = project
 
 lazy val api = project
   .in(file("api"))
+   /*
+    * technically changing .dependsOn to this:
+    *   .dependsOn(spi, native % "compile->publishM2;test->publishM2")
+    * should be the same as the #region section but doesn't ever run native/publishM2
+    */
   .dependsOn(spi, native % "test->compile")
   .settings(commonSettings)
   .settings(
@@ -116,6 +121,16 @@ lazy val api = project
     buildInfoPackage := organization.value + ".omega_edit",
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
+    // #region Needed for packaging to work without an extra command for native/publishM2
+    Compile / Keys.compile :=
+      (Compile / Keys.compile)
+        .dependsOn(native / publishM2)
+        .value,
+    Test / Keys.test :=
+      (Test / Keys.test)
+        .dependsOn(native / publishM2)
+        .value
+    // #endregion
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -172,10 +187,7 @@ lazy val serv = project
     ),
     scalacOptions ~= adjustScalacOptionsForScalatest,
     resolvers += Resolver.mavenLocal,
-    externalResolvers ++= Seq(
-      ghb_resolver,
-      Resolver.mavenLocal
-    ),
+    externalResolvers += ghb_resolver,
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
     publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
