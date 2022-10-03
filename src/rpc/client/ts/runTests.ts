@@ -44,7 +44,7 @@ async function extractServer(filePath) {
 }
 
 // Run Scala gRPC server
-function startServer(filePath) {
+async function startServer(filePath) {
   if (!os.platform().toLowerCase().startsWith('win')) {
     execFileSync('chmod', ['+x', `${filePath}/bin/omega-edit-grpc-server`])
   }
@@ -115,9 +115,8 @@ async function runScalaServer() {
     console.error('server file path not found')
     exit(1)
   }
-  extractServer(filePath)
-    .then(() => startServer(filePath))
-    .catch((err) => console.error(err))
+  await extractServer(filePath)
+  await startServer(filePath)
 }
 
 module.exports = {
