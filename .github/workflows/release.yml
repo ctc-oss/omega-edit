@@ -124,7 +124,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Build Ωedit 🏗️
@@ -171,7 +171,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Install Conan 💪
@@ -314,7 +314,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Package Scala RPC server 🎁

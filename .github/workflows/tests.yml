@@ -39,7 +39,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Setup Python 🐍
@@ -105,21 +105,21 @@ jobs:
         run: |
           ctest -C Debug --output-on-failure
 
-      - name: Upload Native JARs - Macos 🔺
+      - name: Upload Native (.dylib) library - Macos 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
           path: lib/libomega_edit.dylib
 
-      - name: Upload Native JARs - Linux 🔺
+      - name: Upload Native (.so) library - Linux 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
           path: lib/libomega_edit.so
 
-      - name: Upload Native JARs - Windows 🔺
+      - name: Upload Native (.dll) library - Windows 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'Windows'
         with:
@@ -140,7 +140,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Download macos library file 🔻
@@ -216,7 +216,7 @@ jobs:
         uses: actions/setup-java@v3.5.1
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 11
           cache: sbt
 
       - name: Download macos library file 🔻

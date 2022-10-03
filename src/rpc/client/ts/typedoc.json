@@ -1,8 +1,8 @@
 {
-    "entryPointStrategy": "expand",
-    "entryPoints": ["src/"],
-    "name": "Ωedit TypeScript Client Documentation",
-    "readme": "README.md",
-    "out": "doc/",
-    "tsconfig": "./tsconfig.json"
+  "entryPointStrategy": "expand",
+  "entryPoints": ["src/"],
+  "name": "Ωedit TypeScript Client Documentation",
+  "readme": "README.md",
+  "out": "doc/",
+  "tsconfig": "./tsconfig.json"
 }
