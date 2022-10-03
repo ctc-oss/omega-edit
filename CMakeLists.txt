@@ -79,7 +79,7 @@ endfunction()
 
 conan_config_set(NAME general.revisions_enabled VALUE 1)
 conan_cmake_configure(
-        REQUIRES "boost/1.79.0" "catch2/2.13.9" "grpc/1.48.0"
+        REQUIRES "boost/1.80.0" "catch2/2.13.9" "grpc/1.48.0"
         OPTIONS boost:header_only=True
         OPTIONS grpc:cpp_plugin=True
         OPTIONS grpc:csharp_plugin=False
@@ -98,7 +98,7 @@ include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup(TARGETS)
 
 set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.79.0 REQUIRED)
+find_package(Boost 1.80.0 REQUIRED)
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
 # Don't add RPATH so we can manipulate the library search path using the environment at runtime
