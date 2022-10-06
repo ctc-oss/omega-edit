@@ -70,16 +70,13 @@ class Viewport(
       }
 
     case Watch(eventInterest) =>
-      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, previous eventInterest ${view.eventInterest}")
       view.eventInterest = eventInterest.getOrElse(api.ViewportEvent.Interest.All)
-      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, current eventInterest ${view.eventInterest}")
       sender() ! new Ok(viewportId) with Events {
         def stream: EventStream = events
       }
 
     case Unwatch =>
-        println(s"Unwatch viewportId $viewportId")
-        view.eventInterest = 0
-        sender() ! Ok(viewportId)
+      view.eventInterest = 0
+      sender() ! Ok(viewportId)
   }
 }

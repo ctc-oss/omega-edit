@@ -52,8 +52,8 @@ object BuildSupport {
               .mkString + "\""
           Comment(
             s""" scoped dependency ${txt("groupId")} % ${txt(
-                "artifactId"
-              )} % ${txt("version")} % ${txt("scope")} has been omitted """
+              "artifactId"
+            )} % ${txt("version")} % ${txt("scope")} has been omitted """
           )
         case _ => node
       }
@@ -100,13 +100,12 @@ object BuildSupport {
     }
   }
 
-  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = {
-    opts: Seq[String] =>
-      opts.filterNot(
-        Set(
-          "-Wvalue-discard",
-          "-Ywarn-value-discard"
-        )
+  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>
+    opts.filterNot(
+      Set(
+        "-Wvalue-discard",
+        "-Ywarn-value-discard"
       )
+    )
   }
 }

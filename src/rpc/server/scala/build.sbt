@@ -9,7 +9,6 @@
   * the specific language governing permissions and limitations under the
   * License. * *
   */
-
 import BuildSupport._
 import play.api.libs.json._
 import scala.io.Source
@@ -99,11 +98,11 @@ lazy val `omega-edit` = project
 
 lazy val api = project
   .in(file("api"))
-   /*
-    * technically changing .dependsOn to this:
-    *   .dependsOn(spi, native % "compile->publishM2;test->publishM2")
-    * should be the same as the #region section but doesn't ever run native/publishM2
-    */
+  /*
+   * technically changing .dependsOn to this:
+   *   .dependsOn(spi, native % "compile->publishM2;test->publishM2")
+   * should be the same as the #region section but doesn't ever run native/publishM2
+   */
   .dependsOn(spi, native % "test->compile")
   .settings(commonSettings)
   .settings(

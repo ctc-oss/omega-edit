@@ -59,6 +59,6 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
 
   override def toString: String = data.mkString // TODO: probably render instead as hex
 
-  def isFloating: Boolean = 
+  def isFloating: Boolean =
     i.omega_viewport_is_floating(p)
 }

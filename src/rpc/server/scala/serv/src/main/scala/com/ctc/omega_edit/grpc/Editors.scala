@@ -79,15 +79,17 @@ class Editors extends Actor with ActorLogging {
             .queue[SessionEvent](5, OverflowStrategy.backpressure)
             .preMaterialize()
           val cb = SessionCallback { (session, event, change) =>
-            input.queue.offer(SessionEvent.defaultInstance
-            .copy(
-              sessionId = id,
-              sessionEventKind = SessionEventKind.fromValue(event.value),
-              serial = change.map(_.id),
-              computedFileSize = session.size,
-              changeCount = session.numChanges,
-              undoCount = session.numUndos
-            ))
+            input.queue.offer(
+              SessionEvent.defaultInstance
+                .copy(
+                  sessionId = id,
+                  sessionEventKind = SessionEventKind.fromValue(event.value),
+                  serial = change.map(_.id),
+                  computedFileSize = session.size,
+                  changeCount = session.numChanges,
+                  undoCount = session.numUndos
+                )
+            )
             ()
           }
           context.actorOf(
