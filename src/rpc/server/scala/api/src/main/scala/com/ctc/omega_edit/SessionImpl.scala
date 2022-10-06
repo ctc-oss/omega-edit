@@ -26,7 +26,6 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
-import com.ctc.omega_edit.api.SessionCallback
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")

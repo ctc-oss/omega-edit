@@ -454,7 +454,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
       val filePath = tmp.resolve("dat.txt").toString
 
       for {
-        _ <- service.submitChange(
+        changeId <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
@@ -466,9 +466,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
         saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
 
-        _ <- service.pauseSessionChanges(ObjectId(sid))
+        pausedSid <- service.pauseSessionChanges(ObjectId(sid))
 
-        _ <- service.submitChange(
+        pausedChangeId <- service.submitChange(
           ChangeRequest(
             sid,
             ChangeKind.CHANGE_INSERT,
@@ -484,6 +484,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
         contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
+        pausedSid.id shouldBe sid
+        changeId.serial shouldBe 1L
+        pausedChangeId.serial shouldBe 0L
         contents1 shouldBe testString1
         contents2 shouldBe testString1
       }

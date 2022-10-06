@@ -117,11 +117,6 @@ object Session {
       new Ok(sessionId) with Serial {
         val serial: Long = serial0
       }
-
-    def paused(sessionId: String): Ok with Serial =
-      new Ok(sessionId) with Serial {
-        val serial: Long = 0L
-      }
   }
 
   trait ChangeDetails {
@@ -206,24 +201,18 @@ class Session(
       session.insert(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Overwrite(data, offset) =>
       session.overwrite(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Delete(offset, length) =>
       session.delete(offset, length) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case LookupChange(id) =>
@@ -239,16 +228,12 @@ class Session(
       session.undoLast() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case RedoUndo() =>
       session.redoUndo() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case ClearChanges() =>
