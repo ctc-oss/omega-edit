@@ -24,11 +24,6 @@ generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 
-set +e
-checker=""
-which valgrind >/dev/null; [[ $? -eq 0 ]] && checker="valgrind --leak-check=full --show-leak-kinds=all -s"
-set -e
-
 rm -rf ./lib/*
 for objtype in shared static; do
   build_shared_libs="NO"
@@ -37,9 +32,9 @@ for objtype in shared static; do
   fi
 
   rm -rf "build-$objtype-$type" "$install_dir-$objtype"
-  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type" --install-prefix "$install_dir-$objtype"
+  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
   cmake --build "build-$objtype-$type"
-  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype"  --config "$type"
+  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype" --config "$type"
   cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
   cpack --config "build-$objtype-$type/CPackConfig.cmake"
 
