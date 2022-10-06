@@ -26,8 +26,8 @@ const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
 
 let creds = grpc.credentials.createInsecure()
 const client = new EditorClient(uri, creds)
-
-export const ALL_EVENTS = ~0
+export const NO_EVENTS = 0
+export const ALL_EVENTS = ~NO_EVENTS
 
 /**
  * Gets the connected editor client

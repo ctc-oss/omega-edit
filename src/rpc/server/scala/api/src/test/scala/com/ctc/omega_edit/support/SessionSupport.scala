@@ -54,9 +54,9 @@ trait SessionSupport {
       (_, e, c) => {
         _event = Some(e)
         _change = Some(c)
-      },
-      Some(SessionEvent.Interest.All)
+      }
     )
+    session.eventInterest = SessionEvent.Interest.All
     test(session, cb)
   }
 

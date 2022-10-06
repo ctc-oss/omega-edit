@@ -62,8 +62,7 @@ trait Session {
       offset: Long,
       size: Long,
       isFloating: Boolean,
-      cb: ViewportCallback,
-      eventInterest: Int
+      cb: ViewportCallback
   ): Viewport
   def findChange(id: Long): Option[Change]
 

@@ -36,7 +36,7 @@ trait ViewportSupport {
       test: (Session, WithCallback) => Unit
   ): Unit = {
     val cb = new WithCallback()
-    session.viewCb(
+    val viewport = session.viewCb(
       offset,
       capacity,
       isFloating,
@@ -44,9 +44,9 @@ trait ViewportSupport {
         cb.data = Some(v.data)
         cb.event = Some(e)
         cb.change = c
-      },
-      ViewportEvent.Interest.All
+      }
     )
+    viewport.eventInterest = ViewportEvent.Interest.All
     test(session, cb)
   }
 }

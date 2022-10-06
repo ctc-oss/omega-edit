@@ -20,22 +20,22 @@ import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.api.{Change, ViewportCallback}
 import com.ctc.omega_edit.grpc.Editors.{Data, Ok}
-import com.ctc.omega_edit.grpc.Viewport.{EventStream, Events, Get, Watch}
+import com.ctc.omega_edit.grpc.Viewport.{EventStream, Events, Get, Unwatch, Watch}
 import com.google.protobuf.ByteString
 import omega_edit.ObjectId
 
 import java.util.UUID
+import omega_edit.ViewportEvent
 
 object Viewport {
-  type EventStream = Source[Viewport.Updated, NotUsed]
+  type EventStream = Source[ViewportEvent, NotUsed]
   trait Events {
     def stream: EventStream
   }
 
-  def props(view: api.Viewport, stream: EventStream, cb: ViewportCallback): Props =
-    Props(new Viewport(view, stream, cb))
+  def props(view: api.Viewport, stream: EventStream): Props =
+    Props(new Viewport(view, stream))
 
   case class Id(session: String, view: String)
   object Id {
@@ -50,20 +50,14 @@ object Viewport {
 
   trait Op
   case object Get extends Op
-  case object Watch extends Op
-  case class Updated(
-    id: String,
-    data: ByteString,
-    offset: Long,
-    event: api.ViewportEvent,
-    change: Option[Change]
-  )
+  case class Watch(eventInterest: Option[Int]) extends Op
+
+  case object Unwatch extends Op
 }
 
 class Viewport(
     view: api.Viewport,
-    events: EventStream,
-    @deprecated("unused", "") cb: ViewportCallback
+    events: EventStream
 ) extends Actor
     with ActorLogging {
   val viewportId: String = self.path.name
@@ -75,9 +69,17 @@ class Viewport(
         def offset: Long = view.offset
       }
 
-    case Watch =>
+    case Watch(eventInterest) =>
+      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, previous eventInterest ${view.eventInterest}")
+      view.eventInterest = eventInterest.getOrElse(api.ViewportEvent.Interest.All)
+      println(s"Watch(${eventInterest}) on viewportId $viewportId, callback ${view.callback}, current eventInterest ${view.eventInterest}")
       sender() ! new Ok(viewportId) with Events {
         def stream: EventStream = events
       }
+
+    case Unwatch =>
+        println(s"Unwatch viewportId $viewportId")
+        view.eventInterest = 0
+        sender() ! Ok(viewportId)
   }
 }

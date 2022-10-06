@@ -52,6 +52,7 @@ using omega_edit::CreateSessionRequest;
 using omega_edit::CreateSessionResponse;
 using omega_edit::CreateViewportRequest;
 using omega_edit::CreateViewportResponse;
+using omega_edit::EventSubscriptionRequest;
 using omega_edit::ObjectId;
 using omega_edit::SaveSessionRequest;
 using omega_edit::SaveSessionResponse;
@@ -77,6 +78,11 @@ class ViewportEventWriter;
 using viewport_event_subscription_map_t = std::map<std::string, ViewportEventWriter *, std::less<>>;
 
 static inline std::string create_uuid() { return boost::uuids::to_string(boost::uuids::random_generator()()); }
+
+static inline bool print_if_false(const bool assertion, const std::string &message) {
+    if (!assertion) { CLOG << LOCATION << message << std::endl; }
+    return assertion;
+}
 
 class SessionEventWriter final : public ServerWriteReactor<SessionEvent>, public omega_edit::IWorkerQueue {
     const CallbackServerContext *context_;
@@ -181,10 +187,10 @@ public:
             assert(session_ptr);
             const auto session_to_id_iter = session_to_id_.find(session_ptr);
             assert(session_to_id_iter != session_to_id_.end());
-            destroy_session_subscription(session_id);
             for (auto iter = id_to_viewport_.begin(); iter != id_to_viewport_.end(); iter = id_to_viewport_.begin()) {
                 destroy_viewport(iter->first);
             }
+            destroy_session_subscription(session_id);
             omega_edit_destroy_session(session_ptr);
             session_to_id_.erase(session_to_id_iter);
             id_to_session_.erase(id_to_session_iter);
@@ -204,13 +210,14 @@ public:
         assert(!session_id.empty());
         // Don't use const here because it prevents the automatic move on return
         auto session_ptr = id_to_session_[session_id];
-        assert(session_ptr);
+        assert(print_if_false(session_ptr, session_id + " not found"));
         return session_ptr;
     }
 
-    SessionEventWriter *create_session_subscription(const CallbackServerContext *context,
-                                                    const std::string &session_id) {
+    SessionEventWriter *create_session_subscription(const CallbackServerContext *context, const std::string &session_id,
+                                                    int32_t interest) {
         assert(!session_id.empty());
+        omega_session_set_event_interest(get_session_ptr(session_id), interest);
         const auto session_event_subscription_iter = session_event_subscriptions_.find(session_id);
         return (session_event_subscription_iter != session_event_subscriptions_.end())
                        ? session_event_subscription_iter->second
@@ -283,8 +290,9 @@ public:
     }
 
     inline ViewportEventWriter *create_viewport_subscription(const CallbackServerContext *context,
-                                                             const std::string &viewport_id) {
+                                                             const std::string &viewport_id, int32_t interest) {
         assert(!viewport_id.empty());
+        omega_viewport_set_event_interest(get_viewport_ptr(viewport_id), interest);
         const auto viewport_event_subscription_iter = viewport_event_subscriptions_.find(viewport_id);
         return (viewport_event_subscription_iter != viewport_event_subscriptions_.end())
                        ? viewport_event_subscription_iter->second
@@ -447,19 +455,17 @@ public:
                                       CreateSessionResponse *response) override {
         const char *file_path = (request->has_file_path()) ? request->file_path().c_str() : nullptr;
         auto *reactor = context->DefaultReactor();
-        const auto event_interest = request->has_event_interest() ? request->event_interest() : NO_EVENTS;
         omega_session_t *session_ptr;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             session_ptr =
-                    omega_edit_create_session(file_path, session_event_callback, &session_manager_, event_interest);
+                    omega_edit_create_session(file_path, session_event_callback, &session_manager_, NO_EVENTS);
         }
         assert(session_ptr);
         const auto session_id = session_manager_.add_session(
                 session_ptr, request->has_session_id_desired() ? &request->session_id_desired() : nullptr);
         assert(!session_id.empty());
         assert(session_id == session_manager_.get_session_id(session_ptr));
-        handle_session_event(session_ptr, omega_session_event_t::SESSION_EVT_CREATE, nullptr);
         response->set_session_id(session_id);
         reactor->Finish(Status::OK);
         return reactor;
@@ -854,18 +860,16 @@ public:
         auto *reactor = context->DefaultReactor();
         const auto offset = request->offset();
         const auto capacity = request->capacity();
-        const auto event_interest = (request->has_event_interest()) ? request->event_interest() : 0;
         omega_viewport_t *viewport_ptr;
         {
             std::scoped_lock<std::mutex> edit_lock(edit_mutex_);
             viewport_ptr = omega_edit_create_viewport(session_ptr, offset, capacity, request->is_floating() ? 1 : 0,
-                                                      viewport_event_callback, &session_manager_, event_interest);
+                                                      viewport_event_callback, &session_manager_, NO_EVENTS);
         }
         assert(viewport_ptr);
         const auto viewport_id = session_manager_.add_viewport(
                 viewport_ptr, request->has_viewport_id_desired() ? &request->viewport_id_desired() : nullptr);
         assert(!viewport_id.empty());
-        handle_viewport_event(viewport_ptr, omega_viewport_event_t::VIEWPORT_EVT_CREATE, nullptr);
         response->set_session_id(session_id);
         response->set_viewport_id(viewport_id);
         reactor->Finish(Status::OK);
@@ -956,21 +960,45 @@ public:
 
     // Subscription services
     ServerWriteReactor<SessionEvent> *SubscribeToSessionEvents(CallbackServerContext *context,
-                                                               const ObjectId *request) override {
+                                                               const EventSubscriptionRequest *request) override {
         const auto &session_id = request->id();
+        const auto interest = request->has_interest() ? request->interest() : ALL_EVENTS;
         assert(!session_id.empty());
-        auto writer = session_manager_.create_session_subscription(context, session_id);
+        auto writer = session_manager_.create_session_subscription(context, session_id, interest);
         assert(writer);
         return writer;
     }
 
+    ServerUnaryReactor *UnsubscribeToSessionEvents(CallbackServerContext *context, const ObjectId *request,
+                                                   ObjectId *response) override {
+        const auto &session_id = request->id();
+        assert(!session_id.empty());
+        session_manager_.destroy_session_subscription(session_id);
+        response->set_id(session_id);
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
+    }
+
     ServerWriteReactor<ViewportEvent> *SubscribeToViewportEvents(CallbackServerContext *context,
-                                                                 const ObjectId *request) override {
+                                                                 const EventSubscriptionRequest *request) override {
         const auto &viewport_id = request->id();
+        const auto interest = request->has_interest() ? request->interest() : ALL_EVENTS;
         assert(!viewport_id.empty());
-        auto writer = session_manager_.create_viewport_subscription(context, viewport_id);
+        auto writer = session_manager_.create_viewport_subscription(context, viewport_id, interest);
         assert(writer);
         return writer;
+    }
+
+    ServerUnaryReactor *UnsubscribeToViewportEvents(CallbackServerContext *context, const ObjectId *request,
+                                                    ObjectId *response) override {
+        const auto &viewport_id = request->id();
+        assert(!viewport_id.empty());
+        session_manager_.destroy_viewport_subscription(viewport_id);
+        response->set_id(viewport_id);
+        auto *reactor = context->DefaultReactor();
+        reactor->Finish(Status::OK);
+        return reactor;
     }
 };
 

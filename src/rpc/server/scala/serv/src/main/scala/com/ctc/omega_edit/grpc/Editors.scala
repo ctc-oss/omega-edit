@@ -20,9 +20,10 @@ import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
+import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
 import com.google.protobuf.ByteString
 import io.grpc.Status
-import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
+import omega_edit._
 
 import java.nio.file.Path
 import java.util.{Base64, UUID}
@@ -37,8 +38,7 @@ object Editors {
   case class Find(id: String)
   case class Create(
       id: Option[String],
-      path: Option[Path],
-      eventInterest: Option[Int]
+      path: Option[Path]
   )
   case class Destroy(id: String)
   case object SessionCount
@@ -65,10 +65,10 @@ object Editors {
 
 class Editors extends Actor with ActorLogging {
   import Editors._
-  implicit val timeout: Timeout = Timeout(1.second)
+  implicit val timeout: Timeout = Timeout(5000.milliseconds)
 
   def receive: Receive = {
-    case Create(sid, path, eventInterest) =>
+    case Create(sid, path) =>
       val id = sid.getOrElse(idFor(path))
       context.child(id) match {
         case Some(_) =>
@@ -76,17 +76,24 @@ class Editors extends Actor with ActorLogging {
         case None =>
           import context.system
           val (input, stream) = Source
-            .queue[Session.Updated](1, OverflowStrategy.dropHead)
+            .queue[SessionEvent](5, OverflowStrategy.backpressure)
             .preMaterialize()
-          val cb = SessionCallback { (_, _, _) =>
-            input.queue.offer(Session.Updated(id))
+          val cb = SessionCallback { (session, event, change) =>
+            input.queue.offer(SessionEvent.defaultInstance
+            .copy(
+              sessionId = id,
+              sessionEventKind = SessionEventKind.fromValue(event.value),
+              serial = change.map(_.id),
+              computedFileSize = session.size,
+              changeCount = session.numChanges,
+              undoCount = session.numUndos
+            ))
             ()
           }
           context.actorOf(
             Session.props(
-              OmegaEdit.newSessionCb(path, cb, eventInterest),
-              stream,
-              cb
+              OmegaEdit.newSessionCb(path, cb),
+              stream
             ),
             id
           )

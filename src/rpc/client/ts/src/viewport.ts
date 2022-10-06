@@ -23,7 +23,7 @@ import {
   ViewportDataRequest,
   ViewportDataResponse,
 } from './omega_edit_pb'
-import { ALL_EVENTS, getClient } from './settings'
+import { getClient } from './settings'
 
 /**
  * Create a new viewport in a session
@@ -45,12 +45,12 @@ export function createViewport(
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()
-    if (desired_viewport_id) request.setViewportIdDesired(desired_viewport_id)
+    if (desired_viewport_id !== undefined && desired_viewport_id.length > 0)
+      request.setViewportIdDesired(desired_viewport_id)
     request.setSessionId(session_id)
     request.setOffset(offset)
     request.setCapacity(capacity)
     request.setIsFloating(is_floating)
-    request.setEventInterest(ALL_EVENTS)
     getClient().createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -174,7 +174,7 @@ export function unsubscribeViewport(viewport_id: string): Promise<string> {
       (err, r) => {
         if (err) {
           console.log(err.message)
-          return reject('viewportUnsubscribe error: ' + err.message)
+          return reject('unsubscribeViewport error: ' + err.message)
         }
         return resolve(r.getId())
       }

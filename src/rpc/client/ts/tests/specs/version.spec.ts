@@ -20,6 +20,7 @@
 import { expect } from 'chai'
 import { getVersion } from '../../src/version'
 import { getClient, waitForReady } from '../../src/settings'
+// @ts-ignore
 import { deadline } from './common'
 
 describe('Version', () => {
@@ -30,6 +31,6 @@ describe('Version', () => {
   })
 
   it('Should return version ' + expected_version, async () => {
-    expect(expected_version).to.equal(await getVersion())
+    expect(await getVersion()).to.equal(expected_version)
   })
 })

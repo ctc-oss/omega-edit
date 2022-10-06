@@ -23,11 +23,13 @@ import akka.http.scaladsl.Http
 import akka.pattern.ask
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
+import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
+import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
@@ -35,11 +37,9 @@ import omega_edit._
 import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import com.ctc.omega_edit.api
-import com.google.protobuf.ByteString
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
-  private implicit val timeout: Timeout = Timeout(1.second)
+  private implicit val timeout: Timeout = Timeout(5000.milliseconds)
   private val editors = system.actorOf(Editors.props())
   import system.dispatcher
 
@@ -51,8 +51,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     (editors ? Create(
       in.sessionIdDesired,
-      in.filePath.map(Paths.get(_)),
-      in.eventInterest
+      in.filePath.map(Paths.get(_))
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateSessionResponse(id)
@@ -85,7 +84,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   ): Future[CreateViewportResponse] =
     (editors ? SessionOp(
       in.sessionId,
-      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired, in.eventInterest)
+      View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired)
     )).mapTo[Result]
       .map {
         case Ok(id) => CreateViewportResponse(in.sessionId, id)
@@ -143,7 +142,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           .mapTo[Result]
           .map {
             case ok: Ok with ChangeDetails => ok.toChangeResponse(in.sessionId)
-            case Ok(_)  => throw grpcFailure(Status.INTERNAL, s"didn't receive data for change details of session ${in.sessionId}")
+            case Ok(_) =>
+              throw grpcFailure(Status.INTERNAL, s"didn't receive data for change details of session ${in.sessionId}")
             case Err(c) => throw grpcFailure(c)
           }
     }
@@ -188,46 +188,21 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   /** Event streams
     */
-  def subscribeToSessionEvents(in: ObjectId): Source[SessionEvent, NotUsed] = {
-    val f = (editors ? SessionOp(in.id, Session.Watch)).mapTo[Result].map {
-      case ok: Ok with Session.Events =>
-        // TODO: this isn't a valid implementation
-        ok.stream.map(u => SessionEvent.defaultInstance.copy(sessionId = u.id))
-      case _ => Source.failed(grpcFailure(Status.UNKNOWN))
+  def subscribeToSessionEvents(in: EventSubscriptionRequest): Source[SessionEvent, NotUsed] = {
+    val f = (editors ? SessionOp(in.id, Session.Watch(in.interest))).mapTo[Result].map {
+      case ok: Ok with Session.Events => ok.stream
+      case _                          => Source.failed(grpcFailure(Status.UNKNOWN))
     }
     Await.result(f, 1.second)
   }
 
-  // Method to get ViewportEventKind based on Int
-  def getViewportEventKind(e: Int): omega_edit.ViewportEventKind = e match {
-    case 1  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CREATE
-    case 2  => omega_edit.ViewportEventKind.VIEWPORT_EVT_EDIT
-    case 4  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDO
-    case 8  => omega_edit.ViewportEventKind.VIEWPORT_EVT_CLEAR
-    case 16 => omega_edit.ViewportEventKind.VIEWPORT_EVT_TRANSFORM
-    case 32 => omega_edit.ViewportEventKind.VIEWPORT_EVT_MODIFY
-    case _  => omega_edit.ViewportEventKind.VIEWPORT_EVT_UNDEFINED
-  }
-
-  def subscribeToViewportEvents(in: ObjectId): Source[ViewportEvent, NotUsed] =
-    in match {
+  def subscribeToViewportEvents(in: EventSubscriptionRequest): Source[ViewportEvent, NotUsed] =
+    ObjectId(in.id) match {
       case Viewport.Id(sid, vid) =>
         val f =
-          (editors ? ViewportOp(sid, vid, Viewport.Watch)).mapTo[Result].map {
-            case ok: Ok with Viewport.Events =>
-              ok.stream
-                .map(u =>
-                  ViewportEvent(
-                    sessionId = u.id,
-                    viewportId = vid,
-                    serial = u.change.map(_.id),
-                    data = Option(u.data),
-                    length = Some(u.data.size.toLong),
-                    offset = Some(u.offset),
-                    viewportEventKind = getViewportEventKind(u.event.value)
-                  )
-                )
-            case _ => Source.failed(grpcFailure(Status.UNKNOWN))
+          (editors ? ViewportOp(sid, vid, Viewport.Watch(in.interest))).mapTo[Result].map {
+            case ok: Ok with Viewport.Events => ok.stream
+            case _                           => Source.failed(grpcFailure(Status.UNKNOWN))
           }
         Await.result(f, 1.second)
       case _ =>
@@ -239,9 +214,23 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     }
 
   def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] =
-    Future.successful(in)
+    (editors ? SessionOp(in.id, Session.Unwatch)).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
-    Future.successful(in)
+    ObjectId(in.id) match {
+      case Viewport.Id(sid, vid) =>
+        (editors ? ViewportOp(sid, vid, Viewport.Unwatch)).mapTo[Result].map {
+          case Ok(id) => ObjectId(id)
+          case Err(c) => throw grpcFailure(c)
+        }
+      case _ =>
+        throw new GrpcServiceException(
+          Status.INVALID_ARGUMENT.withDescription("malformed viewport id")
+        )
+    }
 
   // profile
 
@@ -358,13 +347,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
+  def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
+    Future.failed(grpcFailure(status, message))
+
   def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
     new GrpcServiceException(
       if (message.nonEmpty) status.withDescription(message) else status
     )
-
-  def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
-    Future.failed(grpcFailure(status, message))
 
   def bind(iface: String, port: Int)(
       implicit

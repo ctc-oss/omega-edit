@@ -148,6 +148,7 @@ lazy val native = project
         .value -> s"${version.value}/${mapping._2}"
     },
     Compile / packageDoc / publishArtifact := false,
+    exportJars := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := organization.value + ".omega_edit.native",
     buildInfoKeys ++= Seq(

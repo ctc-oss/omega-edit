@@ -47,10 +47,15 @@ service Editor {
   rpc GetByteFrequencyProfile(ByteFrequencyProfileRequest) returns (ByteFrequencyProfileResponse);
 
   // Event streams
-  rpc SubscribeToSessionEvents(ObjectId) returns (stream SessionEvent);
-  rpc SubscribeToViewportEvents(ObjectId) returns (stream ViewportEvent);
+  rpc SubscribeToSessionEvents(EventSubscriptionRequest) returns (stream SessionEvent);
+  rpc SubscribeToViewportEvents(EventSubscriptionRequest) returns (stream ViewportEvent);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+}
+
+message EventSubscriptionRequest {
+  string id = 1;
+  optional int32 interest = 2;
 }
 
 enum ChangeKind {
@@ -140,7 +145,6 @@ message CreateViewportRequest {
   int64 offset = 3;
   bool is_floating = 4;
   optional string viewport_id_desired = 5;
-  optional int32 event_interest = 6;
 }
 
 message CreateViewportResponse {
@@ -162,7 +166,6 @@ message ViewportDataResponse {
 message CreateSessionRequest {
   optional string file_path = 1;
   optional string session_id_desired = 2;
-  optional int32 event_interest = 3;
 }
 
 message CreateSessionResponse {

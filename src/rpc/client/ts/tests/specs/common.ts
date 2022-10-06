@@ -31,18 +31,46 @@ deadline.setSeconds(deadline.getSeconds() + 10)
 export async function custom_setup() {
   let session_id = ''
   expect(await waitForReady(getClient(), deadline))
-
+  expect(await getSessionCount()).to.equal(0)
   const new_session_id = await createSession(undefined, undefined)
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
 
   // C++ RPC server uses 36 character UUIDs and the Scala server uses 8 character IDs
   expect(new_session_id.length).to.satisfy((l) => l === 36 || l === 8)
-  expect(1).to.be.lessThanOrEqual(await getSessionCount())
+  expect(await getSessionCount()).to.equal(1)
   return new_session_id
 }
 
 export async function cleanup(session_id: string) {
-  expect(1).to.be.lessThanOrEqual(await getSessionCount())
-  const destroyed_session_id = await destroySession(session_id)
-  expect(destroyed_session_id).to.equal(session_id)
+  const session_count = await getSessionCount()
+  expect(session_count).to.be.lessThanOrEqual(1)
+  if (0 < session_count) {
+    expect(await destroySession(session_id)).to.equal(session_id)
+  }
+}
+
+export async function delay(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+export async function check_callback_count(
+  callback_map: Map<string, number>,
+  key: string,
+  expected_count: number,
+  millisecond_delay?: number
+) {
+  if (millisecond_delay !== undefined && millisecond_delay > 0) {
+    await delay(millisecond_delay)
+  }
+  console.log(callback_map)
+  if (0 < expected_count) {
+    expect(callback_map.has(key)).to.be.true
+    const value = callback_map.get(key)
+    console.log(
+      'key: ' + key + ', value: ' + value + ', expected: ' + expected_count
+    )
+    expect(value).to.equal(expected_count)
+  } else {
+    expect(callback_map.has(key)).to.be.false
+  }
 }
