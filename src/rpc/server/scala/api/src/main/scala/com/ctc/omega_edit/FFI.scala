@@ -17,11 +17,7 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api._
-import com.ctc.omega_edit.spi.{
-  NativeInfoNotFound,
-  PlatformInfoLoader,
-  VersionMismatch
-}
+import com.ctc.omega_edit.spi.{NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
 import jnr.ffi.{LibraryLoader, Pointer}
 
 import java.nio.file.{Files, Paths}

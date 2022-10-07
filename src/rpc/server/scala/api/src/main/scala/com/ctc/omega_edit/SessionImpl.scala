@@ -92,7 +92,10 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     *   https://github.com/ctc-oss/omega-edit/wiki#undo
     */
   def undoLast(): Result =
-      Edit(i.omega_edit_undo_last_change(p))
+    i.omega_edit_undo_last_change(p) match {
+      case 0 => Change.Fail
+      case v => Changed(v)
+    }
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
@@ -162,8 +165,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   }
 
   def profile(offset: Long, length: Long): Option[Array[Long]] = {
-      val profile = new Array[Long](256)
-      Option.when(i.omega_session_profile(p, profile, offset, length) == 0) { profile }
+    val profile = new Array[Long](256)
+    Option.when(i.omega_session_profile(p, profile, offset, length) == 0) { profile }
   }
 
   def search(
@@ -220,7 +223,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 private object Edit {
   def apply(op: => Long): Change.Result =
     op match {
-      case 0          => Change.Fail
+      case 0          => Change.Paused
+      case v if v < 0 => Change.Fail
       case v          => Changed(v)
     }
 }
