@@ -219,6 +219,6 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 private object Edit {
   def apply(op: => Long): Change.Result =
     op match {
-      case v          => Changed(v)
+      case v => Changed(v)
     }
 }
