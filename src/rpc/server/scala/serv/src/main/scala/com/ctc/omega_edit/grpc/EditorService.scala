@@ -38,7 +38,7 @@ import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
@@ -361,12 +361,13 @@ object EditorService {
   def bind(iface: String, port: Int)(
       implicit
       system: ActorSystem
-  ): Future[Http.ServerBinding] = {
-    lazy val futureBinding = Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
-    futureBinding.onComplete {
-      case Success(_) => None
+  ): Future[Http.ServerBinding] =
+    Http().newServerAt(iface, port).bind(EditorHandler(new EditorService)).andThen {
       case Failure(_) => system.terminate()
     }
-    futureBinding
-  }
+  // futureBinding.onComplete {
+  //   case Success(_) => None
+  //   case Failure(_) => system.terminate()
+  // }
+  // futureBinding
 }
