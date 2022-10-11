@@ -184,10 +184,6 @@ jobs:
           path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
 
-      - name: Coverage report 📋
-        run: sbt howMuchCoverage
-        working-directory: src/rpc/server/scala
-
       - name: Test Scala RPC server 📋
         run: sbt serv/test
         working-directory: src/rpc/server/scala
