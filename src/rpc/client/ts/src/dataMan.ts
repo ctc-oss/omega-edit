@@ -30,3 +30,33 @@ export function reverseBits(b) {
   // Reverse the top and bottom nibble and then swap them
   return (nibbleReverseLookup[b & 0b1111] << 4) | nibbleReverseLookup[b >> 4]
 }
+
+export class BitArray {
+    private readonly uints: Uint32Array
+    private readonly bits: number
+
+    constructor(bits: number) {
+        this.bits = bits
+        this.uints = new Uint32Array(Math.ceil(bits / 32))
+    }
+
+    getBit(bit: number): number {
+        return (this.uints[Math.floor(bit / 32)] & (1 << (bit % 32))) !== 0 ? 1 : 0
+    }
+
+    assignBit(bit: number, value: number) {
+        if (value === 1) {
+            this.uints[Math.floor(bit / 32)] |= (1 << (bit % 32))
+        } else if (value === 0) {
+            this.uints[Math.floor(bit / 32)] &= ~(1 << (bit % 32))
+        }
+    }
+
+    get size(): number {
+        return this.bits
+    }
+
+    get capacity(): number {
+        return this.uints.length * 32
+    }
+}
