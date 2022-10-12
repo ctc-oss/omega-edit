@@ -446,6 +446,65 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents5 shouldBe testString2
       }
     }
+    "create and destroy viewports" in newSession { sid =>
+      for {
+        numViewports1 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        viewportResponse1 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 0,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_1")
+          )
+        )
+        numViewports2 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        viewportResponse2 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 10,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_2")
+          )
+        )
+        viewportResponse3 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 20,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_3")
+          )
+        )
+        viewportResponse4 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 30,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_4")
+          )
+        )
+        numViewports3 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        destroyedViewport <- service.destroyViewport(ObjectId(viewportResponse2.viewportId))
+        numViewports4 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+      } yield {
+        numViewports1.sessionId shouldBe sid
+        numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports1.count shouldBe 0L
+        viewportResponse1.viewportId shouldBe sid + ":viewport_1"
+        numViewports2.sessionId shouldBe sid
+        numViewports2.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports2.count shouldBe 1L
+        viewportResponse2.viewportId shouldBe sid + ":viewport_2"
+        viewportResponse3.viewportId shouldBe sid + ":viewport_3"
+        viewportResponse4.viewportId shouldBe sid + ":viewport_4"
+        numViewports3.count shouldBe 4L
+        destroyedViewport.id shouldBe sid + ":viewport_2"
+        numViewports4.count shouldBe 3L
+      }
+    }
 
     "pause session changes" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString + " change1"
