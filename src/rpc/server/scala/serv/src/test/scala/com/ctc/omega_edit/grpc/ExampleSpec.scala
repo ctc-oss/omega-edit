@@ -63,6 +63,28 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           count should be(1)
       }
 
+    "create and destroy sessions" in newSession { _ =>
+      for {
+        sessionCount1 <- service.getSessionCount(Empty())
+        sessionResponse2 <- service.createSession(CreateSessionRequest(None, Some("session_3")))
+        sessionCount2 <- service.getSessionCount(Empty())
+        sessionResponse3 <- service.createSession(CreateSessionRequest(None, Some("session_4")))
+        sessionResponse4 <- service.createSession(CreateSessionRequest(None, Some("session_5")))
+        sessionCount3 <- service.getSessionCount(Empty())
+        destroyedSession <- service.destroySession(ObjectId(sessionResponse3.sessionId))
+        sessionCount4 <- service.getSessionCount(Empty())
+      } yield {
+        sessionCount1.count shouldBe 2L
+        sessionResponse2.sessionId shouldBe "session_3"
+        sessionCount2.count shouldBe 3L
+        sessionResponse3.sessionId shouldBe "session_4"
+        sessionResponse4.sessionId shouldBe "session_5"
+        sessionCount3.count shouldBe 5L
+        destroyedSession.id shouldBe "session_4"
+        sessionCount4.count shouldBe 4L
+      }
+    }
+
     "profile session data" in newSession { sid =>
       val testString = ByteString.copyFromUtf8("5555544443332210122333444455555")
       val len = testString.size()
@@ -446,6 +468,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents5 shouldBe testString2
       }
     }
+
     "create and destroy viewports" in newSession { sid =>
       for {
         numViewports1 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
