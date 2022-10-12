@@ -276,7 +276,7 @@ jobs:
         shell: bash # here for when windows is added
         working-directory: src/rpc/client/ts
 
-      - name: Yarn Test
+      - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
         shell: bash # here for when windows is added
         working-directory: src/rpc/client/ts
