@@ -59,8 +59,11 @@ export async function check_callback_count(
   expected_count: number,
   millisecond_delay?: number
 ) {
-  const do_check: boolean =
-    process.env.OMEGA_EDIT_CLIENT_CALLBACK_COUNT_CHECKS !== '0'
+  // disable the check unless the OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS
+  // environment variable is defined and is non-zero
+  const do_check: boolean = process.env.OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS
+    ? process.env.OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS !== '0'
+    : false 
   if (!do_check) return
   if (millisecond_delay !== undefined && millisecond_delay > 0) {
     await delay(millisecond_delay)
