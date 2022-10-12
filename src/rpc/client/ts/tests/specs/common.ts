@@ -59,6 +59,9 @@ export async function check_callback_count(
   expected_count: number,
   millisecond_delay?: number
 ) {
+  const do_check: boolean =
+    process.env.OMEGA_EDIT_CLIENT_CALLBACK_COUNT_CHECKS !== '0'
+  if (!do_check) return
   if (millisecond_delay !== undefined && millisecond_delay > 0) {
     await delay(millisecond_delay)
   }
@@ -67,7 +70,12 @@ export async function check_callback_count(
     expect(callback_map.has(key)).to.be.true
     const value = callback_map.get(key)
     console.log(
-      'key: ' + key + ', value: ' + value + ', expected: ' + expected_count
+      'check_callback_count key: ' +
+        key +
+        ', value: ' +
+        value +
+        ', expected: ' +
+        expected_count
     )
     expect(value).to.equal(expected_count)
   } else {

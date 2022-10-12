@@ -276,7 +276,10 @@ jobs:
         shell: bash # here for when windows is added
         working-directory: src/rpc/client/ts
 
-      - name: Yarn Test
+      - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
         shell: bash # here for when windows is added
         working-directory: src/rpc/client/ts
+        env:
+          # disable the callback count checks due to asynchronous timing issues
+          OMEGA_EDIT_CLIENT_CALLBACK_COUNT_CHECKS: 0
