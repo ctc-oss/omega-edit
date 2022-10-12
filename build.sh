@@ -19,16 +19,10 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 #type="Release"
 #generator="Unix Makefiles"
 
-test_scala_server=1
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
-
-set +e
-checker=""
-which valgrind >/dev/null; [[ $? -eq 0 ]] && checker="valgrind --leak-check=full --show-leak-kinds=all -s"
-set -e
 
 rm -rf ./lib/*
 for objtype in shared static; do
@@ -38,9 +32,9 @@ for objtype in shared static; do
   fi
 
   rm -rf "build-$objtype-$type" "$install_dir-$objtype"
-  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type" --install-prefix "$install_dir-$objtype"
+  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
   cmake --build "build-$objtype-$type"
-  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype"  --config "$type"
+  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype" --config "$type"
   cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
   cpack --config "build-$objtype-$type/CPackConfig.cmake"
 
@@ -57,42 +51,28 @@ for objtype in shared static; do
   else
     cp -av "$install_dir-$objtype/lib/"* ./lib
   fi
-
-  echo "Running $type tests with $objtype linking..."
-  LD_LIBRARY_PATH="./lib" DYLD_LIBRARY_DIR="$LD_LIBRARY_PATH" $checker "build-$objtype-$type/bin/server_test"
-  kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
-  sleep 2
-  LD_LIBRARY_PATH="./lib" DYLD_LIBRARY_DIR="$LD_LIBRARY_PATH" "build-$objtype-$type/bin/server" --target=127.0.0.1:9000 &
-  server_pid=$!
-  pushd src/rpc/client/ts/
-  npm install
-  npm run compile-src
-  npm run lint
-  npm test
-  popd
-  kill $server_pid
 done
 
-if [ $test_scala_server -ne 0 ]; then
-  pushd src/rpc/server/scala
-  sbt installM2
-  sbt test
-  sbt pkgServer
-  sbt serv/test
-  pushd serv/target/universal/
-  unzip -o "*.zip"
-  kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
-  ./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
-  server_pid=$!
-  popd
-  popd
-  pushd src/rpc/client/ts/
-  npm install
-  npm run compile-src
-  npm run lint
-  npm test
-  popd
-  kill $server_pid
-fi
+# Build and test the Scala server
+pushd src/rpc/server/scala
+sbt installM2
+sbt test
+sbt pkgServer
+sbt serv/test
+pushd serv/target/universal/
+unzip -o "*.zip"
 kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
+server_pid=$!
+popd
+popd
+pushd src/rpc/client/ts/
+npm install
+npm run compile-src
+npm run lint
+npm test
+popd
+kill $server_pid
+
+kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
 echo "✔ Done! ✨"

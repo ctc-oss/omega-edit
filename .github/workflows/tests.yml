@@ -76,16 +76,6 @@ jobs:
         run: cp _install/bin/omega_edit.dll ./lib/
         shell: bash
 
-      - name: Test Ωedit RPC on macOS 📋
-        if: runner.os == 'macOS'
-        run: |
-          build/bin/server_test
-
-      - name: Test Ωedit RPC on Linux with valgrind 📋
-        if: runner.os == 'Linux'
-        run: |
-          valgrind build/bin/server_test
-
       - name: Prepare, and Build Ωedit Integration Tests 🔧
         run: |
           cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
@@ -193,10 +183,6 @@ jobs:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
-
-      - name: Coverage report 📋
-        run: sbt howMuchCoverage
-        working-directory: src/rpc/server/scala
 
       - name: Test Scala RPC server 📋
         run: sbt serv/test

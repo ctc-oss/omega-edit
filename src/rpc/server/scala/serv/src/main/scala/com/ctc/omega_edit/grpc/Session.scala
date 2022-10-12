@@ -25,7 +25,7 @@ import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.{Change, ViewportCallback}
+import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import omega_edit._
 
 import java.nio.file.Path
@@ -49,9 +49,10 @@ object Session {
 
   def props(
       session: api.Session,
-      events: EventStream
+      events: EventStream,
+      cb: SessionCallback
   ): Props =
-    Props(new Session(session, events))
+    Props(new Session(session, events, cb))
 
   sealed trait Op
   object Op {
@@ -117,11 +118,6 @@ object Session {
       new Ok(sessionId) with Serial {
         val serial: Long = serial0
       }
-
-    def paused(sessionId: String): Ok with Serial =
-      new Ok(sessionId) with Serial {
-        val serial: Long = 0L
-      }
   }
 
   trait ChangeDetails {
@@ -154,7 +150,8 @@ object Session {
 
 class Session(
     session: api.Session,
-    events: EventStream
+    events: EventStream,
+    @deprecated("unused", "") cb: SessionCallback
 ) extends Actor {
   val sessionId: String = self.path.name
 
@@ -206,24 +203,18 @@ class Session(
       session.insert(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Overwrite(data, offset) =>
       session.overwrite(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Delete(offset, length) =>
       session.delete(offset, length) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case LookupChange(id) =>
@@ -239,16 +230,12 @@ class Session(
       session.undoLast() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case RedoUndo() =>
       session.redoUndo() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case ClearChanges() =>

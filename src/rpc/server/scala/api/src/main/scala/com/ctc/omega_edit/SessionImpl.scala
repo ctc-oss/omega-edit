@@ -26,7 +26,6 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
-import com.ctc.omega_edit.api.SessionCallback
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
@@ -92,10 +91,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     *   https://github.com/ctc-oss/omega-edit/wiki#undo
     */
   def undoLast(): Result =
-    i.omega_edit_undo_last_change(p) match {
-      case 0 => Change.Fail
-      case v => Changed(v)
-    }
+    Edit(i.omega_edit_undo_last_change(p))
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
@@ -223,8 +219,6 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 private object Edit {
   def apply(op: => Long): Change.Result =
     op match {
-      case 0          => Change.Paused
-      case v if v < 0 => Change.Fail
-      case v          => Changed(v)
+      case v => Changed(v)
     }
 }
