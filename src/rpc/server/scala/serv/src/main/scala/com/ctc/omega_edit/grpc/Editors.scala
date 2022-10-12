@@ -95,7 +95,8 @@ class Editors extends Actor with ActorLogging {
           context.actorOf(
             Session.props(
               OmegaEdit.newSessionCb(path, cb),
-              stream
+              stream,
+              cb
             ),
             id
           )

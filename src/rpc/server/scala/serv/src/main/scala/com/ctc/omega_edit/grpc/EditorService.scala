@@ -365,9 +365,4 @@ object EditorService {
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService)).andThen {
       case Failure(_) => system.terminate()
     }
-  // futureBinding.onComplete {
-  //   case Success(_) => None
-  //   case Failure(_) => system.terminate()
-  // }
-  // futureBinding
 }

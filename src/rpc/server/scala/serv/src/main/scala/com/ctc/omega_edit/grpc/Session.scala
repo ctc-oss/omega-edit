@@ -25,7 +25,7 @@ import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.{Change, ViewportCallback}
+import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import omega_edit._
 
 import java.nio.file.Path
@@ -49,9 +49,10 @@ object Session {
 
   def props(
       session: api.Session,
-      events: EventStream
+      events: EventStream,
+      cb: SessionCallback
   ): Props =
-    Props(new Session(session, events))
+    Props(new Session(session, events, cb))
 
   sealed trait Op
   object Op {
@@ -149,7 +150,8 @@ object Session {
 
 class Session(
     session: api.Session,
-    events: EventStream
+    events: EventStream,
+    @deprecated("unused", "") cb: SessionCallback
 ) extends Actor {
   val sessionId: String = self.path.name
 
