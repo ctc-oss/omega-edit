@@ -62,17 +62,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
-    // Need to destroy both the session and the actor.
-    // Must be done in current order or an error is hit.
-    (editors ? SessionOp(in.id, Session.Destroy)).mapTo[Result].map {
+    // Currently believe this works but Session.Destroy seems to cause errors in CI
+    (editors ? DestroyActor(in.id)).mapTo[Result].map {
       case Ok(_)  => in
       case Err(c) => throw grpcFailure(c)
-    } match {
-      case _ =>
-        (editors ? DestroyActor(in.id)).mapTo[Result].map {
-          case Ok(_)  => in
-          case Err(c) => throw grpcFailure(c)
-        }
     }
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
@@ -106,8 +99,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     in match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Destroy)).mapTo[Result].map {
-          case Err(c) => throw grpcFailure(c)
           case Ok(_)  => in
+          case Err(c) => throw grpcFailure(c)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
     }
