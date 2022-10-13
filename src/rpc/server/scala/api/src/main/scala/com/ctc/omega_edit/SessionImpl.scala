@@ -105,22 +105,22 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def getLastUndo(): Option[Change] =
     Option(i.omega_session_get_last_undo(p)).map(new ChangeImpl(_, i))
 
-  def view(offset: Long, size: Long, isFloating: Boolean): Viewport = {
+  def view(offset: Long, capacity: Long, isFloating: Boolean): Viewport = {
     val vp =
-      i.omega_edit_create_viewport(p, offset, size, isFloating, null, null, 0)
+      i.omega_edit_create_viewport(p, offset, capacity, isFloating, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(
       offset: Long,
-      size: Long,
+      capacity: Long,
       isFloating: Boolean = false,
       cb: ViewportCallback
   ): Viewport = {
     val vp = i.omega_edit_create_viewport(
       p,
       offset,
-      size,
+      capacity,
       isFloating,
       cb,
       null,
@@ -214,6 +214,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     } finally i.omega_segment_destroy(sp)
   }
 
+    def destroy(): Unit = i.omega_edit_destroy_session(p)
 }
 
 private object Edit {

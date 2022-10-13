@@ -47,6 +47,9 @@ private[omega_edit] trait FFI {
       userData: Pointer,
       eventInterest: Int
   ): Pointer
+
+  def omega_edit_destroy_session(p: Pointer): Unit
+
   def omega_edit_insert(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_insert_bytes(
       p: Pointer,
@@ -75,6 +78,8 @@ private[omega_edit] trait FFI {
       userData: Pointer,
       eventInterest: Int
   ): Pointer
+
+  def omega_edit_destroy_viewport(p: Pointer): Unit
 
   // session
 
@@ -192,7 +197,6 @@ private[omega_edit] trait FFI {
   * shared library
   */
 private[omega_edit] object FFI {
-  private val nativeLibraryName = "omega_edit"
   private[omega_edit] lazy val i: FFI = {
     val logger = Logger.getLogger("omega-edit-ffi")
     val native = PlatformInfoLoader
@@ -228,4 +232,5 @@ private[omega_edit] object FFI {
         )
     }
   }
+  private val nativeLibraryName = "omega_edit"
 }
