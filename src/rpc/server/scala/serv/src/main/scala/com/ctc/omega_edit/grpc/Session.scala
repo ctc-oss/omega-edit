@@ -75,7 +75,7 @@ object Session {
       isFloating: Boolean,
       id: Option[String]
   ) extends Op
-  case class DestroyView(id: String) extends Op
+  case object Destroy extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
   case object Unwatch extends Op
   case object GetSize extends Op
@@ -191,13 +191,9 @@ class Session(
           sender() ! Ok(fqid)
       }
 
-    case DestroyView(vid) =>
-      context.child(vid) match {
-        case None => sender() ! Err(Status.NOT_FOUND)
-        case Some(s) =>
-          context.system.stop(s)
-          sender() ! Ok(vid)
-      }
+    case Destroy =>
+      session.destroy()
+      sender() ! Ok(sessionId)
 
     case Insert(data, offset) =>
       session.insert(data.toByteArray, offset) match {

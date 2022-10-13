@@ -40,7 +40,7 @@ object Editors {
       id: Option[String],
       path: Option[Path]
   )
-  case class Destroy(id: String)
+  case class DestroyActor(id: String)
   case object SessionCount
 
   ///
@@ -106,11 +106,11 @@ class Editors extends Actor with ActorLogging {
     case Find(id) =>
       sender() ! context.child(id)
 
-    case Destroy(id) =>
+    case DestroyActor(id) =>
       context.child(id) match {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
-          context.system.stop(s)
+          context.system stop s
           sender() ! Ok(id)
       }
 

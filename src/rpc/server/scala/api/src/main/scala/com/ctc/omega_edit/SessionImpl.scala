@@ -214,7 +214,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     } finally i.omega_segment_destroy(sp)
   }
 
-    def destroy(): Unit = i.omega_edit_destroy_session(p)
+  def destroy(): Unit = i.omega_edit_destroy_session(p)
 }
 
 private object Edit {
