@@ -17,7 +17,7 @@
 package com.ctc.omega_edit.grpc
 
 import akka.NotUsed
-import akka.actor.{Actor, PoisonPill, Props}
+import akka.actor.{Actor, Props}
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import io.grpc.Status
@@ -195,7 +195,7 @@ class Session(
       context.child(vid) match {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
-          s ! PoisonPill
+          context.system.stop(s)
           sender() ! Ok(vid)
       }
 
