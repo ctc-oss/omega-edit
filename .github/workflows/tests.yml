@@ -116,7 +116,7 @@ jobs:
           name: omega_edit.dll
           path: lib/omega_edit.dll
 
-  scala-tests:
+  scala-typescript-tests:
     needs: [build-lib-cpp-tests]
     strategy:
       matrix:
@@ -186,63 +186,6 @@ jobs:
 
       - name: Test Scala RPC server 📋
         run: sbt serv/test
-        working-directory: src/rpc/server/scala
-
-  typescript-tests:
-    needs: [scala-tests]
-    strategy:
-      matrix:
-        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it some tests don't function properly
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-
-      - name: Setup Java ☕
-        uses: actions/setup-java@v3.5.1
-        with:
-          distribution: temurin
-          java-version: 11
-          cache: sbt
-
-      - name: Download macos library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'macOS'
-        with:
-          name: libomega_edit.dylib
-          path: ./lib/libomega_edit.dylib
-
-      - name: Download linux library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'Linux'
-        with:
-          name: libomega_edit.so
-          path: lib/libomega_edit.so
-
-      - name: Download windows library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'Windows'
-        with:
-          name: omega_edit.dll
-          path: lib/omega_edit.dll
-
-      - name: Move out library file 🛻
-        run: |
-          if [[ ${{ runner.os }} == 'Linux' ]]; then
-            LIB_FILENAME="libomega_edit.so"
-          elif [[ ${{ runner.os }} == 'macOS' ]]; then
-            LIB_FILENAME="libomega_edit.dylib"
-          else
-            LIB_FILENAME="omega_edit.dll"
-          fi
-
-          mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
-          mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
-          rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # here for when Windows is added
-
-      - name: Package Scala API 🎁
-        run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
 
       - name: Package & Run Scala RPC server 📋
