@@ -15,8 +15,10 @@
 /**
 * This application can be used to test out and demonstrate the Omega-Edit session profiler.
 */
+#define __STDC_FORMAT_MACROS
 #include <assert.h>
 #include <ctype.h>
+#include <inttypes.h>
 #include <omega_edit.h>
 #include <stdio.h>
 
@@ -42,14 +44,14 @@ int main(int argc, char **argv) {
                 non_ascii_bytes += freq;
             }
         }
-        fprintf(stdout, "%d:%lld, ", i, byte_frequency_profile[i]);
+        fprintf(stdout, "%d:%"PRId64", ", i, byte_frequency_profile[i]);
         if (0 == (i + 1) % 16) fprintf(stdout, "\n");
     }
     assert(file_size == ascii_bytes + non_ascii_bytes);
-    fprintf(stdout, "\nTotal bytes: %lld\n", file_size);
-    fprintf(stdout, "ASCII bytes: %lld\n", ascii_bytes);
-    fprintf(stdout, "non-ASCII bytes: %lld\n", non_ascii_bytes);
-    fprintf(stdout, "Carriage return bytes: %lld\n", byte_frequency_profile['\r']);
-    fprintf(stdout, "Line feed bytes: %lld\n", byte_frequency_profile['\n']);
+    fprintf(stdout, "\nTotal bytes: %"PRId64"\n", file_size);
+    fprintf(stdout, "ASCII bytes: %"PRId64"\n", ascii_bytes);
+    fprintf(stdout, "non-ASCII bytes: %"PRId64"\n", non_ascii_bytes);
+    fprintf(stdout, "Carriage return bytes: %"PRId64"\n", byte_frequency_profile['\r']);
+    fprintf(stdout, "Line feed bytes: %"PRId64"\n", byte_frequency_profile['\n']);
     return 0;
 }
