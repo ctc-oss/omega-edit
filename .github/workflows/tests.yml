@@ -172,7 +172,7 @@ jobs:
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
-        timeout: 30m
+        timeout-minutes: 30
 
       - name: Archive M2 🔺
         uses: actions/upload-artifact@v3
@@ -185,7 +185,7 @@ jobs:
       - name: Test Scala RPC server 📋
         run: sbt serv/test
         working-directory: src/rpc/server/scala
-        timeout: 30m
+        timeout-minutes: 30
 
       - name: Package & Run Scala RPC server 📋
         if: success() || failure()
@@ -210,4 +210,4 @@ jobs:
         run: yarn test # auto spins scala server up and down
         shell: bash
         working-directory: src/rpc/client/ts
-        timeout: 30m
+        timeout-minutes: 30
