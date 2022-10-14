@@ -17,7 +17,7 @@ on:
       - '**'
 
 jobs:
-  build-lib-cpp-tests:
+  build-native:
     strategy:
       matrix:
         os: [ windows-latest, macos-latest, ubuntu-latest ]
@@ -30,10 +30,6 @@ jobs:
 
       - name: Checkout 🛎️
         uses: actions/checkout@v3
-
-      - name: Setup Valgrind 🔬
-        if: runner.os == 'Linux'
-        run: sudo apt-get -y install valgrind
 
       - name: Setup Java ☕
         uses: actions/setup-java@v3.5.1
@@ -116,11 +112,11 @@ jobs:
           name: omega_edit.dll
           path: lib/omega_edit.dll
 
-  scala-tests:
-    needs: [build-lib-cpp-tests]
+  scala-build:
+    needs: [build-native]
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it seems to hang
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
@@ -167,7 +163,7 @@ jobs:
           mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
           mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
           rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # here for when Windows is added
+        shell: bash
 
       - name: Check Scala headers ✔️
         run: sbt headerCheckAll
@@ -176,9 +172,11 @@ jobs:
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
+        timeout: 30m
 
       - name: Archive M2 🔺
         uses: actions/upload-artifact@v3
+        if: success() || failure()
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
@@ -187,12 +185,13 @@ jobs:
       - name: Test Scala RPC server 📋
         run: sbt serv/test
         working-directory: src/rpc/server/scala
+        timeout: 30m
 
-  typescript-tests:
-    needs: [scala-tests]
+  typescript-build:
+    needs: [scala-build]
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it some tests don't function properly
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
@@ -239,30 +238,34 @@ jobs:
           mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
           mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
           rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # here for when Windows is added
+        shell: bash
 
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
+        timeout: 30m
 
       - name: Package & Run Scala RPC server 📋
+        if: success() || failure()
         run: |
           sbt pkgServer
           cp -r serv/target/universal/omega-edit-grpc-server*.zip ../../client/ts
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/server/scala
 
       - name: Yarn - Install
+        if: success() || failure()
         run: yarn install
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/client/ts
       
       - name: Yarn - Compile SRC
         run: yarn compile-src
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/client/ts
 
       - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/client/ts
+        timeout: 30m
