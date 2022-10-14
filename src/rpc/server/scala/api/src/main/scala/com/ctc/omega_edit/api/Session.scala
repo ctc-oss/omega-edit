@@ -47,7 +47,7 @@ trait Session {
   def overwrite(b: Array[Byte], offset: Long): Result
 
   def delete(offset: Long, len: Long): Result
-  def view(offset: Long, size: Long, isFloating: Boolean): Viewport
+  def view(offset: Long, capacity: Long, isFloating: Boolean): Viewport
 
   def undoLast(): Result
   def redoUndo(): Result
@@ -84,7 +84,7 @@ trait Session {
   def resumeSessionChanges(): Unit
   def pauseViewportEvents(): Unit
   def resumeViewportEvents(): Unit
-
+  def destroy(): Unit
 }
 
 object Session {

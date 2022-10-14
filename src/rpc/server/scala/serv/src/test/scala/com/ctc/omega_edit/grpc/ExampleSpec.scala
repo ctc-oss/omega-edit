@@ -63,6 +63,28 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           count should be(1)
       }
 
+    "create and destroy sessions" in newSession { _ =>
+      for {
+        sessionCount1 <- service.getSessionCount(Empty())
+        sessionResponse2 <- service.createSession(CreateSessionRequest(None, Some("session_3")))
+        sessionCount2 <- service.getSessionCount(Empty())
+        sessionResponse3 <- service.createSession(CreateSessionRequest(None, Some("session_4")))
+        sessionResponse4 <- service.createSession(CreateSessionRequest(None, Some("session_5")))
+        sessionCount3 <- service.getSessionCount(Empty())
+        destroyedSession <- service.destroySession(ObjectId(sessionResponse3.sessionId))
+        sessionCount4 <- service.getSessionCount(Empty())
+      } yield {
+        sessionCount1.count shouldBe 2L
+        sessionResponse2.sessionId shouldBe "session_3"
+        sessionCount2.count shouldBe 3L
+        sessionResponse3.sessionId shouldBe "session_4"
+        sessionResponse4.sessionId shouldBe "session_5"
+        sessionCount3.count shouldBe 5L
+        destroyedSession.id shouldBe "session_4"
+        sessionCount4.count shouldBe 4L
+      }
+    }
+
     "profile session data" in newSession { sid =>
       val testString = ByteString.copyFromUtf8("5555544443332210122333444455555")
       val len = testString.size()
@@ -444,6 +466,66 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents3 shouldBe testString3
         contents4 shouldBe testString2
         contents5 shouldBe testString2
+      }
+    }
+
+    "create and destroy viewports" in newSession { sid =>
+      for {
+        numViewports1 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        viewportResponse1 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 0,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_1")
+          )
+        )
+        numViewports2 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        viewportResponse2 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 10,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_2")
+          )
+        )
+        viewportResponse3 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 20,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_3")
+          )
+        )
+        viewportResponse4 <- service.createViewport(
+          CreateViewportRequest(
+            sid,
+            capacity = 10,
+            offset = 30,
+            isFloating = false,
+            viewportIdDesired = Some("viewport_4")
+          )
+        )
+        numViewports3 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        destroyedViewport <- service.destroyViewport(ObjectId(viewportResponse2.viewportId))
+        numViewports4 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+      } yield {
+        numViewports1.sessionId shouldBe sid
+        numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports1.count shouldBe 0L
+        viewportResponse1.viewportId shouldBe sid + ":viewport_1"
+        numViewports2.sessionId shouldBe sid
+        numViewports2.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports2.count shouldBe 1L
+        viewportResponse2.viewportId shouldBe sid + ":viewport_2"
+        viewportResponse3.viewportId shouldBe sid + ":viewport_3"
+        viewportResponse4.viewportId shouldBe sid + ":viewport_4"
+        numViewports3.count shouldBe 4L
+        destroyedViewport.id shouldBe sid + ":viewport_2"
+        numViewports4.count shouldBe 3L
       }
     }
 

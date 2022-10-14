@@ -16,9 +16,9 @@
 
 package com.ctc.omega_edit
 
-import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.api.Change.Changed
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
+import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
@@ -41,6 +41,25 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "be empty" in emptySession { s =>
       s.isEmpty shouldBe true
       s.size shouldBe 0
+      s.destroy()
+    }
+
+    "be able to create and destroy viewports" in emptySession { s =>
+      s.numViewports shouldBe 0
+      val v1 = s.view(offset = 0, capacity = 10, isFloating = false)
+      v1.offset shouldBe 0L
+      v1.capacity shouldBe 10L
+      v1.isFloating shouldBe false
+      s.numViewports shouldBe 1
+      val v2 = s.view(offset = 4, capacity = 8, isFloating = true)
+      v2.offset shouldBe 4L
+      v2.capacity shouldBe 8L
+      v2.isFloating shouldBe true
+      v1.destroy()
+      s.numViewports shouldBe 1
+      v2.destroy()
+      s.numViewports shouldBe 0
+      s.destroy()
     }
 
     "have bytes" in session(Array[Byte]('a', 'b', 'c')) { s =>
@@ -160,18 +179,18 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
   "profiler" should {
     "profile character data" in session(as) { s =>
-        val prof : Array[Long] = s.profile(0, 0).get
-        prof('a') shouldBe 4
-        prof('b') shouldBe 12
-        prof('c') shouldBe 0
+      val prof: Array[Long] = s.profile(0, 0).get
+      prof('a') shouldBe 4
+      prof('b') shouldBe 12
+      prof('c') shouldBe 0
     }
     "profile binary data" in session(binary) { s =>
-        val prof: Array[Long] = s.profile(1, 5).get
-        prof(0) shouldBe 1
-        prof(1) shouldBe 0
-        prof(2) shouldBe 1
-        prof(5) shouldBe 1
-        prof(6) shouldBe 0
+      val prof: Array[Long] = s.profile(1, 5).get
+      prof(0) shouldBe 1
+      prof(1) shouldBe 0
+      prof(2) shouldBe 1
+      prof(5) shouldBe 1
+      prof(6) shouldBe 0
     }
   }
   "segments" should {
