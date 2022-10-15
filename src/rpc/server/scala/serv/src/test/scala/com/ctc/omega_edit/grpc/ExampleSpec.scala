@@ -71,10 +71,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         sessionResponse3 <- service.createSession(CreateSessionRequest(None, Some("session_4")))
         sessionResponse4 <- service.createSession(CreateSessionRequest(None, Some("session_5")))
         sessionCount3 <- service.getSessionCount(Empty())
-        destroyedSession1 <- service.destroySession(ObjectId(sessionResponse3.sessionId))
+        destroyedSession1 <- service.destroySession(ObjectId("session_4"))
         sessionCount4 <- service.getSessionCount(Empty())
-        destroyedSession2 <- service.destroySession(ObjectId(sessionResponse2.sessionId))
+        destroyedSession2 <- service.destroySession(ObjectId("session_3"))
         sessionCount5 <- service.getSessionCount(Empty())
+        destroyedSession3 <- service.destroySession(ObjectId("session_5"))
+        sessionCount6 <- service.getSessionCount(Empty())
       } yield {
         sessionCount1.count shouldBe 2L
         sessionResponse2.sessionId shouldBe "session_3"
@@ -86,6 +88,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         sessionCount4.count shouldBe 4L
         destroyedSession2.id shouldBe "session_3"
         sessionCount5.count shouldBe 3L
+        destroyedSession3.id shouldBe "session_5"
+        sessionCount6.count shouldBe 2L
       }
     }
 
