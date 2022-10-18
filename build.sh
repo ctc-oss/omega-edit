@@ -53,26 +53,27 @@ for objtype in shared static; do
   fi
 done
 
+# Kill the RPC server if it's up and running for some reason
+kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+
 # Build and test the Scala server
 pushd src/rpc/server/scala
 sbt installM2
 sbt test
 sbt pkgServer
 sbt serv/test
-pushd serv/target/universal/
-unzip -o "*.zip"
-kill "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
-./omega-edit-grpc-server*/bin/omega-edit-grpc-server --port=9000&
-server_pid=$!
+cp -av "serv/target/universal/"*.zip ../../client/ts
 popd
-popd
+
+# Build and test the TypeScript client
 pushd src/rpc/client/ts/
 npm install
 npm run compile-src
 npm run lint
 npm test
 popd
-kill $server_pid
 
+# Kill the RPC server if it hasn't been shutdown already
 kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
+
 echo "✔ Done! ✨"
