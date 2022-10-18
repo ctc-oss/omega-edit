@@ -138,6 +138,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def save(to: Path): Try[Path] =
     save(to, OverwriteExisting)
 
+  def save(to: Path, overwrite: Boolean): Try[Path] =
+    save(to, overwrite match {
+      case true  => OverwriteExisting
+      case false => GenerateFilename
+    })
+
   def save(to: Path, onExists: OverwriteStrategy): Try[Path] = {
     // todo;; obtain an accurate and portable number here
     val buffer = ByteBuffer.allocate(4096)
