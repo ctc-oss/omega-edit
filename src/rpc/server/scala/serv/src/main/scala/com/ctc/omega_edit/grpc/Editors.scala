@@ -17,6 +17,7 @@
 package com.ctc.omega_edit.grpc
 
 import akka.actor.{Actor, ActorLogging, Props}
+import akka.pattern.gracefulStop
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import akka.util.Timeout
@@ -110,8 +111,8 @@ class Editors extends Actor with ActorLogging {
       context.child(id) match {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
-          context.system stop s
-          sender() ! Ok(id)
+          val replyTo = sender()
+          gracefulStop(s, 2.seconds).onComplete(_ => replyTo ! Ok(id))(context.dispatcher)
       }
 
     case SessionCount =>
