@@ -63,7 +63,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def destroySession(in: ObjectId): Future[ObjectId] =
     // Currently believe this works but Session.Destroy seems to cause errors in CI
-    (editors ? DestroyActor(in.id)).mapTo[Result].map {
+    (editors ? DestroyActor(in.id, timeout)).mapTo[Result].map {
       case Ok(_)  => in
       case Err(c) => throw grpcFailure(c)
     }

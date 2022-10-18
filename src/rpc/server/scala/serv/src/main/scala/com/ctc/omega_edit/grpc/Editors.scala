@@ -41,7 +41,7 @@ object Editors {
       id: Option[String],
       path: Option[Path]
   )
-  case class DestroyActor(id: String)
+  case class DestroyActor(id: String, timeout: Timeout)
   case object SessionCount
 
   ///
@@ -107,12 +107,12 @@ class Editors extends Actor with ActorLogging {
     case Find(id) =>
       sender() ! context.child(id)
 
-    case DestroyActor(id) =>
+    case DestroyActor(id, t) =>
       context.child(id) match {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
           val replyTo = sender()
-          gracefulStop(s, 2.seconds).onComplete(_ => replyTo ! Ok(id))(context.dispatcher)
+          gracefulStop(s, t.duration).onComplete(_ => replyTo ! Ok(id))(context.dispatcher)
       }
 
     case SessionCount =>
