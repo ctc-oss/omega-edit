@@ -116,7 +116,7 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ windows-latest, macos-latest, ubuntu-latest ]
+        os: [ macos-latest, ubuntu-latest] #, windows-latest ] # TODO: Add in later
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️

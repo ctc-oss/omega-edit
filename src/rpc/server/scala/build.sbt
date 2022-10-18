@@ -205,6 +205,10 @@ addCommandAlias(
   "installM2",
   "; clean; native/publishM2; test; api/publishM2; spi/publishM2"
 )
+addCommandAlias(
+  "installM2NoTest",
+  "; clean; native/publishM2; api/publishM2; spi/publishM2"
+)
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
 addCommandAlias(
   "publishAll",
