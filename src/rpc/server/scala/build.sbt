@@ -54,7 +54,7 @@ set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}
 lazy val commonSettings = {
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.8",
+    scalaVersion := "2.13.10",
     version := omegaVersion,
     licenses += ("Apache-2.0", new URL(
       "https://www.apache.org/licenses/LICENSE-2.0.txt"
