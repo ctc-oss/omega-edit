@@ -17,7 +17,7 @@
 package com.ctc.omega_edit.grpc
 
 import akka.NotUsed
-import akka.actor.{Actor, PoisonPill, Props}
+import akka.actor.{Actor, Props}
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import io.grpc.Status
@@ -25,7 +25,7 @@ import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.{Change, ViewportCallback}
+import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import omega_edit._
 
 import java.nio.file.Path
@@ -49,9 +49,10 @@ object Session {
 
   def props(
       session: api.Session,
-      events: EventStream
+      events: EventStream,
+      cb: SessionCallback
   ): Props =
-    Props(new Session(session, events))
+    Props(new Session(session, events, cb))
 
   sealed trait Op
   object Op {
@@ -74,7 +75,7 @@ object Session {
       isFloating: Boolean,
       id: Option[String]
   ) extends Op
-  case class DestroyView(id: String) extends Op
+  case object Destroy extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
   case object Unwatch extends Op
   case object GetSize extends Op
@@ -117,11 +118,6 @@ object Session {
       new Ok(sessionId) with Serial {
         val serial: Long = serial0
       }
-
-    def paused(sessionId: String): Ok with Serial =
-      new Ok(sessionId) with Serial {
-        val serial: Long = 0L
-      }
   }
 
   trait ChangeDetails {
@@ -154,7 +150,8 @@ object Session {
 
 class Session(
     session: api.Session,
-    events: EventStream
+    events: EventStream,
+    @deprecated("unused", "") cb: SessionCallback
 ) extends Actor {
   val sessionId: String = self.path.name
 
@@ -194,36 +191,26 @@ class Session(
           sender() ! Ok(fqid)
       }
 
-    case DestroyView(vid) =>
-      context.child(vid) match {
-        case None => sender() ! Err(Status.NOT_FOUND)
-        case Some(s) =>
-          s ! PoisonPill
-          sender() ! Ok(vid)
-      }
+    case Destroy =>
+      session.destroy()
+      sender() ! Ok(sessionId)
 
     case Insert(data, offset) =>
       session.insert(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Overwrite(data, offset) =>
       session.overwrite(data.toByteArray, offset) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case Delete(offset, length) =>
       session.delete(offset, length) match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case LookupChange(id) =>
@@ -239,16 +226,12 @@ class Session(
       session.undoLast() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case RedoUndo() =>
       session.redoUndo() match {
         case Change.Changed(serial) =>
           sender() ! Serial.ok(sessionId, serial)
-        case Change.Paused => sender() ! Serial.paused(sessionId)
-        case Change.Fail   => sender() ! Err(Status.NOT_FOUND)
       }
 
     case ClearChanges() =>

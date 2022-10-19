@@ -27,7 +27,5 @@ trait TestSupport extends SessionSupport with ViewportSupport {
           case Some(c) => c
           case None    => throw new RuntimeException(s"Change $id not found")
         }
-      case Change.Paused => throw new RuntimeException("Change paused")
-      case Change.Fail   => throw new RuntimeException("Change failed")
     }
 }

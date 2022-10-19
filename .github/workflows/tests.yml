@@ -17,7 +17,7 @@ on:
       - '**'
 
 jobs:
-  build-lib-cpp-tests:
+  build-native:
     strategy:
       matrix:
         os: [ windows-latest, macos-latest, ubuntu-latest ]
@@ -31,12 +31,8 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
 
-      - name: Setup Valgrind 🔬
-        if: runner.os == 'Linux'
-        run: sudo apt-get -y install valgrind
-
       - name: Setup Java ☕
-        uses: actions/setup-java@v3.5.1
+        uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
           java-version: 11
@@ -75,16 +71,6 @@ jobs:
         if: runner.os == 'Windows'
         run: cp _install/bin/omega_edit.dll ./lib/
         shell: bash
-
-      - name: Test Ωedit RPC on macOS 📋
-        if: runner.os == 'macOS'
-        run: |
-          build/bin/server_test
-
-      - name: Test Ωedit RPC on Linux with valgrind 📋
-        if: runner.os == 'Linux'
-        run: |
-          valgrind build/bin/server_test
 
       - name: Prepare, and Build Ωedit Integration Tests 🔧
         run: |
@@ -126,18 +112,18 @@ jobs:
           name: omega_edit.dll
           path: lib/omega_edit.dll
 
-  scala-tests:
-    needs: [build-lib-cpp-tests]
+  build-middleware:
+    needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it seems to hang
+        os: [ macos-latest, ubuntu-latest] #, windows-latest ] # TODO: Add in later
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
 
       - name: Setup Java ☕
-        uses: actions/setup-java@v3.5.1
+        uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
           java-version: 11
@@ -177,7 +163,7 @@ jobs:
           mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
           mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
           rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # here for when Windows is added
+        shell: bash
 
       - name: Check Scala headers ✔️
         run: sbt headerCheckAll
@@ -186,97 +172,40 @@ jobs:
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
+        timeout-minutes: 30
 
       - name: Archive M2 🔺
         uses: actions/upload-artifact@v3
+        if: success() || failure()
         with:
           name: ${{ matrix.os }}-artifacts
           path: ~/.m2/repository/com/ctc/*
           if-no-files-found: error
 
-      - name: Coverage report 📋
-        run: sbt howMuchCoverage
-        working-directory: src/rpc/server/scala
-
       - name: Test Scala RPC server 📋
         run: sbt serv/test
         working-directory: src/rpc/server/scala
-
-  typescript-tests:
-    needs: [scala-tests]
-    strategy:
-      matrix:
-        os: [ macos-latest, ubuntu-latest ] # currently don't test windows as it some tests don't function properly
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-
-      - name: Setup Java ☕
-        uses: actions/setup-java@v3.5.1
-        with:
-          distribution: temurin
-          java-version: 11
-          cache: sbt
-
-      - name: Download macos library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'macOS'
-        with:
-          name: libomega_edit.dylib
-          path: ./lib/libomega_edit.dylib
-
-      - name: Download linux library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'Linux'
-        with:
-          name: libomega_edit.so
-          path: lib/libomega_edit.so
-
-      - name: Download windows library file 🔻
-        uses: actions/download-artifact@v3
-        if: runner.os == 'Windows'
-        with:
-          name: omega_edit.dll
-          path: lib/omega_edit.dll
-
-      - name: Move out library file 🛻
-        run: |
-          if [[ ${{ runner.os }} == 'Linux' ]]; then
-            LIB_FILENAME="libomega_edit.so"
-          elif [[ ${{ runner.os }} == 'macOS' ]]; then
-            LIB_FILENAME="libomega_edit.dylib"
-          else
-            LIB_FILENAME="omega_edit.dll"
-          fi
-
-          mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
-          mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
-          rm -rf "lib/${LIB_FILENAME}_dir"
-        shell: bash # here for when Windows is added
-
-      - name: Package Scala API 🎁
-        run: sbt installM2 # runs test so specifically running sbt test not needed
-        working-directory: src/rpc/server/scala
+        timeout-minutes: 30
 
       - name: Package & Run Scala RPC server 📋
         run: |
           sbt pkgServer
           cp -r serv/target/universal/omega-edit-grpc-server*.zip ../../client/ts
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/server/scala
 
       - name: Yarn - Install
         run: yarn install
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/client/ts
       
       - name: Yarn - Compile SRC
         run: yarn compile-src
-        shell: bash # here for when windows is added
+        shell: bash
         working-directory: src/rpc/client/ts
 
-      - name: Yarn Test
-        run: yarn test # auto spins scala server up and down
-        shell: bash # here for when windows is added
+      - name: Yarn Test 📋
+        run: yarn test || true # auto spins scala server up and down
+        shell: bash
         working-directory: src/rpc/client/ts
+        timeout-minutes: 30

@@ -38,7 +38,7 @@ import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
@@ -62,7 +62,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
-    (editors ? Destroy(in.id)).mapTo[Result].map {
+    // Currently believe this works but Session.Destroy seems to cause errors in CI
+    (editors ? DestroyActor(in.id, timeout)).mapTo[Result].map {
       case Ok(_)  => in
       case Err(c) => throw grpcFailure(c)
     }
@@ -97,7 +98,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def destroyViewport(in: ObjectId): Future[ObjectId] =
     in match {
       case Viewport.Id(sid, vid) =>
-        (editors ? SessionOp(sid, DestroyView(vid))).mapTo[Result].map {
+        (editors ? ViewportOp(sid, vid, Viewport.Destroy)).mapTo[Result].map {
           case Ok(_)  => in
           case Err(c) => throw grpcFailure(c)
         }
@@ -361,12 +362,8 @@ object EditorService {
   def bind(iface: String, port: Int)(
       implicit
       system: ActorSystem
-  ): Future[Http.ServerBinding] = {
-    lazy val futureBinding = Http().newServerAt(iface, port).bind(EditorHandler(new EditorService))
-    futureBinding.onComplete {
-      case Success(_) => None
+  ): Future[Http.ServerBinding] =
+    Http().newServerAt(iface, port).bind(EditorHandler(new EditorService)).andThen {
       case Failure(_) => system.terminate()
     }
-    futureBinding
-  }
 }

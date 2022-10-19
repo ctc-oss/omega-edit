@@ -47,7 +47,7 @@ trait Session {
   def overwrite(b: Array[Byte], offset: Long): Result
 
   def delete(offset: Long, len: Long): Result
-  def view(offset: Long, size: Long, isFloating: Boolean): Viewport
+  def view(offset: Long, capacity: Long, isFloating: Boolean): Viewport
 
   def undoLast(): Result
   def redoUndo(): Result
@@ -67,6 +67,7 @@ trait Session {
   def findChange(id: Long): Option[Change]
 
   def save(to: Path): Try[Path]
+  def save(to: Path, overwrite: Boolean): Try[Path]
   def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
   def profile(offset: Long, length: Long): Option[Array[Long]]
 
@@ -84,7 +85,7 @@ trait Session {
   def resumeSessionChanges(): Unit
   def pauseViewportEvents(): Unit
   def resumeViewportEvents(): Unit
-
+  def destroy(): Unit
 }
 
 object Session {

@@ -26,7 +26,6 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
-import com.ctc.omega_edit.api.SessionCallback
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
@@ -92,10 +91,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     *   https://github.com/ctc-oss/omega-edit/wiki#undo
     */
   def undoLast(): Result =
-    i.omega_edit_undo_last_change(p) match {
-      case 0 => Change.Fail
-      case v => Changed(v)
-    }
+    Edit(i.omega_edit_undo_last_change(p))
 
   def redoUndo(): Result =
     Edit(i.omega_edit_redo_last_undo(p))
@@ -109,22 +105,22 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def getLastUndo(): Option[Change] =
     Option(i.omega_session_get_last_undo(p)).map(new ChangeImpl(_, i))
 
-  def view(offset: Long, size: Long, isFloating: Boolean): Viewport = {
+  def view(offset: Long, capacity: Long, isFloating: Boolean): Viewport = {
     val vp =
-      i.omega_edit_create_viewport(p, offset, size, isFloating, null, null, 0)
+      i.omega_edit_create_viewport(p, offset, capacity, isFloating, null, null, 0)
     new ViewportImpl(vp, i)
   }
 
   def viewCb(
       offset: Long,
-      size: Long,
+      capacity: Long,
       isFloating: Boolean = false,
       cb: ViewportCallback
   ): Viewport = {
     val vp = i.omega_edit_create_viewport(
       p,
       offset,
-      size,
+      capacity,
       isFloating,
       cb,
       null,
@@ -141,6 +137,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def save(to: Path): Try[Path] =
     save(to, OverwriteExisting)
+
+  def save(to: Path, overwrite: Boolean): Try[Path] =
+    save(to, overwrite match {
+      case true  => OverwriteExisting
+      case false => GenerateFilename
+    })
 
   def save(to: Path, onExists: OverwriteStrategy): Try[Path] = {
     // todo;; obtain an accurate and portable number here
@@ -218,13 +220,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     } finally i.omega_segment_destroy(sp)
   }
 
+  def destroy(): Unit = i.omega_edit_destroy_session(p)
 }
 
 private object Edit {
   def apply(op: => Long): Change.Result =
     op match {
-      case 0          => Change.Paused
-      case v if v < 0 => Change.Fail
-      case v          => Changed(v)
+      case v => Changed(v)
     }
 }
