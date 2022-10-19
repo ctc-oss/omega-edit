@@ -170,7 +170,7 @@ jobs:
         working-directory: src/rpc/server/scala
 
       - name: Package Scala API 🎁
-        run: sbt installM2 || true # runs test so specifically running sbt test not needed
+        run: sbt installM2 # runs test so specifically running sbt test not needed
         working-directory: src/rpc/server/scala
         timeout-minutes: 30
 
@@ -183,13 +183,13 @@ jobs:
           if-no-files-found: error
 
       - name: Test Scala RPC server 📋
-        run: sbt serv/test || true
+        run: sbt serv/test
         working-directory: src/rpc/server/scala
         timeout-minutes: 30
 
       - name: Package & Run Scala RPC server 📋
         run: |
-          sbt pkgServer || true
+          sbt pkgServer
           cp -r serv/target/universal/omega-edit-grpc-server*.zip ../../client/ts
         shell: bash
         working-directory: src/rpc/server/scala
