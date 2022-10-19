@@ -61,18 +61,19 @@ export async function check_callback_count(
 ) {
   // disable the check unless the OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS
   // environment variable is defined and is non-zero
-  const do_check: boolean = process.env.OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS
+  const do_check: boolean = process.env
+    .OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS
     ? process.env.OMEGA_EDIT_ENABLE_CLIENT_CALLBACK_COUNT_CHECKS !== '0'
-    : false 
+    : false
   if (!do_check) return
   if (millisecond_delay !== undefined && millisecond_delay > 0) {
     await delay(millisecond_delay)
   }
-  console.log(callback_map)
+  log_info(callback_map)
   if (0 < expected_count) {
     expect(callback_map.has(key)).to.be.true
     const value = callback_map.get(key)
-    console.log(
+    log_info(
       'check_callback_count key: ' +
         key +
         ', value: ' +
@@ -84,4 +85,17 @@ export async function check_callback_count(
   } else {
     expect(callback_map.has(key)).to.be.false
   }
+}
+
+export function log_info(message?: any, ...optionalParams: any[]) {
+  const do_log: boolean = process.env.OMEGA_EDIT_ENABLE_INFO_LOGS
+    ? process.env.OMEGA_EDIT_ENABLE_INFO_LOGS !== '0'
+    : false
+  if (do_log) {
+    console.log(message, optionalParams)
+  }
+}
+
+export function log_error(message?: any, ...optionalParams: any[]) {
+  console.log(message, optionalParams)
 }

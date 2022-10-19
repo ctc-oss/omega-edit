@@ -31,7 +31,7 @@ import {
 } from '../../src/omega_edit_pb'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
-import { check_callback_count, cleanup, custom_setup } from './common'
+import { check_callback_count, cleanup, custom_setup, log_info } from './common'
 import { ALL_EVENTS, getClient } from '../../src/settings'
 
 let session_callbacks = new Map()
@@ -53,7 +53,7 @@ async function subscribeSession(
       )
       const event = sessionEvent.getSessionEventKind()
       if (SessionEventKind.SESSION_EVT_EDIT == event) {
-        console.log(
+        log_info(
           'session: ' +
             session_id +
             ', event: ' +
@@ -64,7 +64,7 @@ async function subscribeSession(
             session_callbacks.get(session_id)
         )
       } else {
-        console.log(
+        log_info(
           'session: ' +
             session_id +
             ', event: ' +
