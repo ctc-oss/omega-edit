@@ -40,7 +40,13 @@ import {
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
-import { check_callback_count, cleanup, custom_setup, delay } from './common'
+import {
+  check_callback_count,
+  cleanup,
+  custom_setup,
+  delay,
+  log_info,
+} from './common'
 import {
   EventSubscriptionRequest,
   SessionEventKind,
@@ -67,7 +73,7 @@ async function subscribeSession(
       )
       const event = sessionEvent.getSessionEventKind()
       if (SessionEventKind.SESSION_EVT_EDIT == event) {
-        console.log(
+        log_info(
           'session: ' +
             session_id +
             ', event: ' +
@@ -78,7 +84,7 @@ async function subscribeSession(
             session_callbacks.get(session_id)
         )
       } else {
-        console.log(
+        log_info(
           'session: ' +
             session_id +
             ', event: ' +
@@ -112,7 +118,7 @@ async function subscribeViewport(
       )
       const event = viewportEvent.getViewportEventKind()
       if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
-        console.log(
+        log_info(
           'viewport_id: ' +
             viewport_id +
             ', event: ' +
@@ -129,7 +135,7 @@ async function subscribeViewport(
             viewport_callbacks.get(viewport_id)
         )
       } else {
-        console.log(
+        log_info(
           'viewport: ' +
             viewport_id +
             ', event: ' +
@@ -176,8 +182,8 @@ describe('StressTest', () => {
     expect(await getSegment(session_id, 0, data.length)).deep.equals(
       data.reverse()
     )
-    console.log(session_callbacks)
-    console.log(viewport_callbacks)
+    log_info(session_callbacks)
+    log_info(viewport_callbacks)
     await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length)
     await check_callback_count(viewport_callbacks, viewport_id, data.length)
@@ -186,8 +192,8 @@ describe('StressTest', () => {
       await del(session_id, 0, 1)
     }
     expect(await getComputedFileSize(session_id)).to.equal(0)
-    console.log(session_callbacks)
-    console.log(viewport_callbacks)
+    log_info(session_callbacks)
+    log_info(viewport_callbacks)
     await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length * 2)
     await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
@@ -220,8 +226,8 @@ describe('StressTest', () => {
       await del(session_id, data.length - i - 1, 1)
     }
     expect(await getComputedFileSize(session_id)).to.equal(0)
-    console.log(session_callbacks)
-    console.log(viewport_callbacks)
+    log_info(session_callbacks)
+    log_info(viewport_callbacks)
     await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length * 2)
     await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
@@ -246,9 +252,8 @@ describe('StressTest', () => {
 
       await pauseSessionChanges(session_id)
 
-      console.log(
-        '\x1b[33m%s\x1b[0m',
-        'Expect to see an "Error:" here, we are intentionally causing it'
+      log_info(
+        '\x1b[33m%s\x1b[0mExpect to see an "Error:" here, we are intentionally causing it'
       ) // yellow text
       await insert(session_id, 0, data).catch((e) => {
         expect(e)
@@ -284,7 +289,7 @@ describe('StressTest', () => {
       const expected_num_changes = 1 + 3 * file_size * full_rotations
 
       while (rotations--) {
-        console.log('\x1b[33m%s\x1b[0m', 'rotations remaining: ' + rotations)
+        log_info('\x1b[33m%s\x1b[0mrotations remaining: ' + rotations)
         viewport_data = await getViewportData(viewport_id)
 
         change_id = await insert(session_id, 0, ' ')
@@ -331,8 +336,8 @@ describe('StressTest', () => {
         460 * full_rotations
       )
 
-      console.info('\x1b[32m%s\x1b[0m', session_callbacks)
-      console.info('\x1b[32m%s\x1b[0m', viewport_callbacks)
+      log_info('\x1b[32m%s\x1b[0m', session_callbacks)
+      log_info('\x1b[32m%s\x1b[0m', viewport_callbacks)
     }
   ).timeout(10000 * full_rotations)
 })

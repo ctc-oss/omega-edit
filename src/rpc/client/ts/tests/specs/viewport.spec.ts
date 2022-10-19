@@ -34,7 +34,13 @@ import {
   ViewportEventKind,
 } from '../../src/omega_edit_pb'
 // @ts-ignore
-import { check_callback_count, cleanup, custom_setup, delay } from './common'
+import {
+  check_callback_count,
+  cleanup,
+  custom_setup,
+  delay,
+  log_info,
+} from './common'
 
 let viewport_callbacks = new Map()
 
@@ -57,7 +63,7 @@ async function subscribeViewport(
       )
       const event = viewportEvent.getViewportEventKind()
       if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
-        console.log(
+        log_info(
           'viewport_id: ' +
             viewport_id +
             ', event: ' +
@@ -74,7 +80,7 @@ async function subscribeViewport(
             viewport_callbacks.get(viewport_id)
         )
       } else {
-        console.log(
+        log_info(
           'viewport: ' +
             viewport_id +
             ', event: ' +
@@ -126,7 +132,7 @@ describe('Viewports', () => {
     expect(viewport_2_id).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
     expect(await subscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
     expect(await getViewportCount(session_id)).to.equal(2)
-    console.log(viewport_callbacks)
+    log_info(viewport_callbacks)
     await check_callback_count(viewport_callbacks, viewport_2_id, 0, 500)
 
     let change_id = await insert(session_id, 0, '0123456789ABC')
@@ -193,14 +199,14 @@ describe('Viewports', () => {
     expect(await getViewportCount(session_id)).to.equal(2)
     const destroyed_viewport_id = await destroyViewport(viewport_2_id)
     expect(destroyed_viewport_id).to.equal(viewport_2_id)
-    console.log('destroyed viewport: ' + destroyed_viewport_id)
+    log_info('destroyed viewport: ' + destroyed_viewport_id)
     expect(await getViewportCount(session_id)).to.equal(1)
-    console.log('num changes: ' + (await getChangeCount(session_id)))
+    log_info('num changes: ' + (await getChangeCount(session_id)))
     expect(await getChangeCount(session_id)).to.equal(4)
-    console.log(viewport_callbacks)
+    log_info(viewport_callbacks)
     await check_callback_count(viewport_callbacks, viewport_1_id, 1, 500)
     await check_callback_count(viewport_callbacks, viewport_2_id, 3)
-    console.log(viewport_callbacks)
+    log_info(viewport_callbacks)
   }).timeout(5000)
 
   it('Should handle floating viewports', async () => {
