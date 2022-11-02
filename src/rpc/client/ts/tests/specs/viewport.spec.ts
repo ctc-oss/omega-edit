@@ -34,13 +34,7 @@ import {
   ViewportEventKind,
 } from '../../src/omega_edit_pb'
 // @ts-ignore
-import {
-  check_callback_count,
-  cleanup,
-  custom_setup,
-  delay,
-  log_info,
-} from './common'
+import { check_callback_count, cleanup, custom_setup, log_info } from './common'
 
 let viewport_callbacks = new Map()
 
@@ -133,7 +127,7 @@ describe('Viewports', () => {
     expect(await subscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
     expect(await getViewportCount(session_id)).to.equal(2)
     log_info(viewport_callbacks)
-    await check_callback_count(viewport_callbacks, viewport_2_id, 0, 500)
+    await check_callback_count(viewport_callbacks, viewport_2_id, 0)
 
     let change_id = await insert(session_id, 0, '0123456789ABC')
     expect(change_id).to.equal(1)
@@ -147,7 +141,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('ABC')
 
-    await check_callback_count(viewport_callbacks, viewport_2_id, 1, 500)
+    await check_callback_count(viewport_callbacks, viewport_2_id, 1)
 
     change_id = await del(session_id, 0, 1) // Event 2
     expect(change_id).to.equal(2)
@@ -161,14 +155,13 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('BC')
 
-    await check_callback_count(viewport_callbacks, viewport_2_id, 2, 500)
+    await check_callback_count(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle off interest in edit events
     await subscribeViewport(
       viewport_2_id,
       ALL_EVENTS & ~ViewportEventKind.VIEWPORT_EVT_EDIT
     )
-    await delay(100)
     change_id = await overwrite(session_id, 8, '!@#')
     expect(change_id).to.equal(3)
 
@@ -183,12 +176,11 @@ describe('Viewports', () => {
 
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('#C')
-    await check_callback_count(viewport_callbacks, viewport_2_id, 2, 500)
+    await check_callback_count(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle on interest in all events
     await subscribeViewport(viewport_1_id)
     await subscribeViewport(viewport_2_id)
-    await delay(500)
     change_id = await del(session_id, 0, 2)
     expect(change_id).to.equal(4)
 
@@ -204,7 +196,7 @@ describe('Viewports', () => {
     log_info('num changes: ' + (await getChangeCount(session_id)))
     expect(await getChangeCount(session_id)).to.equal(4)
     log_info(viewport_callbacks)
-    await check_callback_count(viewport_callbacks, viewport_1_id, 1, 500)
+    await check_callback_count(viewport_callbacks, viewport_1_id, 1)
     await check_callback_count(viewport_callbacks, viewport_2_id, 3)
     log_info(viewport_callbacks)
   }).timeout(5000)
@@ -270,7 +262,6 @@ describe('Viewports', () => {
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
-    await delay(500)
     await check_callback_count(viewport_callbacks, viewport_id, 1)
     await check_callback_count(viewport_callbacks, viewport_floating_id, 2)
   }).timeout(5000)

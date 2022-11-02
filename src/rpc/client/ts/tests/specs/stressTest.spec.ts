@@ -40,13 +40,7 @@ import {
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
-import {
-  check_callback_count,
-  cleanup,
-  custom_setup,
-  delay,
-  log_info,
-} from './common'
+import { check_callback_count, cleanup, custom_setup, log_info } from './common'
 import {
   EventSubscriptionRequest,
   SessionEventKind,
@@ -149,7 +143,7 @@ async function subscribeViewport(
 }
 
 describe('StressTest', () => {
-  const full_rotations = 2
+  const full_rotations = 10
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
@@ -175,7 +169,6 @@ describe('StressTest', () => {
     )
     await subscribeViewport(viewport_id)
     await subscribeSession(session_id, ALL_EVENTS)
-    await delay(50)
     for (let i = 0; i < data.length; ++i) {
       await insert(session_id, 0, new Uint8Array([data[i]]))
     }
@@ -184,7 +177,6 @@ describe('StressTest', () => {
     )
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length)
     await check_callback_count(viewport_callbacks, viewport_id, data.length)
     for (let i = 0; i < data.length; ++i) {
@@ -194,7 +186,6 @@ describe('StressTest', () => {
     expect(await getComputedFileSize(session_id)).to.equal(0)
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length * 2)
     await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
   }).timeout(10000)
@@ -214,7 +205,6 @@ describe('StressTest', () => {
     )
     await subscribeViewport(viewport_id)
     await subscribeSession(session_id, ALL_EVENTS)
-    await delay(50)
     for (let i = 0; i < data.length; ++i) {
       await insert(session_id, i, new Uint8Array([data[i]]))
     }
@@ -228,7 +218,6 @@ describe('StressTest', () => {
     expect(await getComputedFileSize(session_id)).to.equal(0)
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await delay(100)
     await check_callback_count(session_callbacks, session_id, data.length * 2)
     await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
   }).timeout(10000)
@@ -311,7 +300,6 @@ describe('StressTest', () => {
 
       expect(viewport_data.getData_asU8()).to.deep.equal(data)
       expect(await getComputedFileSize(session_id)).to.equal(file_size)
-      await delay(100)
       expect(await destroyViewport(viewport_2_id)).to.equal(viewport_2_id)
       await clear(session_id)
       expect(await getComputedFileSize(session_id)).to.equal(0)
@@ -322,8 +310,7 @@ describe('StressTest', () => {
       await check_callback_count(
         session_callbacks,
         session_id,
-        465 * full_rotations + 1,
-        500
+        465 * full_rotations + 1
       )
       await check_callback_count(
         viewport_callbacks,
