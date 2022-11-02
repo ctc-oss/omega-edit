@@ -29,11 +29,11 @@
 #ifndef OMEGA_EDIT_TEST_UTIL_H
 #define OMEGA_EDIT_TEST_UTIL_H
 
+#include "omega_edit/byte.h"
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
-#include <omega_edit/byte.h>
 
 // Returns 0 if the content of the 2 file pointers are the same (from where the pointers are currently) and 1 if contents are not the same
 static inline int compare_file_pointers(FILE *f1, FILE *f2) {
@@ -54,7 +54,15 @@ static inline int compare_file_pointers(FILE *f1, FILE *f2) {
 
 static inline int compare_files(const char *f1, const char *f2) {
     const auto f1_ptr = fopen(f1, "rb");
+    if (!f1_ptr) {
+        fprintf(stderr, "Failed to open file: %s\n", f1);
+        abort();
+    }
     const auto f2_ptr = fopen(f2, "rb");
+    if (!f2_ptr) {
+        fprintf(stderr, "Failed to open file: %s\n", f2);
+        abort();
+    }
     const auto result = compare_file_pointers(f1_ptr, f2_ptr);
     fclose(f1_ptr);
     fclose(f2_ptr);

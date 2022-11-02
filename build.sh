@@ -34,17 +34,10 @@ for objtype in shared static; do
   rm -rf "build-$objtype-$type" "$install_dir-$objtype"
   cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
   cmake --build "build-$objtype-$type"
+  ctest -C "$type" --test-dir "build-$objtype-$type" --output-on-failure
   cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype" --config "$type"
   cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
   cpack --config "build-$objtype-$type/CPackConfig.cmake"
-
-  rm -rf "build-tests-integration-$objtype-$type"
-  cmake -G "$generator" -S src/tests/integration -B "build-tests-integration-$objtype-$type" -DCMAKE_BUILD_TYPE="$type" -DCMAKE_PREFIX_PATH="$install_dir-$objtype"
-  cmake --build "build-tests-integration-$objtype-$type"
-  pushd "build-tests-integration-$objtype-$type" && ctest -C "$type" --output-on-failure && popd
-
-  cmake -G "$generator" -S src/tests -B "build-tests-$objtype-$type" -DCMAKE_BUILD_TYPE="$type"
-  pushd "build-tests-$objtype-$type" && ctest -C "$type" --output-on-failure && popd
 
   if [ -d "$install_dir-$objtype/lib64/" ]; then
     cp -av "$install_dir-$objtype/lib64/"* ./lib
