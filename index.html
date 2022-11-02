@@ -80,8 +80,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
-      <li>Welcome to ΩEdit’s documentation!</li>
+      <li><a href="#" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Welcome to ΩEdit’s documentation!</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -1218,7 +1218,7 @@
 <dd><p>Given a session, return the session event callback </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>omega_session_t</strong> – session to return the event callback from </p>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to return the event callback from </p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>session event callback </p>
@@ -2017,6 +2017,7 @@
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>viewport_ptr</strong> – viewport for which to execute its on-change callback </p></li>
+<li><p><strong>viewport_event</strong> – event kind that is taking place </p></li>
 <li><p><strong>event_ptr</strong> – change responsible for the viewport change (if any) </p></li>
 </ul>
 </dd>
