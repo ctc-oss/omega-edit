@@ -37,8 +37,8 @@ extraction:
       - cat /usr/local/share/ca-certificates/semmle-cache-ca/semmle-cache-ca.crt >> ~/.conan/cacert.pem
     configure:
       command:
-        - cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=OFF
+        - cmake -S . -B build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=Debug
     index:
       build_command:
-        - cd build-tests
-        - ctest -C Debug --output-on-failure
+        - cmake --build build
+        - ctest -C Debug --test-dir build --output-on-failure

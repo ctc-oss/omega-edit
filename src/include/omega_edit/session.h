@@ -44,7 +44,7 @@ OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t 
 
 /**
  * Given a session, return the session event callback
- * @param omega_session_t session to return the event callback from
+ * @param session_ptr session to return the event callback from
  * @return session event callback
  */
 OMEGA_EDIT_EXPORT omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr);

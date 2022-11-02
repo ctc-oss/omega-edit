@@ -21,7 +21,7 @@ jobs:
     strategy:
       matrix:
         os: [ windows-latest, macos-latest, ubuntu-latest ]
-    name: Build ${{ matrix.os }}
+    name: Native build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Enable Developer Command Prompt 💻
@@ -57,60 +57,29 @@ jobs:
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
           cmake --build build
+          ctest -C Debug --test-dir build --output-on-failure
           cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
-
-      - name: Copy library file linux 🚚
-        if: runner.os == 'Linux'
-        run: cp _install/lib/libomega_edit.so ./lib/
-      
-      - name: Copy library file mac 🚚
-        if: runner.os == 'macOS'
-        run: cp _install/lib/libomega_edit.dylib ./lib/
-
-      - name: Copy library file windows 🚚
-        if: runner.os == 'Windows'
-        run: cp _install/bin/omega_edit.dll ./lib/
-        shell: bash
-
-      - name: Prepare, and Build Ωedit Integration Tests 🔧
-        run: |
-          cmake -S src/tests/integration -B build-tests-integration -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="${PWD}/_install"
-          cmake --build build-tests-integration
-
-      - name: Run Ωedit Integration Tests 📋
-        working-directory: build-tests-integration
-        run: |
-          ctest -C Debug --output-on-failure
-
-      - name: Build Tests 🔧
-        run: |
-          cmake -S src/tests -B build-tests -DCMAKE_BUILD_TYPE=Debug
-
-      - name: Run Tests 📋
-        working-directory: build-tests
-        run: |
-          ctest -C Debug --output-on-failure
 
       - name: Upload Native (.dylib) library - Macos 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
-          path: lib/libomega_edit.dylib
+          path: _install/lib/libomega_edit.dylib
 
       - name: Upload Native (.so) library - Linux 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
-          path: lib/libomega_edit.so
+          path: _install/lib/libomega_edit.so
 
       - name: Upload Native (.dll) library - Windows 🔺
         uses: actions/upload-artifact@v3
         if: runner.os == 'Windows'
         with:
           name: omega_edit.dll
-          path: lib/omega_edit.dll
+          path: _install/bin/omega_edit.dll
 
   build-middleware:
     needs: [ build-native ]
@@ -134,7 +103,7 @@ jobs:
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
-          path: ./lib/libomega_edit.dylib
+          path: lib/libomega_edit.dylib
 
       - name: Download linux library file 🔻
         uses: actions/download-artifact@v3

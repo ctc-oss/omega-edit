@@ -12,16 +12,16 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#define CATCH_CONFIG_MAIN
-
+#include "omega_edit.h"
+#include "omega_edit/check.h"
+#include "omega_edit/config.h"
+#include "omega_edit/encode.h"
+#include "omega_edit/stl_string_adaptor.hpp"
+#include "omega_edit/utility.h"
 #include "test_util.h"
-#include <catch2/catch.hpp>
-#include <omega_edit.h>
-#include <omega_edit/check.h>
-#include <omega_edit/config.h>
-#include <omega_edit/encode.h>
-#include <omega_edit/stl_string_adaptor.hpp>
-#include <omega_edit/utility.h>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_contains.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 #include <cstdio>
 #include <cstring>
@@ -64,8 +64,8 @@ TEST_CASE("License check", "[LicenseCheck]") {
 }
 
 TEST_CASE("Bit Manipulation", "[BitManip]") {
-    std::clog << "********* largest negative: " << (1 << 31) << std::endl;
-    std::clog << "********* largest positive: " << ~(1 << 31) << std::endl;
+    REQUIRE(1 << 31 == -2147483648);
+    REQUIRE(~(1 << 31) == 2147483647);
 }
 
 TEST_CASE("Buffer Shift", "[BufferShift]") {
@@ -78,18 +78,18 @@ TEST_CASE("Buffer Shift", "[BufferShift]") {
     // Shift the buffer 5 bits to the right
     REQUIRE(0 == omega_util_right_shift_buffer(buffer, buff_len, 5));
     // We shifted a total of 8 bits (one byte) to the right, so compare the buffer against the fill plus one byte
-    REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+    REQUIRE_THAT(fill + 1, Equals((const char *) buffer));
 
     // Reset the buffer
     memcpy(buffer, fill, buff_len);
-    REQUIRE(strcmp((const char *) fill, (const char *) buffer) == 0);
+    REQUIRE_THAT(fill, Equals((const char *) buffer));
 
     // Shift the buffer 6 bits to the left
     REQUIRE(0 == omega_util_left_shift_buffer(buffer, buff_len, 6));
     // Shift the buffer 2 bits to the left
     REQUIRE(0 == omega_util_left_shift_buffer(buffer, buff_len, 2));
     // We shifted a total of 8 bits (one byte) to the left, so compare the buffer against the fill plus one byte
-    REQUIRE(strcmp((const char *) fill + 1, (const char *) buffer) == 0);
+    REQUIRE_THAT(fill + 1, Equals((const char *) buffer));
 
     // Negative tests.  Shifting 8 or more bits in either direction should be an error.
     REQUIRE(-1 == omega_util_left_shift_buffer(buffer, buff_len, 8));
@@ -248,11 +248,11 @@ TEST_CASE("Transformer", "[TransformerTest]") {
     strcpy(reinterpret_cast<char *>(bytes), "Hello World!");
     const auto bytes_length = static_cast<int64_t>(strlen(reinterpret_cast<const char *>(bytes)));
     omega_util_apply_byte_transform(bytes, bytes_length, to_upper, nullptr);
-    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "HELLO WORLD!");
+    REQUIRE_THAT(string(reinterpret_cast<const char *>(bytes)), Equals("HELLO WORLD!"));
     omega_util_apply_byte_transform(bytes, bytes_length, to_lower, nullptr);
-    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "hello world!");
+    REQUIRE_THAT(string(reinterpret_cast<const char *>(bytes)), Equals("hello world!"));
     omega_util_apply_byte_transform(bytes, 1, to_upper, nullptr);
-    REQUIRE(string(reinterpret_cast<const char *>(bytes)) == "Hello world!");
+    REQUIRE_THAT(string(reinterpret_cast<const char *>(bytes)), Equals("Hello world!"));
 }
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
@@ -273,14 +273,16 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     char encoded_buffer[1024];
     omega_byte_t decoded_buffer[1024];
     omega_encode_bin2hex(in, encoded_buffer, in_string.size());
-    REQUIRE(0 == strcmp(encoded_buffer, "48656c6c6f20576f726c6421"));
+    REQUIRE_THAT(encoded_buffer, Equals("48656c6c6f20576f726c6421"));
     omega_encode_hex2bin(encoded_buffer, decoded_buffer, strlen(encoded_buffer));
-    REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
+    REQUIRE_THAT(reinterpret_cast<const char *>(decoded_buffer), Equals(in_string));
     omega_encode_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
-    REQUIRE(0 == strcmp(reinterpret_cast<const char *>(decoded_buffer), in_string.c_str()));
+    REQUIRE_THAT(reinterpret_cast<const char *>(decoded_buffer), Equals(in_string));
 }
 
-using file_info_t = struct file_info_struct { size_t num_changes{}; };
+using file_info_t = struct file_info_struct {
+    size_t num_changes{};
+};
 
 static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                                       const void *session_event_ptr) {
@@ -295,7 +297,7 @@ static inline void session_change_cbk(const omega_session_t *session_ptr, omega_
             if (0 < omega_change_get_serial(change_ptr)) {
                 ++file_info_ptr->num_changes;
             } else {
-                --file_info_ptr->num_changes; /* this is in UNDO */
+                --file_info_ptr->num_changes; /* this is an UNDO */
             }
             auto file_path = omega_session_get_file_path(session_ptr);
             file_path = (file_path) ? file_path : "NO FILENAME";
@@ -322,7 +324,7 @@ TEST_CASE("Empty File Tests", "[EmptyFileTests]") {
     const auto session_ptr =
             omega_edit_create_session(in_filename, session_change_cbk, &file_info, SESSION_EVT_EDIT | SESSION_EVT_UNDO);
     REQUIRE(session_ptr);
-    REQUIRE(strcmp(omega_session_get_file_path(session_ptr), in_filename) == 0);
+    REQUIRE_THAT(omega_session_get_file_path(session_ptr), Equals(in_filename));
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
     auto change_serial =

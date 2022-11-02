@@ -57,7 +57,7 @@ endif ()
 include("cmake/conan.cmake")
 
 conan_cmake_configure(
-        REQUIRES "boost/1.80.0" "catch2/2.13.9"
+        REQUIRES "boost/1.80.0" "catch2/3.1.0"
         OPTIONS boost:header_only=True
         GENERATORS cmake cmake_find_package
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
@@ -68,7 +68,13 @@ conan_basic_setup(TARGETS)
 
 set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
 find_package(Boost 1.80.0 REQUIRED)
+message(STATUS "Boost root dir: ${CONAN_BOOST_ROOT}")
 message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
+
+set(Catch2_INSTALL_DIR ${CONAN_CATCH2_ROOT})
+find_package(Catch2 3 REQUIRED)
+message(STATUS "Catch2 root dir: ${CONAN_CATCH2_ROOT}")
+message(STATUS "Catch2 include dir: ${CONAN_INCLUDE_DIRS_CATCH2}")
 
 # Don't add RPATH so we can manipulate the library search path using the environment at runtime
 set(CMAKE_MACOSX_RPATH OFF)
@@ -178,12 +184,12 @@ if (BUILD_TESTS)
         set(CTEST_CONFIGURATION_TYPE "${JOB_BUILD_CONFIGURATION}")
     endif ()
 
-    add_executable(omega_test "src/tests/integration/omega_test.cpp" "src/tests/integration/test_util.h")
-    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+    add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.h")
+    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain ${FILESYSTEM_LIB})
     target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
-    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/integration/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
 
-    add_executable(generate_file "src/tests/integration/generate_file.cpp" "src/tests/integration/test_util.h")
+    add_executable(generate_file "src/tests/generate_file.cpp" "src/tests/test_util.h")
     target_link_libraries(generate_file PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     include(CTest)
