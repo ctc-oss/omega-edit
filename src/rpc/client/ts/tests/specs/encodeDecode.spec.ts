@@ -19,8 +19,13 @@
 
 import { expect } from 'chai'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
+import { BitArray } from "../../src/dataMan";
 // @ts-ignore
 import { deadline } from './common'
+
+function reverseString(str: string) {
+  return str.split('').reverse().join('')
+}
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {
@@ -91,6 +96,22 @@ describe('Encode/Decode', () => {
       '0b10000011',
       '0b00101011',
     ]
+    const binaryStrListRev = [
+      '0b11001001',
+      '0b10111010',
+      '0b01111011',
+      '0b10101100',
+      '0b11110111',
+      '0b01001000',
+      '0b01110010',
+      '0b01001100',
+      '0b10010001',
+      '0b11110111',
+      '0b01001000',
+      '0b01011100',
+      '0b11000001',
+      '0b11010100',
+    ]
     const hexStrList = [
       '0x93',
       '0x5d',
@@ -150,6 +171,26 @@ describe('Encode/Decode', () => {
         binaryStrList[i]
       )
       expect('0x' + binaryList[i].toString(16)).to.equal(hexStrList[i])
+      expect('0b' + reverseString(binaryStrList[i].slice(2))).to.equal(
+        binaryStrListRev[i]
+      )
     }
   })
+    it ('can handle bits', () => {
+        let bits = new BitArray(42)
+
+        for (let bit = 0; bit < bits.size; ++bit) {
+            if (bit % 2 === 1)
+                bits.assignBit(bit, 1)
+            else
+                bits.assignBit(bit, 0)
+        }
+        let str = ''
+        for (let bit = bits.size - 1; bit >= 0; --bit) {
+            str += bits.getBit(bit)
+        }
+        expect(str.length).to.equal(bits.size)
+        expect(bits.size).to.be.lessThanOrEqual(bits.capacity)
+        expect(str).to.equal("10".repeat(bits.size/2))
+    })
 })
