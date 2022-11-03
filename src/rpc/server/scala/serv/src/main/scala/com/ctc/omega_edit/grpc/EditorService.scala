@@ -35,11 +35,10 @@ import io.grpc.Status
 import omega_edit._
 
 import java.nio.file.Paths
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-
-import scala.util.{Failure}
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(5000.milliseconds)
@@ -366,4 +365,13 @@ object EditorService {
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService)).andThen {
       case Failure(_) => system.terminate()
     }
+  /* TODO: get this to work.
+  def bind(path: Path)(
+      implicit
+      system: ActorSystem
+  ): Future[UnixDomainSocket.ServerBinding] =
+      UnixDomainSocket().bindAndHandle(EditorHandler(new EditorService), path).andThen {
+          case Failure(_) => system.terminate()
+      }
+ */
 }

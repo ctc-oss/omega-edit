@@ -17,7 +17,7 @@
 package com.ctc.omega_edit.grpc
 
 import akka.actor.ActorSystem
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.catsSyntaxTuple3Semigroupal
 import com.ctc.omega_edit.api.OmegaEdit
 import com.monovore.decline._
 
@@ -53,26 +53,45 @@ object boot
           )
           .withDefault(default_port.toInt)
 
-        (interface_opt, port_opt).mapN { (interface, port) =>
-          new boot(interface, port).run()
-        }
+        val default_domain_socket = scala.util.Properties.envOrElse("OMEGA_EDIT_DOMAIN_SOCKET", "")
+        val domain_socket_opt = Opts
+          .option[String](
+            "domain-socket",
+            short = "d",
+            metavar = "domain_socket_path",
+            help = s"Set the gRPC domain socket to bind to. Default: $default_domain_socket"
+          )
+          .withDefault(default_domain_socket)
+
+        (interface_opt.orNone, port_opt.orNone, domain_socket_opt.orNone)
+          .mapN(Config.apply)
+          .map(config => new boot(config).run())
       }
     )
 
-class boot(iface: String, port: Int) {
-  implicit val sys: ActorSystem = ActorSystem("omega-grpc-server")
+case class Config(
+    iface: Option[String],
+    port: Option[Int],
+    domain_socket: Option[String]
+)
+
+class boot(config: Config) {
+  implicit val sys: ActorSystem = ActorSystem("omega-edit-rpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
   def run(): Unit = {
     val v = OmegaEdit.version()
     val done =
       for {
-        binding <- EditorService.bind(iface = iface, port = port)
+        binding <- config.domain_socket match {
+          // TODO: If a domain_socket is configured, bind to it, otherwise bind to the interface and port
+          //case Some(_) => EditorService.bind(Paths.get(config.domain_socket.get))
+          case Some(_) => EditorService.bind(iface = config.iface.get, port = config.port.get)
+          case None    => EditorService.bind(iface = config.iface.get, port = config.port.get)
+        }
 
         _ = println(s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}")
-
         done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
-
         _ = println(s"exiting...")
       } yield done
 

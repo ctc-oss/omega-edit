@@ -19,6 +19,7 @@ lazy val packageData = Json
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
+lazy val AkkaVersion = "2.6.19" // don't upgrade 2.7.x due to license change
 lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
 lazy val ghb_resolver = (
@@ -111,7 +112,7 @@ lazy val api = project
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.0",
         "com.github.jnr" % "jnr-ffi" % "2.2.12",
-        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+        "org.scalatest" %% "scalatest" % "3.2.14" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
@@ -178,8 +179,11 @@ lazy val serv = project
     name := "omega-edit-grpc-server",
     libraryDependencies ++= {
       Seq(
-        "com.monovore" %% "decline" % "2.3.0",
-        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+        "com.lightbend.akka" %% "akka-stream-alpakka-unix-domain-socket" % "4.0.0", // don't upgrade to 5.x due to license change in Akka 2.7.x
+        "com.monovore" %% "decline" % "2.3.1",
+        "com.typesafe.akka" %% "akka-discovery" % AkkaVersion,
+        "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
+        "org.scalatest" %% "scalatest" % "3.2.14" % Test
       )
     },
     excludeDependencies ++= Seq(
