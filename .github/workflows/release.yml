@@ -114,6 +114,18 @@ jobs:
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
 
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.6.0
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
 
@@ -174,12 +186,13 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Install Conan 💪
-        id: conan
-        uses: turtlebrowser/get-conan@main
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Conan version 💪
-        run: echo "${{ steps.conan.outputs.version }}"
+      - name: Install Conan 💪
+        uses: turtlebrowser/get-conan@main
 
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
