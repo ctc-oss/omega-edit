@@ -27,7 +27,10 @@ jobs:
       - name: Checkout Source 🛎️
         uses: actions/checkout@v3
       - name: Install Conan 💪
+        id: conan
         uses: turtlebrowser/get-conan@main
+      - name: Conan version 💪
+        run: echo "${{ steps.conan.outputs.version }}"
       - name: Setup cmake 🔧
         uses:
           lukka/get-cmake@latest
