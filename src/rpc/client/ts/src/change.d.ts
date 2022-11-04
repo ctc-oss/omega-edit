@@ -38,6 +38,13 @@ declare module 'omega-edit/change' {
     data: string | Uint8Array
   ): Promise<number>
 
+  export function replace(
+    session_id: string,
+    offset: number,
+    remove_bytes_count: number,
+    replace: string | Uint8Array
+  ): Promise<number>
+
   export function undo(session_id: string): Promise<number>
 
   export function redo(session_id: string): Promise<number>
@@ -48,9 +55,9 @@ declare module 'omega-edit/change' {
     session_id: string
   ): Promise<ChangeDetailsResponse>
 
-  export const getLastUndo: (
+  export function getLastUndo(
     session_id: string
-  ) => Promise<ChangeDetailsResponse>
+  ): Promise<ChangeDetailsResponse>
 
   export function getChangeCount(session_id: string): Promise<number>
 
