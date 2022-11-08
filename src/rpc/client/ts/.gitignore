@@ -15,6 +15,7 @@
 .server_pid
 doc/
 omega-edit-grpc-server-*
+omega-edit-scala-server-*
 omega_edit_*.js
 omega_edit_*.ts
 package
