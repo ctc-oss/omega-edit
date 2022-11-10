@@ -17,20 +17,10 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
-import { getVersion } from '../../src/version'
-import { getClient, waitForReady } from '../../src/settings'
-// @ts-ignore
-import { deadline } from './common'
-
-describe('Version', () => {
-  const expected_version = 'v0.9.25'
-
-  beforeEach('Ensure the client is ready', async () => {
-    expect(await waitForReady(getClient(), deadline))
-  })
-
-  it('Should return version ' + expected_version, async () => {
-    expect(await getVersion()).to.equal(expected_version)
-  })
-})
+declare module 'omega-edit/server' {
+  export function startServer(
+    rootPath: string,
+    omegaEditVersion: string
+  ): Promise<number | undefined>
+  export function stopServer(id: number | undefined): Promise<boolean>
+}
