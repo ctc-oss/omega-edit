@@ -16,3 +16,4 @@ node_modules
 !*.ts
 !package.json
 !README.md
+!omega-edit-scala-server-*.zip

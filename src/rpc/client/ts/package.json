@@ -1,6 +1,6 @@
 {
   "name": "omega-edit",
-  "version": "0.9.23",
+  "version": "0.9.25",
   "description": "OmegaEdit gRPC Client TypeScript Types",
   "publisher": "ctc-oss",
   "repository": {
@@ -16,15 +16,12 @@
     "compile-src": "run-script-os",
     "compile-src:default": "./compile-proto.sh",
     "compile-src:windows": "./compile-proto.bat",
+    "compile": "tsc -p ./",
     "docgen": "typedoc",
-    "prepackage": "run-script-os",
-    "prepackage:default": "./compile-proto.sh && tsc -p ./ && ./compile-proto.sh --out && cp .npmignore package.json README.md out && cp -r src/*.d.ts out",
-    "prepackage:windows": "./compile-proto.bat && tsc -p ./ && ./compile-proto.bat --out && copy .npmignore package.json README.md out && copy -r src/*.d.ts out",
-    "package": "cd out && yarn pack && cd ../",
-    "postpackage": "run-script-os",
-    "postpackage:default": "rm -rf out/*.d.ts out/.npmignore out/package.json out/README.md && mv out/omega-edit* .",
-    "postpackage:windows": "del /q out/*.d.ts out/.npmignore out/package.json out/README.md && move out/omega-edit* .",
-    "pretest": "node runTests.ts runScalaServer",
+    "prepackage": "yarn compile-src && yarn compile",
+    "package": "yarn package-setup && yarn package-create",
+    "package-setup": "node -e \"require('./scripts/package.ts').setup()\"",
+    "package-create": "node -e \"require('./scripts/package.ts').create()\"",
     "test": "mocha --exit --timeout 1000000 --require ts-node/register ./tests/specs/*.spec.ts",
     "posttest": "node runTests.ts stopScalaServer",
     "lint": "yarn run prettier src -c"

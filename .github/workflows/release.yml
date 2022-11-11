@@ -63,34 +63,6 @@ jobs:
           name: upload_url
           path: upload_url
 
-  node-build:
-    name: Build ubuntu-latest 🔧
-    runs-on: ubuntu-latest
-    needs: [create-release]
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
-        shell: bash
-
-      - name: Check if git tag matches package version ✅
-        run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
-        shell: bash
-
-      - name: Create package tarball file 🔧
-        run: |
-          cd src/rpc/client/ts
-          yarn install
-          yarn package
-
-      - name: Upload ${{ env.NODE_FILE }} 🔺
-        uses: actions/upload-artifact@v3
-        with:
-          name: omega-edit-v${{ env.PKG_VERSION }}.tgz
-          path: src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz
-
   native-build-mac-win:
     strategy:
       matrix:
@@ -114,6 +86,18 @@ jobs:
         run: if [[ ${{ env.GIT_TAG }} != ${{ env.PKG_VERSION }} ]]; then exit 1; else exit 0; fi
         shell: bash
 
+      - name: Setup Java ☕
+        uses: actions/setup-java@v3.6.0
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: sbt
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
 
@@ -124,7 +108,7 @@ jobs:
         uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 8
           cache: sbt
 
       - name: Build Ωedit 🏗️
@@ -171,15 +155,16 @@ jobs:
         uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 8
           cache: sbt
 
-      - name: Install Conan 💪
-        id: conan
-        uses: turtlebrowser/get-conan@main
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
 
-      - name: Conan version 💪
-        run: echo "${{ steps.conan.outputs.version }}"
+      - name: Install Conan 💪
+        uses: turtlebrowser/get-conan@main
 
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
@@ -225,67 +210,6 @@ jobs:
         run: sbt api/publish
         working-directory: src/rpc/server/scala
 
-  node-release:
-    name: Node Release ✨
-    runs-on: ubuntu-latest
-    needs: [node-build]
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
-
-      - name: Download upload_url 🔻
-        uses: actions/download-artifact@v3
-        with:
-          name: upload_url
-
-      - name: Add upload_url to GITHUB_ENV
-        run: |
-          UPLOAD_URL=$(cat upload_url)
-          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
-
-      ##########################
-      ## Node release process ##
-      ##########################
-      - name: Setup Node 📐
-        uses: actions/setup-node@v3
-        with:
-          registry-url: 'https://registry.npmjs.org'
-          node-version: ${{ env.node_version }}
-
-      - name: Download node release file 🔻
-        uses: actions/download-artifact@v3
-        with:
-          name: omega-edit-v${{ env.PKG_VERSION }}.tgz
-          path: omega-edit-v${{ env.PKG_VERSION }}.tgz
-
-      - name: Move out node package file 🛻
-        run: |
-          mv -v omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
-          mv -v omega-edit-v${{ env.PKG_VERSION }}.tgz_dir/omega-edit-v${{ env.PKG_VERSION }}.tgz omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          rm -rf omega-edit-v${{ env.PKG_VERSION }}.tgz_dir
-
-      - name: Upload node release tarball 🔺
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tar.gz
-          asset_content_type: application/tar+gzip
-
-      - name: Publish node package to npm registry 🚀
-        run: |
-          cp -v src/rpc/client/ts/package.json .
-          yarn publish omega-edit-v${{ env.PKG_VERSION }}.tar.gz
-          rm -rf package.json
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
-
   scala-release:
     name: Scala Release ✨
     runs-on: ubuntu-latest
@@ -314,7 +238,7 @@ jobs:
         uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 8
           cache: sbt
 
       - name: Package Scala RPC server 🎁
@@ -336,7 +260,13 @@ jobs:
           mv -v omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
           zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-scala-server-${{ env.PKG_VERSION }}
 
-      - name: Upload Scala RPC server 🔺
+      - name: Upload Scala RPC server - Not Release 🔺
+        uses: actions/upload-artifact@v3
+        with:
+          name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          path: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+
+      - name: Upload Scala RPC server - Release 🔺
         uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -345,3 +275,75 @@ jobs:
           asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
+
+  node-build:
+    name: Node Release ✨
+    runs-on: ubuntu-latest
+    needs: [scala-release]
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Export git tag and package.json version 🚢
+        run: ${{ env.export_cmd }}
+
+      - name: Download upload_url 🔻
+        uses: actions/download-artifact@v3
+        with:
+          name: upload_url
+
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+
+      ##########################
+      ## Node release process ##
+      ##########################
+      - name: Setup Node 📐
+        uses: actions/setup-node@v3
+        with:
+          registry-url: 'https://registry.npmjs.org'
+          node-version: ${{ env.node_version }}
+
+      - name: Download scala release file 🔻
+        uses: actions/download-artifact@v3
+        with:
+          name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          path: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+
+      - name: Move out scala package file 🛻
+        run: |
+          scala_pkg_file="omega-edit-scala-server-${{ env.PKG_VERSION }}.zip"
+          mv -v "${scala_pkg_file}" "${scala_pkg_file}_dir"
+          mv -v "${scala_pkg_file}_dir/${scala_pkg_file}" "${scala_pkg_file}"
+          rm -rf "${scala_pkg_file}_dir"
+          mv "$scala_pkg_file" "src/rpc/client/ts/$scala_pkg_file"
+
+      - name: Create package tarball file 🔧
+        run: |
+          cd src/rpc/client/ts
+          yarn install
+          yarn package
+
+      - name: Move out node package file 🛻
+        run: mv -v src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz .
+
+      - name: Upload node release tarball 🔺
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: ./omega-edit-v${{ env.PKG_VERSION }}.tgz
+          asset_name: omega-edit-grpc-node-client-${{ env.PKG_VERSION }}.tgz
+          asset_content_type: application/tar+gzip
+
+      - name: Publish node package to npm registry 🚀
+        run: |
+          cp -v src/rpc/client/ts/package.json .
+          yarn publish omega-edit-v${{ env.PKG_VERSION }}.tgz
+          rm -rf package.json
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}

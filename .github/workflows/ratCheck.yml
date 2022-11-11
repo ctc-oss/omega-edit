@@ -33,7 +33,7 @@ jobs:
         uses: actions/setup-java@v3.6.0
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 8
 
       - name: Check out Repository
         uses: actions/checkout@v3
