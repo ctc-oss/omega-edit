@@ -100,7 +100,11 @@ function stopServer() {
 
   if (fs.existsSync('.server_pid')) {
     const pid = fs.readFileSync('.server_pid').toString()
-    process.kill(pid)
+    try {
+      process.kill(pid, 9)
+    } catch (e) {
+      console.log(e)
+    }
     fs.rmSync('.server_pid')
     console.log(`Server with PID ${pid} has been shutdown`)
   }
