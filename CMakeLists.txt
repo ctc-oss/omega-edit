@@ -57,19 +57,13 @@ endif ()
 include("cmake/conan.cmake")
 
 conan_cmake_configure(
-        REQUIRES "boost/1.80.0" "catch2/3.1.0"
-        OPTIONS boost:header_only=True
+        REQUIRES "catch2/3.1.0"
         GENERATORS cmake cmake_find_package
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_autodetect(settings)
 conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
 include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
 conan_basic_setup(TARGETS)
-
-set(Boost_INSTALL_DIR ${CONAN_BOOST_ROOT})
-find_package(Boost 1.80.0 REQUIRED)
-message(STATUS "Boost root dir: ${CONAN_BOOST_ROOT}")
-message(STATUS "Boost include dir: ${CONAN_INCLUDE_DIRS_BOOST}")
 
 set(Catch2_INSTALL_DIR ${CONAN_CATCH2_ROOT})
 find_package(Catch2 3 REQUIRED)
