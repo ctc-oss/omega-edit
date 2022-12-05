@@ -24,7 +24,7 @@ import { getClient, waitForReady } from '../../src/settings'
 import { deadline } from './common'
 
 describe('Version', () => {
-  const expected_version = 'v0.9.26'
+  const expected_version = 'v0.9.27'
 
   beforeEach('Ensure the client is ready', async () => {
     expect(await waitForReady(getClient(), deadline))
