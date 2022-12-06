@@ -53,6 +53,7 @@ function setup() {
   fs.mkdirSync(pkg_dir, { recursive: true })
 
   copyGlob('src/*.d.ts')
+  copyGlob('src/*.js')
   copyGlob('out/*')
 
   var scalaServer = `omega-edit-scala-server-${pkg_version}.zip`

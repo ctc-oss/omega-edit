@@ -77,7 +77,20 @@ export async function startServer(
   }
 
   if (!fs.existsSync(`${rootPath}/${artifact.name}`)) {
-    const filePath = path.join('.', artifact.archive)
+    /*
+     * The conditional of filePath is to ensure this will work locally for testing
+     * but will also work inside of other projects that use the omega-edit node
+     * package.
+     */
+    const filePath = fs.existsSync(path.join(__dirname, artifact.archive))
+      ? path.join(__dirname, artifact.archive)
+      : path.join(process.cwd(), 'node_modules/omega-edit', artifact.archive)
+
+    if (!fs.existsSync(filePath)) {
+      return new Promise((_, reject) => {
+        reject('Error omega-edit artifact not found')
+      })
+    }
 
     // Unzip file and remove zip
     await unzipFile(filePath, rootPath)
