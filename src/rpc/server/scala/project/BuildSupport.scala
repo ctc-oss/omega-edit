@@ -37,6 +37,7 @@ object BuildSupport {
   val Win: Regex = """windows.+""".r
   val Amd: Regex = """amd(\d+)""".r
   val x86: Regex = """x86_(\d+)""".r
+  val aarch: Regex = """aarch(\d+)""".r
 
   // https://stackoverflow.com/a/51416386
   def filterScopedDependenciesFromPom(node: XmlNode): XmlNode =
@@ -70,6 +71,7 @@ object BuildSupport {
     val arch = System.getProperty("os.arch").toLowerCase match {
       case Amd(bits) => bits
       case x86(bits) => bits
+      case aarch(bits) => bits
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
     Platform(os, arch)
@@ -85,6 +87,7 @@ object BuildSupport {
     val arch = System.getProperty("os.arch").toLowerCase match {
       case Amd(bits) => bits
       case x86(bits) => bits
+      case aarch(bits) => bits
       case arch      => throw new IllegalStateException(s"unknown arch: $arch")
     }
     Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
