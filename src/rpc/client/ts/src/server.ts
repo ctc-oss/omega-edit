@@ -127,10 +127,10 @@ export async function stopServer(pid: number | undefined): Promise<boolean> {
   return new Promise((resolve, reject) => {
     if (pid) {
       if (os.platform() === 'win32') {
-        child_process.exec(`taskkill /F /PID ${pid}`)
+        child_process.execSync(`taskkill /F /T /PID ${pid}`)
         resolve(true)
       } else {
-        child_process.exec(`kill -9 ${pid} 2>&1 || echo 0`)
+        child_process.execSync(`kill -9 ${pid} 2>&1 || echo 0`)
         resolve(true)
       }
     }
