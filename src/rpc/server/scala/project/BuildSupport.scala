@@ -68,12 +68,16 @@ object BuildSupport {
       case os      => throw new IllegalStateException(s"Unsupported OS: $os")
     }
 
-    val arch = System.getProperty("os.arch").toLowerCase match {
-      case Amd(bits)   => bits
-      case x86(bits)   => bits
-      case aarch(bits) => bits
-      case arch        => throw new IllegalStateException(s"unknown arch: $arch")
-    }
+    val arch =
+      if (os == "macos") System.getProperty("os.arch").toLowerCase
+      else
+        System.getProperty("os.arch").toLowerCase match {
+          case Amd(bits)   => bits
+          case x86(bits)   => bits
+          case aarch(bits) => bits
+          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
+        }
+
     Platform(os, arch)
   }
 
@@ -84,12 +88,16 @@ object BuildSupport {
       case Win()   => "windows"
     }
 
-    val arch = System.getProperty("os.arch").toLowerCase match {
-      case Amd(bits)   => bits
-      case x86(bits)   => bits
-      case aarch(bits) => bits
-      case arch        => throw new IllegalStateException(s"unknown arch: $arch")
-    }
+    val arch =
+      if (os == "macos") System.getProperty("os.arch").toLowerCase
+      else
+        System.getProperty("os.arch").toLowerCase match {
+          case Amd(bits)   => bits
+          case x86(bits)   => bits
+          case aarch(bits) => bits
+          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
+        }
+
     Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
   }
 
