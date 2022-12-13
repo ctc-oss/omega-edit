@@ -23,9 +23,6 @@ import * as unzip from 'unzip-stream'
 import * as os from 'os'
 import * as child_process from 'child_process'
 
-// const xdgAppPaths = XDGAppPaths({ name: 'omega_edit' })
-const wait_port = require('wait-port')
-
 class Artifact {
   name: string
   archive: string
@@ -45,6 +42,9 @@ class Artifact {
   }
 }
 
+// const xdgAppPaths = XDGAppPaths({ name: 'omega_edit' })
+const wait_port = require('wait-port')
+
 async function unzipFile(zipFilePath: string, extractPath: string) {
   return await new Promise((resolve, reject) => {
     let stream = fs
@@ -60,17 +60,15 @@ async function unzipFile(zipFilePath: string, extractPath: string) {
   })
 }
 
-export async function startServer(
+export async function setupServer(
   rootPath: string,
   omegaEditVersion: string
-): Promise<number | undefined> {
+): Promise<[string, string]> {
   const artifact = new Artifact(
     'omega-edit-scala-server',
     omegaEditVersion,
     'omega-edit-grpc-server'
   )
-
-  // let rootPath = xdgAppPaths.data()
 
   if (!fs.existsSync(rootPath)) {
     fs.mkdirSync(rootPath, { recursive: true })
@@ -107,7 +105,16 @@ export async function startServer(
     )
   }
 
-  let server = child_process.spawn(artifact.scriptName, [], {
+  return [artifact.scriptName, scriptPath]
+}
+
+export async function startServer(
+  rootPath: string,
+  omegaEditVersion: string
+): Promise<number | undefined> {
+  const [scriptName, scriptPath] = await setupServer(rootPath, omegaEditVersion)
+
+  let server = child_process.spawn(scriptName, [], {
     cwd: `${scriptPath}/bin`,
     detached: true,
   })
