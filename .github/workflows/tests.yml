@@ -20,7 +20,7 @@ jobs:
   build-native:
     strategy:
       matrix:
-        os: [ windows-latest, macos-latest, ubuntu-latest ]
+        os: [ windows-2022, macos-12, ubuntu-20.04 ]
     name: Native build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
@@ -85,7 +85,7 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-latest, ubuntu-latest] #, windows-latest ] # TODO: Add in later
+        os: [ macos-12, ubuntu-20.04] #, windows-2022 ] # TODO: Add in later
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️

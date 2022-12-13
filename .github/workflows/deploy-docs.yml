@@ -18,7 +18,7 @@ on:
 
 jobs:
   deploy-docs:
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - name: Install Prerequisites 📚
         run: |

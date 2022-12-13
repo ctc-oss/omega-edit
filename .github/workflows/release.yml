@@ -26,7 +26,7 @@ env:
 jobs:
   create-release:
     name: Create Release ✨
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
@@ -66,7 +66,7 @@ jobs:
   native-build-mac-win:
     strategy:
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-12, windows-2022]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: [create-release]
@@ -142,7 +142,7 @@ jobs:
   api-native-publish:
     needs: [native-build-mac-win]
     name: Publish Scala API and Native packages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
@@ -181,18 +181,26 @@ jobs:
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
-          name: macos-latest-artifacts
+          name: macos-12-artifacts
 
       - name: Download windows Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
-          name: windows-latest-artifacts
+          name: windows-2022-artifacts
 
       - name: Move windows and macos jars out 🚚
         run: |
-          for folder in "omega-edit-native_2.13"; do
+          for folder in $(echo "omega-edit-native_2.13"); do
             mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
             mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
+          done
+        
+      - name: Download native JARs for M1 mac 🔻
+        run: |
+          for folder in $(echo "omega-edit-native_2.13"); do
+            curl \
+              https://raw.githubusercontent.com/Shanedell/omega-edit-m1/main/${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar \
+              --output ${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar
           done
 
       - name: Package Scala Native 🎁
@@ -212,7 +220,7 @@ jobs:
 
   scala-release:
     name: Scala Release ✨
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [api-native-publish]
     steps:
       - name: Checkout 🛎️
@@ -278,7 +286,7 @@ jobs:
 
   node-build:
     name: Node Release ✨
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs: [scala-release]
     steps:
       - name: Checkout 🛎️
