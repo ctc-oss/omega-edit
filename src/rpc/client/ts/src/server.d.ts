@@ -23,4 +23,8 @@ declare module 'omega-edit/server' {
     omegaEditVersion: string
   ): Promise<number | undefined>
   export function stopServer(id: number | undefined): Promise<boolean>
+  export function setupServer(
+    rootPath: string,
+    omegaEditVersion: string
+  ): Promise<[string, string]>
 }
