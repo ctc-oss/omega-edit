@@ -62,7 +62,8 @@ async function unzipFile(zipFilePath: string, extractPath: string) {
 
 export async function setupServer(
   rootPath: string,
-  omegaEditVersion: string
+  omegaEditVersion: string,
+  packagePath: string
 ): Promise<[string, string]> {
   const artifact = new Artifact(
     'omega-edit-scala-server',
@@ -82,7 +83,7 @@ export async function setupServer(
      */
     const filePath = fs.existsSync(path.join(__dirname, artifact.archive))
       ? path.join(__dirname, artifact.archive)
-      : path.join(process.cwd(), 'node_modules/omega-edit', artifact.archive)
+      : path.join(packagePath, artifact.archive)
 
     if (!fs.existsSync(filePath)) {
       return new Promise((_, reject) => {
@@ -110,9 +111,10 @@ export async function setupServer(
 
 export async function startServer(
   rootPath: string,
-  omegaEditVersion: string
+  omegaEditVersion: string,
+  packagePath: string
 ): Promise<number | undefined> {
-  const [scriptName, scriptPath] = await setupServer(rootPath, omegaEditVersion)
+  const [scriptName, scriptPath] = await setupServer(rootPath, omegaEditVersion, packagePath)
 
   let server = child_process.spawn(scriptName, [], {
     cwd: `${scriptPath}/bin`,
