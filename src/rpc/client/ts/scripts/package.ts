@@ -30,7 +30,7 @@ const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
 
 async function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
   glob(pattern, { cwd: dir }, (error, files) => {
-    for (var i = 0; i < files.length; i++) {
+    for (let i = 0; i < files.length; i++) {
       let src = path.join(dir, files[i])
       let dst = path.join(destDir, path.parse(files[i]).base)
       let dstDir = path.dirname(dst)
@@ -47,17 +47,17 @@ async function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
 // Setup package directory
 function setup() {
   if (fs.existsSync(pkg_dir)) {
-    fs.rmdirSync(pkg_dir, { recursive: true })
+    fs.rmSync(pkg_dir, { recursive: true, force: true })
   }
 
   fs.mkdirSync(pkg_dir, { recursive: true })
 
-  copyGlob('src/*.d.ts')
-  copyGlob('src/*.js')
-  copyGlob('out/*')
+  await copyGlob('src/*.d.ts')
+  await copyGlob('src/*.js')
+  await copyGlob('out/*')
 
-  var scalaServer = `omega-edit-scala-server-${pkg_version}.zip`
-  fs.copyFileSync(scalaServer, `${pkg_dir}/${scalaServer}`)
+  const omegaEditServer = `omega-edit-server-${pkg_version}.zip`
+  fs.copyFileSync(omegaEditServer, `${pkg_dir}/${omegaEditServer}`)
   fs.copyFileSync('yarn.lock', `${pkg_dir}/yarn.lock`)
   fs.copyFileSync('package.json', `${pkg_dir}/package.json`)
   fs.copyFileSync('.npmignore', `${pkg_dir}/.npmignore`)
@@ -68,7 +68,7 @@ function setup() {
 function create() {
   execSync('yarn install', { cwd: pkg_dir })
   execSync(`yarn pack --cwd ${pkg_dir}`)
-  var packageFile = `omega-edit-v${pkg_version}.tgz`
+  const packageFile = `omega-edit-v${pkg_version}.tgz`
   fs.renameSync(path.join(pkg_dir, packageFile), packageFile)
 }
 
