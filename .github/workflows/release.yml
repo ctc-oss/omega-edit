@@ -265,14 +265,14 @@ jobs:
             src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           unzip omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
-          mv -v omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-scala-server-${{ env.PKG_VERSION }}
-          zip -r omega-edit-scala-server-${{ env.PKG_VERSION }}.zip omega-edit-scala-server-${{ env.PKG_VERSION }}
+          mv -v omega-edit-grpc-server-${{ env.PKG_VERSION }} omega-edit-server-${{ env.PKG_VERSION }}
+          zip -r omega-edit-server-${{ env.PKG_VERSION }}.zip omega-edit-server-${{ env.PKG_VERSION }}
 
       - name: Upload Scala RPC server - Not Release 🔺
         uses: actions/upload-artifact@v3
         with:
-          name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
-          path: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          name: omega-edit-server-${{ env.PKG_VERSION }}.zip
+          path: omega-edit-server-${{ env.PKG_VERSION }}.zip
 
       - name: Upload Scala RPC server - Release 🔺
         uses: actions/upload-release-asset@v1.0.2
@@ -280,8 +280,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
-          asset_name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          asset_path: ./omega-edit-server-${{ env.PKG_VERSION }}.zip
+          asset_name: omega-edit-server-${{ env.PKG_VERSION }}.zip
           asset_content_type: application/tar+gzip
 
   node-build:
@@ -317,12 +317,12 @@ jobs:
       - name: Download scala release file 🔻
         uses: actions/download-artifact@v3
         with:
-          name: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
-          path: omega-edit-scala-server-${{ env.PKG_VERSION }}.zip
+          name: omega-edit-server-${{ env.PKG_VERSION }}.zip
+          path: omega-edit-server-${{ env.PKG_VERSION }}.zip
 
       - name: Move out scala package file 🛻
         run: |
-          scala_pkg_file="omega-edit-scala-server-${{ env.PKG_VERSION }}.zip"
+          scala_pkg_file="omega-edit-server-${{ env.PKG_VERSION }}.zip"
           mv -v "${scala_pkg_file}" "${scala_pkg_file}_dir"
           mv -v "${scala_pkg_file}_dir/${scala_pkg_file}" "${scala_pkg_file}"
           rm -rf "${scala_pkg_file}_dir"

@@ -66,7 +66,7 @@ export async function setupServer(
   packagePath: string
 ): Promise<[string, string]> {
   const artifact = new Artifact(
-    'omega-edit-scala-server',
+    'omega-edit-server',
     omegaEditVersion,
     'omega-edit-grpc-server'
   )
@@ -95,7 +95,7 @@ export async function setupServer(
     await unzipFile(filePath, rootPath)
   }
 
-  const scriptPath = `${rootPath}/omega-edit-scala-server-${omegaEditVersion}`
+  const scriptPath = `${rootPath}/omega-edit-server-${omegaEditVersion}`
 
   if (!os.platform().toLowerCase().startsWith('win')) {
     child_process.execSync(
