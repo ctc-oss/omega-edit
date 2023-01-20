@@ -154,7 +154,11 @@ src/rpc/server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
 
 ## Development
 
-Currently, the repo holds bindings for both java and node.
+Currently, the repo holds bindings for both Scala and node.
+
+## Release Binaries
+
+[Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS, Windows, and Linux (glibc 2.31 or greater required) are built and published via GitHub CI workflows.
 
 ## Versioning
 
