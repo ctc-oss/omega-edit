@@ -144,7 +144,7 @@ export function replace(
   remove_bytes_count: number,
   replace: string | Uint8Array
 ): Promise<number> {
-  return replace.length == remove_bytes_count
+  return replace.length === remove_bytes_count
     ? overwrite(session_id, offset, replace)
     : new Promise<number>(async (resolve) => {
         await pauseViewportEvents(session_id)
