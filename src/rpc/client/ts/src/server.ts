@@ -114,7 +114,11 @@ export async function startServer(
   omegaEditVersion: string,
   packagePath: string
 ): Promise<number | undefined> {
-  const [scriptName, scriptPath] = await setupServer(rootPath, omegaEditVersion, packagePath)
+  const [scriptName, scriptPath] = await setupServer(
+    rootPath,
+    omegaEditVersion,
+    packagePath
+  )
 
   let server = child_process.spawn(scriptName, [], {
     cwd: `${scriptPath}/bin`,

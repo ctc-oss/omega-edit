@@ -137,8 +137,6 @@ export function overwrite(
  * @param remove_bytes_count number of bytes to remove
  * @param replace replacement bytes
  * @return positive change serial number of the insert on success
- * @remarks if the bytes being replaced have the same length as the replacement
- * bytes, use overwrite for better efficiency
  */
 export function replace(
   session_id: string,
@@ -146,12 +144,14 @@ export function replace(
   remove_bytes_count: number,
   replace: string | Uint8Array
 ): Promise<number> {
-  return new Promise<number>(async (resolve) => {
-    await pauseViewportEvents(session_id)
-    await del(session_id, offset, remove_bytes_count)
-    await resumeViewportEvents(session_id)
-    return resolve(await insert(session_id, offset, replace))
-  })
+  return replace.length === remove_bytes_count
+    ? overwrite(session_id, offset, replace)
+    : new Promise<number>(async (resolve) => {
+        await pauseViewportEvents(session_id)
+        await del(session_id, offset, remove_bytes_count)
+        await resumeViewportEvents(session_id)
+        return resolve(await insert(session_id, offset, replace))
+      })
 }
 
 /**
