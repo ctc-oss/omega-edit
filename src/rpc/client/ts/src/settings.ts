@@ -20,21 +20,9 @@
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
-var client: EditorClient | undefined = undefined
+let client: EditorClient | undefined = undefined
 export const NO_EVENTS = 0
 export const ALL_EVENTS = ~NO_EVENTS
-
-/**
- * Initialize the editor client with the provided host and port
- * @param host interface to connect to
- * @param port port to bind to
- */
-export function initClient(host: string = '127.0.0.1', port: string = '9000') {
-  const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
-
-  let creds = grpc.credentials.createInsecure()
-  client = new EditorClient(uri, creds)
-}
 
 /**
  * Gets the connected editor client. Initializes the client if not already

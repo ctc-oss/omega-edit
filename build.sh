@@ -20,7 +20,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 #generator="Unix Makefiles"
 
 type=${type:-"Debug"}
-generator=${generator:-"Unix Makefiles"}
+generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 
