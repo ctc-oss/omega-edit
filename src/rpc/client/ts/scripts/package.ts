@@ -28,7 +28,7 @@ const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
 ]
 
-async function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
+function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
   glob(pattern, { cwd: dir }, (error, files) => {
     for (let i = 0; i < files.length; i++) {
       let src = path.join(dir, files[i])
@@ -52,11 +52,11 @@ function setup() {
 
   fs.mkdirSync(pkg_dir, { recursive: true })
 
-  await copyGlob('src/*.d.ts')
-  await copyGlob('src/*.js')
-  await copyGlob('out/*')
+  copyGlob('src/*.d.ts')
+  copyGlob('src/*.js')
+  copyGlob('out/*')
 
-  const omegaEditServer = `omega-edit-server-${pkg_version}.zip`
+  const omegaEditServer = `omega-edit-grpc-server-${pkg_version}.zip`
   fs.copyFileSync(omegaEditServer, `${pkg_dir}/${omegaEditServer}`)
   fs.copyFileSync('yarn.lock', `${pkg_dir}/yarn.lock`)
   fs.copyFileSync('package.json', `${pkg_dir}/package.json`)

@@ -95,7 +95,7 @@ export async function setupServer(
     await unzipFile(filePath, rootPath)
   }
 
-  const scriptPath = `${rootPath}/omega-edit-server-${omegaEditVersion}`
+  const scriptPath = `${rootPath}/omega-edit-grpc-server-${omegaEditVersion}`
 
   if (!os.platform().toLowerCase().startsWith('win')) {
     child_process.execSync(
