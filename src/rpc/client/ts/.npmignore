@@ -16,4 +16,4 @@ node_modules
 !*.ts
 !package.json
 !README.md
-!omega-edit-server-*.zip
+!omega-edit-grpc-server-*.zip
