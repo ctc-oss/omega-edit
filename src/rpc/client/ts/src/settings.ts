@@ -30,7 +30,10 @@ export const ALL_EVENTS = ~NO_EVENTS
  * @param port port to bind to
  * @return connected editor client
  */
-export function getClient(host: string = '127.0.0.1', port: string = '9000'): EditorClient {
+export function getClient(
+  host: string = '127.0.0.1',
+  port: string = '9000'
+): EditorClient {
   if (!client) {
     const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
     client = new EditorClient(uri, grpc.credentials.createInsecure())

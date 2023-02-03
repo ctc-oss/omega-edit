@@ -51,7 +51,7 @@ export function del(
         return reject(new Error('del failed: ' + err))
       }
       const serial = r.getSerial()
-      if (0 == serial) {
+      if (0 === serial) {
         return reject(new Error('del failed'))
       }
       return resolve(serial)
@@ -79,14 +79,14 @@ export function insert(
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
     request.setKind(ChangeKind.CHANGE_INSERT)
-    request.setData(typeof data == 'string' ? Buffer.from(data) : data)
+    request.setData(typeof data === 'string' ? Buffer.from(data) : data)
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
         return reject(new Error('insert failed: ' + err))
       }
       const serial = r.getSerial()
-      if (0 == serial) {
+      if (0 === serial) {
         return reject(new Error('insert failed'))
       }
       return resolve(serial)
@@ -114,14 +114,14 @@ export function overwrite(
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
     request.setKind(ChangeKind.CHANGE_OVERWRITE)
-    request.setData(typeof data == 'string' ? Buffer.from(data) : data)
+    request.setData(typeof data === 'string' ? Buffer.from(data) : data)
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
         return reject(new Error('overwrite failed: ' + err))
       }
       const serial = r.getSerial()
-      if (0 == serial) {
+      if (0 === serial) {
         return reject(new Error('overwrite failed'))
       }
       return resolve(serial)
@@ -144,14 +144,26 @@ export function replace(
   remove_bytes_count: number,
   replace: string | Uint8Array
 ): Promise<number> {
-  return replace.length === remove_bytes_count
-    ? overwrite(session_id, offset, replace)
-    : new Promise<number>(async (resolve) => {
-        await pauseViewportEvents(session_id)
-        await del(session_id, offset, remove_bytes_count)
-        await resumeViewportEvents(session_id)
-        return resolve(await insert(session_id, offset, replace))
-      })
+  // if no bytes are being removed, this is an insert
+  if (remove_bytes_count === 0) {
+    return insert(session_id, offset, replace)
+  }
+  // if no bytes are being inserted, this is a delete
+  else if (replace.length === 0) {
+    return del(session_id, offset, remove_bytes_count)
+  }
+  // if the number of bytes being removed is the same as the number of
+  // replacement bytes, this is an overwrite
+  else if (replace.length === remove_bytes_count) {
+    return overwrite(session_id, offset, replace)
+  }
+  // otherwise, this is a replace (delete and insert)
+  return new Promise<number>(async (resolve) => {
+    await pauseViewportEvents(session_id)
+    await del(session_id, offset, remove_bytes_count)
+    await resumeViewportEvents(session_id)
+    return resolve(await insert(session_id, offset, replace))
+  })
 }
 
 /**
@@ -167,7 +179,7 @@ export function undo(session_id: string): Promise<number> {
         return reject(new Error('undo failed: ' + err))
       }
       const serial = r.getSerial()
-      if (0 == serial) {
+      if (0 === serial) {
         return reject(new Error('undo failed'))
       }
       return resolve(serial)
@@ -188,7 +200,7 @@ export function redo(session_id: string): Promise<number> {
         return reject(new Error('redo failed: ' + err))
       }
       const serial = r.getSerial()
-      if (0 == serial) {
+      if (0 === serial) {
         return reject(new Error('redo failed'))
       }
       return resolve(serial)

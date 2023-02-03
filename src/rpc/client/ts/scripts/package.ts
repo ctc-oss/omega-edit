@@ -31,9 +31,9 @@ const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
 function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
   glob(pattern, { cwd: dir }, (error, files) => {
     for (let i = 0; i < files.length; i++) {
-      let src = path.join(dir, files[i])
-      let dst = path.join(destDir, path.parse(files[i]).base)
-      let dstDir = path.dirname(dst)
+      const src = path.join(dir, files[i])
+      const dst = path.join(destDir, path.parse(files[i]).base)
+      const dstDir = path.dirname(dst)
 
       fs.mkdirSync(dstDir, { recursive: true })
 
