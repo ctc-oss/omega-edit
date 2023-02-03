@@ -57,7 +57,7 @@ endif ()
 include("cmake/conan.cmake")
 
 conan_cmake_configure(
-        REQUIRES "catch2/3.2.0"
+        REQUIRES "catch2/3.3.0"
         GENERATORS cmake cmake_find_package
         IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
 conan_cmake_autodetect(settings)
