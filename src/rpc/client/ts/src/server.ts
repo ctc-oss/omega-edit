@@ -66,7 +66,7 @@ export async function setupServer(
   packagePath: string
 ): Promise<[string, string]> {
   const artifact = new Artifact(
-    'omega-edit-server',
+    'omega-edit-grpc-server',
     omegaEditVersion,
     'omega-edit-grpc-server'
   )
@@ -87,7 +87,7 @@ export async function setupServer(
 
     if (!fs.existsSync(filePath)) {
       return new Promise((_, reject) => {
-        reject('Error omega-edit artifact not found')
+        reject(`Error omega-edit artifact not found at ${filePath}`)
       })
     }
 
