@@ -33,19 +33,20 @@ lazy val ghb_resolver = (
 // mostly used for getting all 3 jars working inside of one package
 lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
 declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${arch.arch}.jar"
-declare linux_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar"
+declare linux_x84_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-x86_64.jar"
+declare linux_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-aarch64.jar"
 declare macos_x86_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-x86_64.jar"
 declare macos_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-aarch64.jar"
 if [[ $$OSTYPE == "darwin"* ]]; then
   if [[ $$(uname -m) == "x86_64" ]]; then
     new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_jar_file}//" | \\
+      sed -e "s/$${linux_aarch_jar_file}//" | \\
       sed -e "s/$${windows_jar_file}//" | \\
       sed -e "s/$${macos_aarch_jar_file}//"\\
     )
   else
     new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_jar_file}//" | \\
+      sed -e "s/$${linux_x86_jar_file}//" | \\
       sed -e "s/$${windows_jar_file}//" | \\
       sed -e "s/$${macos_x86_jar_file}//"\\
     )
@@ -166,6 +167,9 @@ lazy val native = project
       ),
       Artifact("omega-edit-native", "macos-aarch64") -> file(
         s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-aarch64.jar"
+      ),
+      Artifact("omega-edit-native", "linux-aarch64") -> file(
+        s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-linux-aarch64.jar"
       )
     )
   )
@@ -180,7 +184,8 @@ lazy val serv = project
     libraryDependencies ++= {
       Seq(
         "com.ctc" %% "omega-edit" % omegaVersion,
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"${arch.id}",
+        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-x86_64",
+        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-aarch64",
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-x86_64",
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-aarch64",
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-${arch.arch}",

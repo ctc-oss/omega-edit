@@ -38,6 +38,7 @@ object BuildSupport {
   val Amd: Regex = """amd(\d+)""".r
   val x86: Regex = """x86_(\d+)""".r
   val aarch: Regex = """aarch(\d+)""".r
+  val arm: Regex = """arm(\d+)""".r
 
   // https://stackoverflow.com/a/51416386
   def filterScopedDependenciesFromPom(node: XmlNode): XmlNode =
@@ -69,7 +70,7 @@ object BuildSupport {
     }
 
     val arch =
-      if (os == "macos") System.getProperty("os.arch").toLowerCase
+      if (os == "macos" || os == "linux") System.getProperty("os.arch").toLowerCase
       else
         System.getProperty("os.arch").toLowerCase match {
           case Amd(bits)   => bits
@@ -89,7 +90,7 @@ object BuildSupport {
     }
 
     val arch =
-      if (os == "macos") System.getProperty("os.arch").toLowerCase
+      if (os == "macos" || os == "linux") System.getProperty("os.arch").toLowerCase
       else
         System.getProperty("os.arch").toLowerCase match {
           case Amd(bits)   => bits

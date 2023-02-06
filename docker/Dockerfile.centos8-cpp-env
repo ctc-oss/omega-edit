@@ -35,10 +35,22 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
   ninja-build \
   valgrind \
   wget \
+  java-1.8.0-openjdk \
  && yum clean all
 
 RUN pip3 install \
-    breathe \
-    conan \
-    sphinx_rtd_theme \
-    sphinx-sitemap
+  breathe \
+  conan \
+  sphinx_rtd_theme \
+  sphinx-sitemap
+
+# Install nodejs and yarn
+RUN curl -fsSL https://rpm.nodesource.com/setup_16.x | bash - \
+  && yum install -y nodejs \
+  && npm install -g yarn
+
+# Install sbt
+RUN rm -f /etc/yum.repos.d/bintray-rpm.repo \
+  && curl -L https://www.scala-sbt.org/sbt-rpm.repo > sbt-rpm.repo \
+  && mv sbt-rpm.repo /etc/yum.repos.d/ \
+  && yum install -y sbt
