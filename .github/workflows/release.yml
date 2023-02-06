@@ -199,8 +199,11 @@ jobs:
         run: |
           for folder in $(echo "omega-edit-native_2.13"); do
             curl \
-              https://raw.githubusercontent.com/Shanedell/omega-edit-m1/main/${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar \
+              https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar \
               --output ${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar
+            curl \
+              https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${folder}-${{ env.PKG_VERSION }}-linux-aarch64.jar \
+              --output ${folder}-${{ env.PKG_VERSION }}-linux-aarch64.jar
           done
 
       - name: Package Scala Native 🎁
