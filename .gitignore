@@ -52,3 +52,4 @@ lib/*
 
 .metals
 project
+!src/rpc/server/scala/project/BuildSupport.scala
