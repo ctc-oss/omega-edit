@@ -288,7 +288,7 @@ export function searchSession(
   return new Promise<number[]>((resolve, reject) => {
     let request = new SearchRequest()
       .setSessionId(session_id)
-      .setPattern(typeof pattern == 'string' ? Buffer.from(pattern) : pattern)
+      .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
       .setIsCaseInsensitive(is_case_insensitive ?? false)
     if (offset !== undefined && offset >= 0) request.setOffset(offset)
     if (length !== undefined && length > 0) request.setLength(length)
