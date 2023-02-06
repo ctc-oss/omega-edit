@@ -21,6 +21,7 @@ import { expect } from 'chai'
 import {
   getComputedFileSize,
   getSegment,
+  replaceSession,
   searchSession,
 } from '../../src/session'
 import { clear, getChangeCount, overwrite, replace } from '../../src/change'
@@ -100,6 +101,57 @@ describe('Searching', () => {
     expect(await getChangeCount(session_id)).to.equal(0)
     needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
     expect(needles).to.be.empty
+  })
+
+  it('Should replace patterns in a range', async () => {
+    const change_id = await overwrite(
+      session_id,
+      0,
+      'needle here needle there needleneedle everywhere'
+    )
+    expect(change_id).to.be.a('number').that.equals(1)
+    expect(
+      await replaceSession(
+        session_id,
+        'needle',
+        'Item',
+        false,
+        0,
+        await getComputedFileSize(session_id),
+        0
+      )
+    ).to.equal(4)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here Item there ItemItem everywhere'))
+    expect(
+      await replaceSession(
+        session_id,
+        'item',
+        'needle',
+        true,
+        4,
+        (await getComputedFileSize(session_id)) - 4,
+        0
+      )
+    ).to.equal(3)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here needle there needleneedle everywhere'))
+    expect(
+        await replaceSession(
+            session_id,
+            'Needle',
+            'noodle',
+            true,
+            0,
+            await getComputedFileSize(session_id),
+            1
+        )
+    ).to.equal(1)
+    expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here noodle there needleneedle everywhere'))
   })
 
   it('Should work with replace on binary data', async () => {

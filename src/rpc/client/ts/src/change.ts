@@ -135,34 +135,34 @@ export function overwrite(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param remove_bytes_count number of bytes to remove
- * @param replace replacement bytes
+ * @param replacement replacement bytes
  * @return positive change serial number of the insert on success
  */
 export function replace(
   session_id: string,
   offset: number,
   remove_bytes_count: number,
-  replace: string | Uint8Array
+  replacement: string | Uint8Array
 ): Promise<number> {
   // if no bytes are being removed, this is an insert
   if (remove_bytes_count === 0) {
-    return insert(session_id, offset, replace)
+    return insert(session_id, offset, replacement)
   }
   // if no bytes are being inserted, this is a delete
-  else if (replace.length === 0) {
+  else if (replacement.length === 0) {
     return del(session_id, offset, remove_bytes_count)
   }
   // if the number of bytes being removed is the same as the number of
   // replacement bytes, this is an overwrite
-  else if (replace.length === remove_bytes_count) {
-    return overwrite(session_id, offset, replace)
+  else if (replacement.length === remove_bytes_count) {
+    return overwrite(session_id, offset, replacement)
   }
   // otherwise, this is a replace (delete and insert)
   return new Promise<number>(async (resolve) => {
     await pauseViewportEvents(session_id)
     await del(session_id, offset, remove_bytes_count)
     await resumeViewportEvents(session_id)
-    return resolve(await insert(session_id, offset, replace))
+    return resolve(await insert(session_id, offset, replacement))
   })
 }
 

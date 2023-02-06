@@ -27,6 +27,7 @@ import {
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './settings'
+import { replace } from './change'
 
 /**
  * Create a file editing session from a file path
@@ -276,6 +277,7 @@ export function numAscii(profile: number[]): number {
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
+ * @return array of offsets where the pattern was found
  */
 export function searchSession(
   session_id: string,
@@ -301,4 +303,28 @@ export function searchSession(
       return resolve(r.getMatchOffsetList())
     })
   })
+}
+
+export async function replaceSession(
+  session_id: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  is_case_insensitive: boolean | undefined,
+  offset: number | undefined,
+  length: number | undefined,
+  limit: number | undefined
+): Promise<number> {
+  const foundLocations = await searchSession(
+    session_id,
+    pattern,
+    is_case_insensitive,
+    offset,
+    length,
+    limit
+  )
+  // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
+  for (let i = foundLocations.length - 1; i >= 0; --i) {
+    await replace(session_id, foundLocations[i], pattern.length, replacement)
+  }
+  return foundLocations.length
 }
