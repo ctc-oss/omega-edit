@@ -570,6 +570,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
     }
     initialize_model_segments_(session_ptr->models_.front()->model_segments, length);
     free_session_changes_(session_ptr);
+    free_session_changes_undone_(session_ptr);
     for (const auto &viewport_ptr : session_ptr->viewports_) {
         viewport_ptr->data_segment.capacity = -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
         omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_CLEAR, nullptr);
