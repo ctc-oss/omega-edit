@@ -132,9 +132,9 @@ lazy val api = project
     name := "omega-edit",
     libraryDependencies ++= {
       Seq(
-        "com.beachape" %% "enumeratum" % "1.7.0",
-        "com.github.jnr" % "jnr-ffi" % "2.2.12",
-        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+        "com.beachape" %% "enumeratum" % "1.7.2",
+        "com.github.jnr" % "jnr-ffi" % "2.2.13",
+        "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
@@ -201,8 +201,8 @@ lazy val serv = project
     name := "omega-edit-grpc-server",
     libraryDependencies ++= {
       Seq(
-        "com.monovore" %% "decline" % "2.3.0",
-        "org.scalatest" %% "scalatest" % "3.2.13" % Test
+        "com.monovore" %% "decline" % "2.4.1",
+        "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
     },
     excludeDependencies ++= Seq(
