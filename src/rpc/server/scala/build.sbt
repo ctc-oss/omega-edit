@@ -39,7 +39,7 @@ if [[ $$OSTYPE == "darwin"* ]]; then
   if [[ $$(uname -m) == "x86_64" ]]; then
     new_classpath=$$(echo $$new_classpath |\\
       sed -e "s/$${linux_aarch_jar_file}//" | \\
-      sed -e "s/$${linux_x86_jar_file}//" | \\
+      sed -e "s/$${linux_amd_jar_file}//" | \\
       sed -e "s/$${windows_jar_file}//" | \\
       sed -e "s/$${macos_aarch_jar_file}//" \\
     )
