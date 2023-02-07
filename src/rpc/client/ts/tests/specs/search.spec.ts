@@ -21,6 +21,7 @@ import { expect } from 'chai'
 import {
   getComputedFileSize,
   getSegment,
+  replaceOneSession,
   replaceSession,
   searchSession,
 } from '../../src/session'
@@ -103,6 +104,151 @@ describe('Searching', () => {
     expect(needles).to.be.empty
   })
 
+  it('Should iteratively replace patterns in a range', async () => {
+    const change_id = await overwrite(
+      session_id,
+      0,
+      'needle here needle there needleneedle everywhere'
+    )
+    expect(change_id).to.be.a('number').that.equals(1)
+    let [replacementFound, nextOffset] = await replaceOneSession(
+      session_id,
+      'needle',
+      'Item',
+      false,
+      0,
+      0
+    )
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(4)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here needle there needleneedle everywhere'))
+    let ret = await replaceOneSession(
+      session_id,
+      'needle',
+      'Item',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(14)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here Item there needleneedle everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'needle',
+      'Item',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(25)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here Item there Itemneedle everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'needle',
+      'Item',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(29)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item here Item there ItemItem everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'needle',
+      'Item',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.false
+    expect(nextOffset).to.equal(-1)
+    // test against infinite recursion
+    ret = await replaceOneSession(session_id, 'item', 'Item-1', true, 0, 0)
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(6)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item-1 here Item there ItemItem everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'Item',
+      'Item-1',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(18)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item-1 here Item-1 there ItemItem everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'Item',
+      'Item-1',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(31)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item-1 here Item-1 there Item-1Item everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'Item',
+      'Item-1',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.true
+    expect(nextOffset).to.equal(37)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(encode('Item-1 here Item-1 there Item-1Item-1 everywhere'))
+    ret = await replaceOneSession(
+      session_id,
+      'Item',
+      'Item-1',
+      false,
+      nextOffset,
+      0
+    )
+    replacementFound = ret[0]
+    nextOffset = ret[1]
+    expect(replacementFound).to.be.false
+    expect(nextOffset).to.equal(-1)
+  })
+
   it('Should replace patterns in a range', async () => {
     const change_id = await overwrite(
       session_id,
@@ -139,18 +285,18 @@ describe('Searching', () => {
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here needle there needleneedle everywhere'))
     expect(
-        await replaceSession(
-            session_id,
-            'Needle',
-            'noodle',
-            true,
-            0,
-            await getComputedFileSize(session_id),
-            1
-        )
+      await replaceSession(
+        session_id,
+        'Needle',
+        'noodle',
+        true,
+        0,
+        await getComputedFileSize(session_id),
+        1
+      )
     ).to.equal(1)
     expect(
-        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here noodle there needleneedle everywhere'))
   })
 
