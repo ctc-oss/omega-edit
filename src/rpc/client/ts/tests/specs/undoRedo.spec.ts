@@ -199,8 +199,14 @@ describe('Undo/Redo', () => {
 
     // test clearing changes from a session
     expect(await getChangeCount(session_id)).to.equal(3)
+    expect(await getUndoCount(session_id)).to.equal(0)
+    change_id = await undo(session_id)
+    expect(change_id).to.equal(-3)
+    expect(await getChangeCount(session_id)).to.equal(2)
+    expect(await getUndoCount(session_id)).to.equal(1)
     const cleared_session_id = await clear(session_id)
     expect(cleared_session_id).to.equal(session_id)
     expect(await getChangeCount(session_id)).to.equal(0)
+    expect(await getUndoCount(session_id)).to.equal(0)
   })
 })

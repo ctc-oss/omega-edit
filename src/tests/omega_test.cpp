@@ -676,8 +676,12 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(71 == omega_session_get_computed_file_size(session_ptr));
             REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.dat.out", 1, nullptr));
             REQUIRE(6 == omega_session_get_num_changes(session_ptr));
+            REQUIRE(-6 == omega_edit_undo_last_change(session_ptr));
+            REQUIRE(5 == omega_session_get_num_changes(session_ptr));
+            REQUIRE(2 == omega_session_get_num_undone_changes(session_ptr));
             REQUIRE(0 == omega_edit_clear_changes(session_ptr));
             REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+            REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
             REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.reset.dat", 1, nullptr));
             REQUIRE(0 == compare_files("data/test1.dat", "data/test1.reset.dat"));
             omega_edit_destroy_session(session_ptr);
