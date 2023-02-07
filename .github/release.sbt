@@ -41,8 +41,25 @@ if [[ $$OSTYPE == "darwin"* ]]; then
   if [[ $$(uname -m) == "x86_64" ]]; then
     new_classpath=$$(echo $$new_classpath |\\
       sed -e "s/$${linux_aarch_jar_file}//" | \\
+      sed -e "s/$${linux_x86_jar_file}//" | \\
       sed -e "s/$${windows_jar_file}//" | \\
-      sed -e "s/$${macos_aarch_jar_file}//"\\
+      sed -e "s/$${macos_aarch_jar_file}//" \\
+    )
+  else
+    new_classpath=$$(echo $$new_classpath |\\
+      sed -e "s/$${linux_aarch_jar_file}//" | \\
+      sed -e "s/$${linux_amd_jar_file}//" | \\
+      sed -e "s/$${windows_jar_file}//" | \\
+      sed -e "s/$${macos_x86_jar_file}//"\\
+    )
+  fi
+else
+  if [[ $$(uname -m) == "x86_64" ]]; then
+    new_classpath=$$(echo $$new_classpath |\\
+      sed -e "s/$${linux_aarch_jar_file}//" | \\
+      sed -e "s/$${windows_jar_file}//" | \\
+      sed -e "s/$${macos_aarch_jar_file}//" | \\
+      sed -e "s/$${macos_x86_jar_file}//" \\
     )
   else
     new_classpath=$$(echo $$new_classpath |\\
@@ -51,12 +68,6 @@ if [[ $$OSTYPE == "darwin"* ]]; then
       sed -e "s/$${macos_x86_jar_file}//"\\
     )
   fi
-else
-  new_classpath=$$(echo $$new_classpath |\\
-    sed -e "s/$${macos_x86_jar_file}//" | \\
-    sed -e "s/$${windows_jar_file}//" | \\
-    sed -e "s/$${macos_x86_jar_file}//"\\
-  )
 fi"""
 
 lazy val batchExtras = s"""
