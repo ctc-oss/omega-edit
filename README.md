@@ -158,7 +158,7 @@ Currently, the repo holds bindings for both Scala and node.
 
 ## Release Binaries
 
-[Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS, Windows, and Linux (glibc 2.31 or greater required) are built and published via GitHub CI workflows.
+[Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS (x86), Windows (x86), and Linux (ARM, and x86; glibc 2.31 or greater required) are built and published via GitHub CI workflows.
 
 ## Versioning
 
