@@ -269,7 +269,7 @@ export function numAscii(profile: number[]): number {
 }
 
 /**
- * Search a session for a given pattern and return an array of offsets where the pattern was found
+ * Search a segment in a session for a given pattern and return an array of offsets where the pattern was found
  * @param session_id session to find the pattern in
  * @param pattern pattern to find
  * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
@@ -305,6 +305,19 @@ export function searchSession(
   })
 }
 
+/**
+ * Replace all found patterns in a segment in a session with the given replacement and return the number of replacements
+ * done
+ * @param session_id session to replace patterns in
+ * @param pattern pattern to replace
+ * @param replacement replacement
+ * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
+ * @param offset start searching at this offset within the session, or at the start of the session if undefined
+ * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
+ * it will search to the end of the session
+ * @param limit if defined, limits the number of matches found to this amount
+ * @return number of replacements done
+ */
 export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
@@ -327,4 +340,40 @@ export async function replaceSession(
     await replace(session_id, foundLocations[i], pattern.length, replacement)
   }
   return foundLocations.length
+}
+
+/**
+ * Replace found patterns in a segment in session iteratively
+ * @param session_id session to replace patterns in
+ * @param pattern pattern to replace
+ * @param replacement replacement
+ * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
+ * @param offset start searching at this offset within the session, or at the start of the session if undefined
+ * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
+ * it will search to the end of the session
+ * @return true of a replacement took place (false otherwise), and the offset to use for the next iteration (or -1 if no
+ * replacement took place)
+ */
+export async function replaceOneSession(
+  session_id: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  is_case_insensitive: boolean,
+  offset: number | undefined,
+  length: number | undefined
+): Promise<[boolean, number]> {
+  const foundLocations = await searchSession(
+    session_id,
+    pattern,
+    is_case_insensitive,
+    offset,
+    length,
+    1
+  )
+  if (foundLocations.length > 0) {
+    await replace(session_id, foundLocations[0], pattern.length, replacement)
+    // the next iteration offset should be at the end of this replacement
+    return [true, foundLocations[0] + replacement.length]
+  }
+  return [false, -1]
 }
