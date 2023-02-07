@@ -85,7 +85,7 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-12, ubuntu-20.04] #, windows-2022 ] # TODO: Add in later
+        os: [ macos-12, ubuntu-20.04 ] # TODO: add windows-2022 (currently it's timing out on Package Scala API)
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
@@ -174,7 +174,7 @@ jobs:
         working-directory: src/rpc/client/ts
 
       - name: Yarn Test 📋
-        run: yarn test || true # auto spins scala server up and down
+        run: yarn test # auto spins scala server up and down
         shell: bash
         working-directory: src/rpc/client/ts
         timeout-minutes: 30
