@@ -62,5 +62,8 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   def isFloating: Boolean =
     i.omega_viewport_is_floating(p)
 
+  def hasChanges: Boolean =
+      i.omega_viewport_has_changes(p)
+
   def destroy(): Unit = i.omega_edit_destroy_viewport(p)
 }

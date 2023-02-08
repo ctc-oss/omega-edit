@@ -38,7 +38,7 @@ import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
-import scala.util.{Failure}
+import scala.util.Failure
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
@@ -100,6 +100,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Destroy)).mapTo[Result].map {
           case Ok(_)  => in
+          case Err(c) => throw grpcFailure(c)
+        }
+      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+    }
+
+  def viewportHasChanges(in: ObjectId): Future[BooleanResponse] =
+    in match {
+      case Viewport.Id(sid, vid) =>
+        (editors ? ViewportOp(sid, vid, Viewport.HasChanges)).mapTo[Result].map {
+          case ok: Ok with BooleanResult => BooleanResponse(ok.result)
+          case Ok(id) => throw grpcFailure(Status.INTERNAL, s"didn't receive result for viewport $id")
           case Err(c) => throw grpcFailure(c)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
@@ -351,10 +362,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
-  def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
+  private def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
     Future.failed(grpcFailure(status, message))
 
-  def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
+  private def grpcFailure(status: Status, message: String = ""): GrpcServiceException =
     new GrpcServiceException(
       if (message.nonEmpty) status.withDescription(message) else status
     )

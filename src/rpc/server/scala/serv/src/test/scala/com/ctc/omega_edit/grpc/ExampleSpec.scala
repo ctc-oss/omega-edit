@@ -489,6 +489,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             viewportIdDesired = Some("viewport_1")
           )
         )
+        viewport1HasChanges <- service.viewportHasChanges(ObjectId(viewportResponse1.viewportId))
         numViewports2 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
         viewportResponse2 <- service.createViewport(
           CreateViewportRequest(
@@ -499,6 +500,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             viewportIdDesired = Some("viewport_2")
           )
         )
+        // get data to clear the "has changes" state for this viewport
+        _ <- service.getViewportData(ViewportDataRequest(viewportResponse2.viewportId))
+        viewport2HasChanges <- service.viewportHasChanges(ObjectId(viewportResponse2.viewportId))
         viewportResponse3 <- service.createViewport(
           CreateViewportRequest(
             sid,
@@ -525,6 +529,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
         numViewports1.count shouldBe 0L
         viewportResponse1.viewportId shouldBe sid + ":viewport_1"
+        viewport1HasChanges.response shouldBe true
+        viewport2HasChanges.response shouldBe false
         numViewports2.sessionId shouldBe sid
         numViewports2.kind shouldBe CountKind.COUNT_VIEWPORTS
         numViewports2.count shouldBe 1L

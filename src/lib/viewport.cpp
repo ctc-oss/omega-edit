@@ -109,6 +109,8 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
+    // If the data segment capacity is negative, the viewport has changes.  When the data gets fetched from this
+    // viewport, the capacity becomes positive and the viewport will no longer indicate that it has changes.
     return viewport_ptr->data_segment.capacity < 0 ? 1 : 0;
 }
 

@@ -34,6 +34,7 @@ service Editor {
   rpc PauseViewportEvents(ObjectId) returns (ObjectId);
   rpc ResumeViewportEvents(ObjectId) returns (ObjectId);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
+  rpc ViewportHasChanges(ObjectId) returns (BooleanResponse);
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
   rpc DestroyViewport(ObjectId) returns (ObjectId);
   rpc GetChangeDetails(SessionEvent) returns (ChangeDetailsResponse);
@@ -257,4 +258,8 @@ message ByteFrequencyProfileResponse {
   int64 offset = 2;
   int64 length = 3;
   repeated int64 frequency = 4;
+}
+
+message BooleanResponse {
+  bool response = 1;
 }

@@ -27,6 +27,7 @@ import {
   getViewportCount,
   getViewportData,
   unsubscribeViewport,
+  viewportHasChanges,
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import {
@@ -134,8 +135,9 @@ describe('Viewports', () => {
 
     let file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(13)
-
+    expect(await viewportHasChanges(viewport_1_id)).to.be.true
     let viewport_data = await getViewportData(viewport_1_id)
+    expect(await viewportHasChanges(viewport_1_id)).to.be.false
     expect(decode(viewport_data.getData_asU8())).to.equal('0123456789')
 
     viewport_data = await getViewportData(viewport_2_id)
@@ -223,7 +225,9 @@ describe('Viewports', () => {
     expect(await subscribeViewport(viewport_floating_id)).to.equal(
       viewport_floating_id
     )
+    expect(await viewportHasChanges(viewport_floating_id)).to.be.true
     let viewport_data = await getViewportData(viewport_floating_id)
+    expect(await viewportHasChanges(viewport_floating_id)).to.be.false
 
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(10)
@@ -234,6 +238,9 @@ describe('Viewports', () => {
 
     change_id = await del(session_id, 0, 5)
     expect(change_id).to.equal(2)
+
+    expect(await viewportHasChanges(viewport_id)).to.be.false
+    expect(await viewportHasChanges(viewport_floating_id)).to.be.false
 
     viewport_data = await getViewportData(viewport_floating_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
@@ -250,6 +257,9 @@ describe('Viewports', () => {
     await unsubscribeViewport(viewport_id)
     change_id = await insert(session_id, 0, '01234')
     expect(change_id).to.equal(3)
+
+    expect(await viewportHasChanges(viewport_id)).to.be.true
+    expect(await viewportHasChanges(viewport_floating_id)).to.be.false
 
     viewport_data = await getViewportData(viewport_floating_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')

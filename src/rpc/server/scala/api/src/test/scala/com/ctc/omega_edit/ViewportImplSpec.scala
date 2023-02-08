@@ -25,30 +25,47 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
   "views" should {
     "limit data" in session("abc")(view(0, 1, false, _) { (s, v) =>
       s.size shouldBe 3
+      v.isFloating shouldBe false
+      v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
+      v.hasChanges shouldBe false
     })
 
     "offset data" in session("abc")(view(1, 1, false, _) { (s, v) =>
       s.size shouldBe 3
+      v.hasChanges shouldBe true
       v.data shouldBe "b".getBytes()
+      v.hasChanges shouldBe false
     })
 
     "move" in session("abc")(view(1, 1, false, _) { (_, v) =>
+      v.hasChanges shouldBe true
       v.data shouldBe "b".getBytes()
+      v.hasChanges shouldBe false
       v.move(0)
+      v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
+      v.hasChanges shouldBe false
     })
 
     "resize" in session("abc")(view(0, 1, false, _) { (_, v) =>
+      v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
+      v.hasChanges shouldBe false
       v.resize(2)
+      v.hasChanges shouldBe true
       v.data shouldBe "ab".getBytes()
+      v.hasChanges shouldBe false
     })
 
     "move and resize" in session("abc")(view(0, 1, false, _) { (_, v) =>
+      v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
+      v.hasChanges shouldBe false
       v.update(1, 2)
+      v.hasChanges shouldBe true
       v.data shouldBe "bc".getBytes()
+      v.hasChanges shouldBe false
     })
   }
 

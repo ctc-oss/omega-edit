@@ -317,6 +317,10 @@ export function searchSession(
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
  * @return number of replacements done
+ * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
+ * resuming all viewport events with resumeViewportEvents after calling this function.  Since viewport events were
+ * disabled during the changes, determine what viewports have changes by using the viewportHasChanges function and if so
+ * refresh the ones that have changes.
  */
 export async function replaceSession(
   session_id: string,

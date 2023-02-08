@@ -26,7 +26,6 @@ import {
   ObjectId,
 } from './omega_edit_pb'
 import { getClient } from './settings'
-import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 /**
  * Delete a number of bytes at the given offset
@@ -130,8 +129,7 @@ export function overwrite(
 }
 
 /**
- * Convenience function for doing a replace where the bytes being replaced are
- * not the same length using a delete then an insert
+ * Convenience function for doing replace operations
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param remove_bytes_count number of bytes to remove
@@ -159,9 +157,7 @@ export function replace(
   }
   // otherwise, this is a replace (delete and insert)
   return new Promise<number>(async (resolve) => {
-    await pauseViewportEvents(session_id)
     await del(session_id, offset, remove_bytes_count)
-    await resumeViewportEvents(session_id)
     return resolve(await insert(session_id, offset, replacement))
   })
 }
