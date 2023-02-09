@@ -1042,6 +1042,11 @@
 <span id="_CPPv3N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span id="_CPPv2N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a072bbece5c968c8ddeedc1acd32e33a7"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_MODIFY</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE">
+<span id="_CPPv3N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span id="_CPPv2N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb90830f52d09f55eaecbb34ece8e"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CHANGES</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </div>
@@ -1440,6 +1445,20 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>session_ptr</strong> – session to resume viewport on-change callbacks on </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a40a9a1631e7aa05f6a9a9e91eeaeb7e8"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_notify_viewports_of_changes</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Notify changed viewports in the given session with a VIEWPORT_EVT_CHANGES event </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to notify viewports with changes </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>number of viewports that were notified, or -1 on failure </p>
 </dd>
 </dl>
 </dd></dl>
