@@ -70,7 +70,7 @@ export function destroyViewport(viewport_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().destroyViewport(new ObjectId().setId(viewport_id), (err, r) => {
       if (err) {
-        return reject('deleteViewport error: ' + err.message)
+        return reject('destroyViewport error: ' + err.message)
       }
       return resolve(r.getId())
     })
@@ -91,7 +91,7 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
       (err, r) => {
         if (err) {
           console.log(err.message)
-          return reject('redo error: ' + err.message)
+          return reject('getViewportCount error: ' + err.message)
         }
         return resolve(r.getCount())
       }
@@ -114,7 +114,7 @@ export function getViewportData(
       (err, r) => {
         if (err) {
           console.log(err.message)
-          return reject('redo error: ' + err.message)
+          return reject('getViewportData error: ' + err.message)
         }
         return resolve(r)
       }
@@ -123,14 +123,34 @@ export function getViewportData(
 }
 
 /**
- * Pause events being triggered on this viewport
- * @param viewport_id viewport to pause events on
- * @return viewport ID that has had its events paused, on success
+ * Given a viewport ID, returns true if the viewport has changes and false otherwise
+ * @param viewport_id viewport to check for changes
+ * @return true if the viewport has changes and false otherwise
  */
-export function pauseViewportEvents(viewport_id: string): Promise<string> {
+export function viewportHasChanges(viewport_id: string): Promise<boolean> {
+  return new Promise<boolean>((resolve, reject) => {
+    getClient().viewportHasChanges(
+      new ObjectId().setId(viewport_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('viewportHasChanges error: ' + err.message)
+        }
+        return resolve(r.getResponse())
+      }
+    )
+  })
+}
+
+/**
+ * Pause viewport events being triggered on this session
+ * @param session_id session to pause viewport events on
+ * @return session ID that has had its viewport events paused, on success
+ */
+export function pauseViewportEvents(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().pauseViewportEvents(
-      new ObjectId().setId(viewport_id),
+      new ObjectId().setId(session_id),
       (err, r) => {
         if (err) {
           console.log(err.message)
@@ -143,14 +163,14 @@ export function pauseViewportEvents(viewport_id: string): Promise<string> {
 }
 
 /**
- * Resume events on the given viewport
- * @param viewport_id viewport to resume events on
- * @return viewport ID that has had its events resumed, on success
+ * Resume events on viewports in the given session
+ * @param session_id to resume viewport events on
+ * @return session ID that has had its viewport events resumed, on success
  */
-export function resumeViewportEvents(viewport_id: string): Promise<string> {
+export function resumeViewportEvents(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().resumeViewportEvents(
-      new ObjectId().setId(viewport_id),
+      new ObjectId().setId(session_id),
       (err, r) => {
         if (err) {
           console.log(err.message)

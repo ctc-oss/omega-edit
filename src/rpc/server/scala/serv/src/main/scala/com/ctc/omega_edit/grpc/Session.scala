@@ -108,6 +108,7 @@ object Session {
 
   case class PauseViewportEvents() extends Op
   case class ResumeViewportEvents() extends Op
+  case object NotifyChangedViewports extends Op
 
   trait Serial {
     def serial: Long
@@ -263,6 +264,11 @@ class Session(
     case ResumeViewportEvents() =>
       session.resumeViewportEvents()
       sender() ! Ok(sessionId)
+
+    case NotifyChangedViewports =>
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.notifyChangedViewports.toLong
+      }
 
     case Watch(eventInterest) =>
       session.eventInterest = eventInterest.getOrElse(api.SessionEvent.Interest.All)

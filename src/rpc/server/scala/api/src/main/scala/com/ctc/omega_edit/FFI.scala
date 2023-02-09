@@ -109,10 +109,12 @@ private[omega_edit] trait FFI {
   def omega_session_resume_changes(p: Pointer): Unit
   def omega_session_pause_viewport_event_callbacks(p: Pointer): Unit
   def omega_session_resume_viewport_event_callbacks(p: Pointer): Unit
+  def omega_session_notify_viewports_of_changes(p: Pointer): Int
   def omega_session_profile(p: Pointer, profile: Array[Long], offset: Long, length: Long): Int
 
   // viewport
 
+  def omega_viewport_has_changes(p: Pointer): Boolean
   def omega_viewport_get_data(p: Pointer): Pointer
   def omega_viewport_get_event_cbk(p: Pointer): ViewportCallback
   def omega_viewport_get_event_interest(p: Pointer): Int

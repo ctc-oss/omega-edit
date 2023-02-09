@@ -85,6 +85,7 @@ trait Session {
   def resumeSessionChanges(): Unit
   def pauseViewportEvents(): Unit
   def resumeViewportEvents(): Unit
+  def notifyChangedViewports: Int
   def destroy(): Unit
 }
 

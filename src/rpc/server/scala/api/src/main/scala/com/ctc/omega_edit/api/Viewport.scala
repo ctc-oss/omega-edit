@@ -29,6 +29,7 @@ trait Viewport {
   def offset: Long
   def capacity: Long
   def isFloating: Boolean
+  def hasChanges: Boolean
 
   def move(offset: Long): Boolean
   def resize(capacity: Long): Boolean

@@ -20,8 +20,8 @@ import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.grpc.Editors.{Data, Ok}
-import com.ctc.omega_edit.grpc.Viewport.{Destroy, EventStream, Events, Get, Unwatch, Watch}
+import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Data, Ok}
+import com.ctc.omega_edit.grpc.Viewport.{Destroy, EventStream, Events, Get, HasChanges, Unwatch, Watch}
 import com.google.protobuf.ByteString
 import omega_edit.ObjectId
 
@@ -50,6 +50,7 @@ object Viewport {
 
   trait Op
   case object Get extends Op
+  case object HasChanges extends Op
   case object Destroy extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
 
@@ -68,6 +69,11 @@ class Viewport(
       sender() ! new Ok(viewportId) with Data {
         def data: ByteString = ByteString.copyFrom(view.data)
         def offset: Long = view.offset
+      }
+
+    case HasChanges =>
+      sender() ! new Ok(viewportId) with BooleanResult {
+        def result: Boolean = view.hasChanges
       }
 
     case Destroy =>

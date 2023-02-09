@@ -231,6 +231,26 @@ export function getSessionCount(): Promise<number> {
 }
 
 /**
+ * Notify changed viewports in the given session with a VIEWPORT_EVT_CHANGES event
+ * @param session_id session to notify viewports with changes
+ * @return number of viewports that were notified
+ */
+export function notifyChangedViewports(session_id: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    getClient().notifyChangedViewports(
+      new ObjectId().setId(session_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('notifyChangedViewports error: ' + err.message)
+        }
+        return resolve(r.getResponse())
+      }
+    )
+  })
+}
+
+/**
  * Given a session, offset and length, populate a byte frequency profile
  * @param session_id session to profile
  * @param offset where in the session to begin profiling
@@ -317,6 +337,10 @@ export function searchSession(
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
  * @return number of replacements done
+ * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
+ * resuming all viewport events with resumeViewportEvents after calling this function.  Since viewport events were
+ * disabled during the changes, determine what viewports have changes by using the viewportHasChanges function and if so
+ * refresh the ones that have changes.
  */
 export async function replaceSession(
   session_id: string,

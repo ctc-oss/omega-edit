@@ -50,11 +50,18 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       v1.offset shouldBe 0L
       v1.capacity shouldBe 10L
       v1.isFloating shouldBe false
+      v1.hasChanges shouldBe true
+      v1.data.length shouldBe 0L
+      v1.hasChanges shouldBe false
       s.numViewports shouldBe 1
       val v2 = s.view(offset = 4, capacity = 8, isFloating = true)
       v2.offset shouldBe 4L
       v2.capacity shouldBe 8L
       v2.isFloating shouldBe true
+      v2.hasChanges shouldBe true
+      v2.data.length shouldBe 0L
+      v2.hasChanges shouldBe false
+      s.numViewports shouldBe 2
       v1.destroy()
       s.numViewports shouldBe 1
       v2.destroy()
