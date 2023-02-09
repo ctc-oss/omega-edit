@@ -20,7 +20,7 @@
 import { expect } from 'chai'
 import { ALL_EVENTS, getClient } from '../../src/settings'
 import { del, getChangeCount, insert, overwrite } from '../../src/change'
-import { getComputedFileSize, getSegment } from '../../src/session'
+import {getComputedFileSize, getSegment, notifyChangedViewports} from '../../src/session'
 import {
   createViewport,
   destroyViewport,
@@ -100,6 +100,7 @@ describe('Viewports', () => {
   })
 
   it('Should create and destroy viewports', async () => {
+    expect(await notifyChangedViewports(session_id)).to.equal(0)
     const viewport_1_id = await createViewport(
       'test_vpt_1',
       session_id,
@@ -115,6 +116,7 @@ describe('Viewports', () => {
       expect(viewport_1_id).to.equal('test_vpt_1')
     }
     expect(await getViewportCount(session_id)).to.equal(1)
+    expect(await notifyChangedViewports(session_id)).to.equal(1)
 
     const viewport_2_id = await createViewport(
       undefined,

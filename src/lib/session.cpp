@@ -12,7 +12,9 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/session.h"
+#include "omega_edit/session.h"
+#include "omega_edit/viewport.h"
+#include "omega_edit/fwd_defs.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/model_def.hpp"
@@ -136,6 +138,18 @@ void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) 
 void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
     session_ptr->session_flags_ &= ~(int8_t) session_flags::pause_viewport_callbacks;
+}
+
+int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    int result = 0;
+    for (const auto &viewport : session_ptr->viewports_) {
+      if (omega_viewport_has_changes(viewport.get())) {
+          omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr);
+          ++result;
+      }
+    }
+    return result;
 }
 
 int omega_session_changes_paused(const omega_session_t *session_ptr) {

@@ -231,6 +231,26 @@ export function getSessionCount(): Promise<number> {
 }
 
 /**
+ * Notify changed viewports in the given session with a VIEWPORT_EVT_CHANGES event
+ * @param session_id session to notify viewports with changes
+ * @return number of viewports that were notified
+ */
+export function notifyChangedViewports(session_id: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    getClient().notifyChangedViewports(
+      new ObjectId().setId(session_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('notifyChangedViewports error: ' + err.message)
+        }
+        return resolve(r.getResponse())
+      }
+    )
+  })
+}
+
+/**
  * Given a session, offset and length, populate a byte frequency profile
  * @param session_id session to profile
  * @param offset where in the session to begin profiling
