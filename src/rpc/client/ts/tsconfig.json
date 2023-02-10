@@ -36,7 +36,8 @@
     "inlineSourceMap": false,
     "preserveConstEnums": true,
     "strictNullChecks": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "declaration": true
   },
   "exclude": ["node_modules", "tests", "runTests.ts", "**/*.d.ts", "scripts"]
 }

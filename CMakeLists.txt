@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 3.13)
 
 # Project information
 project(omega_edit
-        VERSION 0.9.39
+        VERSION 0.9.40
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
