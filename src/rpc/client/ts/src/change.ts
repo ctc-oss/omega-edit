@@ -519,3 +519,110 @@ export function getUndoCount(session_id: string): Promise<number> {
     )
   })
 }
+
+export function concatUint8Arrays(a: Uint8Array, b: Uint8Array): Uint8Array {
+  const result = new Uint8Array(a.length + b.length)
+  result.set(a)
+  result.set(b, a.length)
+  return result
+}
+
+export interface EditOperation {
+  type: 'delete' | 'insert' | 'overwrite' // type of operation
+  start: number // offset in the original array where the edit starts
+
+  // additional fields depending on the type of operation
+  // for delete operations, the length of bytes to be deleted is needed
+  // for insert and overwrite operations, the data to be inserted or used for overwriting is needed
+  length?: number // number of bytes to remove in the case of a delete operation
+  data?: Uint8Array // data to be inserted or used for overwriting
+}
+
+export function editOperations(
+  arr1: Uint8Array,
+  arr2: Uint8Array
+): EditOperation[] {
+  const n = arr1.length
+  const m = arr2.length
+
+  // Initialize the 2D matrix of edit distances
+  const distances: number[][] = []
+  for (let i = 0; i <= n; i++) {
+    distances.push(Array(m + 1).fill(0))
+  }
+
+  for (let i = 1; i <= n; i++) {
+    distances[i][0] = i
+  }
+
+  for (let j = 1; j <= m; j++) {
+    distances[0][j] = j
+  }
+
+  // Compute the edit distances
+  for (let j = 1; j <= m; j++) {
+    for (let i = 1; i <= n; i++) {
+      const deletion = distances[i - 1][j] + 1
+      const insertion = distances[i][j - 1] + 1
+      const substitution =
+        distances[i - 1][j - 1] + (arr1[i - 1] === arr2[j - 1] ? 0 : 1)
+
+      distances[i][j] = Math.min(deletion, insertion, substitution)
+    }
+  }
+
+  // Backtrace the optimal sequence of edit operations
+  const operations: EditOperation[] = []
+  let i = n
+  let j = m
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && distances[i][j] === distances[i - 1][j] + 1) {
+      if (operations.length > 0 && operations[0].type === 'delete') {
+        operations[0].start--
+        operations[0].length++
+      } else {
+        operations.unshift({ type: 'delete', start: i - 1, length: 1 })
+      }
+      i--
+    } else if (j > 0 && distances[i][j] === distances[i][j - 1] + 1) {
+      if (operations.length > 0 && operations[0].type === 'insert') {
+        operations[0].start--
+        operations[0].data = concatUint8Arrays(
+          arr2.subarray(j - 1, j),
+          operations[0].data!
+        )
+      } else {
+        operations.unshift({
+          type: 'insert',
+          start: i,
+          data: arr2.subarray(j - 1, j),
+        })
+      }
+      j--
+    } else {
+      if (arr1[i - 1] !== arr2[j - 1]) {
+        if (
+          operations.length > 0 &&
+          operations[0].type === 'overwrite' &&
+          operations[0].start === i - 1
+        ) {
+          operations[0].data = concatUint8Arrays(
+            arr2.subarray(j - 1, j),
+            operations[0].data!
+          )
+        } else {
+          operations.unshift({
+            type: 'overwrite',
+            start: i - 1,
+            data: arr2.subarray(j - 1, j),
+          })
+        }
+      }
+      i--
+      j--
+    }
+  }
+
+  return operations
+}

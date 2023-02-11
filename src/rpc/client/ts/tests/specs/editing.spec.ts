@@ -25,6 +25,7 @@ import {
 } from '../../src/session'
 import {
   del,
+  editOperations,
   EditStats,
   getLastChange,
   insert,
@@ -229,5 +230,57 @@ describe('Editing', () => {
       await check_callback_count(session_callbacks, session_id, 3)
       expect(stats.error_count).to.equal(0)
     })
+  })
+})
+
+describe('editOperations function', function () {
+  it('should return an empty array for identical arrays', function () {
+    const arr = new Uint8Array([1, 2, 3, 4, 5])
+    const ops = editOperations(arr, arr)
+    expect(ops).to.deep.equal([])
+  })
+
+  it('should return a delete operation for a shorter array', function () {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([1, 2, 3])
+    const ops = editOperations(arr1, arr2)
+    expect(ops).to.deep.equal([{ type: 'delete', start: 3, length: 2 }])
+  })
+
+  it('should return an insert operation for a longer array', function () {
+    const arr1 = new Uint8Array([1, 2, 3])
+    const arr2 = new Uint8Array([1, 2, 3, 4, 5])
+    const ops = editOperations(arr1, arr2)
+    expect(ops).to.deep.equal([
+      { type: 'insert', start: 3, data: new Uint8Array([4, 5]) },
+    ])
+  })
+
+  it('should return an overwrite operation for a partially different array', function () {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([1, 2, 6, 7, 5])
+    const ops = editOperations(arr1, arr2)
+    expect(ops).to.deep.equal([
+      { type: 'overwrite', start: 2, data: new Uint8Array([6, 7]) },
+    ])
+  })
+
+  it('should return a single overwrite operation for a fully different array', function () {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([6, 7, 8, 9, 10])
+    const ops = editOperations(arr1, arr2)
+    expect(ops).to.deep.equal([
+      { type: 'overwrite', start: 0, data: new Uint8Array([6, 7, 8, 9, 10]) },
+    ])
+  })
+
+  it('should coalesce adjacent operations of the same type', function () {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([1, 2, 6, 7, 8, 9, 5])
+    const ops = editOperations(arr1, arr2)
+    expect(ops).to.deep.equal([
+      { type: 'delete', start: 2, length: 2 },
+      { type: 'insert', start: 2, data: new Uint8Array([6, 7, 8, 9]) },
+    ])
   })
 })
