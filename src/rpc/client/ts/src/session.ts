@@ -27,7 +27,7 @@ import {
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './settings'
-import { replace } from './change'
+import { replaceOptimized } from './change'
 
 /**
  * Create a file editing session from a file path
@@ -359,9 +359,18 @@ export async function replaceSession(
     length,
     limit
   )
+  const patternArray =
+    typeof pattern == 'string' ? Buffer.from(pattern) : pattern
+  const replacementArray =
+    typeof replacement == 'string' ? Buffer.from(replacement) : replacement
   // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
   for (let i = foundLocations.length - 1; i >= 0; --i) {
-    await replace(session_id, foundLocations[i], pattern.length, replacement)
+    await replaceOptimized(
+      session_id,
+      foundLocations[i],
+      patternArray,
+      replacementArray
+    )
   }
   return foundLocations.length
 }
@@ -386,18 +395,27 @@ export async function replaceOneSession(
   offset: number | undefined,
   length: number | undefined
 ): Promise<[boolean, number]> {
+  const patternArray =
+    typeof pattern == 'string' ? Buffer.from(pattern) : pattern
+  const replacementArray =
+    typeof replacement == 'string' ? Buffer.from(replacement) : replacement
   const foundLocations = await searchSession(
     session_id,
-    pattern,
+    patternArray,
     is_case_insensitive,
     offset,
     length,
     1
   )
   if (foundLocations.length > 0) {
-    await replace(session_id, foundLocations[0], pattern.length, replacement)
+    await replaceOptimized(
+      session_id,
+      foundLocations[0],
+      patternArray,
+      replacementArray
+    )
     // the next iteration offset should be at the end of this replacement
-    return [true, foundLocations[0] + replacement.length]
+    return [true, foundLocations[0] + replacementArray.length]
   }
   return [false, -1]
 }

@@ -163,6 +163,98 @@ export function replace(
 }
 
 /**
+ * Optimizes a replacement operation by removing common prefix and suffix
+ * @param offset offset of original segment
+ * @param original_segment original segment
+ * @param replacement_segment replacement segment
+ * @returns {offset: number, remove_bytes_count: number, replacement: string} or null if no change is needed
+ */
+export function replaceOptimizer(
+  offset: number,
+  original_segment: Uint8Array,
+  replacement_segment: Uint8Array
+): {
+  offset: number
+  remove_bytes_count: number
+  replacement: Uint8Array
+} | null {
+  let first_difference = 0 // offset of first difference
+  let last_difference = 0 // offset of last difference
+
+  // find offset of first difference
+  while (
+    first_difference < original_segment.length &&
+    first_difference < replacement_segment.length &&
+    original_segment[first_difference] === replacement_segment[first_difference]
+  ) {
+    ++first_difference
+  }
+
+  // no change if no difference
+  if (
+    first_difference === original_segment.length &&
+    first_difference === replacement_segment.length
+  ) {
+    return null
+  }
+
+  // find offset of last difference
+  while (
+    last_difference < original_segment.length - first_difference &&
+    last_difference < replacement_segment.length - first_difference &&
+    original_segment[original_segment.length - 1 - last_difference] ===
+      replacement_segment[replacement_segment.length - 1 - last_difference]
+  ) {
+    ++last_difference
+  }
+
+  // return optimized replacement
+  return {
+    offset: offset + first_difference,
+    // remove_bytes_count common suffix
+    remove_bytes_count:
+      original_segment.length - first_difference - last_difference,
+    // remove_bytes_count common prefix
+    replacement: replacement_segment.slice(
+      first_difference,
+      replacement_segment.length - last_difference
+    ),
+  }
+}
+
+/**
+ * Optimized version of replace (requires the original segment)
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param original_segment original segment
+ * @param replacement_segment replacement segment
+ * @return positive change serial number of the edit operation on success
+ */
+export function replaceOptimized(
+  session_id: string,
+  offset: number,
+  original_segment: Uint8Array,
+  replacement_segment: Uint8Array
+): Promise<number> {
+  // optimize the replace operation
+  const optimized = replaceOptimizer(
+    offset,
+    original_segment,
+    replacement_segment
+  )
+  return optimized
+    ? // call replace with optimized parameters
+      replace(
+        session_id,
+        optimized.offset,
+        optimized.remove_bytes_count,
+        optimized.replacement
+      )
+    : // no replacement needed
+      Promise.resolve(0)
+}
+
+/**
  * Undo the last change made in the given session
  * @param session_id session to undo the last change for
  * @return negative serial number of the undone change if successful

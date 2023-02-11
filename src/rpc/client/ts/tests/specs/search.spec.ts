@@ -25,7 +25,14 @@ import {
   replaceSession,
   searchSession,
 } from '../../src/session'
-import { clear, getChangeCount, overwrite, replace } from '../../src/change'
+import {
+  clear,
+  getChangeCount,
+  overwrite,
+  replace,
+  replaceOptimized,
+  replaceOptimizer,
+} from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
 import { cleanup, custom_setup } from './common'
@@ -102,6 +109,287 @@ describe('Searching', () => {
     expect(await getChangeCount(session_id)).to.equal(0)
     needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
     expect(needles).to.be.empty
+  })
+
+  it('Should be able to optimize replacement operations', () => {
+    const replacement_usecases = [
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AAAAABAAAA',
+        expected: { offset: 5, remove_bytes_count: 1, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BAAAAAAAAA',
+        expected: { offset: 0, remove_bytes_count: 1, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AAAAAAAAAB',
+        expected: { offset: 9, remove_bytes_count: 1, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AAABAABAAA',
+        expected: { offset: 3, remove_bytes_count: 4, replacement: 'BAAB' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BAAAAAAAAB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 10,
+          replacement: 'BAAAAAAAAB',
+        },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 10,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BBBBBBBBBA',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBBB',
+        },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'ABBBBBBBBB',
+        expected: {
+          offset: 1,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBBB',
+        },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 1,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBBB',
+        },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBBBBBBBBA',
+        expected: { offset: 1, remove_bytes_count: 8, replacement: 'BBBBBBBB' },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBBBBBBBAB',
+        expected: {
+          offset: 1,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBAB',
+        },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBBBBBBABB',
+        expected: {
+          offset: 1,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBABB',
+        },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBBBBBABBB',
+        expected: {
+          offset: 1,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBABBB',
+        },
+      },
+      { original: 'AAAAAAAAAA', replacement: 'AAAAAAAAAA', expected: null },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: '',
+        expected: { offset: 0, remove_bytes_count: 10, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'A',
+        expected: { offset: 1, remove_bytes_count: 9, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AA',
+        expected: { offset: 2, remove_bytes_count: 8, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AAA',
+        expected: { offset: 3, remove_bytes_count: 7, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'AAAA',
+        expected: { offset: 4, remove_bytes_count: 6, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'B',
+        expected: { offset: 0, remove_bytes_count: 10, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BB',
+        expected: { offset: 0, remove_bytes_count: 10, replacement: 'BB' },
+      },
+      {
+        original: 'AAAAAAAAAA',
+        replacement: 'BBB',
+        expected: { offset: 0, remove_bytes_count: 10, replacement: 'BBB' },
+      },
+      {
+        original: 'AAAAAAAAAB',
+        replacement: 'B',
+        expected: { offset: 0, remove_bytes_count: 9, replacement: '' },
+      },
+      {
+        original: 'AAAAAAAAAB',
+        replacement: 'BB',
+        expected: { offset: 0, remove_bytes_count: 9, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAAB',
+        replacement: 'BBB',
+        expected: { offset: 0, remove_bytes_count: 9, replacement: 'BB' },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'B',
+        expected: { offset: 1, remove_bytes_count: 9, replacement: '' },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BB',
+        expected: { offset: 1, remove_bytes_count: 9, replacement: 'B' },
+      },
+      {
+        original: 'BAAAAAAAAA',
+        replacement: 'BBB',
+        expected: { offset: 1, remove_bytes_count: 9, replacement: 'BB' },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'AAAAAAAAAA',
+        expected: { offset: 9, remove_bytes_count: 0, replacement: 'A' },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'AAAAAAAAAB',
+        expected: { offset: 9, remove_bytes_count: 0, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'BAAAAAAAAA',
+        expected: { offset: 0, remove_bytes_count: 0, replacement: 'B' },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'BAAAAAAAAAB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 9,
+          replacement: 'BAAAAAAAAAB',
+        },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: '',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 0,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: 'A',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 1,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: 'AA',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 2,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: 'AAA',
+        replacement: 'BBBBBBBBBB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 3,
+          replacement: 'BBBBBBBBBB',
+        },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'BBBBBBBBBA',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 8,
+          replacement: 'BBBBBBBBB',
+        },
+      },
+      {
+        original: 'AAAAAAAAA',
+        replacement: 'BBBBBBBBAB',
+        expected: {
+          offset: 0,
+          remove_bytes_count: 9,
+          replacement: 'BBBBBBBBAB',
+        },
+      },
+    ]
+
+    for (let i = 0; i < replacement_usecases.length; ++i) {
+      let c = replacement_usecases[i]
+      const expected =
+        c.expected == null
+          ? null
+          : {
+              offset: c.expected.offset,
+              remove_bytes_count: c.expected.remove_bytes_count,
+              replacement: Buffer.from(c.expected.replacement),
+            }
+      const result = replaceOptimizer(
+        0,
+        Buffer.from(c.original),
+        Buffer.from(c.replacement)
+      )
+      expect(
+        result,
+        `case ${i}: ${JSON.stringify(expected)} -> ${JSON.stringify(result)}`
+      ).deep.equals(expected)
+    }
   })
 
   it('Should iteratively replace patterns in a range', async () => {
@@ -341,7 +629,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([0])
-    await replace(session_id, 0, pattern_bytes.length, replace_bytes)
+    await replaceOptimized(session_id, 0, pattern_bytes, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(
@@ -358,7 +646,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([9])
-    await replace(session_id, 9, pattern_bytes.length, replace_bytes)
+    await replaceOptimized(session_id, 9, pattern_bytes, replace_bytes)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
@@ -383,7 +671,12 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([10])
-    await replace(session_id, 10, pattern_chars.length, replace_chars)
+    await replaceOptimized(
+      session_id,
+      10,
+      Buffer.from(pattern_chars),
+      Buffer.from(replace_chars)
+    )
     pattern_chars = 'needles'
     replace_chars = 'hay'
     needles = await searchSession(
@@ -395,7 +688,12 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([14, 28])
-    await replace(session_id, 28, pattern_chars.length, replace_chars)
+    await replaceOptimized(
+      session_id,
+      28,
+      Buffer.from(pattern_chars),
+      Buffer.from(replace_chars)
+    )
     const file_size = await getComputedFileSize(session_id)
     const segment = await getSegment(session_id, 0, file_size)
     expect(segment.length).to.equal(file_size)
