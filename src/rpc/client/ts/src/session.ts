@@ -27,7 +27,7 @@ import {
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './settings'
-import { replaceOptimized } from './change'
+import { edit, IEditStats } from './change'
 
 /**
  * Create a file editing session from a file path
@@ -336,6 +336,7 @@ export function searchSession(
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
+ * @param stats optional edit stats to update
  * @return number of replacements done
  * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
  * resuming all viewport events with resumeViewportEvents after calling this function.  Since viewport events were
@@ -349,7 +350,8 @@ export async function replaceSession(
   is_case_insensitive: boolean | undefined,
   offset: number | undefined,
   length: number | undefined,
-  limit: number | undefined
+  limit: number | undefined,
+  stats?: IEditStats
 ): Promise<number> {
   const foundLocations = await searchSession(
     session_id,
@@ -365,11 +367,12 @@ export async function replaceSession(
     typeof replacement == 'string' ? Buffer.from(replacement) : replacement
   // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
   for (let i = foundLocations.length - 1; i >= 0; --i) {
-    await replaceOptimized(
+    await edit(
       session_id,
       foundLocations[i],
       patternArray,
-      replacementArray
+      replacementArray,
+      stats
     )
   }
   return foundLocations.length
@@ -408,12 +411,7 @@ export async function replaceOneSession(
     1
   )
   if (foundLocations.length > 0) {
-    await replaceOptimized(
-      session_id,
-      foundLocations[0],
-      patternArray,
-      replacementArray
-    )
+    await edit(session_id, foundLocations[0], patternArray, replacementArray)
     // the next iteration offset should be at the end of this replacement
     return [true, foundLocations[0] + replacementArray.length]
   }

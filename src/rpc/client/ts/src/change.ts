@@ -28,17 +28,71 @@ import {
 import { getClient } from './settings'
 
 /**
+ * IEditStats is an interface to keep track of the number of different kinds of edits
+ */
+export interface IEditStats {
+  delete_count: number //number of deletes
+  insert_count: number //number of inserts
+  overwrite_count: number //number of overwrites
+  undo_count: number //number of undos
+  redo_count: number //number of redos
+  clear_count: number //number of clears
+  error_count: number //number of errors
+}
+
+/**
+ * EditStats is a simple class to keep track of the number of different kinds of edits
+ */
+export class EditStats implements IEditStats {
+  delete_count: number //number of deletes
+  insert_count: number //number of inserts
+  overwrite_count: number //number of overwrites
+  undo_count: number //number of undos
+  redo_count: number //number of redos
+  clear_count: number //number of clears
+  error_count: number //number of errors
+
+  /**
+   * Create a new EditStats object
+   */
+  constructor() {
+    this.delete_count = 0
+    this.insert_count = 0
+    this.overwrite_count = 0
+    this.undo_count = 0
+    this.redo_count = 0
+    this.clear_count = 0
+    this.error_count = 0
+  }
+
+  /**
+   * Reset all the counters to zero
+   */
+  reset(): void {
+    this.delete_count = 0
+    this.insert_count = 0
+    this.overwrite_count = 0
+    this.undo_count = 0
+    this.redo_count = 0
+    this.clear_count = 0
+    this.error_count = 0
+  }
+}
+
+/**
  * Delete a number of bytes at the given offset
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param len number of bytes to delete
+ * @param stats optional edit stats to update
  * @return positive change serial number
  * @remarks function is named del because delete is a keyword
  */
 export function del(
   session_id: string,
   offset: number,
-  len: number
+  len: number,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -47,11 +101,20 @@ export function del(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('del failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('del failed'))
+      }
+      if (stats) {
+        ++stats.delete_count
       }
       return resolve(serial)
     })
@@ -63,6 +126,7 @@ export function del(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param data bytes to insert at the given offset
+ * @param stats optional edit stats to update
  * @return positive change serial number on success
  * @remarks If editing data that could have embedded nulls, do not rely on
  * setting the length to 0 and have this function compute the length using
@@ -73,7 +137,8 @@ export function del(
 export function insert(
   session_id: string,
   offset: number,
-  data: string | Uint8Array
+  data: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -82,11 +147,20 @@ export function insert(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('insert failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('insert failed'))
+      }
+      if (stats) {
+        ++stats.insert_count
       }
       return resolve(serial)
     })
@@ -98,6 +172,7 @@ export function insert(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param data new bytes to overwrite the old bytes with
+ * @param stats optional edit stats to update
  * @return positive change serial number on success, zero otherwise
  * @remarks If editing data that could have embedded nulls, do not rely on
  * setting the length to 0 and have this function compute the length using
@@ -108,7 +183,8 @@ export function insert(
 export function overwrite(
   session_id: string,
   offset: number,
-  data: string | Uint8Array
+  data: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -117,11 +193,20 @@ export function overwrite(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('overwrite failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('overwrite failed'))
+      }
+      if (stats) {
+        ++stats.overwrite_count
       }
       return resolve(serial)
     })
@@ -133,6 +218,7 @@ export function overwrite(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param remove_bytes_count number of bytes to remove
+ * @param stats optional edit stats to update
  * @param replacement replacement bytes
  * @return positive change serial number of the insert on success
  */
@@ -140,52 +226,57 @@ export function replace(
   session_id: string,
   offset: number,
   remove_bytes_count: number,
-  replacement: string | Uint8Array
+  replacement: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   // if no bytes are being removed, this is an insert
   if (remove_bytes_count === 0) {
-    return insert(session_id, offset, replacement)
+    return insert(session_id, offset, replacement, stats)
   }
   // if no bytes are being inserted, this is a delete
   else if (replacement.length === 0) {
-    return del(session_id, offset, remove_bytes_count)
+    return del(session_id, offset, remove_bytes_count, stats)
   }
   // if the number of bytes being removed is the same as the number of
   // replacement bytes, this is an overwrite
   else if (replacement.length === remove_bytes_count) {
-    return overwrite(session_id, offset, replacement)
+    return overwrite(session_id, offset, replacement, stats)
   }
   // otherwise, this is a replace (delete and insert)
   return new Promise<number>(async (resolve) => {
-    await del(session_id, offset, remove_bytes_count)
-    return resolve(await insert(session_id, offset, replacement))
+    await del(session_id, offset, remove_bytes_count, stats)
+    return resolve(await insert(session_id, offset, replacement, stats))
   })
 }
 
 /**
- * Optimizes a replacement operation by removing common prefix and suffix
+ * Optimizes edit operations by removing common prefix and suffix
  * @param offset offset of original segment
  * @param original_segment original segment
- * @param replacement_segment replacement segment
- * @returns {offset: number, remove_bytes_count: number, replacement: string} or null if no change is needed
+ * @param edited_segment replacement segment
+ * @returns [{offset: number, remove_bytes_count: number, replacement: string}] or null if no change is needed
  */
-export function replaceOptimizer(
+export function editOptimizer(
   offset: number,
   original_segment: Uint8Array,
-  replacement_segment: Uint8Array
-): {
-  offset: number
-  remove_bytes_count: number
-  replacement: Uint8Array
-} | null {
+  edited_segment: Uint8Array
+):
+  | [
+      {
+        offset: number
+        remove_bytes_count: number
+        replacement: Uint8Array
+      }
+    ]
+  | null {
   let first_difference = 0 // offset of first difference
   let last_difference = 0 // offset of last difference
 
   // find offset of first difference
   while (
     first_difference < original_segment.length &&
-    first_difference < replacement_segment.length &&
-    original_segment[first_difference] === replacement_segment[first_difference]
+    first_difference < edited_segment.length &&
+    original_segment[first_difference] === edited_segment[first_difference]
   ) {
     ++first_difference
   }
@@ -193,7 +284,7 @@ export function replaceOptimizer(
   // no change if no difference
   if (
     first_difference === original_segment.length &&
-    first_difference === replacement_segment.length
+    first_difference === edited_segment.length
   ) {
     return null
   }
@@ -201,74 +292,91 @@ export function replaceOptimizer(
   // find offset of last difference
   while (
     last_difference < original_segment.length - first_difference &&
-    last_difference < replacement_segment.length - first_difference &&
+    last_difference < edited_segment.length - first_difference &&
     original_segment[original_segment.length - 1 - last_difference] ===
-      replacement_segment[replacement_segment.length - 1 - last_difference]
+      edited_segment[edited_segment.length - 1 - last_difference]
   ) {
     ++last_difference
   }
 
-  // return optimized replacement
-  return {
-    offset: offset + first_difference,
-    // remove_bytes_count common suffix
-    remove_bytes_count:
-      original_segment.length - first_difference - last_difference,
-    // remove_bytes_count common prefix
-    replacement: replacement_segment.slice(
-      first_difference,
-      replacement_segment.length - last_difference
-    ),
-  }
+  // return optimized replacements
+  return [
+    {
+      offset: offset + first_difference,
+      // remove_bytes_count common suffix
+      remove_bytes_count:
+        original_segment.length - first_difference - last_difference,
+      // remove_bytes_count common prefix
+      replacement: edited_segment.slice(
+        first_difference,
+        edited_segment.length - last_difference
+      ),
+    },
+  ]
 }
 
 /**
- * Optimized version of replace (requires the original segment)
+ * Convenience function for doing edit operations
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param original_segment original segment
- * @param replacement_segment replacement segment
+ * @param edited_segment replacement segment
+ * @param stats optional edit stats to update
  * @return positive change serial number of the edit operation on success
  */
-export function replaceOptimized(
+export async function edit(
   session_id: string,
   offset: number,
   original_segment: Uint8Array,
-  replacement_segment: Uint8Array
+  edited_segment: Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   // optimize the replace operation
-  const optimized = replaceOptimizer(
+  const optimized_replacements = editOptimizer(
     offset,
     original_segment,
-    replacement_segment
+    edited_segment
   )
-  return optimized
-    ? // call replace with optimized parameters
-      replace(
+  let result = 0
+  if (optimized_replacements) {
+    for (let i = 0; i < optimized_replacements.length; ++i) {
+      result = await replace(
         session_id,
-        optimized.offset,
-        optimized.remove_bytes_count,
-        optimized.replacement
+        optimized_replacements[i].offset,
+        optimized_replacements[i].remove_bytes_count,
+        optimized_replacements[i].replacement,
+        stats
       )
-    : // no replacement needed
-      Promise.resolve(0)
+    }
+  }
+  return Promise.resolve(result)
 }
 
 /**
  * Undo the last change made in the given session
  * @param session_id session to undo the last change for
+ * @param stats optional edit stats to update
  * @return negative serial number of the undone change if successful
  */
-export function undo(session_id: string): Promise<number> {
+export function undo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     getClient().undoLastChange(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('undo failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('undo failed'))
+      }
+      if (stats) {
+        ++stats.undo_count
       }
       return resolve(serial)
     })
@@ -278,18 +386,28 @@ export function undo(session_id: string): Promise<number> {
 /**
  * Redoes the last undo (if available)
  * @param session_id session to redo the last undo for
+ * @param stats optional edit stats to update
  * @return positive serial number of the redone change if successful
  */
-export function redo(session_id: string): Promise<number> {
+export function redo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     getClient().redoLastUndo(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('redo failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('redo failed'))
+      }
+      if (stats) {
+        ++stats.redo_count
       }
       return resolve(serial)
     })
@@ -299,14 +417,21 @@ export function redo(session_id: string): Promise<number> {
 /**
  * Clear all active changes in the given session
  * @param session_id session to clear all changes for
+ * @param stats optional edit stats to update
  * @return cleared session ID on success
  */
-export function clear(session_id: string): Promise<string> {
+export function clear(session_id: string, stats?: IEditStats): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().clearChanges(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('clear failed: ' + err))
+      }
+      if (stats) {
+        ++stats.clear_count
       }
       return resolve(r.getId())
     })
