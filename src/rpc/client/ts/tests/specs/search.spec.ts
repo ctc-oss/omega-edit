@@ -19,13 +19,24 @@
 
 import { expect } from 'chai'
 import {
-  getComputedFileSize,
-  getSegment,
-  replaceOneSession,
-  replaceSession,
-  searchSession,
+    beginSessionTransaction, endSessionTransaction,
+    getComputedFileSize,
+    getSegment,
+    replaceOneSession,
+    replaceSession,
+    searchSession,
 } from '../../src/session'
-import { clear, getChangeCount, overwrite, replace } from '../../src/change'
+import {
+    clear,
+    getChangeCount,
+    getChangeTransactionCount,
+    getUndoCount,
+    getUndoTransactionCount,
+    overwrite,
+    replace,
+    redo,
+    undo
+} from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
 import { cleanup, custom_setup } from './common'
@@ -270,6 +281,9 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here Item there ItemItem everywhere'))
+    expect(await getChangeCount(session_id)).to.equal(9)
+    expect(await getChangeTransactionCount(session_id)).to.equal(9)
+    expect(await beginSessionTransaction(session_id)).to.equal(session_id)
     expect(
       await replaceSession(
         session_id,
@@ -281,6 +295,17 @@ describe('Searching', () => {
         0
       )
     ).to.equal(3)
+    expect(await endSessionTransaction(session_id)).to.equal(session_id)
+    expect(await getChangeCount(session_id)).to.equal(15)
+    expect(await getChangeTransactionCount(session_id)).to.equal(10)
+    expect(await undo(session_id)).to.be.a('number').that.equals(-10)
+    expect(await getChangeTransactionCount(session_id)).to.equal(9)
+    expect(await getUndoTransactionCount(session_id)).to.equal(1)
+    expect(await getUndoCount(session_id)).to.equal(6)
+    expect(await getChangeCount(session_id)).to.equal(9)
+    expect(await redo(session_id)).to.be.a('number').that.equals(15)
+    expect(await getChangeCount(session_id)).to.equal(15)
+    expect(await getChangeTransactionCount(session_id)).to.equal(10)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here needle there needleneedle everywhere'))

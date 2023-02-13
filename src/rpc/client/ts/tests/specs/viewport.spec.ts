@@ -20,7 +20,11 @@
 import { expect } from 'chai'
 import { ALL_EVENTS, getClient } from '../../src/settings'
 import { del, getChangeCount, insert, overwrite } from '../../src/change'
-import {getComputedFileSize, getSegment, notifyChangedViewports} from '../../src/session'
+import {
+  getComputedFileSize,
+  getSegment,
+  notifyChangedViewports,
+} from '../../src/session'
 import {
   createViewport,
   destroyViewport,

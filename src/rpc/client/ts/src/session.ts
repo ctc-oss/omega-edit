@@ -145,6 +145,36 @@ export function pauseSessionChanges(session_id: string): Promise<string> {
   })
 }
 
+export function beginSessionTransaction(session_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    getClient().sessionBeginTransaction(
+      new ObjectId().setId(session_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('beginSessionTransaction error: ' + err.message)
+        }
+        return resolve(r.getId())
+      }
+    )
+  })
+}
+
+export function endSessionTransaction(session_id: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    getClient().sessionEndTransaction(
+      new ObjectId().setId(session_id),
+      (err, r) => {
+        if (err) {
+          console.log(err.message)
+          return reject('endSessionTransaction error: ' + err.message)
+        }
+        return resolve(r.getId())
+      }
+    )
+  })
+}
+
 /**
  * Resume data changes on the previously paused session
  * @param session_id session to resume changes on

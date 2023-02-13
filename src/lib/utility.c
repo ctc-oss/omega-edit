@@ -32,8 +32,8 @@
 #else
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #ifndef O_BINARY
 #define O_BINARY (0)
 #endif
@@ -99,7 +99,7 @@ int omega_util_mkstemp(char *tmpl) {
     return -1;
 }
 
-static inline int omega_util_utime_(const char * file_name) {
+static inline int omega_util_utime_(const char *file_name) {
 #ifdef OMEGA_BUILD_WINDOWS
     if (utime(file_name, NULL)) {
         DBG(perror("omega_util_utime_"););

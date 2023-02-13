@@ -33,6 +33,8 @@ service Editor {
   rpc ResumeSessionChanges(ObjectId) returns (ObjectId);
   rpc PauseViewportEvents(ObjectId) returns (ObjectId);
   rpc ResumeViewportEvents(ObjectId) returns (ObjectId);
+  rpc SessionBeginTransaction(ObjectId) returns (ObjectId);
+  rpc SessionEndTransaction(ObjectId) returns (ObjectId);
   rpc NotifyChangedViewports(ObjectId) returns (IntResponse);
   rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
   rpc ViewportHasChanges(ObjectId) returns (BooleanResponse);
@@ -101,6 +103,8 @@ enum CountKind {
   COUNT_VIEWPORTS = 4;
   COUNT_CHECKPOINTS = 5;
   COUNT_SEARCH_CONTEXTS = 6;
+  COUNT_CHANGE_TRANSACTIONS = 7;
+  COUNT_UNDO_TRANSACTIONS = 8;
 }
 
 message CountRequest {

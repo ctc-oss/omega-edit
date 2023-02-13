@@ -60,6 +60,13 @@ OMEGA_EDIT_EXPORT int64_t omega_change_get_serial(const omega_change_t *change_p
 OMEGA_EDIT_EXPORT char omega_change_get_kind_as_char(const omega_change_t *change_ptr);
 
 /**
+ * Given a change, return the transaction bit (0 or 1)
+ * @param change_ptr change to get the transaction bit from
+ * @return transaction bit (0 or 1)
+ */
+OMEGA_EDIT_EXPORT int omega_change_get_transaction_bit(const omega_change_t *change_ptr);
+
+/**
  * Given a change, return a pointer to the byte data
  * @param change_ptr change to get the bytes data from
  * @return pointer to the byte data

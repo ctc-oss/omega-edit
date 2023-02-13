@@ -344,6 +344,14 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
           .map(_.count)
 
+        getNumChangeTransactions <- service
+            .getCount(CountRequest(sid, CountKind.COUNT_CHANGE_TRANSACTIONS))
+            .map(_.count)
+
+        getNumUndoTransactions <- service
+            .getCount(CountRequest(sid, CountKind.COUNT_UNDO_TRANSACTIONS))
+            .map(_.count)
+
         // to ensure first saved file not overwritten
         contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
         contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
@@ -353,6 +361,8 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         contents2 shouldBe testString2
         getBeforeChangeCount should not be 0
         getAfterChangeCount should be(0)
+        getNumChangeTransactions should be(0)
+        getNumUndoTransactions should be(0)
       }
     }
 

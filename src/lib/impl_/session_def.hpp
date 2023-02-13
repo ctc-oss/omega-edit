@@ -28,6 +28,12 @@ using omega_search_contexts_t = std::vector<omega_search_context_ptr_t>;
 using omega_viewport_ptr_t = std::shared_ptr<omega_viewport_t>;
 using omega_viewports_t = std::vector<omega_viewport_ptr_t>;
 
+
+#define SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS ((uint8_t) (1))
+#define SESSION_FLAGS_SESSION_CHANGES_PAUSED ((uint8_t) (1 << 1))
+#define SESSION_FLAGS_SESSION_TRANSACTION_OPENED ((uint8_t) (1 << 2))
+#define SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS ((uint8_t) (1 << 3))
+
 struct omega_session_struct {
     omega_session_event_cbk_t event_handler{}; ///< User callback when the session changes
     void *user_data_ptr{};                     ///< Pointer to associated user-provided data
@@ -38,5 +44,7 @@ struct omega_session_struct {
     int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
     int8_t session_flags_{};                   ///< Internal state flags
 };
+
+bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr);
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

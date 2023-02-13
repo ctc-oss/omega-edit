@@ -40,7 +40,7 @@ static void initialize_model_segments_(omega_model_segments_t &model_segments, i
         // Model begins with a single READ segment spanning the original file
         auto change_ptr = std::make_shared<omega_change_t>();
         change_ptr->serial = 0;
-        change_ptr->kind = change_kind_t::CHANGE_INSERT;
+        change_ptr->kind = (uint8_t) (change_kind_t::CHANGE_INSERT);
         change_ptr->offset = 0;
         change_ptr->length = length;
         auto read_segment_ptr = std::make_unique<omega_model_segment_t>();
@@ -52,20 +52,21 @@ static void initialize_model_segments_(omega_model_segments_t &model_segments, i
     }
 }
 
-static inline const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length) {
+static inline const_omega_change_ptr_t del_(int64_t serial, int64_t offset, int64_t length, bool transaction_bit) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
-    change_ptr->kind = change_kind_t::CHANGE_DELETE;
+    change_ptr->kind = (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_DELETE;
     change_ptr->offset = offset;
     change_ptr->length = length;
     change_ptr->data.bytes_ptr = nullptr;
     return change_ptr;
 }
 
-static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
+static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
+                                            bool transaction_bit) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
-    change_ptr->kind = change_kind_t::CHANGE_INSERT;
+    change_ptr->kind = (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_INSERT;
     change_ptr->offset = offset;
     change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
@@ -78,13 +79,15 @@ static inline const_omega_change_ptr_t ins_(int64_t serial, int64_t offset, cons
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
     }
-    return change_ptr;
+    return std::move(change_ptr);
 }
 
-static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length) {
+static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
+                                            bool transaction_bit) {
     auto change_ptr = std::make_shared<omega_change_t>();
     change_ptr->serial = serial;
-    change_ptr->kind = change_kind_t::CHANGE_OVERWRITE;
+    change_ptr->kind =
+            (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_OVERWRITE;
     change_ptr->offset = offset;
     change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
     if (change_ptr->length < 8) {
@@ -97,7 +100,7 @@ static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, cons
         memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
         change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
     }
-    return change_ptr;
+    return std::move(change_ptr);
 }
 
 static inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
@@ -106,9 +109,9 @@ static inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport
     // If the viewport is floating and a change happens before or at the start of the given viewport...
     if (omega_viewport_is_floating(viewport_ptr) && change_ptr->offset <= omega_viewport_get_offset(viewport_ptr)) {
         // ...and the change is a delete, or insert, update the offset adjustment accordingly
-        if (change_kind_t::CHANGE_DELETE == change_ptr->kind) {
+        if (change_kind_t::CHANGE_DELETE == omega_change_get_kind(change_ptr)) {
             viewport_ptr->data_segment.offset_adjustment -= change_ptr->length;
-        } else if (change_kind_t::CHANGE_INSERT == change_ptr->kind) {
+        } else if (change_kind_t::CHANGE_INSERT == omega_change_get_kind(change_ptr)) {
             viewport_ptr->data_segment.offset_adjustment += change_ptr->length;
         }
     }
@@ -116,7 +119,7 @@ static inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport
 
 static inline bool change_affects_viewport_(const omega_viewport_t *viewport_ptr, const omega_change_t *change_ptr) {
     assert(0 < change_ptr->length);
-    switch (change_ptr->kind) {
+    switch (omega_change_get_kind(change_ptr)) {
         case change_kind_t::CHANGE_DELETE:// deliberate fall-through
         case change_kind_t::CHANGE_INSERT:
             // INSERT and DELETE changes that happen before the viewport end offset affect the viewport
@@ -156,7 +159,7 @@ static inline omega_model_segment_ptr_t clone_model_segment_(const omega_model_s
 
 static inline void free_model_changes_(omega_model_struct *model_ptr) {
     for (const auto &change_ptr : model_ptr->changes) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+        if (omega_change_get_kind(change_ptr.get()) != change_kind_t::CHANGE_DELETE) {
             omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
@@ -165,7 +168,7 @@ static inline void free_model_changes_(omega_model_struct *model_ptr) {
 
 static inline void free_model_changes_undone_(omega_model_struct *model_ptr) {
     for (const auto &change_ptr : model_ptr->changes_undone) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+        if (omega_change_get_kind(change_ptr.get()) != change_kind_t::CHANGE_DELETE) {
             omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
         }
     }
@@ -190,7 +193,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const const_omega_chan
     int64_t read_offset = 0;
 
     if (model_ptr->model_segments.empty()) {
-        if (change_ptr->kind != change_kind_t::CHANGE_DELETE) {
+        if (omega_change_get_kind(change_ptr.get()) != change_kind_t::CHANGE_DELETE) {
             // The model is empty, and we have a change with content
             auto insert_segment_ptr = std::make_unique<omega_model_segment_t>();
             insert_segment_ptr->computed_offset = change_ptr->offset;
@@ -227,7 +230,7 @@ static int update_model_helper_(omega_model_t *model_ptr, const const_omega_chan
                     iter = model_ptr->model_segments.insert(iter + 1, std::move(split_segment_ptr));
                 }
             }
-            switch (change_ptr->kind) {
+            switch (omega_change_get_kind(change_ptr.get())) {
                 case change_kind_t::CHANGE_DELETE: {
                     auto delete_length = change_ptr->length;
                     while (delete_length && iter != model_ptr->model_segments.end()) {
@@ -274,10 +277,12 @@ static int update_model_helper_(omega_model_t *model_ptr, const const_omega_chan
     return -1;
 }
 
-static int update_model_(omega_model_t *model_ptr, const const_omega_change_ptr_t &change_ptr) {
-    if (change_ptr->kind == change_kind_t::CHANGE_OVERWRITE) {
+static int update_model_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) {
+    omega_model_t *model_ptr = session_ptr->models_.back().get();
+    if (omega_change_get_kind(change_ptr.get()) == change_kind_t::CHANGE_OVERWRITE) {
         // Overwrite will model just like a DELETE, followed by an INSERT
-        const_omega_change_ptr_t const_change_ptr = del_(0, change_ptr->offset, change_ptr->length);
+        const_omega_change_ptr_t const_change_ptr =
+                del_(0, change_ptr->offset, change_ptr->length, !omega_session_get_transaction_bit_(session_ptr));
         auto rc = update_model_helper_(model_ptr, const_change_ptr);
         if (0 != rc) { return rc; }
     }
@@ -294,7 +299,7 @@ static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t ch
             free_session_changes_undone_(session_ptr);
         }
         session_ptr->models_.back()->changes.push_back(change_ptr);
-        if (0 != update_model_(session_ptr->models_.back().get(), change_ptr)) { return -1; }
+        if (0 != update_model_(session_ptr, change_ptr)) { return -1; }
         update_viewports_(session_ptr, change_ptr.get());
         omega_session_notify(session_ptr, SESSION_EVT_EDIT, change_ptr.get());
         return omega_change_get_serial(change_ptr.get());
@@ -386,11 +391,32 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
     }
 }
 
+inline bool determine_change_transaction_bit_(omega_session_t *session_ptr) {
+    switch (omega_session_get_transaction_state(session_ptr)) {
+        case 0:
+            // No transaction in progress, use the flipped previous change transaction bit
+            return !omega_session_get_transaction_bit_(session_ptr);
+        case 1:
+            // This is the first change in a transaction, use the flipped previous change transaction bit and set the
+            // transaction in progress flag
+            session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS;
+            return !omega_session_get_transaction_bit_(session_ptr);
+        case 2:
+            // This is the second or later change in a transaction, use the previous change transaction bit
+            return omega_session_get_transaction_bit_(session_ptr);
+        default:
+            // This should never happen
+            assert(0);
+            return false;
+    }
+}
+
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     return !omega_session_changes_paused(session_ptr) && 0 < length && offset < computed_file_size
                    ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
-                                               std::min(length, computed_file_size - offset)))
+                                               std::min(length, computed_file_size - offset),
+                                               determine_change_transaction_bit_(session_ptr)))
                    : 0;
 }
 
@@ -398,7 +424,8 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
                                 int64_t length) {
     return !omega_session_changes_paused(session_ptr) && 0 <= length &&
                            offset <= omega_session_get_computed_file_size(session_ptr)
-                   ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
+                   ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
+                                               determine_change_transaction_bit_(session_ptr)))
                    : 0;
 }
 
@@ -410,7 +437,8 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
                                    int64_t length) {
     return !omega_session_changes_paused(session_ptr) && 0 <= length &&
                            offset <= omega_session_get_computed_file_size(session_ptr)
-                   ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length))
+                   ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
+                                               determine_change_transaction_bit_(session_ptr)))
                    : 0;
 }
 
@@ -590,7 +618,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         }
         initialize_model_segments_(session_ptr->models_.back()->model_segments, length);
         for (const auto &change : session_ptr->models_.back()->changes) {
-            if (0 > update_model_(session_ptr->models_.back().get(), change)) { return -1; }
+            if (0 > update_model_(session_ptr, change)) { return -1; }
         }
 
         // Negate the undone change's serial number to indicate that the change has been undone
@@ -600,6 +628,14 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         session_ptr->models_.back()->changes_undone.push_back(change_ptr);
         update_viewports_(session_ptr, undone_change_ptr);
         omega_session_notify(session_ptr, SESSION_EVT_UNDO, undone_change_ptr);
+
+        // If the undone change is part of a transaction, then undo the entire transaction
+        if (!session_ptr->models_.back()->changes.empty() &&
+            omega_change_get_transaction_bit_(undone_change_ptr) ==
+                    omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get())) {
+            return omega_edit_undo_last_change(session_ptr);
+        }
+
         return undone_change_ptr->serial;
     }
     return 0;
@@ -608,8 +644,15 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     int64_t rc = 0;
     if (!omega_session_changes_paused(session_ptr) && !session_ptr->models_.back()->changes_undone.empty()) {
-        rc = update_(session_ptr, session_ptr->models_.back()->changes_undone.back());
+        const auto change_ptr = session_ptr->models_.back()->changes_undone.back();
+        rc = update_(session_ptr, change_ptr);
         session_ptr->models_.back()->changes_undone.pop_back();
+        // If the redone change is part of a transaction, then redo the entire transaction
+        if (!session_ptr->models_.back()->changes_undone.empty() &&
+            omega_change_get_transaction_bit_(change_ptr.get()) ==
+                    omega_change_get_transaction_bit_(session_ptr->models_.back()->changes_undone.back().get())) {
+            rc = omega_edit_redo_last_undo(session_ptr);
+        }
     }
     return rc;
 }
