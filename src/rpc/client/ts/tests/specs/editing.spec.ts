@@ -25,11 +25,14 @@ import {
 } from '../../src/session'
 import {
   del,
+  EditOperation,
   editOperations,
+  EditOperationType,
   EditStats,
   getLastChange,
   insert,
   overwrite,
+  removeCommonSuffix,
 } from '../../src/change'
 import {
   ChangeKind,
@@ -98,7 +101,7 @@ describe('Editing', () => {
   describe('Insert', () => {
     it('Should insert a string', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const data = encode('abcghijklmnopqrstuvwxyz')
+      const data: Uint8Array = encode('abcghijklmnopqrstuvwxyz')
       // Subscribe to all events but edit events
       const subscribed_session_id = await subscribeSession(
         session_id,
@@ -135,7 +138,7 @@ describe('Editing', () => {
   describe('Delete', () => {
     it('Should delete some data', async () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
-      const data = encode('abcdefghijklmnopqrstuvwxyz')
+      const data: Uint8Array = encode('abcdefghijklmnopqrstuvwxyz')
       await subscribeSession(session_id)
       await check_callback_count(session_callbacks, session_id, 0)
       const stats = new EditStats()
@@ -165,10 +168,10 @@ describe('Editing', () => {
   describe('Overwrite', () => {
     it('Should overwrite some data', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const data = encode('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
+      const data: Uint8Array = encode('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
       const stats = new EditStats()
-      let change_id = await insert(session_id, 0, data, stats)
-      expect(stats.insert_count).to.equal(1)
+      let change_id = await overwrite(session_id, 0, data, stats)
+      expect(stats.overwrite_count).to.equal(1)
       await subscribeSession(session_id)
       await check_callback_count(session_callbacks, session_id, 0)
       expect(change_id).to.be.a('number').that.equals(1)
@@ -179,7 +182,7 @@ describe('Editing', () => {
       let last_change = await getLastChange(session_id)
       expect(last_change.getData_asU8()).deep.equals(data)
       expect(last_change.getOffset()).to.equal(0)
-      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_INSERT)
+      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
       expect(last_change.getSerial()).to.equal(1)
       expect(last_change.getLength()).to.equal(27)
       expect(last_change.getSessionId()).to.equal(session_id)
@@ -190,7 +193,7 @@ describe('Editing', () => {
         stats
       ) // overwriting: nopqrstuvw (len: 10)
       expect(overwrite_change_id).to.be.a('number').that.equals(2)
-      expect(stats.overwrite_count).to.equal(1)
+      expect(stats.overwrite_count).to.equal(2)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).to.equal(data.length)
       last_change = await getLastChange(session_id)
@@ -203,7 +206,7 @@ describe('Editing', () => {
       await check_callback_count(session_callbacks, session_id, 1)
       overwrite_change_id = await overwrite(session_id, 15, 'PQRSTU', stats) // overwriting: 123456 (len: 6), using a string
       expect(overwrite_change_id).to.be.a('number').that.equals(3)
-      expect(stats.overwrite_count).to.equal(2)
+      expect(stats.overwrite_count).to.equal(3)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
       segment = await getSegment(session_id, 0, file_size)
@@ -222,7 +225,7 @@ describe('Editing', () => {
       await subscribeSession(session_id)
       change_id = await insert(session_id, 25, 'z', stats)
       expect(change_id).to.equal(5)
-      expect(stats.insert_count).to.equal(2)
+      expect(stats.insert_count).to.equal(1)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length - 1)
       segment = await getSegment(session_id, 0, file_size)
@@ -233,54 +236,190 @@ describe('Editing', () => {
   })
 })
 
-describe('editOperations function', function () {
-  it('should return an empty array for identical arrays', function () {
-    const arr = new Uint8Array([1, 2, 3, 4, 5])
-    const ops = editOperations(arr, arr)
-    expect(ops).to.deep.equal([])
+describe('Remove Common Suffix', function () {
+  it('should return the same arrays if there is no common suffix', () => {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([6, 7, 8, 9, 10])
+    const expected = [
+      new Uint8Array([1, 2, 3, 4, 5]),
+      new Uint8Array([6, 7, 8, 9, 10]),
+    ]
+    const actual = removeCommonSuffix(arr1, arr2)
+    expect(actual).to.deep.equal(expected)
   })
 
-  it('should return a delete operation for a shorter array', function () {
+  it('should return the same arrays if either one is empty', () => {
     const arr1 = new Uint8Array([1, 2, 3, 4, 5])
-    const arr2 = new Uint8Array([1, 2, 3])
-    const ops = editOperations(arr1, arr2)
-    expect(ops).to.deep.equal([{ type: 'delete', start: 3, length: 2 }])
+    const arr2 = new Uint8Array([])
+    const expected = [new Uint8Array([1, 2, 3, 4, 5]), new Uint8Array([])]
+    const actual = removeCommonSuffix(arr1, arr2)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should remove the common suffix from both arrays', () => {
+    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
+    const arr2 = new Uint8Array([0, 1, 2, 3, 4, 5])
+    const expected = [new Uint8Array(), new Uint8Array([0])]
+    const actual = removeCommonSuffix(arr1, arr2)
+    expect(actual).to.deep.equal(expected)
+  })
+})
+
+describe('Edit Optimizer', function () {
+  it('should handle empty arrays', () => {
+    const originalSegment = new Uint8Array([])
+    const editedSegment = new Uint8Array([])
+    const expected: EditOperation[] = []
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should return an empty array for identical arrays', () => {
+    const arr = new Uint8Array([1, 2, 3, 4, 5])
+    const result = editOperations(arr, arr)
+    expect(result).to.be.an('array')
+    expect(result).to.be.empty
+  })
+
+  it('should handle inserting everything in the array', () => {
+    const originalSegment = new Uint8Array([])
+    const editedSegment = new Uint8Array([1, 2, 3])
+    const expected: EditOperation[] = [
+      {
+        type: EditOperationType.Insert,
+        start: 0,
+        data: new Uint8Array([1, 2, 3]),
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should handle inserting at the beginning of the array', () => {
+    const originalSegment = new Uint8Array([3, 4, 5])
+    const editedSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const expected: EditOperation[] = [
+      {
+        type: EditOperationType.Insert,
+        start: 0,
+        data: new Uint8Array([1, 2]),
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should handle inserting at the end of the array', () => {
+    const originalSegment = new Uint8Array([1, 2, 3])
+    const editedSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const expected: EditOperation[] = [
+      {
+        type: EditOperationType.Insert,
+        start: 3,
+        data: new Uint8Array([4, 5]),
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should handle overwriting everything in the array', () => {
+    const originalSegment = new Uint8Array([1, 2, 3])
+    const editedSegment = new Uint8Array([4, 5, 6])
+    const expected: EditOperation[] = [
+      {
+        type: EditOperationType.Overwrite,
+        start: 0,
+        data: new Uint8Array([4, 5, 6]),
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should return a delete operation for a shorter array', () => {
+    const originalSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const editedSegment = new Uint8Array([1, 2, 3])
+    const result = editOperations(originalSegment, editedSegment)
+    expect(result).to.be.an('array')
+    expect(result).to.deep.equal([
+      { type: EditOperationType.Delete, start: 3, length: 2 },
+    ])
   })
 
   it('should return an insert operation for a longer array', function () {
-    const arr1 = new Uint8Array([1, 2, 3])
-    const arr2 = new Uint8Array([1, 2, 3, 4, 5])
-    const ops = editOperations(arr1, arr2)
+    const originalSegment = new Uint8Array([1, 2, 3])
+    const editedSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const ops = editOperations(originalSegment, editedSegment)
     expect(ops).to.deep.equal([
-      { type: 'insert', start: 3, data: new Uint8Array([4, 5]) },
+      {
+        type: EditOperationType.Insert,
+        start: 3,
+        data: new Uint8Array([4, 5]),
+      },
     ])
   })
 
-  it('should return an overwrite operation for a partially different array', function () {
-    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
-    const arr2 = new Uint8Array([1, 2, 6, 7, 5])
-    const ops = editOperations(arr1, arr2)
-    expect(ops).to.deep.equal([
-      { type: 'overwrite', start: 2, data: new Uint8Array([6, 7]) },
-    ])
+  it('should return an overwrite operation for a partially different array', () => {
+    const originalSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const editedSegment = new Uint8Array([1, 2, 6, 7, 5])
+    const expected = [
+      {
+        type: EditOperationType.Overwrite,
+        start: 2,
+        data: new Uint8Array([6, 7]),
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
   })
 
   it('should return a single overwrite operation for a fully different array', function () {
-    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
-    const arr2 = new Uint8Array([6, 7, 8, 9, 10])
-    const ops = editOperations(arr1, arr2)
+    const originalSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const editedSegment = new Uint8Array([6, 7, 8, 9, 10])
+    const ops = editOperations(originalSegment, editedSegment)
     expect(ops).to.deep.equal([
-      { type: 'overwrite', start: 0, data: new Uint8Array([6, 7, 8, 9, 10]) },
+      {
+        type: EditOperationType.Overwrite,
+        start: 0,
+        data: new Uint8Array([6, 7, 8, 9, 10]),
+      },
     ])
   })
 
-  it('should coalesce adjacent operations of the same type', function () {
-    const arr1 = new Uint8Array([1, 2, 3, 4, 5])
-    const arr2 = new Uint8Array([1, 2, 6, 7, 8, 9, 5])
-    const ops = editOperations(arr1, arr2)
-    expect(ops).to.deep.equal([
-      { type: 'delete', start: 2, length: 2 },
-      { type: 'insert', start: 2, data: new Uint8Array([6, 7, 8, 9]) },
+  it('should coalesce adjacent operations of the same type', () => {
+    const originalSegment = new Uint8Array([1, 2, 3, 4, 5])
+    const editedSegment = new Uint8Array([1, 5, 6, 7, 8, 9])
+    const expected: EditOperation[] = [
+      {
+        type: EditOperationType.Overwrite,
+        start: 1,
+        data: new Uint8Array([5, 6, 7, 8]),
+      },
+      { type: EditOperationType.Insert, start: 5, data: new Uint8Array([9]) },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
+  })
+
+  it('should return an array of operations for a large and complex diff', () => {
+    const originalSegment = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    const editedSegment = new Uint8Array([
+      1, 3, 4, 6, 8, 10, 11, 13, 15, 17, 19, 21, 23, 25, 27,
     ])
+    const expected: EditOperation[] = [
+      {
+        data: new Uint8Array([3, 4, 6, 8, 10, 11, 13, 15, 17]),
+        start: 1,
+        type: EditOperationType.Overwrite,
+      },
+      {
+        data: new Uint8Array([19, 21, 23, 25, 27]),
+        start: 10,
+        type: EditOperationType.Insert,
+      },
+    ]
+    const actual = editOperations(originalSegment, editedSegment)
+    expect(actual).to.deep.equal(expected)
   })
 })

@@ -302,11 +302,12 @@ export function editOptimizer(
   // return optimized replacements
   return [
     {
+      // original offset plus the length of the common prefix
       offset: offset + first_difference,
-      // remove_bytes_count common suffix
+      // original length minus the length of the common prefix and suffix
       remove_bytes_count:
         original_segment.length - first_difference - last_difference,
-      // remove_bytes_count common prefix
+      // edited segment without the common prefix and suffix
       replacement: edited_segment.slice(
         first_difference,
         edited_segment.length - last_difference
@@ -520,15 +521,56 @@ export function getUndoCount(session_id: string): Promise<number> {
   })
 }
 
-export function concatUint8Arrays(a: Uint8Array, b: Uint8Array): Uint8Array {
-  const result = new Uint8Array(a.length + b.length)
-  result.set(a)
-  result.set(b, a.length)
+/**
+ * Concatenate two Uint8Arrays
+ * @param arr1 first array
+ * @param arr2 second array
+ * @return concatenated array
+ */
+export function concatUint8Arrays(
+  arr1: Uint8Array,
+  arr2: Uint8Array
+): Uint8Array {
+  const result = new Uint8Array(arr1.length + arr2.length)
+  result.set(arr1)
+  result.set(arr2, arr1.length)
   return result
 }
 
+/**
+ * Remove the common suffix from two Uint8Arrays
+ * @param arr1 first array
+ * @param arr2 second array
+ * @return an array containing the two arrays with the common suffix removed
+ */
+export function removeCommonSuffix(
+  arr1: Uint8Array,
+  arr2: Uint8Array
+): [Uint8Array, Uint8Array] {
+  let i = arr1.length - 1
+  let j = arr2.length - 1
+
+  // Iterate backwards over both arrays until a non-matching index is found
+  while (i >= 0 && j >= 0 && arr1[i] === arr2[j]) {
+    i--
+    j--
+  }
+
+  // Return a subarray of edited that starts at the beginning and goes up to the non-matching index
+  return [arr1.subarray(0, i + 1), arr2.subarray(0, j + 1)]
+}
+
+/**
+ * Edit operation types
+ */
+export enum EditOperationType {
+  Delete = 'delete', // delete operation
+  Insert = 'insert', // insert operation
+  Overwrite = 'overwrite', // overwrite operation
+}
+
 export interface EditOperation {
-  type: 'delete' | 'insert' | 'overwrite' // type of operation
+  type: EditOperationType // type of edit operation
   start: number // offset in the original array where the edit starts
 
   // additional fields depending on the type of operation
@@ -538,89 +580,142 @@ export interface EditOperation {
   data?: Uint8Array // data to be inserted or used for overwriting
 }
 
+/**
+ * The algorithm used in this function is an implementation of the Levenshtein distance algorithm, also known as the
+ * edit distance algorithm.
+ *
+ * Given two input arrays originalSegment and editedSegment, the function calculates the minimum number of "edit
+ * operations" required to transform originalSegment into editedSegment, where an "edit operation" can be an insertion,
+ * deletion, or overwrite of an element in originalSegment.
+ *
+ * The algorithm does this by iterating through each element in originalSegment and editedSegment, and checking if they
+ * are the same. If they are different, the algorithm determines whether an overwrite or delete/insert operation is
+ * needed.
+ *
+ * During the iteration, if an overwrite operation is needed, and the previous operation was also an overwrite operation
+ * that can be merged with the current operation, the algorithm merges the two overwrite operations into a single one.
+ * Similarly, if two adjacent operations are of the same type (i.e. both delete or both insert), the algorithm merges
+ * them into a single operation to improve efficiency.
+ *
+ * The output of the function is an array of EditOperation objects, where each object represents an edit operation that
+ * needs to be performed on originalSegment to transform it into editedSegment.
+ *
+ * The purpose of the editOperations function is to determine the minimal, most and efficient, set of edit operations
+ * required to transform one Uint8Array into another. The function takes in two Uint8Arrays as input, and returns an
+ * array of EditOperation objects, where each EditOperation represents an insertion, deletion, or overwrite of a range
+ * of bytes in the input array. The returned set of edit operations is the smallest set possible to transform the input
+ * array into the target array.
+ * @param originalSegment original segment
+ * @param editedSegment edited segment
+ * @return array of EditOperation objects necessary to transform  the originalSegment into the editedSegment
+ */
 export function editOperations(
-  arr1: Uint8Array,
-  arr2: Uint8Array
+  originalSegment: Uint8Array,
+  editedSegment: Uint8Array
 ): EditOperation[] {
-  const n = arr1.length
-  const m = arr2.length
+  ;[originalSegment, editedSegment] = removeCommonSuffix(
+    originalSegment,
+    editedSegment
+  )
+  const len1 = originalSegment.length
+  const len2 = editedSegment.length
+  const maxLen = Math.max(len1, len2)
+  const operations: EditOperation[] = [] // the array to hold the edit operations
 
-  // Initialize the 2D matrix of edit distances
-  const distances: number[][] = []
-  for (let i = 0; i <= n; i++) {
-    distances.push(Array(m + 1).fill(0))
-  }
+  let previousOp: EditOperation | undefined // keep track of previous edit operation
 
-  for (let i = 1; i <= n; i++) {
-    distances[i][0] = i
-  }
-
-  for (let j = 1; j <= m; j++) {
-    distances[0][j] = j
-  }
-
-  // Compute the edit distances
-  for (let j = 1; j <= m; j++) {
-    for (let i = 1; i <= n; i++) {
-      const deletion = distances[i - 1][j] + 1
-      const insertion = distances[i][j - 1] + 1
-      const substitution =
-        distances[i - 1][j - 1] + (arr1[i - 1] === arr2[j - 1] ? 0 : 1)
-
-      distances[i][j] = Math.min(deletion, insertion, substitution)
+  // iterate over the arrays, comparing elements
+  for (let i = 0; i < maxLen; i++) {
+    if (i < len1 && i < len2) {
+      // if both arrays still have elements
+      if (originalSegment[i] !== editedSegment[i]) {
+        // if the elements differ
+        if (
+          previousOp &&
+          previousOp.type === EditOperationType.Overwrite &&
+          previousOp.start + previousOp.data!.length === i
+        ) {
+          // Coalesce adjacent overwrite operations
+          previousOp.data = concatUint8Arrays(
+            previousOp.data!,
+            new Uint8Array([editedSegment[i]])
+          )
+        } else {
+          // create a new overwrite operation
+          operations.push({
+            type: EditOperationType.Overwrite,
+            start: i,
+            data: new Uint8Array([editedSegment[i]]),
+          })
+          previousOp = operations[operations.length - 1]
+        }
+      }
+    } else if (i < len1) {
+      // if originalSegment still has elements
+      // create a delete operation
+      const deleteStart =
+        previousOp && previousOp.type === EditOperationType.Delete
+          ? previousOp.start
+          : i
+      operations.push({
+        type: EditOperationType.Delete,
+        start: deleteStart,
+        length: len1 - deleteStart,
+      })
+      previousOp = operations[operations.length - 1]
+      break // break the loop as we've reached the end of the arrays
+    } else {
+      // if editedSegment still has elements
+      // create an insert operation
+      operations.push({
+        type: EditOperationType.Insert,
+        start: i,
+        data: editedSegment.subarray(i),
+      })
+      previousOp = operations[operations.length - 1]
+      break // break the loop as we've reached the end of the arrays
     }
   }
 
-  // Backtrace the optimal sequence of edit operations
-  const operations: EditOperation[] = []
-  let i = n
-  let j = m
+  // Coalesce adjacent operations of the same type
+  for (let k = 0; k < operations.length - 1; k++) {
+    const op = operations[k]
+    const nextOp = operations[k + 1]
 
-  while (i > 0 || j > 0) {
-    if (i > 0 && distances[i][j] === distances[i - 1][j] + 1) {
-      if (operations.length > 0 && operations[0].type === 'delete') {
-        operations[0].start--
-        operations[0].length++
+    if (
+      op.type === nextOp.type &&
+      op.start + (op.length ?? op.data!.length) === nextOp.start
+    ) {
+      if (op.type === EditOperationType.Overwrite) {
+        // coalesce overwrite operations
+        op.data = concatUint8Arrays(op.data!, nextOp.data!)
+        op.length = undefined
       } else {
-        operations.unshift({ type: 'delete', start: i - 1, length: 1 })
+        // coalesce delete or insert operations
+        op.length =
+          (op.length ?? op.data!.length) +
+          (nextOp.length ?? nextOp.data!.length)
       }
-      i--
-    } else if (j > 0 && distances[i][j] === distances[i][j - 1] + 1) {
-      if (operations.length > 0 && operations[0].type === 'insert') {
-        operations[0].start--
-        operations[0].data = concatUint8Arrays(
-          arr2.subarray(j - 1, j),
-          operations[0].data!
-        )
-      } else {
-        operations.unshift({
-          type: 'insert',
-          start: i,
-          data: arr2.subarray(j - 1, j),
-        })
-      }
-      j--
-    } else {
-      if (arr1[i - 1] !== arr2[j - 1]) {
-        if (
-          operations.length > 0 &&
-          operations[0].type === 'overwrite' &&
-          operations[0].start === i - 1
-        ) {
-          operations[0].data = concatUint8Arrays(
-            arr2.subarray(j - 1, j),
-            operations[0].data!
-          )
-        } else {
-          operations.unshift({
-            type: 'overwrite',
-            start: i - 1,
-            data: arr2.subarray(j - 1, j),
-          })
-        }
-      }
-      i--
-      j--
+      operations.splice(k + 1, 1) // remove the next operation from the array
+      k-- // decrement k so we don't skip the next operation
+    } else if (
+      op.type === EditOperationType.Delete &&
+      nextOp.type === EditOperationType.Delete &&
+      op.start + (op.length ?? 0) === nextOp.start
+    ) {
+      // coalesce delete operations
+      op.length = (op.length ?? 0) + nextOp.length!
+      operations.splice(k + 1, 1)
+      k--
+    } else if (
+      // coalesce insert operations
+      op.type === EditOperationType.Insert &&
+      nextOp.type === EditOperationType.Insert &&
+      op.start + (op.data?.length ?? 0) === nextOp.start
+    ) {
+      op.data = concatUint8Arrays(op.data!, nextOp.data!)
+      operations.splice(k + 1, 1)
+      k--
     }
   }
 
