@@ -26,6 +26,12 @@ import {
   ObjectId,
 } from './omega_edit_pb'
 import { getClient } from './settings'
+import {
+  beginSessionTransaction,
+  endSessionTransaction,
+  notifyChangedViewports,
+} from './session'
+import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 /**
  * IEditStats is an interface to keep track of the number of different kinds of edits
@@ -244,30 +250,28 @@ export function replace(
   }
   // otherwise, this is a replace (delete and insert)
   return new Promise<number>(async (resolve) => {
+    // wrap the delete and insert in a transaction
+    await beginSessionTransaction(session_id)
     await del(session_id, offset, remove_bytes_count, stats)
-    return resolve(await insert(session_id, offset, replacement, stats))
+    const result = await insert(session_id, offset, replacement, stats)
+    await endSessionTransaction(session_id)
+    resolve(result)
   })
 }
 
 /**
  * Optimizes edit operations by removing common prefix and suffix
- * @param offset offset of original segment
  * @param original_segment original segment
  * @param edited_segment replacement segment
+ * @param offset start offset of the segments in the file
  * @returns [{offset: number, remove_bytes_count: number, replacement: string}] or null if no change is needed
  */
 export function editOptimizer(
-  offset: number,
   original_segment: Uint8Array,
-  edited_segment: Uint8Array
+  edited_segment: Uint8Array,
+  offset: number = 0
 ):
-  | [
-      {
-        offset: number
-        remove_bytes_count: number
-        replacement: Uint8Array
-      }
-    ]
+  | [{ offset: number; remove_bytes_count: number; replacement: Uint8Array }]
   | null {
   let first_difference = 0 // offset of first difference
   let last_difference = 0 // offset of last difference
@@ -317,15 +321,17 @@ export function editOptimizer(
 }
 
 /**
- * Convenience function for doing edit operations
+ * Convenience function for doing edit operations that uses a simple edit optimizer
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param original_segment original segment
  * @param edited_segment replacement segment
  * @param stats optional edit stats to update
  * @return positive change serial number of the edit operation on success
+ * @remarks Does not disable/enable viewport events, so this is suitable for bulk edit operations where events are
+ * controlled by the caller
  */
-export async function edit(
+export async function editSimple(
   session_id: string,
   offset: number,
   original_segment: Uint8Array,
@@ -334,12 +340,16 @@ export async function edit(
 ): Promise<number> {
   // optimize the replace operation
   const optimized_replacements = editOptimizer(
-    offset,
     original_segment,
-    edited_segment
+    edited_segment,
+    offset
   )
   let result = 0
   if (optimized_replacements) {
+    // if there are multiple optimized replacements, begin a transaction
+    if (1 < optimized_replacements.length) {
+      await beginSessionTransaction(session_id)
+    }
     for (let i = 0; i < optimized_replacements.length; ++i) {
       result = await replace(
         session_id,
@@ -348,6 +358,10 @@ export async function edit(
         optimized_replacements[i].replacement,
         stats
       )
+    }
+    // if there were multiple optimized replacements, end the transaction
+    if (1 < optimized_replacements.length) {
+      await endSessionTransaction(session_id)
     }
   }
   return Promise.resolve(result)
@@ -615,7 +629,7 @@ export enum EditOperationType {
 
 export interface EditOperation {
   type: EditOperationType // type of edit operation
-  start: number // offset in the original array where the edit starts
+  start: number // offset where the edit starts
 
   // additional fields depending on the type of operation
   // for delete operations, the length of bytes to be deleted is needed
@@ -651,12 +665,15 @@ export interface EditOperation {
  * array into the target array.
  * @param originalSegment original segment
  * @param editedSegment edited segment
+ * @param offset offset of the segments
  * @return array of EditOperation objects necessary to transform  the originalSegment into the editedSegment
  */
 export function editOperations(
   originalSegment: Uint8Array,
-  editedSegment: Uint8Array
+  editedSegment: Uint8Array,
+  offset: number = 0
 ): EditOperation[] {
+  // remove the common suffix from the two arrays
   ;[originalSegment, editedSegment] = removeCommonSuffix(
     originalSegment,
     editedSegment
@@ -688,7 +705,7 @@ export function editOperations(
           // create a new overwrite operation
           operations.push({
             type: EditOperationType.Overwrite,
-            start: i,
+            start: offset + i,
             data: new Uint8Array([editedSegment[i]]),
           })
           previousOp = operations[operations.length - 1]
@@ -703,7 +720,7 @@ export function editOperations(
           : i
       operations.push({
         type: EditOperationType.Delete,
-        start: deleteStart,
+        start: offset + deleteStart,
         length: len1 - deleteStart,
       })
       previousOp = operations[operations.length - 1]
@@ -713,7 +730,7 @@ export function editOperations(
       // create an insert operation
       operations.push({
         type: EditOperationType.Insert,
-        start: i,
+        start: offset + i,
         data: editedSegment.subarray(i),
       })
       previousOp = operations[operations.length - 1]
@@ -764,4 +781,73 @@ export function editOperations(
   }
 
   return operations
+}
+
+/**
+ * Edit a segment in a session, efficiently turning the original segment into the edited segment.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @param stats optional edit stats to update
+ * @return positive change serial number of the last edit operation on success
+ */
+export async function edit(
+  session_id: string,
+  offset: number,
+  original_segment: Uint8Array,
+  edited_segment: Uint8Array,
+  stats?: IEditStats
+): Promise<number> {
+  // optimize the replace operation
+  const optimized_edits = editOperations(
+    original_segment,
+    edited_segment,
+    offset
+  )
+  let result = 0
+  if (optimized_edits) {
+    // if there are multiple optimized replacements, begin a transaction
+    if (1 < optimized_edits.length) {
+      await beginSessionTransaction(session_id)
+      await pauseViewportEvents(session_id)
+    }
+    for (let i = 0; i < optimized_edits.length; ++i) {
+      switch (optimized_edits[i].type) {
+        case EditOperationType.Insert:
+          result = await insert(
+            session_id,
+            optimized_edits[i].start,
+            optimized_edits[i].data!,
+            stats
+          )
+          break
+        case EditOperationType.Delete:
+          result = await del(
+            session_id,
+            optimized_edits[i].start,
+            optimized_edits[i].length!,
+            stats
+          )
+          break
+        case EditOperationType.Overwrite:
+          result = await overwrite(
+            session_id,
+            optimized_edits[i].start,
+            optimized_edits[i].data!,
+            stats
+          )
+          break
+        default:
+          throw new Error('Unknown edit operation type')
+      }
+    }
+    // if there were multiple optimized replacements, end the transaction
+    if (1 < optimized_edits.length) {
+      await resumeViewportEvents(session_id)
+      await endSessionTransaction(session_id)
+      await notifyChangedViewports(session_id)
+    }
+  }
+  return Promise.resolve(result)
 }

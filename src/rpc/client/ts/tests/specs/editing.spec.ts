@@ -24,11 +24,15 @@ import {
   unsubscribeSession,
 } from '../../src/session'
 import {
+  clear,
   del,
+  edit,
   EditOperation,
   editOperations,
   EditOperationType,
   EditStats,
+  getChangeCount,
+  getChangeTransactionCount,
   getLastChange,
   insert,
   overwrite,
@@ -232,6 +236,96 @@ describe('Editing', () => {
       expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyz'))
       await check_callback_count(session_callbacks, session_id, 3)
       expect(stats.error_count).to.equal(0)
+    })
+  })
+
+  describe('Edit', () => {
+    it('should optimize edit operations', async () => {
+      let originalSegment = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      let editedSegment = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      const stats = new EditStats()
+      // load the original data into the session
+      let change_serial = await overwrite(session_id, 0, originalSegment, stats)
+      expect(change_serial).to.equal(1)
+      expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      ).deep.equals(originalSegment)
+      change_serial = await edit(
+        session_id,
+        0,
+        originalSegment,
+        editedSegment,
+        stats
+      )
+      expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      ).deep.equals(editedSegment)
+      expect(change_serial).to.equal(0)
+      expect(stats.clear_count).to.equal(0)
+      expect(stats.undo_count).to.equal(0)
+      expect(stats.redo_count).to.equal(0)
+      expect(stats.delete_count).to.equal(0)
+      expect(stats.insert_count).to.equal(0)
+      expect(stats.overwrite_count).to.equal(1)
+      expect(stats.error_count).to.equal(0)
+      originalSegment = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      editedSegment = new Uint8Array([1, 2, 3, 8, 9, 10])
+      expect(editOperations(originalSegment, editedSegment)).to.deep.equal([
+        { type: 'delete', start: 3, length: 4 },
+      ])
+      stats.reset()
+      change_serial = await edit(
+        session_id,
+        0,
+        originalSegment,
+        editedSegment,
+        stats
+      )
+      expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      ).deep.equals(editedSegment)
+      expect(change_serial).to.equal(2)
+      expect(stats.clear_count).to.equal(0)
+      expect(stats.undo_count).to.equal(0)
+      expect(stats.redo_count).to.equal(0)
+      expect(stats.delete_count).to.equal(1)
+      expect(stats.insert_count).to.equal(0)
+      expect(stats.overwrite_count).to.equal(0)
+      expect(stats.error_count).to.equal(0)
+      stats.reset()
+      await clear(session_id)
+      originalSegment = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+      editedSegment = new Uint8Array([2, 3, 8, 9, 10, 11, 12, 13])
+      change_serial = await overwrite(session_id, 0, originalSegment)
+      expect(change_serial).to.equal(1)
+      expect(editOperations(originalSegment, editedSegment)).to.deep.equal([
+        {
+          type: 'overwrite',
+          start: 0,
+          data: new Uint8Array([2, 3, 8, 9, 10, 11, 12, 13]),
+        },
+        { type: 'delete', start: 8, length: 2 },
+      ])
+      change_serial = await edit(
+        session_id,
+        0,
+        originalSegment,
+        editedSegment,
+        stats
+      )
+      expect(change_serial).to.equal(3)
+      expect(await getChangeCount(session_id)).to.equal(3)
+      expect(await getChangeTransactionCount(session_id)).to.equal(2)
+      expect(stats.clear_count).to.equal(0)
+      expect(stats.undo_count).to.equal(0)
+      expect(stats.redo_count).to.equal(0)
+      expect(stats.delete_count).to.equal(1)
+      expect(stats.insert_count).to.equal(0)
+      expect(stats.overwrite_count).to.equal(1)
+      expect(stats.error_count).to.equal(0)
+      expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      ).deep.equals(editedSegment)
     })
   })
 })
