@@ -28,17 +28,71 @@ import {
 import { getClient } from './settings'
 
 /**
+ * IEditStats is an interface to keep track of the number of different kinds of edits
+ */
+export interface IEditStats {
+  delete_count: number //number of deletes
+  insert_count: number //number of inserts
+  overwrite_count: number //number of overwrites
+  undo_count: number //number of undos
+  redo_count: number //number of redos
+  clear_count: number //number of clears
+  error_count: number //number of errors
+}
+
+/**
+ * EditStats is a simple class to keep track of the number of different kinds of edits
+ */
+export class EditStats implements IEditStats {
+  delete_count: number //number of deletes
+  insert_count: number //number of inserts
+  overwrite_count: number //number of overwrites
+  undo_count: number //number of undos
+  redo_count: number //number of redos
+  clear_count: number //number of clears
+  error_count: number //number of errors
+
+  /**
+   * Create a new EditStats object
+   */
+  constructor() {
+    this.delete_count = 0
+    this.insert_count = 0
+    this.overwrite_count = 0
+    this.undo_count = 0
+    this.redo_count = 0
+    this.clear_count = 0
+    this.error_count = 0
+  }
+
+  /**
+   * Reset all the counters to zero
+   */
+  reset(): void {
+    this.delete_count = 0
+    this.insert_count = 0
+    this.overwrite_count = 0
+    this.undo_count = 0
+    this.redo_count = 0
+    this.clear_count = 0
+    this.error_count = 0
+  }
+}
+
+/**
  * Delete a number of bytes at the given offset
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param len number of bytes to delete
+ * @param stats optional edit stats to update
  * @return positive change serial number
  * @remarks function is named del because delete is a keyword
  */
 export function del(
   session_id: string,
   offset: number,
-  len: number
+  len: number,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -47,11 +101,20 @@ export function del(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('del failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('del failed'))
+      }
+      if (stats) {
+        ++stats.delete_count
       }
       return resolve(serial)
     })
@@ -63,6 +126,7 @@ export function del(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param data bytes to insert at the given offset
+ * @param stats optional edit stats to update
  * @return positive change serial number on success
  * @remarks If editing data that could have embedded nulls, do not rely on
  * setting the length to 0 and have this function compute the length using
@@ -73,7 +137,8 @@ export function del(
 export function insert(
   session_id: string,
   offset: number,
-  data: string | Uint8Array
+  data: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -82,11 +147,20 @@ export function insert(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('insert failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('insert failed'))
+      }
+      if (stats) {
+        ++stats.insert_count
       }
       return resolve(serial)
     })
@@ -98,6 +172,7 @@ export function insert(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param data new bytes to overwrite the old bytes with
+ * @param stats optional edit stats to update
  * @return positive change serial number on success, zero otherwise
  * @remarks If editing data that could have embedded nulls, do not rely on
  * setting the length to 0 and have this function compute the length using
@@ -108,7 +183,8 @@ export function insert(
 export function overwrite(
   session_id: string,
   offset: number,
-  data: string | Uint8Array
+  data: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
@@ -117,11 +193,20 @@ export function overwrite(
     getClient().submitChange(request, (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('overwrite failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('overwrite failed'))
+      }
+      if (stats) {
+        ++stats.overwrite_count
       }
       return resolve(serial)
     })
@@ -133,6 +218,7 @@ export function overwrite(
  * @param session_id session to make the change in
  * @param offset location offset to make the change
  * @param remove_bytes_count number of bytes to remove
+ * @param stats optional edit stats to update
  * @param replacement replacement bytes
  * @return positive change serial number of the insert on success
  */
@@ -140,43 +226,158 @@ export function replace(
   session_id: string,
   offset: number,
   remove_bytes_count: number,
-  replacement: string | Uint8Array
+  replacement: string | Uint8Array,
+  stats?: IEditStats
 ): Promise<number> {
   // if no bytes are being removed, this is an insert
   if (remove_bytes_count === 0) {
-    return insert(session_id, offset, replacement)
+    return insert(session_id, offset, replacement, stats)
   }
   // if no bytes are being inserted, this is a delete
   else if (replacement.length === 0) {
-    return del(session_id, offset, remove_bytes_count)
+    return del(session_id, offset, remove_bytes_count, stats)
   }
   // if the number of bytes being removed is the same as the number of
   // replacement bytes, this is an overwrite
   else if (replacement.length === remove_bytes_count) {
-    return overwrite(session_id, offset, replacement)
+    return overwrite(session_id, offset, replacement, stats)
   }
   // otherwise, this is a replace (delete and insert)
   return new Promise<number>(async (resolve) => {
-    await del(session_id, offset, remove_bytes_count)
-    return resolve(await insert(session_id, offset, replacement))
+    await del(session_id, offset, remove_bytes_count, stats)
+    return resolve(await insert(session_id, offset, replacement, stats))
   })
+}
+
+/**
+ * Optimizes edit operations by removing common prefix and suffix
+ * @param offset offset of original segment
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @returns [{offset: number, remove_bytes_count: number, replacement: string}] or null if no change is needed
+ */
+export function editOptimizer(
+  offset: number,
+  original_segment: Uint8Array,
+  edited_segment: Uint8Array
+):
+  | [
+      {
+        offset: number
+        remove_bytes_count: number
+        replacement: Uint8Array
+      }
+    ]
+  | null {
+  let first_difference = 0 // offset of first difference
+  let last_difference = 0 // offset of last difference
+
+  // find offset of first difference
+  while (
+    first_difference < original_segment.length &&
+    first_difference < edited_segment.length &&
+    original_segment[first_difference] === edited_segment[first_difference]
+  ) {
+    ++first_difference
+  }
+
+  // no change if no difference
+  if (
+    first_difference === original_segment.length &&
+    first_difference === edited_segment.length
+  ) {
+    return null
+  }
+
+  // find offset of last difference
+  while (
+    last_difference < original_segment.length - first_difference &&
+    last_difference < edited_segment.length - first_difference &&
+    original_segment[original_segment.length - 1 - last_difference] ===
+      edited_segment[edited_segment.length - 1 - last_difference]
+  ) {
+    ++last_difference
+  }
+
+  // return optimized replacements
+  return [
+    {
+      // original offset plus the length of the common prefix
+      offset: offset + first_difference,
+      // original length minus the length of the common prefix and suffix
+      remove_bytes_count:
+        original_segment.length - first_difference - last_difference,
+      // edited segment without the common prefix and suffix
+      replacement: edited_segment.slice(
+        first_difference,
+        edited_segment.length - last_difference
+      ),
+    },
+  ]
+}
+
+/**
+ * Convenience function for doing edit operations
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @param stats optional edit stats to update
+ * @return positive change serial number of the edit operation on success
+ */
+export async function edit(
+  session_id: string,
+  offset: number,
+  original_segment: Uint8Array,
+  edited_segment: Uint8Array,
+  stats?: IEditStats
+): Promise<number> {
+  // optimize the replace operation
+  const optimized_replacements = editOptimizer(
+    offset,
+    original_segment,
+    edited_segment
+  )
+  let result = 0
+  if (optimized_replacements) {
+    for (let i = 0; i < optimized_replacements.length; ++i) {
+      result = await replace(
+        session_id,
+        optimized_replacements[i].offset,
+        optimized_replacements[i].remove_bytes_count,
+        optimized_replacements[i].replacement,
+        stats
+      )
+    }
+  }
+  return Promise.resolve(result)
 }
 
 /**
  * Undo the last change made in the given session
  * @param session_id session to undo the last change for
+ * @param stats optional edit stats to update
  * @return negative serial number of the undone change if successful
  */
-export function undo(session_id: string): Promise<number> {
+export function undo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     getClient().undoLastChange(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('undo failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('undo failed'))
+      }
+      if (stats) {
+        ++stats.undo_count
       }
       return resolve(serial)
     })
@@ -186,18 +387,28 @@ export function undo(session_id: string): Promise<number> {
 /**
  * Redoes the last undo (if available)
  * @param session_id session to redo the last undo for
+ * @param stats optional edit stats to update
  * @return positive serial number of the redone change if successful
  */
-export function redo(session_id: string): Promise<number> {
+export function redo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     getClient().redoLastUndo(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('redo failed: ' + err))
       }
       const serial = r.getSerial()
       if (0 === serial) {
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('redo failed'))
+      }
+      if (stats) {
+        ++stats.redo_count
       }
       return resolve(serial)
     })
@@ -207,14 +418,21 @@ export function redo(session_id: string): Promise<number> {
 /**
  * Clear all active changes in the given session
  * @param session_id session to clear all changes for
+ * @param stats optional edit stats to update
  * @return cleared session ID on success
  */
-export function clear(session_id: string): Promise<string> {
+export function clear(session_id: string, stats?: IEditStats): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getClient().clearChanges(new ObjectId().setId(session_id), (err, r) => {
       if (err) {
         console.error(err)
+        if (stats) {
+          ++stats.error_count
+        }
         return reject(new Error('clear failed: ' + err))
+      }
+      if (stats) {
+        ++stats.clear_count
       }
       return resolve(r.getId())
     })
@@ -301,4 +519,205 @@ export function getUndoCount(session_id: string): Promise<number> {
       }
     )
   })
+}
+
+/**
+ * Concatenate two Uint8Arrays
+ * @param arr1 first array
+ * @param arr2 second array
+ * @return concatenated array
+ */
+export function concatUint8Arrays(
+  arr1: Uint8Array,
+  arr2: Uint8Array
+): Uint8Array {
+  const result = new Uint8Array(arr1.length + arr2.length)
+  result.set(arr1)
+  result.set(arr2, arr1.length)
+  return result
+}
+
+/**
+ * Remove the common suffix from two Uint8Arrays
+ * @param arr1 first array
+ * @param arr2 second array
+ * @return an array containing the two arrays with the common suffix removed
+ */
+export function removeCommonSuffix(
+  arr1: Uint8Array,
+  arr2: Uint8Array
+): [Uint8Array, Uint8Array] {
+  let i = arr1.length - 1
+  let j = arr2.length - 1
+
+  // Iterate backwards over both arrays until a non-matching index is found
+  while (i >= 0 && j >= 0 && arr1[i] === arr2[j]) {
+    i--
+    j--
+  }
+
+  // Return a subarray of edited that starts at the beginning and goes up to the non-matching index
+  return [arr1.subarray(0, i + 1), arr2.subarray(0, j + 1)]
+}
+
+/**
+ * Edit operation types
+ */
+export enum EditOperationType {
+  Delete = 'delete', // delete operation
+  Insert = 'insert', // insert operation
+  Overwrite = 'overwrite', // overwrite operation
+}
+
+export interface EditOperation {
+  type: EditOperationType // type of edit operation
+  start: number // offset in the original array where the edit starts
+
+  // additional fields depending on the type of operation
+  // for delete operations, the length of bytes to be deleted is needed
+  // for insert and overwrite operations, the data to be inserted or used for overwriting is needed
+  length?: number // number of bytes to remove in the case of a delete operation
+  data?: Uint8Array // data to be inserted or used for overwriting
+}
+
+/**
+ * The algorithm used in this function is an implementation of the Levenshtein distance algorithm, also known as the
+ * edit distance algorithm.
+ *
+ * Given two input arrays originalSegment and editedSegment, the function calculates the minimum number of "edit
+ * operations" required to transform originalSegment into editedSegment, where an "edit operation" can be an insertion,
+ * deletion, or overwrite of an element in originalSegment.
+ *
+ * The algorithm does this by iterating through each element in originalSegment and editedSegment, and checking if they
+ * are the same. If they are different, the algorithm determines whether an overwrite or delete/insert operation is
+ * needed.
+ *
+ * During the iteration, if an overwrite operation is needed, and the previous operation was also an overwrite operation
+ * that can be merged with the current operation, the algorithm merges the two overwrite operations into a single one.
+ * Similarly, if two adjacent operations are of the same type (i.e. both delete or both insert), the algorithm merges
+ * them into a single operation to improve efficiency.
+ *
+ * The output of the function is an array of EditOperation objects, where each object represents an edit operation that
+ * needs to be performed on originalSegment to transform it into editedSegment.
+ *
+ * The purpose of the editOperations function is to determine the minimal, most and efficient, set of edit operations
+ * required to transform one Uint8Array into another. The function takes in two Uint8Arrays as input, and returns an
+ * array of EditOperation objects, where each EditOperation represents an insertion, deletion, or overwrite of a range
+ * of bytes in the input array. The returned set of edit operations is the smallest set possible to transform the input
+ * array into the target array.
+ * @param originalSegment original segment
+ * @param editedSegment edited segment
+ * @return array of EditOperation objects necessary to transform  the originalSegment into the editedSegment
+ */
+export function editOperations(
+  originalSegment: Uint8Array,
+  editedSegment: Uint8Array
+): EditOperation[] {
+  ;[originalSegment, editedSegment] = removeCommonSuffix(
+    originalSegment,
+    editedSegment
+  )
+  const len1 = originalSegment.length
+  const len2 = editedSegment.length
+  const maxLen = Math.max(len1, len2)
+  const operations: EditOperation[] = [] // the array to hold the edit operations
+
+  let previousOp: EditOperation | undefined // keep track of previous edit operation
+
+  // iterate over the arrays, comparing elements
+  for (let i = 0; i < maxLen; i++) {
+    if (i < len1 && i < len2) {
+      // if both arrays still have elements
+      if (originalSegment[i] !== editedSegment[i]) {
+        // if the elements differ
+        if (
+          previousOp &&
+          previousOp.type === EditOperationType.Overwrite &&
+          previousOp.start + previousOp.data!.length === i
+        ) {
+          // Coalesce adjacent overwrite operations
+          previousOp.data = concatUint8Arrays(
+            previousOp.data!,
+            new Uint8Array([editedSegment[i]])
+          )
+        } else {
+          // create a new overwrite operation
+          operations.push({
+            type: EditOperationType.Overwrite,
+            start: i,
+            data: new Uint8Array([editedSegment[i]]),
+          })
+          previousOp = operations[operations.length - 1]
+        }
+      }
+    } else if (i < len1) {
+      // if originalSegment still has elements
+      // create a delete operation
+      const deleteStart =
+        previousOp && previousOp.type === EditOperationType.Delete
+          ? previousOp.start
+          : i
+      operations.push({
+        type: EditOperationType.Delete,
+        start: deleteStart,
+        length: len1 - deleteStart,
+      })
+      previousOp = operations[operations.length - 1]
+      break // break the loop as we've reached the end of the arrays
+    } else {
+      // if editedSegment still has elements
+      // create an insert operation
+      operations.push({
+        type: EditOperationType.Insert,
+        start: i,
+        data: editedSegment.subarray(i),
+      })
+      previousOp = operations[operations.length - 1]
+      break // break the loop as we've reached the end of the arrays
+    }
+  }
+
+  // Coalesce adjacent operations of the same type
+  for (let k = 0; k < operations.length - 1; k++) {
+    const op = operations[k]
+    const nextOp = operations[k + 1]
+
+    if (
+      op.type === nextOp.type &&
+      op.start + (op.length ?? op.data!.length) === nextOp.start
+    ) {
+      if (op.type === EditOperationType.Overwrite) {
+        // coalesce overwrite operations
+        op.data = concatUint8Arrays(op.data!, nextOp.data!)
+        op.length = undefined
+      } else {
+        // coalesce delete or insert operations
+        op.length =
+          (op.length ?? op.data!.length) +
+          (nextOp.length ?? nextOp.data!.length)
+      }
+      operations.splice(k + 1, 1) // remove the next operation from the array
+      k-- // decrement k so we don't skip the next operation
+    } else if (
+      op.type === EditOperationType.Delete &&
+      nextOp.type === EditOperationType.Delete &&
+      op.start + (op.length ?? 0) === nextOp.start
+    ) {
+      // coalesce delete operations
+      op.length = (op.length ?? 0) + nextOp.length!
+      operations.splice(k + 1, 1)
+      k--
+    } else if (
+      // coalesce insert operations
+      op.type === EditOperationType.Insert &&
+      nextOp.type === EditOperationType.Insert &&
+      op.start + (op.data?.length ?? 0) === nextOp.start
+    ) {
+      op.data = concatUint8Arrays(op.data!, nextOp.data!)
+      operations.splice(k + 1, 1)
+      k--
+    }
+  }
+
+  return operations
 }
