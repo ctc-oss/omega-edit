@@ -175,6 +175,20 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
+<span class="target" id="change_8h_1a560c8f04ac21c5d3ed4ab8d3f6f86309"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_change_get_transaction_bit</span> <span class="pre">(const</span> <span class="pre">omega_change_t</span> <span class="pre">*change_ptr)</span></span></dt>
+<dd><p>Given a change, return the transaction bit (0 or 1) </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>change_ptr</strong> – change to get the transaction bit from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>transaction bit (0 or 1) </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
 <span class="target" id="change_8h_1a2acb131aedc0b98561c9e36fca1724b2"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*</span> <span class="pre">omega_change_get_bytes</span> <span class="pre">(const</span> <span class="pre">omega_change_t</span> <span class="pre">*change_ptr)</span></span></dt>
 <dd><p>Given a change, return a pointer to the byte data </p>
 <dl class="field-list simple">
@@ -1495,6 +1509,76 @@
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>session_ptr</strong> – session to resume changes to </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a7e724b91a93a5dadeaffe8f2f7661819"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_begin_transaction</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, begin a transaction </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to begin a transaction on </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a7e4c89bebef48b1ec93f8298765db89d"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_end_transaction</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, end a transaction </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to end a transaction on </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1adad7f71413479276a010e29e249934fe"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_get_transaction_state</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the current transaction state </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the transaction state for </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 for no transaction, 1 for transaction is opened, and 2 for transaction in progress, and -1 on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1ae06b53f39a6ca5d57fca5c9d63ba83ae"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_session_get_num_change_transactions</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the current number of session change transactions </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of session change transactions for </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>number of session change transactions </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1add61971ef093bca4524c1b21c8e2273b"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_session_get_num_undone_change_transactions</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the current number of session undone change transactions </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the number of session undone change transactions for </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>number of session undone change transactions </p>
 </dd>
 </dl>
 </dd></dl>
