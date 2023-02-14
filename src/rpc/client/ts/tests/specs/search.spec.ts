@@ -472,9 +472,9 @@ describe('Searching', () => {
     // run all test cases
     for (let i = 0; i < optimizer_usecases.length; ++i) {
       const result = editOptimizer(
-        0,
         optimizer_usecases[i].original,
-        optimizer_usecases[i].replacement
+        optimizer_usecases[i].replacement,
+        0
       )
       expect(
         result,
@@ -665,7 +665,7 @@ describe('Searching', () => {
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here Item there ItemItem everywhere'))
     expect(await getChangeCount(session_id)).to.equal(9)
-    expect(await getChangeTransactionCount(session_id)).to.equal(9)
+    expect(await getChangeTransactionCount(session_id)).to.equal(5)
     expect(await beginSessionTransaction(session_id)).to.equal(session_id)
     stats.reset()
     expect(
@@ -682,19 +682,19 @@ describe('Searching', () => {
     ).to.equal(3)
     expect(await endSessionTransaction(session_id)).to.equal(session_id)
     expect(await getChangeCount(session_id)).to.equal(15)
-    expect(await getChangeTransactionCount(session_id)).to.equal(10)
+    expect(await getChangeTransactionCount(session_id)).to.equal(8)
     expect(await undo(session_id))
       .to.be.a('number')
-      .that.equals(-10)
-    expect(await getChangeTransactionCount(session_id)).to.equal(9)
+      .that.equals(-14)
+    expect(await getChangeTransactionCount(session_id)).to.equal(7)
     expect(await getUndoTransactionCount(session_id)).to.equal(1)
-    expect(await getUndoCount(session_id)).to.equal(6)
-    expect(await getChangeCount(session_id)).to.equal(9)
+    expect(await getUndoCount(session_id)).to.equal(2)
+    expect(await getChangeCount(session_id)).to.equal(13)
     expect(await redo(session_id))
       .to.be.a('number')
       .that.equals(15)
     expect(await getChangeCount(session_id)).to.equal(15)
-    expect(await getChangeTransactionCount(session_id)).to.equal(10)
+    expect(await getChangeTransactionCount(session_id)).to.equal(8)
     // expect 3 deletes and 3 inserts
     expect(stats.delete_count).to.equal(3)
     expect(stats.insert_count).to.equal(3)
@@ -775,9 +775,9 @@ describe('Searching', () => {
     stats.reset()
     await edit(session_id, 0, pattern_bytes, replace_bytes, stats)
     // this edit will do an insert and a delete
-    expect(stats.delete_count).to.equal(1)
+    expect(stats.delete_count).to.equal(0)
     expect(stats.insert_count).to.equal(1)
-    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
     expect(stats.error_count).to.equal(0)
 
     file_size = await getComputedFileSize(session_id)
@@ -800,8 +800,8 @@ describe('Searching', () => {
     await edit(session_id, 9, pattern_bytes, replace_bytes, stats)
     // this edit will do an insert and a delete
     expect(stats.delete_count).to.equal(1)
-    expect(stats.insert_count).to.equal(1)
-    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.insert_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
     expect(stats.error_count).to.equal(0)
 
     file_size = await getComputedFileSize(session_id)
