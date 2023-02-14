@@ -82,6 +82,8 @@ object Session {
   case object GetNumCheckpoints extends Op
   case object GetNumChanges extends Op
   case object GetNumUndos extends Op
+  case object GetNumChangeTransactions extends Op
+  case object GetNumUndoTransactions extends Op
   case object GetNumViewports extends Op
   case object GetNumSearchContexts extends Op
 
@@ -108,6 +110,8 @@ object Session {
 
   case class PauseViewportEvents() extends Op
   case class ResumeViewportEvents() extends Op
+  case class BeginTransaction() extends Op
+  case class EndTransaction() extends Op
   case object NotifyChangedViewports extends Op
 
   trait Serial {
@@ -265,6 +269,14 @@ class Session(
       session.resumeViewportEvents()
       sender() ! Ok(sessionId)
 
+    case BeginTransaction() =>
+        session.beginTransaction
+        sender() ! Ok(sessionId)
+
+    case EndTransaction() =>
+        session.endTransaction
+        sender() ! Ok(sessionId)
+
     case NotifyChangedViewports =>
       sender() ! new Ok(sessionId) with Count {
         def count: Long = session.notifyChangedViewports.toLong
@@ -304,6 +316,16 @@ class Session(
     case GetNumViewports =>
       sender() ! new Ok(sessionId) with Count {
         def count: Long = session.numViewports
+      }
+
+    case GetNumChangeTransactions =>
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numChangeTransactions
+      }
+
+    case GetNumUndoTransactions =>
+      sender() ! new Ok(sessionId) with Count {
+        def count: Long = session.numUndoTransactions
       }
 
     case GetNumSearchContexts =>

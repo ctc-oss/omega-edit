@@ -184,6 +184,41 @@ OMEGA_EDIT_EXPORT void omega_session_pause_changes(omega_session_t *session_ptr)
 OMEGA_EDIT_EXPORT void omega_session_resume_changes(omega_session_t *session_ptr);
 
 /**
+ * Given a session, begin a transaction
+ * @param session_ptr session to begin a transaction on
+ * @return 0 on success, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_session_begin_transaction(omega_session_t *session_ptr);
+
+/**
+ * Given a session, end a transaction
+ * @param session_ptr session to end a transaction on
+ * @return 0 on success, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_session_end_transaction(omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the current transaction state
+ * @param session_ptr session to get the transaction state for
+ * @return 0 for no transaction, 1 for transaction is opened, and 2 for transaction in progress, and -1 on failure
+ */
+OMEGA_EDIT_EXPORT int omega_session_get_transaction_state(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the current number of session change transactions
+ * @param session_ptr session to get the number of session change transactions for
+ * @return number of session change transactions
+ */
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr);
+
+/**
+ * Given a session, return the current number of session undone change transactions
+ * @param session_ptr session to get the number of session undone change transactions for
+ * @return number of session undone change transactions
+ */
+OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr);
+
+/**
 * Given a session, return the current number of session checkpoints
 * @param session_ptr session to get the number of session checkpoints for
 * @return number of session checkpoints

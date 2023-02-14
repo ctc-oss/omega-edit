@@ -196,6 +196,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         editors ? SessionOp(in.sessionId, GetNumUndos)
       case CountKind.COUNT_VIEWPORTS =>
         editors ? SessionOp(in.sessionId, GetNumViewports)
+      case CountKind.COUNT_CHANGE_TRANSACTIONS =>
+        editors ? SessionOp(in.sessionId, GetNumChangeTransactions)
+      case CountKind.COUNT_UNDO_TRANSACTIONS =>
+        editors ? SessionOp(in.sessionId, GetNumUndoTransactions)
       case CountKind.UNDEFINED_COUNT_KIND =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
       case CountKind.Unrecognized(_) =>
@@ -349,6 +353,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case Ok(id) => ObjectId(id)
         case Err(c) => throw grpcFailure(c)
       }
+
+  def sessionBeginTransaction(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.BeginTransaction())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
+
+  def sessionEndTransaction(in: ObjectId): Future[ObjectId] =
+    (editors ? SessionOp(in.id, Session.EndTransaction())).mapTo[Result].map {
+      case Ok(id) => ObjectId(id)
+      case Err(c) => throw grpcFailure(c)
+    }
 
   // segments
 

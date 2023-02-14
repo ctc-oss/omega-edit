@@ -41,6 +41,9 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     "be empty" in emptySession { s =>
       s.isEmpty shouldBe true
       s.size shouldBe 0
+      s.numViewports shouldBe 0
+      s.numChangeTransactions shouldBe 0
+      s.numUndoTransactions shouldBe 0
       s.destroy()
     }
 

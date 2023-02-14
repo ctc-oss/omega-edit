@@ -34,7 +34,8 @@ trait Session {
   def numUndos: Long
   def numViewports: Long
   def numSearchContexts: Long
-
+  def numChangeTransactions: Long
+  def numUndoTransactions: Long
   def callback: Option[SessionCallback]
 
   def eventInterest: Int
@@ -86,6 +87,8 @@ trait Session {
   def pauseViewportEvents(): Unit
   def resumeViewportEvents(): Unit
   def notifyChangedViewports: Int
+  def beginTransaction: Int
+  def endTransaction: Int
   def destroy(): Unit
 }
 

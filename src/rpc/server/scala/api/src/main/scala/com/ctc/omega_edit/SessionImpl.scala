@@ -48,7 +48,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def numSearchContexts: Long =
     i.omega_session_get_num_search_contexts(p)
 
-  def callback: Option[SessionCallback] =
+    def numChangeTransactions: Long =
+      i.omega_session_get_num_change_transactions(p)
+
+    def numUndoTransactions: Long =
+      i.omega_session_get_num_undone_change_transactions(p)
+
+    def callback: Option[SessionCallback] =
     Option(i.omega_session_get_event_cbk(p))
 
   def eventInterest: Int =
@@ -72,7 +78,14 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def notifyChangedViewports: Int =
     i.omega_session_notify_viewports_of_changes(p)
 
-  def delete(offset: Long, len: Long): Result =
+  def beginTransaction: Int =
+    i.omega_session_begin_transaction(p)
+
+  def endTransaction: Int =
+    i.omega_session_end_transaction(p)
+
+
+    def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
   def insert(b: Array[Byte], offset: Long): Result =

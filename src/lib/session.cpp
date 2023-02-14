@@ -13,20 +13,19 @@
  **********************************************************************************************************************/
 
 #include "omega_edit/session.h"
-#include "omega_edit/viewport.h"
-#include "omega_edit/fwd_defs.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/model_def.hpp"
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
+#include "omega_edit/fwd_defs.h"
 #include "omega_edit/segment.h"
+#include "omega_edit/viewport.h"
 #include <cassert>
 #include <cstring>
 
 #define PROFILE_SEGMENT_CAPACITY (1024 * 8)
 
-enum class session_flags { pause_viewport_callbacks = 1, session_changes_paused = 1 << 1 };
 
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
@@ -127,40 +126,40 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
 
 int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return (session_ptr->session_flags_ & (int8_t) session_flags::pause_viewport_callbacks) ? 1 : 0;
+    return (session_ptr->session_flags_ & SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS) ? 1 : 0;
 }
 
 void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ |= (int8_t) session_flags::pause_viewport_callbacks;
+    session_ptr->session_flags_ |= SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS;
 }
 
 void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
     assert(session_ptr);
-    session_ptr->session_flags_ &= ~(int8_t) session_flags::pause_viewport_callbacks;
+    session_ptr->session_flags_ &= ~SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS;
 }
 
 int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int result = 0;
     for (const auto &viewport : session_ptr->viewports_) {
-      if (omega_viewport_has_changes(viewport.get())) {
-          omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr);
-          ++result;
-      }
+        if (omega_viewport_has_changes(viewport.get())) {
+            omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr);
+            ++result;
+        }
     }
     return result;
 }
 
 int omega_session_changes_paused(const omega_session_t *session_ptr) {
     assert(session_ptr);
-    return session_ptr->session_flags_ & (int8_t) session_flags::session_changes_paused ? 1 : 0;
+    return session_ptr->session_flags_ & SESSION_FLAGS_SESSION_CHANGES_PAUSED ? 1 : 0;
 }
 
 void omega_session_pause_changes(omega_session_t *session_ptr) {
     assert(session_ptr);
     if (!omega_session_changes_paused(session_ptr)) {
-        session_ptr->session_flags_ |= (int8_t) session_flags::session_changes_paused;
+        session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_CHANGES_PAUSED;
         omega_session_notify(session_ptr, SESSION_EVT_CHANGES_PAUSED, nullptr);
     }
 }
@@ -168,9 +167,90 @@ void omega_session_pause_changes(omega_session_t *session_ptr) {
 void omega_session_resume_changes(omega_session_t *session_ptr) {
     assert(session_ptr);
     if (omega_session_changes_paused(session_ptr)) {
-        session_ptr->session_flags_ &= ~(int8_t) session_flags::session_changes_paused;
+        session_ptr->session_flags_ &= ~SESSION_FLAGS_SESSION_CHANGES_PAUSED;
         omega_session_notify(session_ptr, SESSION_EVT_CHANGES_RESUMED, nullptr);
     }
+}
+
+int omega_session_begin_transaction(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    // If a transaction is already open or in progress, then indicate failure
+    if (omega_session_get_transaction_state(session_ptr)) { return -1; }
+    session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_TRANSACTION_OPENED;
+    return 0;
+}
+
+int omega_session_end_transaction(omega_session_t *session_ptr) {
+    assert(session_ptr);
+    // If a transaction is not open or in progress, then indicate failure
+    if (!omega_session_get_transaction_state(session_ptr)) { return -1; }
+    session_ptr->session_flags_ &=
+            ~(SESSION_FLAGS_SESSION_TRANSACTION_OPENED | SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS);
+    return 0;
+}
+
+int omega_session_get_transaction_state(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    if (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_OPENED) {
+        if (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS) {
+            return 2;// Transaction in progress
+        }
+        return 1;// Transaction opened
+    } else {
+        // If there is no transaction opened, then there should be no transaction in progress
+        assert(0 == (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS));
+        return 0;// No transaction
+    }
+}
+
+int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    int64_t result = 0;
+    // Count the number of transactions in each model
+    for (const auto &model : session_ptr->models_) {
+        int64_t transactions_in_model = 0;
+        bool transaction_bit = false;
+        // Count the number of transactions in this model
+        for (const auto &change : model->changes) {
+            // If the transaction bit is different from the current transaction bit, then we have a new transaction
+            if (transactions_in_model) {
+                if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
+                    transaction_bit = !transaction_bit;
+                    ++transactions_in_model;
+                }
+            } else {
+                transaction_bit = omega_change_get_transaction_bit_(change.get());
+                ++transactions_in_model;
+            }
+        }
+        result += transactions_in_model;
+    }
+    return result;
+}
+
+int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    int64_t result = 0;
+    // Count the number of transactions in each model
+    for (const auto &model : session_ptr->models_) {
+        int64_t transactions_in_model = 0;
+        bool transaction_bit = false;
+        // Count the number of transactions in this model
+        for (const auto &change : model->changes_undone) {
+            // If the transaction bit is different from the current transaction bit, then we have a new transaction
+            if (transactions_in_model) {
+                if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
+                    transaction_bit = !transaction_bit;
+                    ++transactions_in_model;
+                }
+            } else {
+                transaction_bit = omega_change_get_transaction_bit_(change.get());
+                ++transactions_in_model;
+            }
+        }
+        result += transactions_in_model;
+    }
+    return result;
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
@@ -205,4 +285,9 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
         length -= profile_length;
     }
     return 0;
+}
+
+bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
+    return (session_ptr->models_.back()->changes.empty()) ||
+           omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());
 }

@@ -522,6 +522,50 @@ export function getUndoCount(session_id: string): Promise<number> {
 }
 
 /**
+ * Get the number of change transactions for a session
+ * @param session_id session to get number of change transactions from
+ * @return number of change transactions for the session, on success
+ */
+export function getChangeTransactionCount(session_id: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    getClient().getCount(
+      new CountRequest()
+        .setSessionId(session_id)
+        .setKind(CountKind.COUNT_CHANGE_TRANSACTIONS),
+      (err, r) => {
+        if (err) {
+          console.error(err)
+          return reject(new Error('getChangeTransactionCount failed: ' + err))
+        }
+        return resolve(r.getCount())
+      }
+    )
+  })
+}
+
+/**
+ * Get the number of undo transactions for a session
+ * @param session_id session to get number of undo transactions from
+ * @return number of undo transactions for the session, on success
+ */
+export function getUndoTransactionCount(session_id: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    getClient().getCount(
+      new CountRequest()
+        .setSessionId(session_id)
+        .setKind(CountKind.COUNT_UNDO_TRANSACTIONS),
+      (err, r) => {
+        if (err) {
+          console.error(err)
+          return reject(new Error('getUndoTransactionCount failed: ' + err))
+        }
+        return resolve(r.getCount())
+      }
+    )
+  })
+}
+
+/**
  * Concatenate two Uint8Arrays
  * @param arr1 first array
  * @param arr2 second array
