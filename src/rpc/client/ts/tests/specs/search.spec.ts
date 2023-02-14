@@ -19,23 +19,27 @@
 
 import { expect } from 'chai'
 import {
-    beginSessionTransaction, endSessionTransaction,
-    getComputedFileSize,
-    getSegment,
-    replaceOneSession,
-    replaceSession,
-    searchSession,
+  beginSessionTransaction,
+  endSessionTransaction,
+  getComputedFileSize,
+  getSegment,
+  replaceOneSession,
+  replaceSession,
+  searchSession,
 } from '../../src/session'
 import {
-    clear,
-    getChangeCount,
-    getChangeTransactionCount,
-    getUndoCount,
-    getUndoTransactionCount,
-    overwrite,
-    replace,
-    redo,
-    undo
+  clear,
+  getChangeCount,
+  getChangeTransactionCount,
+  getUndoCount,
+  getUndoTransactionCount,
+  overwrite,
+  replace,
+  redo,
+  undo,
+  edit,
+  editOptimizer,
+  EditStats,
 } from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
 // @ts-ignore
@@ -113,6 +117,372 @@ describe('Searching', () => {
     expect(await getChangeCount(session_id)).to.equal(0)
     needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
     expect(needles).to.be.empty
+  })
+
+  it('Should be able to optimize replacement operations', () => {
+    const optimizer_usecases = [
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAAAABAAAA'),
+        expected: [
+          { offset: 5, remove_bytes_count: 1, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BAAAAAAAAA'),
+        expected: [
+          { offset: 0, remove_bytes_count: 1, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAAAAAAAAB'),
+        expected: [
+          { offset: 9, remove_bytes_count: 1, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAABAABAAA'),
+        expected: [
+          {
+            offset: 3,
+            remove_bytes_count: 4,
+            replacement: Buffer.from('BAAB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BAAAAAAAAB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 10,
+            replacement: Buffer.from('BAAAAAAAAB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 10,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBA'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('ABBBBBBBBB'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBA'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 8,
+            replacement: Buffer.from('BBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBAB'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBAB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBABB'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBABB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBABBB'),
+        expected: [
+          {
+            offset: 1,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBABBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAAAAAAAAA'),
+        expected: null,
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from(''),
+        expected: [
+          { offset: 0, remove_bytes_count: 10, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('A'),
+        expected: [
+          { offset: 1, remove_bytes_count: 9, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AA'),
+        expected: [
+          { offset: 2, remove_bytes_count: 8, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAA'),
+        expected: [
+          { offset: 3, remove_bytes_count: 7, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('AAAA'),
+        expected: [
+          { offset: 4, remove_bytes_count: 6, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('B'),
+        expected: [
+          { offset: 0, remove_bytes_count: 10, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BB'),
+        expected: [
+          { offset: 0, remove_bytes_count: 10, replacement: Buffer.from('BB') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAA'),
+        replacement: Buffer.from('BBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 10,
+            replacement: Buffer.from('BBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAB'),
+        replacement: Buffer.from('B'),
+        expected: [
+          { offset: 0, remove_bytes_count: 9, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAB'),
+        replacement: Buffer.from('BB'),
+        expected: [
+          { offset: 0, remove_bytes_count: 9, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAAB'),
+        replacement: Buffer.from('BBB'),
+        expected: [
+          { offset: 0, remove_bytes_count: 9, replacement: Buffer.from('BB') },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('B'),
+        expected: [
+          { offset: 1, remove_bytes_count: 9, replacement: Buffer.from('') },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BB'),
+        expected: [
+          { offset: 1, remove_bytes_count: 9, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('BAAAAAAAAA'),
+        replacement: Buffer.from('BBB'),
+        expected: [
+          { offset: 1, remove_bytes_count: 9, replacement: Buffer.from('BB') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('AAAAAAAAAA'),
+        expected: [
+          { offset: 9, remove_bytes_count: 0, replacement: Buffer.from('A') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('AAAAAAAAAB'),
+        expected: [
+          { offset: 9, remove_bytes_count: 0, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('BAAAAAAAAA'),
+        expected: [
+          { offset: 0, remove_bytes_count: 0, replacement: Buffer.from('B') },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('BAAAAAAAAAB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BAAAAAAAAAB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from(''),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 0,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('A'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 1,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AA'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 2,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAA'),
+        replacement: Buffer.from('BBBBBBBBBB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 3,
+            replacement: Buffer.from('BBBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBBA'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 8,
+            replacement: Buffer.from('BBBBBBBBB'),
+          },
+        ],
+      },
+      {
+        original: Buffer.from('AAAAAAAAA'),
+        replacement: Buffer.from('BBBBBBBBAB'),
+        expected: [
+          {
+            offset: 0,
+            remove_bytes_count: 9,
+            replacement: Buffer.from('BBBBBBBBAB'),
+          },
+        ],
+      },
+    ]
+    // run all test cases
+    for (let i = 0; i < optimizer_usecases.length; ++i) {
+      const result = editOptimizer(
+        0,
+        optimizer_usecases[i].original,
+        optimizer_usecases[i].replacement
+      )
+      expect(
+        result,
+        `case ${i}: ${JSON.stringify(
+          optimizer_usecases[i].expected
+        )} -> ${JSON.stringify(result)}`
+      ).deep.equals(optimizer_usecases[i].expected)
+    }
   })
 
   it('Should iteratively replace patterns in a range', async () => {
@@ -261,12 +631,19 @@ describe('Searching', () => {
   })
 
   it('Should replace patterns in a range', async () => {
+    const stats = new EditStats()
     const change_id = await overwrite(
       session_id,
       0,
-      'needle here needle there needleneedle everywhere'
+      'needle here needle there needleneedle everywhere',
+      stats
     )
     expect(change_id).to.be.a('number').that.equals(1)
+    expect(stats.delete_count).to.equal(0)
+    expect(stats.insert_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
+    expect(stats.error_count).to.equal(0)
+    stats.reset()
     expect(
       await replaceSession(
         session_id,
@@ -275,15 +652,22 @@ describe('Searching', () => {
         false,
         0,
         await getComputedFileSize(session_id),
-        0
+        0,
+        stats
       )
     ).to.equal(4)
+    // expect 4 deletes and 4 inserts
+    expect(stats.delete_count).to.equal(4)
+    expect(stats.insert_count).to.equal(4)
+    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.error_count).to.equal(0)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here Item there ItemItem everywhere'))
     expect(await getChangeCount(session_id)).to.equal(9)
     expect(await getChangeTransactionCount(session_id)).to.equal(9)
     expect(await beginSessionTransaction(session_id)).to.equal(session_id)
+    stats.reset()
     expect(
       await replaceSession(
         session_id,
@@ -292,23 +676,34 @@ describe('Searching', () => {
         true,
         4,
         (await getComputedFileSize(session_id)) - 4,
-        0
+        0,
+        stats
       )
     ).to.equal(3)
     expect(await endSessionTransaction(session_id)).to.equal(session_id)
     expect(await getChangeCount(session_id)).to.equal(15)
     expect(await getChangeTransactionCount(session_id)).to.equal(10)
-    expect(await undo(session_id)).to.be.a('number').that.equals(-10)
+    expect(await undo(session_id))
+      .to.be.a('number')
+      .that.equals(-10)
     expect(await getChangeTransactionCount(session_id)).to.equal(9)
     expect(await getUndoTransactionCount(session_id)).to.equal(1)
     expect(await getUndoCount(session_id)).to.equal(6)
     expect(await getChangeCount(session_id)).to.equal(9)
-    expect(await redo(session_id)).to.be.a('number').that.equals(15)
+    expect(await redo(session_id))
+      .to.be.a('number')
+      .that.equals(15)
     expect(await getChangeCount(session_id)).to.equal(15)
     expect(await getChangeTransactionCount(session_id)).to.equal(10)
+    // expect 3 deletes and 3 inserts
+    expect(stats.delete_count).to.equal(3)
+    expect(stats.insert_count).to.equal(3)
+    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.error_count).to.equal(0)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here needle there needleneedle everywhere'))
+    stats.reset()
     expect(
       await replaceSession(
         session_id,
@@ -317,12 +712,18 @@ describe('Searching', () => {
         true,
         0,
         await getComputedFileSize(session_id),
-        1
+        1,
+        stats
       )
     ).to.equal(1)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(encode('Item here noodle there needleneedle everywhere'))
+    // expect a single overwrite
+    expect(stats.delete_count).to.equal(0)
+    expect(stats.insert_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
+    expect(stats.error_count).to.equal(0)
   })
 
   it('Should work with replace on binary data', async () => {
@@ -349,7 +750,12 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([1])
-    await replace(session_id, 1, pattern_bytes.length, replace_bytes)
+    const stats = new EditStats()
+    await replace(session_id, 1, pattern_bytes.length, replace_bytes, stats)
+    expect(stats.delete_count).to.equal(0)
+    expect(stats.insert_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
+    expect(stats.error_count).to.equal(0)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(
@@ -366,7 +772,14 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([0])
-    await replace(session_id, 0, pattern_bytes.length, replace_bytes)
+    stats.reset()
+    await edit(session_id, 0, pattern_bytes, replace_bytes, stats)
+    // this edit will do an insert and a delete
+    expect(stats.delete_count).to.equal(1)
+    expect(stats.insert_count).to.equal(1)
+    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.error_count).to.equal(0)
+
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(
@@ -383,7 +796,14 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([9])
-    await replace(session_id, 9, pattern_bytes.length, replace_bytes)
+    stats.reset()
+    await edit(session_id, 9, pattern_bytes, replace_bytes, stats)
+    // this edit will do an insert and a delete
+    expect(stats.delete_count).to.equal(1)
+    expect(stats.insert_count).to.equal(1)
+    expect(stats.overwrite_count).to.equal(0)
+    expect(stats.error_count).to.equal(0)
+
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
@@ -408,7 +828,12 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([10])
-    await replace(session_id, 10, pattern_chars.length, replace_chars)
+    await edit(
+      session_id,
+      10,
+      Buffer.from(pattern_chars),
+      Buffer.from(replace_chars)
+    )
     pattern_chars = 'needles'
     replace_chars = 'hay'
     needles = await searchSession(
@@ -420,7 +845,12 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([14, 28])
-    await replace(session_id, 28, pattern_chars.length, replace_chars)
+    await edit(
+      session_id,
+      28,
+      Buffer.from(pattern_chars),
+      Buffer.from(replace_chars)
+    )
     const file_size = await getComputedFileSize(session_id)
     const segment = await getSegment(session_id, 0, file_size)
     expect(segment.length).to.equal(file_size)
