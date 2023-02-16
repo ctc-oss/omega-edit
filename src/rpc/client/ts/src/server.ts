@@ -42,8 +42,6 @@ class Artifact {
   }
 }
 
-// const xdgAppPaths = XDGAppPaths({ name: 'omega_edit' })
-const wait_port = require('wait-port')
 
 async function unzipFile(zipFilePath: string, extractPath: string) {
   return await new Promise((resolve, reject) => {
@@ -125,6 +123,7 @@ export async function startServer(
     detached: true,
   })
 
+  const wait_port = require('wait-port')
   await wait_port({ host: '127.0.0.1', port: 9000, output: 'silent' })
 
   return new Promise((resolve, reject) => {
