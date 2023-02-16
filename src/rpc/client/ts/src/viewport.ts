@@ -45,12 +45,12 @@ export function createViewport(
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateViewportRequest()
+      .setSessionId(session_id)
+      .setOffset(offset)
+      .setCapacity(capacity)
+      .setIsFloating(is_floating)
     if (desired_viewport_id !== undefined && desired_viewport_id.length > 0)
       request.setViewportIdDesired(desired_viewport_id)
-    request.setSessionId(session_id)
-    request.setOffset(offset)
-    request.setCapacity(capacity)
-    request.setIsFloating(is_floating)
     getClient().createViewport(request, (err, r) => {
       if (err) {
         console.log(err.message)
