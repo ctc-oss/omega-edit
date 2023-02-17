@@ -73,14 +73,7 @@ describe('Searching', () => {
       undefined
     )
     expect(needles).deep.equals([8])
-    needles = await searchSession(
-      session_id,
-      'needle',
-      true,
-      3,
-      file_size - 3,
-      undefined
-    )
+    needles = await searchSession(session_id, 'needle', true, 3, file_size - 3)
     expect(needles).deep.equals([8, 14, 20])
     needles = await searchSession(
       session_id,
@@ -741,14 +734,7 @@ describe('Searching', () => {
     )
     let pattern_bytes = new Uint8Array([6, 5, 4])
     let replace_bytes = new Uint8Array([4, 5, 6])
-    let needles = await searchSession(
-      session_id,
-      pattern_bytes,
-      false,
-      0,
-      0,
-      undefined
-    )
+    let needles = await searchSession(session_id, pattern_bytes, false, 0, 0)
     expect(needles).deep.equals([1])
     const stats = new EditStats()
     await replace(session_id, 1, pattern_bytes.length, replace_bytes, stats)
@@ -819,14 +805,7 @@ describe('Searching', () => {
     expect(await getComputedFileSize(session_id)).to.equal(30)
     let pattern_chars = 'is hay'
     let replace_chars = 'are needles'
-    let needles = await searchSession(
-      session_id,
-      pattern_chars,
-      false,
-      0,
-      0,
-      undefined
-    )
+    let needles = await searchSession(session_id, pattern_chars, false, 0, 0)
     expect(needles).deep.equals([10])
     await edit(
       session_id,
@@ -836,14 +815,7 @@ describe('Searching', () => {
     )
     pattern_chars = 'needles'
     replace_chars = 'hay'
-    needles = await searchSession(
-      session_id,
-      pattern_chars,
-      true,
-      0,
-      0,
-      undefined
-    )
+    needles = await searchSession(session_id, pattern_chars, true)
     expect(needles).deep.equals([14, 28])
     await edit(
       session_id,

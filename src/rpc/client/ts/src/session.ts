@@ -290,13 +290,14 @@ export function notifyChangedViewports(session_id: string): Promise<number> {
  */
 export function profileSession(
   session_id: string,
-  offset: number | undefined,
-  length: number | undefined
+  offset: number = 0,
+  length: number = 0
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
-    let request = new ByteFrequencyProfileRequest().setSessionId(session_id)
-    if (offset !== undefined && offset >= 0) request.setOffset(offset)
-    if (length !== undefined && length > 0) request.setLength(length)
+    let request = new ByteFrequencyProfileRequest()
+      .setSessionId(session_id)
+      .setOffset(offset)
+    if (length > 0) request.setLength(length)
     getClient().getByteFrequencyProfile(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -332,19 +333,19 @@ export function numAscii(profile: number[]): number {
 export function searchSession(
   session_id: string,
   pattern: string | Uint8Array,
-  is_case_insensitive: boolean | undefined,
-  offset: number | undefined,
-  length: number | undefined,
-  limit: number | undefined
+  is_case_insensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0,
+  limit: number = 0
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
     let request = new SearchRequest()
       .setSessionId(session_id)
       .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
-      .setIsCaseInsensitive(is_case_insensitive ?? false)
-    if (offset !== undefined && offset >= 0) request.setOffset(offset)
-    if (length !== undefined && length > 0) request.setLength(length)
-    if (limit !== undefined && limit > 0) request.setLimit(limit)
+      .setIsCaseInsensitive(is_case_insensitive)
+      .setOffset(offset)
+    if (length > 0) request.setLength(length)
+    if (limit > 0) request.setLimit(limit)
     getClient().searchSession(request, (err, r) => {
       if (err) {
         console.log(err.message)
@@ -377,10 +378,10 @@ export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean | undefined,
-  offset: number | undefined,
-  length: number | undefined,
-  limit: number | undefined,
+  is_case_insensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0,
+  limit: number = 0,
   stats?: IEditStats
 ): Promise<number> {
   const foundLocations = await searchSession(
@@ -424,9 +425,9 @@ export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
-  is_case_insensitive: boolean,
-  offset: number | undefined,
-  length: number | undefined
+  is_case_insensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0
 ): Promise<[boolean, number]> {
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern

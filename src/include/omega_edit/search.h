@@ -43,8 +43,9 @@ extern "C" {
  * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @return search context
  * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
- * have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for
- * testing and should not be used in production code. In production code, explicitly pass in the length.
+ * have this function compute the length using strlen, because it will be wrong. Passing pattern length 0 is a
+ * convenience for testing and should not be used in production code. In production code, explicitly pass in the pattern
+ * length.
  * @warning Ensure that the pattern_length does not exceed the session_length - session_offset.  This is considered an
  * error and a null pointer will be returned.
  */

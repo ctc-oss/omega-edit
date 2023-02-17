@@ -42,7 +42,6 @@ class Artifact {
   }
 }
 
-
 async function unzipFile(zipFilePath: string, extractPath: string) {
   return await new Promise((resolve, reject) => {
     let stream = fs
