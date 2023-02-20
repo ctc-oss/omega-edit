@@ -18,30 +18,59 @@
  */
 
 import { expect } from 'chai'
-import { getClient, waitForReady } from '../../src/settings'
+import { getClient, waitForReady } from '../../src/client'
 import {
   createSession,
   destroySession,
   getSessionCount,
 } from '../../src/session'
+import { startServer, stopServer } from '../../src/server'
+import { ClientVersion } from '../../src/version'
+import * as fs from 'fs'
 
-export const deadline = new Date()
-deadline.setSeconds(deadline.getSeconds() + 10)
+const path = require('path')
+const rootPath = path.resolve(__dirname, '..', '..')
+export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
 
-export async function custom_setup() {
+function getPidFile(port: number): string {
+  return path.join(rootPath, `.test-server-${port}.pid`)
+}
+
+export async function startTestServer(
+  port: number
+): Promise<number | undefined> {
+  const pid = await startServer(rootPath, ClientVersion, rootPath, port)
+  stopTestServer(port)
+  if (pid) {
+    fs.writeFileSync(getPidFile(port), pid.toString(), 'utf8')
+  }
+  return pid
+}
+
+export function stopTestServer(port: number): boolean {
+  const pidFile = getPidFile(port)
+  if (fs.existsSync(pidFile)) {
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
+    fs.unlinkSync(pidFile)
+    return stopServer(pid)
+  }
+  return false
+}
+
+export async function createTestSession(port: number) {
   let session_id = ''
-  expect(await waitForReady(getClient(), deadline))
+  expect(await waitForReady(getClient(port)))
   expect(await getSessionCount()).to.equal(0)
-  const new_session_id = await createSession(undefined, undefined)
+  const new_session_id = await createSession()
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
 
-  // C++ RPC server uses 36 character UUIDs and the Scala server uses 8 character IDs
-  expect(new_session_id.length).to.satisfy((l) => l === 36 || l === 8)
+  // Generated IDs are 36 character UUIDs
+  expect(new_session_id.length).to.equal(36)
   expect(await getSessionCount()).to.equal(1)
   return new_session_id
 }
 
-export async function cleanup(session_id: string) {
+export async function destroyTestSession(session_id: string) {
   const session_count = await getSessionCount()
   expect(session_count).to.be.lessThanOrEqual(1)
   if (0 < session_count) {
@@ -53,7 +82,7 @@ export async function delay(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
-export async function check_callback_count(
+export async function checkCallbackCount(
   callback_map: Map<string, number>,
   key: string,
   expected_count: number

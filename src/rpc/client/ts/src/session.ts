@@ -26,7 +26,7 @@ import {
   SegmentRequest,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient } from './settings'
+import { getClient, logger } from './client'
 import { editSimple, IEditStats } from './change'
 
 /**
@@ -38,20 +38,29 @@ import { editSimple, IEditStats } from './change'
  * @return session ID, on success
  */
 export function createSession(
-  file_path: string | undefined,
-  session_id_desired: string | undefined
+  file_path: string = '',
+  session_id_desired: string = ''
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let request = new CreateSessionRequest()
-    if (session_id_desired !== undefined && session_id_desired.length > 0)
+    if (session_id_desired.length > 0)
       request.setSessionIdDesired(session_id_desired)
-    if (file_path !== undefined && file_path.length > 0)
-      request.setFilePath(file_path)
+    if (file_path.length > 0) request.setFilePath(file_path)
+    logger.debug({ fn: 'createSession', rqst: request.toObject() })
     getClient().createSession(request, (err, r) => {
       if (err) {
-        console.log(err.message)
+        logger.error({
+          fn: 'createSession',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject('createSession error: ' + err.message)
       }
+      logger.debug({ fn: 'createSession', resp: r.toObject() })
       return resolve(r.getSessionId())
     })
   })
@@ -64,11 +73,22 @@ export function createSession(
  */
 export function destroySession(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().destroySession(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'destroySession', rqst: request.toObject() })
+    getClient().destroySession(request, (err, r) => {
       if (err) {
-        console.log(err.message)
+        logger.error({
+          fn: 'destroySession',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject('destroySession error: ' + err.message)
       }
+      logger.debug({ fn: 'destroySession', resp: r.toObject() })
       return resolve(r.getId())
     })
   })
@@ -89,19 +109,27 @@ export function saveSession(
   overwrite: boolean
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().saveSession(
-      new SaveSessionRequest()
-        .setSessionId(session_id)
-        .setFilePath(file_path)
-        .setAllowOverwrite(overwrite),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('saveSession error: ' + err.message)
-        }
-        return resolve(r.getFilePath())
+    const request = new SaveSessionRequest()
+      .setSessionId(session_id)
+      .setFilePath(file_path)
+      .setAllowOverwrite(overwrite)
+    logger.debug({ fn: 'saveSession', rqst: request.toObject() })
+    getClient().saveSession(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'saveSession',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('saveSession error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'saveSession', resp: r.toObject() })
+      return resolve(r.getFilePath())
+    })
   })
 }
 
@@ -112,16 +140,24 @@ export function saveSession(
  */
 export function getComputedFileSize(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().getComputedFileSize(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('getComputedFileSize error: ' + err.message)
-        }
-        return resolve(r.getComputedFileSize())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'getComputedFileSize', rqst: request.toObject() })
+    getClient().getComputedFileSize(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getComputedFileSize',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('getComputedFileSize error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'getComputedFileSize', resp: r.toObject() })
+      return resolve(r.getComputedFileSize())
+    })
   })
 }
 
@@ -132,46 +168,73 @@ export function getComputedFileSize(session_id: string): Promise<number> {
  */
 export function pauseSessionChanges(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().pauseSessionChanges(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('pauseSessionChanges error: ' + err.message)
-        }
-        return resolve(r.getId())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'pauseSessionChanges', rqst: request.toObject() })
+    getClient().pauseSessionChanges(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'pauseSessionChanges',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('pauseSessionChanges error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'pauseSessionChanges', resp: r.toObject() })
+      return resolve(r.getId())
+    })
   })
 }
 
 export function beginSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().sessionBeginTransaction(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('beginSessionTransaction error: ' + err.message)
-        }
-        return resolve(r.getId())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({
+      fn: 'beginSessionTransaction',
+      rqst: request.toObject(),
+    })
+    getClient().sessionBeginTransaction(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'beginSessionTransaction',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('beginSessionTransaction error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'beginSessionTransaction', resp: r.toObject() })
+      return resolve(r.getId())
+    })
   })
 }
 
 export function endSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().sessionEndTransaction(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('endSessionTransaction error: ' + err.message)
-        }
-        return resolve(r.getId())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'endSessionTransaction', rqst: request.toObject() })
+    getClient().sessionEndTransaction(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'endSessionTransaction',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('endSessionTransaction error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'endSessionTransaction', resp: r.toObject() })
+      return resolve(r.getId())
+    })
   })
 }
 
@@ -182,16 +245,24 @@ export function endSessionTransaction(session_id: string): Promise<string> {
  */
 export function resumeSessionChanges(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().resumeSessionChanges(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('resumeSessionChanges error: ' + err.message)
-        }
-        return resolve(r.getId())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'resumeSessionChanges', rqst: request.toObject() })
+    getClient().resumeSessionChanges(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'resumeSessionChanges',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('resumeSessionChanges error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'resumeSessionChanges', resp: r.toObject() })
+      return resolve(r.getId())
+    })
   })
 }
 
@@ -202,16 +273,24 @@ export function resumeSessionChanges(session_id: string): Promise<string> {
  */
 export function unsubscribeSession(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().unsubscribeToSessionEvents(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('unsubscribeSession error: ' + err.message)
-        }
-        return resolve(r.getId())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'unsubscribeSession', rqst: request.toObject() })
+    getClient().unsubscribeToSessionEvents(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'unsubscribeSession',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('unsubscribeSession error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'unsubscribeSession', resp: r.toObject() })
+      return resolve(r.getId())
+    })
   })
 }
 
@@ -228,19 +307,27 @@ export function getSegment(
   length: number
 ): Promise<Uint8Array> {
   return new Promise<Uint8Array>((resolve, reject) => {
-    getClient().getSegment(
-      new SegmentRequest()
-        .setSessionId(session_id)
-        .setOffset(offset)
-        .setLength(length),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('getSegment error: ' + err.message)
-        }
-        return resolve(r.getData_asU8())
+    const request = new SegmentRequest()
+      .setSessionId(session_id)
+      .setOffset(offset)
+      .setLength(length)
+    logger.debug({ fn: 'getSegment', rqst: request.toObject() })
+    getClient().getSegment(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getSegment',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('getSegment error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'getSegment', resp: r.toObject() })
+      return resolve(r.getData_asU8())
+    })
   })
 }
 
@@ -250,11 +337,21 @@ export function getSegment(
  */
 export function getSessionCount(): Promise<number> {
   return new Promise<number>((resolve, reject) => {
+    logger.debug({ fn: 'getSessionCount' })
     getClient().getSessionCount(new Empty(), (err, r) => {
       if (err) {
-        console.log(err.message)
+        logger.error({
+          fn: 'getSessionCount',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject('getSessionCount error: ' + err.message)
       }
+      logger.debug({ fn: 'getSessionCount', resp: r.toObject() })
       return resolve(r.getCount())
     })
   })
@@ -267,16 +364,24 @@ export function getSessionCount(): Promise<number> {
  */
 export function notifyChangedViewports(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().notifyChangedViewports(
-      new ObjectId().setId(session_id),
-      (err, r) => {
-        if (err) {
-          console.log(err.message)
-          return reject('notifyChangedViewports error: ' + err.message)
-        }
-        return resolve(r.getResponse())
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'notifyChangedViewports', rqst: request.toObject() })
+    getClient().notifyChangedViewports(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'notifyChangedViewports',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('notifyChangedViewports error: ' + err.message)
       }
-    )
+      logger.debug({ fn: 'notifyChangedViewports', resp: r.toObject() })
+      return resolve(r.getResponse())
+    })
   })
 }
 
@@ -297,12 +402,24 @@ export function profileSession(
     let request = new ByteFrequencyProfileRequest()
       .setSessionId(session_id)
       .setOffset(offset)
-    if (length > 0) request.setLength(length)
+    if (length > 0) {
+      request.setLength(length)
+    }
+    logger.debug({ fn: 'profileSession', rqst: request.toObject() })
     getClient().getByteFrequencyProfile(request, (err, r) => {
       if (err) {
-        console.log(err.message)
-        return reject('searchSession error: ' + err.message)
+        logger.error({
+          fn: 'profileSession',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('profileSession error: ' + err.message)
       }
+      logger.debug({ fn: 'profileSession', resp: r.toObject() })
       return resolve(r.getFrequencyList())
     })
   })
@@ -344,13 +461,19 @@ export function searchSession(
       .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
       .setIsCaseInsensitive(is_case_insensitive)
       .setOffset(offset)
-    if (length > 0) request.setLength(length)
-    if (limit > 0) request.setLimit(limit)
+    if (length > 0) {
+      request.setLength(length)
+    }
+    if (limit > 0) {
+      request.setLimit(limit)
+    }
+    logger.debug({ fn: 'searchSession', rqst: request.toObject() })
     getClient().searchSession(request, (err, r) => {
       if (err) {
         console.log(err.message)
         return reject('searchSession error: ' + err.message)
       }
+      logger.debug({ fn: 'searchSession', resp: r.toObject() })
       return resolve(r.getMatchOffsetList())
     })
   })

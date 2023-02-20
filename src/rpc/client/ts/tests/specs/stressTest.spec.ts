@@ -39,14 +39,16 @@ import {
   getViewportData,
 } from '../../src/viewport'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-// @ts-ignore
-import { check_callback_count, cleanup, custom_setup, log_info } from './common'
 import {
   EventSubscriptionRequest,
   SessionEventKind,
   ViewportEventKind,
 } from '../../src/omega_edit_pb'
-import { ALL_EVENTS, getClient } from '../../src/settings'
+import { ALL_EVENTS, getClient } from '../../src/client'
+
+// prettier-ignore
+// @ts-ignore
+import { checkCallbackCount, destroyTestSession, createTestSession, log_info, startTestServer, stopTestServer, testPort } from './common'
 
 let session_callbacks = new Map()
 
@@ -147,11 +149,11 @@ describe('StressTest', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
-    session_id = await custom_setup()
+    session_id = await createTestSession(testPort)
   })
 
   afterEach('Destroy session', async () => {
-    await cleanup(session_id)
+    await destroyTestSession(session_id)
   })
 
   it('Should handle fast inserting', async () => {
@@ -177,8 +179,8 @@ describe('StressTest', () => {
     )
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await check_callback_count(session_callbacks, session_id, data.length)
-    await check_callback_count(viewport_callbacks, viewport_id, data.length)
+    await checkCallbackCount(session_callbacks, session_id, data.length)
+    await checkCallbackCount(viewport_callbacks, viewport_id, data.length)
     for (let i = 0; i < data.length; ++i) {
       // delete from the front
       await del(session_id, 0, 1)
@@ -186,8 +188,8 @@ describe('StressTest', () => {
     expect(await getComputedFileSize(session_id)).to.equal(0)
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await check_callback_count(session_callbacks, session_id, data.length * 2)
-    await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
+    await checkCallbackCount(session_callbacks, session_id, data.length * 2)
+    await checkCallbackCount(viewport_callbacks, viewport_id, data.length * 2)
   }).timeout(10000)
 
   it('Should handle fast appending', async () => {
@@ -209,8 +211,8 @@ describe('StressTest', () => {
       await insert(session_id, i, new Uint8Array([data[i]]))
     }
     expect(await getSegment(session_id, 0, data.length)).deep.equals(data)
-    await check_callback_count(session_callbacks, session_id, data.length)
-    await check_callback_count(viewport_callbacks, viewport_id, data.length)
+    await checkCallbackCount(session_callbacks, session_id, data.length)
+    await checkCallbackCount(viewport_callbacks, viewport_id, data.length)
     for (let i = 0; i < data.length; ++i) {
       // delete from the back
       await del(session_id, data.length - i - 1, 1)
@@ -218,8 +220,8 @@ describe('StressTest', () => {
     expect(await getComputedFileSize(session_id)).to.equal(0)
     log_info(session_callbacks)
     log_info(viewport_callbacks)
-    await check_callback_count(session_callbacks, session_id, data.length * 2)
-    await check_callback_count(viewport_callbacks, viewport_id, data.length * 2)
+    await checkCallbackCount(session_callbacks, session_id, data.length * 2)
+    await checkCallbackCount(viewport_callbacks, viewport_id, data.length * 2)
   }).timeout(10000)
 
   it(
@@ -307,17 +309,17 @@ describe('StressTest', () => {
 
       expect(await destroyViewport(viewport_id)).to.equal(viewport_id)
 
-      await check_callback_count(
+      await checkCallbackCount(
         session_callbacks,
         session_id,
         465 * full_rotations + 1
       )
-      await check_callback_count(
+      await checkCallbackCount(
         viewport_callbacks,
         viewport_id,
         184 * full_rotations + 1
       )
-      await check_callback_count(
+      await checkCallbackCount(
         viewport_callbacks,
         viewport_2_id,
         460 * full_rotations

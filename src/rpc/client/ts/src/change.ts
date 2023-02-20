@@ -25,7 +25,7 @@ import {
   CountRequest,
   ObjectId,
 } from './omega_edit_pb'
-import { getClient } from './settings'
+import { getClient, logger } from './client'
 import {
   beginSessionTransaction,
   endSessionTransaction,
@@ -104,12 +104,21 @@ export function del(
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
     request.setKind(ChangeKind.CHANGE_DELETE)
     request.setLength(len)
+    logger.debug({ fn: 'del', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'del',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('del failed: ' + err))
       }
       const serial = r.getSerial()
@@ -117,11 +126,16 @@ export function del(
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'del',
+          err: { resp: r.toObject() },
+        })
         return reject(new Error('del failed'))
       }
       if (stats) {
         ++stats.delete_count
       }
+      logger.debug({ fn: 'del', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -147,15 +161,27 @@ export function insert(
   stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
+    let request = new ChangeRequest()
+      .setSessionId(session_id)
+      .setOffset(offset)
+      .setLength(data.length)
     request.setKind(ChangeKind.CHANGE_INSERT)
     request.setData(typeof data === 'string' ? Buffer.from(data) : data)
+    logger.debug({ fn: 'insert', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'insert',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('insert failed: ' + err))
       }
       const serial = r.getSerial()
@@ -163,11 +189,16 @@ export function insert(
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'insert',
+          err: { resp: r.toObject() },
+        })
         return reject(new Error('insert failed'))
       }
       if (stats) {
         ++stats.insert_count
       }
+      logger.debug({ fn: 'insert', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -196,12 +227,21 @@ export function overwrite(
     let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
     request.setKind(ChangeKind.CHANGE_OVERWRITE)
     request.setData(typeof data === 'string' ? Buffer.from(data) : data)
+    logger.debug({ fn: 'overwrite', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'overwrite',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('overwrite failed: ' + err))
       }
       const serial = r.getSerial()
@@ -209,11 +249,16 @@ export function overwrite(
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'overwrite',
+          err: { resp: r.toObject() },
+        })
         return reject(new Error('overwrite failed'))
       }
       if (stats) {
         ++stats.overwrite_count
       }
+      logger.debug({ fn: 'overwrite', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -375,12 +420,22 @@ export async function editSimple(
  */
 export function undo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().undoLastChange(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'undo', rqst: request.toObject() })
+    getClient().undoLastChange(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'undo',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('undo failed: ' + err))
       }
       const serial = r.getSerial()
@@ -388,11 +443,16 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'undo',
+          err: { resp: r.toObject() },
+        })
         return reject(new Error('undo failed'))
       }
       if (stats) {
         ++stats.undo_count
       }
+      logger.debug({ fn: 'undo', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -406,12 +466,22 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
  */
 export function redo(session_id: string, stats?: IEditStats): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().redoLastUndo(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'redo', rqst: request.toObject() })
+    getClient().redoLastUndo(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'redo',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('redo failed: ' + err))
       }
       const serial = r.getSerial()
@@ -419,11 +489,16 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'redo',
+          err: { resp: r.toObject() },
+        })
         return reject(new Error('redo failed'))
       }
       if (stats) {
         ++stats.redo_count
       }
+      logger.debug({ fn: 'redo', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -437,17 +512,28 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
  */
 export function clear(session_id: string, stats?: IEditStats): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    getClient().clearChanges(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'clear', rqst: request.toObject() })
+    getClient().clearChanges(request, (err, r) => {
       if (err) {
-        console.error(err)
         if (stats) {
           ++stats.error_count
         }
+        logger.error({
+          fn: 'clear',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('clear failed: ' + err))
       }
       if (stats) {
         ++stats.clear_count
       }
+      logger.debug({ fn: 'clear', resp: r.toObject() })
       return resolve(r.getId())
     })
   })
@@ -462,11 +548,22 @@ export function getLastChange(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    getClient().getLastChange(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'getLastChange', rqst: request.toObject() })
+    getClient().getLastChange(request, (err, r) => {
       if (err) {
-        console.error(err)
+        logger.error({
+          fn: 'getLastChange',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('getLastChange failed: ' + err))
       }
+      logger.debug({ fn: 'getLastChange', resp: r.toObject() })
       return resolve(r)
     })
   })
@@ -481,11 +578,22 @@ export function getLastUndo(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    getClient().getLastUndo(new ObjectId().setId(session_id), (err, r) => {
+    const request = new ObjectId().setId(session_id)
+    logger.debug({ fn: 'getLastUndo', rqst: request.toObject() })
+    getClient().getLastUndo(request, (err, r) => {
       if (err) {
-        console.error(err)
+        logger.error({
+          fn: 'getLastUndo',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject(new Error('getLastUndo failed: ' + err))
       }
+      logger.debug({ fn: 'getLastUndo', resp: r.toObject() })
       return resolve(r)
     })
   })
@@ -498,18 +606,26 @@ export function getLastUndo(
  */
 export function getChangeCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().getCount(
-      new CountRequest()
-        .setSessionId(session_id)
-        .setKind(CountKind.COUNT_CHANGES),
-      (err, r) => {
-        if (err) {
-          console.error(err)
-          return reject(new Error('getChangeCount failed: ' + err))
-        }
-        return resolve(r.getCount())
+    const request = new CountRequest()
+      .setSessionId(session_id)
+      .setKind(CountKind.COUNT_CHANGES)
+    logger.debug({ fn: 'getChangeCount', rqst: request.toObject() })
+    getClient().getCount(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getChangeCount',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(new Error('getChangeCount failed: ' + err))
       }
-    )
+      logger.debug({ fn: 'getChangeCount', resp: r.toObject() })
+      return resolve(r.getCount())
+    })
   })
 }
 
@@ -520,18 +636,26 @@ export function getChangeCount(session_id: string): Promise<number> {
  */
 export function getUndoCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().getCount(
-      new CountRequest()
-        .setSessionId(session_id)
-        .setKind(CountKind.COUNT_UNDOS),
-      (err, r) => {
-        if (err) {
-          console.error(err)
-          return reject(new Error('getUndoCount failed: ' + err))
-        }
-        return resolve(r.getCount())
+    const request = new CountRequest()
+      .setSessionId(session_id)
+      .setKind(CountKind.COUNT_UNDOS)
+    logger.debug({ fn: 'getUndoCount', rqst: request.toObject() })
+    getClient().getCount(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getUndoCount',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(new Error('getUndoCount failed: ' + err))
       }
-    )
+      logger.debug({ fn: 'getUndoCount', resp: r.toObject() })
+      return resolve(r.getCount())
+    })
   })
 }
 
@@ -542,18 +666,26 @@ export function getUndoCount(session_id: string): Promise<number> {
  */
 export function getChangeTransactionCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().getCount(
-      new CountRequest()
-        .setSessionId(session_id)
-        .setKind(CountKind.COUNT_CHANGE_TRANSACTIONS),
-      (err, r) => {
-        if (err) {
-          console.error(err)
-          return reject(new Error('getChangeTransactionCount failed: ' + err))
-        }
-        return resolve(r.getCount())
+    const request = new CountRequest()
+      .setSessionId(session_id)
+      .setKind(CountKind.COUNT_CHANGE_TRANSACTIONS)
+    logger.debug({ fn: 'getChangeTransactionCount', rqst: request.toObject() })
+    getClient().getCount(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getChangeTransactionCount',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(new Error('getChangeTransactionCount failed: ' + err))
       }
-    )
+      logger.debug({ fn: 'getChangeTransactionCount', resp: r.toObject() })
+      return resolve(r.getCount())
+    })
   })
 }
 
@@ -564,18 +696,26 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
  */
 export function getUndoTransactionCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    getClient().getCount(
-      new CountRequest()
-        .setSessionId(session_id)
-        .setKind(CountKind.COUNT_UNDO_TRANSACTIONS),
-      (err, r) => {
-        if (err) {
-          console.error(err)
-          return reject(new Error('getUndoTransactionCount failed: ' + err))
-        }
-        return resolve(r.getCount())
+    const request = new CountRequest()
+      .setSessionId(session_id)
+      .setKind(CountKind.COUNT_UNDO_TRANSACTIONS)
+    logger.debug({ fn: 'getUndoTransactionCount', rqst: request.toObject() })
+    getClient().getCount(request, (err, r) => {
+      if (err) {
+        logger.error({
+          fn: 'getUndoTransactionCount',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(new Error('getUndoTransactionCount failed: ' + err))
       }
-    )
+      logger.debug({ fn: 'getUndoTransactionCount', resp: r.toObject() })
+      return resolve(r.getCount())
+    })
   })
 }
 

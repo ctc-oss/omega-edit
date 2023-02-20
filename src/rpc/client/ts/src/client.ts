@@ -21,43 +21,88 @@ import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
 let client: EditorClient | undefined = undefined
+
+// set up logging
+export const logger = require('pino')({
+  level: process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino/file',
+    options: { destination: 2 }, // use 1 for stdout and 2 for stderr
+  },
+})
+
+// subscription events
 export const NO_EVENTS = 0
 export const ALL_EVENTS = ~NO_EVENTS
 
 /**
  * Gets the connected editor client. Initializes the client if not already
- * @param host interface to connect to
  * @param port port to bind to
+ * @param host interface to connect to
  * @return connected editor client
  */
 export function getClient(
-  host: string = '127.0.0.1',
-  port: string = '9000'
+  port: number = 9000,
+  host: string = '127.0.0.1'
 ): EditorClient {
   if (!client) {
     const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
     client = new EditorClient(uri, grpc.credentials.createInsecure())
+    waitForReady(client)
+      .catch((err) => {
+        logger.error({
+          cmd: 'getClient',
+          host: host,
+          port: port,
+          err: {
+            name: err.name,
+            msg: err.message,
+            stack: err.stack,
+          },
+        })
+      })
+      .then((ready) => {
+        if (!ready) {
+          logger.error({
+            cmd: 'getClient',
+            host: host,
+            port: port,
+            msg: 'client not ready',
+          })
+        }
+      })
   }
-
   return client
 }
 
 /**
  * Returns true when the client is connected and ready to handle requests
  * @param client editor client to wait until its ready
- * @param deadline limit on the amount of time to wait
+ * @param deadline limit on the amount of time to wait (10 seconds by default)
  * @return true of the client is ready to handle requests, and false if it is not ready
  */
 export function waitForReady(
   client: EditorClient,
-  deadline: grpc.Deadline
+  deadline?: grpc.Deadline
 ): Promise<boolean> {
+  if (!deadline) {
+    deadline = new Date()
+    deadline.setSeconds(deadline.getSeconds() + 10)
+  }
   return new Promise<boolean>((resolve, reject) => {
-    client.waitForReady(deadline, (err) => {
+    client.waitForReady(deadline as grpc.Deadline, (err) => {
       if (err) {
-        console.log(err.message)
+        logger.error({
+          cmd: 'waitForReady',
+          err: {
+            name: err.name,
+            msg: err.message,
+            stack: err.stack,
+          },
+        })
         return reject(false)
       }
+      logger.debug({ cmd: 'waitForReady', msg: 'ready' })
       return resolve(true)
     })
   })

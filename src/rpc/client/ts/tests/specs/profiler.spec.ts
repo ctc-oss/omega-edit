@@ -24,18 +24,20 @@ import {
   profileSession,
 } from '../../src/session'
 import { overwrite } from '../../src/change'
+
+// prettier-ignore
 // @ts-ignore
-import { cleanup, custom_setup } from './common'
+import { destroyTestSession, createTestSession, startTestServer, stopTestServer, testPort } from './common'
 
 describe('Profiling', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
-    session_id = await custom_setup()
+    session_id = await createTestSession(testPort)
   })
 
   afterEach('Destroy session', async () => {
-    await cleanup(session_id)
+    await destroyTestSession(session_id)
   })
 
   describe('Profiler', () => {
