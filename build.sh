@@ -60,10 +60,10 @@ popd
 
 # Build and test the TypeScript client
 pushd src/rpc/client/ts/
-npm install
-npm run compile-src
-npm run lint
-npm test
+yarn install
+yarn compile-src
+yarn lint
+yarn test
 popd
 
 # Kill the RPC server if it hasn't been shutdown already
