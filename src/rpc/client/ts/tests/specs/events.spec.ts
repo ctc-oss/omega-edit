@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { ALL_EVENTS, NO_EVENTS } from '../../src/settings'
+import { ALL_EVENTS, NO_EVENTS } from '../../src/client'
 import { ViewportEventKind } from '../../src/omega_edit_pb'
 
 describe('Events', () => {

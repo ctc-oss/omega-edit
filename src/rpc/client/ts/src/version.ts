@@ -18,7 +18,8 @@
  */
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient } from './settings'
+import { getClient, logger } from './client'
+export const ClientVersion = require('../package.json').version
 
 /**
  * Gets the string version of the server editor library
@@ -26,18 +27,30 @@ import { getClient } from './settings'
  */
 export function getVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
+    logger.debug({ fn: 'getVersion' })
     getClient().getVersion(new Empty(), (err, v) => {
       if (err) {
-        console.log(err.message)
+        logger.error({
+          fn: 'getVersion',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
         return reject('getVersion error: ' + err.message)
       }
 
       if (!v) {
-        console.log('undefined version')
+        logger.error({
+          fn: 'getVersion',
+          err: { msg: 'undefined version' },
+        })
         return reject('undefined version')
       }
-
-      return resolve(`v${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
+      logger.debug({ fn: 'getVersion', resp: v.toObject() })
+      return resolve(`${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
     })
   })
 }

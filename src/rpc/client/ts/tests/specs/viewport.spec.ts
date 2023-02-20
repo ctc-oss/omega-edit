@@ -18,7 +18,7 @@
  */
 
 import { expect } from 'chai'
-import { ALL_EVENTS, getClient } from '../../src/settings'
+import { ALL_EVENTS, getClient } from '../../src/client'
 import { del, getChangeCount, insert, overwrite } from '../../src/change'
 import {
   getComputedFileSize,
@@ -38,8 +38,10 @@ import {
   EventSubscriptionRequest,
   ViewportEventKind,
 } from '../../src/omega_edit_pb'
+
+// prettier-ignore
 // @ts-ignore
-import { check_callback_count, cleanup, custom_setup, log_info } from './common'
+import { checkCallbackCount, destroyTestSession, createTestSession, log_info, startTestServer, stopTestServer, testPort } from './common'
 
 let viewport_callbacks = new Map()
 
@@ -96,11 +98,11 @@ describe('Viewports', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
-    session_id = await custom_setup()
+    session_id = await createTestSession(testPort)
   })
 
   afterEach('Destroy session', async () => {
-    await cleanup(session_id)
+    await destroyTestSession(session_id)
   })
 
   it('Should create and destroy viewports', async () => {
@@ -134,7 +136,7 @@ describe('Viewports', () => {
     expect(await subscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
     expect(await getViewportCount(session_id)).to.equal(2)
     log_info(viewport_callbacks)
-    await check_callback_count(viewport_callbacks, viewport_2_id, 0)
+    await checkCallbackCount(viewport_callbacks, viewport_2_id, 0)
 
     let change_id = await insert(session_id, 0, '0123456789ABC')
     expect(change_id).to.equal(1)
@@ -149,7 +151,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('ABC')
 
-    await check_callback_count(viewport_callbacks, viewport_2_id, 1)
+    await checkCallbackCount(viewport_callbacks, viewport_2_id, 1)
 
     change_id = await del(session_id, 0, 1) // Event 2
     expect(change_id).to.equal(2)
@@ -163,7 +165,7 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('BC')
 
-    await check_callback_count(viewport_callbacks, viewport_2_id, 2)
+    await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle off interest in edit events
     await subscribeViewport(
@@ -184,7 +186,7 @@ describe('Viewports', () => {
 
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('#C')
-    await check_callback_count(viewport_callbacks, viewport_2_id, 2)
+    await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle on interest in all events
     await subscribeViewport(viewport_1_id)
@@ -204,10 +206,10 @@ describe('Viewports', () => {
     log_info('num changes: ' + (await getChangeCount(session_id)))
     expect(await getChangeCount(session_id)).to.equal(4)
     log_info(viewport_callbacks)
-    await check_callback_count(viewport_callbacks, viewport_1_id, 1)
-    await check_callback_count(viewport_callbacks, viewport_2_id, 3)
+    await checkCallbackCount(viewport_callbacks, viewport_1_id, 1)
+    await checkCallbackCount(viewport_callbacks, viewport_2_id, 3)
     log_info(viewport_callbacks)
-  }).timeout(5000)
+  }).timeout(8000)
 
   it('Should handle floating viewports', async () => {
     let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
@@ -278,7 +280,7 @@ describe('Viewports', () => {
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
-    await check_callback_count(viewport_callbacks, viewport_id, 1)
-    await check_callback_count(viewport_callbacks, viewport_floating_id, 2)
-  }).timeout(5000)
+    await checkCallbackCount(viewport_callbacks, viewport_id, 1)
+    await checkCallbackCount(viewport_callbacks, viewport_floating_id, 2)
+  }).timeout(8000)
 })

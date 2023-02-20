@@ -19,64 +19,103 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import * as unzip from 'unzip-stream'
+import * as AdmZip from 'adm-zip'
 import * as os from 'os'
 import * as child_process from 'child_process'
+import { logger } from './client'
 
+/**
+ * Artifact class*
+ */
 class Artifact {
+  // Name of the artifact
   name: string
+  // Artifact archive
   archive: string
+  // Name of the script
   scriptName: string
+  // Path to the script
+  scriptPath: string
+  // Path to the script directory
+  scriptDir: string
 
   constructor(
-    readonly type: string,
+    readonly baseScriptName: string,
     readonly version: string,
-    readonly baseScriptName
+    readonly rootPath: string
   ) {
-    this.name = `${type}-${this.version}`
-    this.archive = `${this.name}.zip`
+    const path = require('path')
+    this.name = baseScriptName
+    this.archive = `${baseScriptName}-${version}.zip`
     this.scriptName =
-      os.platform() === 'win32'
-        ? `${baseScriptName}.bat`
-        : `./${baseScriptName}`
+      os.platform() === 'win32' ? `${baseScriptName}.bat` : baseScriptName
+
+    // build the path to the script
+    this.scriptDir = path.join(rootPath, `${baseScriptName}-${version}`, 'bin')
+    this.scriptPath = path.join(this.scriptDir, this.scriptName)
   }
 }
 
-async function unzipFile(zipFilePath: string, extractPath: string) {
-  return await new Promise((resolve, reject) => {
-    let stream = fs
-      .createReadStream(zipFilePath)
-      .pipe(unzip.Extract({ path: `${extractPath}` }))
-    stream.on('close', () => {
-      try {
-        resolve(zipFilePath)
-      } catch (err) {
-        reject(err)
-      }
-    })
+/**
+ * Extract a zip file to a directory
+ * @param zipFilePath path to the zip file
+ * @param extractPath path to extract the zip file to
+ */
+function unzipFileSync(zipFilePath: string, extractPath: string) {
+  logger.debug({
+    fn: 'unzipFileSync',
+    state: 'begin',
+    src: zipFilePath,
+    dst: extractPath,
+  })
+  // Ensure that the destination directory exists
+  if (!fs.existsSync(extractPath)) {
+    fs.mkdirSync(extractPath, { recursive: true })
+  }
+  // Extract the zip file to the destination directory
+  new AdmZip(zipFilePath).extractAllTo(extractPath, true)
+  logger.debug({
+    fn: 'unzipFileSync',
+    state: 'end',
+    src: zipFilePath,
+    dst: extractPath,
   })
 }
 
-export async function setupServer(
+export async function prepareServer(
+  server: string,
   rootPath: string,
-  omegaEditVersion: string,
+  version: string,
   packagePath: string
-): Promise<[string, string]> {
-  const artifact = new Artifact(
-    'omega-edit-grpc-server',
-    omegaEditVersion,
-    'omega-edit-grpc-server'
-  )
-
-  if (!fs.existsSync(rootPath)) {
-    fs.mkdirSync(rootPath, { recursive: true })
+): Promise<Artifact> {
+  // Create omega-edit server artifact
+  const artifact = new Artifact(server, version, rootPath)
+  logger.debug({
+    fn: 'prepareServer',
+    artifact: {
+      name: artifact.name,
+      archive: artifact.archive,
+      scriptName: artifact.scriptName,
+      scriptPath: artifact.scriptPath,
+      scriptDir: artifact.scriptDir,
+    },
+  })
+  logger.debug(`creating root path '${artifact.rootPath}' if it does not exist`)
+  if (!fs.existsSync(artifact.rootPath)) {
+    fs.mkdirSync(artifact.rootPath, { recursive: true })
   }
 
-  if (!fs.existsSync(`${rootPath}/${artifact.name}`)) {
+  logger.debug(
+    `checking to see if '${artifact.rootPath}/${artifact.baseScriptName}-${artifact.version}' exists`
+  )
+  if (
+    !fs.existsSync(
+      `${artifact.rootPath}/${artifact.baseScriptName}-${artifact.version}`
+    )
+  ) {
     /*
      * The conditional of filePath is to ensure this will work locally for testing
-     * but will also work inside of other projects that use the omega-edit node
-     * package.
+     * but will also work inside other projects that use the omega-edit node package.
      */
     const filePath = fs.existsSync(path.join(__dirname, artifact.archive))
       ? path.join(__dirname, artifact.archive)
@@ -84,68 +123,106 @@ export async function setupServer(
 
     if (!fs.existsSync(filePath)) {
       return new Promise((_, reject) => {
-        reject(`Error omega-edit artifact not found at ${filePath}`)
+        reject(`Error server artifact not found at ${filePath}`)
       })
     }
 
-    // Unzip file and remove zip
-    await unzipFile(filePath, rootPath)
-  }
-
-  const scriptPath = `${rootPath}/omega-edit-grpc-server-${omegaEditVersion}`
-
-  if (!os.platform().toLowerCase().startsWith('win')) {
-    child_process.execSync(
-      `chmod +x ${scriptPath.replace(
-        ' ',
-        '\\ '
-      )}/bin/${artifact.scriptName.replace('./', '')}`
+    logger.debug(
+      `unzipping server artifact ${artifact.archive} to ${artifact.rootPath}`
+    )
+    // Unzip sever archive file
+    unzipFileSync(artifact.archive, artifact.rootPath)
+    logger.debug(
+      `unzipping server artifact ${artifact.archive} to ${artifact.rootPath} DONE!`
     )
   }
 
-  return [artifact.scriptName, scriptPath]
+  // Make the script executable
+  fs.chmodSync(artifact.scriptPath, 0o755)
+
+  return artifact
 }
 
 export async function startServer(
   rootPath: string,
-  omegaEditVersion: string,
-  packagePath: string
+  version: string,
+  packagePath: string,
+  port: number = 9000,
+  host: string = '127.0.0.1'
 ): Promise<number | undefined> {
-  const [scriptName, scriptPath] = await setupServer(
+  // Set up the server
+  logger.debug({
+    fn: 'startServer',
+    version: version,
+    rootPath: rootPath,
+    pkgPath: packagePath,
+    port: port,
+  })
+  const artifact = await prepareServer(
+    'omega-edit-grpc-server',
     rootPath,
-    omegaEditVersion,
+    version,
     packagePath
   )
 
-  let server = child_process.spawn(scriptName, [], {
-    cwd: `${scriptPath}/bin`,
-    detached: true,
+  // Start the server
+  logger.debug(
+    `starting server ${artifact.scriptPath} on interface ${host}, port ${port}`
+  )
+  const server = child_process.spawn(
+    artifact.scriptPath,
+    [`--interface=${host}`, `--port=${port}`],
+    {
+      cwd: artifact.scriptDir,
+      stdio: 'ignore',
+      detached: true,
+    }
+  )
+
+  // Wait for the server come online
+  logger.debug(
+    `waiting for server to come online on interface ${host}, port ${port}`
+  )
+  await require('wait-port')({
+    host: host,
+    port: port,
+    output: 'silent',
   })
 
-  const wait_port = require('wait-port')
-  await wait_port({ host: '127.0.0.1', port: 9000, output: 'silent' })
-
+  // Return the server pid if it exists
   return new Promise((resolve, reject) => {
-    if (server !== null) {
+    if (server.pid !== undefined && server.pid) {
+      logger.debug({
+        fn: 'startServer',
+        host: host,
+        port: port,
+        pid: server.pid,
+      })
       resolve(server.pid)
     } else {
-      reject('Error getting server pid')
+      logger.error({
+        fn: 'startServer',
+        err: {
+          msg: 'Error getting server pid',
+          host: host,
+          port: port,
+          server: server,
+        },
+      })
+      reject(`Error getting server pid: ${server}`)
     }
   })
 }
 
-export async function stopServer(pid: number | undefined): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    if (pid) {
-      if (os.platform() === 'win32') {
-        child_process.execSync(`taskkill /F /T /PID ${pid}`)
-        resolve(true)
-      } else {
-        child_process.execSync(`kill -9 ${pid} 2>&1 || echo 0`)
-        resolve(true)
-      }
-    }
+export function stopServer(pid: number | undefined): boolean {
+  if (pid) {
+    logger.debug({ fn: 'stopServer', pid: pid })
+    return process.kill(pid, 'SIGTERM')
+  }
 
-    reject('Error stopping omega-edit server, bad pid')
+  logger.error({
+    fn: 'stopServer',
+    err: { msg: 'Error stopping server, no PID' },
   })
+  return false
 }

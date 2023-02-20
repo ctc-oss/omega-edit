@@ -42,18 +42,20 @@ import {
   EditStats,
 } from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
+
+// prettier-ignore
 // @ts-ignore
-import { cleanup, custom_setup } from './common'
+import { destroyTestSession, createTestSession, startTestServer, stopTestServer, testPort } from './common'
 
 describe('Searching', () => {
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
-    session_id = await custom_setup()
+    session_id = await createTestSession(testPort)
   })
 
   afterEach('Destroy session', async () => {
-    await cleanup(session_id)
+    await destroyTestSession(session_id)
   })
 
   it('Should search sessions', async () => {

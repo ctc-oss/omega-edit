@@ -39,5 +39,5 @@
     "noUnusedParameters": true,
     "declaration": true
   },
-  "exclude": ["node_modules", "tests", "runTests.ts", "**/*.d.ts", "scripts"]
+  "exclude": ["node_modules", "tests", "**/*.d.ts", "scripts"]
 }

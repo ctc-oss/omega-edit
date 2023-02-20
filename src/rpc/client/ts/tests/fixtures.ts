@@ -17,23 +17,36 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
-import { ClientVersion, getVersion } from '../../src/version'
-import { getClient, waitForReady } from '../../src/client'
+import { startServer, stopServer } from '../src/server'
+import { ClientVersion } from '../src/version'
+import * as fs from 'fs'
 
 // prettier-ignore
 // @ts-ignore
-import { startTestServer, stopTestServer } from './common'
+import { testPort } from "./specs/common"
 
-describe('Version', () => {
-  const expected_version = ClientVersion
-  const port = 9010
+const path = require('path')
+const rootPath = path.resolve(__dirname, '..')
 
-  beforeEach('Ensure the client is ready', async () => {
-    expect(await waitForReady(getClient(port)))
-  })
+function getPidFile(port: number): string {
+  return path.join(rootPath, `.test-server-${port}.pid`)
+}
 
-  it('Should return version ' + expected_version, async () => {
-    expect(await getVersion()).to.equal(expected_version)
-  })
-})
+export async function mochaGlobalSetup(): Promise<number | undefined> {
+  const pid = await startServer(rootPath, ClientVersion, rootPath, testPort)
+  mochaGlobalTeardown()
+  if (pid) {
+    fs.writeFileSync(getPidFile(testPort), pid.toString(), 'utf8')
+  }
+  return pid
+}
+
+export function mochaGlobalTeardown(): boolean {
+  const pidFile = getPidFile(testPort)
+  if (fs.existsSync(pidFile)) {
+    const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
+    fs.unlinkSync(pidFile)
+    return stopServer(pid)
+  }
+  return false
+}

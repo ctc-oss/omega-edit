@@ -19,8 +19,6 @@
 
 import { expect } from 'chai'
 import { decode, encode } from 'fastestsmallesttextencoderdecoder'
-// @ts-ignore
-import { deadline } from './common'
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {
