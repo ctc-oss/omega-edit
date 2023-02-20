@@ -18,10 +18,13 @@ build*/
 cmake-build*/
 node_modules/
 venv/
-yarn.lock
+package-lock.json
 
 # log files
 *.log
+
+# PID files
+*.pid
 
 # IDE files
 .idea/
