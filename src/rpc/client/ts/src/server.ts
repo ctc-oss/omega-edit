@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import * as child_process from 'child_process'
@@ -29,8 +28,6 @@ import { logger } from './client'
 class Artifact {
   // Name of the artifact
   name: string
-  // Artifact archive
-  archive: string
   // Name of the script
   scriptName: string
   // Path to the script
@@ -44,7 +41,6 @@ class Artifact {
     readonly rootPath: string
   ) {
     this.name = baseScriptName
-    this.archive = `${baseScriptName}-${version}.zip`
     this.scriptName =
       os.platform() === 'win32' ? `${baseScriptName}.bat` : baseScriptName
 
@@ -52,110 +48,6 @@ class Artifact {
     this.scriptDir = path.join(rootPath, `${baseScriptName}-${version}`, 'bin')
     this.scriptPath = path.join(this.scriptDir, this.scriptName)
   }
-}
-
-/**
- * Extract a zip file to a directory
- * @param zipFilePath path to the zip file
- * @param extractPath path to extract the zip file to
- */
-function unzipFileSync(zipFilePath: string, extractPath: string) {
-  logger.debug({
-    fn: 'unzipFileSync',
-    state: 'begin',
-    src: zipFilePath,
-    dst: extractPath,
-  })
-  // Ensure that the destination directory exists
-  if (!fs.existsSync(extractPath)) {
-    fs.mkdirSync(extractPath, { recursive: true })
-  }
-  // Extract the zip file to the destination directory
-  const AdmZip = require('adm-zip')
-  new AdmZip(zipFilePath).extractAllTo(extractPath, true)
-  logger.debug({
-    fn: 'unzipFileSync',
-    state: 'end',
-    src: zipFilePath,
-    dst: extractPath,
-  })
-}
-
-function addExecutableBitToFile(filePath: string): void {
-  const stats = fs.statSync(filePath)
-  if (stats.isFile()) {
-    fs.chmodSync(filePath, stats.mode | 0o111)
-    logger.debug({
-      fn: 'addExecutableBitToFile',
-      msg: `executable bit added to file '${filePath}'`,
-    })
-  }
-}
-
-function addExecutableBitToFiles(directoryPath: string): void {
-  // Add the executable bit to each file in the directory
-  logger.debug({
-    fn: 'addExecutableBitToFiles',
-    msg: `Adding executable bit to files in directory '${directoryPath}'`,
-  })
-  fs.readdirSync(directoryPath).map((file: string) => {
-    addExecutableBitToFile(path.join(directoryPath, file))
-  })
-}
-
-export async function prepareServer(
-  server: string,
-  rootPath: string,
-  version: string,
-  packagePath: string
-): Promise<Artifact> {
-  // Create omega-edit server artifact
-  const artifact = new Artifact(server, version, rootPath)
-  logger.debug({
-    fn: 'prepareServer',
-    artifact: {
-      name: artifact.name,
-      archive: artifact.archive,
-      scriptName: artifact.scriptName,
-      scriptPath: artifact.scriptPath,
-      scriptDir: artifact.scriptDir,
-    },
-  })
-  logger.debug(`creating root path '${artifact.rootPath}' if it does not exist`)
-  if (!fs.existsSync(artifact.rootPath)) {
-    fs.mkdirSync(artifact.rootPath, { recursive: true })
-  }
-
-  logger.debug(`checking to see if '${artifact.scriptDir}' exists`)
-  if (!fs.existsSync(artifact.scriptDir)) {
-    /*
-     * The conditional of filePath is to ensure this will work locally for testing
-     * but will also work inside other projects that use the omega-edit node package.
-     */
-    const filePath = fs.existsSync(path.join(__dirname, artifact.archive))
-      ? path.join(__dirname, artifact.archive)
-      : path.join(packagePath, artifact.archive)
-
-    if (!fs.existsSync(filePath)) {
-      return new Promise((_, reject) => {
-        reject(`Error server artifact not found at ${filePath}`)
-      })
-    }
-
-    logger.debug(
-      `unzipping server artifact ${artifact.archive} to ${artifact.rootPath}`
-    )
-    // Unzip server archive file
-    unzipFileSync(artifact.archive, artifact.rootPath)
-    logger.debug(
-      `unzipping server artifact ${artifact.archive} to ${artifact.rootPath} DONE!`
-    )
-
-    // Add the executable bit to the files in the bin directory
-    addExecutableBitToFiles(artifact.scriptDir)
-  }
-
-  return artifact
 }
 
 export async function startServer(
@@ -173,12 +65,7 @@ export async function startServer(
     pkgPath: packagePath,
     port: port,
   })
-  const artifact = await prepareServer(
-    'omega-edit-grpc-server',
-    rootPath,
-    version,
-    packagePath
-  )
+  const artifact = new Artifact('omega-edit-grpc-server', version, rootPath)
 
   // Start the server
   logger.debug(

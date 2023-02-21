@@ -29,17 +29,25 @@ const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
 ]
 
-function addExecutableBitToFile(filePath) {
-  const stats = fs.statSync(filePath)
-  if (stats.isFile()) {
-    fs.chmodSync(filePath, stats.mode | 0o111)
+function copyDirectory(srcDir, destDir) {
+  // Ensure that the destination directory exists
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(destDir, { recursive: true })
   }
-}
 
-function addExecutableBitToFiles(directoryPath) {
-  // Add the executable bit to each file in the directory
-  fs.readdirSync(directoryPath).map((file) => {
-    addExecutableBitToFile(path.join(directoryPath, file))
+  // Loop through each file or directory
+  fs.readdirSync(srcDir, { withFileTypes: true }).forEach((file) => {
+    // Construct the full path of the file or directory
+    const srcPath = path.join(srcDir, file.name)
+    const destPath = path.join(destDir, file.name)
+
+    if (file.isDirectory()) {
+      // If the file is a directory, recursively call this function on the directory
+      copyDirectory(srcPath, destPath)
+    } else {
+      // If the file is a file, copy it to the destination directory
+      fs.copyFileSync(srcPath, destPath)
+    }
   })
 }
 
@@ -71,12 +79,8 @@ function setup() {
   copyGlob('src/*.js')
   copyGlob('out/*')
 
-  // Unpack the omega-edit-grpc-server zip file to the package directory
-  const omegaEditServer = `omega-edit-grpc-server-${pkg_version}.zip`
-  new AdmZip(omegaEditServer).extractAllTo(pkg_dir, true)
-  addExecutableBitToFiles(
-    `${pkg_dir}/omega-edit-grpc-server-${pkg_version}/bin`
-  )
+  // Copy the server directory to the package directory
+  copyDirectory(`omega-edit-grpc-server-${pkg_version}`, pkg_dir)
 
   fs.copyFileSync('yarn.lock', `${pkg_dir}/yarn.lock`)
   fs.copyFileSync('package.json', `${pkg_dir}/package.json`)

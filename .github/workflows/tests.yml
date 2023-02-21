@@ -159,7 +159,7 @@ jobs:
       - name: Package & Run Scala RPC server 📋
         run: |
           sbt pkgServer
-          cp -r serv/target/universal/omega-edit-grpc-server*.zip ../../client/ts
+          unzip serv/target/universal/omega-edit-grpc-server*.zip -d ../../client/ts/
         shell: bash
         working-directory: src/rpc/server/scala
 

@@ -320,13 +320,13 @@ jobs:
           name: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           path: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
 
-      - name: Move out scala package file 🛻
+      - name: Extract scala server file 🛻
         run: |
           scala_pkg_file="omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip"
           mv -v "${scala_pkg_file}" "${scala_pkg_file}_dir"
           mv -v "${scala_pkg_file}_dir/${scala_pkg_file}" "${scala_pkg_file}"
           rm -rf "${scala_pkg_file}_dir"
-          mv "$scala_pkg_file" "src/rpc/client/ts/$scala_pkg_file"
+          unzip "$scala_pkg_file" -d "./src/rpc/client/ts/"
 
       - name: Create package tarball file 🔧
         run: |
