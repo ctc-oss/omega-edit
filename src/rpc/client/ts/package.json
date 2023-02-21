@@ -22,7 +22,7 @@
     "package": "yarn package-setup && yarn package-create",
     "package-setup": "node -e \"require('./scripts/package.ts').setup()\"",
     "package-create": "node -e \"require('./scripts/package.ts').create()\"",
-    "test": "mocha --exit --timeout 100000 --require ts-node/register --require tests/fixtures.ts ./tests/specs/*.spec.ts",
+    "test": "mocha --exit --timeout 100000 --slow 10000 --require ts-node/register --require tests/fixtures.ts ./tests/specs/*.spec.ts",
     "lint": "yarn run prettier src -c"
   },
   "devDependencies": {
