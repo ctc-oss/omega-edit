@@ -25,7 +25,7 @@ import {
   getSessionCount,
 } from '../../src/session'
 import { startServer, stopServer } from '../../src/server'
-import { ClientVersion } from '../../src/version'
+import { getClientVersion } from '../../src/version'
 import * as fs from 'fs'
 
 const path = require('path')
@@ -39,7 +39,7 @@ function getPidFile(port: number): string {
 export async function startTestServer(
   port: number
 ): Promise<number | undefined> {
-  const pid = await startServer(rootPath, ClientVersion, rootPath, port)
+  const pid = await startServer(rootPath, getClientVersion(), rootPath, port)
   stopTestServer(port)
   if (pid) {
     fs.writeFileSync(getPidFile(port), pid.toString(), 'utf8')

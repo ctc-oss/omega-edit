@@ -19,19 +19,40 @@
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient, logger } from './client'
-export const ClientVersion = require('../package.json').version
+import * as fs from 'fs'
+
+// Discover the client version both installed and in the repository source tree
+export const ClientVersion: string = JSON.parse(
+  fs
+    .readFileSync(
+      require('path').join(
+        fs.existsSync('package.json') ? '.' : '..',
+        'package.json'
+      )
+    )
+    .toString()
+)['version']
 
 /**
- * Gets the string version of the server editor library
- * @return string version of the server editor library
+ * Gets the string version of the client
+ * @return string version of the client
  */
-export function getVersion(): Promise<string> {
+export function getClientVersion(): string {
+  logger.debug({ fn: 'getClientVersion', resp: ClientVersion })
+  return ClientVersion
+}
+
+/**
+ * Gets the string version of the running server
+ * @return string version of the running server
+ */
+export function getServerVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     logger.debug({ fn: 'getVersion' })
     getClient().getVersion(new Empty(), (err, v) => {
       if (err) {
         logger.error({
-          fn: 'getVersion',
+          fn: 'getServerVersion',
           err: {
             msg: err.message,
             details: err.details,
@@ -39,17 +60,17 @@ export function getVersion(): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('getVersion error: ' + err.message)
+        return reject('getServerVersion error: ' + err.message)
       }
 
       if (!v) {
         logger.error({
-          fn: 'getVersion',
+          fn: 'getServerVersion',
           err: { msg: 'undefined version' },
         })
         return reject('undefined version')
       }
-      logger.debug({ fn: 'getVersion', resp: v.toObject() })
+      logger.debug({ fn: 'getServerVersion', resp: v.toObject() })
       return resolve(`${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
     })
   })
