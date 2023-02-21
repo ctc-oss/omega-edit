@@ -20,6 +20,7 @@
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
 
+// client instance
 let client: EditorClient | undefined = undefined
 
 // set up logging
@@ -32,8 +33,8 @@ export const logger = require('pino')({
 })
 
 // subscription events
-export const NO_EVENTS = 0
-export const ALL_EVENTS = ~NO_EVENTS
+export const NO_EVENTS = 0 // subscribe to no events
+export const ALL_EVENTS = ~NO_EVENTS // subscribe to all events
 
 /**
  * Gets the connected editor client. Initializes the client if not already
@@ -46,6 +47,12 @@ export function getClient(
   host: string = '127.0.0.1'
 ): EditorClient {
   if (!client) {
+    logger.debug({
+      fn: 'getClient',
+      port: port,
+      host: host,
+      state: 'initializing',
+    })
     const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
     client = new EditorClient(uri, grpc.credentials.createInsecure())
     waitForReady(client)
@@ -78,7 +85,7 @@ export function getClient(
 /**
  * Returns true when the client is connected and ready to handle requests
  * @param client editor client to wait until its ready
- * @param deadline limit on the amount of time to wait (10 seconds by default)
+ * @param deadline limit on the amount of time to wait (current time plus 10 seconds by default)
  * @return true of the client is ready to handle requests, and false if it is not ready
  */
 export function waitForReady(

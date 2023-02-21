@@ -23,7 +23,7 @@ import * as child_process from 'child_process'
 import { logger } from './client'
 
 /**
- * Artifact class*
+ * Artifact class
  */
 class Artifact {
   // Name of the artifact
@@ -50,10 +50,17 @@ class Artifact {
   }
 }
 
+/**
+ * Start the server
+ * @param rootPath path to the root of the server package
+ * @param version version of the server package
+ * @param port port to listen on
+ * @param host interface to listen on
+ * @returns pid of the server process or undefined if the server failed to start
+ */
 export async function startServer(
   rootPath: string,
   version: string,
-  packagePath: string,
   port: number = 9000,
   host: string = '127.0.0.1'
 ): Promise<number | undefined> {
@@ -62,7 +69,6 @@ export async function startServer(
     fn: 'startServer',
     version: version,
     rootPath: rootPath,
-    pkgPath: packagePath,
     port: port,
   })
   const artifact = new Artifact('omega-edit-grpc-server', version, rootPath)
@@ -116,6 +122,11 @@ export async function startServer(
   })
 }
 
+/**
+ * Stop the server
+ * @param pid pid of the server process
+ * @returns true if the server was stopped
+ */
 export function stopServer(pid: number | undefined): boolean {
   if (pid) {
     logger.debug({ fn: 'stopServer', pid: pid })
