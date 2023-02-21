@@ -19,7 +19,6 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import * as AdmZip from 'adm-zip'
 import * as os from 'os'
 import * as child_process from 'child_process'
 import { logger } from './client'
@@ -44,7 +43,6 @@ class Artifact {
     readonly version: string,
     readonly rootPath: string
   ) {
-    const path = require('path')
     this.name = baseScriptName
     this.archive = `${baseScriptName}-${version}.zip`
     this.scriptName =
@@ -73,12 +71,35 @@ function unzipFileSync(zipFilePath: string, extractPath: string) {
     fs.mkdirSync(extractPath, { recursive: true })
   }
   // Extract the zip file to the destination directory
+  const AdmZip = require('adm-zip')
   new AdmZip(zipFilePath).extractAllTo(extractPath, true)
   logger.debug({
     fn: 'unzipFileSync',
     state: 'end',
     src: zipFilePath,
     dst: extractPath,
+  })
+}
+
+function addExecutableBitToFile(filePath: string): void {
+  const stats = fs.statSync(filePath)
+  if (stats.isFile()) {
+    fs.chmodSync(filePath, stats.mode | 0o111)
+    logger.debug({
+      fn: 'addExecutableBitToFile',
+      msg: `executable bit added to file '${filePath}'`,
+    })
+  }
+}
+
+function addExecutableBitToFiles(directoryPath: string): void {
+  // Add the executable bit to each file in the directory
+  logger.debug({
+    fn: 'addExecutableBitToFiles',
+    msg: `Adding executable bit to files in directory '${directoryPath}'`,
+  })
+  fs.readdirSync(directoryPath).map((file: string) => {
+    addExecutableBitToFile(path.join(directoryPath, file))
   })
 }
 
@@ -105,14 +126,8 @@ export async function prepareServer(
     fs.mkdirSync(artifact.rootPath, { recursive: true })
   }
 
-  logger.debug(
-    `checking to see if '${artifact.rootPath}/${artifact.baseScriptName}-${artifact.version}' exists`
-  )
-  if (
-    !fs.existsSync(
-      `${artifact.rootPath}/${artifact.baseScriptName}-${artifact.version}`
-    )
-  ) {
+  logger.debug(`checking to see if '${artifact.scriptDir}' exists`)
+  if (!fs.existsSync(artifact.scriptDir)) {
     /*
      * The conditional of filePath is to ensure this will work locally for testing
      * but will also work inside other projects that use the omega-edit node package.
@@ -130,15 +145,15 @@ export async function prepareServer(
     logger.debug(
       `unzipping server artifact ${artifact.archive} to ${artifact.rootPath}`
     )
-    // Unzip sever archive file
+    // Unzip server archive file
     unzipFileSync(artifact.archive, artifact.rootPath)
     logger.debug(
       `unzipping server artifact ${artifact.archive} to ${artifact.rootPath} DONE!`
     )
-  }
 
-  // Make the script executable
-  fs.chmodSync(artifact.scriptPath, 0o755)
+    // Add the executable bit to the files in the bin directory
+    addExecutableBitToFiles(artifact.scriptDir)
+  }
 
   return artifact
 }
