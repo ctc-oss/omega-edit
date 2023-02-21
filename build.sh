@@ -55,11 +55,12 @@ sbt installM2
 sbt test
 sbt pkgServer
 sbt serv/test
-cp -av "serv/target/universal/"*.zip ../../client/ts
 popd
 
 # Build and test the TypeScript client
 pushd src/rpc/client/ts/
+unzip -fo ../../server/scala/serv/target/universal/*.zip
+chmod +x omega-edit-grpc-server-*/bin/*
 yarn install
 yarn compile-src
 yarn lint
