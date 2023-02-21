@@ -59,7 +59,7 @@ popd
 
 # Build and test the TypeScript client
 pushd src/rpc/client/ts/
-unzip -fo ../../server/scala/serv/target/universal/*.zip
+unzip -o ../../server/scala/serv/target/universal/*.zip
 chmod +x omega-edit-grpc-server-*/bin/*
 yarn install
 yarn compile-src
