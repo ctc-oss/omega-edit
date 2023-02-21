@@ -18,7 +18,7 @@
  */
 
 import { startServer, stopServer } from '../src/server'
-import { ClientVersion } from '../src/version'
+import { getClientVersion } from '../src/version'
 import * as fs from 'fs'
 
 // prettier-ignore
@@ -33,7 +33,12 @@ function getPidFile(port: number): string {
 }
 
 export async function mochaGlobalSetup(): Promise<number | undefined> {
-  const pid = await startServer(rootPath, ClientVersion, rootPath, testPort)
+  const pid = await startServer(
+    rootPath,
+    getClientVersion(),
+    rootPath,
+    testPort
+  )
   mochaGlobalTeardown()
   if (pid) {
     fs.writeFileSync(getPidFile(testPort), pid.toString(), 'utf8')

@@ -18,7 +18,11 @@
  */
 
 import { expect } from 'chai'
-import { ClientVersion, getVersion } from '../../src/version'
+import {
+  ClientVersion,
+  getClientVersion,
+  getServerVersion,
+} from '../../src/version'
 import { getClient, waitForReady } from '../../src/client'
 
 // prettier-ignore
@@ -26,14 +30,15 @@ import { getClient, waitForReady } from '../../src/client'
 import { startTestServer, stopTestServer } from './common'
 
 describe('Version', () => {
-  const expected_version = ClientVersion
   const port = 9010
 
   beforeEach('Ensure the client is ready', async () => {
     expect(await waitForReady(getClient(port)))
   })
 
-  it('Should return version ' + expected_version, async () => {
-    expect(await getVersion()).to.equal(expected_version)
+  it('Server version should return version ' + ClientVersion, async () => {
+    expect(await getServerVersion())
+      .to.equal(getClientVersion())
+      .to.equal(ClientVersion)
   })
 })
