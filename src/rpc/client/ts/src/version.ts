@@ -19,20 +19,10 @@
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient, logger } from './client'
-import * as fs from 'fs'
+import { OMEGA_EDIT_CLIENT_VERSION } from './client_version'
 
 // Discover the client version both installed and in the repository source tree
-export const ClientVersion: string = JSON.parse(
-  fs
-    .readFileSync(
-      require('path').join(
-        fs.existsSync('package.json') ? '.' : '..',
-        'package.json'
-      )
-    )
-    .toString()
-)['version']
-
+export const ClientVersion: string = OMEGA_EDIT_CLIENT_VERSION
 /**
  * Gets the string version of the client
  * @return string version of the client

@@ -309,7 +309,7 @@ export function replace(
  * @param original_segment original segment
  * @param edited_segment replacement segment
  * @param offset start offset of the segments in the file
- * @returns [{offset: number, remove_bytes_count: number, replacement: string}] or null if no change is needed
+ * @returns [{offset: number, remove_bytes_count: number, replacement: Uint8Array}] or null if no change is needed
  */
 export function editOptimizer(
   original_segment: Uint8Array,
