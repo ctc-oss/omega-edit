@@ -19,7 +19,6 @@
 
 // @ts-nocheck <-- This is needed as this file is basically a JavaScript script
 //                 but with some TypeScript niceness baked in
-const AdmZip = require('adm-zip')
 const fs = require('fs')
 const path = require('path')
 const glob = require('glob')
