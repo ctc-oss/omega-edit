@@ -39,7 +39,7 @@ function getPidFile(port: number): string {
 export async function startTestServer(
   port: number
 ): Promise<number | undefined> {
-  const pid = await startServer(rootPath, getClientVersion(), rootPath, port)
+  const pid = await startServer(rootPath, getClientVersion(), port)
   stopTestServer(port)
   if (pid) {
     fs.writeFileSync(getPidFile(port), pid.toString(), 'utf8')
