@@ -32,8 +32,9 @@ object Rat {
     file("src/rpc/client/ts/tests/package-lock.json"),
     file("src/rpc/client/ts/tests/tsconfig.json"),
     file("src/rpc/client/ts/.prettierrc"),
-    // compiles files
+    // compiled files
     file(".devcontainer/devcontainer.json"),
+    file("src/rpc/client/ts/src/client_version.ts"),
     file("src/rpc/client/ts/src/omega_edit_pb.js"),
     file("src/rpc/client/ts/out/settings.js.map"),
     file("src/rpc/client/ts/out/omega_edit_pb.js"),

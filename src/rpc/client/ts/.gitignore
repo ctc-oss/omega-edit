@@ -18,3 +18,4 @@ omega-edit-grpc-server-*
 omega_edit_*.js
 omega_edit_*.ts
 package
+src/client_version.ts

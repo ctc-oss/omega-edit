@@ -16,14 +16,17 @@
     "compile-src": "run-script-os",
     "compile-src:default": "./compile-proto.sh",
     "compile-src:windows": "./compile-proto.bat",
+    "precompile": "node -e \"require('./scripts/package.ts').genClientVersion('./src/client_version.ts')\"",
     "compile": "tsc -p ./",
     "docgen": "typedoc",
     "prepackage": "yarn compile-src && yarn compile",
     "package": "yarn package-setup && yarn package-create",
     "package-setup": "node -e \"require('./scripts/package.ts').setup()\"",
     "package-create": "node -e \"require('./scripts/package.ts').create()\"",
+    "pretest": "yarn prepackage",
     "test": "mocha --exit --timeout 100000 --slow 10000 --require ts-node/register --require tests/fixtures.ts ./tests/specs/*.spec.ts",
-    "lint": "yarn run prettier src -c"
+    "lint": "yarn prettier src --check",
+    "lint:fix": "yarn prettier src --write"
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",
