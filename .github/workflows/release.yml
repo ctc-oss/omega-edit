@@ -100,6 +100,8 @@ jobs:
 
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
+        with:
+          version: 1.59.0
 
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
@@ -165,6 +167,8 @@ jobs:
 
       - name: Install Conan 💪
         uses: turtlebrowser/get-conan@main
+        with:
+          version: 1.59.0
 
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
