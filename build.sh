@@ -51,7 +51,6 @@ kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || 
 
 # Build and test the Scala server
 pushd src/rpc/server/scala
-sbt installM2
 sbt test
 sbt pkgServer
 sbt serv/test
