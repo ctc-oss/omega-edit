@@ -23,7 +23,8 @@ import {
   ViewportDataRequest,
   ViewportDataResponse,
 } from './omega_edit_pb'
-import { getClient, logger } from './client'
+import { logger } from './logger'
+import { getClient } from './client'
 
 /**
  * Create a new viewport in a session

@@ -18,7 +18,8 @@
  */
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
-import { getClient, logger } from './client'
+import { getClient } from './client'
+import { logger } from './logger'
 import { OMEGA_EDIT_CLIENT_VERSION } from './client_version'
 
 // Discover the client version both installed and in the repository source tree
