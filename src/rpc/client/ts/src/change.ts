@@ -25,7 +25,8 @@ import {
   CountRequest,
   ObjectId,
 } from './omega_edit_pb'
-import { getClient, logger } from './client'
+import { getClient } from './client'
+import { logger } from './logger'
 import {
   beginSessionTransaction,
   endSessionTransaction,

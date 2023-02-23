@@ -19,18 +19,10 @@
 
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
+import { logger } from './logger'
 
 // client instance
 let client: EditorClient | undefined = undefined
-
-// set up logging
-export const logger = require('pino')({
-  level: process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info',
-  transport: {
-    target: 'pino/file',
-    options: { destination: 2 }, // use 1 for stdout and 2 for stderr
-  },
-})
 
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
