@@ -17,7 +17,11 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api._
-import com.ctc.omega_edit.spi.{NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
+import com.ctc.omega_edit.spi.{
+  NativeInfoNotFound,
+  PlatformInfoLoader,
+  VersionMismatch
+}
 import jnr.ffi.{LibraryLoader, Pointer}
 
 import java.nio.file.{Files, Paths}
@@ -114,7 +118,12 @@ private[omega_edit] trait FFI {
   def omega_session_end_transaction(p: Pointer): Int
   def omega_session_get_num_change_transactions(p: Pointer): Long
   def omega_session_get_num_undone_change_transactions(p: Pointer): Long
-  def omega_session_profile(p: Pointer, profile: Array[Long], offset: Long, length: Long): Int
+  def omega_session_profile(
+      p: Pointer,
+      profile: Array[Long],
+      offset: Long,
+      length: Long
+  ): Int
 
   // viewport
 

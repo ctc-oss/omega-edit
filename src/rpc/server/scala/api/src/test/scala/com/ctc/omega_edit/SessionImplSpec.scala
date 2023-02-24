@@ -179,7 +179,12 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
     }
 
     "respect caseInsensitive" in session(as) { s =>
-      s.search("A".getBytes, 0, 0, caseInsensitive = true) shouldBe List(4, 9, 10, 15)
+      s.search("A".getBytes, 0, 0, caseInsensitive = true) shouldBe List(
+        4,
+        9,
+        10,
+        15
+      )
     }
 
     "respect limit" in session(as) { s =>

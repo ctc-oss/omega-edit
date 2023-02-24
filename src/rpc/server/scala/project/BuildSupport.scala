@@ -27,7 +27,8 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String = "../../../../../lib" // path relative to the native projects directory
+  val libdir: String =
+    "../../../../../lib" // path relative to the native projects directory
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
@@ -43,22 +44,23 @@ object BuildSupport {
   // https://stackoverflow.com/a/51416386
   def filterScopedDependenciesFromPom(node: XmlNode): XmlNode =
     new RuleTransformer(new RewriteRule {
-      override def transform(node: XmlNode): XmlNodeSeq = node match {
-        case e: Elem
-            if e.label == "dependency"
-              && e.child.exists(child => child.label == "scope") =>
-          def txt(label: String): String =
-            "\"" + e.child
-              .filter(_.label == label)
-              .flatMap(_.text)
-              .mkString + "\""
-          Comment(
-            s""" scoped dependency ${txt("groupId")} % ${txt(
-              "artifactId"
-            )} % ${txt("version")} % ${txt("scope")} has been omitted """
-          )
-        case _ => node
-      }
+      override def transform(node: XmlNode): XmlNodeSeq =
+        node match {
+          case e: Elem
+              if e.label == "dependency"
+                && e.child.exists(child => child.label == "scope") =>
+            def txt(label: String): String =
+              "\"" + e.child
+                .filter(_.label == label)
+                .flatMap(_.text)
+                .mkString + "\""
+            Comment(
+              s""" scoped dependency ${txt("groupId")} % ${txt(
+                  "artifactId"
+                )} % ${txt("version")} % ${txt("scope")} has been omitted """
+            )
+          case _ => node
+        }
     }).transform(node).head
 
   lazy val platform: Platform = {
@@ -70,13 +72,14 @@ object BuildSupport {
     }
 
     val arch =
-      if (os == "macos" || os == "linux") System.getProperty("os.arch").toLowerCase
+      if (os == "macos" || os == "linux")
+        System.getProperty("os.arch").toLowerCase
       else
         System.getProperty("os.arch").toLowerCase match {
           case Amd(bits)   => bits
           case x86(bits)   => bits
           case aarch(bits) => bits
-          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
+          case arch => throw new IllegalStateException(s"unknown arch: $arch")
         }
 
     Platform(os, arch)
@@ -90,13 +93,14 @@ object BuildSupport {
     }
 
     val arch =
-      if (os == "macos" || os == "linux") System.getProperty("os.arch").toLowerCase
+      if (os == "macos" || os == "linux")
+        System.getProperty("os.arch").toLowerCase
       else
         System.getProperty("os.arch").toLowerCase match {
           case Amd(bits)   => bits
           case x86(bits)   => bits
           case aarch(bits) => bits
-          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
+          case arch => throw new IllegalStateException(s"unknown arch: $arch")
         }
 
     Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
@@ -112,12 +116,13 @@ object BuildSupport {
     }
   }
 
-  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>
-    opts.filterNot(
-      Set(
-        "-Wvalue-discard",
-        "-Ywarn-value-discard"
+  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = {
+    opts: Seq[String] =>
+      opts.filterNot(
+        Set(
+          "-Wvalue-discard",
+          "-Ywarn-value-discard"
+        )
       )
-    )
   }
 }

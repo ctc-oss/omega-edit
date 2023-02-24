@@ -36,7 +36,10 @@ import scala.util.Using
 /** This unit test is more for demonstration of the testability of the gRPC
   * components than actual coverage
   */
-class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupport {
+class ExampleSpec
+    extends AsyncWordSpecLike
+    with Matchers
+    with EditorServiceSupport {
   val tmp: Path = Files.createTempDirectory("omega")
   tmp.toFile.deleteOnExit()
 
@@ -47,29 +50,35 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
     "have zero sessions when initialized" in service
       .getSessionCount(Empty())
-      .map {
-        case SessionCountResponse(count, _) =>
-          count should be(0)
+      .map { case SessionCountResponse(count, _) =>
+        count should be(0)
       }
 
-    "create session" in service.createSession(CreateSessionRequest.defaultInstance).map { v =>
-      v.sessionId shouldNot be(empty)
-    }
+    "create session" in service
+      .createSession(CreateSessionRequest.defaultInstance)
+      .map { v =>
+        v.sessionId shouldNot be(empty)
+      }
 
     "have one session counted after creation" in service
       .getSessionCount(Empty())
-      .map {
-        case SessionCountResponse(count, _) =>
-          count should be(1)
+      .map { case SessionCountResponse(count, _) =>
+        count should be(1)
       }
 
     "create and destroy sessions" in newSession { _ =>
       for {
         sessionCount1 <- service.getSessionCount(Empty())
-        sessionResponse2 <- service.createSession(CreateSessionRequest(None, Some("session_3")))
+        sessionResponse2 <- service.createSession(
+          CreateSessionRequest(None, Some("session_3"))
+        )
         sessionCount2 <- service.getSessionCount(Empty())
-        sessionResponse3 <- service.createSession(CreateSessionRequest(None, Some("session_4")))
-        sessionResponse4 <- service.createSession(CreateSessionRequest(None, Some("session_5")))
+        sessionResponse3 <- service.createSession(
+          CreateSessionRequest(None, Some("session_4"))
+        )
+        sessionResponse4 <- service.createSession(
+          CreateSessionRequest(None, Some("session_5"))
+        )
         sessionCount3 <- service.getSessionCount(Empty())
         destroyedSession1 <- service.destroySession(ObjectId("session_4"))
         sessionCount4 <- service.getSessionCount(Empty())
@@ -94,16 +103,21 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
     }
 
     "profile session data" in newSession { sid =>
-      val testString = ByteString.copyFromUtf8("5555544443332210122333444455555")
+      val testString =
+        ByteString.copyFromUtf8("5555544443332210122333444455555")
       val len = testString.size()
-      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0)
+      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0)
       for {
         _ <- service.submitChange(
           ChangeRequest(
@@ -118,7 +132,13 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           ByteFrequencyProfileRequest(sid, offset = None, length = None)
         )
       } yield profileResponse should matchPattern {
-        case ByteFrequencyProfileResponse(`sid`, 0, `len`, `expectedProfile`, _) =>
+        case ByteFrequencyProfileResponse(
+              `sid`,
+              0,
+              `len`,
+              `expectedProfile`,
+              _
+            ) =>
       }
     }
 
@@ -142,8 +162,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           .map(_.computedFileSize)
       } yield {
         sizeBefore shouldBe 0
-        changeResponse should matchPattern {
-          case ChangeResponse(`sid`, _, _) =>
+        changeResponse should matchPattern { case ChangeResponse(`sid`, _, _) =>
         }
         sizeAfter shouldBe testString.size
       }
@@ -154,7 +173,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
       val testString = ByteString.copyFromUtf8(UUID.randomUUID().toString)
       val events = service
-        .subscribeToSessionEvents(EventSubscriptionRequest(sid, None)) // None implies subscribe to all
+        .subscribeToSessionEvents(
+          EventSubscriptionRequest(sid, None)
+        ) // None implies subscribe to all
         .idleTimeout(1.second)
         .runWith(Sink.headOption)
 
@@ -171,8 +192,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         res <- events
       } yield res match {
         case Some(e) =>
-          e should matchPattern {
-            case SessionEvent(`sid`, _, _, _, _, _, _) =>
+          e should matchPattern { case SessionEvent(`sid`, _, _, _, _, _, _) =>
           }
         case None => fail("no message received")
       }
@@ -191,9 +211,15 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse <- service.saveSession(
-          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString, allowOverwrite = None)
+          SaveSessionRequest(
+            sid,
+            filePath = tmp.resolve("dat.txt").toString,
+            allowOverwrite = None
+          )
         )
-        contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
+        contents = Using(Source.fromFile(saveResponse.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         contents shouldBe testString
       }
@@ -215,7 +241,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         _ <- service.submitChange(
           ChangeRequest(
@@ -231,8 +259,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -257,7 +289,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         _ <- service.submitChange(
           ChangeRequest(
@@ -285,10 +319,18 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
-        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
+          source.mkString
+        ).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -319,7 +361,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         _ <- service.submitChange(
           ChangeRequest(
@@ -345,16 +389,20 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           .map(_.count)
 
         getNumChangeTransactions <- service
-            .getCount(CountRequest(sid, CountKind.COUNT_CHANGE_TRANSACTIONS))
-            .map(_.count)
+          .getCount(CountRequest(sid, CountKind.COUNT_CHANGE_TRANSACTIONS))
+          .map(_.count)
 
         getNumUndoTransactions <- service
-            .getCount(CountRequest(sid, CountKind.COUNT_UNDO_TRANSACTIONS))
-            .map(_.count)
+          .getCount(CountRequest(sid, CountKind.COUNT_UNDO_TRANSACTIONS))
+          .map(_.count)
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -382,7 +430,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         _ <- service.submitChange(
           ChangeRequest(
@@ -403,9 +453,15 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -431,7 +487,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             data = Some(ByteString.copyFromUtf8(testString1))
           )
         )
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         _ <- service.submitChange(
           ChangeRequest(
@@ -470,11 +528,21 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
-        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
-        contents5 = Using(Source.fromFile(saveResponse5.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
+          source.mkString
+        ).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source =>
+          source.mkString
+        ).get
+        contents5 = Using(Source.fromFile(saveResponse5.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -489,7 +557,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
     "create and destroy viewports" in newSession { sid =>
       for {
-        numViewports1 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        numViewports1 <- service.getCount(
+          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+        )
         viewportResponse1 <- service.createViewport(
           CreateViewportRequest(
             sid,
@@ -499,8 +569,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             viewportIdDesired = Some("viewport_1")
           )
         )
-        viewport1HasChanges <- service.viewportHasChanges(ObjectId(viewportResponse1.viewportId))
-        numViewports2 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        viewport1HasChanges <- service.viewportHasChanges(
+          ObjectId(viewportResponse1.viewportId)
+        )
+        numViewports2 <- service.getCount(
+          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+        )
         viewportResponse2 <- service.createViewport(
           CreateViewportRequest(
             sid,
@@ -511,8 +585,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         // get data to clear the "has changes" state for this viewport
-        _ <- service.getViewportData(ViewportDataRequest(viewportResponse2.viewportId))
-        viewport2HasChanges <- service.viewportHasChanges(ObjectId(viewportResponse2.viewportId))
+        _ <- service.getViewportData(
+          ViewportDataRequest(viewportResponse2.viewportId)
+        )
+        viewport2HasChanges <- service.viewportHasChanges(
+          ObjectId(viewportResponse2.viewportId)
+        )
         viewportResponse3 <- service.createViewport(
           CreateViewportRequest(
             sid,
@@ -531,9 +609,15 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
             viewportIdDesired = Some("viewport_4")
           )
         )
-        numViewports3 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
-        destroyedViewport <- service.destroyViewport(ObjectId(viewportResponse2.viewportId))
-        numViewports4 <- service.getCount(CountRequest(sid, CountKind.COUNT_VIEWPORTS))
+        numViewports3 <- service.getCount(
+          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+        )
+        destroyedViewport <- service.destroyViewport(
+          ObjectId(viewportResponse2.viewportId)
+        )
+        numViewports4 <- service.getCount(
+          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+        )
       } yield {
         numViewports1.sessionId shouldBe sid
         numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
@@ -570,7 +654,9 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         pausedSid <- service.pauseSessionChanges(ObjectId(sid))
 
@@ -584,11 +670,17 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
 
-        saveResponse2 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse2 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         pausedSid.id shouldBe sid
         changeId.serial shouldBe 1L
@@ -616,10 +708,14 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
 
-        saveResponse1 <- service.saveSession(SaveSessionRequest(sid, filePath, allowOverwrite = None))
+        saveResponse1 <- service.saveSession(
+          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+        )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
+          source.mkString
+        ).get
       } yield {
         contents1 shouldBe testString1
       }

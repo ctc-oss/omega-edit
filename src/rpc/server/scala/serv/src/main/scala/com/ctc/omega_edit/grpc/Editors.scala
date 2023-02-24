@@ -62,10 +62,11 @@ object Editors {
     def result: Boolean
   }
 
-  private def idFor(path: Option[Path]): String = path match {
-    case None    => UUID.randomUUID().toString
-    case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
-  }
+  private def idFor(path: Option[Path]): String =
+    path match {
+      case None    => UUID.randomUUID().toString
+      case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
+    }
 }
 
 class Editors extends Actor with ActorLogging {
@@ -116,7 +117,9 @@ class Editors extends Actor with ActorLogging {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
           val replyTo = sender()
-          gracefulStop(s, t.duration).onComplete(_ => replyTo ! Ok(id))(context.dispatcher)
+          gracefulStop(s, t.duration).onComplete(_ => replyTo ! Ok(id))(
+            context.dispatcher
+          )
       }
 
     case SessionCount =>
