@@ -130,7 +130,26 @@ export async function startServer(
 export function stopServer(pid: number | undefined): boolean {
   if (pid) {
     logger.debug({ fn: 'stopServer', pid: pid })
-    return process.kill(pid, 'SIGTERM')
+    try {
+      const result = process.kill(pid, 'SIGTERM')
+      logger.debug({ fn: 'stopServer', pid: pid, stopped: result })
+      return result
+    } catch (err) {
+      // @ts-ignore
+      if (err.code === 'ESRCH') {
+        logger.debug({
+          fn: 'stopServer',
+          msg: 'Server already stopped',
+          pid: pid,
+        })
+        return true
+      }
+      logger.error({
+        fn: 'stopServer',
+        err: { msg: 'Error stopping server', pid: pid, err: err },
+      })
+      return false
+    }
   }
 
   logger.error({
