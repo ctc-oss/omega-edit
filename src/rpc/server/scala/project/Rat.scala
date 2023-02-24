@@ -61,6 +61,7 @@ object Rat {
     // data files for tests
     file("src/examples/data/"),
     file("src/tests/integration/data/"),
+    file("src/rpc/client/ts/tests/data/"),
     // ignore lib files
     file("lib"),
     // ignore generated files
