@@ -43,13 +43,13 @@ describe('Sessions', () => {
 
   it(`Should read test file ${testFile} (${iterations} times)`, async () => {
     expect(fileData.length).to.equal(464)
+    expect(fileBuffer.length).to.equal(464)
     expect(await waitForReady(getClient(testPort))).to.be.true
     expect(await getSessionCount()).to.equal(0)
     for (let i = 0; i < iterations; ++i) {
       const session_id = await createSession(testFile)
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
-      expect(fileData.length).to.be.lessThan(1000)
       const vpt_id = await createViewport(undefined, session_id, 0, 1000, false)
       expect(await getViewportCount(session_id)).to.equal(1)
       const dataResponse = await getViewportData(vpt_id)
