@@ -74,7 +74,7 @@ set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-${a
 set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-${arch.arch}.jar=!WINDOWS_JAR_FILE!%"
 set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-${arch.arch}.jar=!WINDOWS_JAR_FILE!%""""
 
-lazy val commonSettings = {
+lazy val commonSettings =
   Seq(
     organization := "com.ctc",
     scalaVersion := "2.13.10",
@@ -97,7 +97,6 @@ lazy val commonSettings = {
     ),
     fork := true
   )
-}
 
 lazy val ratSettings = Seq(
   ratLicenses := Seq(
@@ -183,11 +182,11 @@ lazy val native = project
       "com.ctc.omega_edit.spi.NativeBuildInfo"
     ),
     /**
-     * Not sure why these need added here since they are in common settings,
-     * but they are needed to not cause errors with publishM2.
-     */
+      * Not sure why these need added here since they are in common settings,
+      * but they are needed to not cause errors with publishM2.
+      */
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -195,7 +194,7 @@ lazy val spi = project
   .in(file("spi"))
   .settings(commonSettings)
   .settings(
-    name := "omega-edit-spi",
+    name := "omega-edit-spi"
   )
   .enablePlugins(GitVersioning)
 
