@@ -17,23 +17,69 @@
  * limitations under the License.
  */
 
-// set up logging, declared using let (instead of const) to allow for
-// reassignment in tests and in the application layer
-export let logger = buildLogger([
-  {
-    target: 'pino/file',
-    options: { destination: 2 }, // use 1 for stdout and 2 for stderr
-  },
-])
+import pino from 'pino'
+import * as fs from 'fs'
+
+// internal singleton logger instance
+let logger_: pino.Logger
 
 /**
- * Builds a logger
+ * Builds a pino logger
  * @param transports array of transports to log to
  * @param level log level
+ * @returns pino logger
  */
-export function buildLogger(
+function buildLogger(
   transports: any[],
-  level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
-): any {
-  return require('pino')({ level: level, transports: transports })
+  level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
+): pino.Logger {
+  const logger = pino({ level: level, transports: transports })
+  logger.debug({
+    fn: 'buildLogger',
+    msg: 'logger built',
+    level: level,
+    transports: transports,
+  })
+  return logger
+}
+
+/**
+ * Creates a pino file logger
+ * @param logFilePath path to log file
+ * @param level log level
+ * @returns pino logger
+ */
+export function createSimpleFileLogger(
+  logFilePath: string,
+  level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
+): pino.Logger {
+  return pino({ level: level }, fs.createWriteStream(logFilePath))
+}
+
+/**
+ * Gets the logger, creating it if necessary
+ * @returns pino logger
+ */
+export function getLogger(): pino.Logger {
+  if (!logger_) {
+    setLogger(
+      buildLogger([
+        {
+          target: 'pino/file',
+          options: { destination: 2 }, // use 1 for stdout and 2 for stderr
+        },
+      ])
+    )
+    getLogger().debug({ fn: 'getLogger', msg: 'logger initialized' })
+  }
+  return logger_
+}
+
+/**
+ * Sets the logger
+ * @param logger new logger instance
+ */
+export function setLogger(logger: pino.Logger) {
+  logger_ = logger
+  getLogger().info({ fn: 'setLogger', msg: 'logger set' })
 }

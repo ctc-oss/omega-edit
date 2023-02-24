@@ -19,17 +19,18 @@
 
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
-import { logger } from './logger'
+import { getLogger } from './logger'
 import { OMEGA_EDIT_CLIENT_VERSION } from './client_version'
 
 // Discover the client version both installed and in the repository source tree
 export const ClientVersion: string = OMEGA_EDIT_CLIENT_VERSION
+
 /**
  * Gets the string version of the client
  * @return string version of the client
  */
 export function getClientVersion(): string {
-  logger.debug({ fn: 'getClientVersion', resp: ClientVersion })
+  getLogger().debug({ fn: 'getClientVersion', resp: ClientVersion })
   return ClientVersion
 }
 
@@ -39,10 +40,10 @@ export function getClientVersion(): string {
  */
 export function getServerVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    logger.debug({ fn: 'getVersion' })
+    getLogger().debug({ fn: 'getVersion' })
     getClient().getVersion(new Empty(), (err, v) => {
       if (err) {
-        logger.error({
+        getLogger().error({
           fn: 'getServerVersion',
           err: {
             msg: err.message,
@@ -55,13 +56,13 @@ export function getServerVersion(): Promise<string> {
       }
 
       if (!v) {
-        logger.error({
+        getLogger().error({
           fn: 'getServerVersion',
           err: { msg: 'undefined version' },
         })
         return reject('undefined version')
       }
-      logger.debug({ fn: 'getServerVersion', resp: v.toObject() })
+      getLogger().debug({ fn: 'getServerVersion', resp: v.toObject() })
       return resolve(`${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`)
     })
   })
