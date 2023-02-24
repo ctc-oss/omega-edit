@@ -32,6 +32,10 @@ import { getClient, waitForReady } from '../../src/client'
 import { getViewportCount } from '../../src/viewport'
 import { profileSession } from '../../src/session'
 
+function base64Encode(str: string): string {
+  return Buffer.from(str, 'utf-8').toString('base64')
+}
+
 describe('Sessions', () => {
   const iterations = 500
   const testFile = require('path').join(__dirname, 'data', 'csstest.html')
@@ -41,6 +45,7 @@ describe('Sessions', () => {
     fileData.byteOffset,
     fileData.byteLength
   )
+  const expected_session_id = base64Encode(testFile)
   const expected_profile = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 125, 0, 8, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 12, 4,
@@ -62,6 +67,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     for (let i = 0; i < iterations; ++i) {
       const session_id = await createSession(testFile)
+      expect(session_id).to.equal(expected_session_id)
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
       const vpt_id = await createViewport(undefined, session_id, 0, 1000, false)
