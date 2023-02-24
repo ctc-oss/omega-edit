@@ -18,7 +18,10 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
+  GenerateFilename,
+  OverwriteExisting
+}
 import com.ctc.omega_edit.api._
 import jnr.ffi.Pointer
 
@@ -122,7 +125,15 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def view(offset: Long, capacity: Long, isFloating: Boolean): Viewport = {
     val vp =
-      i.omega_edit_create_viewport(p, offset, capacity, isFloating, null, null, 0)
+      i.omega_edit_create_viewport(
+        p,
+        offset,
+        capacity,
+        isFloating,
+        null,
+        null,
+        0
+      )
     new ViewportImpl(vp, i)
   }
 
@@ -186,7 +197,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def profile(offset: Long, length: Long): Option[Array[Long]] = {
     val profile = new Array[Long](256)
-    Option.when(i.omega_session_profile(p, profile, offset, length) == 0)(profile)
+    Option.when(i.omega_session_profile(p, profile, offset, length) == 0)(
+      profile
+    )
   }
 
   def search(
@@ -206,9 +219,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     ) match {
       case null => List.empty[Long]
       case context =>
-        try Iterator
-          .unfold(context -> 0) {
-            case (context, numMatches) =>
+        try
+          Iterator
+            .unfold(context -> 0) { case (context, numMatches) =>
               Option.when(
                 limit.forall(numMatches < _) && i
                   .omega_search_next_match(context, 1) > 0
@@ -217,8 +230,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
                   context
                 ) -> (context, numMatches + 1)
               )
-          }
-          .toList
+            }
+            .toList
         finally i.omega_search_destroy_context(context)
     }
 

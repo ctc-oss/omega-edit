@@ -32,7 +32,12 @@ trait ViewportSupport {
     override def toString(): String = s"WithCallback($data, $event, $change)"
   }
 
-  def viewWithCallback(offset: Long, capacity: Long, isFloating: Boolean, session: Session)(
+  def viewWithCallback(
+      offset: Long,
+      capacity: Long,
+      isFloating: Boolean,
+      session: Session
+  )(
       test: (Session, WithCallback) => Unit
   ): Unit = {
     val cb = new WithCallback()

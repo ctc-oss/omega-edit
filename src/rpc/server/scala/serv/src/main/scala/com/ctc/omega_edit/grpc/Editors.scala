@@ -117,7 +117,9 @@ class Editors extends Actor with ActorLogging {
         case None => sender() ! Err(Status.NOT_FOUND)
         case Some(s) =>
           val replyTo = sender()
-          gracefulStop(s, t.duration).onComplete(_ => replyTo ! Ok(id))(context.dispatcher)
+          gracefulStop(s, t.duration).onComplete(_ => replyTo ! Ok(id))(
+            context.dispatcher
+          )
       }
 
     case SessionCount =>

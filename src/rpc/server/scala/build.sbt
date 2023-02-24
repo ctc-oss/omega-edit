@@ -15,7 +15,11 @@ import scala.io.Source
 import scala.util.Using
 
 lazy val packageData = Json
-  .parse(Using(Source.fromFile("../../client/ts/package.json"))(source => source.mkString).get)
+  .parse(
+    Using(Source.fromFile("../../client/ts/package.json"))(source =>
+      source.mkString
+    ).get
+  )
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -88,7 +92,9 @@ lazy val commonSettings =
     publishTo := Some(ghb_resolver),
     publishMavenStyle := true,
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(
+      true
+    ),
     credentials += Credentials(
       "GitHub Package Registry",
       "maven.pkg.github.com",
@@ -181,12 +187,12 @@ lazy val native = project
     buildInfoOptions += BuildInfoOption.Traits(
       "com.ctc.omega_edit.spi.NativeBuildInfo"
     ),
-    /**
-      * Not sure why these need added here since they are in common settings,
+    /** Not sure why these need added here since they are in common settings,
       * but they are needed to not cause errors with publishM2.
       */
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true)
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -218,7 +224,8 @@ lazy val serv = project
     externalResolvers += ghb_resolver,
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true),
     bashScriptExtraDefines += bashExtras,
     batScriptExtraDefines += batchExtras
   )

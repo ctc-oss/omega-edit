@@ -33,17 +33,20 @@ object boot
         s"v${v.major}.${v.minor}.${v.patch}"
       },
       main = {
-        val default_interface = scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_HOST", "127.0.0.1")
+        val default_interface =
+          scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_HOST", "127.0.0.1")
         val interface_opt = Opts
           .option[String](
             "interface",
             short = "i",
             metavar = "interface_str",
-            help = s"Set the gRPC interface to bind to. Default: $default_interface"
+            help =
+              s"Set the gRPC interface to bind to. Default: $default_interface"
           )
           .withDefault(default_interface)
 
-        val default_port = scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_PORT", "9000")
+        val default_port =
+          scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_PORT", "9000")
         val port_opt = Opts
           .option[Int](
             "port",
@@ -69,7 +72,9 @@ class boot(iface: String, port: Int) {
       for {
         binding <- EditorService.bind(iface = iface, port = port)
 
-        _ = println(s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}")
+        _ = println(
+          s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}"
+        )
 
         done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
 

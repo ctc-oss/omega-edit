@@ -215,7 +215,8 @@ lazy val serv = project
     ),
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true),
     bashScriptExtraDefines += bashExtras,
     batScriptExtraDefines += batchExtras
   )
@@ -225,12 +226,12 @@ lazy val serv = project
     JavaServerAppPackaging,
     UniversalPlugin
   )
-  
+
 lazy val spi = project
   .in(file("spi"))
   .settings(commonSettings)
   .settings(
-    name := "omega-edit-spi",
+    name := "omega-edit-spi"
   )
   .enablePlugins(GitVersioning)
 

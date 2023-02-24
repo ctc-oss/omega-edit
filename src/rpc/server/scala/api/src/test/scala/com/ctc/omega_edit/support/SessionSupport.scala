@@ -60,5 +60,6 @@ trait SessionSupport {
     test(session, cb)
   }
 
-  def fileContents(at: Path): String = Using(Source.fromFile(at.toFile))(source => source.mkString).get
+  def fileContents(at: Path): String =
+    Using(Source.fromFile(at.toFile))(source => source.mkString).get
 }
