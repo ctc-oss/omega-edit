@@ -19,7 +19,7 @@
 
 import { EditorClient } from './omega_edit_grpc_pb'
 import * as grpc from '@grpc/grpc-js'
-import { logger } from './logger'
+import { getLogger } from './logger'
 
 // client instance
 let client: EditorClient | undefined = undefined
@@ -39,7 +39,7 @@ export function getClient(
   host: string = '127.0.0.1'
 ): EditorClient {
   if (!client) {
-    logger.debug({
+    getLogger().debug({
       fn: 'getClient',
       port: port,
       host: host,
@@ -49,7 +49,7 @@ export function getClient(
     client = new EditorClient(uri, grpc.credentials.createInsecure())
     waitForReady(client)
       .catch((err) => {
-        logger.error({
+        getLogger().error({
           cmd: 'getClient',
           host: host,
           port: port,
@@ -62,7 +62,7 @@ export function getClient(
       })
       .then((ready) => {
         if (!ready) {
-          logger.error({
+          getLogger().error({
             cmd: 'getClient',
             host: host,
             port: port,
@@ -91,7 +91,7 @@ export function waitForReady(
   return new Promise<boolean>((resolve, reject) => {
     client.waitForReady(deadline as grpc.Deadline, (err) => {
       if (err) {
-        logger.error({
+        getLogger().error({
           cmd: 'waitForReady',
           err: {
             name: err.name,
@@ -101,7 +101,7 @@ export function waitForReady(
         })
         return reject(false)
       }
-      logger.debug({ cmd: 'waitForReady', msg: 'ready' })
+      getLogger().debug({ cmd: 'waitForReady', msg: 'ready' })
       return resolve(true)
     })
   })
