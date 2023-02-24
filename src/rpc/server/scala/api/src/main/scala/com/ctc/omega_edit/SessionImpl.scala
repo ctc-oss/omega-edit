@@ -48,13 +48,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def numSearchContexts: Long =
     i.omega_session_get_num_search_contexts(p)
 
-    def numChangeTransactions: Long =
-      i.omega_session_get_num_change_transactions(p)
+  def numChangeTransactions: Long =
+    i.omega_session_get_num_change_transactions(p)
 
-    def numUndoTransactions: Long =
-      i.omega_session_get_num_undone_change_transactions(p)
+  def numUndoTransactions: Long =
+    i.omega_session_get_num_undone_change_transactions(p)
 
-    def callback: Option[SessionCallback] =
+  def callback: Option[SessionCallback] =
     Option(i.omega_session_get_event_cbk(p))
 
   def eventInterest: Int =
@@ -84,8 +84,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def endTransaction: Int =
     i.omega_session_end_transaction(p)
 
-
-    def delete(offset: Long, len: Long): Result =
+  def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
   def insert(b: Array[Byte], offset: Long): Result =
@@ -155,10 +154,13 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     save(to, OverwriteExisting)
 
   def save(to: Path, overwrite: Boolean): Try[Path] =
-    save(to, overwrite match {
-      case true  => OverwriteExisting
-      case false => GenerateFilename
-    })
+    save(
+      to,
+      overwrite match {
+        case true  => OverwriteExisting
+        case false => GenerateFilename
+      }
+    )
 
   def save(to: Path, onExists: OverwriteStrategy): Try[Path] = {
     // todo;; obtain an accurate and portable number here
@@ -184,7 +186,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
 
   def profile(offset: Long, length: Long): Option[Array[Long]] = {
     val profile = new Array[Long](256)
-    Option.when(i.omega_session_profile(p, profile, offset, length) == 0) { profile }
+    Option.when(i.omega_session_profile(p, profile, offset, length) == 0)(profile)
   }
 
   def search(
@@ -204,21 +206,20 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     ) match {
       case null => List.empty[Long]
       case context =>
-        try {
-          Iterator
-            .unfold(context -> 0) {
-              case (context, numMatches) =>
-                Option.when(
-                  limit.forall(numMatches < _) && i
-                    .omega_search_next_match(context, 1) > 0
-                )(
-                  i.omega_search_context_get_offset(
-                    context
-                  ) -> (context, numMatches + 1)
-                )
-            }
-            .toList
-        } finally i.omega_search_destroy_context(context)
+        try Iterator
+          .unfold(context -> 0) {
+            case (context, numMatches) =>
+              Option.when(
+                limit.forall(numMatches < _) && i
+                  .omega_search_next_match(context, 1) > 0
+              )(
+                i.omega_search_context_get_offset(
+                  context
+                ) -> (context, numMatches + 1)
+              )
+          }
+          .toList
+        finally i.omega_search_destroy_context(context)
     }
 
   def getSegment(offset: Long, length: Long): Option[Segment] = {

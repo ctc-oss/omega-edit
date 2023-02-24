@@ -62,10 +62,11 @@ object Editors {
     def result: Boolean
   }
 
-  private def idFor(path: Option[Path]): String = path match {
-    case None    => UUID.randomUUID().toString
-    case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
-  }
+  private def idFor(path: Option[Path]): String =
+    path match {
+      case None    => UUID.randomUUID().toString
+      case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
+    }
 }
 
 class Editors extends Actor with ActorLogging {

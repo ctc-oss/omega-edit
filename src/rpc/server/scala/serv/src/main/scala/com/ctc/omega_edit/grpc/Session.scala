@@ -270,12 +270,12 @@ class Session(
       sender() ! Ok(sessionId)
 
     case BeginTransaction() =>
-        session.beginTransaction
-        sender() ! Ok(sessionId)
+      session.beginTransaction
+      sender() ! Ok(sessionId)
 
     case EndTransaction() =>
-        session.endTransaction
-        sender() ! Ok(sessionId)
+      session.endTransaction
+      sender() ! Ok(sessionId)
 
     case NotifyChangedViewports =>
       sender() ! new Ok(sessionId) with Count {

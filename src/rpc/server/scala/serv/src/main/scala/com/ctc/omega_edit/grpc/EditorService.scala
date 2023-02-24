@@ -110,18 +110,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.HasChanges)).mapTo[Result].map {
           case ok: Ok with BooleanResult => BooleanResponse(ok.result)
-          case Ok(id) => throw grpcFailure(Status.INTERNAL, s"didn't receive result for viewport $id")
-          case Err(c) => throw grpcFailure(c)
+          case Ok(id)                    => throw grpcFailure(Status.INTERNAL, s"didn't receive result for viewport $id")
+          case Err(c)                    => throw grpcFailure(c)
         }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
     }
-  def notifyChangedViewports(in: ObjectId): Future[IntResponse] = {
+  def notifyChangedViewports(in: ObjectId): Future[IntResponse] =
     (editors ? SessionOp(in.id, NotifyChangedViewports)).mapTo[Result].map {
       case ok: Ok with Count => IntResponse(ok.count)
-      case Ok(id) => throw grpcFailure(Status.INTERNAL, s"didn't receive result for session $id")
-      case Err(c) => throw grpcFailure(c)
+      case Ok(id)            => throw grpcFailure(Status.INTERNAL, s"didn't receive result for session $id")
+      case Err(c)            => throw grpcFailure(c)
     }
-  }
 
   def getViewportData(in: ViewportDataRequest): Future[ViewportDataResponse] =
     ObjectId(in.viewportId) match {
@@ -393,8 +392,7 @@ object EditorService {
       if (message.nonEmpty) status.withDescription(message) else status
     )
 
-  def bind(iface: String, port: Int)(
-      implicit
+  def bind(iface: String, port: Int)(implicit
       system: ActorSystem
   ): Future[Http.ServerBinding] =
     Http().newServerAt(iface, port).bind(EditorHandler(new EditorService)).andThen {
