@@ -21,6 +21,8 @@ import * as path from 'path'
 import * as os from 'os'
 import * as child_process from 'child_process'
 import { getLogger } from './logger'
+import { getClient } from './client'
+import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 
 /**
  * Artifact class
@@ -106,6 +108,8 @@ export async function startServer(
         port: port,
         pid: server.pid,
       })
+      // initialize the client
+      getClient(port, host)
       resolve(server.pid)
     } else {
       getLogger().error({
@@ -157,4 +161,49 @@ export function stopServer(pid: number | undefined): boolean {
     err: { msg: 'Error stopping server, no PID' },
   })
   return false
+}
+
+/**
+ * Server heartbeat interface
+ */
+export interface IServerHeartbeat {
+  latency: number // latency in ms
+  resp: string // server response
+}
+
+/**
+ * Get the server heartbeat
+ * @returns a promise that resolves to the server heartbeat
+ */
+export function getServerHeartbeat(): Promise<IServerHeartbeat> {
+  return new Promise<IServerHeartbeat>((resolve, reject) => {
+    const startTime = Date.now()
+    getClient().getVersion(new Empty(), (err, v) => {
+      if (err) {
+        getLogger().error({
+          fn: 'getServerHeartbeat',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('getServerHeartbeat error: ' + err.message)
+      }
+
+      if (!v) {
+        getLogger().error({
+          fn: 'getServerHeartbeat',
+          err: { msg: 'undefined version' },
+        })
+        return reject('undefined version')
+      }
+      const latency = Date.now() - startTime
+      return resolve({
+        latency: latency,
+        resp: `${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`,
+      })
+    })
+  })
 }

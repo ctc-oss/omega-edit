@@ -29,23 +29,23 @@ import {
 } from '../../src/session'
 import {
   clear,
+  edit,
+  editOptimizer,
+  EditStats,
   getChangeCount,
   getChangeTransactionCount,
   getUndoCount,
   getUndoTransactionCount,
   overwrite,
-  replace,
   redo,
+  replace,
   undo,
-  edit,
-  editOptimizer,
-  EditStats,
 } from '../../src/change'
 import { encode } from 'fastestsmallesttextencoderdecoder'
 
 // prettier-ignore
 // @ts-ignore
-import { destroyTestSession, createTestSession, startTestServer, stopTestServer, testPort } from './common'
+import { createTestSession, destroyTestSession, startTestServer, stopTestServer, testPort } from './common'
 
 describe('Searching', () => {
   let session_id = ''

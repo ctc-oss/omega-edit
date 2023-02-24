@@ -27,7 +27,7 @@ import { overwrite } from '../../src/change'
 
 // prettier-ignore
 // @ts-ignore
-import { destroyTestSession, createTestSession, startTestServer, stopTestServer, testPort } from './common'
+import { createTestSession, destroyTestSession, startTestServer, stopTestServer, testPort } from './common'
 
 describe('Profiling', () => {
   let session_id = ''

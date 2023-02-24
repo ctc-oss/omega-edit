@@ -23,14 +23,19 @@ import {
   destroySession,
   getComputedFileSize,
   getSessionCount,
+  profileSession,
 } from '../../src/session'
 // @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'
-import { createViewport, getViewportData } from '../../src/viewport'
+import {
+  createViewport,
+  getViewportCount,
+  getViewportData,
+} from '../../src/viewport'
 import { getClient, waitForReady } from '../../src/client'
-import { getViewportCount } from '../../src/viewport'
-import { profileSession } from '../../src/session'
+import { getServerHeartbeat } from '../../src/server'
+import { getClientVersion } from '../../src/version'
 
 function base64Encode(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64')
@@ -74,6 +79,9 @@ describe('Sessions', () => {
       expect(await getViewportCount(session_id)).to.equal(1)
       const dataResponse = await getViewportData(vpt_id)
       expect(dataResponse.getData_asU8()).to.deep.equal(fileBuffer)
+      const serverHeartbeat = await getServerHeartbeat()
+      expect(serverHeartbeat.latency).to.be.greaterThanOrEqual(0)
+      expect(serverHeartbeat.resp).to.equal(getClientVersion())
       expect(await profileSession(session_id)).to.deep.equal(expected_profile)
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)

@@ -42,7 +42,7 @@ import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 // prettier-ignore
 // @ts-ignore
-import { destroyTestSession, createTestSession, startTestServer, stopTestServer, testPort } from './common'
+import { createTestSession, destroyTestSession, startTestServer, stopTestServer, testPort } from './common'
 
 describe('Undo/Redo', () => {
   let session_id = ''
