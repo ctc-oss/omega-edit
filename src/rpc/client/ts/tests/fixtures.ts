@@ -19,6 +19,7 @@
 
 import { startServer, stopServer } from '../src/server'
 import { getClientVersion } from '../src/version'
+import { getLogger, createSimpleFileLogger, setLogger } from '../src/logger'
 import * as fs from 'fs'
 
 // prettier-ignore
@@ -28,25 +29,80 @@ import { testPort } from "./specs/common"
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
 
+/**
+ * Gets the pid file for the given port
+ * @param port port to get the pid file for
+ * @returns path to the pid file
+ */
 function getPidFile(port: number): string {
   return path.join(rootPath, `.test-server-${port}.pid`)
 }
 
+/**
+ * Test fixture to setup to start the server
+ */
 export async function mochaGlobalSetup(): Promise<number | undefined> {
+  const pidFile = getPidFile(testPort)
+  const logFile = path.join(rootPath, 'test.log')
+  const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
+  const logger = createSimpleFileLogger(logFile, level)
+  logger.info({
+    fn: 'mochaGlobalSetup',
+    msg: 'logger built',
+    level: level,
+    logfile: logFile,
+  })
+  setLogger(logger)
+  getLogger().debug({
+    fn: 'mochaGlobalSetup',
+    msg: 'starting server',
+    port: testPort,
+    pidfile: getPidFile(testPort),
+  })
   const pid = await startServer(rootPath, getClientVersion(), testPort)
   mochaGlobalTeardown()
   if (pid) {
-    fs.writeFileSync(getPidFile(testPort), pid.toString(), 'utf8')
+    fs.writeFileSync(pidFile, pid.toString(), 'utf8')
   }
+  getLogger().debug({
+    fn: 'mochaGlobalSetup',
+    msg: 'server started',
+    port: testPort,
+    pid: pid,
+    pidfile: getPidFile(testPort),
+  })
   return pid
 }
 
+/**
+ * Test fixture to stop the server
+ */
 export function mochaGlobalTeardown(): boolean {
   const pidFile = getPidFile(testPort)
+  getLogger().debug({
+    fn: 'mochaGlobalTeardown',
+    msg: 'stopping server',
+    port: testPort,
+    pidfile: pidFile,
+  })
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
-    fs.unlinkSync(pidFile)
-    return stopServer(pid)
+    if (stopServer(pid)) {
+      fs.unlinkSync(pidFile)
+      getLogger().debug({
+        fn: 'mochaGlobalTeardown',
+        msg: 'server stopped',
+        port: testPort,
+        pid: pid,
+      })
+      return true
+    }
   }
+  getLogger().debug({
+    fn: 'mochaGlobalTeardown',
+    msg: 'failed to stop server',
+    port: testPort,
+    pidfile: pidFile,
+  })
   return false
 }

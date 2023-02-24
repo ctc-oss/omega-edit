@@ -20,7 +20,7 @@
 import * as path from 'path'
 import * as os from 'os'
 import * as child_process from 'child_process'
-import { logger } from './logger'
+import { getLogger } from './logger'
 
 /**
  * Artifact class
@@ -65,7 +65,7 @@ export async function startServer(
   host: string = '127.0.0.1'
 ): Promise<number | undefined> {
   // Set up the server
-  logger.debug({
+  getLogger().debug({
     fn: 'startServer',
     version: version,
     rootPath: rootPath,
@@ -74,7 +74,7 @@ export async function startServer(
   const artifact = new Artifact('omega-edit-grpc-server', version, rootPath)
 
   // Start the server
-  logger.debug(
+  getLogger().debug(
     `starting server ${artifact.scriptPath} on interface ${host}, port ${port}`
   )
   const server = child_process.spawn(
@@ -88,7 +88,7 @@ export async function startServer(
   )
 
   // Wait for the server come online
-  logger.debug(
+  getLogger().debug(
     `waiting for server to come online on interface ${host}, port ${port}`
   )
   await require('wait-port')({
@@ -100,7 +100,7 @@ export async function startServer(
   // Return the server pid if it exists
   return new Promise((resolve, reject) => {
     if (server.pid !== undefined && server.pid) {
-      logger.debug({
+      getLogger().debug({
         fn: 'startServer',
         host: host,
         port: port,
@@ -108,7 +108,7 @@ export async function startServer(
       })
       resolve(server.pid)
     } else {
-      logger.error({
+      getLogger().error({
         fn: 'startServer',
         err: {
           msg: 'Error getting server pid',
@@ -129,11 +129,30 @@ export async function startServer(
  */
 export function stopServer(pid: number | undefined): boolean {
   if (pid) {
-    logger.debug({ fn: 'stopServer', pid: pid })
-    return process.kill(pid, 'SIGTERM')
+    getLogger().debug({ fn: 'stopServer', pid: pid })
+    try {
+      const result = process.kill(pid, 'SIGTERM')
+      getLogger().debug({ fn: 'stopServer', pid: pid, stopped: result })
+      return result
+    } catch (err) {
+      // @ts-ignore
+      if (err.code === 'ESRCH') {
+        getLogger().debug({
+          fn: 'stopServer',
+          msg: 'Server already stopped',
+          pid: pid,
+        })
+        return true
+      }
+      getLogger().error({
+        fn: 'stopServer',
+        err: { msg: 'Error stopping server', pid: pid, err: err },
+      })
+      return false
+    }
   }
 
-  logger.error({
+  getLogger().error({
     fn: 'stopServer',
     err: { msg: 'Error stopping server, no PID' },
   })

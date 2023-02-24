@@ -25,8 +25,8 @@
     "package-create": "node -e \"require('./scripts/package.ts').create()\"",
     "pretest": "yarn prepackage",
     "test": "mocha --exit --timeout 100000 --slow 10000 --require ts-node/register --require tests/fixtures.ts ./tests/specs/*.spec.ts",
-    "lint": "yarn prettier src --check",
-    "lint:fix": "yarn prettier src --write"
+    "lint": "yarn prettier --check src tests",
+    "lint:fix": "yarn prettier --write src tests"
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",
