@@ -30,6 +30,7 @@ import * as fs from 'fs'
 import { createViewport, getViewportData } from '../../src/viewport'
 import { getClient, waitForReady } from '../../src/client'
 import { getViewportCount } from '../../src/viewport'
+import { profileSession } from '../../src/session'
 
 describe('Sessions', () => {
   const iterations = 500
@@ -40,6 +41,19 @@ describe('Sessions', () => {
     fileData.byteOffset,
     fileData.byteLength
   )
+  const expected_profile = [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 125, 0, 8, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 12, 4,
+    5, 4, 3, 0, 0, 0, 0, 0, 0, 5, 5, 23, 6, 23, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 6,
+    11, 18, 18, 1, 1, 8, 21, 0, 1, 17, 4, 11, 17, 9, 0, 7, 14, 20, 2, 8, 2, 4,
+    6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  ]
 
   it(`Should read test file ${testFile} (${iterations} times)`, async () => {
     expect(fileData.length).to.equal(464)
@@ -54,6 +68,7 @@ describe('Sessions', () => {
       expect(await getViewportCount(session_id)).to.equal(1)
       const dataResponse = await getViewportData(vpt_id)
       expect(dataResponse.getData_asU8()).to.deep.equal(fileBuffer)
+      expect(await profileSession(session_id)).to.deep.equal(expected_profile)
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)
     }
