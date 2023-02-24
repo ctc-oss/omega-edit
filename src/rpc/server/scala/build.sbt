@@ -181,7 +181,13 @@ lazy val native = project
     ),
     buildInfoOptions += BuildInfoOption.Traits(
       "com.ctc.omega_edit.spi.NativeBuildInfo"
-    )
+    ),
+    /**
+     * Not sure why these need added here since they are in common settings,
+     * but they are needed to not cause errors with publishM2.
+     */
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
