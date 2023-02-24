@@ -19,12 +19,12 @@
 
 import { startServer, stopServer } from '../src/server'
 import { getClientVersion } from '../src/version'
-import { getLogger, createSimpleFileLogger, setLogger } from '../src/logger'
+import { createSimpleFileLogger, getLogger, setLogger } from '../src/logger'
 import * as fs from 'fs'
 
 // prettier-ignore
 // @ts-ignore
-import { testPort } from "./specs/common"
+import { testPort } from './specs/common'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
@@ -39,7 +39,8 @@ function getPidFile(port: number): string {
 }
 
 /**
- * Test fixture to setup to start the server
+ * Mocha test fixture to setup to start the server
+ * @remarks used by mocha
  */
 export async function mochaGlobalSetup(): Promise<number | undefined> {
   const pidFile = getPidFile(testPort)
@@ -75,7 +76,8 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
 }
 
 /**
- * Test fixture to stop the server
+ * Mocha test fixture to stop the server
+ * @remarks used by mocha
  */
 export function mochaGlobalTeardown(): boolean {
   const pidFile = getPidFile(testPort)

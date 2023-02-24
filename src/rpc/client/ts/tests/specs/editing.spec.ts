@@ -48,7 +48,7 @@ import { ALL_EVENTS, getClient } from '../../src/client'
 
 // prettier-ignore
 // @ts-ignore
-import { checkCallbackCount, destroyTestSession, createTestSession, log_info, startTestServer, stopTestServer, testPort } from './common'
+import { checkCallbackCount, createTestSession, destroyTestSession, log_info, testPort} from "./common";
 
 let session_callbacks = new Map()
 
