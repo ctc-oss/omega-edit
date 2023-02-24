@@ -19,3 +19,4 @@ doc/
 out/
 **/omega_edit_*
 src/client_version.ts
+tests/specs/data/**/*
