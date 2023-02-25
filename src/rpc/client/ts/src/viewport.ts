@@ -26,6 +26,20 @@ import {
 import { getLogger } from './logger'
 import { getClient } from './client'
 
+let autoFixViewportDataLength_ = false
+
+/**
+ * Set whether or not to automatically fix viewport data length
+ * @param shouldAutoFix true if the client should automatically fix viewport data length, false otherwise
+ */
+export function setAutoFixViewportDataLength(shouldAutoFix: boolean): void {
+  getLogger().debug({
+    fn: 'setAutoFixViewportDataLength',
+    shouldAutoFix: shouldAutoFix,
+  })
+  autoFixViewportDataLength_ = shouldAutoFix
+}
+
 /**
  * Create a new viewport in a session
  * @param desired_viewport_id if defined, the viewport ID to assign to this viewport, if undefined a unique viewport ID
@@ -65,7 +79,7 @@ export function createViewport(
             stack: err.stack,
           },
         })
-        return reject('createViewport error: ' + err.message)
+        return reject(`createViewport error: ${err.message}`)
       }
       getLogger().debug({ fn: 'createViewport', resp: r.toObject() })
       return resolve(r.getViewportId())
@@ -93,7 +107,7 @@ export function destroyViewport(viewport_id: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('destroyViewport error: ' + err.message)
+        return reject(`destroyViewport error: ${err.message}`)
       }
       getLogger().debug({ fn: 'destroyViewport', resp: r.toObject() })
       return resolve(r.getId())
@@ -123,7 +137,7 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
             stack: err.stack,
           },
         })
-        return reject('getViewportCount error: ' + err.message)
+        return reject(`getViewportCount error: ${err.message}`)
       }
       getLogger().debug({ fn: 'getViewportCount', resp: r.toObject() })
       return resolve(r.getCount())
@@ -154,9 +168,39 @@ export function getViewportData(
             stack: err.stack,
           },
         })
-        return reject('getViewportData error: ' + err.message)
+        return reject(`getViewportData error: ${err.message}`)
       }
+
       getLogger().debug({ fn: 'getViewportData', resp: r.toObject() })
+
+      // TODO: remove this once the server issue is discovered and fixed
+      if (autoFixViewportDataLength_) {
+        const dataLength = r.getData().length
+        const expectedLength = r.getLength()
+        if (dataLength !== expectedLength) {
+          if (dataLength > expectedLength) {
+            getLogger().error({
+              fn: 'getViewportData',
+              err: {
+                msg: `AUTO FIX: truncating data length to ${expectedLength}`,
+              },
+            })
+            r.setData(r.getData().slice(0, expectedLength))
+          } else {
+            const errorMsg = 'data has unexpected length'
+            getLogger().error({
+              fn: 'getViewportData',
+              err: {
+                msg: errorMsg,
+                datalength: dataLength,
+                length: expectedLength,
+              },
+            })
+            return reject(errorMsg)
+          }
+        }
+      }
+
       return resolve(r)
     })
   })
@@ -182,7 +226,7 @@ export function viewportHasChanges(viewport_id: string): Promise<boolean> {
             stack: err.stack,
           },
         })
-        return reject('viewportHasChanges error: ' + err.message)
+        return reject(`viewportHasChanges error: ${err.message}`)
       }
       getLogger().debug({ fn: 'viewportHasChanges', resp: r.toObject() })
       return resolve(r.getResponse())
@@ -210,7 +254,7 @@ export function pauseViewportEvents(session_id: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('pauseViewportEvents error: ' + err.message)
+        return reject(`pauseViewportEvents error: ${err.message}`)
       }
       getLogger().debug({ fn: 'pauseViewportEvents', resp: r.toObject() })
       return resolve(r.getId())
@@ -238,7 +282,7 @@ export function resumeViewportEvents(session_id: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('resumeViewportEvents error: ' + err.message)
+        return reject(`resumeViewportEvents error: ${err.message}`)
       }
       getLogger().debug({ fn: 'resumeViewportEvents', resp: r.toObject() })
       return resolve(r.getId())
@@ -266,7 +310,7 @@ export function unsubscribeViewport(viewport_id: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('unsubscribeViewport error: ' + err.message)
+        return reject(`unsubscribeViewport error: ${err.message}`)
       }
       getLogger().debug({ fn: 'unsubscribeViewport', resp: r.toObject() })
       return resolve(r.getId())

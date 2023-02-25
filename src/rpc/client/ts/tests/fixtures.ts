@@ -17,9 +17,10 @@
  * limitations under the License.
  */
 
+import { createSimpleFileLogger, getLogger, setLogger } from '../src/logger'
 import { startServer, stopServer } from '../src/server'
 import { getClientVersion } from '../src/version'
-import { createSimpleFileLogger, getLogger, setLogger } from '../src/logger'
+import { setAutoFixViewportDataLength } from '../src/viewport'
 import * as fs from 'fs'
 
 // prettier-ignore
@@ -47,6 +48,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   const logFile = path.join(rootPath, 'test.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
+
   logger.info({
     fn: 'mochaGlobalSetup',
     msg: 'logger built',
@@ -60,6 +62,10 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     port: testPort,
     pidfile: getPidFile(testPort),
   })
+
+  // don't fix viewport data length in tests
+  setAutoFixViewportDataLength(false)
+
   const pid = await startServer(rootPath, getClientVersion(), testPort)
   mochaGlobalTeardown()
   if (pid) {
