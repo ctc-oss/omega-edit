@@ -22,7 +22,7 @@ import * as grpc from '@grpc/grpc-js'
 import { getLogger } from './logger'
 
 // client instance
-let client: EditorClient | undefined = undefined
+let client_: EditorClient | undefined = undefined
 
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
@@ -38,7 +38,7 @@ export function getClient(
   port: number = 9000,
   host: string = '127.0.0.1'
 ): EditorClient {
-  if (!client) {
+  if (!client_) {
     getLogger().debug({
       fn: 'getClient',
       port: port,
@@ -46,8 +46,8 @@ export function getClient(
       state: 'initializing',
     })
     const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
-    client = new EditorClient(uri, grpc.credentials.createInsecure())
-    waitForReady(client)
+    client_ = new EditorClient(uri, grpc.credentials.createInsecure())
+    waitForReady(client_)
       .catch((err) => {
         getLogger().error({
           cmd: 'getClient',
@@ -71,7 +71,7 @@ export function getClient(
         }
       })
   }
-  return client
+  return client_
 }
 
 /**

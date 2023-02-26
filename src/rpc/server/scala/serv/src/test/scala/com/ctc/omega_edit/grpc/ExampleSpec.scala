@@ -585,7 +585,7 @@ class ExampleSpec
           )
         )
         // get data to clear the "has changes" state for this viewport
-        _ <- service.getViewportData(
+        viewportDataResponse <- service.getViewportData(
           ViewportDataRequest(viewportResponse2.viewportId)
         )
         viewport2HasChanges <- service.viewportHasChanges(
@@ -623,6 +623,10 @@ class ExampleSpec
         numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
         numViewports1.count shouldBe 0L
         viewportResponse1.viewportId shouldBe sid + ":viewport_1"
+        viewportDataResponse.data shouldBe ByteString.EMPTY
+        viewportDataResponse.offset shouldBe 10L
+        viewportDataResponse.length shouldBe 0L
+        viewportDataResponse.viewportId shouldBe viewportResponse2.viewportId
         viewport1HasChanges.response shouldBe true
         viewport2HasChanges.response shouldBe false
         numViewports2.sessionId shouldBe sid

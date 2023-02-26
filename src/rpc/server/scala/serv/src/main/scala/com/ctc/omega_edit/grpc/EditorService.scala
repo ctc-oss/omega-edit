@@ -144,7 +144,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case ok: Ok with Data =>
             ViewportDataResponse
               .apply(
-                ok.id,
+                viewportId = in.viewportId,
                 offset = ok.offset,
                 length = ok.data.size.toLong,
                 data = ok.data
