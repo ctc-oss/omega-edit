@@ -626,8 +626,9 @@ class ExampleSpec
         viewportDataResponse.data shouldBe ByteString.EMPTY
         viewportDataResponse.offset shouldBe 10L
         viewportDataResponse.length shouldBe 0L
+        viewportDataResponse.followingByteCount shouldBe -10L
         viewportDataResponse.viewportId shouldBe viewportResponse2.viewportId
-        viewport1HasChanges.response shouldBe true
+        viewport1HasChanges.response shouldBe false
         viewport2HasChanges.response shouldBe false
         numViewports2.sessionId shouldBe sid
         numViewports2.kind shouldBe CountKind.COUNT_VIEWPORTS

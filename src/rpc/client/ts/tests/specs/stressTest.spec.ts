@@ -162,13 +162,14 @@ describe('StressTest', () => {
         10
       )
     )
-    const viewport_id = await createViewport(
+    const viewport_response = await createViewport(
       undefined,
       session_id,
       0,
       data.length,
       false
     )
+    const viewport_id = viewport_response.getViewportId()
     await subscribeViewport(viewport_id)
     await subscribeSession(session_id, ALL_EVENTS)
     for (let i = 0; i < data.length; ++i) {
@@ -198,13 +199,14 @@ describe('StressTest', () => {
         10
       )
     )
-    const viewport_id = await createViewport(
+    const viewport_response = await createViewport(
       undefined,
       session_id,
       0,
       data.length,
       false
     )
+    const viewport_id = viewport_response.getViewportId()
     await subscribeViewport(viewport_id)
     await subscribeSession(session_id, ALL_EVENTS)
     for (let i = 0; i < data.length; ++i) {
@@ -256,32 +258,33 @@ describe('StressTest', () => {
       await resumeSessionChanges(session_id)
       expect(await getComputedFileSize(session_id)).to.equal(data.length)
 
-      const viewport_id = await createViewport(
+      const viewport_response = await createViewport(
         'last_byte_vpt',
         session_id,
         file_size - 1,
         1,
         false
       )
-      const viewport_2_id = await createViewport(
+      const viewport_id = viewport_response.getViewportId()
+      const viewport_2_response = await createViewport(
         'all_data_vpt',
         session_id,
         0,
         file_size,
         false
       )
+      const viewport_2_id = viewport_2_response.getViewportId()
       await subscribeViewport(viewport_id, ALL_EVENTS)
       await subscribeViewport(viewport_2_id, ALL_EVENTS)
-      let viewport_data = await getViewportData(viewport_id)
 
-      expect(decode(viewport_data.getData_asU8())).to.equal('~')
+      expect(decode(viewport_response.getData_asU8())).to.equal('~')
 
       let rotations = file_size * full_rotations
       const expected_num_changes = 1 + 3 * file_size * full_rotations
 
       while (rotations--) {
         log_info('\x1b[33m%s\x1b[0mrotations remaining: ' + rotations)
-        viewport_data = await getViewportData(viewport_id)
+        let viewport_data = await getViewportData(viewport_id)
 
         change_id = await insert(session_id, 0, ' ')
         expect(
@@ -298,7 +301,7 @@ describe('StressTest', () => {
         .to.equal(await getChangeCount(session_id))
         .and.to.equal(expected_num_changes)
 
-      viewport_data = await getViewportData(viewport_2_id)
+      let viewport_data = await getViewportData(viewport_2_id)
 
       expect(viewport_data.getData_asU8()).to.deep.equal(data)
       expect(await getComputedFileSize(session_id)).to.equal(file_size)

@@ -76,6 +76,12 @@ int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
     return viewport_ptr->data_segment.is_floating ? 1 : 0;
 }
 
+int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport_ptr) {
+    assert(viewport_ptr);
+    return omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
+            (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_length(viewport_ptr));
+}
+
 int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
     assert(viewport_ptr);
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {

@@ -87,17 +87,48 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c) => throw grpcFailure(c)
     }
 
-  def createViewport(
-      in: CreateViewportRequest
-  ): Future[CreateViewportResponse] =
+  def createViewport(in: CreateViewportRequest): Future[ViewportDataResponse] =
     (editors ? SessionOp(
       in.sessionId,
       View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired)
     )).mapTo[Result]
-      .map {
-        case Ok(id) => CreateViewportResponse(in.sessionId, id)
-        case Err(c) => throw grpcFailure(c)
+      .flatMap {
+        case Ok(id) => getViewportData(ViewportDataRequest(id))
+        case Err(c) => Future.failed(grpcFailure(c))
       }
+
+  def modifyViewport(
+      in: ModifyViewportRequest
+  ): Future[ViewportDataResponse] =
+    ObjectId(in.viewportId) match {
+      case Viewport.Id(sid, vid) =>
+        (editors ? ViewportOp(
+          sid,
+          vid,
+          Viewport.Modify(
+            in.offset,
+            in.capacity,
+            in.isFloating
+          )
+        )).mapTo[Result].map {
+          case ok: Ok with ViewportData =>
+            ViewportDataResponse
+              .apply(
+                viewportId = in.viewportId,
+                offset = ok.offset,
+                length = ok.data.size.toLong,
+                data = ok.data,
+                followingByteCount = ok.followingByteCount
+              )
+          case Ok(id) =>
+            throw grpcFailure(
+              Status.INTERNAL,
+              s"didn't receive data for viewport $id"
+            )
+          case Err(c) => throw grpcFailure(c)
+        }
+      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+    }
 
   def destroyViewport(in: ObjectId): Future[ObjectId] =
     in match {
@@ -141,13 +172,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
           case Err(c) => throw grpcFailure(c)
-          case ok: Ok with Data =>
+          case ok: Ok with ViewportData =>
             ViewportDataResponse
               .apply(
                 viewportId = in.viewportId,
                 offset = ok.offset,
                 length = ok.data.size.toLong,
-                data = ok.data
+                data = ok.data,
+                followingByteCount = ok.followingByteCount
               )
           case Ok(id) =>
             throw grpcFailure(
