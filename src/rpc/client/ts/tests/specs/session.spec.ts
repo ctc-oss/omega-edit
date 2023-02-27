@@ -28,11 +28,7 @@ import {
 // @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'
-import {
-  createViewport,
-  getViewportCount,
-  getViewportData,
-} from '../../src/viewport'
+import { createViewport, getViewportCount } from '../../src/viewport'
 import { getClient, waitForReady } from '../../src/client'
 import { getServerHeartbeat } from '../../src/server'
 import { getClientVersion } from '../../src/version'
@@ -75,10 +71,15 @@ describe('Sessions', () => {
       expect(session_id).to.equal(expected_session_id)
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
-      const vpt_id = await createViewport(undefined, session_id, 0, 1000, false)
+      const vpt_response = await createViewport(
+        undefined,
+        session_id,
+        0,
+        1000,
+        false
+      )
       expect(await getViewportCount(session_id)).to.equal(1)
-      const dataResponse = await getViewportData(vpt_id)
-      expect(dataResponse.getData_asU8()).to.deep.equal(fileBuffer)
+      expect(vpt_response.getData_asU8()).to.deep.equal(fileBuffer)
       const serverHeartbeat = await getServerHeartbeat()
       expect(serverHeartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(serverHeartbeat.resp).to.equal(getClientVersion())

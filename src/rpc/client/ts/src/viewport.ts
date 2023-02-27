@@ -19,6 +19,7 @@ import {
   CountKind,
   CountRequest,
   CreateViewportRequest,
+  ModifyViewportRequest,
   ObjectId,
   ViewportDataRequest,
   ViewportDataResponse,
@@ -29,7 +30,7 @@ import { getClient } from './client'
 let autoFixViewportDataLength_ = false
 
 /**
- * Set whether or not to automatically fix viewport data length
+ * Set whether to automatically fix viewport data length
  * @param shouldAutoFix true if the client should automatically fix viewport data length, false otherwise
  */
 export function setAutoFixViewportDataLength(shouldAutoFix: boolean): void {
@@ -56,9 +57,9 @@ export function createViewport(
   session_id: string,
   offset: number,
   capacity: number,
-  is_floating: boolean
-): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+  is_floating: boolean = false
+): Promise<ViewportDataResponse> {
+  return new Promise<ViewportDataResponse>((resolve, reject) => {
     let request = new CreateViewportRequest()
       .setSessionId(session_id)
       .setOffset(offset)
@@ -82,7 +83,39 @@ export function createViewport(
         return reject(`createViewport error: ${err.message}`)
       }
       getLogger().debug({ fn: 'createViewport', resp: r.toObject() })
-      return resolve(r.getViewportId())
+      return resolve(r)
+    })
+  })
+}
+
+export function modifyViewport(
+  viewport_id: string,
+  offset: number,
+  capacity: number,
+  is_floating: boolean = false
+): Promise<ViewportDataResponse> {
+  return new Promise<ViewportDataResponse>((resolve, reject) => {
+    const request = new ModifyViewportRequest()
+      .setViewportId(viewport_id)
+      .setOffset(offset)
+      .setCapacity(capacity)
+      .setIsFloating(is_floating)
+    getLogger().debug({ fn: 'modifyViewport', rqst: request.toObject() })
+    getClient().modifyViewport(request, (err, r) => {
+      if (err) {
+        getLogger().error({
+          fn: 'modifyViewport',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(`modifyViewport error: ${err.message}`)
+      }
+      getLogger().debug({ fn: 'modifyViewport', resp: r.toObject() })
+      return resolve(r)
     })
   })
 }

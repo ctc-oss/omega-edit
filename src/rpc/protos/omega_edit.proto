@@ -36,7 +36,8 @@ service Editor {
   rpc SessionBeginTransaction(ObjectId) returns (ObjectId);
   rpc SessionEndTransaction(ObjectId) returns (ObjectId);
   rpc NotifyChangedViewports(ObjectId) returns (IntResponse);
-  rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
+  rpc CreateViewport(CreateViewportRequest) returns (ViewportDataResponse);
+  rpc ModifyViewport(ModifyViewportRequest) returns (ViewportDataResponse);
   rpc ViewportHasChanges(ObjectId) returns (BooleanResponse);
   rpc GetViewportData(ViewportDataRequest) returns (ViewportDataResponse);
   rpc DestroyViewport(ObjectId) returns (ObjectId);
@@ -153,9 +154,11 @@ message CreateViewportRequest {
   optional string viewport_id_desired = 5;
 }
 
-message CreateViewportResponse {
-  string session_id = 1;
-  string viewport_id = 2;
+message ModifyViewportRequest {
+  string viewport_id = 1;
+  int64 offset = 2;
+  int64 capacity = 3;
+  bool is_floating = 4;
 }
 
 message ViewportDataRequest {
@@ -167,6 +170,7 @@ message ViewportDataResponse {
   int64 offset = 2;
   int64 length = 3;
   bytes data = 4;
+  int64 following_byte_count = 5;
 }
 
 message CreateSessionRequest {

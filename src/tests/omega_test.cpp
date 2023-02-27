@@ -776,6 +776,7 @@ TEST_CASE("Search", "[SearchTests]") {
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     auto vpt = omega_edit_create_viewport(session_ptr, 0, 1024, 0, vpt_change_cbk, &view_mode, NO_EVENTS);
     REQUIRE(NO_EVENTS == omega_viewport_get_event_interest(vpt));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(vpt));
     REQUIRE(1 == omega_session_notify_viewports_of_changes(session_ptr));
     REQUIRE(ALL_EVENTS == omega_viewport_set_event_interest(vpt, ALL_EVENTS));
     REQUIRE(ALL_EVENTS == omega_viewport_get_event_interest(vpt));
@@ -952,6 +953,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 10, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
     REQUIRE(viewport_count + 1 == omega_session_get_num_viewports(session_ptr));
+    REQUIRE(1014 == omega_viewport_get_following_byte_count(viewport_ptr));
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_UNDEFINED, nullptr);
     for (int64_t offset(0); offset < omega_session_get_computed_file_size(session_ptr); ++offset) {
@@ -983,18 +985,49 @@ TEST_CASE("Viewports", "[ViewportTests]") {
     const auto viewport_fixed_ptr =
             omega_edit_create_viewport(session_ptr, 4, 4, 0, vpt_change_cbk, nullptr, ALL_EVENTS);
     REQUIRE(viewport_fixed_ptr);
+    REQUIRE(1 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
     const auto viewport_floating_ptr =
             omega_edit_create_viewport(session_ptr, 4, 4, 1, vpt_change_cbk, nullptr, ALL_EVENTS);
     REQUIRE(viewport_floating_ptr);
+    REQUIRE(1 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
     REQUIRE(2 == omega_session_get_num_viewports(session_ptr));
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
     REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
     omega_edit_delete(session_ptr, 0, 2);
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
+    REQUIRE(1 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "789");
     REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
     omega_edit_insert_string(session_ptr, 0, "12");
+    REQUIRE(1 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
+    REQUIRE(1 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
     REQUIRE(omega_viewport_get_string(viewport_fixed_ptr) == "5678");
     REQUIRE(omega_viewport_get_string(viewport_floating_ptr) == "5678");
+    omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    REQUIRE(27 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
+    REQUIRE(27 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
+    omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr));
+    const auto viewport_fixed_ptr2 =
+            omega_edit_create_viewport(session_ptr, 100, 10, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(0 != omega_viewport_has_changes(viewport_fixed_ptr2));
+    REQUIRE(nullptr != omega_viewport_get_data(viewport_fixed_ptr2));
+    REQUIRE(0 == omega_viewport_has_changes(viewport_fixed_ptr2));
+    REQUIRE(100 == omega_viewport_get_offset(viewport_fixed_ptr2));
+    REQUIRE(-100 == omega_viewport_get_following_byte_count(viewport_fixed_ptr2));
+    REQUIRE(0 == omega_viewport_get_length(viewport_fixed_ptr2));
+    REQUIRE(10 == omega_viewport_get_capacity(viewport_fixed_ptr2));
+    REQUIRE(-4 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
+    REQUIRE(0 == omega_viewport_get_offset(viewport_floating_ptr));
+    REQUIRE(0 == omega_viewport_get_length(viewport_floating_ptr));
+    REQUIRE(0 == omega_viewport_get_length(viewport_fixed_ptr));
+    omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    REQUIRE(26 == omega_viewport_get_offset(viewport_floating_ptr));
+    REQUIRE(0 == omega_viewport_get_length(viewport_floating_ptr));
+    REQUIRE(18 == omega_viewport_get_following_byte_count(viewport_fixed_ptr));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_floating_ptr));
+    REQUIRE(-74 == omega_viewport_get_following_byte_count(viewport_fixed_ptr2));
+    omega_edit_destroy_viewport(viewport_fixed_ptr2);
     omega_edit_destroy_viewport(viewport_fixed_ptr);
     REQUIRE(1 == omega_session_get_num_viewports(session_ptr));
     omega_edit_destroy_viewport(viewport_floating_ptr);
@@ -1026,6 +1059,7 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                                    &viewport_events_count, ALL_EVENTS);
 
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_ptr));
     REQUIRE(2 == session_events_count); // SESSION_EVT_CREATE_VIEWPORT
     REQUIRE(1 == viewport_events_count);// VIEWPORT_EVT_CREATE
     omega_edit_insert_string(session_ptr, 0, "0123456789");
@@ -1046,6 +1080,7 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
                                               &viewport_events_count, ALL_EVENTS);
     REQUIRE(2 == session_events_count);
     REQUIRE(1 == viewport_events_count);
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_ptr));
     omega_edit_insert_string(session_ptr, omega_session_get_computed_file_size(session_ptr),
                              "abcdefghijklmnopqrstuvwxyz");
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
@@ -1090,6 +1125,8 @@ TEST_CASE("Transactions", "[TransactionTests]") {
                                                    &viewport_events_count, ALL_EVENTS);
     REQUIRE(2 == session_events_count); // SESSION_EVT_CREATE_VIEWPORT
     REQUIRE(1 == viewport_events_count);// VIEWPORT_EVT_CREATE
+    REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(viewport_ptr));
     auto change_id = omega_edit_insert_string(session_ptr, 0, "0123456789");
     auto change_ptr = omega_session_get_change(session_ptr, change_id);
     auto transaction_bit = omega_change_get_transaction_bit(change_ptr);

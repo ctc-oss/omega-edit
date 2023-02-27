@@ -53,9 +53,10 @@ object Editors {
   case class Ok(id: String) extends Result
   case class Err(reason: Status) extends Result
 
-  trait Data {
+  trait ViewportData {
     def data: ByteString
     def offset: Long
+    def followingByteCount: Long
   }
 
   trait BooleanResult {

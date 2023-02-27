@@ -25,9 +25,19 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
   "views" should {
     "limit data" in session("abc")(view(0, 1, false, _) { (s, v) =>
       s.size shouldBe 3
+      v.offset shouldBe 0
+      v.capacity shouldBe 1
       v.isFloating shouldBe false
       v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
+      v.hasChanges shouldBe false
+      s.notifyChangedViewports shouldBe 0
+      v.modify(1, 2, true)
+      v.offset shouldBe 1
+      v.capacity shouldBe 2
+      v.isFloating shouldBe true
+      v.hasChanges shouldBe true
+      v.data shouldBe "bc".getBytes()
       v.hasChanges shouldBe false
       s.notifyChangedViewports shouldBe 0
     })
@@ -65,7 +75,7 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
       v.hasChanges shouldBe true
       v.data shouldBe "a".getBytes()
       v.hasChanges shouldBe false
-      v.update(1, 2)
+      v.modify(1, 2, false)
       v.hasChanges shouldBe true
       v.data shouldBe "bc".getBytes()
       v.hasChanges shouldBe false
