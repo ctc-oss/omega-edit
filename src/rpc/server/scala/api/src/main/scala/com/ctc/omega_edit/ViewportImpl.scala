@@ -60,13 +60,13 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
     i.omega_viewport_get_following_byte_count(p)
 
   def move(offset: Long): Boolean =
-    update(offset, capacity)
+    modify(offset, capacity, isFloating)
 
   def resize(capacity: Long): Boolean =
-    update(offset, capacity)
+    modify(offset, capacity, isFloating)
 
-  def update(offset: Long, capacity: Long): Boolean = {
-    i.omega_viewport_modify(p, offset, capacity, 0) == 0
+  def modify(offset: Long, capacity: Long, isFloating: Boolean): Boolean = {
+    i.omega_viewport_modify(p, offset, capacity, if (isFloating) 1 else 0) == 0
   }
   override def toString: String =
     data.mkString // TODO: probably render instead as hex

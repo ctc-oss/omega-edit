@@ -161,17 +161,19 @@ class Session(
   val sessionId: String = self.path.name
 
   def receive: Receive = {
+
     case View(off, cap, isFloating, id) =>
       import context.system
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId:$vid"
 
       context.child(fqid) match {
-        case Some(_) => sender() ! Err(Status.ALREADY_EXISTS)
+        case Some(_) =>
+          sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           val (input, stream) = Source
             .queue[ViewportEvent](5, OverflowStrategy.backpressure)
-            .preMaterialize()
+            .preMaterialize() // preMaterialize the queue to obtain the input and stream objects
           val cb = ViewportCallback { (v, e, c) =>
             input.queue.offer(
               ViewportEvent(
@@ -187,10 +189,7 @@ class Session(
             ()
           }
           context.actorOf(
-            Viewport.props(
-              session.viewCb(off, cap, isFloating, cb),
-              stream
-            ),
+            Viewport.props(session.viewCb(off, cap, isFloating, cb), stream),
             vid
           )
           sender() ! Ok(fqid)

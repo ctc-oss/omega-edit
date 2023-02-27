@@ -20,7 +20,7 @@ import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.grpc.Editors.{BooleanResult, ViewportData, Ok}
+import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Ok, ViewportData}
 import com.ctc.omega_edit.grpc.Viewport.{
   Destroy,
   EventStream,
@@ -28,6 +28,7 @@ import com.ctc.omega_edit.grpc.Viewport.{
   Get,
   HasChanges,
   Unwatch,
+  Modify,
   Watch
 }
 import com.google.protobuf.ByteString
@@ -57,12 +58,14 @@ object Viewport {
   }
 
   trait Op
+  case class Modify(offset: Long, capacity: Long, isFloating: Boolean)
+      extends Op
   case object Get extends Op
   case object HasChanges extends Op
   case object Destroy extends Op
   case class Watch(eventInterest: Option[Int]) extends Op
-
   case object Unwatch extends Op
+
 }
 
 class Viewport(
@@ -72,13 +75,23 @@ class Viewport(
     with ActorLogging {
   val viewportId: String = self.path.name
 
+  private def generateViewportData(
+      viewport: api.Viewport,
+      id: String
+  ): Ok with ViewportData = new Ok(id) with ViewportData {
+    def data: ByteString = ByteString.copyFrom(viewport.data)
+    def offset: Long = viewport.offset
+    def followingByteCount: Long = viewport.followingByteCount
+  }
+
   def receive: Receive = {
+
+    case Modify(offset, capacity, isFloating) =>
+      view.modify(offset, capacity, isFloating)
+      sender() ! generateViewportData(view, viewportId)
+
     case Get =>
-      sender() ! new Ok(viewportId) with ViewportData {
-        def data: ByteString = ByteString.copyFrom(view.data)
-        def offset: Long = view.offset
-        def followingByteCount: Long = view.followingByteCount
-      }
+      sender() ! generateViewportData(view, viewportId)
 
     case HasChanges =>
       sender() ! new Ok(viewportId) with BooleanResult {

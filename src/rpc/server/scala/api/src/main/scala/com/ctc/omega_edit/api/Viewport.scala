@@ -34,6 +34,6 @@ trait Viewport {
 
   def move(offset: Long): Boolean
   def resize(capacity: Long): Boolean
-  def update(offset: Long, capacity: Long): Boolean
+  def modify(offset: Long, capacity: Long, isFloating: Boolean): Boolean
   def destroy(): Unit
 }
