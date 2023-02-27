@@ -20,7 +20,7 @@ import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Data, Ok}
+import com.ctc.omega_edit.grpc.Editors.{BooleanResult, ViewportData, Ok}
 import com.ctc.omega_edit.grpc.Viewport.{
   Destroy,
   EventStream,
@@ -74,9 +74,10 @@ class Viewport(
 
   def receive: Receive = {
     case Get =>
-      sender() ! new Ok(viewportId) with Data {
+      sender() ! new Ok(viewportId) with ViewportData {
         def data: ByteString = ByteString.copyFrom(view.data)
         def offset: Long = view.offset
+        def followingByteCount: Long = view.followingByteCount
       }
 
     case HasChanges =>

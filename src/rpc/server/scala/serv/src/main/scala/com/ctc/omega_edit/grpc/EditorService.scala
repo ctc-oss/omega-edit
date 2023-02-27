@@ -141,13 +141,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
           case Err(c) => throw grpcFailure(c)
-          case ok: Ok with Data =>
+          case ok: Ok with ViewportData =>
             ViewportDataResponse
               .apply(
                 viewportId = in.viewportId,
                 offset = ok.offset,
                 length = ok.data.size.toLong,
-                data = ok.data
+                data = ok.data,
+                followingByteCount = ok.followingByteCount
               )
           case Ok(id) =>
             throw grpcFailure(

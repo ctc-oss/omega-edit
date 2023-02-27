@@ -106,11 +106,16 @@ static inline const_omega_change_ptr_t ovr_(int64_t serial, int64_t offset, cons
 static inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
                                                       const omega_change_t *change_ptr) {
     assert(0 < change_ptr->length);
+    const auto offset = omega_viewport_get_offset(viewport_ptr);
     // If the viewport is floating and a change happens before or at the start of the given viewport...
-    if (omega_viewport_is_floating(viewport_ptr) && change_ptr->offset <= omega_viewport_get_offset(viewport_ptr)) {
+    if (omega_viewport_is_floating(viewport_ptr) && change_ptr->offset <= offset) {
         // ...and the change is a delete, or insert, update the offset adjustment accordingly
         if (change_kind_t::CHANGE_DELETE == omega_change_get_kind(change_ptr)) {
             viewport_ptr->data_segment.offset_adjustment -= change_ptr->length;
+            // If the offset adjustment is now negative, adjust it to zero
+            if (offset < -viewport_ptr->data_segment.offset_adjustment) {
+                viewport_ptr->data_segment.offset_adjustment = -offset;
+            }
         } else if (change_kind_t::CHANGE_INSERT == omega_change_get_kind(change_ptr)) {
             viewport_ptr->data_segment.offset_adjustment += change_ptr->length;
         }

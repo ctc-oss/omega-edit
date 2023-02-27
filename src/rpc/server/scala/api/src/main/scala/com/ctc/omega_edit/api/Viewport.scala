@@ -28,6 +28,7 @@ trait Viewport {
 
   def offset: Long
   def capacity: Long
+  def followingByteCount: Long
   def isFloating: Boolean
   def hasChanges: Boolean
 

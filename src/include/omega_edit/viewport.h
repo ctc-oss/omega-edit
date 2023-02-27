@@ -81,6 +81,13 @@ OMEGA_EDIT_EXPORT int64_t omega_viewport_get_offset(const omega_viewport_t *view
 OMEGA_EDIT_EXPORT int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr);
 
 /**
+ * Given a viewport, return the number of bytes that exist after the viewport
+ * @param viewport_ptr viewport to get the number of bytes that exist after the viewport from
+ * @return number of bytes that exist after the viewport
+ */
+OMEGA_EDIT_EXPORT int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport_ptr);
+
+/**
  * Given a viewport, return the viewport user data
  * @param viewport_ptr viewport to get the user data from
  * @return viewport user data

@@ -147,9 +147,10 @@ describe('Viewports', () => {
     let viewport_data = await getViewportData(viewport_1_id)
     expect(await viewportHasChanges(viewport_1_id)).to.be.false
     expect(decode(viewport_data.getData_asU8())).to.equal('0123456789')
-
+    expect(viewport_data.getFollowingByteCount()).to.equal(3)
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('ABC')
+    expect(viewport_data.getFollowingByteCount()).to.equal(0)
 
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 1)
 
@@ -161,9 +162,11 @@ describe('Viewports', () => {
 
     viewport_data = await getViewportData(viewport_1_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('123456789A')
+    expect(viewport_data.getFollowingByteCount()).to.equal(2)
 
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('BC')
+    expect(viewport_data.getFollowingByteCount()).to.equal(0)
 
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
@@ -183,9 +186,11 @@ describe('Viewports', () => {
 
     viewport_data = await getViewportData(viewport_1_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('12345678!@')
+    expect(viewport_data.getFollowingByteCount()).to.equal(2)
 
     viewport_data = await getViewportData(viewport_2_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('#C')
+    expect(viewport_data.getFollowingByteCount()).to.equal(0)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle on interest in all events
@@ -234,15 +239,17 @@ describe('Viewports', () => {
       viewport_floating_id
     )
     expect(await viewportHasChanges(viewport_floating_id)).to.be.true
+
     let viewport_data = await getViewportData(viewport_floating_id)
     expect(await viewportHasChanges(viewport_floating_id)).to.be.false
-
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(10)
+    expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     viewport_data = await getViewportData(viewport_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(10)
+    expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     change_id = await del(session_id, 0, 5)
     expect(change_id).to.equal(2)
@@ -253,10 +260,12 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_floating_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(5)
+    expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     viewport_data = await getViewportData(viewport_id)
     expect(viewport_data.getOffset()).to.equal(10)
     expect(decode(viewport_data.getData_asU8())).to.equal('01234')
+    expect(viewport_data.getFollowingByteCount()).to.equal(6)
 
     let file_size = await getComputedFileSize(session_id)
     let segment = await getSegment(session_id, 0, file_size)
@@ -272,15 +281,31 @@ describe('Viewports', () => {
     viewport_data = await getViewportData(viewport_floating_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(10)
+    expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     viewport_data = await getViewportData(viewport_id)
     expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
     expect(viewport_data.getOffset()).to.equal(10)
+    expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
     await checkCallbackCount(viewport_callbacks, viewport_id, 1)
     await checkCallbackCount(viewport_callbacks, viewport_floating_id, 2)
+
+    // Test viewport with offset > computed file size
+    const viewport_off_id = await createViewport(
+      'test_vpt_off_end',
+      session_id,
+      100,
+      5,
+      false
+    )
+    viewport_data = await getViewportData(viewport_off_id)
+    expect(decode(viewport_data.getData_asU8())).to.equal('')
+    expect(viewport_data.getLength()).to.equal(0)
+    expect(viewport_data.getOffset()).to.equal(100)
+    expect(viewport_data.getFollowingByteCount()).to.equal(-74)
   }).timeout(8000)
 })

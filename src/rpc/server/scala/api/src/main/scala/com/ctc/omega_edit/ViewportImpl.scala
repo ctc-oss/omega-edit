@@ -24,9 +24,17 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   require(p != null, "native viewport pointer was null")
 
   def data: Array[Byte] = {
+    val len = length.toInt
     val data = i.omega_viewport_get_data(p)
-    val out = Array.ofDim[Byte](length.toInt)
-    data.get(0, out, 0, length.toInt)
+
+    // if the length is 0, or less, return an empty array
+    if (len < 1) {
+      return Array.emptyByteArray
+    }
+
+    // create a new array to copy the data into it
+    val out = Array.ofDim[Byte](len)
+    data.get(0, out, 0, len)
     out
   }
 
@@ -48,15 +56,18 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
   def capacity: Long =
     i.omega_viewport_get_capacity(p)
 
+  def followingByteCount: Long =
+    i.omega_viewport_get_following_byte_count(p)
+
   def move(offset: Long): Boolean =
     update(offset, capacity)
 
   def resize(capacity: Long): Boolean =
     update(offset, capacity)
 
-  def update(offset: Long, capacity: Long): Boolean =
+  def update(offset: Long, capacity: Long): Boolean = {
     i.omega_viewport_modify(p, offset, capacity, 0) == 0
-
+  }
   override def toString: String =
     data.mkString // TODO: probably render instead as hex
 

@@ -167,6 +167,7 @@ message ViewportDataResponse {
   int64 offset = 2;
   int64 length = 3;
   bytes data = 4;
+  int64 following_byte_count = 5;
 }
 
 message CreateSessionRequest {
