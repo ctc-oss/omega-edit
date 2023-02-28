@@ -102,9 +102,11 @@ export function del(
   stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
-    request.setKind(ChangeKind.CHANGE_DELETE)
-    request.setLength(len)
+    const request = new ChangeRequest()
+      .setSessionId(session_id)
+      .setKind(ChangeKind.CHANGE_DELETE)
+      .setOffset(offset)
+      .setLength(len)
     getLogger().debug({ fn: 'del', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
@@ -149,25 +151,20 @@ export function del(
  * @param data bytes to insert at the given offset
  * @param stats optional edit stats to update
  * @return positive change serial number on success
- * @remarks If editing data that could have embedded nulls, do not rely on
- * setting the length to 0 and have this function compute the length using
- * strlen, because it will be wrong.  Passing length 0 is a convenience for
- * testing and should not be used in production code.  In production code,
- * explicitly pass in the length.
  */
 export function insert(
   session_id: string,
   offset: number,
-  data: string | Uint8Array,
+  data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    let request = new ChangeRequest()
+    const request = new ChangeRequest()
       .setSessionId(session_id)
+      .setKind(ChangeKind.CHANGE_INSERT)
       .setOffset(offset)
+      .setData(data)
       .setLength(data.length)
-    request.setKind(ChangeKind.CHANGE_INSERT)
-    request.setData(typeof data === 'string' ? Buffer.from(data) : data)
     getLogger().debug({ fn: 'insert', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
@@ -212,22 +209,20 @@ export function insert(
  * @param data new bytes to overwrite the old bytes with
  * @param stats optional edit stats to update
  * @return positive change serial number on success, zero otherwise
- * @remarks If editing data that could have embedded nulls, do not rely on
- * setting the length to 0 and have this function compute the length using
- * strlen, because it will be wrong.  Passing length 0 is a convenience for
- * testing and should not be used in production code.  In production code,
- * explicitly pass in the length.
  */
 export function overwrite(
   session_id: string,
   offset: number,
-  data: string | Uint8Array,
+  data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    let request = new ChangeRequest().setSessionId(session_id).setOffset(offset)
-    request.setKind(ChangeKind.CHANGE_OVERWRITE)
-    request.setData(typeof data === 'string' ? Buffer.from(data) : data)
+    const request = new ChangeRequest()
+      .setSessionId(session_id)
+      .setKind(ChangeKind.CHANGE_OVERWRITE)
+      .setOffset(offset)
+      .setData(data)
+      .setLength(data.length)
     getLogger().debug({ fn: 'overwrite', rqst: request.toObject() })
     getClient().submitChange(request, (err, r) => {
       if (err) {
@@ -278,7 +273,7 @@ export function replace(
   session_id: string,
   offset: number,
   remove_bytes_count: number,
-  replacement: string | Uint8Array,
+  replacement: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
   // if no bytes are being removed, this is an insert

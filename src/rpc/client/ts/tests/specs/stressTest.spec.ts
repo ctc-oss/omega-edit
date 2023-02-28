@@ -38,7 +38,6 @@ import {
   destroyViewport,
   getViewportData,
 } from '../../src/viewport'
-import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import {
   EventSubscriptionRequest,
   SessionEventKind,
@@ -126,7 +125,7 @@ async function subscribeViewport(
             ', length: ' +
             viewportEvent.getLength() +
             ', data: "' +
-            decode(viewportEvent.getData()) +
+            viewportEvent.getData() +
             '", callbacks: ' +
             viewport_callbacks.get(viewport_id)
         )
@@ -157,7 +156,7 @@ describe('StressTest', () => {
   })
 
   it('Should handle fast inserting', async () => {
-    const data = encode(
+    const data = Buffer.from(
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'.repeat(
         10
       )
@@ -194,7 +193,7 @@ describe('StressTest', () => {
   }).timeout(10000)
 
   it('Should handle fast appending', async () => {
-    const data = encode(
+    const data = Buffer.from(
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'.repeat(
         10
       )
@@ -233,7 +232,7 @@ describe('StressTest', () => {
     async () => {
       expect(full_rotations).to.be.a('number').greaterThan(0)
 
-      const data = encode(
+      const data = Buffer.from(
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{}|;:",<.>/?`~'
       )
       await subscribeSession(session_id, ALL_EVENTS)
@@ -277,7 +276,7 @@ describe('StressTest', () => {
       await subscribeViewport(viewport_id, ALL_EVENTS)
       await subscribeViewport(viewport_2_id, ALL_EVENTS)
 
-      expect(decode(viewport_response.getData_asU8())).to.equal('~')
+      expect(viewport_response.getData_asU8()).to.deep.equal(Buffer.from('~'))
 
       let rotations = file_size * full_rotations
       const expected_num_changes = 1 + 3 * file_size * full_rotations
@@ -286,9 +285,9 @@ describe('StressTest', () => {
         log_info('\x1b[33m%s\x1b[0mrotations remaining: ' + rotations)
         let viewport_data = await getViewportData(viewport_id)
 
-        change_id = await insert(session_id, 0, ' ')
+        change_id = await insert(session_id, 0, Buffer.from(' '))
         expect(
-          await overwrite(session_id, 0, decode(viewport_data.getData_asU8()))
+          await overwrite(session_id, 0, viewport_data.getData_asU8())
         ).to.equal(1 + change_id)
 
         expect((await undo(session_id)) * -1).to.equal(await redo(session_id))

@@ -43,7 +43,6 @@ import {
   EventSubscriptionRequest,
   SessionEventKind,
 } from '../../src/omega_edit_pb'
-import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import { ALL_EVENTS, getClient } from '../../src/client'
 
 // prettier-ignore
@@ -107,7 +106,7 @@ describe('Editing', () => {
   describe('Insert', () => {
     it('Should insert a string', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const data: Uint8Array = encode('abcghijklmnopqrstuvwxyz')
+      const data: Uint8Array = Buffer.from('abcghijklmnopqrstuvwxyz')
       // Subscribe to all events but edit events
       const subscribed_session_id = await subscribeSession(
         session_id,
@@ -129,13 +128,13 @@ describe('Editing', () => {
       await checkCallbackCount(session_callbacks, session_id, 0)
       // Subscribe to all events
       await subscribeSession(session_id)
-      change_id = await insert(session_id, 3, encode('def'), stats)
+      change_id = await insert(session_id, 3, Buffer.from('def'), stats)
       expect(change_id).to.be.a('number').that.equals(2)
       expect(stats.insert_count).to.equal(2)
       const file_size = await getComputedFileSize(session_id)
       expect(file_size).to.equal(data.length + 3)
       const segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(encode('abcdefghijklmnopqrstuvwxyz'))
+      expect(segment).deep.equals(Buffer.from('abcdefghijklmnopqrstuvwxyz'))
       await checkCallbackCount(session_callbacks, session_id, 1)
       expect(stats.error_count).to.equal(0)
     })
@@ -144,7 +143,7 @@ describe('Editing', () => {
   describe('Delete', () => {
     it('Should delete some data', async () => {
       expect(0).to.equal(await getComputedFileSize(session_id))
-      const data: Uint8Array = encode('abcdefghijklmnopqrstuvwxyz')
+      const data: Uint8Array = Buffer.from('abcdefghijklmnopqrstuvwxyz')
       await subscribeSession(session_id)
       await checkCallbackCount(session_callbacks, session_id, 0)
       const stats = new EditStats()
@@ -165,7 +164,7 @@ describe('Editing', () => {
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length - 10)
       segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(encode('abcdefghijklmxyz'))
+      expect(segment).deep.equals(Buffer.from('abcdefghijklmxyz'))
       await checkCallbackCount(session_callbacks, session_id, 1) // unsubscribed before the second event
       expect(stats.error_count).to.equal(0)
     })
@@ -174,7 +173,7 @@ describe('Editing', () => {
   describe('Overwrite', () => {
     it('Should overwrite some data', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const data: Uint8Array = encode('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
+      const data: Uint8Array = Buffer.from('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
       const stats = new EditStats()
       let change_id = await overwrite(session_id, 0, data, stats)
       expect(stats.overwrite_count).to.equal(1)
@@ -195,7 +194,7 @@ describe('Editing', () => {
       let overwrite_change_id = await overwrite(
         session_id,
         13,
-        encode('NO123456VW'),
+        Buffer.from('NO123456VW'),
         stats
       ) // overwriting: nopqrstuvw (len: 10)
       expect(overwrite_change_id).to.be.a('number').that.equals(2)
@@ -203,20 +202,25 @@ describe('Editing', () => {
       file_size = await getComputedFileSize(session_id)
       expect(file_size).to.equal(data.length)
       last_change = await getLastChange(session_id)
-      expect(decode(last_change.getData_asU8())).deep.equals('NO123456VW')
+      expect(last_change.getData_asU8()).deep.equals(Buffer.from('NO123456VW'))
       expect(last_change.getOffset()).to.equal(13)
       expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
       expect(last_change.getSerial()).to.equal(2)
       expect(last_change.getLength()).to.equal(10)
       expect(last_change.getSessionId()).to.equal(session_id)
       await checkCallbackCount(session_callbacks, session_id, 1)
-      overwrite_change_id = await overwrite(session_id, 15, 'PQRSTU', stats) // overwriting: 123456 (len: 6), using a string
+      overwrite_change_id = await overwrite(
+        session_id,
+        15,
+        Buffer.from('PQRSTU'),
+        stats
+      ) // overwriting: 123456 (len: 6), using a string
       expect(overwrite_change_id).to.be.a('number').that.equals(3)
       expect(stats.overwrite_count).to.equal(3)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
       segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyΩ'))
+      expect(segment).deep.equals(Buffer.from('abcdefghijklmNOPQRSTUVWxyΩ'))
       await checkCallbackCount(session_callbacks, session_id, 2)
       await unsubscribeSession(session_id)
       // To overwrite a 2-byte character with a single-byte character, we need to delete the 2-byte character and insert the single-byte character
@@ -226,16 +230,16 @@ describe('Editing', () => {
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length - 2)
       segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxy'))
+      expect(segment).deep.equals(Buffer.from('abcdefghijklmNOPQRSTUVWxy'))
       await checkCallbackCount(session_callbacks, session_id, 2)
       await subscribeSession(session_id)
-      change_id = await insert(session_id, 25, 'z', stats)
+      change_id = await insert(session_id, 25, Buffer.from('z'), stats)
       expect(change_id).to.equal(5)
       expect(stats.insert_count).to.equal(1)
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length - 1)
       segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(encode('abcdefghijklmNOPQRSTUVWxyz'))
+      expect(segment).deep.equals(Buffer.from('abcdefghijklmNOPQRSTUVWxyz'))
       await checkCallbackCount(session_callbacks, session_id, 3)
       expect(stats.error_count).to.equal(0)
     })

@@ -93,14 +93,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def insert(b: Array[Byte], offset: Long): Result =
     Edit(i.omega_edit_insert_bytes(p, offset, b, b.length.toLong))
 
-  def insert(s: String, offset: Long): Result =
-    Edit(i.omega_edit_insert(p, offset, s, 0))
-
   def overwrite(b: Array[Byte], offset: Long): Result =
     Edit(i.omega_edit_overwrite_bytes(p, offset, b, b.length.toLong))
-
-  def overwrite(s: String, offset: Long): Result =
-    Edit(i.omega_edit_overwrite(p, offset, s, 0))
 
   /** omega_edit_undo_last_change returns the *negative* serial number of the
     * change, so perform different matching for change id

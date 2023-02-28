@@ -34,7 +34,6 @@ import {
   unsubscribeViewport,
   viewportHasChanges,
 } from '../../src/viewport'
-import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 import {
   EventSubscriptionRequest,
   ViewportEventKind,
@@ -77,7 +76,7 @@ async function subscribeViewport(
             ', length: ' +
             viewportEvent.getLength() +
             ', data: "' +
-            decode(viewportEvent.getData()) +
+            viewportEvent.getData() +
             '", callbacks: ' +
             viewport_callbacks.get(viewport_id)
         )
@@ -140,7 +139,7 @@ describe('Viewports', () => {
     log_info(viewport_callbacks)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 0)
 
-    let change_id = await insert(session_id, 0, '0123456789ABC')
+    let change_id = await insert(session_id, 0, Buffer.from('0123456789ABC'))
     expect(change_id).to.equal(1)
 
     let file_size = await getComputedFileSize(session_id)
@@ -148,10 +147,12 @@ describe('Viewports', () => {
     expect(await viewportHasChanges(viewport_1_id)).to.be.true
     let viewport_data = await getViewportData(viewport_1_id)
     expect(await viewportHasChanges(viewport_1_id)).to.be.false
-    expect(decode(viewport_data.getData_asU8())).to.equal('0123456789')
+    expect(viewport_data.getData_asU8()).to.deep.equal(
+      Buffer.from('0123456789')
+    )
     expect(viewport_data.getFollowingByteCount()).to.equal(3)
     viewport_data = await getViewportData(viewport_2_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('ABC')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('ABC'))
     expect(viewport_data.getFollowingByteCount()).to.equal(0)
 
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 1)
@@ -163,11 +164,13 @@ describe('Viewports', () => {
     expect(file_size).to.equal(12)
 
     viewport_data = await getViewportData(viewport_1_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('123456789A')
+    expect(viewport_data.getData_asU8()).to.deep.equal(
+      Buffer.from('123456789A')
+    )
     expect(viewport_data.getFollowingByteCount()).to.equal(2)
 
     viewport_data = await getViewportData(viewport_2_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('BC')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('BC'))
     expect(viewport_data.getFollowingByteCount()).to.equal(0)
 
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
@@ -177,21 +180,23 @@ describe('Viewports', () => {
       viewport_2_id,
       ALL_EVENTS & ~ViewportEventKind.VIEWPORT_EVT_EDIT
     )
-    change_id = await overwrite(session_id, 8, '!@#')
+    change_id = await overwrite(session_id, 8, Buffer.from('!@#'))
     expect(change_id).to.equal(3)
 
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(12)
 
     let segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('12345678!@#C'))
+    expect(segment).deep.equals(Buffer.from('12345678!@#C'))
 
     viewport_data = await getViewportData(viewport_1_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('12345678!@')
+    expect(viewport_data.getData_asU8()).to.deep.equal(
+      Buffer.from('12345678!@')
+    )
     expect(viewport_data.getFollowingByteCount()).to.equal(2)
 
     viewport_data = await getViewportData(viewport_2_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('#C')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('#C'))
     expect(viewport_data.getFollowingByteCount()).to.equal(0)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
@@ -203,7 +208,7 @@ describe('Viewports', () => {
 
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('345678!@#C'))
+    expect(segment).deep.equals(Buffer.from('345678!@#C'))
 
     expect(await getViewportCount(session_id)).to.equal(2)
     const destroyed_viewport_id = await destroyViewport(viewport_2_id)
@@ -219,7 +224,11 @@ describe('Viewports', () => {
   }).timeout(8000)
 
   it('Should handle floating viewports', async () => {
-    let change_id = await insert(session_id, 0, '0123456789LABEL01234567890')
+    let change_id = await insert(
+      session_id,
+      0,
+      Buffer.from('0123456789LABEL01234567890')
+    )
     expect(change_id).to.equal(1)
 
     const viewport_response = await createViewport(
@@ -242,11 +251,13 @@ describe('Viewports', () => {
       viewport_floating_id
     )
     expect(await viewportHasChanges(viewport_floating_id)).to.be.false
-    expect(decode(viewport_floating_response.getData_asU8())).to.equal('LABEL')
+    expect(viewport_floating_response.getData_asU8()).to.deep.equal(
+      Buffer.from('LABEL')
+    )
     expect(viewport_floating_response.getOffset()).to.equal(10)
     expect(viewport_floating_response.getFollowingByteCount()).to.equal(11)
 
-    expect(decode(viewport_response.getData_asU8())).to.equal('LABEL')
+    expect(viewport_response.getData_asU8()).to.deep.equal(Buffer.from('LABEL'))
     expect(viewport_response.getOffset()).to.equal(10)
     expect(viewport_response.getFollowingByteCount()).to.equal(11)
 
@@ -258,39 +269,39 @@ describe('Viewports', () => {
     expect(await viewportHasChanges(viewport_floating_id)).to.be.false
 
     let viewport_data = await getViewportData(viewport_floating_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('LABEL'))
     expect(viewport_data.getOffset()).to.equal(5)
     expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     viewport_data = await getViewportData(viewport_id)
     expect(viewport_data.getOffset()).to.equal(10)
-    expect(decode(viewport_data.getData_asU8())).to.equal('01234')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('01234'))
     expect(viewport_data.getFollowingByteCount()).to.equal(6)
 
     let file_size = await getComputedFileSize(session_id)
     let segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('56789LABEL01234567890'))
+    expect(segment).deep.equals(Buffer.from('56789LABEL01234567890'))
 
     await unsubscribeViewport(viewport_id)
-    change_id = await insert(session_id, 0, '01234')
+    change_id = await insert(session_id, 0, Buffer.from('01234'))
     expect(change_id).to.equal(3)
 
     expect(await viewportHasChanges(viewport_id)).to.be.true
     expect(await viewportHasChanges(viewport_floating_id)).to.be.false
 
     viewport_data = await getViewportData(viewport_floating_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('LABEL'))
     expect(viewport_data.getOffset()).to.equal(10)
     expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     viewport_data = await getViewportData(viewport_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('LABEL')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from('LABEL'))
     expect(viewport_data.getOffset()).to.equal(10)
     expect(viewport_data.getFollowingByteCount()).to.equal(11)
 
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('0123456789LABEL01234567890'))
+    expect(segment).deep.equals(Buffer.from('0123456789LABEL01234567890'))
     await checkCallbackCount(viewport_callbacks, viewport_id, 1)
     await checkCallbackCount(viewport_callbacks, viewport_floating_id, 2)
 
@@ -303,7 +314,7 @@ describe('Viewports', () => {
     )
     const viewport_off_id = viewport_off_response.getViewportId()
     viewport_data = await getViewportData(viewport_off_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal('')
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from(''))
     expect(viewport_data.getLength()).to.equal(0)
     expect(viewport_data.getOffset()).to.equal(100)
     expect(viewport_data.getFollowingByteCount()).to.equal(-74)
@@ -320,54 +331,54 @@ describe('Viewports', () => {
     )
     const viewport_id = viewport_response.getViewportId()
     expect(await viewportHasChanges(viewport_id)).to.be.false
-    expect(decode(viewport_response.getData_asU8())).to.equal('')
+    expect(viewport_response.getData_asU8()).to.deep.equal(Buffer.from(''))
     expect(viewport_response.getLength()).to.equal(0)
     expect(viewport_response.getOffset()).to.equal(0)
     expect(viewport_response.getFollowingByteCount()).to.equal(0)
     const pattern =
       '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/*-+' // 62 bytes
     const patternLen = pattern.length
-    await insert(session_id, 0, pattern)
+    await insert(session_id, 0, Buffer.from(pattern))
     expect(await viewportHasChanges(viewport_id)).to.be.true
     let viewport_data = await getViewportData(viewport_id)
-    expect(decode(viewport_data.getData_asU8())).to.equal(pattern)
+    expect(viewport_data.getData_asU8()).to.deep.equal(Buffer.from(pattern))
     expect(viewport_data.getLength()).to.equal(patternLen)
     expect(viewport_data.getOffset()).to.equal(0)
     expect(viewport_data.getFollowingByteCount()).to.equal(0)
-    await insert(session_id, 0, pattern)
+    await insert(session_id, 0, Buffer.from(pattern))
     viewport_data = await getViewportData(viewport_id)
     expect(viewport_data.getData_asU8().length).to.equal(capacity)
     expect(viewport_data.getLength()).to.equal(capacity)
     expect(viewport_data.getOffset()).to.equal(0)
     expect(viewport_data.getFollowingByteCount()).to.equal(2 * patternLen - 100)
-    await insert(session_id, 0, pattern)
+    await insert(session_id, 0, Buffer.from(pattern))
     viewport_response = await modifyViewport(viewport_id, 10, 20)
     expect(viewport_response.getLength()).to.equal(20)
     expect(viewport_response.getOffset()).to.equal(10)
     expect(viewport_response.getFollowingByteCount()).to.equal(168)
-    expect(decode(viewport_response.getData_asU8())).to.equal(
-      'abcdefghijklmnopqrst'
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('abcdefghijklmnopqrst')
     )
     viewport_response = await modifyViewport(viewport_id, 20, 20)
     expect(viewport_response.getLength()).to.equal(20)
     expect(viewport_response.getOffset()).to.equal(20)
     expect(viewport_response.getFollowingByteCount()).to.equal(158)
-    expect(decode(viewport_response.getData_asU8())).to.equal(
-      'klmnopqrstuvwxyzABCD'
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('klmnopqrstuvwxyzABCD')
     )
     viewport_response = await modifyViewport(viewport_id, 30, 20)
     expect(viewport_response.getLength()).to.equal(20)
     expect(viewport_response.getOffset()).to.equal(30)
     expect(viewport_response.getFollowingByteCount()).to.equal(148)
-    expect(decode(viewport_response.getData_asU8())).to.equal(
-      'uvwxyzABCDEFGHIJKLMN'
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('uvwxyzABCDEFGHIJKLMN')
     )
     viewport_response = await modifyViewport(viewport_id, 170, 20)
     expect(viewport_response.getLength()).to.equal(20)
     expect(viewport_response.getOffset()).to.equal(170)
     expect(viewport_response.getFollowingByteCount()).to.equal(8)
-    expect(decode(viewport_response.getData_asU8())).to.equal(
-      'CDEFGHIJKLMNOPQRSTUV'
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('CDEFGHIJKLMNOPQRSTUV')
     )
 
     // Test the last in-range viewport
@@ -376,21 +387,23 @@ describe('Viewports', () => {
     expect(viewport_response.getLength()).to.equal(8)
     expect(viewport_response.getOffset()).to.equal(190)
     expect(viewport_response.getFollowingByteCount()).to.equal(0)
-    expect(decode(viewport_response.getData_asU8())).to.equal('WXYZ/*-+')
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('WXYZ/*-+')
+    )
 
     // Test viewport with offset > computed file size
     viewport_response = await modifyViewport(viewport_id, 200, 20)
     expect(viewport_response.getLength()).to.equal(0)
     expect(viewport_response.getOffset()).to.equal(200)
     expect(viewport_response.getFollowingByteCount()).to.equal(-2)
-    expect(decode(viewport_response.getData_asU8())).to.equal('')
+    expect(viewport_response.getData_asU8()).to.deep.equal(Buffer.from(''))
 
     viewport_response = await modifyViewport(viewport_id, 10, 20)
     expect(viewport_response.getLength()).to.equal(20)
     expect(viewport_response.getOffset()).to.equal(10)
     expect(viewport_response.getFollowingByteCount()).to.equal(168)
-    expect(decode(viewport_response.getData_asU8())).to.equal(
-      'abcdefghijklmnopqrst'
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('abcdefghijklmnopqrst')
     )
 
     expect(await viewportHasChanges(viewport_id)).to.be.false
@@ -405,21 +418,25 @@ describe('Viewports', () => {
     expect(dataResponse.getLength()).to.equal(0)
     expect(dataResponse.getOffset()).to.equal(10)
     expect(dataResponse.getFollowingByteCount()).to.equal(-2)
-    expect(decode(dataResponse.getData_asU8())).to.equal('')
+    expect(dataResponse.getData_asU8()).to.deep.equal(Buffer.from(''))
 
     // Scroll back to the top of the file
     viewport_response = await modifyViewport(viewport_id, 0, 20)
     expect(viewport_response.getLength()).to.equal(8)
     expect(viewport_response.getOffset()).to.equal(0)
     expect(viewport_response.getFollowingByteCount()).to.equal(0)
-    expect(decode(viewport_response.getData_asU8())).to.equal('WXYZ/*-+')
+    expect(viewport_response.getData_asU8()).to.deep.equal(
+      Buffer.from('WXYZ/*-+')
+    )
 
-    await insert(session_id, 5, pattern)
+    await insert(session_id, 5, Buffer.from(pattern))
     expect(await viewportHasChanges(viewport_id)).to.be.true
     dataResponse = await getViewportData(viewport_id)
     expect(dataResponse.getLength()).to.equal(20)
     expect(dataResponse.getOffset()).to.equal(0)
     expect(dataResponse.getFollowingByteCount()).to.equal(54)
-    expect(decode(dataResponse.getData_asU8())).to.equal('WXYZ/0123456789abcde')
+    expect(dataResponse.getData_asU8()).to.deep.equal(
+      Buffer.from('WXYZ/0123456789abcde')
+    )
   }).timeout(8000)
 })
