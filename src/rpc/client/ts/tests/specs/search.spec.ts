@@ -41,7 +41,6 @@ import {
   replace,
   undo,
 } from '../../src/change'
-import { encode } from 'fastestsmallesttextencoderdecoder'
 
 // prettier-ignore
 // @ts-ignore
@@ -62,7 +61,7 @@ describe('Searching', () => {
     const change_id = await overwrite(
       session_id,
       0,
-      'haystackneedleNEEDLENeEdLeneedhay'
+      Buffer.from('haystackneedleNEEDLENeEdLeneedhay')
     )
     expect(change_id).to.be.a('number').that.equals(1)
     const file_size = await getComputedFileSize(session_id)
@@ -484,7 +483,7 @@ describe('Searching', () => {
     const change_id = await overwrite(
       session_id,
       0,
-      'needle here needle there needleneedle everywhere'
+      Buffer.from('needle here needle there needleneedle everywhere')
     )
     expect(change_id).to.be.a('number').that.equals(1)
     let [replacementFound, nextOffset] = await replaceOneSession(
@@ -499,7 +498,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(4)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here needle there needleneedle everywhere'))
+    ).deep.equals(Buffer.from('Item here needle there needleneedle everywhere'))
     let ret = await replaceOneSession(
       session_id,
       'needle',
@@ -514,7 +513,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(14)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here Item there needleneedle everywhere'))
+    ).deep.equals(Buffer.from('Item here Item there needleneedle everywhere'))
     ret = await replaceOneSession(
       session_id,
       'needle',
@@ -529,7 +528,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(25)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here Item there Itemneedle everywhere'))
+    ).deep.equals(Buffer.from('Item here Item there Itemneedle everywhere'))
     ret = await replaceOneSession(
       session_id,
       'needle',
@@ -544,7 +543,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(29)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here Item there ItemItem everywhere'))
+    ).deep.equals(Buffer.from('Item here Item there ItemItem everywhere'))
     ret = await replaceOneSession(
       session_id,
       'needle',
@@ -565,7 +564,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(6)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item-1 here Item there ItemItem everywhere'))
+    ).deep.equals(Buffer.from('Item-1 here Item there ItemItem everywhere'))
     ret = await replaceOneSession(
       session_id,
       'Item',
@@ -580,7 +579,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(18)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item-1 here Item-1 there ItemItem everywhere'))
+    ).deep.equals(Buffer.from('Item-1 here Item-1 there ItemItem everywhere'))
     ret = await replaceOneSession(
       session_id,
       'Item',
@@ -595,7 +594,7 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(31)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item-1 here Item-1 there Item-1Item everywhere'))
+    ).deep.equals(Buffer.from('Item-1 here Item-1 there Item-1Item everywhere'))
     ret = await replaceOneSession(
       session_id,
       'Item',
@@ -610,7 +609,9 @@ describe('Searching', () => {
     expect(nextOffset).to.equal(37)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item-1 here Item-1 there Item-1Item-1 everywhere'))
+    ).deep.equals(
+      Buffer.from('Item-1 here Item-1 there Item-1Item-1 everywhere')
+    )
     ret = await replaceOneSession(
       session_id,
       'Item',
@@ -630,7 +631,7 @@ describe('Searching', () => {
     const change_id = await overwrite(
       session_id,
       0,
-      'needle here needle there needleneedle everywhere',
+      Buffer.from('needle here needle there needleneedle everywhere'),
       stats
     )
     expect(change_id).to.be.a('number').that.equals(1)
@@ -658,7 +659,7 @@ describe('Searching', () => {
     expect(stats.error_count).to.equal(0)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here Item there ItemItem everywhere'))
+    ).deep.equals(Buffer.from('Item here Item there ItemItem everywhere'))
     expect(await getChangeCount(session_id)).to.equal(9)
     expect(await getChangeTransactionCount(session_id)).to.equal(5)
     expect(await beginSessionTransaction(session_id)).to.equal(session_id)
@@ -697,7 +698,7 @@ describe('Searching', () => {
     expect(stats.error_count).to.equal(0)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here needle there needleneedle everywhere'))
+    ).deep.equals(Buffer.from('Item here needle there needleneedle everywhere'))
     stats.reset()
     expect(
       await replaceSession(
@@ -713,7 +714,7 @@ describe('Searching', () => {
     ).to.equal(1)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
-    ).deep.equals(encode('Item here noodle there needleneedle everywhere'))
+    ).deep.equals(Buffer.from('Item here noodle there needleneedle everywhere'))
     // expect a single overwrite
     expect(stats.delete_count).to.equal(0)
     expect(stats.insert_count).to.equal(0)
@@ -801,7 +802,7 @@ describe('Searching', () => {
     const change_id = await overwrite(
       session_id,
       0,
-      'Hey there is hay in my Needles'
+      Buffer.from('Hey there is hay in my Needles')
     )
     expect(change_id).to.equal(1)
     expect(await getComputedFileSize(session_id)).to.equal(30)
@@ -828,6 +829,6 @@ describe('Searching', () => {
     const file_size = await getComputedFileSize(session_id)
     const segment = await getSegment(session_id, 0, file_size)
     expect(segment.length).to.equal(file_size)
-    expect(segment).deep.equals(encode('Hey there are needles in my hay'))
+    expect(segment).deep.equals(Buffer.from('Hey there are needles in my hay'))
   })
 })

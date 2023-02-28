@@ -18,17 +18,12 @@
  */
 
 import { expect } from 'chai'
-import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {
-    expect(encode('abc123'))
-      .deep.equals(Buffer.from('abc123'))
-      .and.deep.equals(new Uint8Array([97, 98, 99, 49, 50, 51]))
-  })
-
-  it('Should decode Uint8Array into string', () => {
-    expect('abc123').to.equal(decode(new Uint8Array([97, 98, 99, 49, 50, 51])))
+    expect(Buffer.from('abc123')).deep.equals(
+      new Uint8Array([97, 98, 99, 49, 50, 51])
+    )
   })
 
   it('Should handle ASCII conversions', () => {

@@ -55,7 +55,7 @@ describe('Profiling', () => {
 
     it('Should profile character data', async () => {
       const content = 'abaabbbaaaabbbbc'
-      const change_id = await overwrite(session_id, 0, content)
+      const change_id = await overwrite(session_id, 0, Buffer.from(content))
       expect(change_id).to.be.a('number').that.equals(1)
       const file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(content.length)

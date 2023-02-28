@@ -38,7 +38,6 @@ import {
 } from '../../src/change'
 import { unlinkSync } from 'fs'
 import { ChangeKind } from '../../src/omega_edit_pb'
-import { decode, encode } from 'fastestsmallesttextencoderdecoder'
 
 // prettier-ignore
 // @ts-ignore
@@ -56,35 +55,33 @@ describe('Undo/Redo', () => {
   })
 
   it('Should undo and redo changes', async () => {
-    expect(decode(encode('0123456789'))).to.equal('0123456789')
     expect(await getChangeCount(session_id)).to.equal(0)
 
-    let change_id = await insert(session_id, 0, encode('9'))
+    let change_id = await insert(session_id, 0, Buffer.from('9'))
     expect(change_id).to.equal(1)
     expect(await getChangeCount(session_id)).to.equal(1)
     let file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(1)
 
-    change_id = await insert(session_id, 0, encode('78'))
+    change_id = await insert(session_id, 0, Buffer.from('78'))
     expect(change_id).to.equal(2)
     expect(await getChangeCount(session_id)).to.equal(2)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(3)
 
-    change_id = await insert(session_id, 0, '456') // test sending in a string
+    change_id = await insert(session_id, 0, Buffer.from('456')) // test sending in a string
     expect(change_id).to.equal(3)
     expect(await getChangeCount(session_id)).to.equal(3)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(6)
 
-    change_id = await insert(session_id, 0, '0123')
+    change_id = await insert(session_id, 0, Buffer.from('0123'))
     expect(change_id).to.equal(4)
     expect(await getChangeCount(session_id)).to.equal(4)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(10)
     let segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('0123456789'))
-    expect(decode(segment)).equals('0123456789')
+    expect(segment).deep.equals(Buffer.from('0123456789'))
     expect(0).to.equal(await getUndoCount(session_id))
     const stats = new EditStats()
     change_id = await undo(session_id, stats)
@@ -93,7 +90,7 @@ describe('Undo/Redo', () => {
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(6)
     expect(await getSegment(session_id, 0, file_size)).deep.equals(
-      encode('456789')
+      Buffer.from('456789')
     )
     expect(await getChangeCount(session_id)).to.equal(3)
     expect(await getUndoCount(session_id)).to.equal(1)
@@ -104,7 +101,7 @@ describe('Undo/Redo', () => {
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(3)
     expect(await getSegment(session_id, 0, file_size)).deep.equals(
-      encode('789')
+      Buffer.from('789')
     )
     expect(await getChangeCount(session_id)).to.equal(2)
     expect(await getUndoCount(session_id))
@@ -112,7 +109,7 @@ describe('Undo/Redo', () => {
       .and.to.equal(stats.undo_count)
 
     const last_undo = await getLastUndo(session_id)
-    expect(decode(last_undo.getData_asU8())).to.equal('456')
+    expect(last_undo.getData_asU8()).to.deep.equal(Buffer.from('456'))
     expect(last_undo.getOffset()).to.equal(0)
     expect(last_undo.getKind()).to.equal(ChangeKind.CHANGE_INSERT)
     expect(last_undo.getSerial()).to.equal(-3)
@@ -124,7 +121,9 @@ describe('Undo/Redo', () => {
     expect(stats.undo_count).to.equal(3)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(1)
-    expect(await getSegment(session_id, 0, file_size)).deep.equals(encode('9'))
+    expect(await getSegment(session_id, 0, file_size)).deep.equals(
+      Buffer.from('9')
+    )
     expect(await getChangeCount(session_id)).to.equal(1)
     expect(await getUndoCount(session_id)).to.equal(3)
 
@@ -157,7 +156,9 @@ describe('Undo/Redo', () => {
     expect(stats.undo_count).to.equal(4)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(1)
-    expect(await getSegment(session_id, 0, file_size)).deep.equals(encode('9'))
+    expect(await getSegment(session_id, 0, file_size)).deep.equals(
+      Buffer.from('9')
+    )
     expect(await getChangeCount(session_id)).to.equal(1)
     expect(await getUndoCount(session_id)).to.equal(3)
 
@@ -167,19 +168,19 @@ describe('Undo/Redo', () => {
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(3)
     expect(await getSegment(session_id, 0, file_size)).deep.equals(
-      encode('789')
+      Buffer.from('789')
     )
     expect(await getChangeCount(session_id)).to.equal(2)
     expect(await getUndoCount(session_id)).to.equal(2)
 
-    change_id = await insert(session_id, 0, '0123456')
+    change_id = await insert(session_id, 0, Buffer.from('0123456'))
     expect(change_id).to.equal(3)
     expect(await getChangeCount(session_id)).to.equal(3)
     expect(await getUndoCount(session_id)).to.equal(0)
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(10)
     segment = await getSegment(session_id, 0, file_size)
-    expect(segment).deep.equals(encode('0123456789'))
+    expect(segment).deep.equals(Buffer.from('0123456789'))
 
     // Try redo when there is noting left to redo
     redo(session_id, stats).catch((e) => {
@@ -207,7 +208,7 @@ describe('Undo/Redo', () => {
     file_size = await getComputedFileSize(session_id_2)
     expect(file_size).to.equal(10)
     segment = await getSegment(session_id_2, 0, file_size)
-    expect(segment).deep.equals(encode('0123456789'))
+    expect(segment).deep.equals(Buffer.from('0123456789'))
     const destroyed_session = await destroySession(session_id_2)
     expect(destroyed_session).to.equal(session_id_2)
     expect(await getSessionCount()).to.equal(1)

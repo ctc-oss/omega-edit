@@ -24,18 +24,26 @@ import org.scalatest.wordspec.AnyWordSpec
 class ChangeImplSpec extends AnyWordSpec with Matchers with TestSupport {
   "session edits" must {
     "provide" in emptySession { implicit s =>
-      changeFor(s.insert("abc", 0)) should matchPattern {
+      changeFor(s.insert("abc".getBytes(), 0)) should matchPattern {
         case Change(1, 0, 3, Change.Insert) =>
       }
     }
 
     "provide serial number" in emptySession { s =>
       s.isEmpty shouldBe true
-      s.insert("abc", 0) shouldBe Change.Changed(1)
+      s.insert("abc".getBytes(), 0) shouldBe Change.Changed(1)
       s.isEmpty shouldBe false
       s.size shouldBe 3
-      s.insert("123", 0) shouldBe Change.Changed(2)
+      s.getSegment(0, s.size) match {
+        case Some(s) => s.data shouldBe "abc".getBytes()
+        case _       => fail()
+      }
+      s.insert("123".getBytes, 0) shouldBe Change.Changed(2)
       s.size shouldBe 6
+      s.getSegment(0, s.size) match {
+        case Some(s) => s.data shouldBe "123abc".getBytes()
+        case _       => fail()
+      }
     }
   }
 }

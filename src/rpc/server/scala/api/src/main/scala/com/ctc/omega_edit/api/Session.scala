@@ -41,10 +41,8 @@ trait Session {
   def eventInterest: Int
   def eventInterest_=(eventInterest: Int): Unit
 
-  def insert(s: String, offset: Long): Result
   def insert(b: Array[Byte], offset: Long): Result
 
-  def overwrite(s: String, offset: Long): Result
   def overwrite(b: Array[Byte], offset: Long): Result
 
   def delete(offset: Long, len: Long): Result

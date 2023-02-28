@@ -96,12 +96,12 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
   "a callback" should {
     "include the event" in emptySessionWithCallback { (s, cb) =>
-      s.insert("foo", 0) should matchPattern { case Changed(_) => }
+      s.insert("foo".getBytes(), 0) should matchPattern { case Changed(_) => }
       cb.event.value shouldBe SessionEvent.Edit
     }
 
     "include the change" in emptySessionWithCallback { (s, cb) =>
-      s.insert("bar", 0)
+      s.insert("bar".getBytes(), 0)
       cb.change.flatten.value.operation shouldBe Change.Insert
     }
   }
@@ -124,7 +124,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val dat = tmp.resolve(Paths.get("dat.txt"))
       val expected = UUID.randomUUID().toString
 
-      s.insert(expected, 0)
+      s.insert(expected.getBytes(), 0)
       s.save(dat) shouldBe Success(dat)
 
       fileContents(dat) shouldBe expected
@@ -135,7 +135,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       dat.toFile.exists() shouldBe true
       val expected = UUID.randomUUID().toString
 
-      s.insert(expected, 0)
+      s.insert(expected.getBytes(), 0)
       s.save(dat, OverwriteStrategy.OverwriteExisting) shouldBe Success(dat)
 
       fileContents(dat) shouldBe expected
@@ -146,7 +146,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       dat.toFile.exists() shouldBe true
 
       val expected = UUID.randomUUID().toString
-      s.insert(expected, 0)
+      s.insert(expected.getBytes(), 0)
 
       val r = s.save(dat, OverwriteStrategy.GenerateFilename)
       r.isSuccess shouldBe true

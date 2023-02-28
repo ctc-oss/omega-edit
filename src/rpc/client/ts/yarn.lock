@@ -9,7 +9,7 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@grpc/grpc-js@^1.8.9":
+"@grpc/grpc-js@^1.8.11":
   version "1.8.11"
   resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.8.11.tgz#f113f7bc197e8d6f3d3f0c6b02925c7a5da1aec4"
   integrity sha512-f/xC+6Z2QKsRJ+VSSFlt4hA5KSRm+PKvMWV8kMPkMgGlFidR6PeIkXrOasIY2roe+WROM6GFQLlgDKfeEZo2YQ==
@@ -467,11 +467,6 @@ fast-redact@^3.1.1:
   resolved "https://registry.yarnpkg.com/fast-redact/-/fast-redact-3.1.2.tgz#d58e69e9084ce9fa4c1a6fa98a3e1ecf5d7839aa"
   integrity sha512-+0em+Iya9fKGfEQGcd62Yv6onjBmmhV1uh86XVfOU8VwAe6kaFdQCWI9s0/Nnugx5Vd9tdbZ7e6gE2tR9dzXdw==
 
-fastestsmallesttextencoderdecoder@^1.0.22:
-  version "1.0.22"
-  resolved "https://registry.yarnpkg.com/fastestsmallesttextencoderdecoder/-/fastestsmallesttextencoderdecoder-1.0.22.tgz#59b47e7b965f45258629cc6c127bf783281c5e93"
-  integrity sha512-Pb8d48e+oIuY4MaM64Cd7OW1gt4nxCHs7/ddPPZ/Ic3sg8yVGM7O9wDvZ7us6ScaUupzM+pfBolwtYhN1IxBIw==
-
 fill-range@^7.0.1:
   version "7.0.1"
   resolved "https://registry.yarnpkg.com/fill-range/-/fill-range-7.0.1.tgz#1919a6a7c75fe38b2c7c77e5198535da9acdda40"
@@ -586,14 +581,14 @@ google-protobuf@^3.21.2:
   resolved "https://registry.yarnpkg.com/google-protobuf/-/google-protobuf-3.21.2.tgz#4580a2bea8bbb291ee579d1fefb14d6fa3070ea4"
   integrity sha512-3MSOYFO5U9mPGikIYCzK0SaThypfGgS6bHqrUGXG3DPHCrb+txNqeEcns1W0lkGfk0rCyNXm7xB9rMxnCiZOoA==
 
-grpc-tools@^1.11.3:
+grpc-tools@^1.12.4:
   version "1.12.4"
   resolved "https://registry.yarnpkg.com/grpc-tools/-/grpc-tools-1.12.4.tgz#a044c9e8157941033ea7a5f144c2dc9dc4501de4"
   integrity sha512-5+mLAJJma3BjnW/KQp6JBjUMgvu7Mu3dBvBPd1dcbNIb+qiR0817zDpgPjS7gRb+l/8EVNIa3cB02xI9JLToKg==
   dependencies:
     "@mapbox/node-pre-gyp" "^1.0.5"
 
-grpc_tools_node_protoc_ts@^5.3.2:
+grpc_tools_node_protoc_ts@^5.3.3:
   version "5.3.3"
   resolved "https://registry.yarnpkg.com/grpc_tools_node_protoc_ts/-/grpc_tools_node_protoc_ts-5.3.3.tgz#9a6c1c2f41563a1ab259c0177496d7dfed30dbfe"
   integrity sha512-M/YrklvVXMtuuj9kb42PxeouZhs7Ul+R4e/31XwrankUcKL8cQQP50Q9q+KEHGyHQaPt6VtKKsxMgLaKbCxeww==
@@ -969,7 +964,7 @@ pino-std-serializers@^6.0.0:
   resolved "https://registry.yarnpkg.com/pino-std-serializers/-/pino-std-serializers-6.1.0.tgz#307490fd426eefc95e06067e85d8558603e8e844"
   integrity sha512-KO0m2f1HkrPe9S0ldjx7za9BJjeHqBku5Ch8JyxETxT8dEFGz1PwgrHaOQupVYitpzbFSYm7nnljxD8dik2c+g==
 
-pino@^8.10.0:
+pino@^8.11.0:
   version "8.11.0"
   resolved "https://registry.yarnpkg.com/pino/-/pino-8.11.0.tgz#2a91f454106b13e708a66c74ebc1c2ab7ab38498"
   integrity sha512-Z2eKSvlrl2rH8p5eveNUnTdd4AjJk8tAsLkHYZQKGHP4WTh2Gi1cOSOs3eWPqaj+niS3gj4UkoreoaWgF3ZWYg==
@@ -986,7 +981,7 @@ pino@^8.10.0:
     sonic-boom "^3.1.0"
     thread-stream "^2.0.0"
 
-prettier@^2.6.2:
+prettier@^2.8.4:
   version "2.8.4"
   resolved "https://registry.yarnpkg.com/prettier/-/prettier-2.8.4.tgz#34dd2595629bfbb79d344ac4a91ff948694463c3"
   integrity sha512-vIS4Rlc2FNh0BySk3Wkd6xmwxB0FpOndW5fisM5H8hsZSxU2VWVB5CWIkIjWvrHjIhxk2g3bfMKM87zNTrZddw==
@@ -1218,7 +1213,7 @@ tr46@~0.0.3:
   resolved "https://registry.yarnpkg.com/tr46/-/tr46-0.0.3.tgz#8184fd347dac9cdc185992f3a6622e14b9d9ab6a"
   integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
 
-ts-node@^10.7.0:
+ts-node@^10.9.1:
   version "10.9.1"
   resolved "https://registry.yarnpkg.com/ts-node/-/ts-node-10.9.1.tgz#e73de9102958af9e1f0b168a6ff320e25adcff4b"
   integrity sha512-NtVysVPkxxrwFGUUxGYhfux8k78pQB3JqYBXlLRZgdGUqTO5wU/UyHop5p70iEbGhB7q5KmiZiU0Y3KlJrScEw==
@@ -1252,7 +1247,7 @@ typedoc@^0.23.16:
     minimatch "^7.1.3"
     shiki "^0.14.1"
 
-typescript@^4.8.4:
+typescript@^4.9.5:
   version "4.9.5"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.9.5.tgz#095979f9bcc0d09da324d58d03ce8f8374cbe65a"
   integrity sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==
