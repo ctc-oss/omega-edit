@@ -234,15 +234,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .mapTo[Int]
       .map(count => SessionCountResponse(count.toLong))
 
-  def getCount(in: CountRequest): Future[CountResponse] =
-    (in.kind match {
+  def getCount(in: CountRequest): Future[CountResponse] = {
+
+    // create a list of futures for each CountKind value in the request
+    val futures = in.kind.map {
       case CountKind.COUNT_CHANGES =>
         editors ? SessionOp(in.sessionId, GetNumChanges)
       case CountKind.COUNT_CHECKPOINTS =>
         editors ? SessionOp(in.sessionId, GetNumCheckpoints)
       case CountKind.COUNT_SEARCH_CONTEXTS =>
-        Future.failed(grpcFailure(Status.UNIMPLEMENTED))
-      case CountKind.COUNT_FILE_SIZE =>
+        editors ? SessionOp(in.sessionId, GetNumSearchContexts)
+      case CountKind.COUNT_COMPUTED_FILE_SIZE =>
         editors ? SessionOp(in.sessionId, GetSize)
       case CountKind.COUNT_UNDOS =>
         editors ? SessionOp(in.sessionId, GetNumUndos)
@@ -256,13 +258,24 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         Future.failed(grpcFailure(Status.UNKNOWN, s"undefined kind: $in"))
       case CountKind.Unrecognized(_) =>
         Future.failed(grpcFailure(Status.UNKNOWN, s"unrecognized kind: $in"))
-    }).mapTo[Result]
-      .map {
-        case ok: Ok with Count =>
-          CountResponse(in.sessionId, in.kind, ok.count)
-        case Err(c) => throw grpcFailure(c)
-        case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+    }
+
+    // execute all futures concurrently and collect the results
+    Future
+      .sequence(futures)
+      .map { results =>
+        CountResponse(
+          in.sessionId,
+          in.kind.zip(results).collect {
+            case (kind: CountKind, c: Count) => SingleCount(kind, c.count)
+            case (_, Err(c))                 => throw grpcFailure(c)
+          }
+        )
       }
+      .recover { case ex: Exception =>
+        throw grpcFailure(Status.UNKNOWN, ex.getMessage)
+      }
+  }
 
   /** Event streams
     */

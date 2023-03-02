@@ -21,9 +21,11 @@ import { expect } from 'chai'
 import {
   getComputedFileSize,
   getSegment,
+  SessionEventKind,
   unsubscribeSession,
 } from '../../src/session'
 import {
+  ChangeKind,
   clear,
   del,
   edit,
@@ -38,11 +40,7 @@ import {
   overwrite,
   removeCommonSuffix,
 } from '../../src/change'
-import {
-  ChangeKind,
-  EventSubscriptionRequest,
-  SessionEventKind,
-} from '../../src/omega_edit_pb'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 import { ALL_EVENTS, getClient } from '../../src/client'
 
 // prettier-ignore

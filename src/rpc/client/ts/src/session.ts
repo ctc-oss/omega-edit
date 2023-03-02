@@ -19,16 +19,20 @@
 
 import {
   ByteFrequencyProfileRequest,
+  CountKind,
+  CountRequest,
   CreateSessionRequest,
   ObjectId,
   SaveSessionRequest,
   SearchRequest,
   SegmentRequest,
+  SingleCount,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
 import { editSimple, IEditStats } from './change'
+export { CountKind, SessionEventKind } from './omega_edit_pb'
 
 /**
  * Create a file editing session from a file path
@@ -158,6 +162,40 @@ export function getComputedFileSize(session_id: string): Promise<number> {
       }
       getLogger().debug({ fn: 'getComputedFileSize', resp: r.toObject() })
       return resolve(r.getComputedFileSize())
+    })
+  })
+}
+
+/**
+ * Gets any number of counts for a given session concurrently
+ * @param session_id session to get the counts from
+ * @param kinds kinds of counts to get
+ * @return array of counts with associated kinds, on success
+ */
+export function getCounts(
+  session_id,
+  kinds: CountKind[]
+): Promise<SingleCount[]> {
+  return new Promise<SingleCount[]>((resolve, reject) => {
+    const request = new CountRequest()
+      .setSessionId(session_id)
+      .setKindList(kinds)
+    getLogger().debug({ fn: 'getCounts', rqst: request.toObject() })
+    getClient().getCount(request, (err, r) => {
+      if (err) {
+        getLogger().error({
+          fn: 'getCounts',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject('getCounts error: ' + err.message)
+      }
+      getLogger().debug({ fn: 'getCounts', resp: r.toObject() })
+      return resolve(r.getCountsList())
     })
   })
 }

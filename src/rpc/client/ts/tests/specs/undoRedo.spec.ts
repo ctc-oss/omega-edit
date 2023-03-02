@@ -28,6 +28,7 @@ import {
 } from '../../src/session'
 import {
   clear,
+  ChangeKind,
   EditStats,
   getChangeCount,
   getLastUndo,
@@ -37,7 +38,6 @@ import {
   undo,
 } from '../../src/change'
 import { unlinkSync } from 'fs'
-import { ChangeKind } from '../../src/omega_edit_pb'
 
 // prettier-ignore
 // @ts-ignore
