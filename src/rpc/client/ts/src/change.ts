@@ -33,6 +33,7 @@ import {
   notifyChangedViewports,
 } from './session'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
+export { ChangeKind } from './omega_edit_pb'
 
 /**
  * IEditStats is an interface to keep track of the number of different kinds of edits
@@ -602,9 +603,9 @@ export function getLastUndo(
  */
 export function getChangeCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    const request = new CountRequest()
+    const request: CountRequest = new CountRequest()
       .setSessionId(session_id)
-      .setKind(CountKind.COUNT_CHANGES)
+      .setKindList([CountKind.COUNT_CHANGES])
     getLogger().debug({ fn: 'getChangeCount', rqst: request.toObject() })
     getClient().getCount(request, (err, r) => {
       if (err) {
@@ -620,7 +621,7 @@ export function getChangeCount(session_id: string): Promise<number> {
         return reject(new Error('getChangeCount failed: ' + err))
       }
       getLogger().debug({ fn: 'getChangeCount', resp: r.toObject() })
-      return resolve(r.getCount())
+      return resolve(r.getCountsList()[0].getCount())
     })
   })
 }
@@ -634,7 +635,7 @@ export function getUndoCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const request = new CountRequest()
       .setSessionId(session_id)
-      .setKind(CountKind.COUNT_UNDOS)
+      .setKindList([CountKind.COUNT_UNDOS])
     getLogger().debug({ fn: 'getUndoCount', rqst: request.toObject() })
     getClient().getCount(request, (err, r) => {
       if (err) {
@@ -650,7 +651,7 @@ export function getUndoCount(session_id: string): Promise<number> {
         return reject(new Error('getUndoCount failed: ' + err))
       }
       getLogger().debug({ fn: 'getUndoCount', resp: r.toObject() })
-      return resolve(r.getCount())
+      return resolve(r.getCountsList()[0].getCount())
     })
   })
 }
@@ -664,7 +665,7 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const request = new CountRequest()
       .setSessionId(session_id)
-      .setKind(CountKind.COUNT_CHANGE_TRANSACTIONS)
+      .setKindList([CountKind.COUNT_CHANGE_TRANSACTIONS])
     getLogger().debug({
       fn: 'getChangeTransactionCount',
       rqst: request.toObject(),
@@ -683,7 +684,7 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
         return reject(new Error('getChangeTransactionCount failed: ' + err))
       }
       getLogger().debug({ fn: 'getChangeTransactionCount', resp: r.toObject() })
-      return resolve(r.getCount())
+      return resolve(r.getCountsList()[0].getCount())
     })
   })
 }
@@ -697,7 +698,7 @@ export function getUndoTransactionCount(session_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const request = new CountRequest()
       .setSessionId(session_id)
-      .setKind(CountKind.COUNT_UNDO_TRANSACTIONS)
+      .setKindList([CountKind.COUNT_UNDO_TRANSACTIONS])
     getLogger().debug({
       fn: 'getUndoTransactionCount',
       rqst: request.toObject(),
@@ -716,7 +717,7 @@ export function getUndoTransactionCount(session_id: string): Promise<number> {
         return reject(new Error('getUndoTransactionCount failed: ' + err))
       }
       getLogger().debug({ fn: 'getUndoTransactionCount', resp: r.toObject() })
-      return resolve(r.getCount())
+      return resolve(r.getCountsList()[0].getCount())
     })
   })
 }

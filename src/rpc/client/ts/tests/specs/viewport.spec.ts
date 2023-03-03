@@ -33,11 +33,9 @@ import {
   modifyViewport,
   unsubscribeViewport,
   viewportHasChanges,
-} from '../../src/viewport'
-import {
-  EventSubscriptionRequest,
   ViewportEventKind,
-} from '../../src/omega_edit_pb'
+} from '../../src/viewport'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 
 // prettier-ignore
 // @ts-ignore

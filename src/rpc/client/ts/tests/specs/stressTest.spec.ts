@@ -29,20 +29,20 @@ import {
 } from '../../src/change'
 import {
   getComputedFileSize,
+  getCounts,
   getSegment,
   pauseSessionChanges,
   resumeSessionChanges,
+  CountKind,
+  SessionEventKind,
 } from '../../src/session'
 import {
   createViewport,
   destroyViewport,
   getViewportData,
-} from '../../src/viewport'
-import {
-  EventSubscriptionRequest,
-  SessionEventKind,
   ViewportEventKind,
-} from '../../src/omega_edit_pb'
+} from '../../src/viewport'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 import { ALL_EVENTS, getClient } from '../../src/client'
 
 // prettier-ignore
@@ -305,11 +305,88 @@ describe('StressTest', () => {
       expect(viewport_data.getData_asU8()).to.deep.equal(data)
       expect(await getComputedFileSize(session_id)).to.equal(file_size)
       expect(await destroyViewport(viewport_2_id)).to.equal(viewport_2_id)
+      await undo(session_id)
+      const countKinds = [
+        CountKind.COUNT_COMPUTED_FILE_SIZE,
+        CountKind.COUNT_CHANGES,
+        CountKind.COUNT_UNDOS,
+        CountKind.COUNT_VIEWPORTS,
+        CountKind.COUNT_CHECKPOINTS,
+        CountKind.COUNT_SEARCH_CONTEXTS,
+        CountKind.COUNT_CHANGE_TRANSACTIONS,
+        CountKind.COUNT_UNDO_TRANSACTIONS,
+      ]
+      let counts = await getCounts(session_id, countKinds)
+      expect(counts).to.be.an('array').with.lengthOf(countKinds.length)
+      const computedFileSize = await getComputedFileSize(session_id)
+      counts.forEach((count) => {
+        const c = count.getCount()
+        switch (count.getKind()) {
+          case CountKind.COUNT_COMPUTED_FILE_SIZE:
+            expect(c).to.equal(computedFileSize)
+            break
+          case CountKind.COUNT_CHANGES:
+            expect(c).to.equal(2760)
+            break
+          case CountKind.COUNT_UNDOS:
+            expect(c).to.equal(1)
+            break
+          case CountKind.COUNT_VIEWPORTS:
+            expect(c).to.equal(1)
+            break
+          case CountKind.COUNT_CHECKPOINTS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_SEARCH_CONTEXTS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_CHANGE_TRANSACTIONS:
+            expect(c).to.equal(2760)
+            break
+          case CountKind.COUNT_UNDO_TRANSACTIONS:
+            expect(c).to.equal(1)
+            break
+          default:
+            throw new Error('Unknown count kind: ' + count.getKind())
+        }
+      })
       await clear(session_id)
+      expect(await destroyViewport(viewport_id)).to.equal(viewport_id)
+      counts = await getCounts(session_id, countKinds)
+      expect(counts).to.be.an('array').with.lengthOf(countKinds.length)
+      counts.forEach((count) => {
+        const c = count.getCount()
+        switch (count.getKind()) {
+          case CountKind.COUNT_COMPUTED_FILE_SIZE:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_CHANGES:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_UNDOS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_VIEWPORTS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_CHECKPOINTS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_SEARCH_CONTEXTS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_CHANGE_TRANSACTIONS:
+            expect(c).to.equal(0)
+            break
+          case CountKind.COUNT_UNDO_TRANSACTIONS:
+            expect(c).to.equal(0)
+            break
+          default:
+            throw new Error('Unknown count kind: ' + count.getKind())
+        }
+      })
       expect(await getComputedFileSize(session_id)).to.equal(0)
       expect(await getChangeCount(session_id)).to.equal(0)
-
-      expect(await destroyViewport(viewport_id)).to.equal(viewport_id)
 
       await checkCallbackCount(
         session_callbacks,

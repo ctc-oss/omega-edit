@@ -26,6 +26,7 @@ import {
 } from './omega_edit_pb'
 import { getLogger } from './logger'
 import { getClient } from './client'
+export { ViewportEventKind } from './omega_edit_pb'
 
 let autoFixViewportDataLength_ = false
 
@@ -157,7 +158,7 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
   return new Promise<number>((resolve, reject) => {
     const request = new CountRequest()
       .setSessionId(sesssion_id)
-      .setKind(CountKind.COUNT_VIEWPORTS)
+      .setKindList([CountKind.COUNT_VIEWPORTS])
     getLogger().debug({ fn: 'getViewportCount', rqst: request.toObject() })
     getClient().getCount(request, (err, r) => {
       if (err) {
@@ -173,7 +174,7 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
         return reject(`getViewportCount error: ${err.message}`)
       }
       getLogger().debug({ fn: 'getViewportCount', resp: r.toObject() })
-      return resolve(r.getCount())
+      return resolve(r.getCountsList()[0].getCount())
     })
   })
 }
