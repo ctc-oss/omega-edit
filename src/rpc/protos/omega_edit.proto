@@ -98,7 +98,7 @@ enum ViewportEventKind {
 
 enum CountKind {
   UNDEFINED_COUNT_KIND = 0;
-  COUNT_FILE_SIZE = 1;
+  COUNT_COMPUTED_FILE_SIZE = 1;
   COUNT_CHANGES = 2;
   COUNT_UNDOS = 3;
   COUNT_VIEWPORTS = 4;
@@ -110,13 +110,17 @@ enum CountKind {
 
 message CountRequest {
   string session_id = 1;
-  CountKind kind = 2;
+  repeated CountKind kind = 2;
+}
+
+message SingleCount {
+  CountKind kind = 1;
+  int64 count = 2;
 }
 
 message CountResponse {
   string session_id = 1;
-  CountKind kind = 2;
-  int64 count = 3;
+  repeated SingleCount counts = 2;
 }
 
 message SessionCountResponse {

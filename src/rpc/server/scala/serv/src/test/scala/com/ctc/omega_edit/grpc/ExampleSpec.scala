@@ -348,9 +348,15 @@ class ExampleSpec
     "clear all session changes" in newSession { sid =>
       val testString1 = UUID.randomUUID().toString
       val testString2 = UUID.randomUUID().toString
-
       val filePath = tmp.resolve("dat.txt").toString
-
+      val countChangesRequest =
+        CountRequest.of(sid, Seq[CountKind](CountKind.COUNT_CHANGES))
+      val countRedoTransactionsRequest =
+        CountRequest.of(sid, Seq[CountKind](CountKind.COUNT_UNDO_TRANSACTIONS))
+      val countChangeTransactionsRequest = CountRequest.of(
+        sid,
+        Seq[CountKind](CountKind.COUNT_CHANGE_TRANSACTIONS)
+      )
       for {
         _ <- service.submitChange(
           ChangeRequest(
@@ -379,22 +385,22 @@ class ExampleSpec
         )
 
         getBeforeChangeCount <- service
-          .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
-          .map(_.count)
+          .getCount(countChangesRequest)
+          .map(_.counts.head.count)
 
         _ <- service.clearChanges(ObjectId(sid))
 
         getAfterChangeCount <- service
-          .getCount(CountRequest(sid, CountKind.COUNT_CHANGES))
-          .map(_.count)
+          .getCount(countChangesRequest)
+          .map(_.counts.head.count)
 
         getNumChangeTransactions <- service
-          .getCount(CountRequest(sid, CountKind.COUNT_CHANGE_TRANSACTIONS))
-          .map(_.count)
+          .getCount(countChangeTransactionsRequest)
+          .map(_.counts.head.count)
 
         getNumUndoTransactions <- service
-          .getCount(CountRequest(sid, CountKind.COUNT_UNDO_TRANSACTIONS))
-          .map(_.count)
+          .getCount(countRedoTransactionsRequest)
+          .map(_.counts.head.count)
 
         // to ensure first saved file not overwritten
         contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
@@ -556,9 +562,11 @@ class ExampleSpec
     }
 
     "create and destroy viewports" in newSession { sid =>
+      val countViewportRequest =
+        CountRequest(sid, Seq[CountKind](CountKind.COUNT_VIEWPORTS))
       for {
         numViewports1 <- service.getCount(
-          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+          countViewportRequest
         )
         viewportResponse1 <- service.createViewport(
           CreateViewportRequest(
@@ -573,7 +581,7 @@ class ExampleSpec
           ObjectId(viewportResponse1.viewportId)
         )
         numViewports2 <- service.getCount(
-          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+          countViewportRequest
         )
         viewportResponse2 <- service.createViewport(
           CreateViewportRequest(
@@ -610,18 +618,18 @@ class ExampleSpec
           )
         )
         numViewports3 <- service.getCount(
-          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+          countViewportRequest
         )
         destroyedViewport <- service.destroyViewport(
           ObjectId(viewportResponse2.viewportId)
         )
         numViewports4 <- service.getCount(
-          CountRequest(sid, CountKind.COUNT_VIEWPORTS)
+          countViewportRequest
         )
       } yield {
         numViewports1.sessionId shouldBe sid
-        numViewports1.kind shouldBe CountKind.COUNT_VIEWPORTS
-        numViewports1.count shouldBe 0L
+        numViewports1.counts.head.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports1.counts.head.count shouldBe 0L
         viewportResponse1.viewportId shouldBe sid + ":viewport_1"
         viewportDataResponse.data shouldBe ByteString.EMPTY
         viewportDataResponse.offset shouldBe 10L
@@ -631,14 +639,14 @@ class ExampleSpec
         viewport1HasChanges.response shouldBe false
         viewport2HasChanges.response shouldBe false
         numViewports2.sessionId shouldBe sid
-        numViewports2.kind shouldBe CountKind.COUNT_VIEWPORTS
-        numViewports2.count shouldBe 1L
+        numViewports2.counts.head.kind shouldBe CountKind.COUNT_VIEWPORTS
+        numViewports2.counts.head.count shouldBe 1L
         viewportResponse2.viewportId shouldBe sid + ":viewport_2"
         viewportResponse3.viewportId shouldBe sid + ":viewport_3"
         viewportResponse4.viewportId shouldBe sid + ":viewport_4"
-        numViewports3.count shouldBe 4L
+        numViewports3.counts.head.count shouldBe 4L
+        numViewports4.counts.head.count shouldBe 3L
         destroyedViewport.id shouldBe sid + ":viewport_2"
-        numViewports4.count shouldBe 3L
       }
     }
 
