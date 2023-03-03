@@ -113,14 +113,9 @@ describe('Viewports', () => {
       false
     )
     const viewport_1_id = viewport_1_response.getViewportId()
-    if (viewport_1_id.includes(':')) {
-      /* The Scala RPC server always prepends the session ID and colon to viewport IDs */
-      expect(viewport_1_id).to.equal(session_id + ':test_vpt_1')
-    } else {
-      /* The C++ RPC server uses the desired viewport ID as given */
-      expect(viewport_1_id).to.equal('test_vpt_1')
-    }
+    expect(viewport_1_id).to.equal(session_id + ':test_vpt_1')
     expect(await getViewportCount(session_id)).to.equal(1)
+    expect(await viewportHasChanges(viewport_1_id)).to.be.false
     expect(await notifyChangedViewports(session_id)).to.equal(0)
 
     const viewport_2_response = await createViewport(
@@ -133,6 +128,7 @@ describe('Viewports', () => {
     const viewport_2_id = viewport_2_response.getViewportId()
     expect(viewport_2_id).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
     expect(await subscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
+    expect(await viewportHasChanges(viewport_2_id)).to.be.false
     expect(await getViewportCount(session_id)).to.equal(2)
     log_info(viewport_callbacks)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 0)
@@ -160,7 +156,9 @@ describe('Viewports', () => {
 
     file_size = await getComputedFileSize(session_id)
     expect(file_size).to.equal(12)
-
+    expect(await viewportHasChanges(viewport_1_id)).to.be.true
+    expect(await viewportHasChanges(viewport_2_id)).to.be.false
+    expect(await notifyChangedViewports(session_id)).to.equal(1)
     viewport_data = await getViewportData(viewport_1_id)
     expect(viewport_data.getData_asU8()).to.deep.equal(
       Buffer.from('123456789A')
