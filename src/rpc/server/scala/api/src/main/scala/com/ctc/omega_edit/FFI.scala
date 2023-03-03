@@ -108,7 +108,7 @@ private[omega_edit] trait FFI {
   def omega_session_resume_changes(p: Pointer): Unit
   def omega_session_pause_viewport_event_callbacks(p: Pointer): Unit
   def omega_session_resume_viewport_event_callbacks(p: Pointer): Unit
-  def omega_session_notify_viewports_of_changes(p: Pointer): Int
+  def omega_session_notify_changed_viewports(p: Pointer): Int
   def omega_session_begin_transaction(p: Pointer): Int
   def omega_session_end_transaction(p: Pointer): Int
   def omega_session_get_num_change_transactions(p: Pointer): Long

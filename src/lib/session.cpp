@@ -139,7 +139,7 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
     session_ptr->session_flags_ &= ~SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS;
 }
 
-int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr) {
+int omega_session_notify_changed_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int result = 0;
     for (const auto &viewport : session_ptr->viewports_) {

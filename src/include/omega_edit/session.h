@@ -162,7 +162,7 @@ OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_sessi
  * @param session_ptr session to notify viewports with changes
  * @return number of viewports that were notified, or -1 on failure
  */
-OMEGA_EDIT_EXPORT int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT int omega_session_notify_changed_viewports(const omega_session_t *session_ptr);
 
 /**
  * Determine if the session is accepting changes or not

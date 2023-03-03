@@ -777,12 +777,14 @@ TEST_CASE("Search", "[SearchTests]") {
     auto vpt = omega_edit_create_viewport(session_ptr, 0, 1024, 0, vpt_change_cbk, &view_mode, NO_EVENTS);
     REQUIRE(NO_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(0 == omega_viewport_get_following_byte_count(vpt));
-    REQUIRE(1 == omega_session_notify_viewports_of_changes(session_ptr));
+    REQUIRE(0 != omega_viewport_has_changes(vpt));
+    REQUIRE(1 == omega_session_notify_changed_viewports(session_ptr));
     REQUIRE(ALL_EVENTS == omega_viewport_set_event_interest(vpt, ALL_EVENTS));
     REQUIRE(ALL_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(vpt_change_cbk == omega_viewport_get_event_cbk(vpt));
-    REQUIRE(1 == omega_session_notify_viewports_of_changes(session_ptr));
-    REQUIRE(0 == omega_session_notify_viewports_of_changes(session_ptr));
+    REQUIRE(1 == omega_session_notify_changed_viewports(session_ptr));
+    REQUIRE(0 == omega_session_notify_changed_viewports(session_ptr));
+    REQUIRE(0 == omega_viewport_has_changes(vpt));
     REQUIRE(0 == omega_session_get_num_search_contexts(session_ptr));
     int needles_found = 0;
     auto needle = "NeEdLe";

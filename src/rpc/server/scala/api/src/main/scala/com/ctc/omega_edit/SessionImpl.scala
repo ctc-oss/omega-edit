@@ -79,7 +79,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     i.omega_session_resume_viewport_event_callbacks(p)
 
   def notifyChangedViewports: Int =
-    i.omega_session_notify_viewports_of_changes(p)
+    i.omega_session_notify_changed_viewports(p)
 
   def beginTransaction: Int =
     i.omega_session_begin_transaction(p)
