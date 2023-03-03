@@ -38,12 +38,16 @@ import java.nio.file.Paths
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
 
-import scala.util.Failure
+import scala.util.{Failure, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.ExecutionContext
+import java.lang.management.ManagementFactory
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(5.seconds)
   private val editors = system.actorOf(Editors.props())
+  private var isGracefulShutdown = false
   import system.dispatcher
 
   def getVersion(in: Empty): Future[VersionResponse] = {
@@ -52,21 +56,31 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
-    (editors ? Create(
-      in.sessionIdDesired,
-      in.filePath.map(Paths.get(_))
-    )).mapTo[Result]
-      .map {
-        case Ok(id) => CreateSessionResponse(id)
-        case Err(c) => throw grpcFailure(c)
-      }
+    isGracefulShutdown match {
+      case false =>
+        (editors ? Create(
+          in.sessionIdDesired,
+          in.filePath.map(Paths.get(_))
+        )).mapTo[Result]
+          .map {
+            case Ok(id) => CreateSessionResponse(id)
+            case Err(c) => throw grpcFailure(c)
+          }
+      case true => Future.successful(CreateSessionResponse(""))
+    }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
-    // Currently believe this works but Session.Destroy seems to cause errors in CI
-    (editors ? DestroyActor(in.id, timeout)).mapTo[Result].map {
-      case Ok(_)  => in
-      case Err(c) => throw grpcFailure(c)
-    }
+    // If after session is destroyed, the number of sessions is 0
+    // and the server is to shutdown gracefully, stop server after destroy
+    (editors ? DestroyActor(in.id, timeout))
+      .mapTo[Result]
+      .map {
+        case Ok(_) => {
+          checkIsGracefulShutdown()
+          in
+        }
+        case Err(c) => throw grpcFailure(c)
+      }
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
     (editors ? SessionOp(
@@ -156,6 +170,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           }
       case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
     }
+
   def notifyChangedViewports(in: ObjectId): Future[IntResponse] =
     (editors ? SessionOp(in.id, NotifyChangedViewports)).mapTo[Result].map {
       case ok: Ok with Count => IntResponse(ok.count)
@@ -457,6 +472,63 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
           )
       }
+
+  // server control
+
+  def checkNoSessionsRunning(): Future[Boolean] =
+    (editors ? SessionCount)
+      .mapTo[Int]
+      .map(count =>
+        count compare 0 match {
+          case 0 => true
+          case _ => false
+        }
+      )
+
+  def stopServer(kind: ServerControlKind): Future[ServerControlResponse] =
+    system
+      .terminate()
+      .transform {
+        case Success(_) =>
+          Success(ServerControlResponse(kind, getServerPID(), 0))
+        case Failure(_) =>
+          Success(ServerControlResponse(kind, getServerPID(), 1))
+      }(ExecutionContext.global)
+
+  def checkIsGracefulShutdown(
+      kind: ServerControlKind =
+        ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN
+  ): Future[ServerControlResponse] =
+    isGracefulShutdown match {
+      case true =>
+        checkNoSessionsRunning()
+          .map(isZero =>
+            isZero match {
+              case true  => stopServer(kind)
+              case false => ServerControlResponse(kind, getServerPID(), 1)
+            }
+          )
+          .mapTo[ServerControlResponse]
+      case false =>
+        Future.successful(ServerControlResponse(kind, getServerPID(), 1))
+    }
+
+  def serverControl(in: ServerControlRequest): Future[ServerControlResponse] =
+    in.kind match {
+      case ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN => {
+        isGracefulShutdown = true
+        checkIsGracefulShutdown()
+      }
+      case ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN => {
+        DestroyActors()
+        stopServer(in.kind)
+      }
+      case ServerControlKind.SERVER_CONTROL_UNDEFINED |
+          ServerControlKind.Unrecognized(_) =>
+        Future.failed(
+          grpcFailure(Status.UNKNOWN, s"undefined kind: ${in.kind}")
+        )
+    }
 }
 
 object EditorService {
@@ -480,4 +552,7 @@ object EditorService {
       .andThen { case Failure(_) =>
         system.terminate()
       }
+
+  def getServerPID(): Int =
+    ManagementFactory.getRuntimeMXBean().getName().split('@')(0).toInt
 }

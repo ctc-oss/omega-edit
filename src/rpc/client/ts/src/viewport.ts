@@ -333,21 +333,28 @@ export function unsubscribeViewport(viewport_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(viewport_id)
     getLogger().debug({ fn: 'unsubscribeViewport', rqst: request.toObject() })
-    getClient().unsubscribeToViewportEvents(request, (err, r) => {
-      if (err) {
-        getLogger().error({
-          fn: 'unsubscribeViewport',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(`unsubscribeViewport error: ${err.message}`)
-      }
-      getLogger().debug({ fn: 'unsubscribeViewport', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    getClient()
+      .unsubscribeToViewportEvents(request, (err, r) => {
+        if (err) {
+          getLogger().error({
+            fn: 'unsubscribeViewport',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(`unsubscribeViewport error: ${err.message}`)
+        }
+        getLogger().debug({ fn: 'unsubscribeViewport', resp: r.toObject() })
+        return resolve(r.getId())
+      })
+      .on('error', (err) => {
+        // Call cancelled thrown when server is shutdown
+        if (!err.message.includes('Call cancelled')) {
+          throw err
+        }
+      })
   })
 }

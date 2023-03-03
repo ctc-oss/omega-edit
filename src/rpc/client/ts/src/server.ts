@@ -24,6 +24,7 @@ import { getLogger } from './logger'
 import { getClient } from './client'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import * as fs from 'fs'
+import { ServerControlKind, ServerControlRequest } from './omega_edit_pb'
 
 /**
  * Artifact class
@@ -129,39 +130,114 @@ export async function startServer(
 }
 
 /**
+ * Stops the server gracefully
+ * @returns true if the server was stopped
+ */
+export function stopServerGraceful(): Promise<number> {
+  return new Promise<number>(async () => {
+    return stopServer(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN)
+  })
+}
+
+/**
+ * Stops the server immediatly
+ * @returns true if the server was stopped
+ */
+export function stopServerImmediate(): Promise<number> {
+  return new Promise<number>(async () => {
+    return stopServer(ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN)
+  })
+}
+
+/**
+ * Stop the server
+ * @param kind defines how the server should shutdown
+ * @returns true if the server was stopped
+ */
+function stopServer(kind: ServerControlKind): Promise<number> {
+  getLogger().debug({
+    fn: 'stopServer',
+    kind: kind.toString(),
+  })
+
+  return new Promise<number>((resolve, reject) => {
+    getClient().serverControl(
+      new ServerControlRequest().setKind(kind),
+      (err, resp) => {
+        if (err) {
+          getLogger().error({
+            fn: 'stopServer',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+
+          return reject('stopServer error: ' + err.message)
+        }
+
+        if (resp.getResponseCode() != 0) {
+          getLogger().error({
+            fn: 'stopServer',
+            err: { msg: 'stopServer exit status: ' + resp.getResponseCode() },
+          })
+
+          return reject('stopServer error')
+        }
+
+        getLogger().debug({
+          fn: 'stopServer',
+          kind: kind.toString(),
+          stopped: true,
+        })
+
+        return resolve(resp.getResponseCode())
+      }
+    )
+  })
+}
+
+/**
  * Stop the server
  * @param pid pid of the server process
  * @returns true if the server was stopped
  */
-export function stopServer(pid: number | undefined): boolean {
+export function stopServerUsingPID(pid: number | undefined): boolean {
   if (pid) {
-    getLogger().debug({ fn: 'stopServer', pid: pid })
+    getLogger().debug({ fn: 'stopServerUsingPID', pid: pid })
+
     try {
       const result = process.kill(pid, 'SIGTERM')
-      getLogger().debug({ fn: 'stopServer', pid: pid, stopped: result })
+      getLogger().debug({ fn: 'stopServerUsingPID', pid: pid, stopped: result })
       return result
     } catch (err) {
       // @ts-ignore
       if (err.code === 'ESRCH') {
         getLogger().debug({
-          fn: 'stopServer',
+          fn: 'stopServerUsingPID',
           msg: 'Server already stopped',
           pid: pid,
         })
+
         return true
       }
+
       getLogger().error({
-        fn: 'stopServer',
+        fn: 'stopServerUsingPID',
         err: { msg: 'Error stopping server', pid: pid, err: err },
       })
+
       return false
     }
   }
 
   getLogger().error({
-    fn: 'stopServer',
+    fn: 'stopServerUsingPID',
     err: { msg: 'Error stopping server, no PID' },
   })
+
   return false
 }
 

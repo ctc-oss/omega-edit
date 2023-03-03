@@ -18,7 +18,11 @@
  */
 
 import { createSimpleFileLogger, getLogger, setLogger } from '../src/logger'
-import { startServer, stopServer } from '../src/server'
+import {
+  startServer,
+  stopServerImmediate,
+  stopServerUsingPID,
+} from '../src/server'
 import { getClientVersion } from '../src/version'
 import { setAutoFixViewportDataLength } from '../src/viewport'
 import * as fs from 'fs'
@@ -66,8 +70,9 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   // don't fix viewport data length in tests
   setAutoFixViewportDataLength(false)
 
-  const pid = await startServer(rootPath, getClientVersion(), testPort)
   mochaGlobalTeardown()
+
+  const pid = await startServer(rootPath, getClientVersion(), testPort)
   if (pid) {
     fs.writeFileSync(pidFile, pid.toString(), 'utf8')
   }
@@ -78,6 +83,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     pid: pid,
     pidfile: getPidFile(testPort),
   })
+
   return pid
 }
 
@@ -85,7 +91,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
  * Mocha test fixture to stop the server
  * @remarks used by mocha
  */
-export function mochaGlobalTeardown(): boolean {
+export async function mochaGlobalTeardown(): Promise<boolean> {
   const pidFile = getPidFile(testPort)
   getLogger().debug({
     fn: 'mochaGlobalTeardown',
@@ -93,10 +99,31 @@ export function mochaGlobalTeardown(): boolean {
     port: testPort,
     pidfile: pidFile,
   })
+
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
-    if (stopServer(pid)) {
+
+    if ((await stopServerImmediate()) == 0) {
       fs.unlinkSync(pidFile)
+  
+      getLogger().debug({
+        fn: 'mochaGlobalTeardown',
+        msg: 'server stopped',
+        port: testPort,
+        stopped: true,
+      })
+  
+      return true
+    }
+
+    getLogger().warn({
+      fn: 'mochaGlobalTeardown',
+      msg: 'api stop failed',
+    })
+
+    if (stopServerUsingPID(pid)) {
+      fs.unlinkSync(pidFile)
+
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
         msg: 'server stopped',
@@ -106,11 +133,13 @@ export function mochaGlobalTeardown(): boolean {
       return true
     }
   }
+
   getLogger().debug({
     fn: 'mochaGlobalTeardown',
     msg: 'failed to stop server',
     port: testPort,
     pidfile: pidFile,
   })
+
   return false
 }

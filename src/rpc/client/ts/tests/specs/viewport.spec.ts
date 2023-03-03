@@ -18,7 +18,7 @@
  */
 
 import { expect } from 'chai'
-import { ALL_EVENTS, getClient } from '../../src/client'
+import { ALL_EVENTS } from '../../src/client'
 import { del, getChangeCount, insert, overwrite } from '../../src/change'
 import {
   getComputedFileSize,
@@ -35,62 +35,10 @@ import {
   viewportHasChanges,
   ViewportEventKind,
 } from '../../src/viewport'
-import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 
 // prettier-ignore
 // @ts-ignore
-import { checkCallbackCount, createTestSession, destroyTestSession, log_info, testPort } from './common'
-
-let viewport_callbacks = new Map()
-
-async function subscribeViewport(
-  viewport_id: string,
-  interest?: number
-): Promise<string> {
-  let subscriptionRequest = new EventSubscriptionRequest().setId(viewport_id)
-  if (interest) {
-    subscriptionRequest.setInterest(interest)
-  }
-  getClient()
-    .subscribeToViewportEvents(subscriptionRequest)
-    .on('data', (viewportEvent) => {
-      viewport_callbacks.set(
-        viewport_id,
-        viewport_callbacks.has(viewport_id)
-          ? 1 + viewport_callbacks.get(viewport_id)
-          : 1
-      )
-      const event = viewportEvent.getViewportEventKind()
-      if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
-        log_info(
-          'viewport_id: ' +
-            viewport_id +
-            ', event: ' +
-            event +
-            ', serial: ' +
-            viewportEvent.getSerial() +
-            ', offset: ' +
-            viewportEvent.getOffset() +
-            ', length: ' +
-            viewportEvent.getLength() +
-            ', data: "' +
-            viewportEvent.getData() +
-            '", callbacks: ' +
-            viewport_callbacks.get(viewport_id)
-        )
-      } else {
-        log_info(
-          'viewport: ' +
-            viewport_id +
-            ', event: ' +
-            event +
-            ', count: ' +
-            viewport_callbacks.get(viewport_id)
-        )
-      }
-    })
-  return viewport_id
-}
+import { checkCallbackCount, createTestSession, destroyTestSession, log_info, subscribeViewport, viewport_callbacks, testPort } from './common'
 
 describe('Viewports', () => {
   let session_id = ''

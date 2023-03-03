@@ -314,22 +314,29 @@ export function unsubscribeSession(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
     getLogger().debug({ fn: 'unsubscribeSession', rqst: request.toObject() })
-    getClient().unsubscribeToSessionEvents(request, (err, r) => {
-      if (err) {
-        getLogger().error({
-          fn: 'unsubscribeSession',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('unsubscribeSession error: ' + err.message)
-      }
-      getLogger().debug({ fn: 'unsubscribeSession', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    getClient()
+      .unsubscribeToSessionEvents(request, (err, r) => {
+        if (err) {
+          getLogger().error({
+            fn: 'unsubscribeSession',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('unsubscribeSession error: ' + err.message)
+        }
+        getLogger().debug({ fn: 'unsubscribeSession', resp: r.toObject() })
+        return resolve(r.getId())
+      })
+      .on('error', (err) => {
+        // Call cancelled thrown when server is shutdown
+        if (!err.message.includes('Call cancelled')) {
+          throw err
+        }
+      })
   })
 }
 
