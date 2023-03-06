@@ -20,6 +20,7 @@ import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.stream.scaladsl.Source
 import com.ctc.omega_edit.api
+import com.ctc.omega_edit.api.ViewportCallback
 import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Ok, ViewportData}
 import com.ctc.omega_edit.grpc.Viewport.{
   Destroy,
@@ -27,8 +28,8 @@ import com.ctc.omega_edit.grpc.Viewport.{
   Events,
   Get,
   HasChanges,
-  Unwatch,
   Modify,
+  Unwatch,
   Watch
 }
 import com.google.protobuf.ByteString
@@ -37,14 +38,20 @@ import omega_edit.ObjectId
 import java.util.UUID
 import omega_edit.ViewportEvent
 
+import scala.annotation.unused
+
 object Viewport {
   type EventStream = Source[ViewportEvent, NotUsed]
   trait Events {
     def stream: EventStream
   }
 
-  def props(view: api.Viewport, stream: EventStream): Props =
-    Props(new Viewport(view, stream))
+  def props(
+      view: api.Viewport,
+      stream: EventStream,
+      cb: ViewportCallback
+  ): Props =
+    Props(new Viewport(view, stream, cb))
 
   case class Id(session: String, view: String)
   object Id {
@@ -70,7 +77,8 @@ object Viewport {
 
 class Viewport(
     view: api.Viewport,
-    events: EventStream
+    events: EventStream,
+    @unused cb: ViewportCallback // need to keep a reference to the callback to prevent it from being GC'd
 ) extends Actor
     with ActorLogging {
   val viewportId: String = self.path.name

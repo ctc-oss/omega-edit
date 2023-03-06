@@ -213,6 +213,8 @@ lazy val serv = project
     libraryDependencies ++= {
       Seq(
         "com.monovore" %% "decline" % "2.4.1",
+        "com.typesafe.akka" %% "akka-slf4j" % "2.7.0",
+        "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
     },

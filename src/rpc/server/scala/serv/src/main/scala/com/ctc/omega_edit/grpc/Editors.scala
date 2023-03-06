@@ -72,7 +72,7 @@ object Editors {
 
 class Editors extends Actor with ActorLogging {
   import Editors._
-  implicit val timeout: Timeout = Timeout(5000.milliseconds) // 5 seconds
+  implicit val timeout: Timeout = Timeout(5.seconds)
 
   def receive: Receive = {
     case Create(sid, path) =>
@@ -83,7 +83,7 @@ class Editors extends Actor with ActorLogging {
         case None =>
           import context.system
           val (input, stream) = Source
-            .queue[SessionEvent](16, OverflowStrategy.backpressure)
+            .queue[SessionEvent](8, OverflowStrategy.backpressure)
             .preMaterialize()
           val cb = SessionCallback { (session, event, change) =>
             input.queue.offer(
