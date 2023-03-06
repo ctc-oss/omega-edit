@@ -816,6 +816,30 @@ export function editOperations(
   editedSegment: Uint8Array,
   offset: number = 0
 ): EditOperation[] {
+  if (originalSegment.length === 0) {
+    // if both segments are empty, then there are no edit operations to perform
+    if (editedSegment.length === 0) {
+      return []
+    }
+    // if the original segment is empty, insert the entire edited segment at the given offset
+    return [
+      {
+        type: EditOperationType.Insert,
+        start: offset,
+        data: editedSegment,
+      },
+    ]
+  }
+  if (editedSegment.length === 0) {
+    // if the edited segment is empty, delete the entire original segment at the given offset
+    return [
+      {
+        type: EditOperationType.Delete,
+        start: offset,
+        length: originalSegment.length,
+      },
+    ]
+  }
   // remove the common suffix from the two arrays
   ;[originalSegment, editedSegment] = removeCommonSuffix(
     originalSegment,
