@@ -40,7 +40,7 @@ function getPidFile(port: number): string {
 }
 
 /**
- * Mocha test fixture to setup to start the server
+ * Mocha test fixture to setup the logger and start the server
  * @remarks used by mocha
  */
 export async function mochaGlobalSetup(): Promise<number | undefined> {

@@ -42,9 +42,7 @@ import scala.util.Failure
 import scala.concurrent.ExecutionContext.Implicits.global
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
-  private implicit val timeout: Timeout = Timeout(
-    5000.milliseconds
-  ) // 5 seconds
+  private implicit val timeout: Timeout = Timeout(5.seconds)
   private val editors = system.actorOf(Editors.props())
   import system.dispatcher
 

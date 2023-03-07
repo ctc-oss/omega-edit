@@ -33,6 +33,8 @@ import scala.collection.immutable.ArraySeq
 import scala.util.{Failure, Success}
 import com.google.protobuf.ByteString
 
+import scala.annotation.unused
+
 object Session {
   type EventStream = Source[SessionEvent, NotUsed]
   trait Events {
@@ -156,7 +158,7 @@ object Session {
 class Session(
     session: api.Session,
     events: EventStream,
-    @deprecated("unused", "") cb: SessionCallback
+    @unused cb: SessionCallback // need to keep a reference to the callback to prevent it from being GC'd
 ) extends Actor {
   val sessionId: String = self.path.name
 
@@ -172,7 +174,7 @@ class Session(
           sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           val (input, stream) = Source
-            .queue[ViewportEvent](16, OverflowStrategy.backpressure)
+            .queue[ViewportEvent](8, OverflowStrategy.backpressure)
             .preMaterialize() // preMaterialize the queue to obtain the input and stream objects
           val cb = ViewportCallback { (v, e, c) =>
             input.queue.offer(
@@ -189,7 +191,8 @@ class Session(
             ()
           }
           context.actorOf(
-            Viewport.props(session.viewCb(off, cap, isFloating, cb), stream),
+            Viewport
+              .props(session.viewCb(off, cap, isFloating, cb), stream, cb),
             vid
           )
           sender() ! Ok(fqid)

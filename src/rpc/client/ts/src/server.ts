@@ -23,6 +23,7 @@ import * as child_process from 'child_process'
 import { getLogger } from './logger'
 import { getClient } from './client'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
+import * as fs from 'fs'
 
 /**
  * Artifact class
@@ -75,19 +76,20 @@ export async function startServer(
   })
   const artifact = new Artifact('omega-edit-grpc-server', version, rootPath)
 
+  let args = [`--interface=${host}`, `--port=${port}`]
+  const logConf = path.resolve('.', 'logconf.xml')
+  if (fs.existsSync(logConf)) {
+    args.push(`-Dlogback.configurationFile=${logConf}`)
+  }
   // Start the server
   getLogger().debug(
-    `starting server ${artifact.scriptPath} on interface ${host}, port ${port}`
+    `starting server ${artifact.scriptPath} with args ${args} in directory ${artifact.scriptDir}`
   )
-  const server = child_process.spawn(
-    artifact.scriptPath,
-    [`--interface=${host}`, `--port=${port}`],
-    {
-      cwd: artifact.scriptDir,
-      stdio: 'ignore',
-      detached: true,
-    }
-  )
+  const server = child_process.spawn(artifact.scriptPath, args, {
+    cwd: artifact.scriptDir,
+    stdio: 'ignore',
+    detached: true,
+  })
 
   // Wait for the server come online
   getLogger().debug(
