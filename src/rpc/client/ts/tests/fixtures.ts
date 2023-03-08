@@ -105,14 +105,14 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
 
     if ((await stopServerImmediate()) == 0) {
       fs.unlinkSync(pidFile)
-  
+
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
         msg: 'server stopped',
         port: testPort,
         stopped: true,
       })
-  
+
       return true
     }
 
