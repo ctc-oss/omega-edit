@@ -75,15 +75,21 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   const pid = await startServer(rootPath, getClientVersion(), testPort)
   if (pid) {
     fs.writeFileSync(pidFile, pid.toString(), 'utf8')
+    getLogger().debug({
+      fn: 'mochaGlobalSetup',
+      msg: 'server started',
+      port: testPort,
+      pid: pid,
+      pidfile: getPidFile(testPort),
+    })
+  } else {
+    getLogger().error({
+      fn: 'mochaGlobalSetup',
+      msg: 'failed to start server',
+      port: testPort,
+      pidfile: getPidFile(testPort),
+    })
   }
-  getLogger().debug({
-    fn: 'mochaGlobalSetup',
-    msg: 'server started',
-    port: testPort,
-    pid: pid,
-    pidfile: getPidFile(testPort),
-  })
-
   return pid
 }
 
@@ -100,16 +106,19 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
     pidfile: pidFile,
   })
 
+  // if the pid file exists, stop the server
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
 
+    // first try to stop the server via the api
     if ((await stopServerImmediate()) == 0) {
       fs.unlinkSync(pidFile)
 
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
-        msg: 'server stopped',
+        msg: 'server stopped via api',
         port: testPort,
+        pid: pid,
         stopped: true,
       })
 
@@ -121,25 +130,31 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
       msg: 'api stop failed',
     })
 
+    // if that fails, try to stop the server via the pid
     if (stopServerUsingPID(pid)) {
       fs.unlinkSync(pidFile)
 
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
-        msg: 'server stopped',
+        msg: 'server stopped via pid',
         port: testPort,
         pid: pid,
+        stopped: true,
       })
       return true
     }
+
+    // if that fails, log an error and return false
+    getLogger().debug({
+      fn: 'mochaGlobalTeardown',
+      msg: 'failed to stop server',
+      port: testPort,
+      pidfile: pidFile,
+      stopped: false,
+    })
+    return false
   }
 
-  getLogger().debug({
-    fn: 'mochaGlobalTeardown',
-    msg: 'failed to stop server',
-    port: testPort,
-    pidfile: pidFile,
-  })
-
-  return false
+  // if the pid file doesn't exist, return true
+  return true
 }

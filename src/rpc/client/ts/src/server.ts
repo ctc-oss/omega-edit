@@ -140,7 +140,7 @@ export function stopServerGraceful(): Promise<number> {
 }
 
 /**
- * Stops the server immediatly
+ * Stops the server immediately
  * @returns true if the server was stopped
  */
 export function stopServerImmediate(): Promise<number> {
