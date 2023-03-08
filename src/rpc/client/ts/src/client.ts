@@ -29,6 +29,13 @@ export const NO_EVENTS = 0 // subscribe to no events
 export const ALL_EVENTS = ~NO_EVENTS // subscribe to all events
 
 /**
+ * Reset the client back to undefined.
+ */
+export function resetClient() {
+  client_ = undefined
+}
+
+/**
  * Gets the connected editor client. Initializes the client if not already
  * @param port port to bind to
  * @param host interface to connect to
@@ -60,7 +67,7 @@ export function getClient(
           },
         })
       })
-      .then((ready) => {
+      .then((ready: boolean | void) => {
         if (!ready) {
           getLogger().error({
             cmd: 'getClient',
@@ -89,7 +96,7 @@ export function waitForReady(
     deadline.setSeconds(deadline.getSeconds() + 10)
   }
   return new Promise<boolean>((resolve, reject) => {
-    client.waitForReady(deadline as grpc.Deadline, (err) => {
+    client.waitForReady(deadline as grpc.Deadline, (err: Error | undefined) => {
       if (err) {
         getLogger().error({
           cmd: 'waitForReady',

@@ -50,6 +50,8 @@ object Editors {
   case class SessionOp(id: String, op: Session.Op)
   case class ViewportOp(sid: String, vid: String, op: Viewport.Op)
 
+  case class LogOp(level: String, message: Throwable)
+
   sealed trait Result
   case class Ok(id: String) extends Result
   case class Err(reason: Status) extends Result
@@ -149,6 +151,15 @@ class Editors extends Actor with ActorLogging {
               case Success(v) => v.tell(op, replyTo)
               case Failure(_) => replyTo ! Err(Status.NOT_FOUND)
             }(context.dispatcher)
+      }
+
+    case LogOp(logType, error) =>
+      logType.toLowerCase match {
+        case "debug"            => log.debug(error.toString)
+        case "info"             => log.info(error.toString)
+        case "warn" | "warning" => log.warning(error.toString)
+        case "error"            => log.debug(error.toString)
+        case _                  => ()
       }
   }
 }
