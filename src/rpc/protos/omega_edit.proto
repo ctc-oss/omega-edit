@@ -56,6 +56,8 @@ service Editor {
   rpc SubscribeToViewportEvents(EventSubscriptionRequest) returns (stream ViewportEvent);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
+
+  rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
 }
 
 message EventSubscriptionRequest {
@@ -279,4 +281,20 @@ message BooleanResponse {
 
 message IntResponse {
   int64 response = 1;
+}
+
+enum ServerControlKind {
+  SERVER_CONTROL_UNDEFINED = 0;
+  SERVER_CONTROL_GRACEFUL_SHUTDOWN = 1; // server will stop accepting new sessions and will exit when all sessions are destroyed
+  SERVER_CONTROL_IMMEDIATE_SHUTDOWN = 2; // server will stop accepting new sessions and will exit immediately
+}
+
+message ServerControlRequest {
+  ServerControlKind kind = 1; // server control kind
+}
+
+message ServerControlResponse {
+  ServerControlKind kind = 1; // server control kind
+  int32 pid = 2; // server process id
+  int32 response_code = 3; // response code, 0 for success, non-zero for failure
 }

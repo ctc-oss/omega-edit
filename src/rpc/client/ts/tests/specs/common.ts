@@ -20,42 +20,17 @@
 import { expect } from 'chai'
 import { getClient, waitForReady } from '../../src/client'
 import {
+  SessionEventKind,
   createSession,
   destroySession,
   getSessionCount,
 } from '../../src/session'
-import { startServer, stopServer } from '../../src/server'
-import { getClientVersion } from '../../src/version'
-import * as fs from 'fs'
+import { ViewportEventKind } from '../../src/viewport'
+import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
 
-const path = require('path')
-const rootPath = path.resolve(__dirname, '..', '..')
+export let session_callbacks = new Map()
+export let viewport_callbacks = new Map()
 export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
-
-function getPidFile(port: number): string {
-  return path.join(rootPath, `.test-server-${port}.pid`)
-}
-
-export async function startTestServer(
-  port: number
-): Promise<number | undefined> {
-  const pid = await startServer(rootPath, getClientVersion(), port)
-  stopTestServer(port)
-  if (pid) {
-    fs.writeFileSync(getPidFile(port), pid.toString(), 'utf8')
-  }
-  return pid
-}
-
-export function stopTestServer(port: number): boolean {
-  const pidFile = getPidFile(port)
-  if (fs.existsSync(pidFile)) {
-    const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
-    fs.unlinkSync(pidFile)
-    return stopServer(pid)
-  }
-  return false
-}
 
 export async function createTestSession(port: number) {
   let session_id = ''
@@ -123,4 +98,108 @@ export function log_info(message?: any, ...optionalParams: any[]) {
 
 export function log_error(message?: any, ...optionalParams: any[]) {
   console.log(message, optionalParams)
+}
+
+export async function subscribeSession(
+  session_id: string,
+  interest?: number
+): Promise<string> {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
+  if (interest !== undefined) subscriptionRequest.setInterest(interest)
+  getClient()
+    .subscribeToSessionEvents(subscriptionRequest)
+    .on('data', (sessionEvent) => {
+      session_callbacks.set(
+        session_id,
+        session_callbacks.has(session_id)
+          ? 1 + session_callbacks.get(session_id)
+          : 1
+      )
+      const event = sessionEvent.getSessionEventKind()
+      if (SessionEventKind.SESSION_EVT_EDIT == event) {
+        log_info(
+          'session: ' +
+            session_id +
+            ', event: ' +
+            sessionEvent.getSessionEventKind() +
+            ', serial: ' +
+            sessionEvent.getSerial() +
+            ', count: ' +
+            session_callbacks.get(session_id)
+        )
+      } else {
+        log_info(
+          'session: ' +
+            session_id +
+            ', event: ' +
+            sessionEvent.getSessionEventKind() +
+            ', count: ' +
+            session_callbacks.get(session_id)
+        )
+      }
+    })
+    .on('error', (err) => {
+      // Call cancelled thrown when server is shutdown
+      if (!err.message.includes('Call cancelled')) {
+        throw err
+      }
+    })
+
+  return session_id
+}
+
+export async function subscribeViewport(
+  viewport_id: string,
+  interest?: number
+): Promise<string> {
+  let subscriptionRequest = new EventSubscriptionRequest().setId(viewport_id)
+  if (interest) {
+    subscriptionRequest.setInterest(interest)
+  }
+  getClient()
+    .subscribeToViewportEvents(subscriptionRequest)
+    .on('data', (viewportEvent) => {
+      viewport_callbacks.set(
+        viewport_id,
+        viewport_callbacks.has(viewport_id)
+          ? 1 + viewport_callbacks.get(viewport_id)
+          : 1
+      )
+      const event = viewportEvent.getViewportEventKind()
+      if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
+        log_info(
+          'viewport_id: ' +
+            viewport_id +
+            ', event: ' +
+            event +
+            ', serial: ' +
+            viewportEvent.getSerial() +
+            ', offset: ' +
+            viewportEvent.getOffset() +
+            ', length: ' +
+            viewportEvent.getLength() +
+            ', data: "' +
+            viewportEvent.getData() +
+            '", callbacks: ' +
+            viewport_callbacks.get(viewport_id)
+        )
+      } else {
+        log_info(
+          'viewport: ' +
+            viewport_id +
+            ', event: ' +
+            event +
+            ', count: ' +
+            viewport_callbacks.get(viewport_id)
+        )
+      }
+    })
+    .on('error', (err) => {
+      // Call cancelled thrown when server is shutdown
+      if (!err.message.includes('Call cancelled')) {
+        throw err
+      }
+    })
+
+  return viewport_id
 }

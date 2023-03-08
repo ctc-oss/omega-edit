@@ -41,7 +41,7 @@ import { unlinkSync } from 'fs'
 
 // prettier-ignore
 // @ts-ignore
-import { createTestSession, destroyTestSession, startTestServer, stopTestServer, testPort } from './common'
+import { createTestSession, destroyTestSession, testPort } from './common'
 
 describe('Undo/Redo', () => {
   let session_id = ''

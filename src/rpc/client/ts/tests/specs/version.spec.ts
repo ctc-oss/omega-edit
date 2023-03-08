@@ -27,7 +27,6 @@ import { getClient, waitForReady } from '../../src/client'
 
 // prettier-ignore
 // @ts-ignore
-import { startTestServer, stopTestServer } from './common'
 
 describe('Version', () => {
   const port = 9010

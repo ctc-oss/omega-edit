@@ -40,55 +40,11 @@ import {
   overwrite,
   removeCommonSuffix,
 } from '../../src/change'
-import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
-import { ALL_EVENTS, getClient } from '../../src/client'
+import { ALL_EVENTS } from '../../src/client'
 
 // prettier-ignore
 // @ts-ignore
-import { checkCallbackCount, createTestSession, destroyTestSession, log_info, testPort} from "./common";
-
-let session_callbacks = new Map()
-
-async function subscribeSession(
-  session_id: string,
-  interest?: number
-): Promise<string> {
-  let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
-  if (interest !== undefined) subscriptionRequest.setInterest(interest)
-  getClient()
-    .subscribeToSessionEvents(subscriptionRequest)
-    .on('data', (sessionEvent) => {
-      session_callbacks.set(
-        session_id,
-        session_callbacks.has(session_id)
-          ? 1 + session_callbacks.get(session_id)
-          : 1
-      )
-      const event = sessionEvent.getSessionEventKind()
-      if (SessionEventKind.SESSION_EVT_EDIT == event) {
-        log_info(
-          'session: ' +
-            session_id +
-            ', event: ' +
-            sessionEvent.getSessionEventKind() +
-            ', serial: ' +
-            sessionEvent.getSerial() +
-            ', count: ' +
-            session_callbacks.get(session_id)
-        )
-      } else {
-        log_info(
-          'session: ' +
-            session_id +
-            ', event: ' +
-            sessionEvent.getSessionEventKind() +
-            ', count: ' +
-            session_callbacks.get(session_id)
-        )
-      }
-    })
-  return session_id
-}
+import { checkCallbackCount, createTestSession, destroyTestSession, session_callbacks, subscribeSession, testPort} from "./common";
 
 describe('Editing', () => {
   let session_id = ''

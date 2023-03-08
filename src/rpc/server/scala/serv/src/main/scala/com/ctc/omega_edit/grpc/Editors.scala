@@ -42,6 +42,7 @@ object Editors {
       path: Option[Path]
   )
   case class DestroyActor(id: String, timeout: Timeout)
+  case class DestroyActors()
   case object SessionCount
 
   ///
@@ -122,6 +123,9 @@ class Editors extends Actor with ActorLogging {
             context.dispatcher
           )
       }
+
+    case DestroyActors() =>
+      context.children.foreach(c => DestroyActor(c.toString, timeout.duration))
 
     case SessionCount =>
       sender() ! context.children.size
