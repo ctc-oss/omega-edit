@@ -175,15 +175,21 @@ function stopServer(kind: ServerControlKind): Promise<number> {
       (err, resp: ServerControlResponse) => {
         if (err) {
           if (err.message.includes('Call cancelled')) {
+            getLogger().debug({
+              fn: 'stopServer',
+              kind: kind.toString(),
+              stopped: true,
+              msg: err.message,
+            })
             return resolve(0)
-          }
-
-          if (
+          } else if (
             err.message.includes('No connection established') ||
             err.message.includes('INTERNAL:')
           ) {
             getLogger().debug({
               fn: 'stopServer',
+              kind: kind.toString(),
+              stopped: false,
               msg: 'API failed to stop server',
             })
 
@@ -210,9 +216,11 @@ function stopServer(kind: ServerControlKind): Promise<number> {
           return reject('stopServer error: ' + err.message)
         }
 
-        if (resp.getResponseCode() != 0) {
+        if (resp.getResponseCode() !== 0) {
           getLogger().error({
             fn: 'stopServer',
+            kind: kind.toString(),
+            stopped: false,
             err: { msg: 'stopServer exit status: ' + resp.getResponseCode() },
           })
 
