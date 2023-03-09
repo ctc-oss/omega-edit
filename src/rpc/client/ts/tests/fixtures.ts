@@ -30,6 +30,7 @@ import * as fs from 'fs'
 // prettier-ignore
 // @ts-ignore
 import { testPort } from './specs/common'
+import { resetClient } from '../src/client'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
@@ -70,7 +71,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   // don't fix viewport data length in tests
   setAutoFixViewportDataLength(false)
 
-  mochaGlobalTeardown()
+  await mochaGlobalTeardown()
 
   const pid = await startServer(rootPath, getClientVersion(), testPort)
   if (pid) {
@@ -125,13 +126,16 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
       return true
     }
 
+    // needed after api stop incase it initialized the client
+    resetClient()
+
     getLogger().warn({
       fn: 'mochaGlobalTeardown',
       msg: 'api stop failed',
     })
 
     // if that fails, try to stop the server via the pid
-    if (stopServerUsingPID(pid)) {
+    if (await stopServerUsingPID(pid)) {
       fs.unlinkSync(pidFile)
 
       getLogger().debug({
@@ -141,6 +145,7 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
         pid: pid,
         stopped: true,
       })
+
       return true
     }
 

@@ -491,8 +491,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .transform {
         case Success(_) =>
           Success(ServerControlResponse(kind, getServerPID(), 0))
-        case Failure(_) =>
+        case Failure(e) => {
+          (editors ? LogOp("debug", e))
           Success(ServerControlResponse(kind, getServerPID(), 1))
+        }
       }(ExecutionContext.global)
 
   def checkIsGracefulShutdown(
@@ -519,10 +521,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         isGracefulShutdown = true
         checkIsGracefulShutdown()
       }
-      case ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN => {
-        DestroyActors()
-        stopServer(in.kind)
-      }
+      case ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN =>
+        (editors ? DestroyActors())
+          .andThen(_ => stopServer(in.kind))
+          .mapTo[ServerControlResponse]
       case ServerControlKind.SERVER_CONTROL_UNDEFINED |
           ServerControlKind.Unrecognized(_) =>
         Future.failed(

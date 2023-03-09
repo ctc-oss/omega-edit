@@ -16,8 +16,10 @@
  */
 
 import {
+  BooleanResponse,
   CountKind,
   CountRequest,
+  CountResponse,
   CreateViewportRequest,
   ModifyViewportRequest,
   ObjectId,
@@ -70,7 +72,7 @@ export function createViewport(
       request.setViewportIdDesired(desired_viewport_id)
     }
     getLogger().debug({ fn: 'createViewport', rqst: request.toObject() })
-    getClient().createViewport(request, (err, r) => {
+    getClient().createViewport(request, (err, r: ViewportDataResponse) => {
       if (err) {
         getLogger().error({
           fn: 'createViewport',
@@ -102,7 +104,7 @@ export function modifyViewport(
       .setCapacity(capacity)
       .setIsFloating(is_floating)
     getLogger().debug({ fn: 'modifyViewport', rqst: request.toObject() })
-    getClient().modifyViewport(request, (err, r) => {
+    getClient().modifyViewport(request, (err, r: ViewportDataResponse) => {
       if (err) {
         getLogger().error({
           fn: 'modifyViewport',
@@ -160,7 +162,7 @@ export function getViewportCount(sesssion_id: string): Promise<number> {
       .setSessionId(sesssion_id)
       .setKindList([CountKind.COUNT_VIEWPORTS])
     getLogger().debug({ fn: 'getViewportCount', rqst: request.toObject() })
-    getClient().getCount(request, (err, r) => {
+    getClient().getCount(request, (err, r: CountResponse) => {
       if (err) {
         getLogger().error({
           fn: 'getViewportCount',
@@ -191,7 +193,7 @@ export function getViewportData(
   return new Promise<ViewportDataResponse>((resolve, reject) => {
     const request = new ViewportDataRequest().setViewportId(viewport_id)
     getLogger().debug({ fn: 'getViewportData', rqst: request.toObject() })
-    getClient().getViewportData(request, (err, r) => {
+    getClient().getViewportData(request, (err, r: ViewportDataResponse) => {
       if (err) {
         getLogger().error({
           fn: 'getViewportData',
@@ -249,7 +251,7 @@ export function viewportHasChanges(viewport_id: string): Promise<boolean> {
   return new Promise<boolean>((resolve, reject) => {
     const request = new ObjectId().setId(viewport_id)
     getLogger().debug({ fn: 'viewportHasChanges', rqst: request.toObject() })
-    getClient().viewportHasChanges(request, (err, r) => {
+    getClient().viewportHasChanges(request, (err, r: BooleanResponse) => {
       if (err) {
         getLogger().error({
           fn: 'viewportHasChanges',
@@ -277,7 +279,7 @@ export function pauseViewportEvents(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
     getLogger().debug({ fn: 'pauseViewportEvents', rqst: request.toObject() })
-    getClient().pauseViewportEvents(request, (err, r) => {
+    getClient().pauseViewportEvents(request, (err, r: ObjectId) => {
       if (err) {
         getLogger().error({
           fn: 'pauseViewportEvents',
@@ -305,7 +307,7 @@ export function resumeViewportEvents(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
     getLogger().debug({ fn: 'resumeViewportEvents', rqst: request.toObject() })
-    getClient().resumeViewportEvents(request, (err, r) => {
+    getClient().resumeViewportEvents(request, (err, r: ObjectId) => {
       if (err) {
         getLogger().error({
           fn: 'resumeViewportEvents',
@@ -334,7 +336,7 @@ export function unsubscribeViewport(viewport_id: string): Promise<string> {
     const request = new ObjectId().setId(viewport_id)
     getLogger().debug({ fn: 'unsubscribeViewport', rqst: request.toObject() })
     getClient()
-      .unsubscribeToViewportEvents(request, (err, r) => {
+      .unsubscribeToViewportEvents(request, (err, r: ObjectId) => {
         if (err) {
           getLogger().error({
             fn: 'unsubscribeViewport',

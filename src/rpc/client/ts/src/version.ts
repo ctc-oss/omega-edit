@@ -21,6 +21,7 @@ import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
 import { OMEGA_EDIT_CLIENT_VERSION } from './client_version'
+import { VersionResponse } from './omega_edit_pb'
 
 // Discover the client version both installed and in the repository source tree
 export const ClientVersion: string = OMEGA_EDIT_CLIENT_VERSION
@@ -41,7 +42,7 @@ export function getClientVersion(): string {
 export function getServerVersion(): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     getLogger().debug({ fn: 'getVersion' })
-    getClient().getVersion(new Empty(), (err, v) => {
+    getClient().getVersion(new Empty(), (err, v: VersionResponse) => {
       if (err) {
         getLogger().error({
           fn: 'getServerVersion',
