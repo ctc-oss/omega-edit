@@ -139,7 +139,7 @@ This packages the reference Scala server to a local zip folder
 
 ```bash
 cd src/rpc/server/scala
-sbt universial:packageBin
+sbt universal:packageBin
 ```
 
 Zip file will be located at
