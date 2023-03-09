@@ -27,12 +27,11 @@ import { getClient, waitForReady } from '../../src/client'
 
 // prettier-ignore
 // @ts-ignore
+import {testPort} from "./common";
 
 describe('Version', () => {
-  const port = 9010
-
   beforeEach('Ensure the client is ready', async () => {
-    expect(await waitForReady(getClient(port)))
+    expect(await waitForReady(getClient(testPort)))
   })
 
   it('Server version should return version ' + ClientVersion, async () => {

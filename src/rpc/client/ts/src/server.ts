@@ -136,7 +136,7 @@ export async function startServer(
 
 /**
  * Stops the server gracefully
- * @returns true if the server was stopped
+ * @returns 0 if the server was stopped, non-zero otherwise
  */
 export function stopServerGraceful(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
@@ -148,7 +148,7 @@ export function stopServerGraceful(): Promise<number> {
 
 /**
  * Stops the server immediately
- * @returns true if the server was stopped
+ * @returns 0 if the server was stopped, non-zero otherwise
  */
 export function stopServerImmediate(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
@@ -161,7 +161,7 @@ export function stopServerImmediate(): Promise<number> {
 /**
  * Stop the server
  * @param kind defines how the server should shutdown
- * @returns true if the server was stopped
+ * @returns 0 if the server was stopped, non-zero otherwise
  */
 function stopServer(kind: ServerControlKind): Promise<number> {
   getLogger().debug({
@@ -242,7 +242,7 @@ function stopServer(kind: ServerControlKind): Promise<number> {
 /**
  * Stop the server
  * @param pid pid of the server process
- * @returns true if the server was stopped
+ * @returns true if the server was stopped, false otherwise
  */
 export async function stopServerUsingPID(
   pid: number | undefined
