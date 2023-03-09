@@ -21,47 +21,26 @@
 //                 but with some TypeScript niceness baked in
 const fs = require('fs')
 const path = require('path')
-const glob = require('glob')
 const execSync = require('child_process').execSync
 const pkg_dir = 'dist/package'
 const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
 ]
 
-function copyDirectory(srcDir, destDir) {
+function copyFiles(srcDir, destDir, extension = '') {
   // Ensure that the destination directory exists
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true })
   }
 
-  // Loop through each file or directory
-  fs.readdirSync(srcDir, { withFileTypes: true }).forEach((file) => {
-    // Construct the full path of the file or directory
-    const srcPath = path.join(srcDir, file.name)
-    const destPath = path.join(destDir, file.name)
+  fs.readdirSync(srcDir).forEach((file) => {
+    const srcPath = path.join(srcDir, file)
+    const destPath = path.join(destDir, file)
 
-    if (file.isDirectory()) {
-      // If the file is a directory, recursively call this function on the directory
-      copyDirectory(srcPath, destPath)
-    } else {
-      // If the file is a file, copy it to the destination directory
+    if (fs.statSync(srcPath).isDirectory()) {
+      copyFiles(srcPath, destPath, extension)
+    } else if (extension.length === 0 || file.endsWith(extension)) {
       fs.copyFileSync(srcPath, destPath)
-    }
-  })
-}
-
-function copyGlob(pattern, destDir = pkg_dir, dir = '.') {
-  glob(pattern, { cwd: dir }, (error, files) => {
-    for (let i = 0; i < files.length; i++) {
-      const src = path.join(dir, files[i])
-      const dst = path.join(destDir, path.parse(files[i]).base)
-      const dstDir = path.dirname(dst)
-
-      fs.mkdirSync(dstDir, { recursive: true })
-
-      if (fs.statSync(src).isFile()) {
-        fs.copyFileSync(src, dst)
-      }
     }
   })
 }
@@ -72,14 +51,13 @@ function setup() {
     fs.rmSync(pkg_dir, { recursive: true, force: true })
   }
 
-  fs.mkdirSync(pkg_dir, { recursive: true })
-
-  copyGlob(path.join('src', '*.d.ts'))
-  copyGlob(path.join('src', '*.js'))
-  copyGlob(path.join('out', '*'))
+  // Copy generated files to the package directory
+  copyFiles('src', pkg_dir, '.d.ts')
+  copyFiles('src', pkg_dir, '.js')
+  copyFiles('out', pkg_dir)
 
   // Copy the server directory to the package directory
-  copyDirectory(
+  copyFiles(
     `omega-edit-grpc-server-${pkg_version}`,
     path.join(pkg_dir, `omega-edit-grpc-server-${pkg_version}`)
   )

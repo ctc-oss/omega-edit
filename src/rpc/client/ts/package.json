@@ -25,14 +25,13 @@
     "package-create": "node -e \"require('./scripts/package.ts').create()\"",
     "pretest": "yarn prepackage",
     "test": "mocha --exit --timeout 50000 --slow 10000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts && mocha --exit --timeout 10000 --slow 1000 --require ts-node/register ./tests/specs/server.spec.ts",
-    "lint": "yarn prettier --check src tests",
-    "lint:fix": "yarn prettier --write src tests"
+    "lint": "yarn prettier --check scripts src tests",
+    "lint:fix": "yarn prettier --write scripts src tests"
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",
     "@types/mocha": "^10.0.0",
     "chai": "^4.3.6",
-    "glob": "^9.2.1",
     "grpc-tools": "^1.12.4",
     "grpc_tools_node_protoc_ts": "^5.3.3",
     "mocha": "^10.0.0",
