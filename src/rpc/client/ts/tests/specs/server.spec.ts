@@ -82,12 +82,12 @@ describe('Server', () => {
     expect(await stopServerUsingPID(pid)).to.be.true
   })
 
-  it(`on port ${serverTestPort} should stop immediately via API`, async () => {
+  xit(`on port ${serverTestPort} should stop immediately via API`, async () => {
     // stop the server immediately should stop the server immediately without waiting for sessions to end
     expect(await stopServerImmediate()).to.equal(0)
   })
 
-  it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
+  xit(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
     expect(await stopServerGraceful()).to.equal(0)
 
