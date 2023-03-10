@@ -16,9 +16,15 @@
 
 import BuildSupport._
 import play.api.libs.json._
+import scala.io.Source
+import scala.util.Using
 
 lazy val packageData = Json
-  .parse(scala.io.Source.fromFile("../../client/ts/package.json").mkString)
+  .parse(
+    Using(Source.fromFile("../../client/ts/package.json"))(source =>
+      source.mkString
+    ).get
+  )
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
 
@@ -91,6 +97,10 @@ lazy val commonSettings = {
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
     publishMavenStyle := true,
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(
+      true
+    ),
     credentials += Credentials(
       "GitHub Package Registry",
       "maven.pkg.github.com",
@@ -182,7 +192,13 @@ lazy val native = project
       Artifact("omega-edit-native", "linux-aarch64") -> file(
         s"../../../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-linux-aarch64.jar"
       )
-    )
+    ),
+    /** Not sure why these need added here since they are in common settings,
+      * but they are needed to not cause errors with publishM2.
+      */
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true)
   )
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
@@ -201,6 +217,8 @@ lazy val serv = project
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-aarch64",
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-64",
         "com.monovore" %% "decline" % "2.3.0",
+        "com.typesafe.akka" %% "akka-slf4j" % "2.7.0",
+        "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.13" % Test
       )
     },
@@ -236,11 +254,23 @@ lazy val spi = project
   .enablePlugins(GitVersioning)
 
 addCommandAlias(
-  "install",
+  "installM2",
   "; clean; native/publishM2; test; api/publishM2; spi/publishM2"
+)
+addCommandAlias(
+  "installM2NoTest",
+  "; clean; native/publishM2; api/publishM2; spi/publishM2"
 )
 addCommandAlias("howMuchCoverage", "; clean; coverage; test; coverageAggregate")
 addCommandAlias(
   "publishAll",
   "; clean; +native/publish; +api/publish; +spi/publish"
+)
+addCommandAlias(
+  "runServer",
+  "; clean; serv/run"
+)
+addCommandAlias(
+  "pkgServer",
+  "; clean; serv/Universal/packageBin"
 )
