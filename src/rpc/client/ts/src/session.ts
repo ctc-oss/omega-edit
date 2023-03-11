@@ -520,6 +520,11 @@ export function searchSession(
   limit: number = 0
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
+    // make sure we have a pattern to search for
+    if (pattern.length === 0) {
+      getLogger().warn({ fn: 'searchSession', msg: 'empty pattern given' })
+      return resolve([])
+    }
     let request = new SearchRequest()
       .setSessionId(session_id)
       .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
