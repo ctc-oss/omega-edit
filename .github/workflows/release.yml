@@ -141,9 +141,9 @@ jobs:
           path: ~/.m2/repository/com/ctc/omega-edit-native*
           if-no-files-found: error
 
-  api-native-publish:
+  scala-publish:
     needs: [native-build-mac-win]
-    name: Publish Scala API and Native packages
+    name: Scala Publish API, Native and Server✨
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout 🛎️
@@ -152,6 +152,16 @@ jobs:
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
+      
+      - name: Download upload_url 🔻
+        uses: actions/download-artifact@v3
+        with:
+          name: upload_url
+
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
 
       - name: Setup Java ☕
         uses: actions/setup-java@v3.10.0
@@ -193,77 +203,49 @@ jobs:
           name: windows-2022-artifacts
 
       - name: Move windows and macos jars out 🚚
+        env:
+          folder: "omega-edit-native_2.13"
         run: |
-          for folder in $(echo "omega-edit-native_2.13"); do
-            mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-windows-* .
-            mv -v ${folder}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
-          done
+          mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${{ env.folder }}-${{ env.PKG_VERSION }}-windows-* .
+          mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
         
       - name: Download native JARs for M1 mac 🔻
+        env:
+          folder: "omega-edit-native_2.13"
         run: |
-          for folder in $(echo "omega-edit-native_2.13"); do
-            curl \
-              https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar \
-              --output ${folder}-${{ env.PKG_VERSION }}-macos-aarch64.jar
-            curl \
-              https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${folder}-${{ env.PKG_VERSION }}-linux-aarch64.jar \
-              --output ${folder}-${{ env.PKG_VERSION }}-linux-aarch64.jar
-          done
+          base_url=https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${{ env.folder }}-${{ env.PKG_VERSION }}
+          base_filename=${{ env.folder }}-${{ env.PKG_VERSION }}
+
+          curl ${base_url}-macos-aarch64.jar --output ${base_filename}-macos-aarch64.jar
+          curl ${base_url}-linux-aarch64.jar --output ${base_filename}-linux-aarch64.jar
+
+      ###########################
+      ## Scala publish process ##
+      ###########################
 
       - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mv -v src/rpc/server/scala/build.sbt .github/build.sbt
-          mv -v .github/release.sbt src/rpc/server/scala/build.sbt
-          cd src/rpc/server/scala
-          sbt native/publish
+          IS_RELEASE: true
+        run: sbt native/publish
+        working-directory: src/rpc/server/scala
 
       - name: Package Scala API 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_RELEASE: true
         run: sbt api/publish
         working-directory: src/rpc/server/scala
-
-  scala-release:
-    name: Scala Release ✨
-    runs-on: ubuntu-20.04
-    needs: [api-native-publish]
-    steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v3
-
-      - name: Export git tag and package.json version 🚢
-        run: ${{ env.export_cmd }}
-
-      - name: Download upload_url 🔻
-        uses: actions/download-artifact@v3
-        with:
-          name: upload_url
-
-      - name: Add upload_url to GITHUB_ENV
-        run: |
-          UPLOAD_URL=$(cat upload_url)
-          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
-
-      ###########################
-      ## Scala release process ##
-      ###########################
-      - name: Setup Java ☕
-        uses: actions/setup-java@v3.10.0
-        with:
-          distribution: temurin
-          java-version: 8
-          cache: sbt
 
       - name: Package Scala RPC server 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_RELEASE: true
+          SERVER_RELEASE: true
         run: |
-          mv -v src/rpc/server/scala/build.sbt .github/build.sbt
-          mv -v .github/release.sbt src/rpc/server/scala/build.sbt
-          cd src/rpc/server/scala
+          rm -rf ~/.m2/repository
           sbt serv/Universal/packageBin
+        working-directory: src/rpc/server/scala
         shell: bash
 
       - name: Fix folder name for Scala RPC server 🔧
@@ -291,7 +273,7 @@ jobs:
   node-build:
     name: Node Release ✨
     runs-on: ubuntu-20.04
-    needs: [scala-release]
+    needs: [scala-publish]
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
