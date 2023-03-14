@@ -242,7 +242,8 @@ lazy val serv = project
     AkkaGrpcPlugin,
     GitVersioning,
     JavaServerAppPackaging,
-    UniversalPlugin
+    UniversalPlugin,
+    ClasspathJarPlugin
   )
 
 lazy val spi = project
