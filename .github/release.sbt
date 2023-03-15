@@ -38,49 +38,28 @@ lazy val ghb_resolver = (
 
 // mostly used for getting all 3 jars working inside of one package
 lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
-declare windows_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-64.jar"
 declare linux_amd_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-amd64.jar"
 declare linux_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-aarch64.jar"
 declare macos_x86_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-x86_64.jar"
 declare macos_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-aarch64.jar"
+
 if [[ $$OSTYPE == "darwin"* ]]; then
   if [[ $$(uname -m) == "x86_64" ]]; then
-    new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_aarch_jar_file}//" | \\
-      sed -e "s/$${linux_amd_jar_file}//" | \\
-      sed -e "s/$${windows_jar_file}//" | \\
-      sed -e "s/$${macos_aarch_jar_file}//" \\
-    )
+    new_classpath=\"$$macos_x86_jar_file:$$app_classpath\"
   else
-    new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_aarch_jar_file}//" | \\
-      sed -e "s/$${linux_amd_jar_file}//" | \\
-      sed -e "s/$${windows_jar_file}//" | \\
-      sed -e "s/$${macos_x86_jar_file}//"\\
-    )
+    new_classpath=\"$$macos_aarch_jar_file:$$app_classpath\"
   fi
 else
   if [[ $$(uname -m) == "x86_64" ]]; then
-    new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_aarch_jar_file}//" | \\
-      sed -e "s/$${windows_jar_file}//" | \\
-      sed -e "s/$${macos_aarch_jar_file}//" | \\
-      sed -e "s/$${macos_x86_jar_file}//" \\
-    )
+    new_classpath=\"$$linux_amd_jar_file:$$app_classpath\"
   else
-    new_classpath=$$(echo $$new_classpath |\\
-      sed -e "s/$${linux_amd_jar_file}//" | \\
-      sed -e "s/$${windows_jar_file}//" | \\
-      sed -e "s/$${macos_x86_jar_file}//"\\
-    )
+    new_classpath=\"$$linux_aarch_jar_file:$$app_classpath\"
   fi
 fi"""
 
 lazy val batchExtras = s"""
-set "NEW_CLASSPATH=%APP_CLASSPATH%"
-set "WINDOWS_JAR_FILE=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-64.jar"
-set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-amd64.jar=!WINDOWS_JAR_FILE!%"
-set "NEW_CLASSPATH=%NEW_CLASSPATH:com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-x86_64.jar=!WINDOWS_JAR_FILE!%""""
+set "NEW_CLASSPATH=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-64.jar;%APP_CLASSPATH%"
+"""
 
 lazy val commonSettings = {
   Seq(
