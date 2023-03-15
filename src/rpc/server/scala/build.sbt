@@ -34,10 +34,10 @@ lazy val ghb_resolver = (
 // Can be removed later and only be in .github/release.sbt -- mostly used for
 // getting all 3 jars working inside of one package
 lazy val bashExtras = s"""declare new_classpath=\"$$app_classpath\"
-declare linux_amd_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-amd64.jar"
-declare linux_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-aarch64.jar"
-declare macos_x86_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-x86_64.jar"
-declare macos_aarch_jar_file="com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-aarch64.jar"
+declare linux_amd_jar_file="$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-amd64.jar"
+declare linux_aarch_jar_file="$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-linux-aarch64.jar"
+declare macos_x86_jar_file="$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-x86_64.jar"
+declare macos_aarch_jar_file="$$lib_dir/com.ctc.omega-edit-native_2.13-${omegaVersion}-macos-aarch64.jar"
 
 if [[ $$OSTYPE == "darwin"* ]]; then
   if [[ $$(uname -m) == "x86_64" ]]; then
@@ -54,7 +54,7 @@ else
 fi"""
 
 lazy val batchExtras = s"""
-set "NEW_CLASSPATH=com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-64.jar;%APP_CLASSPATH%"
+set "NEW_CLASSPATH=%APP_LIB_DIR%\\com.ctc.omega-edit-native_2.13-${omegaVersion}-windows-64.jar;%APP_CLASSPATH%"
 """
 
 lazy val commonSettings =
