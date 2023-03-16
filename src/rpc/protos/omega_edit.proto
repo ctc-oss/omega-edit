@@ -72,6 +72,7 @@ enum ChangeKind {
   CHANGE_OVERWRITE = 3;
 }
 
+// Make sure these match the session events defined in fwd_defs.h
 enum SessionEventKind {
   SESSION_EVT_UNDEFINED = 0;
   SESSION_EVT_CREATE = 1;
@@ -88,6 +89,7 @@ enum SessionEventKind {
   SESSION_EVT_DESTROY_VIEWPORT = 2048;
 }
 
+// Make sure these match the viewport events defined in fwd_defs.h
 enum ViewportEventKind {
   VIEWPORT_EVT_UNDEFINED = 0;
   VIEWPORT_EVT_CREATE = 1;
@@ -96,6 +98,7 @@ enum ViewportEventKind {
   VIEWPORT_EVT_CLEAR = 8;
   VIEWPORT_EVT_TRANSFORM = 16;
   VIEWPORT_EVT_MODIFY = 32;
+  VIEWPORT_EVT_CHANGES = 64;
 }
 
 enum CountKind {

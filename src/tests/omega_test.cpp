@@ -778,7 +778,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(NO_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(0 == omega_viewport_get_following_byte_count(vpt));
     REQUIRE(0 != omega_viewport_has_changes(vpt));
-    REQUIRE(1 == omega_session_notify_changed_viewports(session_ptr));
+    REQUIRE(0 == omega_session_notify_changed_viewports(session_ptr)); // no event interest, so no notifications
     REQUIRE(ALL_EVENTS == omega_viewport_set_event_interest(vpt, ALL_EVENTS));
     REQUIRE(ALL_EVENTS == omega_viewport_get_event_interest(vpt));
     REQUIRE(vpt_change_cbk == omega_viewport_get_event_cbk(vpt));

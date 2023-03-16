@@ -23,6 +23,7 @@ import {
   destroySession,
   getComputedFileSize,
   getSessionCount,
+  notifyChangedViewports,
   profileSession,
 } from '../../src/session'
 // @ts-ignore
@@ -84,6 +85,7 @@ describe('Sessions', () => {
       expect(serverHeartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(serverHeartbeat.resp).to.equal(getClientVersion())
       expect(await profileSession(session_id)).to.deep.equal(expected_profile)
+      expect(await notifyChangedViewports(session_id)).to.equal(0)
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)
     }

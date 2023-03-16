@@ -143,10 +143,9 @@ int omega_session_notify_changed_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int result = 0;
     for (const auto &viewport : session_ptr->viewports_) {
-        if (omega_viewport_has_changes(viewport.get())) {
-            omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr);
+        if (omega_viewport_has_changes(viewport.get()) &&
+            1 == omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr))
             ++result;
-        }
     }
     return result;
 }

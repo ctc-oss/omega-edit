@@ -143,9 +143,10 @@ OMEGA_EDIT_EXPORT int omega_viewport_in_segment(const omega_viewport_t *viewport
  * @param viewport_ptr viewport for which to execute its on-change callback
  * @param viewport_event event kind that is taking place
  * @param event_ptr change responsible for the viewport change (if any)
+ * @return 1 if the viewport on-change callback was executed, 0 if the viewport on-change callback was not executed
  */
-OMEGA_EDIT_EXPORT void omega_viewport_notify(const omega_viewport_t *viewport_ptr,
-                                             omega_viewport_event_t viewport_event, const void *event_ptr);
+OMEGA_EDIT_EXPORT int omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                                            const void *event_ptr);
 
 #ifdef __cplusplus
 }

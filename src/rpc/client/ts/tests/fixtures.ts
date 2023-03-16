@@ -50,7 +50,7 @@ function getPidFile(port: number): string {
  */
 export async function mochaGlobalSetup(): Promise<number | undefined> {
   const pidFile = getPidFile(testPort)
-  const logFile = path.join(rootPath, 'test.log')
+  const logFile = path.join(rootPath, 'client-tests.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
 
