@@ -22,6 +22,7 @@ import enumeratum.values._
   */
 sealed abstract class ViewportEvent(val value: Int) extends IntEnumEntry
 object ViewportEvent extends IntEnum[ViewportEvent] {
+  // must match viewport events defined in omega_edit.proto
   case object Undefined extends ViewportEvent(0)
   case object Create extends ViewportEvent(1)
   case object Edit extends ViewportEvent(2)
@@ -29,6 +30,7 @@ object ViewportEvent extends IntEnum[ViewportEvent] {
   case object Clear extends ViewportEvent(8)
   case object Transform extends ViewportEvent(16)
   case object Modify extends ViewportEvent(32)
+  case object Changes extends ViewportEvent(64)
 
   val values = findValues
 

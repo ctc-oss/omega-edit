@@ -31,6 +31,8 @@ import {
   getViewportCount,
   getViewportData,
   modifyViewport,
+  pauseViewportEvents,
+  resumeViewportEvents,
   unsubscribeViewport,
   viewportHasChanges,
   ViewportEventKind,
@@ -106,11 +108,12 @@ describe('Viewports', () => {
     expect(file_size).to.equal(12)
     expect(await viewportHasChanges(viewport_1_id)).to.be.true
     expect(await viewportHasChanges(viewport_2_id)).to.be.false
-    expect(await notifyChangedViewports(session_id)).to.equal(1)
+    expect(await notifyChangedViewports(session_id)).to.equal(0)
     viewport_data = await getViewportData(viewport_1_id)
     expect(viewport_data.getData_asU8()).to.deep.equal(
       Buffer.from('123456789A')
     )
+    expect(await viewportHasChanges(viewport_1_id)).to.be.false
     expect(viewport_data.getFollowingByteCount()).to.equal(2)
 
     viewport_data = await getViewportData(viewport_2_id)
@@ -147,9 +150,11 @@ describe('Viewports', () => {
     // Toggle on interest in all events
     await subscribeViewport(viewport_1_id)
     await subscribeViewport(viewport_2_id)
+    await pauseViewportEvents(session_id)
     change_id = await del(session_id, 0, 2)
     expect(change_id).to.equal(4)
-
+    await resumeViewportEvents(session_id)
+    expect(await notifyChangedViewports(session_id)).to.equal(2)
     file_size = await getComputedFileSize(session_id)
     segment = await getSegment(session_id, 0, file_size)
     expect(segment).deep.equals(Buffer.from('345678!@#C'))

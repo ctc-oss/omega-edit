@@ -45,7 +45,7 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
     "offset data" in session("abc")(view(1, 1, false, _) { (s, v) =>
       s.size shouldBe 3
       v.hasChanges shouldBe true
-      s.notifyChangedViewports shouldBe 1
+      s.notifyChangedViewports shouldBe 0
       v.data shouldBe "b".getBytes()
       v.hasChanges shouldBe false
       s.notifyChangedViewports shouldBe 0

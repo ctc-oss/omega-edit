@@ -23,6 +23,7 @@ import enumeratum.values.IntEnum
   */
 sealed abstract class SessionEvent(val value: Int) extends IntEnumEntry
 object SessionEvent extends IntEnum[SessionEvent] {
+  // must match session events defined in omega_edit.proto
   case object Undefined extends SessionEvent(0)
   case object Create extends SessionEvent(1)
   case object Edit extends SessionEvent(2)

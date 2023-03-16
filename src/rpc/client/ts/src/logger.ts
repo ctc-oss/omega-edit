@@ -20,19 +20,25 @@
 import pino from 'pino'
 import * as fs from 'fs'
 
+/**
+ * Logger type
+ * @typedef {pino.Logger} Logger
+ */
+export type Logger = pino.Logger
+
 // internal singleton logger instance
-let logger_: pino.Logger
+let logger_: Logger
 
 /**
- * Builds a pino logger
+ * Builds a logger
  * @param transports array of transports to log to
  * @param level log level
- * @returns pino logger
+ * @returns logger
  */
 function buildLogger(
   transports: any[],
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
-): pino.Logger {
+): Logger {
   const logger = pino({ level: level, transports: transports })
   logger.debug({
     fn: 'buildLogger',
@@ -44,23 +50,23 @@ function buildLogger(
 }
 
 /**
- * Creates a pino file logger
+ * Creates a file logger
  * @param logFilePath path to log file
  * @param level log level
- * @returns pino logger
+ * @returns logger
  */
 export function createSimpleFileLogger(
   logFilePath: string,
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
-): pino.Logger {
+): Logger {
   return pino({ level: level }, fs.createWriteStream(logFilePath))
 }
 
 /**
  * Gets the logger, creating it if necessary
- * @returns pino logger
+ * @returns logger
  */
-export function getLogger(): pino.Logger {
+export function getLogger(): Logger {
   if (!logger_) {
     setLogger(
       buildLogger([
@@ -79,7 +85,7 @@ export function getLogger(): pino.Logger {
  * Sets the logger
  * @param logger new logger instance
  */
-export function setLogger(logger: pino.Logger) {
+export function setLogger(logger: Logger) {
   logger_ = logger
   getLogger().info({ fn: 'setLogger', msg: 'logger set' })
 }
