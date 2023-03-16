@@ -2129,7 +2129,7 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="viewport_8h_1a14a189f02a743ff8608f620939d1a525"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_viewport_notify</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">omega_viewport_event_t</span> <span class="pre">viewport_event,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*event_ptr)</span></span></dt>
+<span class="target" id="viewport_8h_1a89a16fe39defd4b452389f64417da451"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_viewport_notify</span> <span class="pre">(const</span> <span class="pre">omega_viewport_t</span> <span class="pre">*viewport_ptr,</span> <span class="pre">omega_viewport_event_t</span> <span class="pre">viewport_event,</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*event_ptr)</span></span></dt>
 <dd><p>Execute the viewport on-change callback with the given change if a viewport on-change callback is defined and if the session where this viewport lives does not currently have viewport on-change callbacks paused </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -2138,6 +2138,9 @@
 <li><p><strong>viewport_event</strong> – event kind that is taking place </p></li>
 <li><p><strong>event_ptr</strong> – change responsible for the viewport change (if any) </p></li>
 </ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>1 if the viewport on-change callback was executed, 0 if the viewport on-change callback was not executed </p>
 </dd>
 </dl>
 </dd></dl>
