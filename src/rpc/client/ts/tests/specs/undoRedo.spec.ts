@@ -19,24 +19,22 @@
 
 import { expect } from 'chai'
 import {
-  createSession,
-  destroySession,
-  getComputedFileSize,
-  getSegment,
-  getSessionCount,
-  saveSession,
-} from '../../src/session'
-import {
-  clear,
   ChangeKind,
   EditStats,
+  clear,
+  createSession,
+  destroySession,
   getChangeCount,
+  getComputedFileSize,
   getLastUndo,
+  getSegment,
+  getSessionCount,
   getUndoCount,
   insert,
   redo,
+  saveSession,
   undo,
-} from '../../src/change'
+} from 'omega-edit'
 import { unlinkSync } from 'fs'
 
 // prettier-ignore

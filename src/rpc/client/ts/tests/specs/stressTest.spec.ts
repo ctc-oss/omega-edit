@@ -19,27 +19,23 @@
 
 import { expect } from 'chai'
 import {
+  CountKind,
   clear,
+  createViewport,
   del,
+  destroyViewport,
   getChangeCount,
-  insert,
-  overwrite,
-  redo,
-  undo,
-} from '../../src/change'
-import {
   getComputedFileSize,
   getCounts,
   getSegment,
-  pauseSessionChanges,
-  resumeSessionChanges,
-  CountKind,
-} from '../../src/session'
-import {
-  createViewport,
-  destroyViewport,
   getViewportData,
-} from '../../src/viewport'
+  insert,
+  overwrite,
+  pauseSessionChanges,
+  redo,
+  resumeSessionChanges,
+  undo,
+} from 'omega-edit'
 import { ALL_EVENTS } from '../../src/client'
 
 // prettier-ignore

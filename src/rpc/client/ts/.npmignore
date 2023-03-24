@@ -13,7 +13,9 @@
 *
 node_modules
 !*.js
-!*.ts
+!*.d.ts
 !package.json
 !README.md
-!omega-edit-grpc-server-*/**/*
+!omega-edit-grpc-server.js
+!bin/*
+!lib/*

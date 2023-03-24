@@ -20,19 +20,21 @@
 import { expect } from 'chai'
 import {
   createSession,
+  createViewport,
   destroySession,
+  getClient,
+  getClientVersion,
   getComputedFileSize,
+  getServerHeartbeat,
   getSessionCount,
+  getViewportCount,
   notifyChangedViewports,
   profileSession,
-} from '../../src/session'
+  waitForReady,
+} from 'omega-edit'
 // @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'
-import { createViewport, getViewportCount } from '../../src/viewport'
-import { getClient, waitForReady } from '../../src/client'
-import { getServerHeartbeat } from '../../src/server'
-import { getClientVersion } from '../../src/version'
 
 function base64Encode(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64')

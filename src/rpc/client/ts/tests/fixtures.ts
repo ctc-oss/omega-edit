@@ -17,19 +17,21 @@
  * limitations under the License.
  */
 
-import { createSimpleFileLogger, getLogger, setLogger } from '../src/logger'
 import {
+  createSimpleFileLogger,
+  getClientVersion,
+  getLogger,
+  setAutoFixViewportDataLength,
+  setLogger,
   startServer,
   stopServerImmediate,
   stopServerUsingPID,
-} from '../src/server'
-import { getClientVersion } from '../src/version'
-import { setAutoFixViewportDataLength } from '../src/viewport'
+} from 'omega-edit'
 import * as fs from 'fs'
 
 // prettier-ignore
 // @ts-ignore
-import { testPort } from './specs/common'
+import { testHost, testPort } from './specs/common'
 import { resetClient } from '../src/client'
 
 const path = require('path')
@@ -40,7 +42,7 @@ const rootPath = path.resolve(__dirname, '..')
  * @param port port to get the pid file for
  * @returns path to the pid file
  */
-function getPidFile(port: number): string {
+function getPidFile(rootPath: string, port: number): string {
   return path.join(rootPath, `.test-server-${port}.pid`)
 }
 
@@ -49,7 +51,7 @@ function getPidFile(port: number): string {
  * @remarks used by mocha
  */
 export async function mochaGlobalSetup(): Promise<number | undefined> {
-  const pidFile = getPidFile(testPort)
+  const pidFile = getPidFile(rootPath, testPort)
   const logFile = path.join(rootPath, 'client-tests.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
@@ -65,7 +67,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     fn: 'mochaGlobalSetup',
     msg: 'starting server',
     port: testPort,
-    pidfile: getPidFile(testPort),
+    pidfile: pidFile,
   })
 
   // don't fix viewport data length in tests
@@ -73,22 +75,29 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
 
   await mochaGlobalTeardown()
 
-  const pid = await startServer(rootPath, getClientVersion(), testPort)
+  const pid = await startServer(
+    rootPath,
+    getClientVersion(),
+    testPort,
+    testHost,
+    process.argv[0],
+    pidFile
+  )
+
   if (pid) {
-    fs.writeFileSync(pidFile, pid.toString(), 'utf8')
     getLogger().debug({
       fn: 'mochaGlobalSetup',
       msg: 'server started',
       port: testPort,
       pid: pid,
-      pidfile: getPidFile(testPort),
+      pidfile: pidFile,
     })
   } else {
     getLogger().error({
       fn: 'mochaGlobalSetup',
       msg: 'failed to start server',
       port: testPort,
-      pidfile: getPidFile(testPort),
+      pidfile: pidFile,
     })
   }
   return pid
@@ -99,7 +108,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
  * @remarks used by mocha
  */
 export async function mochaGlobalTeardown(): Promise<boolean> {
-  const pidFile = getPidFile(testPort)
+  const pidFile = getPidFile(rootPath, testPort)
   getLogger().debug({
     fn: 'mochaGlobalTeardown',
   })
@@ -118,8 +127,6 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
 
     // first try to stop the server via the api
     if ((await stopServerImmediate()) === 0) {
-      fs.unlinkSync(pidFile)
-
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
         msg: 'server stopped via api',
@@ -141,8 +148,6 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
 
     // if that fails, try to stop the server via the pid
     if (await stopServerUsingPID(pid)) {
-      fs.unlinkSync(pidFile)
-
       getLogger().info({
         fn: 'mochaGlobalTeardown',
         msg: 'server stopped via pid',

@@ -41,7 +41,11 @@ import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
 import { editSimple, IEditStats } from './change'
-export { CountKind, SessionEventKind } from './omega_edit_pb'
+export {
+  CountKind,
+  EventSubscriptionRequest,
+  SessionEventKind,
+} from './omega_edit_pb'
 
 /**
  * Create a file editing session from a file path

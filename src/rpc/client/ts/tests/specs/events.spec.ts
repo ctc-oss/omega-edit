@@ -18,8 +18,7 @@
  */
 
 import { expect } from 'chai'
-import { ALL_EVENTS, NO_EVENTS } from '../../src/client'
-import { ViewportEventKind } from '../../src/viewport'
+import { ALL_EVENTS, NO_EVENTS, ViewportEventKind } from 'omega-edit'
 
 describe('Events', () => {
   it('can be bitwise manipulated and tested', () => {

@@ -17,27 +17,10 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
-import {
-  ClientVersion,
-  getClient,
-  getClientVersion,
-  getServerVersion,
-  waitForReady,
-} from 'omega-edit'
-
-// prettier-ignore
-// @ts-ignore
-import {testPort} from "./common";
-
-describe('Version', () => {
-  beforeEach('Ensure the client is ready', async () => {
-    expect(await waitForReady(getClient(testPort)))
-  })
-
-  it('Server version should return version ' + ClientVersion, async () => {
-    expect(await getServerVersion())
-      .to.equal(getClientVersion())
-      .to.equal(ClientVersion)
-  })
-})
+export * from './change'
+export * from './client'
+export * from './logger'
+export * from './server'
+export * from './session'
+export * from './version'
+export * from './viewport'

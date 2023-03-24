@@ -18,12 +18,11 @@
  */
 
 import * as path from 'path'
-import * as os from 'os'
-import * as child_process from 'child_process'
 import { getLogger } from './logger'
 import { getClient } from './client'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import * as fs from 'fs'
+import { execFileSync } from 'child_process'
 import {
   ServerControlKind,
   ServerControlRequest,
@@ -31,33 +30,8 @@ import {
   VersionResponse,
 } from './omega_edit_pb'
 
-/**
- * Artifact class
- */
-class Artifact {
-  // Name of the artifact
-  name: string
-  // Name of the script
-  scriptName: string
-  // Path to the script
-  scriptPath: string
-  // Path to the script directory
-  scriptDir: string
-
-  constructor(
-    readonly baseScriptName: string,
-    readonly version: string,
-    readonly rootPath: string
-  ) {
-    this.name = baseScriptName
-    this.scriptName =
-      os.platform() === 'win32' ? `${baseScriptName}.bat` : baseScriptName
-
-    // build the path to the script
-    this.scriptDir = path.join(rootPath, `${baseScriptName}-${version}`, 'bin')
-    this.scriptPath = path.join(this.scriptDir, this.scriptName)
-  }
-}
+// sleep method
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Start the server
@@ -71,7 +45,9 @@ export async function startServer(
   rootPath: string,
   version: string,
   port: number = 9000,
-  host: string = '127.0.0.1'
+  host: string = '127.0.0.1',
+  nodeCmdPath: string = process.argv[0],
+  pidfile?: string
 ): Promise<number | undefined> {
   // Set up the server
   getLogger().debug({
@@ -80,22 +56,51 @@ export async function startServer(
     rootPath: rootPath,
     port: port,
   })
-  const artifact = new Artifact('omega-edit-grpc-server', version, rootPath)
 
-  let args = [`--interface=${host}`, `--port=${port}`]
+  const args = [`--interface=${host}`, `--port=${port}`]
+
+  if (pidfile) {
+    args.push(`--pidfile=${pidfile}`)
+  }
+
   const logConf = path.resolve('.', 'logconf.xml')
   if (fs.existsSync(logConf)) {
     args.push(`-Dlogback.configurationFile=${logConf}`)
   }
+
   // Start the server
   getLogger().debug(
-    `starting server ${artifact.scriptPath} with args ${args} in directory ${artifact.scriptDir}`
+    `starting server with args ${args} in directory ${__dirname}`
   )
-  const server = child_process.spawn(artifact.scriptPath, args, {
-    cwd: artifact.scriptDir,
-    stdio: 'ignore',
-    detached: true,
-  })
+
+  const pid = Number(
+    execFileSync(
+      nodeCmdPath,
+      ['omega-edit-grpc-server.js', `--script-dir=${__dirname}`].concat(args)
+    )
+  )
+
+  if (pidfile) {
+    // Wait for server to create pidfile
+    while (!fs.existsSync(pidfile)) await delay(500)
+
+    const pidFromFile = Number(fs.readFileSync(pidfile).toString())
+
+    if (pidFromFile !== pid) {
+      getLogger().error({
+        fn: 'startServer',
+        err: {
+          msg: 'Error pid from pidfile and pid from server script do not match',
+          pid: pid,
+          pidFromFile: pidFromFile,
+        },
+      })
+
+      throw new Error(
+        `Error pid from pidfile(${pidFromFile}) and pid(${pid}) from server script do not match`
+      )
+    }
+  }
 
   // Wait for the server come online
   getLogger().debug(
@@ -109,16 +114,16 @@ export async function startServer(
 
   // Return the server pid if it exists
   return new Promise((resolve, reject) => {
-    if (server.pid !== undefined && server.pid) {
+    if (pid !== undefined && pid) {
       getLogger().debug({
         fn: 'startServer',
         host: host,
         port: port,
-        pid: server.pid,
+        pid: pid,
       })
       // initialize the client
       getClient(port, host)
-      resolve(server.pid)
+      resolve(pid)
     } else {
       getLogger().error({
         fn: 'startServer',
@@ -126,10 +131,9 @@ export async function startServer(
           msg: 'Error getting server pid',
           host: host,
           port: port,
-          server: server,
         },
       })
-      reject(`Error getting server pid: ${server}`)
+      reject('Error getting server pid')
     }
   })
 }

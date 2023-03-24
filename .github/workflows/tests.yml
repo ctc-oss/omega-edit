@@ -169,11 +169,6 @@ jobs:
         run: yarn install
         shell: bash
         working-directory: src/rpc/client/ts
-      
-      - name: Yarn - Compile SRC
-        run: yarn compile-src
-        shell: bash
-        working-directory: src/rpc/client/ts
 
       - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
