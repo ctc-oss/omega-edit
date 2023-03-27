@@ -17,10 +17,13 @@
 package com.ctc.omega_edit.grpc
 
 import akka.actor.ActorSystem
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.catsSyntaxTuple3Semigroupal
 import com.ctc.omega_edit.api.OmegaEdit
+import com.ctc.omega_edit.grpc.EditorService.getServerPID
 import com.monovore.decline._
 
+import java.io.File
+import java.io.FileOutputStream
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
@@ -56,32 +59,65 @@ object boot
           )
           .withDefault(default_port.toInt)
 
-        (interface_opt, port_opt).mapN { (interface, port) =>
-          new boot(interface, port).run()
+        val default_pidfile =
+          scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_PIDFILE", null)
+        val pidfile_opt = Opts
+          .option[String](
+            "pidfile",
+            short = "f",
+            metavar = "pidfile_str",
+            help =
+              s"Set the pidfile to write the PID to. Default: $default_pidfile"
+          )
+          .withDefault(default_pidfile)
+
+        (interface_opt, port_opt, pidfile_opt).mapN {
+          (interface, port, pidfile) =>
+            new boot(interface, port, pidfile).run()
         }
       }
     )
 
-class boot(iface: String, port: Int) {
-  implicit val sys: ActorSystem = ActorSystem("omega-grpc-server")
+class boot(iface: String, port: Int, pidfile: String) {
+  implicit val sys: ActorSystem = ActorSystem("omega-edit-grpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
   def run(): Unit = {
     val v = OmegaEdit.version()
+    val pid = getServerPID()
+
+    // write the PID to the pidfile (if specified)
+    if (pidfile != null) {
+      val file = new File(pidfile)
+      val fos = new FileOutputStream(file)
+      try {
+        fos.write(pid.toString.getBytes("UTF-8"))
+      } finally {
+        fos.close()
+      }
+    }
+
     val done =
       for {
         binding <- EditorService.bind(iface = iface, port = port)
 
         _ = println(
-          s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress}"
+          s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress} with PID: $pid"
         )
 
         done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
 
-        _ = println(s"exiting...")
+        _ = println(s"gRPC server with PID $pid exiting...")
       } yield done
 
     Await.result(done, atMost = Duration.Inf)
     ()
+
+    // delete the pidfile (if specified)
+    if (pidfile != null) {
+      val file = new File(pidfile)
+      file.delete()
+    }
+
   }
 }
