@@ -30,36 +30,73 @@ import {
   VersionResponse,
 } from './omega_edit_pb'
 
-// sleep method
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
 /**
  * Start the server
- * @param rootPath path to the root of the server package
- * @param version version of the server package
- * @param port port to listen on
- * @param host interface to listen on
+ * @param serverScript path to the server script
+ * @param port port to listen on (default 9000)
+ * @param host interface to listen on (default 127.0.0.1)
+ * @param nodePath path to the node executable (default process.argv[0])
+ * @param pidfile optional path to the pidfile
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServer(
-  rootPath: string,
-  version: string,
+  serverScript: string,
   port: number = 9000,
   host: string = '127.0.0.1',
-  nodeCmdPath: string = process.argv[0],
+  nodePath: string = process.argv[0],
   pidfile?: string
 ): Promise<number | undefined> {
   // Set up the server
   getLogger().debug({
     fn: 'startServer',
-    version: version,
-    rootPath: rootPath,
+    serverScript: serverScript,
+    host: host,
     port: port,
+    nodePath: nodePath,
+    pidfile: pidfile,
   })
 
-  const args = [`--interface=${host}`, `--port=${port}`]
+  // check if the server script exists
+  if (!fs.existsSync(serverScript)) {
+    getLogger().error({
+      fn: 'startServer',
+      err: {
+        msg: 'Error server script does not exist',
+        serverScript: serverScript,
+      },
+    })
+    throw new Error(`Error server script does not exist: ${serverScript}`)
+  }
+
+  const args = [serverScript, `--interface=${host}`, `--port=${port}`]
 
   if (pidfile) {
+    // check if the pidfile already exists
+    if (fs.existsSync(pidfile)) {
+      const pidFromFile = Number(fs.readFileSync(pidfile).toString())
+      getLogger().warn({
+        fn: 'startServer',
+        err: {
+          msg: 'pidfile already exists',
+          pidfile: pidfile,
+          pid: pidFromFile,
+        },
+      })
+      // stop the old server
+      if (!(await stopServerUsingPID(pidFromFile))) {
+        getLogger().error({
+          fn: 'startServer',
+          err: {
+            msg: 'server pidfile already exists and server shutdown failed',
+            pidfile: pidfile,
+            pid: pidFromFile,
+          },
+        })
+        throw new Error(
+          `server pidfile ${pidfile} already exists and server shutdown using PID ${pidFromFile} failed`
+        )
+      }
+    }
     args.push(`--pidfile=${pidfile}`)
   }
 
@@ -69,38 +106,10 @@ export async function startServer(
   }
 
   // Start the server
-  getLogger().debug(
-    `starting server with args ${args} in directory ${__dirname}`
-  )
+  getLogger().debug(`Running: ${nodePath} ${args.join(' ')}`)
 
-  const pid = Number(
-    execFileSync(
-      nodeCmdPath,
-      ['omega-edit-grpc-server.js', `--script-dir=${__dirname}`].concat(args)
-    )
-  )
-
-  if (pidfile) {
-    // Wait for server to create pidfile
-    while (!fs.existsSync(pidfile)) await delay(500)
-
-    const pidFromFile = Number(fs.readFileSync(pidfile).toString())
-
-    if (pidFromFile !== pid) {
-      getLogger().error({
-        fn: 'startServer',
-        err: {
-          msg: 'Error pid from pidfile and pid from server script do not match',
-          pid: pid,
-          pidFromFile: pidFromFile,
-        },
-      })
-
-      throw new Error(
-        `Error pid from pidfile(${pidFromFile}) and pid(${pid}) from server script do not match`
-      )
-    }
-  }
+  // server script is started as a child process and the pid is emitted to stdout
+  const pid = Number(execFileSync(nodePath, args))
 
   // Wait for the server come online
   getLogger().debug(
@@ -111,6 +120,26 @@ export async function startServer(
     port: port,
     output: 'silent',
   })
+
+  if (pidfile) {
+    const pidFromFile = Number(fs.readFileSync(pidfile).toString())
+    if (pidFromFile !== pid) {
+      getLogger().error({
+        fn: 'startServer',
+        err: {
+          msg: 'Error pid from pidfile and pid from server script do not match',
+          pid: pid,
+          pidFromFile: pidFromFile,
+          pidfile: pidfile,
+        },
+      })
+      // Here we are in a state where the server is running but the pid is ambiguous.
+      // This is a fatal error that should not happen.
+      throw new Error(
+        `Error pid from pidfile(${pidFromFile}) and pid(${pid}) from server script do not match`
+      )
+    }
+  }
 
   // Return the server pid if it exists
   return new Promise((resolve, reject) => {
@@ -267,6 +296,7 @@ export async function stopServerUsingPID(
           pid: pid,
         })
 
+        // the server is already stopped
         return true
       }
 

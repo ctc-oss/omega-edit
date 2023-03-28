@@ -19,8 +19,8 @@
 
 import {
   createSimpleFileLogger,
-  getClientVersion,
   getLogger,
+  resetClient,
   setAutoFixViewportDataLength,
   setLogger,
   startServer,
@@ -32,7 +32,6 @@ import * as fs from 'fs'
 // prettier-ignore
 // @ts-ignore
 import { testHost, testPort } from './specs/common'
-import { resetClient } from '../src/client'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
@@ -76,8 +75,13 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   await mochaGlobalTeardown()
 
   const pid = await startServer(
-    rootPath,
-    getClientVersion(),
+    path.join(
+      rootPath,
+      'node_modules',
+      'omega-edit',
+      'bin',
+      'omega-edit-grpc-server.js'
+    ),
     testPort,
     testHost,
     process.argv[0],
