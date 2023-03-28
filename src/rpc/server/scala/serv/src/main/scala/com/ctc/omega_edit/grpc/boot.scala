@@ -16,7 +16,8 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.actor.ActorSystem
+import org.apache.pekko
+import pekko.actor.ActorSystem
 import cats.implicits.catsSyntaxTuple3Semigroupal
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.grpc.EditorService.getServerPID

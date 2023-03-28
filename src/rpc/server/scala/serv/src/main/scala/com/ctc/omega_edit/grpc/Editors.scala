@@ -16,11 +16,12 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.actor.{Actor, ActorLogging, Props}
-import akka.pattern.gracefulStop
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Source
-import akka.util.Timeout
+import org.apache.pekko
+import pekko.actor.{Actor, ActorLogging, Props}
+import pekko.pattern.gracefulStop
+import pekko.stream.OverflowStrategy
+import pekko.stream.scaladsl.Source
+import pekko.util.Timeout
 import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
 import com.google.protobuf.ByteString
 import io.grpc.Status

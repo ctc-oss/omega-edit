@@ -16,13 +16,14 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.NotUsed
-import akka.actor.ActorSystem
-import akka.grpc.GrpcServiceException
-import akka.http.scaladsl.Http
-import akka.pattern.ask
-import akka.stream.scaladsl.Source
-import akka.util.Timeout
+import org.apache.pekko
+import pekko.NotUsed
+import pekko.actor.ActorSystem
+import pekko.grpc.GrpcServiceException
+import pekko.http.scaladsl.Http
+import pekko.pattern.ask
+import pekko.stream.scaladsl.Source
+import pekko.util.Timeout
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.api.Session.OverwriteStrategy

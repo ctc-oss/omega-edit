@@ -16,9 +16,10 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.NotUsed
-import akka.actor.{Actor, ActorLogging, Props}
-import akka.stream.scaladsl.Source
+import org.apache.pekko
+import pekko.NotUsed
+import pekko.actor.{Actor, ActorLogging, Props}
+import pekko.stream.scaladsl.Source
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.ViewportCallback
 import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Ok, ViewportData}

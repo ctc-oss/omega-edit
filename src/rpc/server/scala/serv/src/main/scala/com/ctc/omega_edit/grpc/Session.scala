@@ -16,10 +16,11 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.NotUsed
-import akka.actor.{Actor, Props}
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Source
+import org.apache.pekko
+import pekko.NotUsed
+import pekko.actor.{Actor, Props}
+import pekko.stream.OverflowStrategy
+import pekko.stream.scaladsl.Source
 import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._

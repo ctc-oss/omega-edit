@@ -61,6 +61,15 @@ lazy val isRelease =
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
+lazy val pekkoVersion = "0.0.0+26599-83545a33-SNAPSHOT"
+
+// allow access to snapshots
+lazy val apacheSnapshotResolver = "Apache Snapshots".at(
+  "https://repository.apache.org/content/repositories/snapshots/"
+)
+
+resolvers += apacheSnapshotResolver
+
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
@@ -84,7 +93,12 @@ lazy val commonSettings =
       ghb_repo_owner,
       System.getenv("GITHUB_TOKEN")
     ),
-    fork := (if (isRelease) false else true)
+    fork := (if (isRelease) false else true),
+    externalResolvers ++= Seq(
+      ghb_resolver,
+      Resolver.mavenLocal,
+      apacheSnapshotResolver
+    )
   )
 
 lazy val ratSettings = Seq(
@@ -132,10 +146,6 @@ lazy val api = project
     buildInfoPackage := organization.value + ".omega_edit",
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
-    externalResolvers ++= Seq(
-      ghb_resolver,
-      Resolver.mavenLocal
-    ),
     // #region Needed for packaging to work without an extra command for native/publishM2
     Compile / Keys.compile :=
       (Compile / Keys.compile)
@@ -224,14 +234,16 @@ lazy val serv = project
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-aarch64",
         "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-64",
         "com.monovore" %% "decline" % "2.4.1",
-        "com.typesafe.akka" %% "akka-slf4j" % "2.7.0",
+        // this needs updated in tandom with the sbt-pekko-grpc plugin
+        "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
     else
       libraryDependencies ++= Seq(
         "com.monovore" %% "decline" % "2.4.1",
-        "com.typesafe.akka" %% "akka-slf4j" % "2.7.0",
+        // this needs updated in tandom with the sbt-pekko-grpc plugin
+        "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       ),
@@ -239,10 +251,6 @@ lazy val serv = project
       ExclusionRule("org.checkerframework", "checker-compat-qual")
     ),
     scalacOptions ~= adjustScalacOptionsForScalatest,
-    externalResolvers ++= Seq(
-      ghb_resolver,
-      Resolver.mavenLocal
-    ),
     Compile / PB.protoSources += baseDirectory.value / "../../../protos", // path relative to projects directory
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
     publishLocalConfiguration := publishLocalConfiguration.value
@@ -254,7 +262,7 @@ lazy val serv = project
     )
   )
   .enablePlugins(
-    AkkaGrpcPlugin,
+    PekkoGrpcPlugin,
     ClasspathJarPlugin,
     GitVersioning,
     JavaServerAppPackaging,
