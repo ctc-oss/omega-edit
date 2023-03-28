@@ -250,7 +250,9 @@ lazy val serv = project
     bashScriptExtraDefines += bashExtras,
     batScriptExtraDefines += batchExtras,
     Universal / mappings ++= Seq(
-      file("serv/src/omega-edit-grpc-server.js") -> "omega-edit-grpc-server.js"
+      file(
+        "serv/src/main/scripts/omega-edit-grpc-server.js"
+      ) -> "bin/omega-edit-grpc-server.js"
     )
   )
   .enablePlugins(

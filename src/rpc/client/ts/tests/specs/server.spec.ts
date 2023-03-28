@@ -21,7 +21,6 @@ import {
   createSession,
   destroySession,
   getClient,
-  getClientVersion,
   getSessionCount,
   startServer,
   stopServerGraceful,
@@ -49,12 +48,19 @@ describe('Server', () => {
   let pid: number | undefined
   let session_id: string
   const rootPath = path.resolve(__dirname, '..', '..')
+  const serverScript = path.join(
+    rootPath,
+    'node_modules',
+    'omega-edit',
+    'bin',
+    'omega-edit-grpc-server.js'
+  )
   const serverTestPort = testPort + 1
 
   beforeEach(
-    `create a server on port ${serverTestPort} and a session`,
+    `create a server using ${serverScript} on port ${serverTestPort} and a session`,
     async () => {
-      pid = await startServer(rootPath, getClientVersion(), serverTestPort)
+      pid = await startServer(serverScript, serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
       expect(await waitForReady(getClient(serverTestPort))).to.be.true

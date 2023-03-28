@@ -46,9 +46,6 @@ for objtype in shared static; do
   fi
 done
 
-# Kill the RPC server if it's up and running for some reason
-kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
-
 # Build and test the Scala server
 pushd src/rpc/server/scala
 sbt test
@@ -65,8 +62,5 @@ yarn compile-src
 yarn lint
 yarn test
 popd
-
-# Kill the RPC server if it hasn't been shutdown already
-kill -9 "$( lsof -i:9000 | sed -n '2p' | awk '{print $2}' )" >/dev/null 2>&1 || true
 
 echo "✔ Done! ✨"
