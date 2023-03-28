@@ -21,9 +21,9 @@ import { expect } from 'chai'
 import {
   getComputedFileSize,
   numAscii,
+  overwrite,
   profileSession,
-} from '../../src/session'
-import { overwrite } from '../../src/change'
+} from 'omega-edit'
 
 // prettier-ignore
 // @ts-ignore

@@ -17,19 +17,18 @@
  * limitations under the License.
  */
 
-import { getClientVersion } from '../../src/version'
 import {
+  createSession,
+  destroySession,
+  getClient,
+  getClientVersion,
+  getSessionCount,
   startServer,
   stopServerGraceful,
   stopServerImmediate,
   stopServerUsingPID,
-} from '../../src/server'
-import {
-  createSession,
-  destroySession,
-  getSessionCount,
-} from '../../src/session'
-import { getClient, waitForReady } from '../../src/client'
+  waitForReady,
+} from 'omega-edit'
 import { expect } from 'chai'
 
 // @ts-ignore

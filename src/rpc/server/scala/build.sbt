@@ -248,7 +248,10 @@ lazy val serv = project
     publishLocalConfiguration := publishLocalConfiguration.value
       .withOverwrite(true),
     bashScriptExtraDefines += bashExtras,
-    batScriptExtraDefines += batchExtras
+    batScriptExtraDefines += batchExtras,
+    Universal / mappings ++= Seq(
+      file("serv/src/omega-edit-grpc-server.js") -> "omega-edit-grpc-server.js"
+    )
   )
   .enablePlugins(
     AkkaGrpcPlugin,

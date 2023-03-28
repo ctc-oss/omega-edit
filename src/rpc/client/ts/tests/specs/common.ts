@@ -18,18 +18,20 @@
  */
 
 import { expect } from 'chai'
-import { getClient, waitForReady } from '../../src/client'
 import {
+  EventSubscriptionRequest,
   SessionEventKind,
+  ViewportEventKind,
   createSession,
   destroySession,
+  getClient,
   getSessionCount,
-} from '../../src/session'
-import { ViewportEventKind } from '../../src/viewport'
-import { EventSubscriptionRequest } from '../../src/omega_edit_pb'
+  waitForReady,
+} from 'omega-edit'
 
 export let session_callbacks = new Map()
 export let viewport_callbacks = new Map()
+export const testHost = process.env.OMEGA_EDIT_TEST_HOST || '127.0.0.1'
 export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
 
 export async function createTestSession(port: number) {

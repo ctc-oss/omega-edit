@@ -23,8 +23,6 @@ import {
   getSegment,
   SessionEventKind,
   unsubscribeSession,
-} from '../../src/session'
-import {
   ChangeKind,
   clear,
   del,
@@ -39,8 +37,8 @@ import {
   insert,
   overwrite,
   removeCommonSuffix,
-} from '../../src/change'
-import { ALL_EVENTS } from '../../src/client'
+  ALL_EVENTS,
+} from 'omega-edit'
 
 // prettier-ignore
 // @ts-ignore

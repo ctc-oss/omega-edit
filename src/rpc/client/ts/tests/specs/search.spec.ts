@@ -19,28 +19,26 @@
 
 import { expect } from 'chai'
 import {
+  EditStats,
   beginSessionTransaction,
-  endSessionTransaction,
-  getComputedFileSize,
-  getSegment,
-  replaceOneSession,
-  replaceSession,
-  searchSession,
-} from '../../src/session'
-import {
   clear,
   edit,
   editOptimizer,
-  EditStats,
+  endSessionTransaction,
   getChangeCount,
   getChangeTransactionCount,
+  getComputedFileSize,
+  getSegment,
   getUndoCount,
   getUndoTransactionCount,
   overwrite,
   redo,
   replace,
+  replaceOneSession,
+  replaceSession,
+  searchSession,
   undo,
-} from '../../src/change'
+} from 'omega-edit'
 
 // prettier-ignore
 // @ts-ignore

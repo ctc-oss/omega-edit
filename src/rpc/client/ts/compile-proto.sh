@@ -11,29 +11,24 @@ set -e
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-for arg in "$@"; do
-    if [[ $arg == "--out" ]]; then
-        OUT_DIR="$PWD/out"
-        TS_OUT_DIR="$PWD/out"
-    fi
-done
-
-if [[ $# -lt 1 ]]; then
-    OUT_DIR="$PWD/src"
-    TS_OUT_DIR="$PWD/src"
-fi
-
 IN_DIR="../../protos"
 PROTOC="$(yarn bin)/grpc_tools_node_protoc"
 PROTOC_GEN_TS_PATH="$(yarn bin)/protoc-gen-ts"
 PROTOC_GEN_GRPC_PATH="$(yarn bin)/grpc_tools_node_protoc_plugin"
 
-pushd "$IN_DIR" >/dev/null
-$PROTOC \
-    --plugin=protoc-gen-ts="${PROTOC_GEN_TS_PATH}" \
-    --plugin=protoc-gen-grpc="${PROTOC_GEN_GRPC_PATH}" \
-    --js_out=import_style=commonjs:"${OUT_DIR}" \
-    --grpc_out=grpc_js:"${OUT_DIR}" \
-    --ts_out=grpc_js:"${TS_OUT_DIR}" \
-    omega_edit.proto
-popd >/dev/null
+for dir in "src" "out"; do
+    OUT_DIR=$PWD/$dir
+    TS_OUT_DIR=$PWD/$dir
+
+    if [[ ! -d $OUT_DIR ]]; then mkdir $OUT_DIR; fi
+
+    pushd "$IN_DIR" >/dev/null
+    $PROTOC \
+        --plugin=protoc-gen-ts="${PROTOC_GEN_TS_PATH}" \
+        --plugin=protoc-gen-grpc="${PROTOC_GEN_GRPC_PATH}" \
+        --js_out=import_style=commonjs:"${OUT_DIR}" \
+        --grpc_out=grpc_js:"${OUT_DIR}" \
+        --ts_out=grpc_js:"${TS_OUT_DIR}" \
+        omega_edit.proto
+    popd >/dev/null
+done
