@@ -16,8 +16,9 @@
 
 package com.ctc.omega_edit.grpc
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.Sink
+import org.apache.pekko
+import pekko.actor.ActorSystem
+import pekko.stream.scaladsl.Sink
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import omega_edit._

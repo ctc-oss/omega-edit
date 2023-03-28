@@ -20,7 +20,7 @@
 - Scala Native bindings to shared library
 - Scala API to call native bindings
 - Scala SPI for determing different build info
-- Scala gRPC reference implementation using Akka.
+- Scala gRPC reference implementation using Apache Pekko.
 
 ## Copile and Install
 
@@ -84,7 +84,7 @@ sbt pkgServer
 
 ## Reference
 
-- https://doc.akka.io/docs/akka-grpc
+- [Apache Pekko](https://github.com/apache/incubator-pekko-grpc)
 
 ## License
 

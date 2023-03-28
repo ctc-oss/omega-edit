@@ -13,6 +13,11 @@
  * limitations under the License.
  */
 
+// allow access to snapshots
+resolvers += "Apache Snapshots".at(
+  "https://repository.apache.org/content/repositories/snapshots/"
+)
+
 // Bindings
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.4.1")
@@ -21,6 +26,8 @@ addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.2")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.5")
 addSbtPlugin("com.github.battermann" % "sbt-json" % "0.5.0")
-addSbtPlugin("com.lightbend.akka.grpc" % "sbt-akka-grpc" % "2.2.1")
+addSbtPlugin(
+  "org.apache.pekko" % "sbt-pekko-grpc" % "0.0.0-15-3d8bff9d-SNAPSHOT"
+)
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.8.1")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
