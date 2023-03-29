@@ -57,7 +57,7 @@ jobs:
 
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
           cmake --build build
           ctest -C Debug --test-dir build --output-on-failure
           cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
@@ -100,26 +100,29 @@ jobs:
           java-version: 8
           cache: sbt
 
+      - name: Make build/lib directory to store lib files
+        run: mkdir -p build/lib
+
       - name: Download macos library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
-          path: lib/libomega_edit.dylib
+          path: build/lib/libomega_edit.dylib
 
       - name: Download linux library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
-          path: lib/libomega_edit.so
+          path: build/lib/libomega_edit.so
 
       - name: Download windows library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Windows'
         with:
           name: omega_edit.dll
-          path: lib/omega_edit.dll
+          path: build/lib/omega_edit.dll
 
       - name: Move out library file 🛻
         run: |
@@ -131,18 +134,18 @@ jobs:
             LIB_FILENAME="omega_edit.dll"
           fi
 
-          mv -v "lib/${LIB_FILENAME}" "lib/${LIB_FILENAME}_dir"
-          mv -v "lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "lib/$LIB_FILENAME"
-          rm -rf "lib/${LIB_FILENAME}_dir"
+          mv -v "build/lib/${LIB_FILENAME}" "build/lib/${LIB_FILENAME}_dir"
+          mv -v "build/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "build/lib/$LIB_FILENAME"
+          rm -rf "build/lib/${LIB_FILENAME}_dir"
         shell: bash
 
       - name: Check Scala headers ✔️
         run: sbt headerCheckAll
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
         timeout-minutes: 30
 
       - name: Archive M2 🔺
@@ -155,7 +158,7 @@ jobs:
 
       - name: Test Scala RPC server 📋
         run: sbt serv/test
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
         timeout-minutes: 30
 
       - name: Package & Run Scala RPC server 📋
@@ -163,15 +166,15 @@ jobs:
           sbt pkgServer
           unzip serv/target/universal/omega-edit-grpc-server*.zip -d ../../client/ts/
         shell: bash
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Yarn - Install
         run: yarn install
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts
 
       - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts
         timeout-minutes: 30

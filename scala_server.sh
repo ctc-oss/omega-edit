@@ -33,6 +33,6 @@ function serv_build {
     serv
 }
 
-cd src/rpc/server/scala
+cd server/scala
 $@
-cd ../../../../
+cd ../../

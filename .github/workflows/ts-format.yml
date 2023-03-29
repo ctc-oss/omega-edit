@@ -38,9 +38,9 @@ jobs:
       - name: Yarn - Install
         run: yarn install
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts
       
       - name: Yarn - Lint
         run: yarn lint
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts

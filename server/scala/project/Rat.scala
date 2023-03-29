@@ -23,34 +23,34 @@ object Rat {
     // git files
     file(".git"),
     // ignore files
-    file("packaging/.cpack_ignore"),
+    file("core/packaging/.cpack_ignore"),
     // json files
-    file("src/rpc/client/ts/package.json"),
-    file("src/rpc/client/ts/package-lock.json"),
-    file("src/rpc/client/ts/typedoc.json"),
-    file("src/rpc/client/ts/tests/package.json"),
-    file("src/rpc/client/ts/tests/package-lock.json"),
-    file("src/rpc/client/ts/tests/tsconfig.json"),
-    file("src/rpc/client/ts/.prettierrc"),
+    file("client/ts/package.json"),
+    file("client/ts/package-lock.json"),
+    file("client/ts/typedoc.json"),
+    file("client/ts/tests/package.json"),
+    file("client/ts/tests/package-lock.json"),
+    file("client/ts/tests/tsconfig.json"),
+    file("client/ts/.prettierrc"),
     // compiled files
     file(".devcontainer/devcontainer.json"),
-    file("src/rpc/client/ts/src/client_version.ts"),
-    file("src/rpc/client/ts/src/omega_edit_pb.js"),
-    file("src/rpc/client/ts/out/settings.js.map"),
-    file("src/rpc/client/ts/out/omega_edit_pb.js"),
-    file("src/rpc/client/ts/out/change.js.map"),
-    file("src/rpc/client/ts/out/viewport.js.map"),
-    file("src/rpc/client/ts/out/version.js.map"),
-    file("src/rpc/client/ts/src/omega_edit_pb.d.ts"),
-    file("src/rpc/client/ts/out/session.js.map"),
-    file("src/rpc/client/ts/src/omega_edit_grpc_pb.d.ts"),
+    file("client/ts/src/client_version.ts"),
+    file("client/ts/src/omega_edit_pb.js"),
+    file("client/ts/out/settings.js.map"),
+    file("client/ts/out/omega_edit_pb.js"),
+    file("client/ts/out/change.js.map"),
+    file("client/ts/out/viewport.js.map"),
+    file("client/ts/out/version.js.map"),
+    file("client/ts/src/omega_edit_pb.d.ts"),
+    file("client/ts/out/session.js.map"),
+    file("client/ts/src/omega_edit_grpc_pb.d.ts"),
     // cmake build folder
     file("cmake-build-debug"),
     file("cmake-build-release"),
     // cmake plugins
-    file("cmake/"),
-    file("src/rpc/cmake/"),
-    file("src/tests/integration/cmake/"),
+    file("core/cmake/"),
+    file("core/src/cmake/"),
+    file("core/src/tests/integration/cmake/"),
     // ide folders
     file(".idea"),
     file(".run"),
@@ -59,22 +59,20 @@ object Rat {
     file("target"),
     file("build"),
     // data files for tests
-    file("src/examples/data/"),
-    file("src/tests/integration/data/"),
-    file("src/rpc/client/ts/tests/data/"),
+    file("core/src/examples/data/"),
+    file("core/src/tests/integration/data/"),
+    file("client/ts/tests/data/"),
     // ignore lib files
     file("lib"),
-    // ignore generated files
-    file("server/core/src/main/java/org.ctc.omegaedit"),
     // omega-edit logo picture
     file("images/OmegaEditLogo.png"),
     // node generated files
-    file("src/rpc/client/ts/node_modules"),
-    file("src/rpc/client/ts/omega_edit_grpc_pb.d.ts"),
-    file("src/rpc/client/ts/omega_edit_grpc_pb.js"),
-    file("src/rpc/client/ts/omega_edit_pb.d.ts"),
-    file("src/rpc/client/ts/omega_edit_pb.js"),
-    file("src/rpc/client/ts/yarn.lock")
+    file("client/ts/node_modules"),
+    file("client/ts/omega_edit_grpc_pb.d.ts"),
+    file("client/ts/omega_edit_grpc_pb.js"),
+    file("client/ts/omega_edit_pb.d.ts"),
+    file("client/ts/omega_edit_pb.js"),
+    file("client/ts/yarn.lock")
   )
 
   lazy val HPP_LICENSE_NAME = "HPP License"

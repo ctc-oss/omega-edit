@@ -73,13 +73,13 @@ Depending on your linking needs, Ωedit can be built as either as a static (e.g.
 - #### Static:
 
 ```bash
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
+cmake -S core -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug
 ```
 
 - #### Shared:
 
 ```bash
-cmake -S . -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES
+cmake -S core -B cmake-build-debug -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES
 ```
 
 ### Build the configured build:
@@ -91,7 +91,7 @@ cmake --build cmake-build-debug
 ### Run the test suite:
 
 ```bash
-cmake -S src/tests -B cmake-build-tests -DCMAKE_BUILD_TYPE=Debug
+cmake -S core/src/tests -B cmake-build-tests -DCMAKE_BUILD_TYPE=Debug
 pushd cmake-build-tests && ctest -C Debug --output-on-failure && popd
 ```
 
@@ -106,7 +106,7 @@ This package is normally uploaded to npmjs.com
 - Create local `.tgz` file
 
   ```bash
-  cd src/rpc/client/ts
+  cd client/ts
   yarn install # if not ran before
   yarn package
   ```
@@ -114,7 +114,7 @@ This package is normally uploaded to npmjs.com
   - File will be at
 
     ```bash
-    src/rpc/client/ts/omega-edit-v${VERSION}.tgz
+    client/ts/omega-edit-v${VERSION}.tgz
     ```
 
 - Publish `.tgz` file to npmjs -- requires auth
@@ -138,14 +138,14 @@ sbt publishAll
 This packages the reference Scala server to a local zip folder
 
 ```bash
-cd src/rpc/server/scala
+cd server/scala
 sbt universal:packageBin
 ```
 
 Zip file will be located at
 
 ```bash
-src/rpc/server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
+server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
 ```
 
 ## Development

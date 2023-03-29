@@ -25,16 +25,14 @@ else
   endif
 endif
 
-lib/$(LIBNAME): CMakeLists.txt
-	cmake -G $(GENERATOR) -S . -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=NO -DCMAKE_BUILD_TYPE=$(TYPE)
+lib/$(LIBNAME): core/CMakeLists.txt
+	cmake -G $(GENERATOR) -S core -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=NO -DCMAKE_BUILD_TYPE=$(TYPE)
 	cmake --build _build
 	ctest -C $(TYPE) --test-dir _build --output-on-failure
 	cmake --install _build/packaging --prefix _install --config $(TYPE)
-	rm -rf lib/
-	cp -av _install/lib lib/
 
 clean:
-	rm -rf _build _install lib
+	rm -rf _build _install
 
 all: lib/$(LIBNAME)
 	@echo $<
