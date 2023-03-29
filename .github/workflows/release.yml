@@ -118,16 +118,6 @@ jobs:
           cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      # - name: Move library file mac 🚚
-      #   if: startsWith(matrix.os, 'mac')
-      #   run: mv -v build/lib/* lib
-      #   shell: bash
-
-      # - name: Move library file windows 🚚
-      #   if: startsWith(matrix.os, 'win')
-      #   run: mv -v build/bin/omega_edit.dll lib/
-      #   shell: bash
-
       - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

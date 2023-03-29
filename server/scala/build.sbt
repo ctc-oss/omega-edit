@@ -151,7 +151,12 @@ lazy val native = project
     exportJars := (if (isRelease) false else true),
     Compile / packageBin / mappings += {
       baseDirectory
-        .map(_ / s"$libdir/${mapping._1}")
+        .map(basedir =>
+          // This ensure that libdir can use full and relative paths
+          if (libdir.startsWith("/") || libdir.startsWith("C:"))
+            new java.io.File(s"${libdir}/${mapping._1}")
+          else basedir / s"${libdir}/${mapping._1}"
+        )
         .value -> s"${version.value}/${mapping._2}"
     },
     Compile / packageDoc / publishArtifact := false,

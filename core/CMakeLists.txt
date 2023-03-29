@@ -47,14 +47,14 @@ endif ()
 #######################################################################################################################
 # DEPENDENCIES
 #######################################################################################################################
-if (NOT EXISTS "cmake/conan.cmake")
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake")
     message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
     file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
-            "cmake/conan.cmake"
+            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake"
             TLS_VERIFY ON)
 endif ()
 
-include("cmake/conan.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake")
 
 conan_cmake_configure(
         REQUIRES "catch2/3.3.2"

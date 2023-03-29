@@ -17,10 +17,10 @@ set -ex
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 #type="Release"
-generator="Unix Makefiles"
+# generator="Unix Makefiles"
 
 type=${type:-"Debug"}
-# generator=${generator:-"Ninja"}
+generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 
@@ -40,7 +40,7 @@ for objtype in shared static; do
 done
 
 # used by scala native code to bundle the proper library file
-export OE_LIB_DIR="../../../build-shared-$type/lib"
+export OE_LIB_DIR="$(readlink -f build-shared-$type/lib)"
 
 # Build and test the Scala server
 pushd server/scala
