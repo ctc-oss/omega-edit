@@ -19,7 +19,7 @@ env:
   node_version: 14
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
-    PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./src/rpc/client/ts/package.json').version)") | sed 's|"||g')
+    PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./client/ts/package.json').version)") | sed 's|"||g')
     echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
     echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
 
@@ -115,24 +115,24 @@ jobs:
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      - name: Move library file mac 🚚
-        if: startsWith(matrix.os, 'mac')
-        run: mv -v build/lib/* lib
-        shell: bash
+      # - name: Move library file mac 🚚
+      #   if: startsWith(matrix.os, 'mac')
+      #   run: mv -v build/lib/* lib
+      #   shell: bash
 
-      - name: Move library file windows 🚚
-        if: startsWith(matrix.os, 'win')
-        run: mv -v build/bin/omega_edit.dll lib/
-        shell: bash
+      # - name: Move library file windows 🚚
+      #   if: startsWith(matrix.os, 'win')
+      #   run: mv -v build/bin/omega_edit.dll lib/
+      #   shell: bash
 
       - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: sbt native/publishM2
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Upload Native JARs 🔺
         uses: actions/upload-artifact@v3
@@ -185,12 +185,12 @@ jobs:
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
           cmake --build build --target omega_edit
 
-      - name: Move library file 🚚
-        run: mv -v build/lib/* lib
-        shell: bash
+      # - name: Move library file 🚚
+      #   run: mv -v build/lib/* lib
+      #   shell: bash
 
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
@@ -228,14 +228,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
         run: sbt native/publish
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Package Scala API 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
         run: sbt api/publish
-        working-directory: src/rpc/server/scala
+        working-directory: /server/scala
 
       - name: Package Scala RPC server 🎁
         env:
@@ -245,13 +245,13 @@ jobs:
         run: |
           rm -rf ~/.m2/repository
           sbt serv/Universal/packageBin
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
         shell: bash
 
       - name: Fix folder name for Scala RPC server 🔧
         run: |
           mv -v \
-            src/rpc/server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
+            server/scala/serv/target/universal/omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip \
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
 
       - name: Upload Scala RPC server - Not Release 🔺
@@ -312,16 +312,16 @@ jobs:
           mv -v "${scala_pkg_file}" "${scala_pkg_file}_dir"
           mv -v "${scala_pkg_file}_dir/${scala_pkg_file}" "${scala_pkg_file}"
           rm -rf "${scala_pkg_file}_dir"
-          unzip "$scala_pkg_file" -d "./src/rpc/client/ts/"
+          unzip "$scala_pkg_file" -d "./client/ts/"
 
       - name: Create package tarball file 🔧
         run: |
-          cd src/rpc/client/ts
           yarn install
           yarn package
+        working-directory: client/ts
 
       - name: Move out node package file 🛻
-        run: mv -v src/rpc/client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz .
+        run: mv -v client/ts/omega-edit-v${{ env.PKG_VERSION }}.tgz .
 
       - name: Upload node release tarball 🔺
         uses: actions/upload-release-asset@v1
@@ -335,7 +335,7 @@ jobs:
 
       - name: Publish node package to npm registry 🚀
         run: |
-          cp -v src/rpc/client/ts/package.json .
+          cp -v client/ts/package.json .
           yarn publish omega-edit-v${{ env.PKG_VERSION }}.tgz
           rm -rf package.json
         env:

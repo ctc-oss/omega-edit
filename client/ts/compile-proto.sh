@@ -11,7 +11,7 @@ set -e
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-IN_DIR="../../protos"
+IN_DIR="../../proto"
 PROTOC="$(yarn bin)/grpc_tools_node_protoc"
 PROTOC_GEN_TS_PATH="$(yarn bin)/protoc-gen-ts"
 PROTOC_GEN_GRPC_PATH="$(yarn bin)/grpc_tools_node_protoc_plugin"

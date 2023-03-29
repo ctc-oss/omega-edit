@@ -32,7 +32,5 @@ comment:
   require_changes: no
 
 ignore:
-  - src/bindings
-  - src/examples
-  - src/rpc
-  - src/tests/integration/generate_file.cpp
+  - core/src/examples
+  - core/src/tests/integration/generate_file.cpp

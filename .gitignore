@@ -45,14 +45,12 @@ package-lock.json
 **/*.so
 
 # sbt
-!lib/.gitkeep
 **/*jar
 **/target/*
 .bsp
-lib/*
 
 **/.vscode/settings.json
 
 .metals
 project
-!src/rpc/server/scala/project/BuildSupport.scala
+!server/scala/project

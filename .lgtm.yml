@@ -13,9 +13,8 @@
 
 path_classifiers:
   test:
-    - "*/src/rpc/tests/**/*"
-    - "*/src/tests/**/*"
-    - "*/src/examples/**/*"
+    - "*/core/src/tests/**/*"
+    - "*/core/src/examples/**/*"
   docs:
     - "*/sphinx/**/*"
 
@@ -37,7 +36,7 @@ extraction:
       - cat /usr/local/share/ca-certificates/semmle-cache-ca/semmle-cache-ca.crt >> ~/.conan/cacert.pem
     configure:
       command:
-        - cmake -S . -B build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=Debug
+        - cmake -S core -B build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF -DCMAKE_BUILD_TYPE=Debug
     index:
       build_command:
         - cmake --build build

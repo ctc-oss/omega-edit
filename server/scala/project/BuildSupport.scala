@@ -27,8 +27,7 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String =
-    "../../../../../lib" // path relative to the native projects directory
+  val libdir: String = sys.env.get("OE_LIB_DIR").getOrElse("../../../build/lib")
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )

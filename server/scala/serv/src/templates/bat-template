@@ -52,6 +52,7 @@ set _JAVA_PARAMS=
 set _APP_ARGS=
 
 @@APP_DEFINES@@
+set "NEW_CLASSPATH=%APP_LIB_DIR%\\com.ctc.omega-edit-native_2.13-%OMEGAVERSION%-windows-64.jar;%APP_CLASSPATH%"
 
 rem Bundled JRE has priority over standard environment variables
 if defined BUNDLED_JVM (

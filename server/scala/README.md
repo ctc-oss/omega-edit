@@ -24,7 +24,7 @@
 
 ## Copile and Install
 
-For all of these subsections you will need to be inside of folder `src/rpc/server/scala`
+For all of these subsections you will need to be inside of folder `server/scala`
 
 ### API
 
@@ -54,7 +54,7 @@ sbt installM2
 
 ## Running the server
 
-To run the gRPC scala server, inside of `src/rpc/server/scala` run:
+To run the gRPC scala server, inside of `server/scala` run:
 
 ```bash
 sbt serv/run
@@ -69,7 +69,7 @@ sbt runServer
 
 ## Packaging the server
 
-To package the gRPC scala server, inside of `src/rpc/server/scala` run:
+To package the gRPC scala server, inside of `server/scala` run:
 
 ```bash
 sbt serv/Universal/packageBin

@@ -57,7 +57,7 @@ jobs:
 
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
           cmake --build build
           ctest -C Debug --test-dir build --output-on-failure
           cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
@@ -138,11 +138,11 @@ jobs:
 
       - name: Check Scala headers ✔️
         run: sbt headerCheckAll
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Package Scala API 🎁
         run: sbt installM2 # runs test so specifically running sbt test not needed
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
         timeout-minutes: 30
 
       - name: Archive M2 🔺
@@ -155,7 +155,7 @@ jobs:
 
       - name: Test Scala RPC server 📋
         run: sbt serv/test
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
         timeout-minutes: 30
 
       - name: Package & Run Scala RPC server 📋
@@ -163,15 +163,15 @@ jobs:
           sbt pkgServer
           unzip serv/target/universal/omega-edit-grpc-server*.zip -d ../../client/ts/
         shell: bash
-        working-directory: src/rpc/server/scala
+        working-directory: server/scala
 
       - name: Yarn - Install
         run: yarn install
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts
 
       - name: Yarn Test 📋
         run: yarn test # auto spins scala server up and down
         shell: bash
-        working-directory: src/rpc/client/ts
+        working-directory: client/ts
         timeout-minutes: 30

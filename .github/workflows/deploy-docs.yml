@@ -48,7 +48,7 @@ jobs:
           lukka/get-cmake@latest
       - name: Prepare and Build Docs 🔧
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
           cmake --build build --target sphinx
           touch build/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
