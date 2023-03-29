@@ -106,7 +106,7 @@ This package is normally uploaded to npmjs.com
 - Create local `.tgz` file
 
   ```bash
-  cd client/ts
+  cd packages/client
   yarn install # if not ran before
   yarn package
   ```
@@ -114,7 +114,7 @@ This package is normally uploaded to npmjs.com
   - File will be at
 
     ```bash
-    client/ts/omega-edit-v${VERSION}.tgz
+    packages/client/omega-edit-node-client-v${VERSION}.tgz
     ```
 
 - Publish `.tgz` file to npmjs -- requires auth

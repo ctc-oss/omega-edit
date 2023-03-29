@@ -19,38 +19,10 @@ import sbt._
 
 object Rat {
 
+  // only applies to files under server/scala
   lazy val excludes = Seq(
     // git files
     file(".git"),
-    // ignore files
-    file("core/packaging/.cpack_ignore"),
-    // json files
-    file("client/ts/package.json"),
-    file("client/ts/package-lock.json"),
-    file("client/ts/typedoc.json"),
-    file("client/ts/tests/package.json"),
-    file("client/ts/tests/package-lock.json"),
-    file("client/ts/tests/tsconfig.json"),
-    file("client/ts/.prettierrc"),
-    // compiled files
-    file(".devcontainer/devcontainer.json"),
-    file("client/ts/src/client_version.ts"),
-    file("client/ts/src/omega_edit_pb.js"),
-    file("client/ts/out/settings.js.map"),
-    file("client/ts/out/omega_edit_pb.js"),
-    file("client/ts/out/change.js.map"),
-    file("client/ts/out/viewport.js.map"),
-    file("client/ts/out/version.js.map"),
-    file("client/ts/src/omega_edit_pb.d.ts"),
-    file("client/ts/out/session.js.map"),
-    file("client/ts/src/omega_edit_grpc_pb.d.ts"),
-    // cmake build folder
-    file("cmake-build-debug"),
-    file("cmake-build-release"),
-    // cmake plugins
-    file("core/cmake/"),
-    file("core/src/cmake/"),
-    file("core/src/tests/integration/cmake/"),
     // ide folders
     file(".idea"),
     file(".run"),
@@ -58,21 +30,15 @@ object Rat {
     // target and build dirs
     file("target"),
     file("build"),
-    // data files for tests
-    file("core/src/examples/data/"),
-    file("core/src/tests/integration/data/"),
-    file("client/ts/tests/data/"),
-    // ignore lib files
-    file("lib"),
-    // omega-edit logo picture
-    file("images/OmegaEditLogo.png"),
-    // node generated files
-    file("client/ts/node_modules"),
-    file("client/ts/omega_edit_grpc_pb.d.ts"),
-    file("client/ts/omega_edit_grpc_pb.js"),
-    file("client/ts/omega_edit_pb.d.ts"),
-    file("client/ts/omega_edit_pb.js"),
-    file("client/ts/yarn.lock")
+    // config/json files
+    file(".eslintrc"),
+    file(".prettierrc"),
+    file("package.json"),
+    // node generate files
+    file("out"),
+    // log files
+    file("server.log"),
+    file("serv/logs/omega-edit-server.log")
   )
 
   lazy val HPP_LICENSE_NAME = "HPP License"

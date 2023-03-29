@@ -1,0 +1,25 @@
+{
+  "name": "@omega-edit/server",
+  "version": "0.9.58",
+  "description": "OmegaEdit gRPC Server TypeScript functions",
+  "publisher": "ctc-oss",
+  "main": "out/index.js",
+  "types": "out/index.d.ts",
+  "repository": {
+    "url": "https://github.com/ctc-oss/omega-edit",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/ctc-oss/omega-edit/issues"
+  },
+  "author": "Shane Dell, Davin Shearer, John Wass",
+  "license": "Apache-2.0",
+  "scripts": {
+    "sbt-server": "cd ../../server/scala && sbt pkgServer",
+    "build": "webpack --mode=production",
+    "prepackage": "yarn sbt-server && yarn build",
+    "package": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v$npm_package_version.tgz",
+    "lint": "prettier --check package.json webpack.config.js index.ts && eslint .",
+    "lint:fix": "prettier --write package.json webpack.config.js index.ts && eslint --fix ."
+  }
+}

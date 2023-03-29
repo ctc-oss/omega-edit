@@ -27,7 +27,7 @@ import {
   getClient,
   getSessionCount,
   waitForReady,
-} from 'omega-edit'
+} from '@omega-edit/client'
 
 export let session_callbacks = new Map()
 export let viewport_callbacks = new Map()

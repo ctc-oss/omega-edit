@@ -38,7 +38,7 @@ import {
   overwrite,
   removeCommonSuffix,
   ALL_EVENTS,
-} from 'omega-edit'
+} from '@omega-edit/client'
 
 // prettier-ignore
 // @ts-ignore

@@ -17,58 +17,41 @@
  * limitations under the License.
  */
 
-import * as path from 'path'
 import { getLogger } from './logger'
 import { getClient } from './client'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import * as fs from 'fs'
-import { execFileSync } from 'child_process'
 import {
   ServerControlKind,
   ServerControlRequest,
   ServerControlResponse,
   VersionResponse,
 } from './omega_edit_pb'
+import { runServer } from '@omega-edit/server'
 
 /**
  * Start the server
  * @param serverScript path to the server script
  * @param port port to listen on (default 9000)
  * @param host interface to listen on (default 127.0.0.1)
- * @param nodePath path to the node executable (default process.argv[0])
- * @param pidfile optional path to the pidfile
+ * @param pidfile optional resolved path to the pidfile
+ * @param logConf optional resolved path to a logback configuration file (e.g., path.resolve('.', 'logconf.xml'))
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServer(
-  serverScript: string,
   port: number = 9000,
   host: string = '127.0.0.1',
-  nodePath: string = process.argv[0],
-  pidfile?: string
+  pidfile?: string,
+  logConf?: string
 ): Promise<number | undefined> {
   // Set up the server
   getLogger().debug({
     fn: 'startServer',
-    serverScript: serverScript,
     host: host,
     port: port,
-    nodePath: nodePath,
     pidfile: pidfile,
+    logConf: logConf,
   })
-
-  // check if the server script exists
-  if (!fs.existsSync(serverScript)) {
-    getLogger().error({
-      fn: 'startServer',
-      err: {
-        msg: 'Error server script does not exist',
-        serverScript: serverScript,
-      },
-    })
-    throw new Error(`Error server script does not exist: ${serverScript}`)
-  }
-
-  const args = [serverScript, `--interface=${host}`, `--port=${port}`]
 
   if (pidfile) {
     // check if the pidfile already exists
@@ -97,19 +80,21 @@ export async function startServer(
         )
       }
     }
-    args.push(`--pidfile=${pidfile}`)
   }
 
-  const logConf = path.resolve('.', 'logconf.xml')
-  if (fs.existsSync(logConf)) {
-    args.push(`-Dlogback.configurationFile=${logConf}`)
+  if (logConf && !fs.existsSync(logConf)) {
+    getLogger().warn({
+      fn: 'startServer',
+      err: {
+        msg: 'logback configuration file does not exist',
+        logConf: logConf,
+      },
+    })
+    logConf = undefined
   }
 
   // Start the server
-  getLogger().debug(`Running: ${nodePath} ${args.join(' ')}`)
-
-  // server script is started as a child process and the pid is emitted to stdout
-  const pid = Number(execFileSync(nodePath, args))
+  const pid = (await runServer(port, host, pidfile, logConf)).pid
 
   // Wait for the server come online
   getLogger().debug(

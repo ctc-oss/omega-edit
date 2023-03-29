@@ -31,7 +31,7 @@ import {
   notifyChangedViewports,
   profileSession,
   waitForReady,
-} from 'omega-edit'
+} from '@omega-edit/client'
 // @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'

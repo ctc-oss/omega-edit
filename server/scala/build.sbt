@@ -17,9 +17,7 @@ import scala.util.Try
 
 lazy val packageData = Json
   .parse(
-    Using(Source.fromFile("../../client/ts/package.json"))(source =>
-      source.mkString
-    ).get
+    Using(Source.fromFile("../../package.json"))(source => source.mkString).get
   )
   .as[JsObject]
 lazy val omegaVersion = packageData("version").as[String]
@@ -243,12 +241,7 @@ lazy val serv = project
     publishLocalConfiguration := publishLocalConfiguration.value
       .withOverwrite(true),
     bashScriptExtraDefines += bashExtras,
-    batScriptExtraDefines += batchExtras,
-    Universal / mappings ++= Seq(
-      file(
-        "serv/src/main/scripts/omega-edit-grpc-server.js"
-      ) -> "bin/omega-edit-grpc-server.js"
-    )
+    batScriptExtraDefines += batchExtras
   )
   .enablePlugins(
     PekkoGrpcPlugin,

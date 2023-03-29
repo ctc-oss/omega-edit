@@ -1,0 +1,65 @@
+{
+  "name": "@omega-edit/core",
+  "version": "0.9.58",
+  "private": "true",
+  "description": "OmegaEdit Client and Server",
+  "publisher": "ctc-oss",
+  "repository": {
+    "url": "https://github.com/ctc-oss/omega-edit",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/ctc-oss/omega-edit/issues"
+  },
+  "author": "Shane Dell, Davin Shearer, John Wass",
+  "license": "Apache-2.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "prettier --check package.json && yarn workspaces run lint",
+    "lint:fix": "prettier --write package.json && yarn workspaces run lint:fix",
+    "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.8.4",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.37.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "mocha": "^10.0.0",
+    "prettier": "^2.8.4",
+    "ts-loader": "^9.4.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.2",
+    "unzip-stream": "^0.3.1",
+    "webpack": "^5.76.3",
+    "webpack-cli": "^5.0.1"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5"
+  },
+  "eslintConfig": {
+    "extends": [
+      "prettier"
+    ],
+    "plugins": [
+      "prettier"
+    ],
+    "rules": {
+      "prettier/prettier": "error"
+    },
+    "parserOptions": {
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    },
+    "env": {
+      "browser": true,
+      "node": true,
+      "es2021": true
+    }
+  }
+}

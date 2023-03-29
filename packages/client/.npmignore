@@ -11,11 +11,4 @@
 
 **/*
 *
-node_modules
-!*.js
-!*.d.ts
-!package.json
-!README.md
-!omega-edit-grpc-server.js
-!bin/*
-!lib/*
+!out/**/*

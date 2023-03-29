@@ -57,10 +57,10 @@ jobs:
 
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES --install-prefix "${PWD}/_install"
           cmake --build build
-          ctest -C Debug --test-dir build --output-on-failure
-          cmake --install build/packaging --prefix "${PWD}/_install" --config Debug
+          ctest -C Release --test-dir build --output-on-failure
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
 
       - name: Upload Native (.dylib) library - Macos 🔺
         uses: actions/upload-artifact@v3
@@ -161,20 +161,15 @@ jobs:
         working-directory: server/scala
         timeout-minutes: 30
 
-      - name: Package & Run Scala RPC server 📋
-        run: |
-          sbt pkgServer
-          unzip serv/target/universal/omega-edit-grpc-server*.zip -d ../../client/ts/
-        shell: bash
-        working-directory: server/scala
-
-      - name: Yarn - Install
+      - name: Yarn Install
         run: yarn install
         shell: bash
-        working-directory: client/ts
 
-      - name: Yarn Test 📋
-        run: yarn test # auto spins scala server up and down
+      - name: Yarn Package - Server
+        run: yarn workspace @omega-edit/server package
         shell: bash
-        working-directory: client/ts
+
+      - name: Yarn Test - Client
+        run: yarn workspace @omega-edit/client test
+        shell: bash
         timeout-minutes: 30

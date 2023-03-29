@@ -26,7 +26,7 @@ import {
   startServer,
   stopServerImmediate,
   stopServerUsingPID,
-} from 'omega-edit'
+} from '@omega-edit/client'
 import * as fs from 'fs'
 
 // prettier-ignore
@@ -75,17 +75,10 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
   await mochaGlobalTeardown()
 
   const pid = await startServer(
-    path.join(
-      rootPath,
-      'node_modules',
-      'omega-edit',
-      'bin',
-      'omega-edit-grpc-server.js'
-    ),
     testPort,
     testHost,
-    process.argv[0],
-    pidFile
+    pidFile,
+    path.join(rootPath, 'logconf.xml')
   )
 
   if (pid) {

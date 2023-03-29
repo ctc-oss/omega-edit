@@ -35,12 +35,8 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           node-version: 14
 
-      - name: Yarn - Install
-        run: yarn install
+      - name: yarn lint - all workspaces
+        run: |
+          yarn install
+          yarn lint
         shell: bash
-        working-directory: client/ts
-      
-      - name: Yarn - Lint
-        run: yarn lint
-        shell: bash
-        working-directory: client/ts

@@ -31,6 +31,15 @@ lib/$(LIBNAME): core/CMakeLists.txt
 	ctest -C $(TYPE) --test-dir _build --output-on-failure
 	cmake --install _build/packaging --prefix _install --config $(TYPE)
 
+# perl works well doing multiline matches which is need for CMakeLists.txt
+# sed was causing issues on mac as well so using perl to use only one tool
+update-version:
+	perl -i -p -e 's|"version".*|"version": "$(version)",|' package.json
+	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/server/package.json
+	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/client/package.json
+	perl -i -p -e 's|"@omega-edit/server".*|"@omega-edit/server": "$(version)",|' packages/client/package.json
+	perl -0777 -i -p -e 's|omega_edit\n.*VERSION.*|omega_edit\n\t\tVERSION $(version)|' core/CMakeLists.txt
+
 clean:
 	rm -rf _build _install
 
