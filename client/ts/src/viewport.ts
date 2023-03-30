@@ -28,7 +28,6 @@ import {
 } from './omega_edit_pb'
 import { getLogger } from './logger'
 import { getClient } from './client'
-export { ViewportEventKind } from './omega_edit_pb'
 
 let autoFixViewportDataLength_ = false
 
