@@ -31,7 +31,6 @@ import { runServer } from '@omega-edit/server'
 
 /**
  * Start the server
- * @param serverScript path to the server script
  * @param port port to listen on (default 9000)
  * @param host interface to listen on (default 127.0.0.1)
  * @param pidfile optional resolved path to the pidfile
