@@ -97,7 +97,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) =>
         throw grpcFailure(
           Status.INTERNAL,
-          s"didn't receive path for save of session $id"
+          s"didn't receive path for save of session '$id'"
         )
       case Err(c) => throw grpcFailure(c)
     }
@@ -138,11 +138,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case Ok(id) =>
             throw grpcFailure(
               Status.INTERNAL,
-              s"didn't receive data for viewport $id"
+              s"didn't receive data for viewport '$id'"
             )
           case Err(c) => throw grpcFailure(c)
         }
-      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+      case _ =>
+        grpcFailFut(
+          Status.INVALID_ARGUMENT,
+          s"malformed viewport id '${in.viewportId}'"
+        )
     }
 
   def destroyViewport(in: ObjectId): Future[ObjectId] =
@@ -152,7 +156,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case Ok(_)  => in
           case Err(c) => throw grpcFailure(c)
         }
-      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+      case _ =>
+        grpcFailFut(Status.INVALID_ARGUMENT, s"malformed viewport id '$in'")
     }
 
   def viewportHasChanges(in: ObjectId): Future[BooleanResponse] =
@@ -165,11 +170,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             case Ok(id) =>
               throw grpcFailure(
                 Status.INTERNAL,
-                s"didn't receive result for viewport $id"
+                s"didn't receive result for viewport '$id'"
               )
             case Err(c) => throw grpcFailure(c)
           }
-      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+      case _ =>
+        grpcFailFut(Status.INVALID_ARGUMENT, s"malformed viewport id '$in'")
     }
 
   def notifyChangedViewports(in: ObjectId): Future[IntResponse] =
@@ -178,7 +184,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) =>
         throw grpcFailure(
           Status.INTERNAL,
-          s"didn't receive result for session $id"
+          s"didn't receive result for session '$id'"
         )
       case Err(c) => throw grpcFailure(c)
     }
@@ -200,10 +206,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case Ok(id) =>
             throw grpcFailure(
               Status.INTERNAL,
-              s"didn't receive data for viewport $id"
+              s"didn't receive data for viewport '$id'"
             )
         }
-      case _ => grpcFailFut(Status.INVALID_ARGUMENT, "malformed viewport id")
+      case _ =>
+        grpcFailFut(
+          Status.INVALID_ARGUMENT,
+          s"malformed viewport id '${in.viewportId}'"
+        )
     }
 
   def submitChange(in: ChangeRequest): Future[ChangeResponse] =
@@ -232,7 +242,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             case Ok(_) =>
               throw grpcFailure(
                 Status.INTERNAL,
-                s"didn't receive data for change details of session ${in.sessionId}"
+                s"didn't receive data for change details of session '${in.sessionId}'"
               )
             case Err(c) => throw grpcFailure(c)
           }
@@ -323,7 +333,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _ =>
         Source.failed(
           new GrpcServiceException(
-            Status.INVALID_ARGUMENT.withDescription("malformed viewport id")
+            Status.INVALID_ARGUMENT.withDescription(
+              s"malformed viewport id '${in.id}'"
+            )
           )
         )
     }
@@ -343,7 +355,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         }
       case _ =>
         throw new GrpcServiceException(
-          Status.INVALID_ARGUMENT.withDescription("malformed viewport id")
+          Status.INVALID_ARGUMENT.withDescription(
+            s"malformed viewport id '${in.id}'"
+          )
         )
     }
 
