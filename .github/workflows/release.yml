@@ -298,12 +298,13 @@ jobs:
           mv -v "${scala_pkg_file}" "${scala_pkg_file}_dir"
           mv -v "${scala_pkg_file}_dir/${scala_pkg_file}" "${scala_pkg_file}"
           rm -rf "${scala_pkg_file}_dir"
-          unzip "$scala_pkg_file" -d "./packages/client/"
+          mkdir -p server/scala/serv/target/universal || true
+          mv "$scala_pkg_file" "server/scala/serv/target/universal/$scala_pkg_file"
 
       - name: Create server and client package tarball file 🔧
         run: |
           yarn install
-          yarn package # create both client and server package
+          yarn package-no-sbt # create both client and server package
 
       - name: Upload node server release tarball 🔺
         uses: actions/upload-release-asset@v1

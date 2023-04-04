@@ -40,7 +40,7 @@ RUN yum -y update && yum -y install dnf-plugins-core && yum config-manager --set
 
 RUN pip3 install \
   breathe \
-  conan \
+  conan==1.59 \
   sphinx_rtd_theme \
   sphinx-sitemap
 

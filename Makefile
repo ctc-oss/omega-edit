@@ -37,8 +37,8 @@ update-version:
 	perl -i -p -e 's|"version".*|"version": "$(version)",|' package.json
 	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/server/package.json
 	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/client/package.json
-	perl -i -p -e 's|"@omega-edit/server".*|"@omega-edit/server": "$(version)",|' packages/client/package.json
-	perl -0777 -i -p -e 's|omega_edit\n.*VERSION.*|omega_edit\n\t\tVERSION $(version)|' core/CMakeLists.txt
+	perl -i -p -e 's|"\@omega-edit\/server".*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
+	perl -0777 -i -p -e 's|omega_edit\n.*VERSION.*|omega_edit\n        VERSION $(version)|' core/CMakeLists.txt
 
 clean:
 	rm -rf _build _install

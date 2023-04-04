@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/server",
-  "version": "0.9.58",
+  "version": "0.9.59",
   "description": "OmegaEdit gRPC Server TypeScript functions",
   "publisher": "ctc-oss",
   "main": "out/index.js",
@@ -18,7 +18,9 @@
     "sbt-server": "cd ../../server/scala && sbt pkgServer",
     "build": "webpack --mode=production",
     "prepackage": "yarn sbt-server && yarn build",
+    "prepackage-no-sbt": "yarn build",
     "package": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v$npm_package_version.tgz",
+    "package-no-sbt": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v$npm_package_version.tgz",
     "lint": "prettier --check package.json webpack.config.js index.ts && eslint .",
     "lint:fix": "prettier --write package.json webpack.config.js index.ts && eslint --fix ."
   }
