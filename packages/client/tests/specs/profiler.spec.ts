@@ -23,7 +23,7 @@ import {
   numAscii,
   overwrite,
   profileSession,
-} from 'omega-edit'
+} from '@omega-edit/client'
 
 // prettier-ignore
 // @ts-ignore

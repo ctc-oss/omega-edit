@@ -17,7 +17,7 @@ set -ex
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 #type="Release"
-# generator="Unix Makefiles"
+#generator="Unix Makefiles"
 
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
@@ -45,18 +45,17 @@ export OE_LIB_DIR="$(readlink -f build-shared-$type/lib)"
 # Build and test the Scala server
 pushd server/scala
 sbt test
-sbt pkgServer
 sbt serv/test
 popd
 
-# Build and test the TypeScript client
-pushd client/ts/
-unzip -o ../../server/scala/serv/target/universal/*.zip
-chmod +x omega-edit-grpc-server-*/bin/*
+# install common packages and check lint for client and server
 yarn install
-yarn compile-src
 yarn lint
-yarn test
-popd
+
+# Package scala server node module
+yarn workspace @omega-edit/server package # this creates the server zip as well
+
+# Build and test the TypeScript client
+yarn workspace @omega-edit/client test
 
 echo "✔ Done! ✨"

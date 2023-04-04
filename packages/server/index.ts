@@ -1,0 +1,136 @@
+/*
+ * Copyright (c) 2021 Concurrent Technologies Corporation.
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @fileoverview
+ * This file contains the main entry point for the Omega Edit gRPC server.
+ * It is responsible for starting the gRPC server in a platform-agnostic way.
+ * It can be imported as a module.
+ */
+
+import * as child_process from 'child_process'
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
+
+/**
+ * Checks to see if either path to the server bin directory exists
+ * @param baseDir the base path to the directory to check against
+ * @returns
+ *    - one of the checked paths if they exist
+ *    OR
+ *    - calls the getBinFolderPath going back a directory
+ */
+const checkForBinPath = (baseDir: string) => {
+  const serverbasePath = 'node_modules/@omega-edit/server'
+
+  // These two are checked as when testing locally it will want to use out/bin
+  const pathsToCheck = [
+    path.join(baseDir, `${serverbasePath}/bin`),
+    path.join(baseDir, `${serverbasePath}/out/bin`),
+  ]
+
+  for (var i = 0; i < pathsToCheck.length; i++) {
+    if (fs.existsSync(pathsToCheck[i])) return path.resolve(pathsToCheck[i])
+  }
+
+  return getBinFolderPath(path.join(baseDir, '../'))
+}
+
+/**
+ *
+ * @param baseDir the base path to the directory to check against
+ * @returns
+ *    - path to bin directory
+ *    OR
+ *    - recursively calls itself till path is found
+ */
+const getBinFolderPath = (baseDir: string) => {
+  if (!baseDir.endsWith('node_modules')) {
+    if (fs.readdirSync(baseDir).includes('node_modules'))
+      return checkForBinPath(baseDir)
+    else return getBinFolderPath(path.join(baseDir, '../'))
+  } else {
+    return checkForBinPath(baseDir.replace('node_modules', ''))
+  }
+}
+
+/**
+ * Execute the server
+ * @param args arguments to pass to the server
+ * @returns {ChildProcess} server process
+ */
+async function executeServer(
+  args: string[]
+): Promise<child_process.ChildProcess> {
+  const serverScript = path.join(
+    getBinFolderPath(path.resolve(__dirname)),
+    os.platform() === 'win32'
+      ? 'omega-edit-grpc-server.bat'
+      : 'omega-edit-grpc-server'
+  )
+
+  fs.chmodSync(serverScript, '755')
+
+  const serverProcess = child_process.spawn(serverScript, args, {
+    cwd: path.dirname(serverScript),
+    stdio: 'ignore',
+    detached: true,
+  })
+
+  serverProcess.on('error', (err) => {
+    // ignore the error if the process was cancelled
+    if (!err.message.includes('Call cancelled')) throw err
+  })
+
+  return serverProcess
+}
+
+/**
+ * Run the server
+ * @param port port number
+ * @param host hostname or IP address (default: 127.0.0.1)
+ * @param pidfile resolved path to the PID file
+ * @param logConf resolved path to a logback configuration file
+ * @returns {ChildProcess} server process
+ */
+export async function runServer(
+  port: number,
+  host: string = '127.0.0.1',
+  pidfile: string | undefined = undefined,
+  logConf: string | undefined = undefined
+): Promise<child_process.ChildProcess> {
+  /**
+   * NOTE:
+   *  Do not wrap args with double quotes, this causes issue when being
+   *  passed to the script
+   */
+
+  const args = [`--interface=${host}`, `--port=${port}`]
+
+  if (pidfile) {
+    args.push(`--pidfile=${pidfile}`)
+  }
+
+  if (logConf && fs.existsSync(logConf)) {
+    args.push(`-Dlogback.configurationFile=${logConf}`)
+  }
+
+  return await executeServer(args)
+}

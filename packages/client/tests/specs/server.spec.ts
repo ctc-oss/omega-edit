@@ -27,7 +27,7 @@ import {
   stopServerImmediate,
   stopServerUsingPID,
   waitForReady,
-} from 'omega-edit'
+} from '@omega-edit/client'
 import { expect } from 'chai'
 
 // @ts-ignore
@@ -51,7 +51,7 @@ describe('Server', () => {
   const serverScript = path.join(
     rootPath,
     'node_modules',
-    'omega-edit',
+    '@omega-edit/client',
     'bin',
     'omega-edit-grpc-server.js'
   )
@@ -60,7 +60,7 @@ describe('Server', () => {
   beforeEach(
     `create a server using ${serverScript} on port ${serverTestPort} and a session`,
     async () => {
-      pid = await startServer(serverScript, serverTestPort)
+      pid = await startServer(serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
       expect(await waitForReady(getClient(serverTestPort))).to.be.true

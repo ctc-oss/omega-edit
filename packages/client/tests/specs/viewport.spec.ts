@@ -37,7 +37,7 @@ import {
   resumeViewportEvents,
   unsubscribeViewport,
   viewportHasChanges,
-} from 'omega-edit'
+} from '@omega-edit/client'
 
 // prettier-ignore
 // @ts-ignore

@@ -38,7 +38,7 @@ import {
   replaceSession,
   searchSession,
   undo,
-} from 'omega-edit'
+} from '@omega-edit/client'
 
 // prettier-ignore
 // @ts-ignore

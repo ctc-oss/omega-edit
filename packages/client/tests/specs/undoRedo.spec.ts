@@ -34,7 +34,7 @@ import {
   redo,
   saveSession,
   undo,
-} from 'omega-edit'
+} from '@omega-edit/client'
 import { unlinkSync } from 'fs'
 
 // prettier-ignore

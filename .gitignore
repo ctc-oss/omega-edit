@@ -54,3 +54,16 @@ package-lock.json
 .metals
 project
 !server/scala/project
+
+## typescript
+**/*.js.map
+**/out/
+.server_pid
+doc/
+omega-edit-grpc-server-*
+omega_edit_*.js
+omega_edit_*.ts
+package
+src/*.js
+packages/client/src/client_version.ts
+omega-edit-grpc-server.*

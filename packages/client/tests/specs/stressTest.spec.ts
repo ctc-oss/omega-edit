@@ -35,7 +35,7 @@ import {
   redo,
   resumeSessionChanges,
   undo,
-} from 'omega-edit'
+} from '@omega-edit/client'
 import { ALL_EVENTS } from '../../src/client'
 
 // prettier-ignore

@@ -16,7 +16,7 @@
     <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
-<h1>Ωedit gRPC TypeScript</h1>
+<h1>Ωedit gRPC Server TypeScript</h1>
 
 [![Release](https://shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
 ![Build Status](https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg)
@@ -29,24 +29,28 @@
 
 ## Goal
 
-This package contains the TypeScript types and code needed to interact with the Ωedit library via a gRPC client.
+This package contains the Ωedit Scala gRPC server and TypeScript types and code needed to interact with the server.
 
-## Testing
+## Build
 
-### Testing the client
+### Build gRPC server
 
-#### Compile the client
-
-```shell
-yarn compile-src
+```bash
+yarn sbt
 ```
 
-#### Test the client
+### Build node code
 
-Now test the client with:
+```bash
+yarn build
+```
 
-```shell
-yarn test
+## Package
+
+This builds the server and node, then packages everything into a tarball with a similar name to `omega-edit-node-server-v${version}.tgz`
+
+```bash
+yarn package
 ```
 
 ## User documentation
