@@ -19,13 +19,13 @@
 
 import { getLogger } from './logger'
 import { getClient } from './client'
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import * as fs from 'fs'
 import {
+  HeartbeatRequest,
+  HeartbeatResponse,
   ServerControlKind,
   ServerControlRequest,
   ServerControlResponse,
-  VersionResponse,
 } from './omega_edit_pb'
 import { runServer } from '@omega-edit/server'
 
@@ -306,42 +306,72 @@ export async function stopServerUsingPID(
  */
 export interface IServerHeartbeat {
   latency: number // latency in ms
-  resp: string // server response
+  serverHostname: string // hostname
+  serverProcessId: number // process id
+  serverVersion: string // server version
+  sessionCount: number // session count
+  serverTimestamp: number // timestamp in ms
+  serverUptime: number // uptime in ms
+  serverCpuCount: number // cpu count
+  serverCpuLoadAverage: number // cpu load average
+  serverMaxMemory: number // max memory in bytes
+  serverCommittedMemory: number // committed memory in bytes
+  serverUsedMemory: number // used memory in bytes
 }
 
 /**
  * Get the server heartbeat
  * @returns a promise that resolves to the server heartbeat
  */
-export function getServerHeartbeat(): Promise<IServerHeartbeat> {
+export function getServerHeartbeat(
+  activeSessions: string[],
+  heartbeatInterval: number = 1000
+): Promise<IServerHeartbeat> {
   return new Promise<IServerHeartbeat>((resolve, reject) => {
     const startTime = Date.now()
-    getClient().getVersion(new Empty(), (err, v: VersionResponse) => {
-      if (err) {
-        getLogger().error({
-          fn: 'getServerHeartbeat',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('getServerHeartbeat error: ' + err.message)
-      }
+    getClient().getHeartbeat(
+      new HeartbeatRequest()
+        .setHostname(require('os').hostname())
+        .setProcessId(process.pid)
+        .setHeartbeatInterval(heartbeatInterval)
+        .setSessionIdsList(activeSessions),
+      (err, heartbeatResponse: HeartbeatResponse) => {
+        if (err) {
+          getLogger().error({
+            fn: 'getServerHeartbeat',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('getServerHeartbeat error: ' + err.message)
+        }
 
-      if (!v) {
-        getLogger().error({
-          fn: 'getServerHeartbeat',
-          err: { msg: 'undefined version' },
+        if (!heartbeatResponse) {
+          getLogger().error({
+            fn: 'getServerHeartbeat',
+            err: { msg: 'undefined heartbeat' },
+          })
+          return reject('undefined heartbeat')
+        }
+        const latency = Date.now() - startTime
+        return resolve({
+          latency: latency,
+          serverHostname: heartbeatResponse.getHostname(),
+          serverProcessId: heartbeatResponse.getProcessId(),
+          serverVersion: heartbeatResponse.getServerVersion(),
+          sessionCount: heartbeatResponse.getSessionCount(),
+          serverTimestamp: heartbeatResponse.getTimestamp(),
+          serverUptime: heartbeatResponse.getUptime(),
+          serverCpuCount: heartbeatResponse.getCpuCount(),
+          serverCpuLoadAverage: heartbeatResponse.getCpuLoadAverage(),
+          serverMaxMemory: heartbeatResponse.getMaxMemory(),
+          serverCommittedMemory: heartbeatResponse.getCommittedMemory(),
+          serverUsedMemory: heartbeatResponse.getUsedMemory(),
         })
-        return reject('undefined version')
       }
-      const latency = Date.now() - startTime
-      return resolve({
-        latency: latency,
-        resp: `${v.getMajor()}.${v.getMinor()}.${v.getPatch()}`,
-      })
-    })
+    )
   })
 }

@@ -303,6 +303,29 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       }
   }
 
+  def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
+    val name = ManagementFactory.getRuntimeMXBean().getName()
+    val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
+    val v = OmegaEdit.version()
+    val serverVersion = s"${v.major}.${v.minor}.${v.patch}"
+    val numSessions =
+      Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
+    val res = HeartbeatResponse(
+      name.split('@')(1),
+      name.split('@')(0).toInt,
+      serverVersion,
+      numSessions,
+      System.currentTimeMillis(),
+      ManagementFactory.getRuntimeMXBean().getUptime(),
+      Runtime.getRuntime().availableProcessors(),
+      ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage(),
+      memory.getMax(), // maximum memory the JVM can attempt to allocate
+      memory.getCommitted(), // memory allocated to the JVM
+      memory.getUsed() // memory used by the JVM
+    )
+    Future.successful(res)
+  }
+
   /** Event streams
     */
   def subscribeToSessionEvents(

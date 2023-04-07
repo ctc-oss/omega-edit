@@ -50,14 +50,14 @@ service Editor {
   rpc GetSegment(SegmentRequest) returns (SegmentResponse);
   rpc SearchSession(SearchRequest) returns (SearchResponse);
   rpc GetByteFrequencyProfile(ByteFrequencyProfileRequest) returns (ByteFrequencyProfileResponse);
+  rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
+  rpc GetHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
   // Event streams
   rpc SubscribeToSessionEvents(EventSubscriptionRequest) returns (stream SessionEvent);
   rpc SubscribeToViewportEvents(EventSubscriptionRequest) returns (stream ViewportEvent);
   rpc UnsubscribeToSessionEvents(ObjectId) returns (ObjectId);
   rpc UnsubscribeToViewportEvents(ObjectId) returns (ObjectId);
-
-  rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
 }
 
 message EventSubscriptionRequest {
@@ -300,4 +300,28 @@ message ServerControlResponse {
   ServerControlKind kind = 1; // server control kind
   int32 pid = 2; // server process id
   int32 response_code = 3; // response code, 0 for success, non-zero for failure
+}
+
+message HeartbeatRequest {
+  string hostname = 1; // client hostname
+  int32 process_id = 2; // client process id
+  int32 heartbeat_interval = 3; // in milliseconds
+  repeated string session_ids = 4; // client session ids
+}
+
+message HeartbeatResponse {
+  string hostname = 1; // server hostname
+  int32 process_id = 2; // server process id
+  string server_version = 3; // server version
+  int32 session_count = 4; // server session count
+
+  int64 timestamp = 5; // server timestamp in milliseconds
+  int64 uptime = 6; // server uptime in milliseconds
+
+  int32 cpu_count = 7; // server cpu count
+  double cpu_load_average = 8; // server cpu load average in percent
+
+  int64 max_memory = 9; // server max memory in bytes
+  int64 committed_memory = 10; // server committed memory in bytes
+  int64 used_memory = 11; // server used memory in bytes
 }
