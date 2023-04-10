@@ -20,6 +20,7 @@
 import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
+import * as path from 'path'
 import {
   HeartbeatRequest,
   HeartbeatResponse,
@@ -28,6 +29,38 @@ import {
   ServerControlResponse,
 } from './omega_edit_pb'
 import { runServer } from '@omega-edit/server'
+
+/**
+ * Wait for file to exist
+ * @param file path to file to wait for
+ */
+export async function waitForFileToExist(file: string) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(function () {
+      watcher.close()
+      reject(new Error('PID file not created after 1000 milliseconds'))
+    }, 1000)
+
+    fs.access(file, fs.constants.R_OK, function (err) {
+      if (!err) {
+        clearTimeout(timer)
+        watcher.close()
+        resolve(0)
+      }
+    })
+
+    const watcher = fs.watch(
+      path.dirname(file),
+      function (eventType, filename) {
+        if (eventType == 'rename' && filename == path.basename(file)) {
+          clearTimeout(timer)
+          watcher.close()
+          resolve(0)
+        }
+      }
+    )
+  })
+}
 
 /**
  * Start the server
@@ -104,8 +137,11 @@ export async function startServer(
     port: port,
     output: 'silent',
   })
+  getLogger().debug(`server came online on interface ${host}, port ${port}`)
 
   if (pidfile) {
+    await waitForFileToExist(pidfile)
+
     const pidFromFile = Number(fs.readFileSync(pidfile).toString())
     if (pidFromFile !== pid) {
       getLogger().error({
