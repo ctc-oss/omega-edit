@@ -33,32 +33,117 @@ import { runServer } from '@omega-edit/server'
 /**
  * Wait for file to exist
  * @param file path to file to wait for
+ * @param timeout timeout in milliseconds
+ * @returns 0 if the file exists, otherwise an error
  */
-export async function waitForFileToExist(file: string) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(function () {
-      watcher.close()
-      reject(new Error('PID file not created after 1000 milliseconds'))
-    }, 1000)
+async function waitForFileToExist(
+  file: string,
+  timeout: number = 1000
+): Promise<number> {
+  getLogger().debug({
+    fn: 'waitForFileToExist',
+    file: file,
+  })
 
-    fs.access(file, fs.constants.R_OK, function (err) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      watcher.close()
+      const errMsg = `file does not exist after ${timeout} milliseconds`
+      getLogger().error({
+        fn: 'waitForFileToExist',
+        file: file,
+        err: {
+          msg: errMsg,
+        },
+      })
+      reject(new Error(errMsg))
+    }, timeout)
+
+    fs.access(file, fs.constants.R_OK, (err) => {
       if (!err) {
         clearTimeout(timer)
         watcher.close()
+        getLogger().debug({
+          fn: 'waitForFileToExist',
+          file: file,
+          exists: true,
+        })
         resolve(0)
       }
     })
 
-    const watcher = fs.watch(
-      path.dirname(file),
-      function (eventType, filename) {
-        if (eventType == 'rename' && filename == path.basename(file)) {
-          clearTimeout(timer)
-          watcher.close()
-          resolve(0)
-        }
+    const watcher = fs.watch(path.dirname(file), (eventType, filename) => {
+      if (eventType === 'rename' && filename === path.basename(file)) {
+        clearTimeout(timer)
+        watcher.close()
+        getLogger().debug({
+          fn: 'waitForFileToExist',
+          file: file,
+          exists: true,
+        })
+        resolve(0)
       }
-    )
+    })
+  })
+}
+
+/**
+ * Check to see if a port is available on a host
+ * @param port port to check
+ * @param host host to check
+ * @returns true if the port is available, false otherwise
+ */
+function isPortAvailable(port: number, host: string): Promise<boolean> {
+  getLogger().debug({
+    fn: 'isPortAvailable',
+    host: host,
+    port: port,
+  })
+
+  return new Promise((resolve) => {
+    const server = require('net').createServer()
+
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        // port is currently in use
+        getLogger().debug({
+          fn: 'isPortAvailable',
+          host: host,
+          port: port,
+          avail: false,
+        })
+
+        resolve(false)
+      } else {
+        // unexpected error
+        getLogger().error({
+          fn: 'isPortAvailable',
+          host: host,
+          port: port,
+          avail: false,
+          err: {
+            msg: err.message,
+            code: err.code,
+          },
+        })
+
+        resolve(false)
+      }
+    })
+
+    server.once('listening', () => {
+      // port is available
+      getLogger().debug({
+        fn: 'isPortAvailable',
+        host: host,
+        port: port,
+        avail: true,
+      })
+      server.close()
+      resolve(true)
+    })
+
+    server.listen(port, host)
   })
 }
 
@@ -66,14 +151,14 @@ export async function waitForFileToExist(file: string) {
  * Start the server
  * @param port port to listen on (default 9000)
  * @param host interface to listen on (default 127.0.0.1)
- * @param pidfile optional resolved path to the pidfile
+ * @param pidFile optional resolved path to the pidFile
  * @param logConf optional resolved path to a logback configuration file (e.g., path.resolve('.', 'logconf.xml'))
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServer(
   port: number = 9000,
   host: string = '127.0.0.1',
-  pidfile?: string,
+  pidFile?: string,
   logConf?: string
 ): Promise<number | undefined> {
   // Set up the server
@@ -81,19 +166,19 @@ export async function startServer(
     fn: 'startServer',
     host: host,
     port: port,
-    pidfile: pidfile,
+    pidFile: pidFile,
     logConf: logConf,
   })
 
-  if (pidfile) {
-    // check if the pidfile already exists
-    if (fs.existsSync(pidfile)) {
-      const pidFromFile = Number(fs.readFileSync(pidfile).toString())
+  if (pidFile) {
+    // check if the pidFile already exists
+    if (fs.existsSync(pidFile)) {
+      const pidFromFile = Number(fs.readFileSync(pidFile).toString())
       getLogger().warn({
         fn: 'startServer',
         err: {
-          msg: 'pidfile already exists',
-          pidfile: pidfile,
+          msg: 'pidFile already exists',
+          pidFile: pidFile,
           pid: pidFromFile,
         },
       })
@@ -102,13 +187,13 @@ export async function startServer(
         getLogger().error({
           fn: 'startServer',
           err: {
-            msg: 'server pidfile already exists and server shutdown failed',
-            pidfile: pidfile,
+            msg: 'server pidFile already exists and server shutdown failed',
+            pidFile: pidFile,
             pid: pidFromFile,
           },
         })
         throw new Error(
-          `server pidfile ${pidfile} already exists and server shutdown using PID ${pidFromFile} failed`
+          `server pidFile ${pidFile} already exists and server shutdown using PID ${pidFromFile} failed`
         )
       }
     }
@@ -125,8 +210,21 @@ export async function startServer(
     logConf = undefined
   }
 
+  // Check if the port is available
+  if (!(await isPortAvailable(port, host))) {
+    getLogger().error({
+      fn: 'startServer',
+      err: {
+        msg: 'port is not currently available',
+        port: port,
+        host: host,
+      },
+    })
+    throw new Error(`port ${port} on host ${host} is not currently available`)
+  }
+
   // Start the server
-  const pid = (await runServer(port, host, pidfile, logConf)).pid
+  const pid = (await runServer(port, host, pidFile, logConf)).pid
 
   // Wait for the server come online
   getLogger().debug(
@@ -139,24 +237,24 @@ export async function startServer(
   })
   getLogger().debug(`server came online on interface ${host}, port ${port}`)
 
-  if (pidfile) {
-    await waitForFileToExist(pidfile)
+  if (pidFile) {
+    await waitForFileToExist(pidFile)
 
-    const pidFromFile = Number(fs.readFileSync(pidfile).toString())
+    const pidFromFile = Number(fs.readFileSync(pidFile).toString())
     if (pidFromFile !== pid) {
       getLogger().error({
         fn: 'startServer',
         err: {
-          msg: 'Error pid from pidfile and pid from server script do not match',
+          msg: 'Error pid from pidFile and pid from server script do not match',
           pid: pid,
           pidFromFile: pidFromFile,
-          pidfile: pidfile,
+          pidFile: pidFile,
         },
       })
       // Here we are in a state where the server is running but the pid is ambiguous.
       // This is a fatal error that should not happen.
       throw new Error(
-        `Error pid from pidfile(${pidFromFile}) and pid(${pid}) from server script do not match`
+        `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
       )
     }
   }
@@ -213,7 +311,7 @@ export function stopServerImmediate(): Promise<number> {
 
 /**
  * Stop the server
- * @param kind defines how the server should shutdown
+ * @param kind defines how the server should shut down
  * @returns 0 if the server was stopped, non-zero otherwise
  */
 function stopServer(kind: ServerControlKind): Promise<number> {
@@ -357,6 +455,8 @@ export interface IServerHeartbeat {
 
 /**
  * Get the server heartbeat
+ * @param activeSessions list of active sessions
+ * @param heartbeatInterval heartbeat interval in ms
  * @returns a promise that resolves to the server heartbeat
  */
 export function getServerHeartbeat(
