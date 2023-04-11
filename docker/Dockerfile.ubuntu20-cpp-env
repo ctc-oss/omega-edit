@@ -58,7 +58,6 @@ RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/ap
   && apt-get clean
 
 RUN pip3 install \
-  conan==1.59 \
   sphinx_rtd_theme \
   sphinx-sitemap
 

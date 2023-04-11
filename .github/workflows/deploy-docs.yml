@@ -26,30 +26,14 @@ jobs:
           sudo pip3 install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap
       - name: Checkout Source 🛎️
         uses: actions/checkout@v3
-      - name: Setup Java ☕
-        uses: actions/setup-java@v3.11.0
-        with:
-          distribution: temurin
-          java-version: 8
-          cache: sbt
       - name: Setup Python 🐍
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
-      - name: Install Conan 💪
-        id: conan
-        uses: turtlebrowser/get-conan@main
-        with:
-          version: 1.59.0
-      - name: Conan version 💪
-        run: echo "${{ steps.conan.outputs.version }}"
-      - name: Setup cmake 🔧
-        uses:
-          lukka/get-cmake@latest
       - name: Prepare and Build Docs 🔧
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON
-          cmake --build build --target sphinx
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build build --target sphinx --config Release
           touch build/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4

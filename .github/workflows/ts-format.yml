@@ -37,6 +37,6 @@ jobs:
 
       - name: yarn lint - all workspaces
         run: |
-          yarn install
+          yarn
           yarn lint
         shell: bash
