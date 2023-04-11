@@ -30,17 +30,17 @@ for objtype in shared static; do
     build_shared_libs="YES"
   fi
 
-  rm -rf "build-$objtype-$type" "$install_dir-$objtype"
+  rm -rf "build-$objtype-$type" "$install_dir-$objtype-$type"
   cmake -G "$generator" -S core -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
-  cmake --build "build-$objtype-$type"
+  cmake --build "build-$objtype-$type" --config "$type"
   ctest -C "$type" --test-dir "build-$objtype-$type" --output-on-failure
-  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype" --config "$type"
+  cmake --install "build-$objtype-$type/packaging" --prefix "$install_dir-$objtype-$type" --config "$type"
   cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
   cpack --config "build-$objtype-$type/CPackConfig.cmake"
 done
 
 # used by scala native code to bundle the proper library file
-export OE_LIB_DIR="$(readlink -f build-shared-$type/lib)"
+export OE_LIB_DIR="$(readlink -f $install_dir-shared-$type/lib)"
 
 # Build and test the Scala server
 pushd server/scala

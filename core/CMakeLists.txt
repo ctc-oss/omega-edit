@@ -19,6 +19,9 @@ project(omega_edit
         LANGUAGES C CXX)
 
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
+option(BUILD_TESTS "build tests" ON)
+option(BUILD_DOCS "build documentation" ON)
+option(BUILD_EXAMPLES "build examples" ON)
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
 if (DEFINED omega_edit_SHARED_LIBS)
@@ -47,31 +50,18 @@ endif ()
 #######################################################################################################################
 # DEPENDENCIES
 #######################################################################################################################
-if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake")
-    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
-    file(DOWNLOAD "https://raw.githubusercontent.com/conan-io/cmake-conan/0.18.1/conan.cmake"
-            "${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake"
-            TLS_VERIFY ON)
-endif ()
-
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan.cmake")
-
-conan_cmake_configure(
-        REQUIRES "catch2/3.3.2"
-        GENERATORS cmake cmake_find_package
-        IMPORTS "., license* -> ./licenses @ folder=True, ignore_case=True")
-conan_cmake_autodetect(settings)
-conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${settings})
-include("${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake")
-conan_basic_setup(TARGETS)
-
-set(Catch2_INSTALL_DIR ${CONAN_CATCH2_ROOT})
-find_package(Catch2 3 REQUIRED)
-message(STATUS "Catch2 root dir: ${CONAN_CATCH2_ROOT}")
-message(STATUS "Catch2 include dir: ${CONAN_INCLUDE_DIRS_CATCH2}")
-
-# Don't add RPATH so we can manipulate the library search path using the environment at runtime
-set(CMAKE_MACOSX_RPATH OFF)
+if(BUILD_TESTS)
+    include(FetchContent)
+    # Fetch the Catch2 unit testing framework, build it, and make it available to the project
+    FetchContent_Declare(
+            Catch2
+            GIT_SHALLOW    TRUE
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG        v3.3.2)
+    message(STATUS "Fetching, building, and making Catch2 available to the project")
+    FetchContent_MakeAvailable(Catch2)
+    list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
+endif()
 
 #######################################################################################################################
 # CORE LIBRARY
@@ -103,6 +93,9 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
         "src/lib/impl_/data_def.hpp" "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp")
 
+# Don't add RPATH so we can manipulate the library search path using the environment at runtime
+set(CMAKE_MACOSX_RPATH OFF)
+
 # Create the library
 add_library(omega_edit ${OMEGA_EDIT_SOURCE_FILES})
 add_library(omega_edit::omega_edit ALIAS omega_edit)
@@ -130,7 +123,6 @@ endforeach ()
 #######################################################################################################################
 # EXAMPLES
 #######################################################################################################################
-option(BUILD_EXAMPLES "build examples" ON)
 if (BUILD_EXAMPLES)
     add_executable(replace "src/examples/replace.cpp")
     target_link_libraries(replace PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
@@ -170,7 +162,6 @@ endif ()
 #######################################################################################################################
 # TESTING
 #######################################################################################################################
-option(BUILD_TESTS "build tests" ON)
 if (BUILD_TESTS)
     enable_testing()
 
@@ -180,21 +171,19 @@ if (BUILD_TESTS)
 
     add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.h")
     target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain ${FILESYSTEM_LIB})
-    target_include_directories(omega_test PRIVATE "${CONAN_INCLUDE_DIRS_CATCH2}")
-    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "$<TARGET_FILE_DIR:omega_test>/data" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 
     add_executable(generate_file "src/tests/generate_file.cpp" "src/tests/test_util.h")
     target_link_libraries(generate_file PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 
     include(CTest)
     include(Catch)
-    catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/bin")
+    catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
 endif ()
 
 #######################################################################################################################
 # DOCUMENTATION
 #######################################################################################################################
-option(BUILD_DOCS "build documentation" ON)
 if (BUILD_DOCS)
     # Generate API documentation using Doxygen
     find_package(Doxygen COMPONENTS dot)

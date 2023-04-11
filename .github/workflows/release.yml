@@ -93,16 +93,6 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Conan 💪
-        uses: turtlebrowser/get-conan@main
-        with:
-          version: 1.59.0
-
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
@@ -115,8 +105,8 @@ jobs:
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build build --target omega_edit
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build build --target omega_edit --config Release
 
       - name: Package Scala Native 🎁
         env:
@@ -160,23 +150,13 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Setup Python 🐍
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Conan 💪
-        uses: turtlebrowser/get-conan@main
-        with:
-          version: 1.59.0
-
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=OFF
-          cmake --build build --target omega_edit
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build build --target omega_edit --config Release
 
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
@@ -303,7 +283,7 @@ jobs:
 
       - name: Create server and client package tarball file 🔧
         run: |
-          yarn install
+          yarn
           yarn package-no-sbt # create both client and server package
 
       - name: Upload node server release tarball 🔺

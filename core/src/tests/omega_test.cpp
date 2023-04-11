@@ -153,7 +153,11 @@ TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
 }
 
-TEST_CASE("Current Directory", "[UtilTests]") { REQUIRE_THAT(omega_util_get_current_dir(nullptr), EndsWith("bin")); }
+TEST_CASE("Current Directory", "[UtilTests]") {
+    const auto current_directory = omega_util_get_current_dir(nullptr);
+    REQUIRE(current_directory);
+    REQUIRE(omega_util_directory_exists(current_directory));
+}
 
 TEST_CASE("Directory Name", "[UtilTests]") {
     // Unix-style paths
