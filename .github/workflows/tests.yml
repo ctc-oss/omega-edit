@@ -79,29 +79,29 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Make build/lib directory to store lib files
-        run: mkdir -p build/lib
+      - name: Make _install/lib directory to store lib files
+        run: mkdir -p _install/lib
 
       - name: Download macos library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
-          path: build/lib/libomega_edit.dylib
+          path: _install/lib/libomega_edit.dylib
 
       - name: Download linux library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
-          path: build/lib/libomega_edit.so
+          path: _install/lib/libomega_edit.so
 
       - name: Download windows library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Windows'
         with:
           name: omega_edit.dll
-          path: build/lib/omega_edit.dll
+          path: _install/lib/omega_edit.dll
 
       - name: Move out library file 🛻
         run: |
@@ -113,9 +113,9 @@ jobs:
             LIB_FILENAME="omega_edit.dll"
           fi
 
-          mv -v "build/lib/${LIB_FILENAME}" "build/lib/${LIB_FILENAME}_dir"
-          mv -v "build/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "build/lib/$LIB_FILENAME"
-          rm -rf "build/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
+          rm -rf "_install/lib/${LIB_FILENAME}_dir"
         shell: bash
 
       - name: Check Scala headers ✔️
