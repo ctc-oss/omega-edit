@@ -26,22 +26,20 @@ else
 endif
 
 lib/$(LIBNAME): core/CMakeLists.txt
-	cmake -G $(GENERATOR) -S core -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=NO -DCMAKE_BUILD_TYPE=$(TYPE)
-	cmake --build _build
+	cmake -G $(GENERATOR) -S core -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=YES -DBUILD_EXAMPLES=NO -DCMAKE_BUILD_TYPE=$(TYPE)
+	cmake --build _build --config $(TYPE)
 	ctest -C $(TYPE) --test-dir _build --output-on-failure
 	cmake --install _build/packaging --prefix _install --config $(TYPE)
+	mkdir -p lib
+	cp _install/lib/$(LIBNAME) $@
 
-# perl works well doing multiline matches which is need for CMakeLists.txt
-# sed was causing issues on mac as well so using perl to use only one tool
 update-version:
-	perl -i -p -e 's|"version".*|"version": "$(version)",|' package.json
-	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/server/package.json
-	perl -i -p -e 's|"version".*|"version": "$(version)",|' packages/client/package.json
-	perl -i -p -e 's|"\@omega-edit\/server".*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
-	perl -0777 -i -p -e 's|omega_edit\n.*VERSION.*|omega_edit\n        VERSION $(version)|' core/CMakeLists.txt
+	sed -i '' -e 's|"version": .*|"version": "$(version)",|' package.json packages/server/package.json packages/client/package.json
+	sed -i '' -e 's|"\@omega-edit\/server": .*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
+	sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' core/CMakeLists.txt
 
 clean:
-	rm -rf _build _install
+	rm -rf _build _install lib/$(LIBNAME)
 
 all: lib/$(LIBNAME)
 	@echo $<
