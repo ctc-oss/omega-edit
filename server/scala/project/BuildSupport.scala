@@ -27,7 +27,7 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String = sys.env.get("OE_LIB_DIR").getOrElse("../../../build/lib")
+  val libdir: String = sys.env.get("OE_LIB_DIR").getOrElse("../../../_install/lib")
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
@@ -78,7 +78,7 @@ object BuildSupport {
           case Amd(bits)   => bits
           case x86(bits)   => bits
           case aarch(bits) => bits
-          case arch => throw new IllegalStateException(s"unknown arch: $arch")
+          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
         }
 
     Platform(os, arch)
@@ -99,7 +99,7 @@ object BuildSupport {
           case Amd(bits)   => bits
           case x86(bits)   => bits
           case aarch(bits) => bits
-          case arch => throw new IllegalStateException(s"unknown arch: $arch")
+          case arch        => throw new IllegalStateException(s"unknown arch: $arch")
         }
 
     Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
@@ -115,13 +115,12 @@ object BuildSupport {
     }
   }
 
-  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = {
-    opts: Seq[String] =>
-      opts.filterNot(
-        Set(
-          "-Wvalue-discard",
-          "-Ywarn-value-discard"
-        )
+  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>
+    opts.filterNot(
+      Set(
+        "-Wvalue-discard",
+        "-Ywarn-value-discard"
       )
+    )
   }
 }

@@ -105,8 +105,9 @@ jobs:
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF --install-prefix "${PWD}/_install"
           cmake --build build --target omega_edit --config Release
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
 
       - name: Package Scala Native 🎁
         env:
@@ -155,8 +156,9 @@ jobs:
 
       - name: Build Ωedit 🏗️
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF --install-prefix "${PWD}/_install"
           cmake --build build --target omega_edit --config Release
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
 
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
