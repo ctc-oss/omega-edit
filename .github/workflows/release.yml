@@ -63,13 +63,59 @@ jobs:
           name: upload_url
           path: upload_url
 
+  build-lib:
+    strategy:
+      matrix:
+        os: [ windows-2022, macos-12, ubuntu-20.04 ]
+    name: Native build and test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: [create-release]
+    steps:
+      - name: Enable Developer Command Prompt 💻
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Checkout 🛎️
+        uses: actions/checkout@v3
+
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
+
+      - name: Prepare, Build, and Install Ωedit 🔧
+        run: |
+          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
+          cmake --build build --config Release
+          ctest -C Release --test-dir build --output-on-failure
+          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
+
+      - name: Upload Native (.dylib) library - Macos 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'macOS'
+        with:
+          name: libomega_edit.dylib
+          path: _install/lib/libomega_edit.dylib
+
+      - name: Upload Native (.so) library - Linux 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'Linux'
+        with:
+          name: libomega_edit.so
+          path: _install/lib/libomega_edit.so
+
+      - name: Upload Native (.dll) library - Windows 🔺
+        uses: actions/upload-artifact@v3
+        if: runner.os == 'Windows'
+        with:
+          name: omega_edit.dll
+          path: _install/bin/omega_edit.dll
+
   native-build-mac-win:
     strategy:
       matrix:
         os: [macos-12, windows-2022]
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: [create-release]
+    needs: [build-lib]
     steps:
       - name: Enable Developer Command Prompt 💻
         if: runner.os == 'Windows'
@@ -93,21 +139,35 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Setup cmake 🔧
-        uses: lukka/get-cmake@latest
+      - name: Make _install/lib directory to store lib files
+        run: mkdir -p _install/lib
 
-      - name: Setup Java ☕
-        uses: actions/setup-java@v3.11.0
+      - name: Download macos library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'macOS'
         with:
-          distribution: temurin
-          java-version: 8
-          cache: sbt
+          name: libomega_edit.dylib
+          path: _install/lib/libomega_edit.dylib
 
-      - name: Build Ωedit 🏗️
+      - name: Download windows library file 🔻
+        uses: actions/download-artifact@v3
+        if: runner.os == 'Windows'
+        with:
+          name: omega_edit.dll
+          path: _install/lib/omega_edit.dll
+
+      - name: Move out library file 🛻
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF --install-prefix "${PWD}/_install"
-          cmake --build build --target omega_edit --config Release
-          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
+          if [[ ${{ runner.os }} == 'macOS' ]]; then
+            LIB_FILENAME="libomega_edit.dylib"
+          else
+            LIB_FILENAME="omega_edit.dll"
+          fi
+
+          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
+          rm -rf "_install/lib/${LIB_FILENAME}_dir"
+        shell: bash
 
       - name: Package Scala Native 🎁
         env:
@@ -151,14 +211,22 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Setup cmake 🔧
-        uses: lukka/get-cmake@latest
+      - name: Make _install/lib directory to store lib files
+        run: mkdir -p _install/lib
 
-      - name: Build Ωedit 🏗️
+      - name: Download linux library file 🔻
+        uses: actions/download-artifact@v3
+        with:
+          name: libomega_edit.so
+          path: _install/lib/libomega_edit.so
+
+      - name: Move out library file 🛻
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=OFF --install-prefix "${PWD}/_install"
-          cmake --build build --target omega_edit --config Release
-          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
+          LIB_FILENAME="libomega_edit.so"
+          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
+          rm -rf "_install/lib/${LIB_FILENAME}_dir"
+        shell: bash
 
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
