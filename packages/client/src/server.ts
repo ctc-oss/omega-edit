@@ -196,6 +196,8 @@ export async function startServer(
           `server pidFile ${pidFile} already exists and server shutdown using PID ${pidFromFile} failed`
         )
       }
+      // remove stale pidFile (as needed)
+      fs.unlinkSync(pidFile)
     }
   }
 
