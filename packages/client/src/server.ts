@@ -243,7 +243,10 @@ export async function startServer(
     await waitForFileToExist(pidFile)
 
     const pidFromFile = Number(fs.readFileSync(pidFile).toString())
-    if (pidFromFile !== pid) {
+
+    // NOTE: The server wrapper script and the actual server process have different PIDs in Windows, so this check is
+    // only valid for non-Windows platforms.  The PID in the pidFile ought to be correct on all platforms.
+    if (pidFromFile !== pid && process.platform !== 'win32') {
       getLogger().error({
         fn: 'startServer',
         err: {
