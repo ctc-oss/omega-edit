@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/client",
-  "version": "0.9.61",
+  "version": "0.9.62",
   "description": "OmegaEdit gRPC Client TypeScript Types",
   "publisher": "ctc-oss",
   "main": "out/index.js",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.8.12",
-    "@omega-edit/server": "0.9.61",
+    "@omega-edit/server": "0.9.62",
     "@types/google-protobuf": "^3.15.5",
     "google-protobuf": "^3.21.2",
     "pino": "^8.11.0",
