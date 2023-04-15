@@ -70,8 +70,11 @@ describe('Sessions', () => {
     expect(await waitForReady(getClient(testPort))).to.be.true
     expect(await getSessionCount()).to.equal(0)
     for (let i = 0; i < iterations; ++i) {
-      const session_id = await createSession(testFile)
+      const session = await createSession(testFile)
+      const session_id = session.getSessionId()
       expect(session_id).to.equal(expected_session_id)
+      expect(session.hasContentType()).to.be.true
+      expect(session.getContentType()).to.equal('text/html')
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
       const vpt_response = await createViewport(

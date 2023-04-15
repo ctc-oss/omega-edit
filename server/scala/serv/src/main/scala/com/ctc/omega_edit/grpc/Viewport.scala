@@ -23,16 +23,7 @@ import pekko.stream.scaladsl.Source
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.ViewportCallback
 import com.ctc.omega_edit.grpc.Editors.{BooleanResult, Ok, ViewportData}
-import com.ctc.omega_edit.grpc.Viewport.{
-  Destroy,
-  EventStream,
-  Events,
-  Get,
-  HasChanges,
-  Modify,
-  Unwatch,
-  Watch
-}
+import com.ctc.omega_edit.grpc.Viewport.{Destroy, EventStream, Events, Get, HasChanges, Modify, Unwatch, Watch}
 import com.google.protobuf.ByteString
 import omega_edit.ObjectId
 
@@ -66,8 +57,7 @@ object Viewport {
   }
 
   trait Op
-  case class Modify(offset: Long, capacity: Long, isFloating: Boolean)
-      extends Op
+  case class Modify(offset: Long, capacity: Long, isFloating: Boolean) extends Op
   case object Get extends Op
   case object HasChanges extends Op
   case object Destroy extends Op
@@ -112,8 +102,7 @@ class Viewport(
       sender() ! Ok(viewportId)
 
     case Watch(eventInterest) =>
-      view.eventInterest =
-        eventInterest.getOrElse(api.ViewportEvent.Interest.All)
+      view.eventInterest = eventInterest.getOrElse(api.ViewportEvent.Interest.All)
       sender() ! new Ok(viewportId) with Events {
         def stream: EventStream = events
       }

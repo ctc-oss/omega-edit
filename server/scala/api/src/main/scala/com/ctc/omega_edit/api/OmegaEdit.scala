@@ -22,8 +22,7 @@ import com.ctc.omega_edit.SessionImpl
 import java.nio.file.Path
 import scala.util.Try
 
-/** The entrypoint to the OmegaEdit library. Provides Session instances and
-  * version information.
+/** The entrypoint to the OmegaEdit library. Provides Session instances and version information.
   */
 object OmegaEdit extends OmegaEdit {
   def newSession(path: Option[Path]): Session =
@@ -52,9 +51,8 @@ object OmegaEdit extends OmegaEdit {
       ffi.omega_version_patch()
     )
 
-  /** Not strictly required to call this prior to interacting with the API,
-    * though this function is the convenient way to check that the native
-    * library is ready to use.
+  /** Not strictly required to call this prior to interacting with the API, though this function is the convenient way
+    * to check that the native library is ready to use.
     * @return
     *   Try[Version]
     */

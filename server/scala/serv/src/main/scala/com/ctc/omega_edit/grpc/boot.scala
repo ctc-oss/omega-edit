@@ -44,8 +44,7 @@ object boot
             "interface",
             short = "i",
             metavar = "interface_str",
-            help =
-              s"Set the gRPC interface to bind to. Default: $default_interface"
+            help = s"Set the gRPC interface to bind to. Default: $default_interface"
           )
           .withDefault(default_interface)
 
@@ -67,14 +66,12 @@ object boot
             "pidfile",
             short = "f",
             metavar = "pidfile_str",
-            help =
-              s"Set the pidfile to write the PID to. Default: $default_pidfile"
+            help = s"Set the pidfile to write the PID to. Default: $default_pidfile"
           )
           .withDefault(default_pidfile)
 
-        (interface_opt, port_opt, pidfile_opt).mapN {
-          (interface, port, pidfile) =>
-            new boot(interface, port, pidfile).run()
+        (interface_opt, port_opt, pidfile_opt).mapN { (interface, port, pidfile) =>
+          new boot(interface, port, pidfile).run()
         }
       }
     )
@@ -91,11 +88,10 @@ class boot(iface: String, port: Int, pidfile: String) {
     if (pidfile != null) {
       val file = new File(pidfile)
       val fos = new FileOutputStream(file)
-      try {
+      try
         fos.write(pid.toString.getBytes("UTF-8"))
-      } finally {
+      finally
         fos.close()
-      }
     }
 
     val done =

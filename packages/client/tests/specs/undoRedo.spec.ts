@@ -197,10 +197,9 @@ describe('Undo/Redo', () => {
     )
     expect(save_file_name.endsWith('save_session_test'))
     expect(await getSessionCount()).to.equal(1)
-    const session_id_2 = await createSession(
-      save_file_name,
-      'verify_save_session'
-    )
+    const session_id_2 = (
+      await createSession(save_file_name, 'verify_save_session')
+    ).getSessionId()
     expect(await getSessionCount()).to.equal(2)
     expect(session_id_2).to.equal('verify_save_session')
     file_size = await getComputedFileSize(session_id_2)

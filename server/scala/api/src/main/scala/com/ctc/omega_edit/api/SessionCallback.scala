@@ -23,8 +23,8 @@ import jnr.ffi.annotations.Delegate
 /** Provides callbacks on session changes.
   *
   * @see
-  *   https://github.com/ctc-oss/omega-edit/wiki/What-is-%CE%A9edit#event-callbacks
-  *   for how to interpret the data passed to callbacks.
+  *   https://github.com/ctc-oss/omega-edit/wiki/What-is-%CE%A9edit#event-callbacks for how to interpret the data passed
+  *   to callbacks.
   */
 trait SessionCallback {
   @Delegate private[api] final def invoke(

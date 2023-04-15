@@ -43,6 +43,7 @@ import { getLogger } from './logger'
 import { editSimple, IEditStats } from './change'
 export {
   CountKind,
+  CreateSessionResponse,
   EventSubscriptionRequest,
   SessionEventKind,
 } from './omega_edit_pb'
@@ -58,8 +59,8 @@ export {
 export function createSession(
   file_path: string = '',
   session_id_desired: string = ''
-): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+): Promise<CreateSessionResponse> {
+  return new Promise<CreateSessionResponse>((resolve, reject) => {
     let request = new CreateSessionRequest()
     if (session_id_desired.length > 0)
       request.setSessionIdDesired(session_id_desired)
@@ -79,7 +80,7 @@ export function createSession(
         return reject('createSession error: ' + err.message)
       }
       getLogger().debug({ fn: 'createSession', resp: r.toObject() })
-      return resolve(r.getSessionId())
+      return resolve(r)
     })
   })
 }

@@ -34,13 +34,9 @@ import scala.concurrent.duration._
 import scala.io.Source
 import scala.util.Using
 
-/** This unit test is more for demonstration of the testability of the gRPC
-  * components than actual coverage
+/** This unit test is more for demonstration of the testability of the gRPC components than actual coverage
   */
-class ExampleSpec
-    extends AsyncWordSpecLike
-    with Matchers
-    with EditorServiceSupport {
+class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupport {
   val tmp: Path = Files.createTempDirectory("omega")
   tmp.toFile.deleteOnExit()
 
@@ -107,18 +103,14 @@ class ExampleSpec
       val testString =
         ByteString.copyFromUtf8("5555544443332210122333444455555")
       val len = testString.size()
-      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0)
+      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0)
       for {
         _ <- service.submitChange(
           ChangeRequest(
@@ -218,12 +210,8 @@ class ExampleSpec
             allowOverwrite = None
           )
         )
-        contents = Using(Source.fromFile(saveResponse.filePath))(source =>
-          source.mkString
-        ).get
-      } yield {
-        contents shouldBe testString
-      }
+        contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
+      } yield contents shouldBe testString
     }
 
     "save session without overwrites writes to new file" in newSession { sid =>
@@ -260,12 +248,8 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -320,18 +304,10 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
-          source.mkString
-        ).get
-        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -404,12 +380,8 @@ class ExampleSpec
           .map(_.counts.head.count)
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -460,15 +432,9 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         contents1 shouldBe testString1
@@ -535,21 +501,11 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
-        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source =>
-          source.mkString
-        ).get
-        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source =>
-          source.mkString
-        ).get
-        contents5 = Using(Source.fromFile(saveResponse5.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
+        contents3 = Using(Source.fromFile(saveResponse3.filePath))(source => source.mkString).get
+        contents4 = Using(Source.fromFile(saveResponse4.filePath))(source => source.mkString).get
+        contents5 = Using(Source.fromFile(saveResponse5.filePath))(source => source.mkString).get
       } yield {
         saveResponse2.filePath should not be saveResponse1.filePath
         saveResponse3.filePath should not be saveResponse2.filePath
@@ -689,12 +645,8 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source =>
-          source.mkString
-        ).get
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+        contents2 = Using(Source.fromFile(saveResponse2.filePath))(source => source.mkString).get
       } yield {
         pausedSid.id shouldBe sid
         changeId.serial shouldBe 1L
@@ -727,12 +679,8 @@ class ExampleSpec
         )
 
         // to ensure first saved file not overwritten
-        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source =>
-          source.mkString
-        ).get
-      } yield {
-        contents1 shouldBe testString1
-      }
+        contents1 = Using(Source.fromFile(saveResponse1.filePath))(source => source.mkString).get
+      } yield contents1 shouldBe testString1
     }
   }
 }

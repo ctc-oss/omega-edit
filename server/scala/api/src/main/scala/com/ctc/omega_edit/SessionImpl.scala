@@ -18,10 +18,7 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{
-  GenerateFilename,
-  OverwriteExisting
-}
+import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
 import com.ctc.omega_edit.api._
 import jnr.ffi.Pointer
 
@@ -96,8 +93,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def overwrite(b: Array[Byte], offset: Long): Result =
     Edit(i.omega_edit_overwrite_bytes(p, offset, b, b.length.toLong))
 
-  /** omega_edit_undo_last_change returns the *negative* serial number of the
-    * change, so perform different matching for change id
+  /** omega_edit_undo_last_change returns the *negative* serial number of the change, so perform different matching for
+    * change id
     *
     * @see
     *   https://github.com/ctc-oss/omega-edit/wiki#undo

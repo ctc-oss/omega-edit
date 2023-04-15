@@ -17,11 +17,7 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api._
-import com.ctc.omega_edit.spi.{
-  NativeInfoNotFound,
-  PlatformInfoLoader,
-  VersionMismatch
-}
+import com.ctc.omega_edit.spi.{NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
 import jnr.ffi.{LibraryLoader, Pointer}
 
 import java.nio.file.{Files, Paths}
@@ -205,8 +201,7 @@ private[omega_edit] trait FFI {
   def omega_find_destroy_skip_table(p: Pointer): Unit
 }
 
-/** Provides the FFI, initialized from the native contract and the OmegaEdit
-  * shared library
+/** Provides the FFI, initialized from the native contract and the OmegaEdit shared library
   */
 private[omega_edit] object FFI {
   private[omega_edit] lazy val i: FFI = {

@@ -65,7 +65,7 @@ describe('Server', () => {
       expect(pidIsRunning(pid as number)).to.be.true
       expect(await waitForReady(getClient(serverTestPort))).to.be.true
       expect(await getSessionCount()).to.equal(0)
-      session_id = await createSession()
+      session_id = (await createSession()).getSessionId()
       expect(session_id.length).to.equal(36)
       expect(await getSessionCount()).to.equal(1)
     }
@@ -103,7 +103,7 @@ describe('Server', () => {
     expect(pidIsRunning(pid as number)).to.be.true
 
     // once the server is stopping gracefully, no new sessions should be allowed
-    expect(await createSession()).to.be.empty
+    expect((await createSession()).getSessionId()).to.be.empty
     expect(await getSessionCount()).to.equal(1)
 
     // destroy the session, dropping the count to 0, then the server should stop
