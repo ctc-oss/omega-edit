@@ -85,14 +85,13 @@ class ViewportImplSpec extends AnyWordSpec with Matchers with TestSupport {
   "a callback" should {
     "be updated" in emptySession(viewWithCallback(0, 1, false, _) { (s, v) =>
       s.insert("foo".getBytes(), 0)
-      withClue(v) { v.data.map(_ shouldBe "f".getBytes()) }
+      withClue(v)(v.data.map(_ shouldBe "f".getBytes()))
     })
 
-    "include the change type" in emptySession(viewWithCallback(0, 1, false, _) {
-      (s, v) =>
-        s.insert("foo".getBytes(), 0)
-        v.change shouldBe defined
-        v.change.get.operation shouldBe Change.Insert
+    "include the change type" in emptySession(viewWithCallback(0, 1, false, _) { (s, v) =>
+      s.insert("foo".getBytes(), 0)
+      v.change shouldBe defined
+      v.change.get.operation shouldBe Change.Insert
     })
   }
 }

@@ -1,13 +1,10 @@
 /** ********************************************************************************************************************
-  * Copyright (c) 2021 Concurrent Technologies Corporation. * * Licensed under
-  * the Apache License, Version 2.0 (the "License"); you may not use this file
-  * except in compliance * with the License. You may obtain a copy of the
-  * License at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless
-  * required by applicable law or agreed to in writing, software is distributed
-  * under the License is * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
-  * OR CONDITIONS OF ANY KIND, either express or * implied. See the License for
-  * the specific language governing permissions and limitations under the
-  * License. * *
+  * Copyright (c) 2021 Concurrent Technologies Corporation. * * Licensed under the Apache License, Version 2.0 (the
+  * "License"); you may not use this file except in compliance * with the License. You may obtain a copy of the License
+  * at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless required by applicable law or agreed to in writing,
+  * software is distributed under the License is * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+  * ANY KIND, either express or * implied. See the License for the specific language governing permissions and
+  * limitations under the License. * *
   */
 import BuildSupport._
 import play.api.libs.json._
@@ -30,8 +27,8 @@ lazy val ghb_resolver = (
       s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
 
-/** The script templates only need to know the version. The updating of the
-  * classpaths was moved to the template files in serv/src/templates
+/** The script templates only need to know the version. The updating of the classpaths was moved to the template files
+  * in serv/src/templates
   */
 lazy val bashExtras = s"""declare omegaVersion="${omegaVersion}""""
 lazy val batchExtras = s"""set "OMEGAVERSION=${omegaVersion}""""
@@ -42,6 +39,7 @@ lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
 lazy val pekkoVersion = "0.0.0+26599-83545a33-SNAPSHOT"
+lazy val tikaVersion = "2.7.0"
 
 // allow access to snapshots
 lazy val apacheSnapshotResolver = "Apache Snapshots".at(
@@ -186,8 +184,8 @@ lazy val native = project
         )
       )
     else packagedArtifacts ++= Map(),
-    /** Not sure why these need added here since they are in common settings,
-      * but they are needed to not cause errors with publishM2.
+    /** Not sure why these need added here since they are in common settings, but they are needed to not cause errors
+      * with publishM2.
       */
     publishConfiguration := publishConfiguration.value.withOverwrite(true),
     publishLocalConfiguration := publishLocalConfiguration.value
@@ -221,6 +219,7 @@ lazy val serv = project
         "com.monovore" %% "decline" % "2.4.1",
         // this needs updated in tandom with the sbt-pekko-grpc plugin
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
+        "org.apache.tika" % "tika-core" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
@@ -229,6 +228,7 @@ lazy val serv = project
         "com.monovore" %% "decline" % "2.4.1",
         // this needs updated in tandom with the sbt-pekko-grpc plugin
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
+        "org.apache.tika" % "tika-core" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       ),

@@ -286,8 +286,7 @@ class Session(
       }
 
     case Watch(eventInterest) =>
-      session.eventInterest =
-        eventInterest.getOrElse(api.SessionEvent.Interest.All)
+      session.eventInterest = eventInterest.getOrElse(api.SessionEvent.Interest.All)
       sender() ! new Ok(sessionId) with Events {
         def stream: EventStream = events
       }

@@ -23,14 +23,10 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.util.Success
 
-class OmegaEditEntrypointSpec
-    extends AnyWordSpec
-    with Matchers
-    with TestSupport {
+class OmegaEditEntrypointSpec extends AnyWordSpec with Matchers with TestSupport {
   "entrypoint" should {
     "initialize" in {
-      OmegaEdit.initialize() should matchPattern {
-        case Success(Version(_, _, _)) =>
+      OmegaEdit.initialize() should matchPattern { case Success(Version(_, _, _)) =>
       }
     }
 

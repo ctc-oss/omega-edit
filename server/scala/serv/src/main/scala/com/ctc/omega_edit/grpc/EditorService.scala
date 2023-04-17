@@ -16,14 +16,6 @@
 
 package com.ctc.omega_edit.grpc
 
-import org.apache.pekko
-import pekko.NotUsed
-import pekko.actor.ActorSystem
-import pekko.grpc.GrpcServiceException
-import pekko.http.scaladsl.Http
-import pekko.pattern.ask
-import pekko.stream.scaladsl.Source
-import pekko.util.Timeout
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.api.Session.OverwriteStrategy
@@ -33,17 +25,27 @@ import com.ctc.omega_edit.grpc.Session._
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
-import omega_edit._
 
+import java.io.{BufferedInputStream, FileInputStream, IOException}
+import java.lang.management.ManagementFactory
 import java.nio.file.Paths
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
-
-import scala.util.{Failure, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
+import omega_edit._
+import org.apache.pekko
+import org.apache.tika.detect.DefaultDetector
+import org.apache.tika.metadata.Metadata
+import pekko.NotUsed
+import pekko.actor.ActorSystem
+import pekko.grpc.GrpcServiceException
+import pekko.http.scaladsl.Http
+import pekko.pattern.ask
+import pekko.stream.scaladsl.Source
+import pekko.util.Timeout
 
 import scala.concurrent.ExecutionContext
-import java.lang.management.ManagementFactory
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(5.seconds)
@@ -51,23 +53,39 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   private var isGracefulShutdown = false
   import system.dispatcher
 
+  private def detectFileType(filePath: String): Option[String] =
+    try {
+      val file = new BufferedInputStream(new FileInputStream(filePath))
+      val detector = new DefaultDetector()
+      val metadata = new Metadata()
+      val mediaType = detector.detect(file, metadata)
+      Option(mediaType.toString)
+    } catch {
+      case _: IOException => None
+    }
+
   def getVersion(in: Empty): Future[VersionResponse] = {
     val v = OmegaEdit.version()
     Future.successful(VersionResponse(v.major, v.minor, v.patch))
   }
 
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
-    isGracefulShutdown match {
-      case false =>
-        (editors ? Create(
-          in.sessionIdDesired,
-          in.filePath.map(Paths.get(_))
-        )).mapTo[Result]
-          .map {
-            case Ok(id) => CreateSessionResponse(id)
-            case Err(c) => throw grpcFailure(c)
-          }
-      case true => Future.successful(CreateSessionResponse(""))
+    if (isGracefulShutdown) {
+      // If server is to shutdown gracefully, don't create new sessions
+      Future.successful(CreateSessionResponse("", None))
+    } else {
+      val filePath = in.filePath.map(Paths.get(_))
+      (editors ? Create(in.sessionIdDesired, filePath))
+        .mapTo[Result]
+        .map {
+          case Ok(id) =>
+            filePath match {
+              // If a file path is provided, detect file type, otherwise return None
+              case Some(path) => CreateSessionResponse(id, detectFileType(path.toString))
+              case None       => CreateSessionResponse(id, None)
+            }
+          case Err(c) => throw grpcFailure(c)
+        }
     }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
@@ -76,10 +94,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? DestroyActor(in.id, timeout))
       .mapTo[Result]
       .map {
-        case Ok(_) => {
+        case Ok(_) =>
           checkIsGracefulShutdown()
           in
-        }
         case Err(c) => throw grpcFailure(c)
       }
 
@@ -252,7 +269,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Count => ComputedFileSizeResponse(in.id, ok.count)
       case Err(c)            => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
+      case _                 => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
@@ -335,7 +352,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .mapTo[Result]
       .map {
         case ok: Ok with Session.Events => ok.stream
-        case _ => Source.failed(grpcFailure(Status.UNKNOWN))
+        case _                          => Source.failed(grpcFailure(Status.UNKNOWN))
       }
     Await.result(f, 1.second)
   }
@@ -350,7 +367,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             .mapTo[Result]
             .map {
               case ok: Ok with Viewport.Events => ok.stream
-              case _ => Source.failed(grpcFailure(Status.UNKNOWN))
+              case _                           => Source.failed(grpcFailure(Status.UNKNOWN))
             }
         Await.result(f, 1.second)
       case _ =>
@@ -404,7 +421,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // redo the last undo
@@ -413,7 +430,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // clear changes
@@ -443,7 +460,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
       case ok: Ok with ChangeDetails => ok.toChangeResponse(ok.id)
       case Err(c)                    => throw grpcFailure(c)
-      case _ => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
+      case _                         => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
   // pause session changes
@@ -529,15 +546,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .transform {
         case Success(_) =>
           Success(ServerControlResponse(kind, getServerPID(), 0))
-        case Failure(e) => {
+        case Failure(e) =>
           (editors ? LogOp("debug", e))
           Success(ServerControlResponse(kind, getServerPID(), 1))
-        }
       }(ExecutionContext.global)
 
   def checkIsGracefulShutdown(
-      kind: ServerControlKind =
-        ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN
+      kind: ServerControlKind = ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN
   ): Future[ServerControlResponse] =
     isGracefulShutdown match {
       case true =>
@@ -555,16 +570,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def serverControl(in: ServerControlRequest): Future[ServerControlResponse] =
     in.kind match {
-      case ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN => {
+      case ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN =>
         isGracefulShutdown = true
         checkIsGracefulShutdown()
-      }
       case ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN =>
         (editors ? DestroyActors())
           .andThen(_ => stopServer(in.kind))
           .mapTo[ServerControlResponse]
-      case ServerControlKind.SERVER_CONTROL_UNDEFINED |
-          ServerControlKind.Unrecognized(_) =>
+      case ServerControlKind.SERVER_CONTROL_UNDEFINED | ServerControlKind.Unrecognized(_) =>
         Future.failed(
           grpcFailure(Status.UNKNOWN, s"undefined kind: ${in.kind}")
         )

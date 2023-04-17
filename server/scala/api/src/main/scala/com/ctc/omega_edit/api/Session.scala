@@ -22,8 +22,8 @@ import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import java.nio.file.Path
 import scala.util.Try
 
-/** The top level type in OmegaEdit, maintains the data and all instances
-  * related to it. Provides mutators and viewport factory methods.
+/** The top level type in OmegaEdit, maintains the data and all instances related to it. Provides mutators and viewport
+  * factory methods.
   */
 trait Session {
   def size: Long
