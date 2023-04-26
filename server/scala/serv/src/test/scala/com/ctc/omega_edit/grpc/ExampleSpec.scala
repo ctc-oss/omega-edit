@@ -67,14 +67,14 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
       for {
         sessionCount1 <- service.getSessionCount(Empty())
         sessionResponse2 <- service.createSession(
-          CreateSessionRequest(None, Some("session_3"))
+          CreateSessionRequest(None, Some("session_3"), None)
         )
         sessionCount2 <- service.getSessionCount(Empty())
         sessionResponse3 <- service.createSession(
-          CreateSessionRequest(None, Some("session_4"))
+          CreateSessionRequest(None, Some("session_4"), None)
         )
         sessionResponse4 <- service.createSession(
-          CreateSessionRequest(None, Some("session_5"))
+          CreateSessionRequest(None, Some("session_5"), None)
         )
         sessionCount3 <- service.getSessionCount(Empty())
         destroyedSession1 <- service.destroySession(ObjectId("session_4"))
@@ -698,7 +698,8 @@ trait EditorServiceSupport {
       .createSession(
         CreateSessionRequest(
           filePath = None,
-          sessionIdDesired = None
+          sessionIdDesired = None,
+          None
         )
       )
       .map(_.sessionId)

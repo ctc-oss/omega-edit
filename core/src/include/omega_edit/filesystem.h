@@ -37,14 +37,6 @@ extern "C" {
 OMEGA_EDIT_EXPORT const char *omega_util_get_current_dir(char *buffer);
 
 /**
- * Touch the given file, optionally creating it f it does not exist
- * @param file_name flle name to touch
- * @param create if non-zero, create the file name if it does not exist
- * @return zero on success, non-zero on failure
- */
-OMEGA_EDIT_EXPORT int omega_util_touch(const char *file_name, int create);
-
-/**
  * Check if the given file name exists
  * @param file_name file name to check existence of
  * @return non-zero if the file exists, and zero otherwise
@@ -78,6 +70,13 @@ OMEGA_EDIT_EXPORT int omega_util_remove_file(char const *path);
  * @return zero if the path was removed successfully and non-zero otherwise
  */
 OMEGA_EDIT_EXPORT int omega_util_remove_directory(char const *path);
+
+/**
+ * Remove the given path, whether it is a file or directory
+ * @param path directory or file to remove
+ * @return number of files removed
+ */
+OMEGA_EDIT_EXPORT uint64_t omega_util_remove_all(char const *path);
 
 /**
  * Given a file path, return the file size
@@ -134,6 +133,35 @@ OMEGA_EDIT_EXPORT char *omega_util_normalize_path(char const *path, char *buffer
  * @return associated directory
  */
 OMEGA_EDIT_EXPORT char *omega_util_dirname(char const *path, char *buffer);
+
+/**
+ * Copy the file at the given source path to the given destination path
+ * @param src_path source path
+ * @param dst_path destination path
+ * @param mode mode to set the destination file to, if zero then the mode of the source file is used
+ * @return zero on success, non-zero on failure
+ */
+OMEGA_EDIT_EXPORT int omega_util_file_copy(const char* src_path, const char* dst_path, int mode);
+
+/**
+ * Try to get the temporary directory for the host system
+ * @return temporary directory for the host system allocated by malloc (must be free'd by the caller), or NULL on error
+ */
+OMEGA_EDIT_EXPORT char* omega_util_get_temp_directory();
+
+/**
+ * Touch the given file, optionally creating it if it does not exist
+ * @param file_name flle name to touch
+ * @param create if non-zero, create the file name if it does not exist
+ * @return zero on success, non-zero on failure
+ */
+OMEGA_EDIT_EXPORT int omega_util_touch(const char *file_name, int create);
+
+/**
+ * Returns the directory separator character used on the host system
+ * @return directory separator character used on the host system
+ */
+OMEGA_EDIT_EXPORT char omega_util_directory_separator();
 
 #ifdef __cplusplus
 }

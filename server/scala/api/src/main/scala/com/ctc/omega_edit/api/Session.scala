@@ -87,6 +87,7 @@ trait Session {
   def notifyChangedViewports: Int
   def beginTransaction: Int
   def endTransaction: Int
+  def checkpointDirectory: Path
   def destroy(): Unit
 }
 

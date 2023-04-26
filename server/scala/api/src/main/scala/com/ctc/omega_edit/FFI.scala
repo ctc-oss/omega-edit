@@ -45,19 +45,18 @@ private[omega_edit] trait FFI {
       path: String,
       cb: SessionCallback,
       userData: Pointer,
-      eventInterest: Int
+      eventInterest: Int,
+      chkptDir: String
   ): Pointer
 
   def omega_edit_destroy_session(p: Pointer): Unit
 
-  def omega_edit_insert(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_insert_bytes(
       p: Pointer,
       offset: Long,
       b: Array[Byte],
       len: Long
   ): Long
-  def omega_edit_overwrite(p: Pointer, offset: Long, s: String, len: Long): Long
   def omega_edit_overwrite_bytes(
       p: Pointer,
       offset: Long,
@@ -90,6 +89,7 @@ private[omega_edit] trait FFI {
   def omega_session_get_last_change(p: Pointer): Pointer
   def omega_session_get_last_undo(p: Pointer): Pointer
   def omega_session_get_num_changes(p: Pointer): Long
+  def omega_session_get_checkpoint_directory(p: Pointer): String
   def omega_session_get_num_checkpoints(p: Pointer): Long
   def omega_session_get_num_undone_changes(p: Pointer): Long
   def omega_session_get_num_viewports(p: Pointer): Long

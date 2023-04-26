@@ -185,11 +185,13 @@ message ViewportDataResponse {
 message CreateSessionRequest {
   optional string file_path = 1;
   optional string session_id_desired = 2;
+  optional string checkpoint_directory = 3;
 }
 
 message CreateSessionResponse {
   string session_id = 1;
-  optional string content_type = 2;
+  string checkpoint_directory = 2;
+  optional string content_type = 3;
 }
 
 message SaveSessionRequest {

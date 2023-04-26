@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstring>
 #include <iostream>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -70,8 +71,8 @@ TEST_CASE("Bit Manipulation", "[BitManip]") {
 
 TEST_CASE("Buffer Shift", "[BufferShift]") {
     auto const fill = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    auto *buffer = (omega_byte_t *) strdup(fill);
-    auto buff_len = (int64_t) strlen((const char *) buffer);
+    auto const buff_len = (int64_t) strlen(fill);
+    auto *buffer = (omega_byte_t *) omega_util_strndup(fill, buff_len);
 
     // Shift the buffer 3 bits to the right
     REQUIRE(0 == omega_util_right_shift_buffer(buffer, buff_len, 3));
@@ -107,6 +108,34 @@ TEST_CASE("File Compare", "[UtilTests]") {
         // Different files with different contents
         REQUIRE(0 != compare_files("data/test1.dat", "data/test2.dat"));
     }
+}
+
+TEST_CASE("File Copy", "[UtilTests]") {
+    struct stat src_stat{};
+    struct stat dst_stat{};
+    REQUIRE(0 == omega_util_file_copy("data/test1.dat", "data/test1.copy.dat", 0));
+    REQUIRE(0 == compare_files("data/test1.dat", "data/test1.copy.dat"));
+
+    REQUIRE(0 == stat("data/test1.dat", &src_stat));
+    REQUIRE(0 == stat("data/test1.copy.dat", &dst_stat));
+
+    // The mode includes the file type
+    const int dst_mode = 0100600; // S_IFREG | S_IRUSR  regular file with owner read-only
+    REQUIRE(dst_mode != src_stat.st_mode);
+    REQUIRE(src_stat.st_mode == dst_stat.st_mode);
+
+    REQUIRE(0 == omega_util_remove_file("data/test1.copy.dat"));
+    REQUIRE(0 == omega_util_file_copy("data/test1.dat", "data/test1.copy.dat", dst_mode));
+
+    REQUIRE(0 == stat("data/test1.copy.dat", &dst_stat));
+    REQUIRE(dst_mode == dst_stat.st_mode);
+    REQUIRE(omega_util_directory_exists("data"));
+    REQUIRE(!omega_util_file_exists("data"));
+    REQUIRE(!omega_util_directory_exists("data/test1.copy.dat"));
+    REQUIRE(omega_util_file_exists("data/test1.copy.dat"));
+    REQUIRE(1 == omega_util_remove_all("data/test1.copy.dat"));
+    REQUIRE(0 == omega_util_remove_all("data/test1.copy.dat"));
+    REQUIRE(!omega_util_file_exists("data/test1.copy.dat"));
 }
 
 TEST_CASE("End Of Line", "[EOLTests]") {
@@ -326,10 +355,13 @@ TEST_CASE("Empty File Tests", "[EmptyFileTests]") {
     const auto in_filename = "data/empty_file.dat";
     auto file_size = omega_util_file_size(in_filename);
     REQUIRE(0 == file_size);
+    REQUIRE(!getenv("OMEGA_EDIT_CHECKPOINT_DIRECTORY")); // make sure this environment variable is not set
     const auto session_ptr =
-            omega_edit_create_session(in_filename, session_change_cbk, &file_info, SESSION_EVT_EDIT | SESSION_EVT_UNDO);
+            omega_edit_create_session(in_filename, session_change_cbk, &file_info, SESSION_EVT_EDIT | SESSION_EVT_UNDO,
+                                      nullptr);
     REQUIRE(session_ptr);
     REQUIRE_THAT(omega_session_get_file_path(session_ptr), Equals(in_filename));
+    REQUIRE(omega_util_paths_equivalent(omega_session_get_checkpoint_directory(session_ptr), omega_util_dirname(in_filename, NULL)));
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_change_transactions(session_ptr));
@@ -370,7 +402,8 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/test1.dat";
-    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS);
+    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS,
+                                                       nullptr);
     REQUIRE(session_ptr);
     auto file_size = omega_session_get_computed_file_size(session_ptr);
     REQUIRE(file_size > 0);
@@ -379,7 +412,7 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
@@ -391,26 +424,26 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info_t mask_info;
     mask_info.mask_kind = MASK_XOR;
     mask_info.mask = 0xFF;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.2.dat", 1, nullptr));
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(3 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.3.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.3.dat"));
     mask_info.mask_kind = MASK_AND;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(4 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.4.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.4.dat"));
     mask_info.mask_kind = MASK_OR;
     mask_info.mask = 0x00;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.5.dat", 1, nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.5.dat"));
     mask_info.mask_kind = MASK_AND;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0, "./data"));
+    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(3 == omega_edit_overwrite_string(session_ptr, 0,
                                              "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
@@ -441,7 +474,8 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/model-test.dat";
-    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS);
+    const auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS,
+                                                       nullptr);
     REQUIRE(session_ptr);
     auto file_size = omega_session_get_computed_file_size(session_ptr);
     REQUIRE(file_size > 0);
@@ -528,8 +562,10 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     omega_byte_frequency_profile_t byte_frequency_profile;
-    const auto session_ptr = omega_edit_create_session(nullptr, session_change_cbk, &file_info, ALL_EVENTS);
+    const auto session_ptr = omega_edit_create_session(nullptr, session_change_cbk, &file_info, ALL_EVENTS, nullptr);
     REQUIRE(session_ptr);
+    REQUIRE(omega_session_get_checkpoint_directory(session_ptr));
+    REQUIRE(0 < strlen(omega_session_get_checkpoint_directory(session_ptr)));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
     // Hanoi test
     int64_t change_serial;
@@ -618,7 +654,7 @@ TEST_CASE("Check initialization", "[InitTests]") {
 
     SECTION("Open data file") {
         SECTION("Create Session") {
-            session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS);
+            session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, ALL_EVENTS, nullptr);
             REQUIRE(session_ptr);
             REQUIRE(63 == omega_session_get_computed_file_size(session_ptr));
             REQUIRE(nullptr == omega_session_get_last_change(session_ptr));
@@ -767,7 +803,7 @@ TEST_CASE("Search", "[SearchTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;
     auto in_filename = "data/search-test.dat";
-    auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, NO_EVENTS);
+    auto session_ptr = omega_edit_create_session(in_filename, session_change_cbk, &file_info, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
@@ -899,7 +935,7 @@ TEST_CASE("Search", "[SearchTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, "data/search-test.actual.1.dat", 1, nullptr));
     omega_edit_destroy_session(session_ptr);
     REQUIRE(0 == compare_files("data/search-test.expected.1.dat", "data/search-test.actual.1.dat"));
-    session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS);
+    session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     std::string as = "bbbbabbbbaabbbba";
     REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, as));
@@ -953,7 +989,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
     omega_viewport_t *viewport_ptr;
     view_mode_t view_mode;
 
-    session_ptr = omega_edit_create_session(file_name, nullptr, nullptr, NO_EVENTS);
+    session_ptr = omega_edit_create_session(file_name, nullptr, nullptr, NO_EVENTS, nullptr);
     auto viewport_count = omega_session_get_num_viewports(session_ptr);
     REQUIRE(viewport_count == 0);
     view_mode.display_mode = display_mode_t::BIT_MODE;
@@ -985,7 +1021,7 @@ TEST_CASE("File Viewing", "[InitTests]") {
 }
 
 TEST_CASE("Viewports", "[ViewportTests]") {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS);
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     omega_edit_insert_string(session_ptr, 0, "123456789");
     const auto viewport_fixed_ptr =
@@ -1060,7 +1096,8 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     int session_events_count = 0;
     int viewport_events_count = 0;
     auto session_ptr =
-            omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, ALL_EVENTS);
+            omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, ALL_EVENTS,
+                                      nullptr);
     REQUIRE(1 == session_events_count);// SESSION_EVT_CREATE
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                                    &viewport_events_count, ALL_EVENTS);
@@ -1080,7 +1117,7 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     session_events_count = 0;
     viewport_events_count = 0;
     session_ptr = omega_edit_create_session("data/session_save.1.dat", session_save_test_session_cbk,
-                                            &session_events_count, ALL_EVENTS);
+                                            &session_events_count, ALL_EVENTS, nullptr);
     REQUIRE(1 == session_events_count);
     viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                               &viewport_events_count, ALL_EVENTS);
@@ -1125,7 +1162,8 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     int session_events_count = 0;
     int viewport_events_count = 0;
     auto session_ptr =
-            omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, ALL_EVENTS);
+            omega_edit_create_session(nullptr, session_save_test_session_cbk, &session_events_count, ALL_EVENTS,
+                                      nullptr);
     REQUIRE(1 == session_events_count);// SESSION_EVT_CREATE
     auto viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 100, 0, session_save_test_viewport_cbk,
                                                    &viewport_events_count, ALL_EVENTS);

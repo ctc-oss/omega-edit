@@ -72,33 +72,40 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
       // If server is to shutdown gracefully, don't create new sessions
-      Future.successful(CreateSessionResponse("", None))
+      Future.successful(CreateSessionResponse("", "", None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
-      (editors ? Create(in.sessionIdDesired, filePath))
+      val chkptDir = in.checkpointDirectory.map(Paths.get(_))
+      (editors ? Create(in.sessionIdDesired, filePath, chkptDir))
         .mapTo[Result]
         .map {
-          case Ok(id) =>
+          case ok: Ok with CheckpointDirectory =>
             filePath match {
               // If a file path is provided, detect file type, otherwise return None
-              case Some(path) => CreateSessionResponse(id, detectFileType(path.toString))
-              case None       => CreateSessionResponse(id, None)
+              case Some(path) =>
+                CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, detectFileType(path.toString))
+              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None)
             }
+          case Ok(id) =>
+            throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")
           case Err(c) => throw grpcFailure(c)
         }
     }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
-    // If after session is destroyed, the number of sessions is 0
-    // and the server is to shutdown gracefully, stop server after destroy
-    (editors ? DestroyActor(in.id, timeout))
-      .mapTo[Result]
-      .map {
-        case Ok(_) =>
-          checkIsGracefulShutdown()
-          in
-        case Err(c) => throw grpcFailure(c)
-      }
+    // First destroy the session, then destroy the actor
+    (editors ? SessionOp(in.id, Destroy)).mapTo[Result].flatMap {
+      case Ok(id) =>
+        (editors ? DestroyActor(id, timeout)).mapTo[Result].map {
+          case Ok(_) =>
+            // If after session is destroyed, the number of sessions is 0 and the server is to shutdown gracefully,
+            // stop server after destroying the last session
+            checkIsGracefulShutdown()
+            in
+          case Err(c) => throw grpcFailure(c)
+        }
+      case Err(c) => throw grpcFailure(c)
+    }
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
     (editors ? SessionOp(

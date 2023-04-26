@@ -41,10 +41,14 @@ extern "C" {
  * @param cbk user-defined callback function called whenever a content affecting change is made to this session
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @param event_interest oring together the session events of interest, or zero if all session events are desired
- * @return pointer to the created session, nullptr on failure
+ * @param checkpoint_directory directory to store checkpoints in, if null, then it will try to use the same directory as
+ * the file_path, and if that fails, then it will use the system temp directory, and if that fails, it will use the
+ * current working directory
+ * @return pointer to the created session, or NULL on failure
  */
-OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
-                                                             void *user_data_ptr, int32_t event_interest);
+OMEGA_EDIT_EXPORT omega_session_t *
+omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
+                          int32_t event_interest, const char *checkpoint_directory);
 
 /**
  * Destroy the given session and all associated objects (changes, and viewports)
@@ -62,7 +66,7 @@ OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @param cbk user-defined callback function called whenever the viewport gets updated
  * @param user_data_ptr pointer to user-defined data to associate with this new viewport
  * @param event_interest oring together the viewport events of interest, or zero if all viewport events are desired
- * @return pointer to the new viewport, nullptr on failure
+ * @return pointer to the new viewport, or NULL on failure
  */
 OMEGA_EDIT_EXPORT omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset,
                                                                int64_t capacity, int is_floating,
@@ -185,20 +189,18 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int
  * @param user_data_ptr pointer to user data that will be sent through to the given transform
  * @param offset location offset to make the change
  * @param length the number of bytes from the given offset to apply the mask to
- * @param checkpoint_directory directory to store the checkpoint file
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
-                                                 void *user_data_ptr, int64_t offset, int64_t length,
-                                                 char const *checkpoint_directory);
+OMEGA_EDIT_EXPORT int
+omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
+                           int64_t offset, int64_t length);
 
 /**
- * Creates a session checkpoint in the given directory.
+ * Creates a session checkpoint.
  * @param session_ptr session to checkpoint
- * @param checkpoint_directory directory to create the checkpoint in
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory);
+OMEGA_EDIT_EXPORT int omega_edit_create_checkpoint(omega_session_t *session_ptr);
 
 /**
  * Destroys the last checkpoint created on the given session

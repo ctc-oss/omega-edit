@@ -19,21 +19,27 @@
 #include <io.h>
 #include <process.h>
 #include <sys/utime.h>
+#include <windows.h>
 #ifdef OPEN
 #undef OPEN
+#endif
+#ifdef CLOSE
+#undef CLOSE
 #endif
 #define OPEN _open
 #define O_CREAT _O_CREAT
 #define O_RDWR _O_RDWR
-#define close _close
+#define CLOSE _close
 #define getcwd _getcwd
 #define getpid _getpid
 #define utime _utime
 #else
+
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 #ifndef O_BINARY
 #define O_BINARY (0)
 #endif
@@ -47,7 +53,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int omega_util_mkstemp(char *tmpl) {
+
+int omega_util_compute_mode(int mode) {
+#ifdef OMEGA_BUILD_WINDOWS
+    return mode;
+#else
+    const mode_t umask_value = umask(0);
+    umask(umask_value);
+    return mode & ~umask_value;
+#endif
+}
+
+int omega_util_mkstemp(char *tmpl, int mode) {
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
     static uint64_t value;
     const size_t len = strlen(tmpl);
@@ -84,8 +101,8 @@ int omega_util_mkstemp(char *tmpl) {
         template[4] = letters[v % 62];
         v /= 62;
         template[5] = letters[v % 62];
-
-        int fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, 0600);
+        mode = (mode) ? mode : omega_util_compute_mode(0600);
+        int fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, mode);
         if (fd >= 0) {
             errno = saved_errno;
             return fd;
@@ -99,53 +116,12 @@ int omega_util_mkstemp(char *tmpl) {
     return -1;
 }
 
-static inline int omega_util_utime_(const char *file_name) {
-#ifdef OMEGA_BUILD_WINDOWS
-    if (utime(file_name, NULL)) {
-        DBG(perror("omega_util_utime_"););
-        return -1;
-    }
-#else
-    if (utimensat(AT_FDCWD, file_name, NULL, AT_SYMLINK_NOFOLLOW)) {
-        DBG(perror("omega_util_utime_"););
-        return -1;
-    }
-#endif
-    return 0;
-}
-
-int omega_util_touch(const char *file_name, int create) {
-    int fd = OPEN(file_name, create ? O_RDWR | O_CREAT : O_RDWR, 0644);
-    if (fd < 0) {
-        if (!create && errno == ENOENT) {
-            return 0;
-        } else {
-            DBG(perror("omega_util_touch"););
-            return -1;
-        }
-    }
-    close(fd);
-    if (omega_util_utime_(file_name)) {
-        DBG(perror("omega_util_touch"););
-        return -1;
-    }
-    return 0;
-}
-
-char omega_util_directory_separator() {
-#ifdef OMEGA_BUILD_WINDOWS
-    return '\\';
-#else
-    return '/';
-#endif
-}
-
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
     assert(from_file_ptr);
     assert(to_file_ptr);
     if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
     int64_t remaining = byte_count;
-    omega_byte_t buff[1024 * 8];
+    omega_byte_t buff[BUFSIZ];
     while (remaining) {
         const int64_t count = (int64_t) sizeof(buff) > remaining ? remaining : (int64_t) sizeof(buff);
         if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
@@ -225,7 +201,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
             break;
         }
         int64_t remaining = length;
-        omega_byte_t buff[1024 * 8];
+        omega_byte_t buff[BUFSIZ];
         while (remaining) {
             const int64_t count = ((int64_t) sizeof(buff) > remaining) ? remaining : (int64_t) sizeof(buff);
             const int64_t num_read = (int64_t) fread(buff, sizeof(omega_byte_t), count, in_fp);
@@ -291,4 +267,13 @@ int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
         if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break;
     }
     return rc;
+}
+
+char *omega_util_strndup(const char *s, size_t len) {
+    char *result = (char*) malloc(len + 1);
+    if (result != NULL) {
+        memcpy(result, s, len);
+        result[len] = '\0';
+    }
+    return result;
 }

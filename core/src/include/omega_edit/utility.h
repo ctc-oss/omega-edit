@@ -34,18 +34,20 @@ extern "C" {
 #endif
 
 /**
- * Returns the directory separator character used on the host system
- * @return directory separator character used on the host system
+ * Returns the file mode modulo umask
+ * @param mode file mode
+ * @return file mode modulo umask
  */
-OMEGA_EDIT_EXPORT char omega_util_directory_separator();
+OMEGA_EDIT_EXPORT int omega_util_compute_mode(int mode);
 
 /**
  * Generate a temporary file name based on tmpl.  The name constructed does not exist at the time of the call.
  * The tmpl parameter is overwritten with the result.
  * @param tmpl must match the rules for mk[s]temp (i.e. end in "XXXXXX")
+ * @param mode mode to set the file to, if zero then the mode is set to 0600 modulo umask
  * @return read-write file descriptor opened with mode 0600 modulo umask or -1 with errno set on error
  */
-OMEGA_EDIT_EXPORT int omega_util_mkstemp(char *tmpl);
+OMEGA_EDIT_EXPORT int omega_util_mkstemp(char *tmpl, int mode);
 
 /**
  * Write a segment from one file into another file
@@ -136,6 +138,14 @@ OMEGA_EDIT_EXPORT int omega_util_strncmp(const char *s1, const char *s2, uint64_
  * @return zero if sz bytes of the two character strings match, non-zero otherwise
  */
 OMEGA_EDIT_EXPORT int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz);
+
+/**
+ * Cross-platform strndup work-alike
+ * @param s string to duplicate
+ * @param n length of the string to duplicate
+ * @return duplicated , null terminated string, allocated with malloc, or NULL on failure
+ */
+char *omega_util_strndup(const char *s, size_t n);
 
 #ifdef __cplusplus
 }

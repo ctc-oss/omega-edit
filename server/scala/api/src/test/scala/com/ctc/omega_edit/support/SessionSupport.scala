@@ -25,10 +25,10 @@ import scala.util.Using
 
 trait SessionSupport {
   def emptySession(test: api.Session => Unit): Unit =
-    test(OmegaEdit.newSession(None))
+    test(OmegaEdit.newSession(None, None))
 
   def session(bytes: Array[Byte])(test: api.Session => Unit): Unit = {
-    val s = OmegaEdit.newSession(None)
+    val s = OmegaEdit.newSession(None, None)
     s.insert(bytes, 0)
     test(s)
   }
@@ -50,6 +50,7 @@ trait SessionSupport {
       def change: Option[Option[Change]] = _change
     }
     val session = OmegaEdit.newSessionCb(
+      None,
       None,
       (_, e, c) => {
         _event = Some(e)

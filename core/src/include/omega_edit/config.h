@@ -71,6 +71,10 @@
 #endif
 #endif
 
+#ifndef CLOSE
+#define CLOSE close
+#endif
+
 #ifndef FSEEK
 #ifdef _LARGEFILE_SOURCE
 #define FSEEK fseeko

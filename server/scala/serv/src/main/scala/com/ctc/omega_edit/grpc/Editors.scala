@@ -23,6 +23,7 @@ import pekko.stream.OverflowStrategy
 import pekko.stream.scaladsl.Source
 import pekko.util.Timeout
 import com.ctc.omega_edit.api.{OmegaEdit, SessionCallback}
+import com.ctc.omega_edit.grpc.Session.CheckpointDirectory
 import com.google.protobuf.ByteString
 import io.grpc.Status
 import omega_edit._
@@ -40,7 +41,8 @@ object Editors {
   case class Find(id: String)
   case class Create(
       id: Option[String],
-      path: Option[Path]
+      path: Option[Path],
+      chkptDir: Option[Path]
   )
   case class DestroyActor(id: String, timeout: Timeout)
   case class DestroyActors()
@@ -79,7 +81,7 @@ class Editors extends Actor with ActorLogging {
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   def receive: Receive = {
-    case Create(sid, path) =>
+    case Create(sid, path, chkptDir) =>
       val id = sid.getOrElse(idFor(path))
       context.child(id) match {
         case Some(_) =>
@@ -103,15 +105,16 @@ class Editors extends Actor with ActorLogging {
             )
             ()
           }
+          val session = OmegaEdit.newSessionCb(path, chkptDir, cb)
           context.actorOf(
             Session.props(
-              OmegaEdit.newSessionCb(path, cb),
+              session,
               stream,
               cb
             ),
             id
           )
-          sender() ! Ok(id)
+          sender() ! CheckpointDirectory.ok(id, session.checkpointDirectory)
       }
 
     case Find(id) =>

@@ -35,14 +35,48 @@ import {
 // @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'
+import * as path from 'path'
 
 function base64Encode(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64')
 }
 
+function countMatchingFilesInDir(
+  dirPath: string,
+  pattern: string
+): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    fs.readdir(dirPath, (err, files) => {
+      if (err) {
+        reject(err)
+      } else {
+        const matchingFiles = files.filter((file) => file.match(pattern))
+        resolve(matchingFiles.length)
+      }
+    })
+  })
+}
+
+function removeDirectory(dirPath: string): void {
+  if (fs.existsSync(dirPath)) {
+    const files = fs.readdirSync(dirPath)
+    for (const file of files) {
+      const filePath = path.join(dirPath, file)
+      const stats = fs.statSync(filePath)
+      if (stats.isDirectory()) {
+        removeDirectory(filePath)
+      } else {
+        fs.unlinkSync(filePath)
+      }
+    }
+    fs.rmdirSync(dirPath)
+  }
+}
+
 describe('Sessions', () => {
   const iterations = 500
   const testFile = require('path').join(__dirname, 'data', 'csstest.html')
+  const checkpointDir = require('path').join(__dirname, 'data', 'checkpoint')
   const fileData = fs.readFileSync(testFile)
   const fileBuffer = new Uint8Array(
     fileData.buffer,
@@ -94,5 +128,43 @@ describe('Sessions', () => {
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)
     }
+  })
+
+  it('Should fail to create session with invalid file', async () => {
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    try {
+      await createSession('-invalid-')
+      expect.fail('Should have thrown')
+    } catch (e) {
+      // expected
+    }
+  })
+
+  it('Should be able to use a different checkpoint directory', async () => {
+    removeDirectory(checkpointDir)
+    expect(fs.existsSync(checkpointDir)).to.be.false
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    const session = await createSession(
+      testFile,
+      'checkpoint_test',
+      checkpointDir
+    )
+    const session_id = session.getSessionId()
+    expect(session_id).to.equal('checkpoint_test')
+    expect(session.getCheckpointDirectory()).to.equal(checkpointDir)
+    expect(await getSessionCount()).to.equal(1)
+    expect(fileData.length).to.equal(await getComputedFileSize(session_id))
+    expect(fs.existsSync(checkpointDir)).to.be.true
+    expect(
+      await countMatchingFilesInDir(checkpointDir, '.OmegaEdit-orig.*')
+    ).to.equal(1)
+    await destroySession(session_id)
+    expect(await getSessionCount()).to.equal(0)
+    expect(fs.existsSync(checkpointDir)).to.be.true
+    expect(
+      await countMatchingFilesInDir(checkpointDir, '.OmegaEdit-orig.*')
+    ).to.equal(0)
+    removeDirectory(checkpointDir)
+    expect(fs.existsSync(checkpointDir)).to.be.false
   })
 })
