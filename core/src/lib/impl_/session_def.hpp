@@ -43,6 +43,8 @@ struct omega_session_struct {
     omega_models_t models_{};                  ///< Edit models (internal)
     int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
     int8_t session_flags_{};                   ///< Internal state flags
+    std::string checkpoint_directory_{};       ///< Path to checkpoint directory
+    std::string checkpoint_file_name_{};       ///< Name of session checkpoint file
 };
 
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr);

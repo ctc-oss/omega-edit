@@ -84,6 +84,9 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def endTransaction: Int =
     i.omega_session_end_transaction(p)
 
+  def checkpointDirectory: Path =
+    Paths.get(i.omega_session_get_checkpoint_directory(p))
+
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))
 
@@ -241,7 +244,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     } finally i.omega_segment_destroy(sp)
   }
 
-  def destroy(): Unit = i.omega_edit_destroy_session(p)
+  def destroy(): Unit =
+    i.omega_edit_destroy_session(p)
 }
 
 private object Edit {

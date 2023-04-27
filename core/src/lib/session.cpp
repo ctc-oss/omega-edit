@@ -286,6 +286,11 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
     return 0;
 }
 
+const char* omega_session_get_checkpoint_directory(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->checkpoint_directory_.c_str();
+}
+
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->changes.empty()) ||
            omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());

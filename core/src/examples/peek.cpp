@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
     const auto length = stoll(argv[4]);
     view_mode_t view_mode;
     view_mode.display_mode = char_to_display_mode(argv[1][0]);
-    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS)) {
+    if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS, nullptr)) {
         omega_edit_create_viewport(session_ptr, offset, length, 0, vpt_change_cbk, &view_mode,
                                    VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
         omega_edit_destroy_session(session_ptr);

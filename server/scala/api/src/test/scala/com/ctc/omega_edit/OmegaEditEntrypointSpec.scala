@@ -35,7 +35,7 @@ class OmegaEditEntrypointSpec extends AnyWordSpec with Matchers with TestSupport
     }
 
     "provide session" in {
-      OmegaEdit.newSession(None).size shouldBe 0
+      OmegaEdit.newSession(None, None).size shouldBe 0
     }
   }
 }

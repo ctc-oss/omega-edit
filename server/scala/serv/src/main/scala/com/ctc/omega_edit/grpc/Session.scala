@@ -128,6 +128,17 @@ object Session {
       }
   }
 
+  trait CheckpointDirectory {
+    def checkpointDirectory: Path
+  }
+
+  object CheckpointDirectory {
+    def ok(sessionId: String, checkpointDirectory0: Path): Ok with CheckpointDirectory =
+      new Ok(sessionId) with CheckpointDirectory {
+        val checkpointDirectory: Path = checkpointDirectory0
+      }
+  }
+
   trait ChangeDetails {
     def change: Change
 

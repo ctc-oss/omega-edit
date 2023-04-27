@@ -246,6 +246,13 @@ OMEGA_EDIT_EXPORT int omega_session_profile(const omega_session_t *session_ptr,
                                             omega_byte_frequency_profile_t *profile_ptr, int64_t offset,
                                             int64_t length);
 
+/**
+ * Given a session, return the checkpoint directory
+ * @param session_ptr  session to get the checkpoint directory for
+ * @return checkpoint directory
+ */
+OMEGA_EDIT_EXPORT const char* omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
+
 #ifdef __cplusplus
 }
 #endif

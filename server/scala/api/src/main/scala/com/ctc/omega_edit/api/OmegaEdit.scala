@@ -25,20 +25,17 @@ import scala.util.Try
 /** The entrypoint to the OmegaEdit library. Provides Session instances and version information.
   */
 object OmegaEdit extends OmegaEdit {
-  def newSession(path: Option[Path]): Session =
-    newSessionCb(path, null)
+  def newSession(path: Option[Path] = None, chkptDir: Option[Path] = None): Session = newSessionCb(path, chkptDir, null)
 
-  def newSessionCb(
-      path: Option[Path],
-      cb: SessionCallback
-  ): Session = {
-    require(path.forall(_.toFile.exists()), "specified path does not exist")
+  def newSessionCb(path: Option[Path], chkptDir: Option[Path], cb: SessionCallback): Session = {
+    require(path.forall(_.toFile.exists()), "specified file path does not exist")
     new SessionImpl(
       ffi.omega_edit_create_session(
         path.map(_.toString).orNull,
         cb,
         null,
-        0
+        0,
+        chkptDir.map(_.toString).orNull
       ),
       ffi
     )
@@ -62,9 +59,6 @@ object OmegaEdit extends OmegaEdit {
 
 trait OmegaEdit {
   def version(): Version
-  def newSession(path: Option[Path]): Session
-  def newSessionCb(
-      path: Option[Path],
-      cb: SessionCallback
-  ): Session
+  def newSession(path: Option[Path], chkptDir: Option[Path]): Session
+  def newSessionCb(path: Option[Path], chkptDir: Option[Path], cb: SessionCallback): Session
 }
