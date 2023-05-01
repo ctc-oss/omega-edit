@@ -65,6 +65,12 @@ message EventSubscriptionRequest {
   optional int32 interest = 2;
 }
 
+enum IOFlags {
+  IO_FLG_NONE = 0;
+  IO_FLG_OVERWRITE = 1;
+  IO_FLG_FORCE_OVERWRITE = 2;
+}
+
 enum ChangeKind {
   UNDEFINED_CHANGE = 0;
   CHANGE_DELETE = 1;
@@ -197,12 +203,13 @@ message CreateSessionResponse {
 message SaveSessionRequest {
   string session_id = 1;
   string file_path = 2;
-  optional bool allow_overwrite = 3;
+  int32 io_flags = 3;
 }
 
 message SaveSessionResponse {
   string session_id = 1;
   string file_path = 2;
+  int32 save_status = 3;
 }
 
 message SessionEvent {

@@ -18,16 +18,20 @@
 #include "../../include/omega_edit/config.h"
 
 #ifdef __cplusplus
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+
 #define SOURCE_FILENAME (std::strrchr(__FILE__, '/') ? std::strrchr(__FILE__, '/') + 1 : __FILE__)
 #define ABORT(x)                                                                                                       \
     do { x std::abort(); } while (0)
 #else
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #define SOURCE_FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define ABORT(x)                                                                                                       \
     do { x abort(); } while (0)
@@ -53,7 +57,9 @@
 #define LOG_ERROR(x)                                                                                                   \
     do { fprintf(stderr, "%s@%d::%s: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, (x)); } while (0)
 #define LOG_ERRNO()                                                                                                    \
-    do { fprintf(stderr, "%s@%d::%s: errno=%d: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, errno, strerror(errno)); } while (0)
+    do {                                                                                                               \
+        fprintf(stderr, "%s@%d::%s: errno=%d: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, errno, strerror(errno)); \
+    } while (0)
 #endif
 
 #endif//OMEGA_EDIT_MACROS_H

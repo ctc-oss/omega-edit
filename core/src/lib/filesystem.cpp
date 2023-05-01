@@ -24,21 +24,66 @@
 
 namespace fs = std::filesystem;
 
-int omega_util_file_exists(const char *path) { return (fs::is_regular_file(path)) ? 1 : 0; }
+int omega_util_file_exists(const char *path) {
+    assert(path);
+    return (fs::is_regular_file(path)) ? 1 : 0;
+}
 
-int omega_util_directory_exists(const char *path) { return (fs::is_directory(path)) ? 1 : 0; }
+int omega_util_directory_exists(const char *path) {
+    assert(path);
+    return (fs::is_directory(path)) ? 1 : 0;
+}
 
-int omega_util_create_directory(char const *path) { return (fs::create_directories(path)) ? 0 : 1; }
+int omega_util_create_directory(char const *path) {
+    assert(path);
+    return (fs::create_directories(path)) ? 0 : 1;
+}
 
-int omega_util_remove_file(char const *path) { return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;}
+int omega_util_remove_file(char const *path) {
+    assert(path);
+    return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;
+}
 
-int omega_util_remove_directory(char const *path) { return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1; }
+int omega_util_remove_directory(char const *path) {
+    assert(path);
+    return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1;
+}
 
-uint64_t omega_util_remove_all(char const *path) { return (fs::remove_all(path)); }
+uint64_t omega_util_remove_all(char const *path) {
+    assert(path);
+    return (fs::remove_all(path));
+}
 
-int64_t omega_util_file_size(char const *path) { return static_cast<int64_t>(fs::file_size(path)); }
+int64_t omega_util_file_size(char const *path) {
+    assert(path);
+    return static_cast<int64_t>(fs::file_size(path));
+}
 
-int omega_util_paths_equivalent(char const *path1, char const *path2) { return fs::equivalent(path1, path2) ? 1 : 0; }
+int omega_util_paths_equivalent(char const *path1, char const *path2) {
+    assert(path1);
+    assert(path2);
+    return fs::equivalent(path1, path2) ? 1 : 0;
+}
+
+int omega_util_compare_modification_times(const char *path1, const char *path2) {
+    assert(path1);
+    assert(path2);
+    const std::filesystem::path file1_path(path1);
+    const std::filesystem::path file2_path(path2);
+
+    try {
+        const auto file1_time = std::filesystem::last_write_time(file1_path);
+        const auto file2_time = std::filesystem::last_write_time(file2_path);
+
+        if (file1_time > file2_time) return 1;
+        else if (file1_time == file2_time)
+            return 0;
+        return -1;
+    } catch (const std::filesystem::filesystem_error &ex) {
+        LOG_ERROR("Error comparing modification times: " << ex.what());
+        return -2;
+    }
+}
 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
@@ -89,7 +134,6 @@ char *omega_util_normalize_path(char const *path, char *buffer) {
 char *omega_util_available_filename(char const *path, char *buffer) {
     assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
-    assert(path);
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {
         memcpy(buffer, path, strlen(path) + 1);
@@ -105,15 +149,18 @@ char *omega_util_available_filename(char const *path, char *buffer) {
             return nullptr;
         }
         auto const len = fs::path(dirname)
-                .append(basename + "-" + std::to_string(i) + extension)
-                .string()
-                .copy(buffer, FILENAME_MAX);
+                                 .append(basename + "-" + std::to_string(i) + extension)
+                                 .string()
+                                 .copy(buffer, FILENAME_MAX);
         buffer[len] = '\0';
     } while (omega_util_file_exists(buffer));
     return buffer;
 }
 
 int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
+    assert(src_path);
+    assert(dst_path);
+
     // Convert paths to std::filesystem::path objects
     std::filesystem::path src_fs_path(src_path);
     std::filesystem::path dst_fs_path(dst_path);
@@ -156,8 +203,10 @@ char *omega_util_get_temp_directory() {
 }
 
 int omega_util_touch(const char *file_name, int create) {
+    assert(file_name);
+
     // Check if the file exists
-    bool file_exists = std::filesystem::exists(file_name);
+    const auto file_exists = std::filesystem::exists(file_name);
 
     // Create the file if it doesn't exist and the create flag is set
     if (!file_exists) {
@@ -185,6 +234,4 @@ int omega_util_touch(const char *file_name, int create) {
     return 0;
 }
 
-char omega_util_directory_separator() {
-    return std::filesystem::path::preferred_separator;
-}
+char omega_util_directory_separator() { return std::filesystem::path::preferred_separator; }

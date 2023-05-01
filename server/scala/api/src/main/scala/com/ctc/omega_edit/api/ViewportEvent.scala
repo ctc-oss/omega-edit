@@ -32,10 +32,10 @@ object ViewportEvent extends IntEnum[ViewportEvent] {
   case object Modify extends ViewportEvent(32)
   case object Changes extends ViewportEvent(64)
 
-  val values = findValues
+  val values: IndexedSeq[ViewportEvent] = findValues
 
   object Interest {
-    val None = 0
-    val All = ~0
+    val None: Int = 0
+    val All: Int = ~0
   }
 }

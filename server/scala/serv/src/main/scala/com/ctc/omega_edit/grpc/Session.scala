@@ -25,7 +25,6 @@ import io.grpc.Status
 import com.ctc.omega_edit.grpc.Session._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api.{Change, SessionCallback, ViewportCallback}
 import omega_edit._
 
@@ -48,6 +47,7 @@ object Session {
 
   trait SavedTo {
     def path: Path
+    def status: Int
   }
 
   def props(
@@ -71,7 +71,7 @@ object Session {
       }
 
   }
-  case class Save(to: Path, overwrite: OverwriteStrategy) extends Op
+  case class Save(to: Path, flags: Int) extends Op
   case class View(
       offset: Long,
       capacity: Long,
@@ -347,11 +347,12 @@ class Session(
         def count: Long = session.numSearchContexts
       }
 
-    case Save(to, overwrite) =>
-      session.save(to, overwrite) match {
+    case Save(to, flags) =>
+      session.save(to, flags) match {
         case Success(actual) =>
           sender() ! new Ok(sessionId) with SavedTo {
-            def path: Path = actual
+            def path: Path = actual._1
+            def status: Int = actual._2
           }
         case Failure(_) =>
           sender() ! Err(Status.UNKNOWN)

@@ -39,7 +39,7 @@ int main() {
     omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
     omega_edit_overwrite(session_ptr, 7, "orl", 0);
     omega_edit_delete(session_ptr, 11, 3);
-    omega_edit_save(session_ptr, "hello.txt", 1, NULL);
+    omega_edit_save(session_ptr, "hello.txt", IO_FLG_OVERWRITE, NULL);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }

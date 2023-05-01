@@ -27,7 +27,9 @@
 #include <cstddef>
 extern "C" {
 #else
+
 #include <stddef.h>
+
 #endif
 
 /**

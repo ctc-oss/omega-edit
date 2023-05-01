@@ -27,8 +27,10 @@
  * Data segment functions
  **********************************************************************************************************************/
 
-static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer,
-                                       int64_t capacity) noexcept {
+static inline int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omega_byte_t *buffer,
+                                              int64_t capacity)
+
+        noexcept {
     assert(from_file_ptr);
     assert(buffer);
     int64_t rc = -1;
@@ -47,19 +49,35 @@ static int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offset, omeg
     return rc;
 }
 
-int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr) noexcept {
+int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr)
+
+        noexcept {
     assert(session_ptr);
-    assert(session_ptr->models_.back());
+    assert(session_ptr->models_.
+
+           back()
+
+    );
     assert(data_segment_ptr);
     const auto &model_ptr = session_ptr->models_.back();
     data_segment_ptr->length = 0;
-    if (model_ptr->model_segments.empty()) { return 0; }
+    if (model_ptr->model_segments.
+
+        empty()
+
+    ) {
+        return 0;
+    }
     assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
     const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
     int64_t read_offset = 0;
 
-    for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
+    for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.
+
+                                                                 cend();
+
+         ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(print_model_segments_(session_ptr->models_.back().get(), CLOG);
                   LOG_ERROR("break in model continuity, expected: " << read_offset
@@ -70,13 +88,17 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
             // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
             // (the delta).
             auto delta = data_segment_offset - (*iter)->computed_offset;
-            auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
+            const auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
             do {
                 // This is how much data remains to be filled
                 const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
                 auto amount = (*iter)->computed_length - delta;
                 amount = (amount > remaining_capacity) ? remaining_capacity : amount;
-                switch (omega_model_segment_get_kind(iter->get())) {
+                switch (omega_model_segment_get_kind(iter->
+
+                                                     get()
+
+                                                             )) {
                     case model_segment_kind_t::SEGMENT_READ:
                         // For read segments, we're reading a segment, or portion thereof, from the input file and
                         // writing it into the data segment
@@ -90,7 +112,12 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
                         // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
                         // segment
                         memcpy(data_segment_buffer + data_segment_ptr->length,
-                               omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
+                               omega_change_get_bytes((*iter)->change_ptr.
+
+                                                      get()
+
+                                                              ) +
+                                       (*iter)->change_offset + delta,
                                amount);
                         break;
                     default:
@@ -101,7 +128,11 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
                 // After the first segment is written, the dela should be zero from that point on
                 delta = 0;
                 // Keep writing segments until we run out of viewport capacity or run out of segments
-            } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
+            } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.
+
+                                                                                   end()
+
+            );
             assert(data_segment_ptr->length <= data_segment_capacity);
             // data segment buffer allocation is its capacity plus one, so we can null-terminate it
             data_segment_buffer[data_segment_ptr->length] = '\0';
@@ -116,7 +147,9 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
  * Model segment functions
  **********************************************************************************************************************/
 
-static void print_change_(const omega_change_t *change_ptr, std::ostream &out_stream) noexcept {
+static inline void print_change_(const omega_change_t *change_ptr, std::ostream &out_stream)
+
+        noexcept {
     assert(change_ptr);
     out_stream << R"({"serial": )" << omega_change_get_serial(change_ptr) << R"(, "kind": ")"
                << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )" << omega_change_get_offset(change_ptr)
@@ -128,16 +161,25 @@ static void print_change_(const omega_change_t *change_ptr, std::ostream &out_st
     out_stream << "}";
 }
 
-static void print_model_segment_(const omega_model_segment_ptr_t &segment_ptr, std::ostream &out_stream) noexcept {
+static inline void print_model_segment_(const omega_model_segment_ptr_t &segment_ptr, std::ostream &out_stream)
+
+        noexcept {
     out_stream << R"({"kind": ")" << omega_model_segment_kind_as_char(omega_model_segment_get_kind(segment_ptr.get()))
                << R"(", "computed_offset": )" << segment_ptr->computed_offset << R"(, "computed_length": )"
                << segment_ptr->computed_length << R"(, "change_offset": )" << segment_ptr->change_offset
                << R"(, "change": )";
-    print_change_(segment_ptr->change_ptr.get(), out_stream);
+    print_change_(segment_ptr->change_ptr.
+
+                  get(),
+                  out_stream
+
+    );
     out_stream << "}" << std::endl;
 }
 
-void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream) noexcept {
+void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream)
+
+        noexcept {
     assert(model_ptr);
     for (const auto &segment : model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
 }

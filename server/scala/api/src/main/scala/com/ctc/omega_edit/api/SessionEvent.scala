@@ -38,10 +38,10 @@ object SessionEvent extends IntEnum[SessionEvent] {
   case object CreateViewport extends SessionEvent(1024)
   case object DestroyViewport extends SessionEvent(2048)
 
-  val values = findValues
+  val values: IndexedSeq[SessionEvent] = findValues
 
   object Interest {
-    val None = 0
-    val All = ~0
+    val None: Int = 0
+    val All: Int = ~0
   }
 }

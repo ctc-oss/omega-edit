@@ -37,9 +37,8 @@ int main(int arc, char **argv) {
     }
     int64_t replacements = 0;
     const string replacement = argv[4];
-    auto session_ptr = omega_scoped_ptr<omega_session_t>(omega_edit_create_session(in_filename, nullptr, nullptr,
-                                                                                   NO_EVENTS, nullptr),
-                                                         omega_edit_destroy_session);
+    auto session_ptr = omega_scoped_ptr<omega_session_t>(
+            omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS, nullptr), omega_edit_destroy_session);
     auto match_context_ptr = omega_scoped_ptr<omega_search_context_t>(
             omega_search_create_context_string(session_ptr.get(), argv[3]), omega_search_destroy_context);
     const auto pattern_length = omega_search_context_get_length(match_context_ptr.get());
@@ -71,7 +70,7 @@ int main(int arc, char **argv) {
         } while (omega_search_next_match(match_context_ptr.get(),
                                          replacement_length));//advance find by the replacement length
     }
-    if (0 != omega_edit_save(session_ptr.get(), argv[2], 0, nullptr)) {
+    if (0 != omega_edit_save(session_ptr.get(), argv[2], omega_io_flags_t::IO_FLG_NONE, nullptr)) {
         cerr << "Error saving session to " << argv[2] << endl;
         return -1;
     }

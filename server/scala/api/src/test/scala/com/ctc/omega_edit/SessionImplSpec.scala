@@ -17,7 +17,6 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.Changed
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.support.SessionSupport
 import org.scalatest.OptionValues._
@@ -115,7 +114,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
     "save empty session" in emptySession { s =>
       val empty = tmp.resolve(Paths.get("empty.txt"))
-      s.save(empty) shouldBe Success(empty)
+      s.save(empty) shouldBe Success((empty, 0))
 
       fileContents(empty) shouldBe ""
     }
@@ -125,7 +124,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val expected = UUID.randomUUID().toString
 
       s.insert(expected.getBytes(), 0)
-      s.save(dat) shouldBe Success(dat)
+      s.save(dat) shouldBe Success((dat, 0))
 
       fileContents(dat) shouldBe expected
     }
@@ -136,7 +135,7 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val expected = UUID.randomUUID().toString
 
       s.insert(expected.getBytes(), 0)
-      s.save(dat, OverwriteStrategy.OverwriteExisting) shouldBe Success(dat)
+      s.save(dat, overwrite = true) shouldBe Success((dat, 0))
 
       fileContents(dat) shouldBe expected
     }
@@ -148,11 +147,12 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       val expected = UUID.randomUUID().toString
       s.insert(expected.getBytes(), 0)
 
-      val r = s.save(dat, OverwriteStrategy.GenerateFilename)
+      val r = s.save(dat, overwrite = false)
       r.isSuccess shouldBe true
       r should not matchPattern { case Success(`dat`) => }
 
-      fileContents(r.get) shouldBe expected
+      fileContents(r.get._1) shouldBe expected
+      r.get._2 shouldBe 0
     }
   }
 

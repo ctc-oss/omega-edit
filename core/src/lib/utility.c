@@ -270,7 +270,7 @@ int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
 }
 
 char *omega_util_strndup(const char *s, size_t len) {
-    char *result = (char*) malloc(len + 1);
+    char *result = (char *) malloc(len + 1);
     if (result != NULL) {
         memcpy(result, s, len);
         result[len] = '\0';

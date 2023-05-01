@@ -17,8 +17,6 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
-import com.ctc.omega_edit.api.Session.OverwriteStrategy.{GenerateFilename, OverwriteExisting}
 import com.ctc.omega_edit.api._
 import jnr.ffi.Pointer
 
@@ -155,37 +153,32 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       case ptr  => Some(new ChangeImpl(ptr, i))
     }
 
-  def save(to: Path): Try[Path] =
-    save(to, OverwriteExisting)
+  def save(to: Path): Try[(Path, Int)] =
+    save(to, overwrite = true)
 
-  def save(to: Path, overwrite: Boolean): Try[Path] =
+  def save(to: Path, overwrite: Boolean): Try[(Path, Int)] =
     save(
       to,
-      overwrite match {
-        case true  => OverwriteExisting
-        case false => GenerateFilename
+      if (overwrite) {
+        IOFlags.Overwrite.value
+      } else {
+        IOFlags.None.value
       }
     )
 
-  def save(to: Path, onExists: OverwriteStrategy): Try[Path] = {
+  def save(to: Path, flags: Int): Try[(Path, Int)] = {
     // todo;; obtain an accurate and portable number here
     val buffer = ByteBuffer.allocate(4096)
-    val overwrite = onExists match {
-      case OverwriteExisting => true
-      case GenerateFilename  => false
-    }
-    i.omega_edit_save(
+    val rc = i.omega_edit_save(
       p,
       to.toString,
-      overwrite,
+      flags,
       Pointer.wrap(p.getRuntime, buffer)
-    ) match {
-      case 0 =>
-        val path = StandardCharsets.UTF_8.decode(buffer)
-        Success(Paths.get(path.toString.trim))
-
-      case ec =>
-        Failure(new RuntimeException(s"Failed to save session to file, $ec"))
+    )
+    if (rc == IOFlags.SaveStatus.Success || rc == IOFlags.SaveStatus.Modified) {
+      Success((Paths.get(StandardCharsets.UTF_8.decode(buffer).toString.trim), rc))
+    } else {
+      Failure(new RuntimeException(s"Failed to save session to file: $rc"))
     }
   }
 

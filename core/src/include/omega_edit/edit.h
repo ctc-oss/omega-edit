@@ -30,8 +30,10 @@
 #include <cstdint>
 extern "C" {
 #else
+
 #include <stddef.h>
 #include <stdint.h>
+
 #endif
 
 /**
@@ -46,9 +48,9 @@ extern "C" {
  * current working directory
  * @return pointer to the created session, or NULL on failure
  */
-OMEGA_EDIT_EXPORT omega_session_t *
-omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
-                          int32_t event_interest, const char *checkpoint_directory);
+OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
+                                                             void *user_data_ptr, int32_t event_interest,
+                                                             const char *checkpoint_directory);
 
 /**
  * Destroy the given session and all associated objects (changes, and viewports)
@@ -107,12 +109,12 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
  * by omega_util_available_filename.  If the file being edited is overwritten, the affected editing session will be reset.
  * @param session_ptr session to save
  * @param file_path file path to save to
- * @param overwrite set to non-zero if overwriting an existing file is okay, and zero otherwise
+ * @param io_flags save IO flags (see omega_io_flags_t for details)
  * @param saved_file_path if overwrite is not set and the target file_path exists, a new file path will be created, and if
  * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite,
+OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags,
                                       char *saved_file_path);
 
 /**
@@ -191,9 +193,8 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int
  * @param length the number of bytes from the given offset to apply the mask to
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int
-omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
-                           int64_t offset, int64_t length);
+OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
+                                                 void *user_data_ptr, int64_t offset, int64_t length);
 
 /**
  * Creates a session checkpoint.

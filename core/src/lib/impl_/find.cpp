@@ -39,7 +39,6 @@ const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_l
                                 const omega_find_skip_table_t *skip_table_ptr, const unsigned char *needle,
                                 size_t needle_length) {
     assert(haystack);
-    assert(skip_table_ptr);
     assert(needle);
     assert(needle_length > 0);
     if (needle_length > haystack_length) { return nullptr; }
@@ -47,8 +46,9 @@ const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_l
         auto *result = (const unsigned char *) std::memchr(haystack, *needle, haystack_length);
         return result ? result : nullptr;
     }
+    assert(skip_table_ptr);
     const auto needle_length_minus_1 = needle_length - 1;
-    const unsigned char last_needle_char = needle[needle_length_minus_1];
+    const auto last_needle_char = needle[needle_length_minus_1];
     size_t haystack_position = 0;
     while (haystack_position <= haystack_length - needle_length) {
         const auto skip = haystack[haystack_position + needle_length_minus_1];
