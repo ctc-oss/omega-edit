@@ -408,14 +408,14 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="edit_8h_1ad5789dafd2205e000a3c99269a32ca0f"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_edit_save</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">int</span> <span class="pre">overwrite,</span> <span class="pre">char</span> <span class="pre">*saved_file_path)</span></span></dt>
+<span class="target" id="edit_8h_1a0da21ff7eb54b9406d4bc3096cadd9f9"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_edit_save</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">int</span> <span class="pre">io_flags,</span> <span class="pre">char</span> <span class="pre">*saved_file_path)</span></span></dt>
 <dd><p>Save the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new unique file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>session_ptr</strong> – session to save </p></li>
 <li><p><strong>file_path</strong> – file path to save to </p></li>
-<li><p><strong>overwrite</strong> – set to non-zero if overwriting an existing file is okay, and zero otherwise </p></li>
+<li><p><strong>io_flags</strong> – save IO flags (see omega_io_flags_t for details) </p></li>
 <li><p><strong>saved_file_path</strong> – if overwrite is not set and the target file_path exists, a new file path will be created, and if this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes) </p></li>
 </ul>
 </dd>
@@ -796,6 +796,23 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
+<span class="target" id="filesystem_8h_1a6c5c1f39cc046cf0fc7a90ab7fc7fb99"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_util_compare_modification_times</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*path1,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*path2)</span></span></dt>
+<dd><p>Compare the modification times of two files </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>path1</strong> – first path </p></li>
+<li><p><strong>path2</strong> – second path </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 if the modification times are equal, -1 if the modification time of path1 is less than path2, 1 if the modification time of path1 is greater than path2, or -2 if an error occurred </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
 <span class="target" id="filesystem_8h_1ab4dab96516f6e947338d41e13a39372a"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">char</span> <span class="pre">*</span> <span class="pre">omega_util_basename</span> <span class="pre">(char</span> <span class="pre">const</span> <span class="pre">*path,</span> <span class="pre">char</span> <span class="pre">*buffer,</span> <span class="pre">int</span> <span class="pre">drop_suffix)</span></span></dt>
 <dd><p>Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed </p>
 <dl class="field-list simple">
@@ -952,6 +969,11 @@
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.NO_EVENTS">
 <span class="target" id="fwd__defs_8h_1add514abcca055aed020fdd963cc84a1e"></span><span class="sig-name descname"><span class="n"><span class="pre">NO_EVENTS</span></span></span><a class="headerlink" href="#c.NO_EVENTS" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.ORIGINAL_MODIFIED">
+<span class="target" id="fwd__defs_8h_1add342904c0c3cbeac1c5b1284b921616"></span><span class="sig-name descname"><span class="n"><span class="pre">ORIGINAL_MODIFIED</span></span></span><a class="headerlink" href="#c.ORIGINAL_MODIFIED" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
@@ -1112,6 +1134,28 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE">
 <span id="_CPPv3N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span id="_CPPv2N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb90830f52d09f55eaecbb34ece8e"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CHANGES</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv416omega_io_flags_t">
+<span id="_CPPv316omega_io_flags_t"></span><span id="_CPPv216omega_io_flags_t"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140b"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_io_flags_t</span></span></span><a class="headerlink" href="#_CPPv416omega_io_flags_t" title="Permalink to this definition"></a><br /></dt>
+<dd><p>Enumeration of IO flags </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t11IO_FLG_NONEE">
+<span id="_CPPv3N16omega_io_flags_t11IO_FLG_NONEE"></span><span id="_CPPv2N16omega_io_flags_t11IO_FLG_NONEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5c39b866e0ad521093d9e7558ce2d038"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_NONE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE">
+<span id="_CPPv3N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5ff37a4bb4a907b1c665a14452cc12c5"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE" title="Permalink to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE">
+<span id="_CPPv3N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140bade1d931e359fa1967daaaaeb04c109ac"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_FORCE_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE" title="Permalink to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
