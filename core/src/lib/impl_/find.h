@@ -16,10 +16,14 @@
 #define OMEGA_EDIT_FIND_H
 
 #ifdef __cplusplus
+
 #include <cstddef>
+
 extern "C" {
 #else
+
 #include <stddef.h>
+
 #endif
 
 struct omega_find_skip_table_t;

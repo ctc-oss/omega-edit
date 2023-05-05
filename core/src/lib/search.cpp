@@ -61,7 +61,9 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
                                             nullptr);
         }
         pattern_data_ptr[pattern_length] = '\0';
-        match_context_ptr->skip_table_ptr = omega_find_create_skip_table(pattern_data_ptr, pattern_length);
+        // create a skip table for patterns with lengths greater than 1 byte
+        match_context_ptr->skip_table_ptr =
+                (pattern_length > 1) ? omega_find_create_skip_table(pattern_data_ptr, pattern_length) : nullptr;
         session_ptr->search_contexts_.push_back(match_context_ptr);
         return match_context_ptr.get();
     }
@@ -93,7 +95,6 @@ int64_t omega_search_context_get_length(const omega_search_context_t *search_con
 int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context) {
     static const auto MAX_SEGMENT_LENGTH = int64_t(OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) << 1;
     assert(search_context_ptr);
-    assert(search_context_ptr->skip_table_ptr);
     assert(search_context_ptr->session_ptr);
     assert(0 <= advance_context);
     omega_segment_t data_segment;
@@ -133,13 +134,14 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
 
 void omega_search_destroy_context(omega_search_context_t *const search_context_ptr) {
     if (search_context_ptr) {
-        assert(search_context_ptr->skip_table_ptr);
         for (auto iter = search_context_ptr->session_ptr->search_contexts_.rbegin();
              iter != search_context_ptr->session_ptr->search_contexts_.rend(); ++iter) {
             if (search_context_ptr == iter->get()) {
                 omega_data_destroy(&search_context_ptr->pattern, search_context_ptr->pattern_length);
-                omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
-                search_context_ptr->skip_table_ptr = nullptr;
+                if (search_context_ptr->skip_table_ptr) {
+                    omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
+                    search_context_ptr->skip_table_ptr = nullptr;
+                }
                 search_context_ptr->session_ptr->search_contexts_.erase(std::next(iter).base());
                 break;
             }

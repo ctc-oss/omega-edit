@@ -29,8 +29,10 @@
 #include <cstdint>
 extern "C" {
 #else
+
 #include <stddef.h>
 #include <stdint.h>
+
 #endif
 
 typedef int64_t omega_byte_frequency_profile_t[256];
@@ -251,7 +253,7 @@ OMEGA_EDIT_EXPORT int omega_session_profile(const omega_session_t *session_ptr,
  * @param session_ptr  session to get the checkpoint directory for
  * @return checkpoint directory
  */
-OMEGA_EDIT_EXPORT const char* omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
+OMEGA_EDIT_EXPORT const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

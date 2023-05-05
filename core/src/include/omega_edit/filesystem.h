@@ -26,7 +26,9 @@
 #include <cstdint>
 extern "C" {
 #else
+
 #include <stdint.h>
+
 #endif
 
 /**
@@ -94,6 +96,14 @@ OMEGA_EDIT_EXPORT int64_t omega_util_file_size(char const *path);
 OMEGA_EDIT_EXPORT int omega_util_paths_equivalent(char const *path1, char const *path2);
 
 /**
+ * Compare the modification times of two files
+ * @param path1 first path
+ * @param path2 second path
+ * @return 0 if the modification times are equal, -1 if the modification time of path1 is less than path2, 1 if the modification time of path1 is greater than path2, or -2 if an error occurred
+ */
+OMEGA_EDIT_EXPORT int omega_util_compare_modification_times(const char *path1, const char *path2);
+
+/**
  * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
  * @param path file path
  * @param buffer pointer to memory to hold the base name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
@@ -141,13 +151,13 @@ OMEGA_EDIT_EXPORT char *omega_util_dirname(char const *path, char *buffer);
  * @param mode mode to set the destination file to, if zero then the mode of the source file is used
  * @return zero on success, non-zero on failure
  */
-OMEGA_EDIT_EXPORT int omega_util_file_copy(const char* src_path, const char* dst_path, int mode);
+OMEGA_EDIT_EXPORT int omega_util_file_copy(const char *src_path, const char *dst_path, int mode);
 
 /**
  * Try to get the temporary directory for the host system
  * @return temporary directory for the host system allocated by malloc (must be free'd by the caller), or NULL on error
  */
-OMEGA_EDIT_EXPORT char* omega_util_get_temp_directory();
+OMEGA_EDIT_EXPORT char *omega_util_get_temp_directory();
 
 /**
  * Touch the given file, optionally creating it if it does not exist

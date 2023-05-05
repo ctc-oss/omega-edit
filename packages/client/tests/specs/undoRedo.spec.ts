@@ -31,8 +31,10 @@ import {
   getSessionCount,
   getUndoCount,
   insert,
+  IOFlags,
   redo,
   saveSession,
+  SaveStatus,
   undo,
 } from '@omega-edit/client'
 import { unlinkSync } from 'fs'
@@ -190,15 +192,21 @@ describe('Undo/Redo', () => {
     expect(await getUndoCount(session_id)).to.equal(0)
 
     // Test file saving and reading into a new session
-    const save_file_name = await saveSession(
+    const save_session_response = await saveSession(
       session_id,
-      'save_session_test',
-      true
+      'save_session_test.txt',
+      IOFlags.IO_FLG_OVERWRITE
     )
-    expect(save_file_name.endsWith('save_session_test'))
+    expect(save_session_response.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(
+      save_session_response.getFilePath().endsWith('save_session_test.txt')
+    ).to.be.true
     expect(await getSessionCount()).to.equal(1)
     const session_id_2 = (
-      await createSession(save_file_name, 'verify_save_session')
+      await createSession(
+        save_session_response.getFilePath(),
+        'verify_save_session'
+      )
     ).getSessionId()
     expect(await getSessionCount()).to.equal(2)
     expect(session_id_2).to.equal('verify_save_session')
@@ -206,12 +214,25 @@ describe('Undo/Redo', () => {
     expect(file_size).to.equal(10)
     segment = await getSegment(session_id_2, 0, file_size)
     expect(segment).deep.equals(Buffer.from('0123456789'))
+    const save_session_response2 = await saveSession(
+      session_id,
+      'save_session_test.txt',
+      IOFlags.IO_FLG_NONE
+    )
+    expect(save_session_response2.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response2.getFilePath()).to.not.equal(
+      save_session_response.getFilePath()
+    )
+    expect(
+      save_session_response2.getFilePath().endsWith('save_session_test-1.txt')
+    ).to.be.true
     const destroyed_session = await destroySession(session_id_2)
     expect(destroyed_session).to.equal(session_id_2)
     expect(await getSessionCount()).to.equal(1)
 
-    // remove test file
-    unlinkSync(save_file_name)
+    // remove test files
+    unlinkSync(save_session_response.getFilePath())
+    unlinkSync(save_session_response2.getFilePath())
 
     // test clearing changes from a session
     expect(await getChangeCount(session_id)).to.equal(3)

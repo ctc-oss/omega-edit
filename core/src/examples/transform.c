@@ -20,6 +20,7 @@
 #include <stdio.h>
 
 omega_byte_t to_lower(omega_byte_t byte, void *unused) { return (omega_byte_t) tolower(byte); }
+
 omega_byte_t to_upper(omega_byte_t byte, void *unused) { return (omega_byte_t) toupper(byte); }
 
 int main(int argc, char **argv) {
@@ -29,7 +30,7 @@ int main(int argc, char **argv) {
     }
     omega_session_t *session_ptr = omega_edit_create_session(argv[2], NULL, NULL, NO_EVENTS, NULL);
     omega_edit_apply_transform(session_ptr, (argv[1][0] == 'l') ? &to_lower : &to_upper, NULL, 0, 0);
-    omega_edit_save(session_ptr, argv[3], 1, NULL);
+    omega_edit_save(session_ptr, argv[3], IO_FLG_OVERWRITE, NULL);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }

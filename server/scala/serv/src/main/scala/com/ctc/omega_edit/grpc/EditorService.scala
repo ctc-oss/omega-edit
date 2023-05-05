@@ -18,7 +18,6 @@ package com.ctc.omega_edit.grpc
 
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
@@ -112,12 +111,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       in.sessionId,
       Save(
         Paths.get(in.filePath),
-        if (in.allowOverwrite.getOrElse(true))
-          OverwriteStrategy.OverwriteExisting
-        else OverwriteStrategy.GenerateFilename
+        in.ioFlags
       )
     )).mapTo[Result].map {
-      case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString)
+      case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString, ok.status)
       case Ok(id) =>
         throw grpcFailure(
           Status.INTERNAL,

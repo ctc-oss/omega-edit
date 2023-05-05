@@ -28,7 +28,9 @@
 #include <cstdint>
 extern "C" {
 #else
+
 #include <stdint.h>
+
 #endif
 
 /**

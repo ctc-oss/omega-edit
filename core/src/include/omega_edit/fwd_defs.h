@@ -28,7 +28,7 @@ extern "C" {
  * Enumeration of session events
  */
 typedef enum {
-    SESSION_EVT_UNDEFINED = 0,
+    SESSION_EVT_UNDEFINED = 0,              //< No session event interest is defined
     SESSION_EVT_CREATE = 1,                 //< Occurs when the session has been successfully created
     SESSION_EVT_EDIT = 1 << 1,              //< Occurs when the session has successfully processed an edit
     SESSION_EVT_UNDO = 1 << 2,              //< Occurs when the session has successfully processed an undo
@@ -40,14 +40,14 @@ typedef enum {
     SESSION_EVT_CHANGES_PAUSED = 1 << 8,    //< Occurs when session changes have been paused
     SESSION_EVT_CHANGES_RESUMED = 1 << 9,   //< Occurs when session changes have been resumed
     SESSION_EVT_CREATE_VIEWPORT = 1 << 10,  //< Occurs when the session has successfully created a viewport
-    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11, //< Occurs when the session has successfully destroyed a viewport
+    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11  //< Occurs when the session has successfully destroyed a viewport
 } omega_session_event_t;
 
 /**
  * Enumeration of viewport events
  */
 typedef enum {
-    VIEWPORT_EVT_UNDEFINED = 0,
+    VIEWPORT_EVT_UNDEFINED = 0,     //< No viewport event interest is defined
     VIEWPORT_EVT_CREATE = 1,        //< Occurs when the viewport has been successfully created
     VIEWPORT_EVT_EDIT = 1 << 1,     //< Occurs when an edit affects the viewport
     VIEWPORT_EVT_UNDO = 1 << 2,     //< Occurs when an undo affects the viewport
@@ -59,6 +59,17 @@ typedef enum {
 
 #define ALL_EVENTS (~0)
 #define NO_EVENTS (0)
+
+/**
+ * Enumeration of IO flags
+ */
+typedef enum {
+    IO_FLG_NONE = 0,               //< No IO flags are defined
+    IO_FLG_OVERWRITE = 1,          //< Overwrite original file, unless modified outside the session
+    IO_FLG_FORCE_OVERWRITE = 1 << 1//< Force overwrite of original file, even if modified outside the session
+} omega_io_flags_t;
+
+#define ORIGINAL_MODIFIED (-100)// original session file has been modified since the session was created
 
 typedef struct omega_change_struct omega_change_t;
 typedef struct omega_search_context_struct omega_search_context_t;
