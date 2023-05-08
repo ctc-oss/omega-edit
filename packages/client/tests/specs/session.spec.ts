@@ -120,6 +120,8 @@ describe('Sessions', () => {
       expect(session_id).to.equal(expected_session_id)
       expect(session.hasContentType()).to.be.true
       expect(session.getContentType()).to.equal('text/html')
+      expect(session.hasFileSize()).to.be.true
+      expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
       const vpt_response = await createViewport(
@@ -227,6 +229,8 @@ describe('Sessions', () => {
     const session2 = await createSession()
     const session_id2 = session2.getSessionId()
     expect(session_id1).to.not.equal(session_id2)
+    expect(session1.hasContentType()).to.be.false
+    expect(session1.hasFileSize()).to.be.false
 
     let change_id = await insert(session_id1, 0, Buffer.from('a'))
     expect(change_id).to.equal(1)
