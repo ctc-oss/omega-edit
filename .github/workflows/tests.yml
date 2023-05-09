@@ -20,7 +20,7 @@ jobs:
   build-native:
     strategy:
       matrix:
-        os: [ windows-2022, macos-12, ubuntu-20.04 ]
+        os: [ windows-2019, macos-11, ubuntu-20.04 ] # NOTE: build on older OS versions to support older OS versions
       fail-fast: false  # don't immediately fail all other jobs if a single job fails
     name: Native build and test on ${{ matrix.os }} 🦙
     runs-on: ${{ matrix.os }}
@@ -67,7 +67,7 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-12, ubuntu-20.04 ] # TODO: add windows-2022 (currently it's timing out on Package Scala API)
+        os: [ macos-11, ubuntu-20.04 ] # TODO: add windows-2019 (currently it's timing out on Package Scala API)
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:
