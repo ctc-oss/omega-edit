@@ -198,6 +198,7 @@ message CreateSessionResponse {
   string session_id = 1;
   string checkpoint_directory = 2;
   optional string content_type = 3;
+  optional int64 file_size = 4;
 }
 
 message SaveSessionRequest {
