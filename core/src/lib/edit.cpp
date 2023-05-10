@@ -552,14 +552,14 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
     const auto session_file_path = omega_session_get_file_path(session_ptr);
     if (saved_file_path) { saved_file_path[0] = '\0'; }
 
-    // If overwrite is requested and the file path is the same as the session file path, then the session will need to
-    // be reset
-    const auto reset_session = (overwrite && session_file_path && omega_util_file_exists(file_path) &&
-                                omega_util_paths_equivalent(file_path, session_file_path));
+    // If overwrite is requested and the file path is the same as the original session file, then overwrite_original
+    // will be true
+    const auto overwrite_original = (overwrite && session_file_path && omega_util_file_exists(file_path) &&
+                                     omega_util_paths_equivalent(file_path, session_file_path));
 
-    // If the original file is going to overwritten, and the file has been modified since the session was opened, and
+    // If the original file is going to be overwritten, and the file has been modified since the session was opened, and
     // the IO_FLG_FORCE_OVERWRITE flag is not set, then return an error
-    if (reset_session && !force_overwrite &&
+    if (overwrite_original && !force_overwrite &&
         1 == omega_util_compare_modification_times(session_file_path, session_ptr->checkpoint_file_name_.c_str())) {
         LOG_ERROR("original file '" << session_file_path
                                     << "' has been modified since the session was created, save failed (use "
@@ -636,40 +636,18 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
     fclose(temp_fptr);
     if (omega_util_file_exists(file_path)) {
         if (overwrite) {
-            if (reset_session) {
-                assert(session_ptr->models_.front()->file_ptr);
-                fclose(session_ptr->models_.front()->file_ptr);
-                session_ptr->models_.front()->file_ptr = nullptr;
-            }
             if (0 != omega_util_remove_file(file_path)) {
                 LOG_ERRNO();
                 return -7;
             }
-        } else {
-            if (!(file_path = omega_util_available_filename(file_path, nullptr))) {
-                LOG_ERROR("cannot find available filename");
-                return -8;
-            }
+        } else if (!(file_path = omega_util_available_filename(file_path, nullptr))) {
+            LOG_ERROR("cannot find available filename");
+            return -8;
         }
     }
     if (rename(temp_filename, file_path)) {
         LOG_ERRNO();
         return -9;
-    }
-    if (reset_session) {
-        assert(!session_ptr->models_.front()->file_ptr);
-        const auto file_ptr = fopen(file_path, "rb");
-        if (!file_ptr) {
-            LOG_ERRNO();
-            return -10;
-        }
-        // session to point to the overwritten file, then suspend viewport callbacks, clear the changes, then resume the
-        // viewport callbacks.  A session clear event will be triggered in the clear changes call to indicate to the
-        // user that the edit history is cleared, affecting undo/redo.
-        session_ptr->models_.front()->file_ptr = file_ptr;
-        omega_session_pause_viewport_event_callbacks(session_ptr);
-        omega_edit_clear_changes(session_ptr);
-        omega_session_resume_viewport_event_callbacks(session_ptr);
     }
     if (saved_file_path) { omega_util_normalize_path(file_path, saved_file_path); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, saved_file_path);
