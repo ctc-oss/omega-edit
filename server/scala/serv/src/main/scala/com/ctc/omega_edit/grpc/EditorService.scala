@@ -71,7 +71,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
       // If server is to shutdown gracefully, don't create new sessions
-      Future.successful(CreateSessionResponse("", "", None))
+      Future.successful(CreateSessionResponse("", "", None, None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
       val chkptDir = in.checkpointDirectory.map(Paths.get(_))
@@ -82,8 +82,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             filePath match {
               // If a file path is provided, detect file type, otherwise return None
               case Some(path) =>
-                CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, detectFileType(path.toString))
-              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None)
+                CreateSessionResponse(
+                  ok.id,
+                  ok.checkpointDirectory.toString,
+                  detectFileType(path.toString),
+                  Option(ok.fileSize)
+                )
+              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None, None)
             }
           case Ok(id) =>
             throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")

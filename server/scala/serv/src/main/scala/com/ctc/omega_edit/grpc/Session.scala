@@ -130,12 +130,14 @@ object Session {
 
   trait CheckpointDirectory {
     def checkpointDirectory: Path
+    def fileSize: Long
   }
 
   object CheckpointDirectory {
-    def ok(sessionId: String, checkpointDirectory0: Path): Ok with CheckpointDirectory =
+    def ok(sessionId: String, checkpointDirectory0: Path, size: Long): Ok with CheckpointDirectory =
       new Ok(sessionId) with CheckpointDirectory {
         val checkpointDirectory: Path = checkpointDirectory0
+        val fileSize: Long = size
       }
   }
 
