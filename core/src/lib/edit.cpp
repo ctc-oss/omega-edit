@@ -474,7 +474,7 @@ inline bool determine_change_transaction_bit_(omega_session_t *session_ptr) {
             return omega_session_get_transaction_bit_(session_ptr);
         default:
             // This should never happen
-            assert(0);
+            ABORT(LOG_ERROR("Invalid transaction state"););
             return false;
     }
 }
@@ -550,6 +550,7 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
     const auto force_overwrite = io_flags & omega_io_flags_t::IO_FLG_FORCE_OVERWRITE;
     const auto overwrite = force_overwrite || io_flags & omega_io_flags_t::IO_FLG_OVERWRITE;
     const auto session_file_path = omega_session_get_file_path(session_ptr);
+    const auto checkpoint_file = session_ptr->checkpoint_file_name_.c_str();
     if (saved_file_path) { saved_file_path[0] = '\0'; }
 
     // If overwrite is requested and the file path is the same as the original session file, then overwrite_original
@@ -560,7 +561,7 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
     // If the original file is going to be overwritten, and the file has been modified since the session was opened, and
     // the IO_FLG_FORCE_OVERWRITE flag is not set, then return an error
     if (overwrite_original && !force_overwrite &&
-        1 == omega_util_compare_modification_times(session_file_path, session_ptr->checkpoint_file_name_.c_str())) {
+        1 == omega_util_compare_modification_times(session_file_path, checkpoint_file)) {
         LOG_ERROR("original file '" << session_file_path
                                     << "' has been modified since the session was created, save failed (use "
                                        "IO_FLG_FORCE_OVERWRITE to override)");
@@ -641,7 +642,7 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
                 return -7;
             }
         } else if (!(file_path = omega_util_available_filename(file_path, nullptr))) {
-            LOG_ERROR("cannot find available filename");
+            LOG_ERROR("cannot find an available filename");
             return -8;
         }
     }
@@ -649,6 +650,17 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
         LOG_ERRNO();
         return -9;
     }
+    // If required, touch the checkpoint file after the original file has been overwritten, so that the checkpoint file
+    // appears to be newer than the original file, otherwise the original file will be considered newer than the
+    // checkpoint and a force overwrite will be required to save the session next time.
+    if (overwrite_original) {
+        if (0 != omega_util_touch(checkpoint_file, 0)) {
+            LOG_ERROR("failed to touch checkpoint file: " << checkpoint_file);
+            return -10;
+        }
+        assert(0 <= omega_util_compare_modification_times(checkpoint_file, file_path));
+    }
+
     if (saved_file_path) { omega_util_normalize_path(file_path, saved_file_path); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, saved_file_path);
     return 0;

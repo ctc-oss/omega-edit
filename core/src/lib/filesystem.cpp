@@ -21,7 +21,6 @@
 #include <iostream>
 #include <string>
 
-
 namespace fs = std::filesystem;
 
 int omega_util_file_exists(const char *path) {
@@ -51,11 +50,11 @@ int omega_util_remove_directory(char const *path) {
 
 uint64_t omega_util_remove_all(char const *path) {
     assert(path);
-    return (fs::remove_all(path));
+    return fs::remove_all(path);
 }
 
 int64_t omega_util_file_size(char const *path) {
-    assert(path);
+    assert(omega_util_file_exists(path));
     return static_cast<int64_t>(fs::file_size(path));
 }
 
@@ -68,21 +67,20 @@ int omega_util_paths_equivalent(char const *path1, char const *path2) {
 int omega_util_compare_modification_times(const char *path1, const char *path2) {
     assert(path1);
     assert(path2);
-    const std::filesystem::path file1_path(path1);
-    const std::filesystem::path file2_path(path2);
+    const fs::path file1_path(path1);
+    const fs::path file2_path(path2);
 
     try {
-        const auto file1_time = std::filesystem::last_write_time(file1_path);
-        const auto file2_time = std::filesystem::last_write_time(file2_path);
+        const auto file1_time = fs::last_write_time(file1_path);
+        const auto file2_time = fs::last_write_time(file2_path);
 
         if (file1_time > file2_time) return 1;
-        else if (file1_time == file2_time)
-            return 0;
-        return -1;
-    } catch (const std::filesystem::filesystem_error &ex) {
+        else if (file1_time < file2_time) return -1;
+    } catch (const fs::filesystem_error &ex) {
         LOG_ERROR("Error comparing modification times: " << ex.what());
         return -2;
     }
+    return 0;
 }
 
 const char *omega_util_get_current_dir(char *buffer) {
@@ -158,22 +156,22 @@ char *omega_util_available_filename(char const *path, char *buffer) {
 }
 
 int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
-    assert(src_path);
-    assert(dst_path);
+    assert(omega_util_file_exists(src_path));
+    assert(dst_path && strlen(dst_path) > 0);
 
-    // Convert paths to std::filesystem::path objects
-    std::filesystem::path src_fs_path(src_path);
-    std::filesystem::path dst_fs_path(dst_path);
+    // Convert paths to fs::path objects
+    fs::path src_fs_path(src_path);
+    fs::path dst_fs_path(dst_path);
 
     try {
         // Check if the source file exists
-        if (!std::filesystem::exists(src_fs_path)) {
+        if (!fs::exists(src_fs_path)) {
             LOG_ERROR("Source file '" << src_fs_path << "' does not exist");
             return -1;
         }
 
         // Check if the source path points to a regular file
-        if (!std::filesystem::is_regular_file(src_fs_path)) {
+        if (!fs::is_regular_file(src_fs_path)) {
             LOG_ERROR("Source path '" << src_fs_path << "' does not point to a regular file");
             return -2;
         }
@@ -185,31 +183,27 @@ int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
         }
 
         // If the mode is 0, use the mode of the source file
-        mode = (mode) ? mode : static_cast<int>(std::filesystem::status(src_fs_path).permissions());
+        mode = (mode) ? mode : static_cast<int>(fs::status(src_fs_path).permissions());
 
         // Set the mode of the destination file
-        std::filesystem::permissions(dst_fs_path, static_cast<std::filesystem::perms>(mode));
+        fs::permissions(dst_fs_path, static_cast<fs::perms>(mode));
     } catch (const std::exception &ex) {
         LOG_ERROR("Error copying file '" << src_fs_path << "' to '" << dst_fs_path << "': " << ex.what());
         return -4;
     }
-
     return 0;
 }
 
 char *omega_util_get_temp_directory() {
-    const auto temp_dir_path = std::filesystem::temp_directory_path();
+    const auto temp_dir_path = fs::temp_directory_path();
     return omega_util_strndup(temp_dir_path.string().c_str(), temp_dir_path.string().length());
 }
 
 int omega_util_touch(const char *file_name, int create) {
     assert(file_name);
 
-    // Check if the file exists
-    const auto file_exists = std::filesystem::exists(file_name);
-
-    // Create the file if it doesn't exist and the create flag is set
-    if (!file_exists) {
+    // Create the file if it doesn't exist and the "create" flag is set
+    if (!fs::exists(file_name)) {
         if (create) {
             std::ofstream ofs(file_name);
             if (!ofs.good()) {
@@ -221,17 +215,16 @@ int omega_util_touch(const char *file_name, int create) {
         }
         LOG_ERROR("File '" << file_name << "' does not exist");
         return -2;
+    } else {
+        try {
+            // update the file's last modification time to the current time
+            fs::last_write_time(file_name, fs::file_time_type::clock::now());
+        } catch (const std::exception &ex) {
+            LOG_ERROR("Error touching file '" << file_name << "': " << ex.what());
+            return -3;
+        }
     }
-
-    // Touch the file by opening it in append mode and then immediately closing it
-    std::ofstream ofs(file_name, std::ios::app);
-    if (!ofs.good()) {
-        LOG_ERROR("Error touching file '" << file_name << "'");
-        return -3;
-    }
-    ofs.close();
-
     return 0;
 }
 
-char omega_util_directory_separator() { return std::filesystem::path::preferred_separator; }
+char omega_util_directory_separator() { return fs::path::preferred_separator; }
