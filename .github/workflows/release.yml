@@ -66,7 +66,7 @@ jobs:
   build-lib:
     strategy:
       matrix:
-        os: [ windows-2022, macos-12, ubuntu-20.04 ]
+        os: [ windows-2019, macos-11, ubuntu-20.04 ] # NOTE: build on older OS versions to support older OS versions
     name: Native build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: [create-release]
@@ -112,7 +112,7 @@ jobs:
   native-build-mac-win:
     strategy:
       matrix:
-        os: [macos-12, windows-2022]
+        os: [macos-11, windows-2019] # NOTE: build on older OS versions to support older OS versions
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: [build-lib]
@@ -231,12 +231,12 @@ jobs:
       - name: Download macos Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
-          name: macos-12-artifacts
+          name: macos-11-artifacts
 
       - name: Download windows Native JARs 🔻
         uses: actions/download-artifact@v3
         with:
-          name: windows-2022-artifacts
+          name: windows-2019-artifacts
 
       - name: Move windows and macos jars out 🚚
         env:
@@ -308,7 +308,7 @@ jobs:
 
   node-build:
     name: Node Release ✨
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-20.04 # NOTE: build on older OS versions to support older OS versions
     needs: [scala-publish]
     steps:
       - name: Checkout 🛎️
