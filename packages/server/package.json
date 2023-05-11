@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/server",
-  "version": "0.9.64",
+  "version": "0.9.65",
   "description": "OmegaEdit gRPC Server TypeScript functions",
   "publisher": "ctc-oss",
   "main": "out/index.js",
