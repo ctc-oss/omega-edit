@@ -67,9 +67,10 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-11, ubuntu-20.04 ] # TODO: add windows-2019 (currently it's timing out on Package Scala API)
+        os: [ macos-11, ubuntu-20.04, windows-2019 ]
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    name: Build middleware ${{ matrix.os }} 🔧
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v3
@@ -124,10 +125,18 @@ jobs:
         run: sbt headerCheckAll
         working-directory: server/scala
 
-      - name: Package Scala API 🎁
-        run: sbt installM2 # runs test so specifically running sbt test not needed
+      - name: Package Scala API - Non windows 🎁
+        run: sbt installM2 # runs test so specifically running sbt test not needed  # TODO: Make sure tests run on windows
+        if: runner.os != 'Windows'
         working-directory: server/scala
         timeout-minutes: 30
+    
+      - name: Package Scala Native - Windows 🎁
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: runner.os == 'Windows'  # TODO: Remove, current workaround so we can download all OS jars from tests for release
+        run: sbt native/publishM2
+        working-directory: server/scala
 
       - name: Archive M2 🔺
         uses: actions/upload-artifact@v3
@@ -139,18 +148,22 @@ jobs:
 
       - name: Test Scala RPC server 📋
         run: sbt serv/test
+        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         working-directory: server/scala
         timeout-minutes: 30
 
       - name: Yarn Install 🏗️
+        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         run: yarn
         shell: bash
 
       - name: Yarn Package - Server 📦
+        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         run: yarn workspace @omega-edit/server package
         shell: bash
 
       - name: Yarn Test - Client 🧑‍💼
+        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         run: yarn workspace @omega-edit/client test
         shell: bash
         timeout-minutes: 30
