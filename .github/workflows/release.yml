@@ -164,26 +164,6 @@ jobs:
           java-version: 8
           cache: sbt
 
-      # - name: Make _install/lib directory to store lib files
-      #   run: mkdir -p _install/lib
-
-      # - name: Download linux library file 🔻
-      #   uses: dawidd6/action-download-artifact@v2
-      #   with:
-      #     workflow: tests.yml
-      #     branch: main
-      #     workflow_conclusion: success
-      #     name: libomega_edit.so
-      #     path: _install/lib/libomega_edit.so
-
-      # - name: Move out library file 🛻
-      #   run: |
-      #     LIB_FILENAME="libomega_edit.so"
-      #     mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
-      #     mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
-      #     rm -rf "_install/lib/${LIB_FILENAME}_dir"
-      #   shell: bash
-
       - name: Download macos Native JARs 🔻
         uses: dawidd6/action-download-artifact@v2
         with:
