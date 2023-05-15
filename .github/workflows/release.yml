@@ -30,6 +30,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Count lines of code (CLOC)
+        uses: djdefi/cloc-actions@5
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "CLOC"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Check ratCheck
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: rat-check
