@@ -219,6 +219,23 @@ describe('Sessions', () => {
     expect(save_session_response3.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response3.getFilePath()).to.equal(testFile)
 
+    // test 2 back-to-back overwrites
+    const save_session_response4 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_OVERWRITE
+    )
+    expect(save_session_response4.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response4.getFilePath()).to.equal(testFile)
+
+    const save_session_response5 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_OVERWRITE
+    )
+    expect(save_session_response5.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response5.getFilePath()).to.equal(testFile)
+
     await destroySession(session_id)
     expect(await getSessionCount()).to.equal(0)
   })
