@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/core",
-  "version": "0.9.65",
+  "version": "0.9.66",
   "private": "true",
   "description": "OmegaEdit Client and Server",
   "publisher": "ctc-oss",
@@ -23,7 +23,7 @@
     "package-no-sbt": "yarn workspace @omega-edit/server package-no-sbt && yarn workspace @omega-edit/client package"
   },
   "devDependencies": {
-    "@types/node": "^20.1.0",
+    "@types/node": "^20.1.4",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.40.0",
     "eslint-config-prettier": "^8.8.0",
@@ -34,8 +34,8 @@
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
     "unzip-stream": "^0.3.1",
-    "webpack": "^5.81.0",
-    "webpack-cli": "^5.1.0"
+    "webpack": "^5.82.1",
+    "webpack-cli": "^5.1.1"
   },
   "prettier": {
     "semi": false,
