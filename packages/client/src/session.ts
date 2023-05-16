@@ -51,8 +51,8 @@ export {
 } from './omega_edit_pb'
 
 export enum SaveStatus {
-  SUCCESS = 0,
-  MODIFIED = -100,
+  SUCCESS = 0, // session saved successfully
+  MODIFIED = -100, // target file was modified since the session was created
 }
 
 /**
@@ -257,6 +257,11 @@ export function pauseSessionChanges(session_id: string): Promise<string> {
   })
 }
 
+/**
+ * Begin a transaction on the given session
+ * @param session_id session to begin a transaction on
+ * @return session ID that has a transaction started, on success
+ */
 export function beginSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
@@ -283,6 +288,11 @@ export function beginSessionTransaction(session_id: string): Promise<string> {
   })
 }
 
+/**
+ * End a transaction on the given session
+ * @param session_id session to end a transaction on
+ * @return session ID that has a transaction ended, on success
+ */
 export function endSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
