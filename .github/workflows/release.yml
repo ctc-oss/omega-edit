@@ -170,6 +170,26 @@ jobs:
           distribution: temurin
           java-version: 8
           cache: sbt
+      
+      - name: Make _install/lib directory to store lib files
+        run: mkdir -p _install/lib
+
+      - name: Download linux library file 🔻
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: tests.yml
+          branch: main
+          workflow_conclusion: success
+          name: libomega_edit.so
+          path: _install/lib/libomega_edit.so
+
+      - name: Move out library file 🛻
+        run: |
+          LIB_FILENAME="libomega_edit.so"
+          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
+          rm -rf "_install/lib/${LIB_FILENAME}_dir"
+        shell: bash
 
       - name: Download macos Native JARs 🔻
         uses: dawidd6/action-download-artifact@v2
@@ -179,14 +199,6 @@ jobs:
           workflow_conclusion: success
           name: macos-11-artifacts
 
-      - name: Download linux Native JARs 🔻
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: tests.yml
-          branch: main
-          workflow_conclusion: success
-          name: ubuntu-20.04-artifacts
-      
       - name: Download windows Native JARs 🔻
         uses: dawidd6/action-download-artifact@v2
         with:
@@ -201,7 +213,6 @@ jobs:
         run: |
           mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${{ env.folder }}-${{ env.PKG_VERSION }}-windows-* .
           mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
-          mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-linux-* .
         
       - name: Download native JARs for M1 mac 🔻
         env:
