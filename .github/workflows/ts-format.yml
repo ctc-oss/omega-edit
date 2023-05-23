@@ -15,8 +15,9 @@ name: TypeScript Formatting
 permissions: {}
 
 on:
-  pull_request:
-    branches: ['**']
+  push:
+    branches:
+      - '**'
 
 jobs:
   build:

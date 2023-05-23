@@ -187,7 +187,8 @@ int main(int /*argc*/, char ** /*argv*/) {
             omega_edit_create_session(file_info.in_filename, session_change_cbk, &file_info, ALL_EVENTS, nullptr),
             omega_edit_destroy_session);
     clog << "File Size: " << omega_session_get_computed_file_size(session_ptr.get()) << endl;
-    auto viewport1_ptr = omega_edit_create_viewport(session_ptr.get(), 0, 100, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
+    auto viewport1_ptr =
+            omega_edit_create_viewport(session_ptr.get(), 0, 100, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
     omega_edit_delete(session_ptr.get(), 0, omega_session_get_computed_file_size(session_ptr.get()));
     assert(1 == omega_change_get_serial(omega_session_get_last_change(session_ptr.get())));
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
@@ -196,7 +197,8 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_overwrite_string(session_ptr.get(), 5, "-");
     omega_edit_insert_string(session_ptr.get(), 0, "++++");
     if (0 != omega_check_model(session_ptr.get())) { clog << __LINE__ << " session model has errors\n"; }
-    auto viewport2_ptr = omega_edit_create_viewport(session_ptr.get(), 50, 10, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
+    auto viewport2_ptr =
+            omega_edit_create_viewport(session_ptr.get(), 50, 10, 0, vpt_change_cbk, &view_mode, ALL_EVENTS);
     view_mode.display_mode = display_mode_t::BYTE_MODE;
     omega_edit_insert(session_ptr.get(), 71, "++++", 4);
     omega_edit_overwrite(session_ptr.get(), 10, ".", 0);
@@ -229,7 +231,7 @@ int main(int /*argc*/, char ** /*argv*/) {
     view_mode.display_mode = display_mode_t::BIT_MODE;
     vpt_change_cbk(viewport1_ptr);
 
-    omega_edit_save(session_ptr.get(), "data/test1.dat.out", 1, nullptr);
+    omega_edit_save(session_ptr.get(), "data/test1.dat.out", omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
     clog << "Saved " << file_info.deletes << " delete(s), " << file_info.inserts << " insert(s), "
          << file_info.overwrites << " overwrite(s) to " << file_info.save_filename << ", new file size: " << dec
          << omega_session_get_computed_file_size(session_ptr.get()) << endl;

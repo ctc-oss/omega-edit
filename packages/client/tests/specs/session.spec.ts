@@ -25,11 +25,16 @@ import {
   getClient,
   getClientVersion,
   getComputedFileSize,
+  getSegment,
   getServerHeartbeat,
   getSessionCount,
   getViewportCount,
+  insert,
+  IOFlags,
   notifyChangedViewports,
   profileSession,
+  saveSession,
+  SaveStatus,
   waitForReady,
 } from '@omega-edit/client'
 // @ts-ignore
@@ -73,9 +78,15 @@ function removeDirectory(dirPath: string): void {
   }
 }
 
+function touch(filePath: string) {
+  const time = new Date()
+  fs.utimesSync(filePath, time, time)
+}
+
 describe('Sessions', () => {
   const iterations = 500
   const testFile = require('path').join(__dirname, 'data', 'csstest.html')
+  const save1 = require('path').join(__dirname, 'data', 'csstest-1.html')
   const checkpointDir = require('path').join(__dirname, 'data', 'checkpoint')
   const fileData = fs.readFileSync(testFile)
   const fileBuffer = new Uint8Array(
@@ -109,6 +120,8 @@ describe('Sessions', () => {
       expect(session_id).to.equal(expected_session_id)
       expect(session.hasContentType()).to.be.true
       expect(session.getContentType()).to.equal('text/html')
+      expect(session.hasFileSize()).to.be.true
+      expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
       expect(fileData.length).to.equal(await getComputedFileSize(session_id))
       const vpt_response = await createViewport(
@@ -166,5 +179,102 @@ describe('Sessions', () => {
     ).to.equal(0)
     removeDirectory(checkpointDir)
     expect(fs.existsSync(checkpointDir)).to.be.false
+  })
+
+  it('Should be able to handle different save flags', async () => {
+    const session = await createSession(testFile, 'save_flags_test')
+    const session_id = session.getSessionId()
+    expect(session_id).to.equal('save_flags_test')
+    if (fs.existsSync(save1)) fs.unlinkSync(save1)
+    const save_session_response = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_NONE
+    )
+    // No flags will succeed because the file will be saved to a new file
+    // created by the server
+    expect(save_session_response.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response.getFilePath()).to.equal(save1)
+    fs.unlinkSync(save_session_response.getFilePath())
+
+    // touch the original file to simulate an out-of-band change
+    touch(testFile)
+
+    const save_session_response2 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_OVERWRITE
+    )
+    // Overwrite alone should fail because the file was modified out-of-band
+    expect(save_session_response2.getSaveStatus()).to.equal(SaveStatus.MODIFIED)
+    expect(save_session_response2.getFilePath().length).to.equal(0)
+
+    const save_session_response3 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_FORCE_OVERWRITE
+    )
+    // Force overwrite should succeed even if the original file was modified
+    // out-of-band
+    expect(save_session_response3.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response3.getFilePath()).to.equal(testFile)
+
+    // test 2 back-to-back overwrites
+    const save_session_response4 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_OVERWRITE
+    )
+    expect(save_session_response4.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response4.getFilePath()).to.equal(testFile)
+
+    const save_session_response5 = await saveSession(
+      session_id,
+      testFile,
+      IOFlags.IO_FLG_OVERWRITE
+    )
+    expect(save_session_response5.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
+    expect(save_session_response5.getFilePath()).to.equal(testFile)
+
+    await destroySession(session_id)
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it('Should be able to handle multiple simultaneous sessions', async () => {
+    const session1 = await createSession()
+    const session_id1 = session1.getSessionId()
+    const session2 = await createSession()
+    const session_id2 = session2.getSessionId()
+    expect(session_id1).to.not.equal(session_id2)
+    expect(session1.hasContentType()).to.be.false
+    expect(session1.hasFileSize()).to.be.false
+
+    let change_id = await insert(session_id1, 0, Buffer.from('a'))
+    expect(change_id).to.equal(1)
+    change_id = await insert(session_id2, 0, Buffer.from('1'))
+    expect(change_id).to.equal(1)
+
+    change_id = await insert(session_id1, 0, Buffer.from('b'))
+    expect(change_id).to.equal(2)
+    change_id = await insert(session_id2, 0, Buffer.from('2'))
+    expect(change_id).to.equal(2)
+
+    change_id = await insert(session_id1, 0, Buffer.from('c'))
+    expect(change_id).to.equal(3)
+    change_id = await insert(session_id2, 0, Buffer.from('3'))
+    expect(change_id).to.equal(3)
+
+    expect(
+      await getSegment(session_id1, 0, await getComputedFileSize(session_id1))
+    ).to.deep.equal(Buffer.from('cba'))
+    expect(
+      await getSegment(session_id2, 0, await getComputedFileSize(session_id2))
+    ).to.deep.equal(Buffer.from('321'))
+
+    expect(await getSessionCount()).to.equal(2)
+    await destroySession(session_id1)
+    expect(await getSessionCount()).to.equal(1)
+    await destroySession(session_id2)
+    expect(await getSessionCount()).to.equal(0)
   })
 })

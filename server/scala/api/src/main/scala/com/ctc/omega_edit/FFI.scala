@@ -38,9 +38,9 @@ private[omega_edit] trait FFI {
   def omega_edit_save(
       p: Pointer,
       path: String,
-      overwrite: Boolean,
+      flags: Int,
       opath: Pointer
-  ): Long
+  ): Int
   def omega_edit_create_session(
       path: String,
       cb: SessionCallback,

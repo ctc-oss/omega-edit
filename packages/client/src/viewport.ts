@@ -90,6 +90,15 @@ export function createViewport(
   })
 }
 
+/**
+ * Modify a given viewport
+ * @param viewport_id viewport to modify
+ * @param offset new byte-offset start of the viewport
+ * @param capacity new capacity of the viewport in bytes
+ * @param is_floating false if the viewport is to remain fixed at the given offset, true if the viewport is expected to
+ * "float" as bytes are inserted or deleted before the start of this viewport
+ * @return ViewportDataResponse, on success
+ */
 export function modifyViewport(
   viewport_id: string,
   offset: number,

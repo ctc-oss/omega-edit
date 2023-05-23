@@ -39,7 +39,16 @@ function buildLogger(
   transports: any[],
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
 ): Logger {
-  const logger = pino({ level: level, transports: transports })
+  const logger = pino({
+    level: level,
+    formatters: {
+      level: (label) => {
+        return { level: label.toUpperCase() }
+      },
+    },
+    timestamp: pino.stdTimeFunctions.isoTime,
+    transports: transports,
+  })
   logger.debug({
     fn: 'buildLogger',
     msg: 'logger built',
@@ -59,7 +68,18 @@ export function createSimpleFileLogger(
   logFilePath: string,
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
 ): Logger {
-  return pino({ level: level }, fs.createWriteStream(logFilePath))
+  return pino(
+    {
+      level: level,
+      formatters: {
+        level: (label) => {
+          return { level: label.toUpperCase() }
+        },
+      },
+      timestamp: pino.stdTimeFunctions.isoTime,
+    },
+    fs.createWriteStream(logFilePath)
+  )
 }
 
 /**

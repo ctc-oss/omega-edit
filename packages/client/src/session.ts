@@ -27,6 +27,7 @@ import {
   CreateSessionRequest,
   CreateSessionResponse,
   IntResponse,
+  IOFlags,
   ObjectId,
   SaveSessionRequest,
   SaveSessionResponse,
@@ -45,8 +46,14 @@ export {
   CountKind,
   CreateSessionResponse,
   EventSubscriptionRequest,
+  IOFlags,
   SessionEventKind,
 } from './omega_edit_pb'
+
+export enum SaveStatus {
+  SUCCESS = 0, // session saved successfully
+  MODIFIED = -100, // target file was modified since the session was created
+}
 
 /**
  * Create a file editing session from a file path
@@ -124,19 +131,19 @@ export function destroySession(session_id: string): Promise<string> {
  * determined by server.  If the file being edited is overwritten, the affected editing session will be reset.
  * @param session_id session to save
  * @param file_path file path to save to
- * @param overwrite set to true if overwriting an existing file is okay, and false otherwise
+ * @param flags IOFlags to control how the session is saved to the file
  * @return name of the saved file, on success
  */
 export function saveSession(
   session_id: string,
   file_path: string,
-  overwrite: boolean
-): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+  flags: number = IOFlags.IO_FLG_NONE
+): Promise<SaveSessionResponse> {
+  return new Promise<SaveSessionResponse>((resolve, reject) => {
     const request = new SaveSessionRequest()
       .setSessionId(session_id)
       .setFilePath(file_path)
-      .setAllowOverwrite(overwrite)
+      .setIoFlags(flags)
     getLogger().debug({ fn: 'saveSession', rqst: request.toObject() })
     getClient().saveSession(request, (err, r: SaveSessionResponse) => {
       if (err) {
@@ -152,7 +159,7 @@ export function saveSession(
         return reject('saveSession error: ' + err.message)
       }
       getLogger().debug({ fn: 'saveSession', resp: r.toObject() })
-      return resolve(r.getFilePath())
+      return resolve(r)
     })
   })
 }
@@ -250,6 +257,11 @@ export function pauseSessionChanges(session_id: string): Promise<string> {
   })
 }
 
+/**
+ * Begin a transaction on the given session
+ * @param session_id session to begin a transaction on
+ * @return session ID that has a transaction started, on success
+ */
 export function beginSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
@@ -276,6 +288,11 @@ export function beginSessionTransaction(session_id: string): Promise<string> {
   })
 }
 
+/**
+ * End a transaction on the given session
+ * @param session_id session to end a transaction on
+ * @return session ID that has a transaction ended, on success
+ */
 export function endSessionTransaction(session_id: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const request = new ObjectId().setId(session_id)
@@ -569,6 +586,7 @@ export function searchSession(
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
+ * @param front_to_back if true, replace from the front of the session to the back, otherwise replace from the back to the front
  * @param stats optional edit stats to update
  * @return number of replacements done
  * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
@@ -584,6 +602,7 @@ export async function replaceSession(
   offset: number = 0,
   length: number = 0,
   limit: number = 0,
+  front_to_back: boolean = true,
   stats?: IEditStats
 ): Promise<number> {
   const foundLocations = await searchSession(
@@ -598,15 +617,29 @@ export async function replaceSession(
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
     typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-  // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
-  for (let i = foundLocations.length - 1; i >= 0; --i) {
-    await editSimple(
-      session_id,
-      foundLocations[i],
-      patternArray,
-      replacementArray,
-      stats
-    )
+  if (front_to_back) {
+    // adjustment that needs to be made to the offset for each replacement
+    const adjustment = replacementArray.length - patternArray.length
+    for (let i = 0; i < foundLocations.length; ++i) {
+      await editSimple(
+        session_id,
+        adjustment * i + foundLocations[i],
+        patternArray,
+        replacementArray,
+        stats
+      )
+    }
+  } else {
+    // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
+    for (let i = foundLocations.length - 1; i >= 0; --i) {
+      await editSimple(
+        session_id,
+        foundLocations[i],
+        patternArray,
+        replacementArray,
+        stats
+      )
+    }
   }
   return foundLocations.length
 }
@@ -620,8 +653,7 @@ export async function replaceSession(
  * @param offset start searching at this offset within the session, or at the start of the session if undefined
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
- * @return true of a replacement took place (false otherwise), and the offset to use for the next iteration (or -1 if no
- * replacement took place)
+ * @return offset to use for the next iteration or -1 if no replacement took place
  */
 export async function replaceOneSession(
   session_id: string,
@@ -630,7 +662,7 @@ export async function replaceOneSession(
   is_case_insensitive: boolean = false,
   offset: number = 0,
   length: number = 0
-): Promise<[boolean, number]> {
+): Promise<number> {
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
@@ -651,7 +683,7 @@ export async function replaceOneSession(
       replacementArray
     )
     // the next iteration offset should be at the end of this replacement
-    return [true, foundLocations[0] + replacementArray.length]
+    return foundLocations[0] + replacementArray.length
   }
-  return [false, -1]
+  return -1
 }

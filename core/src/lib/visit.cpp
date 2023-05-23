@@ -46,6 +46,7 @@ struct omega_visit_change_context_struct {
         omega_changes_t::const_iterator *iter_ptr;
         omega_changes_t::const_reverse_iterator *riter_ptr;
     } change_iter{};
+
     ~omega_visit_change_context_struct() {}// NOLINT This destructor is required, but don't use =default
 };
 

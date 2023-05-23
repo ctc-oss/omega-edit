@@ -78,7 +78,7 @@ int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
 int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     return omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
-            (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_length(viewport_ptr));
+           (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_length(viewport_ptr));
 }
 
 int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
@@ -102,7 +102,7 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
 
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
+    const auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
     if (omega_viewport_has_changes(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
         mut_viewport_ptr->data_segment.capacity = std::abs(viewport_ptr->data_segment.capacity);
@@ -127,7 +127,7 @@ int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offs
 }
 
 int omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
-                           const void *event_ptr) {
+                          const void *event_ptr) {
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
     if (viewport_ptr->event_handler && (viewport_event & viewport_ptr->event_interest_) &&

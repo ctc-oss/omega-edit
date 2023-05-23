@@ -18,7 +18,6 @@ package com.ctc.omega_edit.grpc
 
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
@@ -72,7 +71,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
       // If server is to shutdown gracefully, don't create new sessions
-      Future.successful(CreateSessionResponse("", "", None))
+      Future.successful(CreateSessionResponse("", "", None, None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
       val chkptDir = in.checkpointDirectory.map(Paths.get(_))
@@ -83,8 +82,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             filePath match {
               // If a file path is provided, detect file type, otherwise return None
               case Some(path) =>
-                CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, detectFileType(path.toString))
-              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None)
+                CreateSessionResponse(
+                  ok.id,
+                  ok.checkpointDirectory.toString,
+                  detectFileType(path.toString),
+                  Option(ok.fileSize)
+                )
+              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None, None)
             }
           case Ok(id) =>
             throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")
@@ -112,12 +116,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       in.sessionId,
       Save(
         Paths.get(in.filePath),
-        if (in.allowOverwrite.getOrElse(true))
-          OverwriteStrategy.OverwriteExisting
-        else OverwriteStrategy.GenerateFilename
+        in.ioFlags
       )
     )).mapTo[Result].map {
-      case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString)
+      case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString, ok.status)
       case Ok(id) =>
         throw grpcFailure(
           Status.INTERNAL,

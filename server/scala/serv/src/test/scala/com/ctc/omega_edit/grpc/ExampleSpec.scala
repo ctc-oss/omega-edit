@@ -204,11 +204,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse <- service.saveSession(
-          SaveSessionRequest(
-            sid,
-            filePath = tmp.resolve("dat.txt").toString,
-            allowOverwrite = None
-          )
+          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString, IOFlags.IO_FLG_NONE.value)
         )
         contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
       } yield contents shouldBe testString
@@ -231,7 +227,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -244,7 +240,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten
@@ -275,7 +271,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -289,18 +285,18 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.undoLastChange(ObjectId(sid))
 
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.redoLastUndo(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten
@@ -345,7 +341,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -358,7 +354,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         getBeforeChangeCount <- service
@@ -410,7 +406,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -423,12 +419,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.getLastChange(ObjectId(sid))
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten
@@ -461,7 +457,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -474,7 +470,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.submitChange(
@@ -487,17 +483,17 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.undoLastChange(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         _ <- service.getLastUndo(ObjectId(sid))
         saveResponse5 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = Some(false))
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten
@@ -625,7 +621,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         pausedSid <- service.pauseSessionChanges(ObjectId(sid))
@@ -641,7 +637,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten
@@ -675,7 +671,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, allowOverwrite = None)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
         )
 
         // to ensure first saved file not overwritten

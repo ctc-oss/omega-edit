@@ -26,7 +26,9 @@
 
 using namespace std;
 
-using file_info_t = struct file_info_struct { char const *in_filename = nullptr; };
+using file_info_t = struct file_info_struct {
+    char const *in_filename = nullptr;
+};
 
 void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
                         const void *session_event_ptr) {
@@ -63,7 +65,8 @@ int main(int argc, char **argv) {
     file_info.in_filename = argv[1];
     auto out_filename = argv[2];
     auto session_ptr = omega_scoped_ptr<omega_session_t>(
-            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, NO_EVENTS, nullptr), omega_edit_destroy_session);
+            omega_edit_create_session(file_info.in_filename, nullptr, nullptr, NO_EVENTS, nullptr),
+            omega_edit_destroy_session);
 
     // Report stats
     int deletes = 0;
@@ -111,7 +114,7 @@ int main(int argc, char **argv) {
     }
 
     // Save the session
-    omega_edit_save(session_ptr.get(), out_filename, 1, nullptr);
+    omega_edit_save(session_ptr.get(), out_filename, omega_io_flags_t::IO_FLG_OVERWRITE, nullptr);
 
     // Report
     clog << "Replayed " << deletes << " delete(s), " << inserts << " insert(s), " << overwrites

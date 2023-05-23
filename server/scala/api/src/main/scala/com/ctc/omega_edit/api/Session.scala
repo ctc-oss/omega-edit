@@ -17,7 +17,6 @@
 package com.ctc.omega_edit.api
 
 import com.ctc.omega_edit.api.Change.Result
-import com.ctc.omega_edit.api.Session.OverwriteStrategy
 
 import java.nio.file.Path
 import scala.util.Try
@@ -65,9 +64,9 @@ trait Session {
   ): Viewport
   def findChange(id: Long): Option[Change]
 
-  def save(to: Path): Try[Path]
-  def save(to: Path, overwrite: Boolean): Try[Path]
-  def save(to: Path, overwrite: OverwriteStrategy): Try[Path]
+  def save(to: Path): Try[(Path, Int)]
+  def save(to: Path, overwrite: Boolean): Try[(Path, Int)]
+  def save(to: Path, flags: Int): Try[(Path, Int)]
   def profile(offset: Long, length: Long): Option[Array[Long]]
 
   def search(
@@ -89,12 +88,4 @@ trait Session {
   def endTransaction: Int
   def checkpointDirectory: Path
   def destroy(): Unit
-}
-
-object Session {
-  sealed trait OverwriteStrategy
-  object OverwriteStrategy {
-    case object OverwriteExisting extends OverwriteStrategy
-    case object GenerateFilename extends OverwriteStrategy
-  }
 }

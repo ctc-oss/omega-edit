@@ -39,7 +39,11 @@
 #endif
 
 int omega_version_major() { return OMEGA_EDIT_VERSION_MAJOR; }
+
 int omega_version_minor() { return OMEGA_EDIT_VERSION_MINOR; }
+
 int omega_version_patch() { return OMEGA_EDIT_VERSION_PATCH; }
+
 int omega_version() { return OMEGA_EDIT_VERSION; }
+
 char const *omega_libtype() { return OMEGA_EDIT_LIBTYPE; }

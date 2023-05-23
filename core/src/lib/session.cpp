@@ -274,7 +274,7 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
     assert(0 <= length);
     assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
-    auto segment_ptr = omega_segment_create(std::min(length, (int64_t) PROFILE_SEGMENT_CAPACITY));
+    const auto segment_ptr = omega_segment_create(std::min(length, (int64_t) PROFILE_SEGMENT_CAPACITY));
     while (length) {
         if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
         const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
@@ -286,7 +286,7 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
     return 0;
 }
 
-const char* omega_session_get_checkpoint_directory(const omega_session_t *session_ptr) {
+const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr) {
     assert(session_ptr);
     return session_ptr->checkpoint_directory_.c_str();
 }
