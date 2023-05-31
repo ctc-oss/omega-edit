@@ -16,34 +16,60 @@
 
 package com.ctc.omega_edit.spi
 
+import scala.util.matching.Regex
+
 trait NativeBuildInfo {
   def name: String
   def version: String
   def scalaVersion: String
   def sbtVersion: String
-  def sharedLibraryOs: String
-  def sharedLibraryArch: String
-  def sharedLibraryName: String
-  def sharedLibraryPath: String
+  def sharedLibraryBasePath: String
 }
 
 object NativeBuildInfo {
-  private val Mac = """mac.+""".r
-  private val Win = """windows.+""".r
+  // some regexes for arch parsing
+  val Mac: Regex = """mac.+""".r
+  val Win: Regex = """windows.+""".r
+  val Amd: Regex = """amd(\d+)""".r
+  val x86: Regex = """x86_(\d+)""".r
+  val aarch: Regex = """aarch(\d+)""".r
 
-  def matches(info: NativeBuildInfo): Boolean = {
-    val thisOs = System.getProperty("os.name").toLowerCase match {
-      case "linux" => Some("linux")
-      case Mac()   => Some("macos")
-      case Win()   => Some("windows")
-      case _       => None
+  val os = System.getProperty("os.name").toLowerCase match {
+    case "linux" => "linux"
+    case Mac()   => "macos"
+    case Win()   => "windows"
+    case os      => throw new IllegalStateException(s"Unsupported OS: $os")
+  }
+
+  val arch =
+    if (os == "macos" || os == "linux")
+      System.getProperty("os.arch").toLowerCase
+    else
+      System.getProperty("os.arch").toLowerCase match {
+        case Amd(bits)   => bits
+        case x86(bits)   => bits
+        case aarch(bits) => bits
+        case arch        => throw new IllegalStateException(s"unknown arch: $arch")
+      }
+
+  val sharedLibraryExtension: String =
+    System.getProperty("os.name").toLowerCase match {
+      case "linux" => "so"
+      case Mac()   => "dylib"
+      case Win()   => "dll"
+      case os      => throw new IllegalStateException(s"Unsupported OS: $os")
     }
 
-    val libOs = info.sharedLibraryOs
-    val libArch = info.sharedLibraryArch
-    (thisOs, System.getProperty("os.arch")) match {
-      case (Some(`libOs`), `libArch`) => true
-      case _                          => false
-    }
+  val sharedLibraryName: String =
+    if (os != "windows") s"libomega_edit.${sharedLibraryExtension}"
+    else s"omega_edit.${sharedLibraryExtension}"
+
+  def getSharedLibraryPath(info: NativeBuildInfo): String = {
+    val osSharedLibraryName: String =
+      if (os != "windows")
+        s"libomega_edit_${os}_${arch}.${sharedLibraryExtension}"
+      else s"omega_edit_${os}_${arch}.${sharedLibraryExtension}"
+
+    s"${info.sharedLibraryBasePath}/${osSharedLibraryName}"
   }
 }

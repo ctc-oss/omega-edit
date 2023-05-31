@@ -24,6 +24,6 @@ object PlatformInfoLoader {
   def load(): Option[NativeBuildInfo] = {
     import scala.jdk.CollectionConverters._
     val loader = ServiceLoader.load(classOf[BuildInfoService]).iterator()
-    loader.asScala.map(_.info()).find(NativeBuildInfo.matches)
+    loader.asScala.map(_.info()).nextOption()
   }
 }

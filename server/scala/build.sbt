@@ -11,6 +11,7 @@ import play.api.libs.json._
 import scala.io.Source
 import scala.util.Using
 import scala.util.Try
+import scala.collection.mutable.ListBuffer
 
 lazy val packageData = Json
   .parse(
@@ -113,7 +114,7 @@ lazy val api = project
     libraryDependencies ++= {
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.2",
-        "com.ctc" %% s"omega-edit-native" % version.value % Test classifier platform.id,
+        "com.ctc" %% s"omega-edit-native" % version.value,
         "com.github.jnr" % "jnr-ffi" % "2.2.13",
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
@@ -143,47 +144,24 @@ lazy val native = project
   .settings(commonSettings)
   .settings(
     name := "omega-edit-native",
-    artifactClassifier := Some(platform.id),
+    // artifactClassifier := Some(platform.id),
     exportJars := (if (isRelease) false else true),
-    Compile / packageBin / mappings += {
-      baseDirectory
-        .map(basedir =>
-          // This ensure that libdir can use full and relative paths
-          if (libdir.startsWith("/") || libdir.startsWith("C:"))
-            new java.io.File(s"${libdir}/${mapping._1}")
-          else basedir / s"${libdir}/${mapping._1}"
-        )
-        .value -> s"${version.value}/${mapping._2}"
-    },
+    Compile / packageBin / mappings ++=
+      mapping
+        .map(mp =>
+          (if (libdir.startsWith("/") || libdir.startsWith("C:"))
+             new java.io.File(s"${libdir}/${mp._1}")
+           else baseDirectory.value / s"${libdir}/${mp._1}") -> s"${version.value}/${mp._2}"
+        ),
     Compile / packageDoc / publishArtifact := false,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := organization.value + ".omega_edit.native",
     buildInfoKeys ++= Seq(
-      "sharedLibraryName" -> mapping._1,
-      "sharedLibraryOs" -> platform.os,
-      "sharedLibraryArch" -> System.getProperty("os.arch"),
-      "sharedLibraryPath" -> s"${version.value}/${mapping._2}"
+      "sharedLibraryBasePath" -> s"${version.value}/lib"
     ),
     buildInfoOptions += BuildInfoOption.Traits(
       "com.ctc.omega_edit.spi.NativeBuildInfo"
     ),
-    // Has to be done since it needs scalaBinaryVersion and version values
-    if (isRelease && !serverRelease)
-      packagedArtifacts ++= Map(
-        Artifact("omega-edit-native", "windows-64") -> file(
-          s"../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-windows-64.jar"
-        ),
-        Artifact("omega-edit-native", "macos-x86_64") -> file(
-          s"../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-x86_64.jar"
-        ),
-        Artifact("omega-edit-native", "macos-aarch64") -> file(
-          s"../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-macos-aarch64.jar"
-        ),
-        Artifact("omega-edit-native", "linux-aarch64") -> file(
-          s"../../omega-edit-native_${scalaBinaryVersion.value}-${version.value}-linux-aarch64.jar"
-        )
-      )
-    else packagedArtifacts ++= Map(),
     /** Not sure why these need added here since they are in common settings, but they are needed to not cause errors
       * with publishM2.
       */
@@ -211,11 +189,7 @@ lazy val serv = project
     if (isRelease)
       libraryDependencies ++= Seq(
         "com.ctc" %% "omega-edit" % omegaVersion,
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-amd64",
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"linux-aarch64",
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-x86_64",
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"macos-aarch64",
-        "com.ctc" %% "omega-edit-native" % omegaVersion classifier s"windows-64",
+        "com.ctc" %% "omega-edit-native" % omegaVersion,
         "com.monovore" %% "decline" % "2.4.1",
         // this needs updated in tandom with the sbt-pekko-grpc plugin
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,

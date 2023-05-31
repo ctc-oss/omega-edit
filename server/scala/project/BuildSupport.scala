@@ -105,14 +105,65 @@ object BuildSupport {
     Arch(s"$os-$arch", s"${os}_$arch", s"$os", s"$arch")
   }
 
-  def pair(name: String): (String, String) = name -> s"${platform._id}/$name"
-  lazy val mapping: (String, String) = {
-    val Mac = """mac.+""".r
-    System.getProperty("os.name").toLowerCase match {
-      case "linux" => pair("libomega_edit.so")
-      case Mac()   => pair("libomega_edit.dylib")
-      case Win()   => pair("omega_edit.dll")
+  lazy val supportedArches = List("amd64", "aarch64", "x86_64", "64") // "64" is used for windows
+
+  /** NOTE: Some functionality below is needed to allow support for local artifacts as well as release artifacts. This
+    * meaning we support a newly built lib file on its own, as well as handling having all needed lib files in the
+    * folder
+    */
+
+  def pair(name: String, desiredName: String = ""): (String, String) =
+    if (desiredName != "") name -> s"lib/$desiredName"
+    else name -> s"lib/$name"
+
+  def findPair(filename: String): (String, String) = {
+    val filenameParts = filename.split("\\.")
+    val fileOS = getOsFromSharedFileExtension(filenameParts(1))
+
+    supportedArches.find(filename.contains(_)) match {
+      case Some(fileArch) =>
+        if (filename.contains(fileOS))
+          pair(filename)
+        else
+          pair(filename, filename.replace(fileArch, s"${fileOS}_${fileArch}"))
+      // default to use host arch, unless windows since only 64 is allowed - allows for local development with a newly built file
+      case _ =>
+        val defaultArch = if (fileOS != "windows") arch.arch else "64"
+        pair(filename, s"${filenameParts(0)}_${fileOS}_${defaultArch}.${filenameParts(1)}")
     }
+  }
+
+  def getOsFromSharedFileExtension(sharedFileExtension: String): String =
+    sharedFileExtension match {
+      case "so"    => "linux"
+      case "dylib" => "macos"
+      case "dll"   => "windows"
+      case _       => throw new IllegalStateException("bad shared library file extension")
+    }
+
+  def getMappings(libFileList: List[java.io.File], multiple: Boolean): List[(String, String)] =
+    multiple match {
+      case false => List(findPair(libFileList(0).getName))
+      case true =>
+        libFileList
+          .map(f => findPair(f.getName))
+          .toList
+    }
+
+  lazy val mapping: List[(String, String)] = {
+    val libFileList =
+      new java.io.File(libdir.substring(3)).listFiles
+        .filter(_.isFile)
+        .toList
+
+    getMappings(
+      libFileList,
+      libFileList.length match {
+        case single if single == 1 => false
+        case mult if mult > 1      => true
+        case _                     => throw new IllegalStateException("no lib files found")
+      }
+    )
   }
 
   lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>

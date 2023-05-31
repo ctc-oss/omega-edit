@@ -17,7 +17,7 @@
 package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api._
-import com.ctc.omega_edit.spi.{NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
+import com.ctc.omega_edit.spi.{NativeBuildInfo, NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
 import jnr.ffi.{LibraryLoader, Pointer}
 
 import java.nio.file.{Files, Paths}
@@ -212,20 +212,23 @@ private[omega_edit] object FFI {
     if (native.version != ApiBuildInfo.version)
       throw VersionMismatch(native.version, ApiBuildInfo.version)
 
+    lazy val sharedLibraryPath = NativeBuildInfo.getSharedLibraryPath(native)
+    lazy val sharedLibraryName = NativeBuildInfo.sharedLibraryName
+
     try {
-      logger.fine(s"extracting ${native.sharedLibraryPath}")
+      logger.fine(s"extracting ${sharedLibraryPath}")
       val bin = FFI.getClass.getClassLoader.getResourceAsStream(
-        s"${native.sharedLibraryPath}"
+        s"${sharedLibraryPath}"
       )
 
       val tmpdir = Files.createTempDirectory(nativeLibraryName).toFile
-      val tmpfile = Paths.get(tmpdir.toString, native.sharedLibraryName).toFile
+      val tmpfile = Paths.get(tmpdir.toString, sharedLibraryName).toFile
       tmpfile.deleteOnExit()
       tmpdir.deleteOnExit()
 
       Files.copy(bin, tmpfile.toPath)
       logger.fine(
-        s"loading ${native.sharedLibraryName} from ${tmpfile.toString}"
+        s"loading ${sharedLibraryName} from ${tmpfile.toString}"
       )
 
       val loader = LibraryLoader.create(classOf[FFI]).failImmediately()
@@ -234,7 +237,7 @@ private[omega_edit] object FFI {
     } catch {
       case e: Exception =>
         throw new RuntimeException(
-          s"Failed to load OmegaEdit native library from ${native.sharedLibraryPath}",
+          s"Failed to load OmegaEdit native library from ${sharedLibraryPath}",
           e
         )
     }

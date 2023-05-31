@@ -181,48 +181,45 @@ jobs:
           branch: main
           workflow_conclusion: success
           name: libomega_edit.so
-          path: _install/lib/libomega_edit.so
+          path: _install/lib/libomega_edit_linux_amd64.so
+      
+      - name: Download macos library file 🔻
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: tests.yml
+          branch: main
+          workflow_conclusion: success
+          name: libomega_edit.dylib
+          path: _install/lib/libomega_edit_x86_64.dylib
+      
+      - name: Download windows library file 🔻
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: tests.yml
+          branch: main
+          workflow_conclusion: success
+          name: omega_edit.dll
+          path: _install/lib/omega_edit_windows_64.dll
 
-      - name: Move out library file 🛻
+      - name: Move out library files 🛻
         run: |
-          LIB_FILENAME="libomega_edit.so"
-          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
-          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
-          rm -rf "_install/lib/${LIB_FILENAME}_dir"
+          for lib_filename in "libomega_edit.so" "libomega_edit.dylib" "omega_edit.dll"; do
+            mv -v "${lib_filename}" "${lib_filename}_dir"
+            mv -v "${lib_filename}_dir/$lib_filename" "$lib_filename"
+            rm -rf "${lib_filename}_dir"
+          done
+        working-directory: _install/lib
         shell: bash
 
-      - name: Download macos Native JARs 🔻
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: tests.yml
-          branch: main
-          workflow_conclusion: success
-          name: macos-11-artifacts
-
-      - name: Download windows Native JARs 🔻
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: tests.yml
-          branch: main
-          workflow_conclusion: success
-          name: windows-2019-artifacts
-
-      - name: Move jars out 🚚
+      - name: Download shared lib files for M1 mac 🔻
         env:
           folder: "omega-edit-native_2.13"
         run: |
-          mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${{ env.folder }}-${{ env.PKG_VERSION }}-windows-* .
-          mv -v ${{ env.folder }}/${{ env.PKG_VERSION }}/${folder}-${{ env.PKG_VERSION }}-macos-* .
-        
-      - name: Download native JARs for M1 mac 🔻
-        env:
-          folder: "omega-edit-native_2.13"
-        run: |
-          base_url=https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main/${{ env.folder }}-${{ env.PKG_VERSION }}
-          base_filename=${{ env.folder }}-${{ env.PKG_VERSION }}
+          base_url=https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main
 
-          curl ${base_url}-macos-aarch64.jar --output ${base_filename}-macos-aarch64.jar
-          curl ${base_url}-linux-aarch64.jar --output ${base_filename}-linux-aarch64.jar
+          curl ${base_url}/libomega_edit_macos_aarch64.dylib --output libomega_edit_macos_aarch64.dylib
+          curl ${base_url}/libomega_edit_linux_aarch64.dylib --output libomega_edit_linux_aarch64.so
+        working-directory: _install/lib
 
       ###########################
       ## Scala publish process ##
