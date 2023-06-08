@@ -37,7 +37,7 @@
     "grpc_tools_node_protoc_ts": "^5.3.3",
     "mocha": "^10.0.0",
     "run-script-os": "^1.1.6",
-    "typedoc": "^0.24.7"
+    "typedoc": "^0.24.8"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.8.14",
