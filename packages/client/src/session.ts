@@ -41,7 +41,7 @@ import {
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
-import { editSimple, IEditStats } from './change'
+import { editSimple, IEditStats, overwrite } from './change'
 export {
   CountKind,
   CreateSessionResponse,
@@ -587,6 +587,7 @@ export function searchSession(
  * it will search to the end of the session
  * @param limit if defined, limits the number of matches found to this amount
  * @param front_to_back if true, replace from the front of the session to the back, otherwise replace from the back to the front
+ * @param overwrite_only if true, do not remove the pattern then insert the replacement, instead overwrite starting at the beginning of the pattern
  * @param stats optional edit stats to update
  * @return number of replacements done
  * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
@@ -603,6 +604,7 @@ export async function replaceSession(
   length: number = 0,
   limit: number = 0,
   front_to_back: boolean = true,
+  overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
   const foundLocations = await searchSession(
@@ -618,27 +620,38 @@ export async function replaceSession(
   const replacementArray =
     typeof replacement == 'string' ? Buffer.from(replacement) : replacement
   if (front_to_back) {
-    // adjustment that needs to be made to the offset for each replacement
-    const adjustment = replacementArray.length - patternArray.length
-    for (let i = 0; i < foundLocations.length; ++i) {
-      await editSimple(
-        session_id,
-        adjustment * i + foundLocations[i],
-        patternArray,
-        replacementArray,
-        stats
-      )
+    if (overwrite_only) {
+      for (let i = 0; i < foundLocations.length; ++i) {
+        await overwrite(session_id, foundLocations[i], replacementArray, stats)
+      }
+    } else {
+      const adjustment = replacementArray.length - patternArray.length
+      for (let i = 0; i < foundLocations.length; ++i) {
+        await editSimple(
+          session_id,
+          adjustment * i + foundLocations[i],
+          patternArray,
+          replacementArray,
+          stats
+        )
+      }
     }
   } else {
     // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
-    for (let i = foundLocations.length - 1; i >= 0; --i) {
-      await editSimple(
-        session_id,
-        foundLocations[i],
-        patternArray,
-        replacementArray,
-        stats
-      )
+    if (overwrite_only) {
+      for (let i = foundLocations.length - 1; i >= 0; --i) {
+        await overwrite(session_id, foundLocations[i], replacementArray, stats)
+      }
+    } else {
+      for (let i = foundLocations.length - 1; i >= 0; --i) {
+        await editSimple(
+          session_id,
+          foundLocations[i],
+          patternArray,
+          replacementArray,
+          stats
+        )
+      }
     }
   }
   return foundLocations.length
