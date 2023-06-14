@@ -637,6 +637,7 @@ describe('Searching', () => {
         await getComputedFileSize(session_id),
         0,
         true,
+        false,
         stats
       )
     ).to.equal(4)
@@ -661,6 +662,7 @@ describe('Searching', () => {
         4,
         (await getComputedFileSize(session_id)) - 4,
         0,
+        false,
         false,
         stats
       )
@@ -699,12 +701,37 @@ describe('Searching', () => {
         await getComputedFileSize(session_id),
         1,
         true,
+        false,
         stats
       )
     ).to.equal(1)
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('Item here noodle there needleneedle everywhere'))
+    // expect a single overwrite
+    expect(stats.delete_count).to.equal(0)
+    expect(stats.insert_count).to.equal(0)
+    expect(stats.overwrite_count).to.equal(1)
+    expect(stats.error_count).to.equal(0)
+    stats.reset()
+    // test overwrite only
+    expect(
+      await replaceSession(
+        session_id,
+        'needleneedle',
+        'noodle',
+        true,
+        0,
+        await getComputedFileSize(session_id),
+        1,
+        true,
+        true,
+        stats
+      )
+    ).to.equal(1)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('Item here noodle there noodleneedle everywhere'))
     // expect a single overwrite
     expect(stats.delete_count).to.equal(0)
     expect(stats.insert_count).to.equal(0)
