@@ -190,7 +190,7 @@ jobs:
           branch: main
           workflow_conclusion: success
           name: libomega_edit.dylib
-          path: _install/lib/libomega_edit_x86_64.dylib
+          path: _install/lib/libomega_edit_macos_x86_64.dylib
       
       - name: Download windows library file 🔻
         uses: dawidd6/action-download-artifact@v2
@@ -203,17 +203,16 @@ jobs:
 
       - name: Move out library files 🛻
         run: |
-          for lib_filename in "libomega_edit.so" "libomega_edit.dylib" "omega_edit.dll"; do
+          for lib_filename in "libomega_edit_linux_amd64.so" "libomega_edit_macos_x86_64.dylib" "omega_edit_windows_64.dll"; do
+            downloaded_filename=$(echo $lib_filename | sed "s|_linux_amd64||g" | sed "s|_macos_x86_64||g" | sed "s|_windows_64||g")
             mv -v "${lib_filename}" "${lib_filename}_dir"
-            mv -v "${lib_filename}_dir/$lib_filename" "$lib_filename"
+            mv -v "${lib_filename}_dir/$downloaded_filename" "$lib_filename"
             rm -rf "${lib_filename}_dir"
           done
         working-directory: _install/lib
         shell: bash
 
       - name: Download shared lib files for M1 mac 🔻
-        env:
-          folder: "omega-edit-native_2.13"
         run: |
           base_url=https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main
 
