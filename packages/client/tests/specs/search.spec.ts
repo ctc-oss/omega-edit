@@ -611,6 +611,21 @@ describe('Searching', () => {
       0
     )
     expect(nextOffset).to.equal(-1)
+    nextOffset = await replaceOneSession(
+      session_id,
+      'every',
+      'no',
+      true,
+      0,
+      0,
+      true
+    )
+    expect(nextOffset).to.equal(40)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(
+      Buffer.from('Item-1 here Item-1 there Item-1Item-1 noerywhere')
+    )
   })
 
   it('Should replace patterns in a range', async () => {
