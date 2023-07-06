@@ -666,7 +666,13 @@ export async function replaceSession(
  * @param offset start searching at this offset within the session, or at the start of the session if undefined
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
+ * @param overwrite_only if true, do not remove the pattern then insert the replacement, instead overwrite starting at the beginning of the pattern
+ * @param stats optional edit stats to update
  * @return offset to use for the next iteration or -1 if no replacement took place
+ *
+ * @remarks First find the first occurrence of the pattern in the session, then ask the user if they want to replace it.
+ * If they do, replace it and return the offset of the end of the replacement.  If they don't, return the offset of the
+ * end of the pattern.  The next iteration should start at the returned offset.
  */
 export async function replaceOneSession(
   session_id: string,
@@ -674,7 +680,9 @@ export async function replaceOneSession(
   replacement: string | Uint8Array,
   is_case_insensitive: boolean = false,
   offset: number = 0,
-  length: number = 0
+  length: number = 0,
+  overwrite_only: boolean = false,
+  stats?: IEditStats
 ): Promise<number> {
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
@@ -689,12 +697,17 @@ export async function replaceOneSession(
     1
   )
   if (foundLocations.length > 0) {
-    await editSimple(
-      session_id,
-      foundLocations[0],
-      patternArray,
-      replacementArray
-    )
+    if (overwrite_only) {
+      await overwrite(session_id, foundLocations[0], replacementArray, stats)
+    } else {
+      await editSimple(
+        session_id,
+        foundLocations[0],
+        patternArray,
+        replacementArray,
+        stats
+      )
+    }
     // the next iteration offset should be at the end of this replacement
     return foundLocations[0] + replacementArray.length
   }
