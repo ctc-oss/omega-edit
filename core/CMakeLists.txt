@@ -57,7 +57,7 @@ if(BUILD_TESTS)
             Catch2
             GIT_SHALLOW    TRUE
             GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-            GIT_TAG        v3.3.2)
+            GIT_TAG        v3.4.0)
     message(STATUS "Fetching, building, and making Catch2 available to the project")
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
