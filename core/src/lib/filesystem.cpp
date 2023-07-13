@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/filesystem.h"
-#include "../include/omega_edit/utility.h"
+#include "omega_edit/filesystem.h"
+#include "omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <cassert>
 #include <filesystem>

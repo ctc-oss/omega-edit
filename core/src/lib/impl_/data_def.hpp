@@ -15,7 +15,7 @@
 #ifndef OMEGA_EDIT_DATA_DEF_HPP
 #define OMEGA_EDIT_DATA_DEF_HPP
 
-#include "../../include/omega_edit/byte.h"
+#include "omega_edit/byte.h"
 #include <cstdint>
 
 /**

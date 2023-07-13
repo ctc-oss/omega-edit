@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/change.h"
+#include "omega_edit/change.h"
 #include "impl_/change_def.hpp"
 #include "impl_/macros.h"
 #include <cassert>

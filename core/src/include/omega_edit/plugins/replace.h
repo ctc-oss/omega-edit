@@ -12,36 +12,42 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "omega_edit/check.h"
-#include "impl_/change_def.hpp"
-#include "impl_/internal_fun.hpp"
-#include "impl_/macros.h"
-#include "impl_/session_def.hpp"
-#include <cassert>
+#ifndef OMEGA_EDIT_PLUGINS_REPLACE_H
+#define OMEGA_EDIT_PLUGINS_REPLACE_H
 
-int omega_check_model(const omega_session_t *session_ptr) {
-    assert(session_ptr);
-    int64_t expected_offset = 0;
-    if (!session_ptr->models_.empty()) {
-        for (auto &&model_ptr : session_ptr->models_) {
-            assert(model_ptr);
-            for (const auto &segment : model_ptr->model_segments) {
-                assert(segment->change_ptr);
-                if (expected_offset != segment->computed_offset ||
-                    (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {
-                    print_model_segments_(session_ptr->models_.back().get(), CLOG);
-                    return -1;
-                }
-                expected_offset += segment->computed_length;
-            }
-        }
-        CLOG << "Serial: " << session_ptr->models_.front()->model_segments.front()->change_ptr->serial << "\n";
-        CLOG << "Kind: " << session_ptr->models_.front()->model_segments.front()->change_ptr->kind << "\n";
-        if (1 != session_ptr->models_.front()->model_segments.front()->change_ptr->serial ||
-            0 != (session_ptr->models_.front()->model_segments.front()->change_ptr->kind &
-                  OMEGA_CHANGE_TRANSACTION_BIT)) {
-            return -2;
-        }
-    }
-    return 0;
+#include <stdio.h>
+#include "omega_edit/export.h"
+#include "omega_edit/byte.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Replace context.
+ */
+OMEGA_EDIT_EXPORT typedef struct {
+    omega_byte_t *search;
+    int64_t search_length;
+    omega_byte_t *replace;
+    int64_t replace_length;
+    int case_insensitive;
+    int64_t replacements;
+} omega_edit_transform_replace_context_t;
+
+/**
+ * Replaces tokens in a stream.
+ * @param in input stream
+ * @param start_offset offset in input stream to start reading
+ * @param length number of bytes to read from input stream
+ * @param out output stream
+ * @param context context
+ * @return 0 on success, non-zero on failure
+ */
+OMEGA_EDIT_EXPORT int omega_edit_transform_replace(FILE *in, int64_t start_offset, int64_t length, FILE *out, void *context);
+
+#ifdef __cplusplus
 }
+#endif
+
+#endif //OMEGA_EDIT_PLUGINS_REPLACE_H

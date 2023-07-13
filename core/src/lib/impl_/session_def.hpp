@@ -15,8 +15,8 @@
 #ifndef OMEGA_EDIT_SESSION_DEF_HPP
 #define OMEGA_EDIT_SESSION_DEF_HPP
 
-#include "../../include/omega_edit/edit.h"
-#include "../../include/omega_edit/fwd_defs.h"
+#include "omega_edit/edit.h"
+#include "omega_edit/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
 #include "model_def.hpp"
 #include <vector>

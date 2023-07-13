@@ -12,12 +12,12 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/edit.h"
-#include "../include/omega_edit/change.h"
-#include "../include/omega_edit/search.h"
-#include "../include/omega_edit/segment.h"
-#include "../include/omega_edit/session.h"
-#include "../include/omega_edit/viewport.h"
+#include "omega_edit/edit.h"
+#include "omega_edit/change.h"
+#include "omega_edit/search.h"
+#include "omega_edit/segment.h"
+#include "omega_edit/session.h"
+#include "omega_edit/viewport.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.h"
@@ -514,13 +514,42 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
     return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
 }
 
-int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
-                               int64_t offset, int64_t length) {
+int omega_edit_apply_transform_old(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
+                                   int64_t offset, int64_t length) {
     if (!omega_session_changes_paused(session_ptr) && 0 == omega_edit_create_checkpoint(session_ptr)) {
         const auto in_file = session_ptr->models_.back()->file_path;
         const auto out_file = in_file + "_";
         if (0 == omega_util_apply_byte_transform_to_file(in_file.c_str(), out_file.c_str(), transform, user_data_ptr,
                                                          offset, length)) {
+            errno = 0;// reset errno
+            if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == omega_util_remove_file(in_file.c_str()) &&
+                0 == rename(out_file.c_str(), in_file.c_str()) &&
+                (session_ptr->models_.back()->file_ptr = fopen(in_file.c_str(), "rb"))) {
+                for (const auto &viewport_ptr : session_ptr->viewports_) {
+                    viewport_ptr->data_segment.capacity =
+                            -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                    omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
+                }
+                omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
+                return 0;
+            }
+
+            // In a bad state (I/O failure), so abort
+            ABORT(LOG_ERRNO(););
+        }
+        // The transform failed, but we can recover from this
+        if (omega_util_file_exists(out_file.c_str())) { omega_util_remove_file(out_file.c_str()); }
+    }
+    return -1;
+}
+
+int omega_edit_apply_transform(omega_session_t *session_ptr, int64_t offset, int64_t length,
+                               omega_edit_transform_func_t transform, void *transform_context) {
+    if (!omega_session_changes_paused(session_ptr) && 0 == omega_edit_create_checkpoint(session_ptr)) {
+        const auto in_file = session_ptr->models_.back()->file_path;
+        const auto out_file = in_file + "_";
+        auto out_file_ptr = fopen(out_file.c_str(), "wb");
+        if (0 == transform(session_ptr->models_.back()->file_ptr, offset, length, out_file_ptr, transform_context)) {
             errno = 0;// reset errno
             if (0 == fclose(session_ptr->models_.back()->file_ptr) && 0 == omega_util_remove_file(in_file.c_str()) &&
                 0 == rename(out_file.c_str(), in_file.c_str()) &&

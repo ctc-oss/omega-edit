@@ -12,7 +12,6 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "omega_edit/session.h"
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/model_def.hpp"
@@ -20,6 +19,7 @@
 #include "impl_/session_def.hpp"
 #include "omega_edit/fwd_defs.h"
 #include "omega_edit/segment.h"
+#include "omega_edit/session.h"
 #include "omega_edit/viewport.h"
 #include <cassert>
 #include <cstring>

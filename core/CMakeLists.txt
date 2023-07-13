@@ -88,10 +88,12 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/utility.h" "src/lib/utility.c"
         "src/include/omega_edit/encode.h" "src/lib/encode.c"
         "src/include/omega_edit/filesystem.h" "src/lib/filesystem.cpp"
+        "src/include/omega_edit/plugins/replace.h" "src/lib/plugins/replace.c"
         "src/lib/impl_/macros.h" "src/lib/impl_/internal_fwd_defs.hpp"
         "src/lib/impl_/internal_fun.hpp" "src/lib/impl_/internal_fun.cpp"
         "src/lib/impl_/find.h" "src/lib/impl_/find.cpp"
-        "src/lib/impl_/data_def.hpp" "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp")
+        "src/lib/impl_/data_def.hpp" "src/lib/impl_/model_def.hpp" "src/lib/impl_/model_segment_def.hpp"
+        )
 
 # Don't add RPATH so we can manipulate the library search path using the environment at runtime
 set(CMAKE_MACOSX_RPATH OFF)
@@ -124,6 +126,9 @@ endforeach ()
 # EXAMPLES
 #######################################################################################################################
 if (BUILD_EXAMPLES)
+    add_executable(plugin_replace "src/examples/plugin_replace.c")
+    target_link_libraries(plugin_replace PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
     add_executable(replace "src/examples/replace.cpp")
     target_link_libraries(replace PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 

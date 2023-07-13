@@ -15,7 +15,7 @@
 #ifndef OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
 #define OMEGA_EDIT_INTERNAL_FWD_DEFS_HPP
 
-#include "../../include/omega_edit/fwd_defs.h"
+#include "omega_edit/fwd_defs.h"
 #include <memory>
 
 using omega_model_t = struct omega_model_struct;

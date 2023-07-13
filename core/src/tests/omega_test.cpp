@@ -423,7 +423,7 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(-1 == omega_edit_destroy_last_checkpoint(session_ptr));
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, to_lower, nullptr, 0, 0));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, to_lower, nullptr, 0, 0));
     REQUIRE(1 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(1 == omega_session_get_num_changes(session_ptr));
     REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
@@ -436,30 +436,30 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     mask_info_t mask_info;
     mask_info.mask_kind = MASK_XOR;
     mask_info.mask = 0xFF;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.2.dat", omega_io_flags_t::IO_FLG_OVERWRITE,
                                  nullptr));
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(3 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.3.dat", omega_io_flags_t::IO_FLG_OVERWRITE,
                                  nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.3.dat"));
     mask_info.mask_kind = MASK_AND;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(4 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.4.dat", omega_io_flags_t::IO_FLG_OVERWRITE,
                                  nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.4.dat"));
     mask_info.mask_kind = MASK_OR;
     mask_info.mask = 0x00;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(0 == omega_edit_save(session_ptr, "data/test1.actual.checkpoint.5.dat", omega_io_flags_t::IO_FLG_OVERWRITE,
                                  nullptr));
     REQUIRE(0 == compare_files("data/test1.expected.checkpoint.1.dat", "data/test1.actual.checkpoint.5.dat"));
     mask_info.mask_kind = MASK_AND;
-    REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
+    REQUIRE(0 == omega_edit_apply_transform_old(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
     REQUIRE(3 == omega_edit_overwrite_string(session_ptr, 0,
                                              "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));

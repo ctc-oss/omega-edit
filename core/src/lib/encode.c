@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/encode.h"
+#include "omega_edit/encode.h"
 #include <assert.h>
 
 size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {

@@ -12,10 +12,10 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/search.h"
-#include "../include/omega_edit/segment.h"
-#include "../include/omega_edit/session.h"
-#include "../include/omega_edit/utility.h"
+#include "omega_edit/search.h"
+#include "omega_edit/segment.h"
+#include "omega_edit/session.h"
+#include "omega_edit/utility.h"
 #include "impl_/find.h"
 #include "impl_/internal_fun.hpp"
 #include "impl_/search_context_def.h"
@@ -26,6 +26,7 @@
 #include <cctype>
 #include <cstring>
 #include <memory>
+
 
 static inline omega_byte_t to_lower_(omega_byte_t byte, void *) {
     return static_cast<omega_byte_t>(std::tolower(byte));
@@ -102,7 +103,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
                           (search_context_ptr->session_offset + search_context_ptr->session_length);
     auto session_length = is_begin ? search_context_ptr->session_length
                                    : search_context_ptr->session_length -
-                                             (search_context_ptr->match_offset - search_context_ptr->session_offset);
+                                     (search_context_ptr->match_offset - search_context_ptr->session_offset);
     data_segment.offset =
             is_begin ? search_context_ptr->session_offset : search_context_ptr->match_offset + advance_context;
     data_segment.capacity = std::min(session_length, MAX_SEGMENT_LENGTH);

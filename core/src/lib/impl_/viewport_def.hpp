@@ -15,7 +15,7 @@
 #ifndef OMEGA_EDIT_VIEWPORT_DEF_HPP
 #define OMEGA_EDIT_VIEWPORT_DEF_HPP
 
-#include "../../include/omega_edit/fwd_defs.h"
+#include "omega_edit/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
 #include "segment_def.hpp"
 

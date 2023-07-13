@@ -15,8 +15,8 @@
 #ifndef OMEGA_EDIT_INTERNAL_FUN_HPP
 #define OMEGA_EDIT_INTERNAL_FUN_HPP
 
-#include "../../include/omega_edit/byte.h"
-#include "../../include/omega_edit/fwd_defs.h"
+#include "omega_edit/byte.h"
+#include "omega_edit/fwd_defs.h"
 #include "internal_fwd_defs.hpp"
 #include <iosfwd>
 
