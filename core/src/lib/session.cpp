@@ -24,8 +24,6 @@
 #include <cassert>
 #include <cstring>
 
-#define PROFILE_SEGMENT_CAPACITY (1024 * 8)
-
 
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
     assert(session_ptr);
@@ -274,7 +272,7 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
     assert(0 <= length);
     assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
-    const auto segment_ptr = omega_segment_create(std::min(length, (int64_t) PROFILE_SEGMENT_CAPACITY));
+    const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
         if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
         const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));

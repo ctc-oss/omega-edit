@@ -47,7 +47,7 @@ import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
-  private implicit val timeout: Timeout = Timeout(5.seconds)
+  private implicit val timeout: Timeout = Timeout(20.seconds)
   private val editors = system.actorOf(Editors.props())
   private var isGracefulShutdown = false
   import system.dispatcher

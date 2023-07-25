@@ -67,7 +67,7 @@ trait Session {
   def save(to: Path): Try[(Path, Int)]
   def save(to: Path, overwrite: Boolean): Try[(Path, Int)]
   def save(to: Path, flags: Int): Try[(Path, Int)]
-  def profile(offset: Long, length: Long): Option[Array[Long]]
+  def profile(offset: Long, length: Long): Either[Int, Array[Long]]
 
   def search(
       pattern: Array[Byte],
