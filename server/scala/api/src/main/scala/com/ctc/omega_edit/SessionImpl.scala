@@ -182,11 +182,14 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
 
-  def profile(offset: Long, length: Long): Option[Array[Long]] = {
+  def profile(offset: Long, length: Long): Either[Int, Array[Long]] = {
     val profile = new Array[Long](256)
-    Option.when(i.omega_session_profile(p, profile, offset, length) == 0)(
-      profile
-    )
+    val result = i.omega_session_profile(p, profile, offset, length)
+    if (result == 0) {
+      Right(profile)
+    } else {
+      Left(result)
+    }
   }
 
   def search(

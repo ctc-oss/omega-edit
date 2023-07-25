@@ -78,7 +78,7 @@ object Editors {
 
 class Editors extends Actor with ActorLogging {
   import Editors._
-  implicit val timeout: Timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout = Timeout(20.seconds)
 
   def receive: Receive = {
     case Create(sid, path, chkptDir) =>
