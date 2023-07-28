@@ -21,7 +21,9 @@
 #define OMEGA_EDIT_CONFIG_H
 
 #ifdef __cplusplus
+
 #include <cstdint>
+
 #else
 
 #include <stdint.h>
@@ -50,7 +52,7 @@
 #define OMEGA_BYTE_T unsigned char
 #endif//OMEGA_BYTE_T
 
-#if !defined(__CYGWIN__) &&                                                                                            \
+#if !defined(__CYGWIN__) && \
         (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD))
 #define OMEGA_BUILD_WINDOWS
 #else

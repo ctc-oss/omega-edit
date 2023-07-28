@@ -194,6 +194,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       offset: Long,
       length: Long,
       caseInsensitive: Boolean = false,
+      reverseSearch: Boolean = false,
       limit: Option[Long] = None
   ): List[Long] =
     i.omega_search_create_context_bytes(
@@ -202,7 +203,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       pattern.length.toLong,
       offset,
       length,
-      caseInsensitive
+      caseInsensitive,
+      reverseSearch
     ) match {
       case null => List.empty[Long]
       case context =>
@@ -213,7 +215,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
                 limit.forall(numMatches < _) && i
                   .omega_search_next_match(context, 1) > 0
               )(
-                i.omega_search_context_get_offset(
+                i.omega_search_context_get_match_offset(
                   context
                 ) -> (context, numMatches + 1)
               )

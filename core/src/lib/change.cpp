@@ -38,8 +38,8 @@ int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
     assert(change_ptr);
     return (omega_change_get_kind(change_ptr) != change_kind_t::CHANGE_DELETE)
-                   ? omega_data_get_data_const(&change_ptr->data, change_ptr->length)
-                   : nullptr;
+           ? omega_data_get_data_const(&change_ptr->data, change_ptr->length)
+           : nullptr;
 }
 
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {

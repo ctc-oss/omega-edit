@@ -147,9 +147,9 @@ char *omega_util_available_filename(char const *path, char *buffer) {
             return nullptr;
         }
         auto const len = fs::path(dirname)
-                                 .append(basename + "-" + std::to_string(i) + extension)
-                                 .string()
-                                 .copy(buffer, FILENAME_MAX);
+                .append(basename + "-" + std::to_string(i) + extension)
+                .string()
+                .copy(buffer, FILENAME_MAX);
         buffer[len] = '\0';
     } while (omega_util_file_exists(buffer));
     return buffer;

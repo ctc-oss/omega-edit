@@ -74,6 +74,7 @@ trait Session {
       offset: Long,
       length: Long,
       caseInsensitive: Boolean = false,
+      reverseSearch: Boolean = false,
       limit: Option[Long] = None
   ): List[Long]
 

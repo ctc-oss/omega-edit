@@ -24,9 +24,9 @@ int omega_check_model(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int64_t expected_offset = 0;
     if (!session_ptr->models_.empty()) {
-        for (auto &&model_ptr : session_ptr->models_) {
+        for (auto &&model_ptr: session_ptr->models_) {
             assert(model_ptr);
-            for (const auto &segment : model_ptr->model_segments) {
+            for (const auto &segment: model_ptr->model_segments) {
                 assert(segment->change_ptr);
                 if (expected_offset != segment->computed_offset ||
                     (segment->change_offset + segment->computed_length) > segment->change_ptr->length) {

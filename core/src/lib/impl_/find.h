@@ -32,9 +32,18 @@ struct omega_find_skip_table_t;
  * Preprocess the needle to create a skip table for use in the omega_find function
  * @param needle needle to process
  * @param needle_length length of the needle to process
+ * @param is_reverse_search non-zero if the search is to be done in reverse, zero otherwise
  * @return skip table for use in the omega_find function
  */
-const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char *needle, size_t needle_length);
+const omega_find_skip_table_t *
+omega_find_create_skip_table(const unsigned char *needle, size_t needle_length, int is_reverse_search);
+
+/**
+ * Determines if the skip table is for a reverse search
+ * @param skip_table_ptr skip table to check
+ * @return non-zero if the skip table is for a reverse search, zero otherwise
+ */
+int omega_find_is_reversed(const omega_find_skip_table_t *skip_table_ptr);
 
 /**
  * Finds the first offset in the haystack where the needle is found, otherwise, return haystack_length

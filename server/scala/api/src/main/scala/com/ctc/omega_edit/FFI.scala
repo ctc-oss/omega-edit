@@ -152,7 +152,8 @@ private[omega_edit] trait FFI {
       patternLength: Long,
       offset: Long,
       length: Long,
-      caseInsensitive: Boolean
+      caseInsensitive: Boolean,
+      reverseSearch: Boolean
   ): Pointer
 
   /** @param p
@@ -163,6 +164,7 @@ private[omega_edit] trait FFI {
     * @param length
     *   if 0, computed from the offset and length of the session
     * @param caseInsensitive
+    * @param reverseSearch
     * @return
     */
   def omega_search_create_context(
@@ -171,10 +173,11 @@ private[omega_edit] trait FFI {
       patternLength: Long,
       offset: Long,
       length: Long,
-      caseInsensitive: Boolean
+      caseInsensitive: Boolean,
+      reverseSearch: Boolean
   ): Pointer
-  def omega_search_context_get_offset(p: Pointer): Long
-  def omega_search_context_get_length(p: Pointer): Long
+  def omega_search_context_get_match_offset(p: Pointer): Long
+  def omega_search_context_get_pattern_length(p: Pointer): Long
   def omega_search_next_match(p: Pointer, advanceContext: Long): Int
   def omega_search_destroy_context(p: Pointer): Unit
 
@@ -190,7 +193,7 @@ private[omega_edit] trait FFI {
 
   // find
 
-  def omega_find_create_skip_table(needle: String, needleLength: Long): Pointer
+  def omega_find_create_skip_table(needle: String, needleLength: Long, reverseSearch: Boolean): Pointer
   def omega_find(
       haystack: String,
       length: Long,

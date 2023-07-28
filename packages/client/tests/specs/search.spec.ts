@@ -67,17 +67,26 @@ describe('Searching', () => {
       session_id,
       'needle',
       false,
+      false,
       0,
       0,
       undefined
     )
     expect(needles).deep.equals([8])
-    needles = await searchSession(session_id, 'needle', true, 3, file_size - 3)
+    needles = await searchSession(
+      session_id,
+      'needle',
+      true,
+      false,
+      3,
+      file_size - 3
+    )
     expect(needles).deep.equals([8, 14, 20])
     needles = await searchSession(
       session_id,
       'needle',
       true,
+      false,
       3,
       file_size - 3,
       0
@@ -87,37 +96,114 @@ describe('Searching', () => {
       session_id,
       'needle',
       true,
+      true,
+      3,
+      file_size - 3,
+      0
+    )
+    expect(needles).deep.equals([20, 14, 8])
+    needles = await searchSession(
+      session_id,
+      'needle',
+      true,
+      false,
       3,
       file_size - 3,
       2
     )
     expect(needles).deep.equals([8, 14])
-    needles = await searchSession(session_id, 'NEEDLE', false, 0, 0, 1)
+    needles = await searchSession(session_id, 'NEEDLE', false, false, 0, 0, 1)
     expect(needles).deep.equals([14])
-    needles = await searchSession(session_id, 'NEEDLE', false, 0, 20, undefined)
+    needles = await searchSession(
+      session_id,
+      'NEEDLE',
+      false,
+      false,
+      0,
+      20,
+      undefined
+    )
     expect(needles).deep.equals([14])
-    needles = await searchSession(session_id, 'NEEDLE', false, 14, 6, undefined)
+    needles = await searchSession(
+      session_id,
+      'NEEDLE',
+      false,
+      false,
+      14,
+      6,
+      undefined
+    )
     expect(needles).deep.equals([14])
-    needles = await searchSession(session_id, 'NEEDLE', false, 14, 5, undefined)
+    needles = await searchSession(
+      session_id,
+      'NEEDLE',
+      false,
+      false,
+      14,
+      5,
+      undefined
+    )
     expect(needles).to.be.empty
-    needles = await searchSession(session_id, 'NEEDLE', false, 0, 19, undefined)
+    needles = await searchSession(
+      session_id,
+      'NEEDLE',
+      false,
+      false,
+      0,
+      19,
+      undefined
+    )
     expect(needles).to.be.empty
     expect(await getChangeCount(session_id)).to.equal(1)
 
     // try single byte searches
-    needles = await searchSession(session_id, 'n', false, 0, 0, undefined)
+    needles = await searchSession(
+      session_id,
+      'n',
+      false,
+      false,
+      0,
+      0,
+      undefined
+    )
     expect(needles).deep.equals([8, 26])
-    needles = await searchSession(session_id, 'N', false, 0, 0, undefined)
+    needles = await searchSession(session_id, 'n', false, true, 0, 0, undefined)
+    expect(needles).deep.equals([26, 8])
+    needles = await searchSession(
+      session_id,
+      'N',
+      false,
+      false,
+      0,
+      0,
+      undefined
+    )
     expect(needles).deep.equals([14, 20])
-    needles = await searchSession(session_id, 'n', true, 0, 0, undefined)
+    needles = await searchSession(session_id, 'n', true, false, 0, 0, undefined)
     expect(needles).deep.equals([8, 14, 20, 26])
-    needles = await searchSession(session_id, 'F', false, 0, 0, undefined)
+    needles = await searchSession(
+      session_id,
+      'F',
+      false,
+      false,
+      0,
+      0,
+      undefined
+    )
     expect(needles).to.be.empty
 
     // try searching an empty session
     await clear(session_id)
     expect(await getChangeCount(session_id)).to.equal(0)
-    needles = await searchSession(session_id, 'needle', true, 0, 0, undefined)
+    needles = await searchSession(
+      session_id,
+      'needle',
+      true,
+      false,
+      0,
+      0,
+      undefined
+    )
     expect(needles).to.be.empty
   })
 
@@ -499,6 +585,7 @@ describe('Searching', () => {
       'needle',
       'Item',
       false,
+      false,
       0,
       0
     )
@@ -510,6 +597,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
+      false,
       false,
       nextOffset,
       0
@@ -523,6 +611,7 @@ describe('Searching', () => {
       'needle',
       'Item',
       false,
+      false,
       nextOffset,
       0
     )
@@ -534,6 +623,7 @@ describe('Searching', () => {
       session_id,
       'needle',
       'Item',
+      false,
       false,
       nextOffset,
       0
@@ -547,6 +637,7 @@ describe('Searching', () => {
       'needle',
       'Item',
       false,
+      false,
       nextOffset,
       0
     )
@@ -557,6 +648,7 @@ describe('Searching', () => {
       'item',
       'Item-1',
       true,
+      false,
       0,
       0
     )
@@ -568,6 +660,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
+      false,
       false,
       nextOffset,
       0
@@ -581,6 +674,7 @@ describe('Searching', () => {
       'Item',
       'Item-1',
       false,
+      false,
       nextOffset,
       0
     )
@@ -592,6 +686,7 @@ describe('Searching', () => {
       session_id,
       'Item',
       'Item-1',
+      false,
       false,
       nextOffset,
       0
@@ -607,6 +702,7 @@ describe('Searching', () => {
       'Item',
       'Item-1',
       false,
+      false,
       nextOffset,
       0
     )
@@ -616,6 +712,7 @@ describe('Searching', () => {
       'every',
       'no',
       true,
+      false,
       0,
       0,
       true
@@ -648,6 +745,7 @@ describe('Searching', () => {
         'needle',
         'Item',
         false,
+        false,
         0,
         await getComputedFileSize(session_id),
         0,
@@ -674,6 +772,7 @@ describe('Searching', () => {
         'item',
         'needle',
         true,
+        false,
         4,
         (await getComputedFileSize(session_id)) - 4,
         0,
@@ -712,6 +811,7 @@ describe('Searching', () => {
         'Needle',
         'noodle',
         true,
+        false,
         0,
         await getComputedFileSize(session_id),
         1,
@@ -736,6 +836,7 @@ describe('Searching', () => {
         'needleneedle',
         'noodle',
         true,
+        false,
         0,
         await getComputedFileSize(session_id),
         1,
@@ -769,7 +870,14 @@ describe('Searching', () => {
     )
     let pattern_bytes = new Uint8Array([6, 5, 4])
     let replace_bytes = new Uint8Array([4, 5, 6])
-    let needles = await searchSession(session_id, pattern_bytes, false, 0, 0)
+    let needles = await searchSession(
+      session_id,
+      pattern_bytes,
+      false,
+      false,
+      0,
+      0
+    )
     expect(needles).deep.equals([1])
     const stats = new EditStats()
     await replace(session_id, 1, pattern_bytes.length, replace_bytes, stats)
@@ -787,6 +895,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       pattern_bytes,
+      false,
       false,
       0,
       0,
@@ -811,6 +920,7 @@ describe('Searching', () => {
     needles = await searchSession(
       session_id,
       pattern_bytes,
+      false,
       false,
       0,
       0,
@@ -840,7 +950,14 @@ describe('Searching', () => {
     expect(await getComputedFileSize(session_id)).to.equal(30)
     let pattern_chars = 'is hay'
     let replace_chars = 'are needles'
-    let needles = await searchSession(session_id, pattern_chars, false, 0, 0)
+    let needles = await searchSession(
+      session_id,
+      pattern_chars,
+      false,
+      false,
+      0,
+      0
+    )
     expect(needles).deep.equals([10])
     await edit(
       session_id,

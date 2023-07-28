@@ -179,6 +179,14 @@ if (BUILD_TESTS)
     include(CTest)
     include(Catch)
     catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+
+    find_program(VALGRIND "valgrind")
+    if (VALGRIND)
+        add_custom_target(valgrind
+                COMMAND ${VALGRIND} --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt $<TARGET_FILE:omega_test>
+                COMMENT "Running tests under valgrind"
+                DEPENDS omega_test)
+    endif()
 endif ()
 
 #######################################################################################################################

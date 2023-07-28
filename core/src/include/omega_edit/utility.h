@@ -25,8 +25,10 @@
 #include "filesystem.h"
 
 #ifdef __cplusplus
+
 #include <cstdint>
 #include <cstdio>
+
 extern "C" {
 #else
 
@@ -83,7 +85,9 @@ OMEGA_EDIT_EXPORT int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_
 /**
  * Mask types
  */
-typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;
+typedef enum {
+    MASK_AND, MASK_OR, MASK_XOR
+} omega_mask_kind_t;
 
 /**
  * Byte transform function pointer
@@ -147,7 +151,15 @@ OMEGA_EDIT_EXPORT int omega_util_strnicmp(const char *s1, const char *s2, uint64
  * @param n length of the string to duplicate
  * @return duplicated , null terminated string, allocated with malloc, or NULL on failure
  */
-char *omega_util_strndup(const char *s, size_t n);
+OMEGA_EDIT_EXPORT char *omega_util_strndup(const char *s, size_t n);
+
+/**
+ * Cross-platform memrchr work-alike
+ * @param s memory to search
+ * @param c byte to search for
+ * @param n number of bytes to search
+ */
+OMEGA_EDIT_EXPORT const void *omega_util_memrchr(const void *s, int c, size_t n);
 
 #ifdef __cplusplus
 }

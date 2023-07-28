@@ -24,8 +24,10 @@
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
+
 #include <cstddef>
 #include <cstdint>
+
 extern "C" {
 #endif
 

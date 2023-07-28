@@ -187,6 +187,15 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       )
     }
 
+    "respect reverseSearch" in session(as) { s =>
+      s.search("A".getBytes, 0, 0, caseInsensitive = true, reverseSearch = true) shouldBe List(
+        15,
+        10,
+        9,
+        4
+      )
+    }
+
     "respect limit" in session(as) { s =>
       s.search("a".getBytes, 0, 0, limit = Some(2)) shouldBe List(4, 9)
     }
