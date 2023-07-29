@@ -363,12 +363,17 @@ class Session(
     case Profile(request) =>
       val offset = request.offset.getOrElse(0L)
       val length = request.length.getOrElse(session.size - offset)
-      sender() ! ByteFrequencyProfileResponse.of(
-        sessionId,
-        offset,
-        length,
-        ArraySeq.unsafeWrapArray(session.profile(offset, length).get)
-      )
+      session.profile(offset, length) match {
+        case Right(profileArray) =>
+          sender() ! ByteFrequencyProfileResponse.of(
+            sessionId,
+            offset,
+            length,
+            ArraySeq.unsafeWrapArray(profileArray)
+          )
+        case Left(errorCode) =>
+          sender() ! Err(Status.UNKNOWN.withDescription(s"Profile function failed with error code: $errorCode"))
+      }
 
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
