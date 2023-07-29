@@ -12,7 +12,7 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
-#include "../include/omega_edit/stl_string_adaptor.hpp"
+#include "omega_edit/stl_string_adaptor.hpp"
 #include <cassert>
 
 std::string omega_change_get_string(const omega_change_t *change_ptr)

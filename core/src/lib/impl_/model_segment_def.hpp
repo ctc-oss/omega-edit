@@ -15,7 +15,7 @@
 #ifndef OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
 #define OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP
 
-#include "../../include/omega_edit/change.h"
+#include "omega_edit/change.h"
 #include "internal_fwd_defs.hpp"
 
 enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };

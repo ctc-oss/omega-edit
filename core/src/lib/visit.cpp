@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/visit.h"
+#include "omega_edit/visit.h"
 #include "impl_/model_def.hpp"
 #include "impl_/session_def.hpp"
 #include <cassert>

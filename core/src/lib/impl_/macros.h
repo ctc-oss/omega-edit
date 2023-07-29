@@ -15,7 +15,7 @@
 #ifndef OMEGA_EDIT_MACROS_H
 #define OMEGA_EDIT_MACROS_H
 
-#include "../../include/omega_edit/config.h"
+#include "omega_edit/config.h"
 
 #ifdef __cplusplus
 

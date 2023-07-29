@@ -12,7 +12,7 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
-#include "../include/omega_edit/segment.h"
+#include "omega_edit/segment.h"
 #include "impl_/segment_def.hpp"
 #include <cassert>
 

@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/config.h"
+#include "omega_edit/config.h"
 
 #ifdef OMEGA_BUILD_WINDOWS
 #include <direct.h>
@@ -45,7 +45,7 @@
 #endif
 #endif
 
-#include "../include/omega_edit/utility.h"
+#include "omega_edit/utility.h"
 #include "impl_/macros.h"
 #include <assert.h>
 #include <ctype.h>

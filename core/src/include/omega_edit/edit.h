@@ -37,6 +37,18 @@ extern "C" {
 #endif
 
 /**
+* Function signature to transform a stream.
+* @param in input stream
+* @param start_offset offset in input stream to start reading
+* @param length number of bytes to read from input stream
+* @param out output stream
+* @param context plugin context
+* @return 0 on success, non-zero on failure
+*/
+OMEGA_EDIT_EXPORT typedef int (*omega_edit_transform_func_t)(FILE *in, int64_t start_offset, int64_t length, FILE *out,
+                                                             void *context);
+
+/**
  * Create a file editing session from a file path
  * @param file_path file path, will be opened for read, to create an editing session with, or nullptr if starting from
  * scratch
@@ -193,8 +205,20 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int
  * @param length the number of bytes from the given offset to apply the mask to
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
-                                                 void *user_data_ptr, int64_t offset, int64_t length);
+OMEGA_EDIT_EXPORT int omega_edit_apply_transform_old(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
+                                                     void *user_data_ptr, int64_t offset, int64_t length);
+
+/**
+ * Apply a transform to the bytes starting at the given offset up to the given length
+ * @param session_ptr session to make the change in
+ * @param offset offset to make the change
+ * @param length number of bytes to apply the transform to
+ * @param transform transform function to apply
+ * @param transform_context context to pass through to the transform function
+ * @return zero on success, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, int64_t offset, int64_t length,
+                                                 omega_edit_transform_func_t transform, void *transform_context);
 
 /**
  * Creates a session checkpoint.

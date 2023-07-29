@@ -12,7 +12,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "../include/omega_edit/license.h"
+#include "omega_edit/license.h"
 
 const char *omega_license_get() {
     return "Copyright 2021 Concurrent Technologies Corporation\n"

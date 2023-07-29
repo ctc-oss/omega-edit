@@ -12,21 +12,41 @@
 *                                                                                                                    *
 **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_SEARCH_CONTEXT_DEF_H
-#define OMEGA_EDIT_SEARCH_CONTEXT_DEF_H
+#include "omega_edit/plugins/replace.h"
+#include "omega_edit/check.h"
+#include <omega_edit.h>
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 
-#include "omega_edit/fwd_defs.h"
-#include "data_def.hpp"
+int main(int argc, char **argv) {
+    if (argc != 6) {
+        fprintf(stderr, "USAGE: %s <input file> <output file> <search string> <replace string> <case insensitive>\n",
+                argv[0]);
+        return -1;
+    }
 
-struct omega_search_context_struct {
-    const omega_find_skip_table_t *skip_table_ptr{};
-    omega_session_t *session_ptr{};
-    int64_t pattern_length{};
-    int64_t session_offset{};
-    int64_t session_length{};
-    int64_t match_offset{};
-    omega_util_byte_transform_t byte_transform{};
-    omega_data_t pattern{};
-};
+    omega_session_t *session_ptr = omega_edit_create_session(argv[1], NULL, NULL, NO_EVENTS, NULL);
+    if (!session_ptr) {
+        fprintf(stderr, "ERROR: Failed to open input file %s\n", argv[1]);
+        return -1;
+    }
 
-#endif//OMEGA_EDIT_SEARCH_CONTEXT_DEF_H
+    // Create the context
+    omega_edit_transform_replace_context_t context;
+    context.search = (omega_byte_t *) argv[3];
+    context.search_length = (int64_t) strlen(argv[3]);
+    context.replace = (omega_byte_t *) argv[4];
+    context.replace_length = (int64_t) strlen(argv[4]);
+    context.case_insensitive = atoi(argv[5]);
+    context.replacements = 0;
+
+    int rc = omega_check_model(session_ptr);
+    fprintf(stderr, "%d\n", rc);
+    assert(0 == rc);
+    omega_edit_apply_transform(session_ptr, 0, 0, omega_edit_transform_replace, &context);
+    rc = omega_check_model(session_ptr);
+    fprintf(stderr, "%d\n", rc);
+    assert(0 == rc);
+    return omega_edit_save(session_ptr, argv[2], IO_FLG_OVERWRITE, NULL);
+}
