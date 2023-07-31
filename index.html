@@ -1193,7 +1193,7 @@
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1a849c56368e7efdddb2b6d6f95ac0d361"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
+<span class="target" id="search_8h_1abad5fc807e74b6353c363eb9a72b1c88"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context_bytes</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">omega_byte_t</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive,</span> <span class="pre">int</span> <span class="pre">is_reverse_search)</span></span></dt>
 <dd><p>Create a search context </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -1212,6 +1212,7 @@
 <li><p><strong>session_offset</strong> – start searching at this offset within the session </p></li>
 <li><p><strong>session_length</strong> – search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length </p></li>
 <li><p><strong>case_insensitive</strong> – zero for case sensitive match and non-zero otherwise </p></li>
+<li><p><strong>is_reverse_search</strong> – zero for forward search and non-zero for reverse search </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1222,7 +1223,7 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1a67ee211e434b4c2af64e8e1535f655be"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive)</span></span></dt>
+<span class="target" id="search_8h_1a389e7d722b4a52774484c85304f0a6f5"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_search_context_t</span> <span class="pre">*</span> <span class="pre">omega_search_create_context</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*pattern,</span> <span class="pre">int64_t</span> <span class="pre">pattern_length,</span> <span class="pre">int64_t</span> <span class="pre">session_offset,</span> <span class="pre">int64_t</span> <span class="pre">session_length,</span> <span class="pre">int</span> <span class="pre">case_insensitive,</span> <span class="pre">int</span> <span class="pre">is_reverse_search)</span></span></dt>
 <dd><p>Create a search context </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -1241,6 +1242,7 @@
 <li><p><strong>session_offset</strong> – start searching at this offset within the session </p></li>
 <li><p><strong>session_length</strong> – search from the starting offset within the session up to this many bytes, if set to zero, it will search to the end of the session </p></li>
 <li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
+<li><p><strong>is_reverse_search</strong> – zero for forward search and non-zero for reverse search </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1251,28 +1253,70 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1a0eb2f69314c6743c08635f22b6ebf12c"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_offset</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
-<dd><p>Given a search context, get the most recent search offset </p>
+<span class="target" id="search_8h_1a47664d2d1fecf7c5a93e46b87c57a4cd"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_search_context_is_reverse_search</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
+<dd><p>Given a search context, determine if the search is being done forwards or backwards </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to get the most recent search offset from </p>
+<dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to determine if the search is forwards or backwards </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>the most recent search offset, if the search offset is equal to the session length, then no match was found </p>
+<dd class="field-even"><p>zero for forwards search and non-zero for backwards search </p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="search_8h_1af752d47d228061d66e0babbc21cc8f5b"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_length</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
+<span class="target" id="search_8h_1a3a8bec56b55989e5465c489d3fba9a04"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_session_length</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
+<dd><p>Given a search context, return the session length </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to get the session length from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>session length </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="search_8h_1a376fd4cb5e719ab89d2705c38c1963b3"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_session_offset</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
+<dd><p>Given a search context, return the session offset </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to get the session offset from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>session offset </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="search_8h_1a2be87e770bef3461a41bf45cd5da7d63"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_match_offset</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
+<dd><p>Given a search context, get the most recent search offset </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to get the most recent search offset from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>most recent search offset, if the search offset is equal to the session length, then no match was found </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="search_8h_1ab10bdffd91cc9bf47505715cad33f1ab"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int64_t</span> <span class="pre">omega_search_context_get_pattern_length</span> <span class="pre">(const</span> <span class="pre">omega_search_context_t</span> <span class="pre">*search_context_ptr)</span></span></dt>
 <dd><p>Given a search context, get the pattern length </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>search_context_ptr</strong> – search context to get the pattern length from </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>the pattern length offset </p>
+<dd class="field-even"><p>pattern length offset </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1967,8 +2011,8 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv418omega_util_strndupPKc6size_t">
-<span id="_CPPv318omega_util_strndupPKc6size_t"></span><span id="_CPPv218omega_util_strndupPKc6size_t"></span><span id="omega_util_strndup__cCP.s"></span><span class="target" id="utility_8h_1a6e7078eed690a03940d7b205682add91"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_strndup</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">s</span></span>, <span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">n</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv418omega_util_strndupPKc6size_t" title="Permalink to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1ac9dbd3cf276ad4ac7a95ae6bcf37f1ee"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">char</span> <span class="pre">*</span> <span class="pre">omega_util_strndup</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*s,</span> <span class="pre">size_t</span> <span class="pre">n)</span></span></dt>
 <dd><p>Cross-platform strndup work-alike </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1979,6 +2023,21 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>duplicated , null terminated string, allocated with malloc, or NULL on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a4e117015c409c15041224fb02d9c0730"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">const</span> <span class="pre">void</span> <span class="pre">*</span> <span class="pre">omega_util_memrchr</span> <span class="pre">(const</span> <span class="pre">void</span> <span class="pre">*s,</span> <span class="pre">int</span> <span class="pre">c,</span> <span class="pre">size_t</span> <span class="pre">n)</span></span></dt>
+<dd><p>Cross-platform memrchr work-alike </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>s</strong> – memory to search </p></li>
+<li><p><strong>c</strong> – byte to search for </p></li>
+<li><p><strong>n</strong> – number of bytes to search </p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
