@@ -25,7 +25,9 @@
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
+
 #include <cstdint>
+
 extern "C" {
 #else
 

@@ -39,14 +39,22 @@ inline const omega_byte_t *omega_data_get_data_const(const omega_data_t *data_pt
 }
 
 inline void omega_data_create(omega_data_t *data_ptr, int64_t capacity) {
+    if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
+        // allocate space for the data segment
+        data_ptr->bytes_ptr = new omega_byte_t[capacity + 1];
+        omega_data_get_data(data_ptr, capacity)[capacity] = '\0';
+    } else {
+        // data segment is small enough to fit in the 8 byte union
+        data_ptr->bytes_ptr = nullptr;
+    }
     // data segment allocation is its capacity plus one, so we can null-terminate it
-    data_ptr->bytes_ptr =
-            (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) ? new omega_byte_t[capacity + 1] : nullptr;
     omega_data_get_data(data_ptr, capacity)[capacity] = '\0';
 }
 
 inline void omega_data_destroy(omega_data_t *data_ptr, int64_t capacity) {
-    if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) { delete[] data_ptr->bytes_ptr; }
+    if (data_ptr->bytes_ptr && static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
+        delete[] data_ptr->bytes_ptr;
+    }
     data_ptr->bytes_ptr = nullptr;
 }
 

@@ -23,7 +23,9 @@
 #include "export.h"
 
 #ifdef __cplusplus
+
 #include <cstdint>
+
 extern "C" {
 #else
 

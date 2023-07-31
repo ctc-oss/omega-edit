@@ -277,3 +277,15 @@ char *omega_util_strndup(const char *s, size_t len) {
     }
     return result;
 }
+
+const void *omega_util_memrchr(const void *s, int c, size_t n) {
+    if (n >= 1) {
+        const unsigned char *cp = (const unsigned char *) s;
+        for (const unsigned char *p = cp + n; p-- > cp;) {
+            if (*p == c) {
+                return p;
+            }
+        }
+    }
+    return NULL;
+}

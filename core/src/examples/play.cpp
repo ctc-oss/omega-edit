@@ -96,7 +96,9 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
     }
 }
 
-enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum class display_mode_t {
+    BIT_MODE, BYTE_MODE, CHAR_MODE
+};
 struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
@@ -144,7 +146,7 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr,
                  << " offset: " << omega_viewport_get_offset(viewport_ptr) << endl;
             if (omega_viewport_get_user_data_ptr(viewport_ptr)) {
                 switch (reinterpret_cast<const view_mode_t *>(omega_viewport_get_user_data_ptr(viewport_ptr))
-                                ->display_mode) {
+                        ->display_mode) {
                     case display_mode_t::BIT_MODE:
                         clog << " BIT MODE [";
                         write_pretty_bits(omega_viewport_get_data(viewport_ptr),

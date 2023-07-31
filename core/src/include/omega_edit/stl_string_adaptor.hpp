@@ -82,7 +82,8 @@ OMEGA_EDIT_EXPORT std::string omega_session_get_segment_string(const omega_sessi
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
  * will track the computed session length
- * @param case_insensitive zero for case sensitive matching and non-zero otherwise
+ * @param case_insensitive false for case sensitive matching and true for case insensitive matching
+ * @param reverse_search false for forward search and true for reverse search
  * @return search context
  * @warning Ensure that the pattern length does not exceed the session_length - session_offset.  This is considered an
  * error and a null pointer will be returned.
@@ -91,7 +92,8 @@ OMEGA_EDIT_EXPORT omega_search_context_t *omega_search_create_context_string(ome
                                                                              const std::string_view &pattern,
                                                                              int64_t session_offset = 0,
                                                                              int64_t session_length = 0,
-                                                                             int case_insensitive = 0) noexcept;
+                                                                             bool case_insensitive = false,
+                                                                             bool reverse_search = false) noexcept;
 
 #endif//__cplusplus
 

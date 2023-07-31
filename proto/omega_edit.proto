@@ -262,18 +262,20 @@ message SearchRequest {
   string session_id = 1;
   bytes pattern = 2;
   optional bool is_case_insensitive = 3;
-  optional int64 offset = 4;
-  optional int64 length = 5;
-  optional int64 limit = 6;
+  optional bool is_reverse = 4;
+  optional int64 offset = 5;
+  optional int64 length = 6;
+  optional int64 limit = 7;
 }
 
 message SearchResponse {
   string session_id = 1;
   bytes pattern = 2;
   bool is_case_insensitive = 3;
-  int64 offset = 4;
-  int64 length = 5;
-  repeated int64 match_offset = 6;
+  bool is_reverse = 4;
+  int64 offset = 5;
+  int64 length = 6;
+  repeated int64 match_offset = 7;
 }
 
 message ByteFrequencyProfileRequest {

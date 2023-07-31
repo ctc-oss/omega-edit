@@ -532,6 +532,7 @@ export function numAscii(profile: number[]): number {
  * @param session_id session to find the pattern in
  * @param pattern pattern to find
  * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
+ * @param is_reverse false for forward search and true for reverse search
  * @param offset start searching at this offset within the session, or at the start of the session if undefined
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
@@ -542,6 +543,7 @@ export function searchSession(
   session_id: string,
   pattern: string | Uint8Array,
   is_case_insensitive: boolean = false,
+  is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   limit: number = 0
@@ -556,6 +558,7 @@ export function searchSession(
       .setSessionId(session_id)
       .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
       .setIsCaseInsensitive(is_case_insensitive)
+      .setIsReverse(is_reverse)
       .setOffset(offset)
     if (length > 0) {
       request.setLength(length)
@@ -582,6 +585,7 @@ export function searchSession(
  * @param pattern pattern to replace
  * @param replacement replacement
  * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
+ * @param is_reverse false for forward search and true for reverse search
  * @param offset start searching at this offset within the session, or at the start of the session if undefined
  * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
  * it will search to the end of the session
@@ -600,6 +604,7 @@ export async function replaceSession(
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
   is_case_insensitive: boolean = false,
+  is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   limit: number = 0,
@@ -611,6 +616,7 @@ export async function replaceSession(
     session_id,
     pattern,
     is_case_insensitive,
+    is_reverse,
     offset,
     length,
     limit
@@ -679,6 +685,7 @@ export async function replaceOneSession(
   pattern: string | Uint8Array,
   replacement: string | Uint8Array,
   is_case_insensitive: boolean = false,
+  is_reverse: boolean = false,
   offset: number = 0,
   length: number = 0,
   overwrite_only: boolean = false,
@@ -692,6 +699,7 @@ export async function replaceOneSession(
     session_id,
     patternArray,
     is_case_insensitive,
+    is_reverse,
     offset,
     length,
     1

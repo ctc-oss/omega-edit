@@ -377,12 +377,14 @@ class Session(
 
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
+      val isReverse = request.isReverse.getOrElse(false)
       val offset = request.offset.getOrElse(0L)
       val length = request.length.getOrElse(session.size - offset)
       sender() ! SearchResponse.of(
         sessionId,
         request.pattern,
         isCaseInsensitive,
+        isReverse,
         offset,
         length,
         session.search(
@@ -390,6 +392,7 @@ class Session(
           offset,
           length,
           isCaseInsensitive,
+          isReverse,
           request.limit
         )
       )

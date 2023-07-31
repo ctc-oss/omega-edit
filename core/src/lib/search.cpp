@@ -27,18 +27,21 @@
 #include <cstring>
 #include <memory>
 
+constexpr auto MAX_SEGMENT_LENGTH = static_cast<int64_t>(OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) << 1;
+
 static inline omega_byte_t to_lower_(omega_byte_t byte, void *) {
     return static_cast<omega_byte_t>(std::tolower(byte));
 }
 
-omega_search_context_t *omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern,
-                                                          int64_t pattern_length, int64_t session_offset,
-                                                          int64_t session_length, int case_insensitive) {
+omega_search_context_t *
+omega_search_create_context_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                  int64_t session_offset, int64_t session_length, int case_insensitive,
+                                  int is_reverse_search) {
     assert(session_ptr);
     assert(pattern);
     assert(0 <= session_offset);
-    pattern_length =
-            pattern_length ? pattern_length : static_cast<int64_t>(strlen(reinterpret_cast<const char *>(pattern)));
+    pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(
+            reinterpret_cast<const char *>(pattern)));
     assert(0 < pattern_length);
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto session_length_computed = session_length ? session_length : computed_file_size - session_offset;
@@ -62,75 +65,153 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
         }
         pattern_data_ptr[pattern_length] = '\0';
         // create a skip table for patterns with lengths greater than 1 byte
-        match_context_ptr->skip_table_ptr =
-                (pattern_length > 1) ? omega_find_create_skip_table(pattern_data_ptr, pattern_length) : nullptr;
+        match_context_ptr->skip_table_ptr = omega_find_create_skip_table(pattern_data_ptr, pattern_length,
+                                                                         is_reverse_search);
         session_ptr->search_contexts_.push_back(match_context_ptr);
         return match_context_ptr.get();
     }
     return nullptr;
 }
 
-omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr, const char *pattern,
-                                                    int64_t pattern_length, int64_t session_offset,
-                                                    int64_t session_length, int case_insensitive) {
+omega_search_context_t *
+omega_search_create_context(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                            int64_t session_offset, int64_t session_length, int case_insensitive,
+                            int is_reverse_search) {
     return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
-                                             session_offset, session_length, case_insensitive);
+                                             session_offset, session_length, case_insensitive, is_reverse_search);
 }
 
-int64_t omega_search_context_get_offset(const omega_search_context_t *search_context_ptr) {
+int omega_search_context_is_reverse_search(const omega_search_context_t *search_context_ptr) {
+    assert(search_context_ptr);
+    return omega_find_is_reversed(search_context_ptr->skip_table_ptr);
+}
+
+int64_t omega_search_context_get_session_length(const omega_search_context_t *search_context_ptr) {
+    assert(search_context_ptr);
+    return search_context_ptr->session_length;
+}
+
+int64_t omega_search_context_get_session_offset(const omega_search_context_t *search_context_ptr) {
+    assert(search_context_ptr);
+    return search_context_ptr->session_offset;
+}
+
+int64_t omega_search_context_get_match_offset(const omega_search_context_t *search_context_ptr) {
     assert(search_context_ptr);
     return search_context_ptr->match_offset;
 }
 
-int64_t omega_search_context_get_length(const omega_search_context_t *search_context_ptr) {
+int64_t omega_search_context_get_pattern_length(const omega_search_context_t *search_context_ptr) {
     assert(search_context_ptr);
     return search_context_ptr->pattern_length;
 }
 
 /*
+ * Function to find the next match of the pattern in the given context, advancing the context as required.
+ * The function uses an algorithm that can search in both forward and reverse direction.
+ * The direction of the search is defined by the 'is_reverse' flag in the search context.
+ *
  * The idea here is to search using tiled windows.  The window should be at least twice the size of the pattern, and
  * then it skips to 1 + window_capacity - needle_length, as far as we can skip, with just enough backward coverage to
  * catch patterns that were on the window boundary.
  */
 int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context) {
-    static const auto MAX_SEGMENT_LENGTH = int64_t(OMEGA_SEARCH_PATTERN_LENGTH_LIMIT) << 1;
+    // Sanity checks for the arguments.
     assert(search_context_ptr);
     assert(search_context_ptr->session_ptr);
     assert(0 <= advance_context);
-    omega_segment_t data_segment;
-    const auto is_begin = search_context_ptr->match_offset ==
-                          (search_context_ptr->session_offset + search_context_ptr->session_length);
-    auto session_length = is_begin ? search_context_ptr->session_length
-                                   : search_context_ptr->session_length -
-                                             (search_context_ptr->match_offset - search_context_ptr->session_offset);
-    data_segment.offset =
-            is_begin ? search_context_ptr->session_offset : search_context_ptr->match_offset + advance_context;
-    data_segment.capacity = std::min(session_length, MAX_SEGMENT_LENGTH);
-    omega_data_create(&data_segment.data, data_segment.capacity);
-    const auto pattern = omega_data_get_data(&search_context_ptr->pattern, search_context_ptr->pattern_length);
-    // How far forward we can slide the search window after the previous window has been searched
-    const auto stride_size = 1 + data_segment.capacity - search_context_ptr->pattern_length;
-    do {
-        populate_data_segment_(search_context_ptr->session_ptr, &data_segment);
-        const auto segment_data_ptr = omega_segment_get_data(&data_segment);
-        if (search_context_ptr->byte_transform) {
-            omega_util_apply_byte_transform(segment_data_ptr, data_segment.length, search_context_ptr->byte_transform,
-                                            nullptr);
+
+    // Calculate the last offset in the session. If we have no match, then this will be the match offset.
+    const auto last_offset = search_context_ptr->session_offset + search_context_ptr->session_length;
+
+    // Check if we are going to begin the search at the session offset.
+    const auto is_begin = search_context_ptr->match_offset == last_offset;
+
+    // Flag to determine the direction of the search. True if the search is reversed, false otherwise.
+    bool is_reverse = omega_find_is_reversed(search_context_ptr->skip_table_ptr);
+
+    // Calculate the search length. This depends on the direction of the search and the current match offset.
+    int64_t search_length;
+    if (is_reverse) {
+        search_length = is_begin ? search_context_ptr->session_length :
+                        std::max(static_cast<std::ptrdiff_t>(search_context_ptr->match_offset -
+                                                             search_context_ptr->session_offset - advance_context + 1),
+                                 static_cast<std::ptrdiff_t>(0));
+    } else {
+        search_length = is_begin ? search_context_ptr->session_length :
+                        search_context_ptr->session_length -
+                        (search_context_ptr->match_offset - search_context_ptr->session_offset);
+    }
+
+    // Only start searching if the pattern length is less than the search length.
+    if (search_context_ptr->pattern_length <= search_length) {
+        // Extract the pattern to search for.
+        const auto *pattern = omega_data_get_data(&search_context_ptr->pattern, search_context_ptr->pattern_length);
+
+        // The data segment to search.
+        omega_segment_t data_segment;
+
+        // Determine the capacity of the data segment to populate. It's the minimum of the search length and the
+        // maximum segment length.
+        data_segment.capacity = std::min(search_length, MAX_SEGMENT_LENGTH);
+
+        // Stride size is how far we can slide the search window after the previous window has been searched.
+        const auto stride_size = 1 + data_segment.capacity - search_context_ptr->pattern_length;
+
+        // Initialize the data segment to search.
+        omega_data_create(&data_segment.data, data_segment.capacity);
+
+        // Determine the offset to start the search from. It depends on the direction of the search and
+        // whether we are beginning a new search or continuing an old one.
+        if (is_reverse) {
+            data_segment.offset = is_begin ? (search_context_ptr->session_offset + search_context_ptr->session_length -
+                                              data_segment.capacity) :
+                                  search_context_ptr->match_offset - data_segment.capacity - advance_context + 1;
+        } else {
+            data_segment.offset = is_begin ? search_context_ptr->session_offset :
+                                  search_context_ptr->match_offset + advance_context;
         }
-        if (const auto found = omega_find(segment_data_ptr, data_segment.length, search_context_ptr->skip_table_ptr,
-                                          pattern, search_context_ptr->pattern_length)) {
-            omega_data_destroy(&data_segment.data, data_segment.capacity);
-            search_context_ptr->match_offset = data_segment.offset + (found - segment_data_ptr);
-            return 1;
-        }
-        data_segment.offset += stride_size;
-        session_length -= stride_size;
-        data_segment.capacity = std::min(session_length, MAX_SEGMENT_LENGTH);
-    } while (MAX_SEGMENT_LENGTH == data_segment.length);
-    omega_data_destroy(&data_segment.data, data_segment.capacity);
-    search_context_ptr->match_offset = session_length;
+
+        // Loop until a match is found or we have searched the entire segment.
+        do {
+            // Populate the data segment to be searched.
+            populate_data_segment_(search_context_ptr->session_ptr, &data_segment);
+
+            // Get a pointer to the segment data.
+            auto *segment_data_ptr = omega_segment_get_data(&data_segment);
+
+            // If a byte transformation function is set in the context, apply it to the segment data.
+            if (search_context_ptr->byte_transform) {
+                omega_util_apply_byte_transform(segment_data_ptr, data_segment.length,
+                                                search_context_ptr->byte_transform, nullptr);
+            }
+
+            // Try to find the pattern in the current segment.
+            if (auto *found = omega_find(segment_data_ptr, data_segment.length,
+                                         search_context_ptr->skip_table_ptr,
+                                         pattern, search_context_ptr->pattern_length)) {
+                // If a match is found, destroy the data segment and update the match offset in the search context.
+                omega_data_destroy(&data_segment.data, data_segment.capacity);
+                search_context_ptr->match_offset = data_segment.offset + (found - segment_data_ptr);
+                return 1;
+            }
+
+            // If no match was found, move the search window by the stride size.
+            search_length -= stride_size;
+            data_segment.offset += is_reverse ? -stride_size : stride_size;
+
+        } while (MAX_SEGMENT_LENGTH == data_segment.length);
+
+        // Destroy the data segment if no match was found.
+        omega_data_destroy(&data_segment.data, data_segment.capacity);
+    }
+
+    // If no match was found after searching the entire length, set the match offset to the last offset.
+    search_context_ptr->match_offset = last_offset;
+
     return 0;
 }
+
 
 void omega_search_destroy_context(omega_search_context_t *const search_context_ptr) {
     if (search_context_ptr) {

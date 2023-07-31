@@ -20,7 +20,7 @@
 int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
     assert(session_ptr);
     int rc = 0;
-    for (const auto &iter : session_ptr->models_.back()->changes) {
+    for (const auto &iter: session_ptr->models_.back()->changes) {
         if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
     }
     return rc;
@@ -118,15 +118,15 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
     if (change_context_ptr->reverse) {
         return (!change_context_ptr->change_iter.riter_ptr ||
                 *change_context_ptr->change_iter.riter_ptr ==
-                        change_context_ptr->session_ptr->models_.back()->changes.rend())
-                       ? nullptr
-                       : (*change_context_ptr->change_iter.riter_ptr)->get();
+                change_context_ptr->session_ptr->models_.back()->changes.rend())
+               ? nullptr
+               : (*change_context_ptr->change_iter.riter_ptr)->get();
     }
     return (!change_context_ptr->change_iter.iter_ptr ||
             *change_context_ptr->change_iter.iter_ptr ==
-                    change_context_ptr->session_ptr->models_.back()->changes.cend())
-                   ? nullptr
-                   : (*change_context_ptr->change_iter.iter_ptr)->get();
+            change_context_ptr->session_ptr->models_.back()->changes.cend())
+           ? nullptr
+           : (*change_context_ptr->change_iter.iter_ptr)->get();
 }
 
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
