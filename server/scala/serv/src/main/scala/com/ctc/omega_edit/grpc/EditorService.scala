@@ -18,6 +18,7 @@ package com.ctc.omega_edit.grpc
 
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.OmegaEdit
+import com.ctc.omega_edit.api.Version
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
@@ -48,25 +49,20 @@ import scala.util.{Failure, Success}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
+
+  lazy val jvmVersion: String = System.getProperty("java.version")
+  lazy val jvmName: String = ManagementFactory.getRuntimeMXBean().getName()
+  lazy val pid: Int = jvmName.split('@')(0).toInt
+  lazy val hostname: String = jvmName.split('@')(1)
+  lazy val omegaEditVersion: Version = OmegaEdit.version()
+  lazy val serverVersion: String = omegaEditVersion.toString
+  lazy val availableProcessors: Int = Runtime.getRuntime().availableProcessors()
+
   private val editors = system.actorOf(Editors.props())
   private var isGracefulShutdown = false
-  import system.dispatcher
 
-  private def detectFileType(filePath: String): Option[String] =
-    try {
-      val file = new BufferedInputStream(new FileInputStream(filePath))
-      val detector = new DefaultDetector()
-      val metadata = new Metadata()
-      val mediaType = detector.detect(file, metadata)
-      Option(mediaType.toString)
-    } catch {
-      case _: IOException => None
-    }
-
-  def getVersion(in: Empty): Future[VersionResponse] = {
-    val v = OmegaEdit.version()
-    Future.successful(VersionResponse(v.major, v.minor, v.patch))
-  }
+  def getVersion(in: Empty): Future[VersionResponse] =
+    Future.successful(VersionResponse(omegaEditVersion.major, omegaEditVersion.minor, omegaEditVersion.patch))
 
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
@@ -96,6 +92,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         }
     }
 
+  private def detectFileType(filePath: String): Option[String] =
+    try {
+      val file = new BufferedInputStream(new FileInputStream(filePath))
+      val detector = new DefaultDetector()
+      val metadata = new Metadata()
+      val mediaType = detector.detect(file, metadata)
+      Option(mediaType.toString)
+    } catch {
+      case _: IOException => None
+    }
+
   def destroySession(in: ObjectId): Future[ObjectId] =
     // First destroy the session, then destroy the actor
     (editors ? SessionOp(in.id, Destroy)).mapTo[Result].flatMap {
@@ -110,6 +117,44 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         }
       case Err(c) => throw grpcFailure(c)
     }
+
+  def checkIsGracefulShutdown(
+      kind: ServerControlKind = ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN
+  ): Future[ServerControlResponse] =
+    isGracefulShutdown match {
+      case true =>
+        checkNoSessionsRunning()
+          .map(isZero =>
+            isZero match {
+              case true  => stopServer(kind)
+              case false => ServerControlResponse(kind, getServerPID(), 1)
+            }
+          )
+          .mapTo[ServerControlResponse]
+      case false =>
+        Future.successful(ServerControlResponse(kind, getServerPID(), 1))
+    }
+
+  def checkNoSessionsRunning(): Future[Boolean] =
+    (editors ? SessionCount)
+      .mapTo[Int]
+      .map(count =>
+        count compare 0 match {
+          case 0 => true
+          case _ => false
+        }
+      )
+
+  def stopServer(kind: ServerControlKind): Future[ServerControlResponse] =
+    system
+      .terminate()
+      .transform {
+        case Success(_) =>
+          Success(ServerControlResponse(kind, getServerPID(), 0))
+        case Failure(e) =>
+          (editors ? LogOp("debug", e))
+          Success(ServerControlResponse(kind, getServerPID(), 1))
+      }(ExecutionContext.global)
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
     (editors ? SessionOp(
@@ -137,6 +182,33 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case Ok(id) => getViewportData(ViewportDataRequest(id))
         case Err(c) => Future.failed(grpcFailure(c))
       }
+
+  def getViewportData(in: ViewportDataRequest): Future[ViewportDataResponse] =
+    ObjectId(in.viewportId) match {
+      case Viewport.Id(sid, vid) =>
+        (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
+          case Err(c) => throw grpcFailure(c)
+          case ok: Ok with ViewportData =>
+            ViewportDataResponse
+              .apply(
+                viewportId = in.viewportId,
+                offset = ok.offset,
+                length = ok.data.size.toLong,
+                data = ok.data,
+                followingByteCount = ok.followingByteCount
+              )
+          case Ok(id) =>
+            throw grpcFailure(
+              Status.INTERNAL,
+              s"didn't receive data for viewport '$id'"
+            )
+        }
+      case _ =>
+        grpcFailFut(
+          Status.INVALID_ARGUMENT,
+          s"malformed viewport id '${in.viewportId}'"
+        )
+    }
 
   def modifyViewport(
       in: ModifyViewportRequest
@@ -213,33 +285,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           s"didn't receive result for session '$id'"
         )
       case Err(c) => throw grpcFailure(c)
-    }
-
-  def getViewportData(in: ViewportDataRequest): Future[ViewportDataResponse] =
-    ObjectId(in.viewportId) match {
-      case Viewport.Id(sid, vid) =>
-        (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
-          case Err(c) => throw grpcFailure(c)
-          case ok: Ok with ViewportData =>
-            ViewportDataResponse
-              .apply(
-                viewportId = in.viewportId,
-                offset = ok.offset,
-                length = ok.data.size.toLong,
-                data = ok.data,
-                followingByteCount = ok.followingByteCount
-              )
-          case Ok(id) =>
-            throw grpcFailure(
-              Status.INTERNAL,
-              s"didn't receive data for viewport '$id'"
-            )
-        }
-      case _ =>
-        grpcFailFut(
-          Status.INVALID_ARGUMENT,
-          s"malformed viewport id '${in.viewportId}'"
-        )
     }
 
   def submitChange(in: ChangeRequest): Future[ChangeResponse] =
@@ -330,20 +375,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
-    val name = ManagementFactory.getRuntimeMXBean().getName()
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
-    val v = OmegaEdit.version()
-    val serverVersion = s"${v.major}.${v.minor}.${v.patch}"
-    val numSessions =
-      Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
+    val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
-      name.split('@')(1),
-      name.split('@')(0).toInt,
+      hostname,
+      pid,
       serverVersion,
+      jvmVersion,
       numSessions,
       System.currentTimeMillis(),
       ManagementFactory.getRuntimeMXBean().getUptime(),
-      Runtime.getRuntime().availableProcessors(),
+      availableProcessors,
       ManagementFactory.getOperatingSystemMXBean().getSystemLoadAverage(),
       memory.getMax(), // maximum memory the JVM can attempt to allocate
       memory.getCommitted(), // memory allocated to the JVM
@@ -410,21 +452,15 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
     }
 
-  // profile
-
   def getByteFrequencyProfile(
       in: ByteFrequencyProfileRequest
   ): Future[ByteFrequencyProfileResponse] =
     (editors ? SessionOp(in.sessionId, Session.Profile(in)))
       .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
 
-  // search
-
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in)))
       .mapTo[SearchResponse] // No `Ok` wrapper
-
-  // undo redo
 
   def undoLastChange(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
@@ -433,8 +469,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
-  // redo the last undo
-
   def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
@@ -442,15 +476,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
-  // clear changes
-
   def clearChanges(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.ClearChanges())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
-
-  // get last change
 
   def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
     (editors ? SessionOp(in.id, Session.GetLastChange()))
@@ -463,8 +493,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           throw grpcFailure(Status.UNKNOWN, s"unable to compute $in: $o")
       }
 
-  // get last undo
-
   def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
       case ok: Ok with ChangeDetails => ok.toChangeResponse(ok.id)
@@ -472,23 +500,17 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _                         => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
 
-  // pause session changes
-
   def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.PauseSession())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
 
-  // resume session changes
-
   def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.ResumeSession())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
-
-  // pause viewport events
 
   def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.PauseViewportEvents()))
@@ -497,8 +519,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case Ok(id) => ObjectId(id)
         case Err(c) => throw grpcFailure(c)
       }
-
-  // resume viewport events
 
   def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
     (editors ? SessionOp(in.id, Session.ResumeViewportEvents()))
@@ -520,8 +540,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Err(c) => throw grpcFailure(c)
     }
 
-  // segments
-
   def getSegment(in: SegmentRequest): Future[SegmentResponse] =
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
       .mapTo[Option[api.Segment]] // No `Ok` wrapper
@@ -536,46 +554,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
           )
       }
-
-  // server control
-
-  def checkNoSessionsRunning(): Future[Boolean] =
-    (editors ? SessionCount)
-      .mapTo[Int]
-      .map(count =>
-        count compare 0 match {
-          case 0 => true
-          case _ => false
-        }
-      )
-
-  def stopServer(kind: ServerControlKind): Future[ServerControlResponse] =
-    system
-      .terminate()
-      .transform {
-        case Success(_) =>
-          Success(ServerControlResponse(kind, getServerPID(), 0))
-        case Failure(e) =>
-          (editors ? LogOp("debug", e))
-          Success(ServerControlResponse(kind, getServerPID(), 1))
-      }(ExecutionContext.global)
-
-  def checkIsGracefulShutdown(
-      kind: ServerControlKind = ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN
-  ): Future[ServerControlResponse] =
-    isGracefulShutdown match {
-      case true =>
-        checkNoSessionsRunning()
-          .map(isZero =>
-            isZero match {
-              case true  => stopServer(kind)
-              case false => ServerControlResponse(kind, getServerPID(), 1)
-            }
-          )
-          .mapTo[ServerControlResponse]
-      case false =>
-        Future.successful(ServerControlResponse(kind, getServerPID(), 1))
-    }
 
   def serverControl(in: ServerControlRequest): Future[ServerControlResponse] =
     in.kind match {
@@ -594,17 +572,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
-  private def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
-    Future.failed(grpcFailure(status, message))
-
-  private def grpcFailure(
-      status: Status,
-      message: String = ""
-  ): GrpcServiceException =
-    new GrpcServiceException(
-      if (message.nonEmpty) status.withDescription(message) else status
-    )
-
   def bind(iface: String, port: Int)(implicit
       system: ActorSystem
   ): Future[Http.ServerBinding] =
@@ -617,4 +584,15 @@ object EditorService {
 
   def getServerPID(): Int =
     ManagementFactory.getRuntimeMXBean().getName().split('@')(0).toInt
+
+  private def grpcFailFut[T](status: Status, message: String = ""): Future[T] =
+    Future.failed(grpcFailure(status, message))
+
+  private def grpcFailure(
+      status: Status,
+      message: String = ""
+  ): GrpcServiceException =
+    new GrpcServiceException(
+      if (message.nonEmpty) status.withDescription(message) else status
+    )
 }

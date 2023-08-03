@@ -448,6 +448,7 @@ export interface IServerHeartbeat {
   serverHostname: string // hostname
   serverProcessId: number // process id
   serverVersion: string // server version
+  jvmVersion: string // jvm version
   sessionCount: number // session count
   serverTimestamp: number // timestamp in ms
   serverUptime: number // uptime in ms
@@ -503,6 +504,7 @@ export function getServerHeartbeat(
           serverHostname: heartbeatResponse.getHostname(),
           serverProcessId: heartbeatResponse.getProcessId(),
           serverVersion: heartbeatResponse.getServerVersion(),
+          jvmVersion: heartbeatResponse.getJvmVersion(),
           sessionCount: heartbeatResponse.getSessionCount(),
           serverTimestamp: heartbeatResponse.getTimestamp(),
           serverUptime: heartbeatResponse.getUptime(),

@@ -326,15 +326,16 @@ message HeartbeatResponse {
   string hostname = 1; // server hostname
   int32 process_id = 2; // server process id
   string server_version = 3; // server version
-  int32 session_count = 4; // server session count
+  string jvm_version = 4; // server jvm version
+  int32 session_count = 5; // server session count
 
-  int64 timestamp = 5; // server timestamp in milliseconds
-  int64 uptime = 6; // server uptime in milliseconds
+  int64 timestamp = 6; // server timestamp in milliseconds
+  int64 uptime = 7; // server uptime in milliseconds
 
-  int32 cpu_count = 7; // server cpu count
-  double cpu_load_average = 8; // server cpu load average in percent
+  int32 cpu_count = 8; // server cpu count
+  double cpu_load_average = 9; // server cpu load average in percent
 
-  int64 max_memory = 9; // server max memory in bytes
-  int64 committed_memory = 10; // server committed memory in bytes
-  int64 used_memory = 11; // server used memory in bytes
+  int64 max_memory = 10; // server max memory in bytes
+  int64 committed_memory = 11; // server committed memory in bytes
+  int64 used_memory = 12; // server used memory in bytes
 }

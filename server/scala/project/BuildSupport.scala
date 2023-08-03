@@ -125,11 +125,11 @@ object BuildSupport {
         if (filename.contains(fileOS))
           pair(filename)
         else
-          pair(filename, filename.replace(fileArch, s"${fileOS}_${fileArch}"))
+          pair(filename, filename.replace(fileArch, s"${fileOS}_$fileArch"))
       // default to use host arch, unless windows since only 64 is allowed - allows for local development with a newly built file
       case _ =>
         val defaultArch = if (fileOS != "windows") arch.arch else "64"
-        pair(filename, s"${filenameParts(0)}_${fileOS}_${defaultArch}.${filenameParts(1)}")
+        pair(filename, s"${filenameParts(0)}_${fileOS}_$defaultArch.${filenameParts(1)}")
     }
   }
 

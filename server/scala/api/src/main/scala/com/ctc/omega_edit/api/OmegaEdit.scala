@@ -41,24 +41,27 @@ object OmegaEdit extends OmegaEdit {
     )
   }
 
+  /** Not strictly required to call this prior to interacting with the API, though this function is the convenient way
+    * to check that the native library is ready to use.
+    *
+    * @return
+    *   Try[Version]
+    */
+  def initialize(): Try[Version] =
+    Try(version())
+
   def version(): Version =
     Version(
       ffi.omega_version_major(),
       ffi.omega_version_minor(),
       ffi.omega_version_patch()
     )
-
-  /** Not strictly required to call this prior to interacting with the API, though this function is the convenient way
-    * to check that the native library is ready to use.
-    * @return
-    *   Try[Version]
-    */
-  def initialize(): Try[Version] =
-    Try(version())
 }
 
 trait OmegaEdit {
   def version(): Version
+
   def newSession(path: Option[Path], chkptDir: Option[Path]): Session
+
   def newSessionCb(path: Option[Path], chkptDir: Option[Path], cb: SessionCallback): Session
 }
