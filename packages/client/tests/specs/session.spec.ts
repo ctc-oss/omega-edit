@@ -23,7 +23,6 @@ import {
   createViewport,
   destroySession,
   getClient,
-  getClientVersion,
   getComputedFileSize,
   getSegment,
   getServerHeartbeat,
@@ -135,7 +134,6 @@ describe('Sessions', () => {
       expect(vpt_response.getData_asU8()).to.deep.equal(fileBuffer)
       const serverHeartbeat = await getServerHeartbeat([session_id])
       expect(serverHeartbeat.latency).to.be.greaterThanOrEqual(0)
-      expect(serverHeartbeat.serverVersion).to.equal(getClientVersion())
       expect(await profileSession(session_id)).to.deep.equal(expected_profile)
       expect(await notifyChangedViewports(session_id)).to.equal(0)
       await destroySession(session_id)

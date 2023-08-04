@@ -51,6 +51,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
 
   lazy val jvmVersion: String = System.getProperty("java.version")
+  lazy val jvmVendor: String = System.getProperty("java.vendor")
+  lazy val jvmPath: String = System.getProperty("java.home")
   lazy val jvmName: String = ManagementFactory.getRuntimeMXBean().getName()
   lazy val pid: Int = jvmName.split('@')(0).toInt
   lazy val hostname: String = jvmName.split('@')(1)
@@ -61,8 +63,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   private val editors = system.actorOf(Editors.props())
   private var isGracefulShutdown = false
 
-  def getVersion(in: Empty): Future[VersionResponse] =
-    Future.successful(VersionResponse(omegaEditVersion.major, omegaEditVersion.minor, omegaEditVersion.patch))
+  def getServerInfo(in: Empty): Future[ServerInfoResponse] =
+    Future.successful(
+      ServerInfoResponse(
+        hostname,
+        pid,
+        serverVersion,
+        jvmVersion,
+        jvmVendor,
+        jvmPath,
+        availableProcessors
+      )
+    )
 
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
@@ -378,10 +390,6 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
     val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
-      hostname,
-      pid,
-      serverVersion,
-      jvmVersion,
       numSessions,
       System.currentTimeMillis(),
       ManagementFactory.getRuntimeMXBean().getUptime(),
