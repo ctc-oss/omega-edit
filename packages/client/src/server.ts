@@ -27,8 +27,10 @@ import {
   ServerControlKind,
   ServerControlRequest,
   ServerControlResponse,
+  ServerInfoResponse,
 } from './omega_edit_pb'
 import { runServer } from '@omega-edit/server'
+import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 
 /**
  * Wait for file to exist
@@ -440,15 +442,59 @@ export async function stopServerUsingPID(
   return false
 }
 
+export interface IServerInfo {
+  serverHostname: string // hostname
+  serverProcessId: number // process id
+  serverVersion: string // server version
+  jvmVersion: string // jvm version
+  jvmVendor: string // jvm vendor
+  jvmPath: string // jvm path
+  availableProcessors: number // available processors
+}
+
+export function getServerInfo(): Promise<IServerInfo> {
+  return new Promise<IServerInfo>((resolve, reject) => {
+    getClient().getServerInfo(
+      new Empty(),
+      (err, serverInfoResponse: ServerInfoResponse) => {
+        if (err) {
+          getLogger().error({
+            fn: 'getServerInfo',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('getServerInfo error: ' + err.message)
+        }
+        if (!serverInfoResponse) {
+          getLogger().error({
+            fn: 'getServerInfo',
+            err: { msg: 'undefined server info' },
+          })
+          return reject('undefined server info')
+        }
+        return resolve({
+          serverHostname: serverInfoResponse.getHostname(),
+          serverProcessId: serverInfoResponse.getProcessId(),
+          serverVersion: serverInfoResponse.getServerVersion(),
+          jvmVersion: serverInfoResponse.getJvmVersion(),
+          jvmVendor: serverInfoResponse.getJvmVendor(),
+          jvmPath: serverInfoResponse.getJvmPath(),
+          availableProcessors: serverInfoResponse.getAvailableProcessors(),
+        })
+      }
+    )
+  })
+}
+
 /**
  * Server heartbeat interface
  */
 export interface IServerHeartbeat {
   latency: number // latency in ms
-  serverHostname: string // hostname
-  serverProcessId: number // process id
-  serverVersion: string // server version
-  jvmVersion: string // jvm version
   sessionCount: number // session count
   serverTimestamp: number // timestamp in ms
   serverUptime: number // uptime in ms
@@ -501,10 +547,6 @@ export function getServerHeartbeat(
         const latency = Date.now() - startTime
         return resolve({
           latency: latency,
-          serverHostname: heartbeatResponse.getHostname(),
-          serverProcessId: heartbeatResponse.getProcessId(),
-          serverVersion: heartbeatResponse.getServerVersion(),
-          jvmVersion: heartbeatResponse.getJvmVersion(),
           sessionCount: heartbeatResponse.getSessionCount(),
           serverTimestamp: heartbeatResponse.getTimestamp(),
           serverUptime: heartbeatResponse.getUptime(),

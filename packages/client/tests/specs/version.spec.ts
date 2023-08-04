@@ -22,13 +22,13 @@ import {
   ClientVersion,
   getClient,
   getClientVersion,
-  getServerVersion,
   waitForReady,
 } from '@omega-edit/client'
 
 // prettier-ignore
 // @ts-ignore
 import {testPort} from "./common";
+import { getServerInfo } from '@omega-edit/client'
 
 describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {
@@ -36,7 +36,8 @@ describe('Version', () => {
   })
 
   it('Server version should return version ' + ClientVersion, async () => {
-    expect(await getServerVersion())
+    const serverInfo = await getServerInfo()
+    expect(serverInfo.serverVersion)
       .to.equal(getClientVersion())
       .to.equal(ClientVersion)
   })

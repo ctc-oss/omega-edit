@@ -21,7 +21,7 @@ package omega_edit;
 option cc_enable_arenas = true;
 
 service Editor {
-  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
+  rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfoResponse);
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
   rpc DestroySession(ObjectId) returns (ObjectId);
@@ -138,10 +138,14 @@ message SessionCountResponse {
   int64 count = 1;
 }
 
-message VersionResponse {
-  int32 major = 1;
-  int32 minor = 2;
-  int32 patch = 3;
+message ServerInfoResponse {
+  string hostname = 1; // server hostname
+  int32 process_id = 2; // server process id
+  string server_version = 3; // server version
+  string jvm_version = 4; // server jvm version
+  string jvm_vendor = 5; // server jvm vendor
+  string jvm_path = 6; // server jvm path
+  int32 available_processors = 7; // server available processors
 }
 
 message ObjectId {
@@ -323,19 +327,12 @@ message HeartbeatRequest {
 }
 
 message HeartbeatResponse {
-  string hostname = 1; // server hostname
-  int32 process_id = 2; // server process id
-  string server_version = 3; // server version
-  string jvm_version = 4; // server jvm version
-  int32 session_count = 5; // server session count
-
-  int64 timestamp = 6; // server timestamp in milliseconds
-  int64 uptime = 7; // server uptime in milliseconds
-
-  int32 cpu_count = 8; // server cpu count
-  double cpu_load_average = 9; // server cpu load average in percent
-
-  int64 max_memory = 10; // server max memory in bytes
-  int64 committed_memory = 11; // server committed memory in bytes
-  int64 used_memory = 12; // server used memory in bytes
+  int32 session_count = 1; // server session count
+  int64 timestamp = 2; // server timestamp in milliseconds
+  int64 uptime = 3; // server uptime in milliseconds
+  int32 cpu_count = 4; // server cpu count
+  double cpu_load_average = 5; // server cpu load average in percent
+  int64 max_memory = 6; // server max memory in bytes
+  int64 committed_memory = 7; // server committed memory in bytes
+  int64 used_memory = 8; // server used memory in bytes
 }
