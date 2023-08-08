@@ -44,7 +44,7 @@
     "@omega-edit/server": "0.9.70",
     "@types/google-protobuf": "3.15.6",
     "google-protobuf": "3.21.2",
-    "pino": "8.14.2",
+    "pino": "8.15.0",
     "wait-port": "1.0.4"
   }
 }
