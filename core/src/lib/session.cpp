@@ -273,14 +273,21 @@ int omega_session_profile(const omega_session_t *session_ptr, omega_byte_frequen
     assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
+    omega_byte_t last_profiled_byte = 0;
+    int64_t dos_eol_count = 0;
     while (length) {
         if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
         const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
         const auto segment_data = omega_segment_get_data(segment_ptr);
-        for (auto i = 0; i < profile_length; ++i) { ++(*profile_ptr)[segment_data[i]]; }
+        for (auto i = 0; i < profile_length; ++i) {
+            if (last_profiled_byte == '\r' && segment_data[i] == '\n') { ++dos_eol_count; }
+            ++(*profile_ptr)[last_profiled_byte = segment_data[i]];
+        }
         offset += profile_length;
         length -= profile_length;
     }
+    omega_segment_destroy(segment_ptr);
+    (*profile_ptr)[PROFILE_DOS_EOL] = dos_eol_count;
     return 0;
 }
 

@@ -55,6 +55,9 @@ export enum SaveStatus {
   MODIFIED = -100, // target file was modified since the session was created
 }
 
+// index in the byte frequency profile array for the DOS end of line '\r\n' pair
+export const PROFILE_DOS_EOL = 256
+
 /**
  * Create a file editing session from a file path
  * @param file_path file path, will be opened for read, to create an editing session with, or undefined if starting from

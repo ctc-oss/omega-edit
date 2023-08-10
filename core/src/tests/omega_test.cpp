@@ -18,7 +18,6 @@
 #include "omega_edit/encode.h"
 #include "omega_edit/stl_string_adaptor.hpp"
 #include "omega_edit/utility.h"
-#include "../lib/impl_/find.h"
 #include "test_util.h"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
@@ -370,7 +369,7 @@ TEST_CASE("Empty File Tests", "[EmptyFileTests]") {
     REQUIRE_THAT(omega_session_get_file_path(session_ptr), Equals(in_filename));
 
     REQUIRE(omega_util_paths_equivalent(omega_session_get_checkpoint_directory(session_ptr),
-                                        omega_util_dirname(in_filename, NULL))
+                                        omega_util_dirname(in_filename, nullptr))
 
     );
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
@@ -666,6 +665,14 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
             omega_edit_save(session_ptr, "data/model-test.actual.7.dat", omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == compare_files("data/model-test.expected.7.dat", "data/model-test.actual.7.dat"));
+    omega_edit_clear_changes(session_ptr);
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    omega_edit_insert_string(session_ptr, 0, "\rUnix EOL\n Mac EOL\n DOS EOL\r\n \r");
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_profile(session_ptr, &byte_frequency_profile, 0, 0));
+    REQUIRE(3 == byte_frequency_profile['\n']);
+    REQUIRE(3 == byte_frequency_profile['\r']);
+    REQUIRE(1 == byte_frequency_profile[PROFILE_DOS_EOL]);
     omega_edit_destroy_session(session_ptr);
 }
 

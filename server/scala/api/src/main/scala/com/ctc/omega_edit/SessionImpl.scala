@@ -183,7 +183,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   }
 
   def profile(offset: Long, length: Long): Either[Int, Array[Long]] = {
-    val profile = new Array[Long](256)
+    val profile = new Array[Long](257) // 256 bytes (0 - 255), plus 1 (256) for the DOS EOL '\r\n' pairs
     val result = i.omega_session_profile(p, profile, offset, length)
     if (result == 0) {
       Right(profile)

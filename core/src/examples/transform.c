@@ -19,9 +19,9 @@
 #include <omega_edit.h>
 #include <stdio.h>
 
-omega_byte_t to_lower(omega_byte_t byte, void *unused) { return (omega_byte_t) tolower(byte); }
+omega_byte_t to_lower(omega_byte_t byte, void *_unused) { return (omega_byte_t) tolower(byte); }
 
-omega_byte_t to_upper(omega_byte_t byte, void *unused) { return (omega_byte_t) toupper(byte); }
+omega_byte_t to_upper(omega_byte_t byte, void *_unused) { return (omega_byte_t) toupper(byte); }
 
 int main(int argc, char **argv) {
     if (argc != 4) {
