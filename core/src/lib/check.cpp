@@ -16,7 +16,6 @@
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.h"
-#include "impl_/model_def.hpp"
 #include "impl_/session_def.hpp"
 #include <cassert>
 

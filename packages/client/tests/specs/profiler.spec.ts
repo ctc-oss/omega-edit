@@ -23,6 +23,7 @@ import {
   numAscii,
   overwrite,
   profileSession,
+  PROFILE_DOS_EOL,
 } from '@omega-edit/client'
 
 // prettier-ignore
@@ -44,7 +45,7 @@ describe('Profiling', () => {
     it('Should profile an empty session', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
       profileSession(session_id, 0, 0).then((profile) => {
-        expect(profile.length).to.equal(256)
+        expect(profile.length).to.equal(257)
         expect(
           profile.reduce((accumulator, current) => {
             return accumulator + current
@@ -54,15 +55,15 @@ describe('Profiling', () => {
     })
 
     it('Should profile character data', async () => {
-      const content = 'abaabbbaaaabbbbc'
+      const content = 'abaa\nbbba\n\raaa\rbbbbc\r\n'
       const change_id = await overwrite(session_id, 0, Buffer.from(content))
       expect(change_id).to.be.a('number').that.equals(1)
       const file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(content.length)
       let profile = await profileSession(session_id, 0, 0)
-      expect(profile.length).to.equal(256)
+      expect(profile.length).to.equal(257)
       expect(
-        profile.reduce((accumulator, current) => {
+        profile.slice(0, 255).reduce((accumulator, current) => {
           return accumulator + current
         }, 0)
       ).to.equal(file_size)
@@ -71,17 +72,23 @@ describe('Profiling', () => {
       expect(profile['b'.charCodeAt(0)]).to.equal(8)
       expect(profile['c'.charCodeAt(0)]).to.equal(1)
       expect(profile['d'.charCodeAt(0)]).to.equal(0)
+      expect(profile['\r'.charCodeAt(0)]).to.equal(3)
+      expect(profile['\n'.charCodeAt(0)]).to.equal(3)
+      expect(profile[PROFILE_DOS_EOL]).to.equal(1)
       profile = await profileSession(session_id, 1, 10)
-      expect(profile.length).to.equal(256)
+      expect(profile.length).to.equal(257)
       expect(
         profile.reduce((accumulator, current) => {
           return accumulator + current
         }, 0)
       ).to.equal(10)
-      expect(profile['a'.charCodeAt(0)]).to.equal(6)
+      expect(profile['a'.charCodeAt(0)]).to.equal(3)
       expect(profile['b'.charCodeAt(0)]).to.equal(4)
       expect(profile['c'.charCodeAt(0)]).to.equal(0)
       expect(profile['d'.charCodeAt(0)]).to.equal(0)
+      expect(profile['\r'.charCodeAt(0)]).to.equal(1)
+      expect(profile['\n'.charCodeAt(0)]).to.equal(2)
+      expect(profile[PROFILE_DOS_EOL]).to.equal(0)
     })
     it('Should profile binary data', async () => {
       const content = new Uint8Array([0, 0, 1, 1, 1, 2, 2, 1, 3, 0, 255])
@@ -90,7 +97,7 @@ describe('Profiling', () => {
       const file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(content.length)
       let profile = await profileSession(session_id, 0, 0)
-      expect(profile.length).to.equal(256)
+      expect(profile.length).to.equal(257)
       expect(
         profile.reduce((accumulator, current) => {
           return accumulator + current
@@ -104,7 +111,7 @@ describe('Profiling', () => {
       expect(profile[255]).to.equal(1)
       expect(profile[123]).to.equal(0)
       profile = await profileSession(session_id, 4, file_size - 8)
-      expect(profile.length).to.equal(256)
+      expect(profile.length).to.equal(257)
       expect(
         profile.reduce((accumulator, current) => {
           return accumulator + current

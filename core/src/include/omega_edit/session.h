@@ -37,7 +37,10 @@ extern "C" {
 
 #endif
 
-typedef int64_t omega_byte_frequency_profile_t[256];
+// index of the DOS end of line (EOL) byte pairs '\r\n' in the byte frequency profile
+const size_t PROFILE_DOS_EOL = 256;
+
+typedef int64_t omega_byte_frequency_profile_t[257];
 
 /**
  * Given a session, return the file path being edited (if known)

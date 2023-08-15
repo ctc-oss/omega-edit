@@ -298,7 +298,7 @@ static int update_model_(omega_session_t *session_ptr, const const_omega_change_
     return update_model_helper_(model_ptr, change_ptr);
 }
 
-static int64_t update_(omega_session_t *session_ptr, const_omega_change_ptr_t change_ptr) {
+static int64_t update_(omega_session_t *session_ptr, const const_omega_change_ptr_t &change_ptr) {
     if (change_ptr->offset <= omega_session_get_computed_file_size(session_ptr)) {
         if (omega_change_get_serial(change_ptr.get()) < 0) {
             // This is a previously undone change that is being redone, so flip the serial number back to positive
@@ -323,7 +323,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
     if (!checkpoint_directory) {
         // First try to use the directory of the file being edited
         if (!checkpoint_directory && file_path && file_path[0] != '\0') {
-            checkpoint_directory = checkpoint_directory_str.assign(omega_util_dirname(file_path, NULL)).c_str();
+            checkpoint_directory = checkpoint_directory_str.assign(omega_util_dirname(file_path, nullptr)).c_str();
         }
         // If that doesn't work, then try to use the system temp directory
         if (!checkpoint_directory) {
@@ -341,7 +341,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
         LOG_ERROR("failed to create checkpoint directory '" << checkpoint_directory << "'");
         return nullptr;
     }
-    auto resolved_path = omega_util_normalize_path(checkpoint_directory, NULL);
+    auto resolved_path = omega_util_normalize_path(checkpoint_directory, nullptr);
     if (!resolved_path) {
         LOG_ERROR("failed to resolve checkpoint_directory path '" << checkpoint_directory << "' to absolute path");
         return nullptr;
