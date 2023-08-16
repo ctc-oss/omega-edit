@@ -16,7 +16,7 @@
     <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
-<h1>Ωedit Library</h1>
+<h1>Ωedit™ Library</h1>
 
 
 [![Release](https://shields.io/github/v/release/ctc-oss/omega-edit?display_name=tag&include_prereleases&sort=semver)](https://github.com/ctc-oss/omega-edit/releases)
@@ -40,7 +40,7 @@ User documentation is published to https://ctc-oss.github.io/omega-edit/.
 
 ### IDE
 
-The Ωedit project is built primarily using CLion.  If using CLion everything should build seamlessly, though Visual
+The Ωedit™ project is built primarily using CLion.  If using CLion everything should build seamlessly, though Visual
 Studio Code also works well.
 
 ### Command line tools
@@ -68,7 +68,7 @@ pip install conan
 
 ### Configure a debug build:
 
-Depending on your linking needs, Ωedit can be built as either as a static (e.g., libomega_edit.a) or shared (e.g., libomega_edit.so) library.
+Depending on your linking needs, Ωedit™ can be built as either as a static (e.g., libomega_edit.a) or shared (e.g., libomega_edit.so) library.
 
 - #### Static:
 
@@ -95,7 +95,7 @@ cmake -S core/src/tests -B cmake-build-tests -DCMAKE_BUILD_TYPE=Debug
 pushd cmake-build-tests && ctest -C Debug --output-on-failure && popd
 ```
 
-## Packaging Ωedit
+## Packaging Ωedit™
 
 ### TypeScript Client
 
@@ -158,7 +158,7 @@ Currently, the repo holds bindings for both Scala and node.
 
 ## Versioning
 
-Ωedit follows [Semantic Versioning](http://semver.org/).
+Ωedit™ follows [Semantic Versioning](http://semver.org/).
 
 ## License
 
