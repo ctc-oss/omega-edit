@@ -14,13 +14,13 @@
     <script src="_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script src="_static/jquery.js"></script>
-        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/sphinx_highlight.js"></script>
-        <script src="_static/dark_mode_js/default_dark.js"></script>
-        <script src="_static/dark_mode_js/theme_switcher.js"></script>
+        <script src="_static/jquery.js?v=5d32c60e"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="_static/documentation_options.js?v=5929fcd5"></script>
+        <script src="_static/doctools.js?v=888ff710"></script>
+        <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+        <script src="_static/dark_mode_js/default_dark.js?v=fd565c74"></script>
+        <script src="_static/dark_mode_js/theme_switcher.js?v=a2af87b2"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
@@ -48,7 +48,10 @@
               <!-- Local TOC -->
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">Welcome to ΩEdit’s documentation!</a><ul>
-<li><a class="reference internal" href="#byte-h">byte.h</a></li>
+<li><a class="reference internal" href="#byte-h">byte.h</a><ul>
+<li><a class="reference internal" href="#_CPPv412omega_byte_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_t</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#change-h">change.h</a></li>
 <li><a class="reference internal" href="#check-h">check.h</a></li>
 <li><a class="reference internal" href="#config-h">config.h</a></li>
@@ -56,16 +59,75 @@
 <li><a class="reference internal" href="#encode-h">encode.h</a></li>
 <li><a class="reference internal" href="#export-h">export.h</a></li>
 <li><a class="reference internal" href="#filesystem-h">filesystem.h</a></li>
-<li><a class="reference internal" href="#fwd-defs-h">fwd_defs.h</a></li>
+<li><a class="reference internal" href="#fwd-defs-h">fwd_defs.h</a><ul>
+<li><a class="reference internal" href="#_CPPv414omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv422omega_search_context_t"><code class="docutils literal notranslate"><span class="pre">omega_search_context_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv415omega_segment_t"><code class="docutils literal notranslate"><span class="pre">omega_segment_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv415omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv416omega_viewport_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv425omega_session_event_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_session_event_cbk_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv426omega_viewport_event_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_cbk_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv421omega_session_event_t"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_UNDEFINED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_EDIT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_UNDO</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CLEAR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_TRANSFORM</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE_CHECKPOINT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_DESTROY_CHECKPOINT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_SAVE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CHANGES_PAUSED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CHANGES_RESUMED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE_VIEWPORT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_DESTROY_VIEWPORT</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv422omega_viewport_event_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_UNDEFINED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CREATE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_EDIT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_UNDO</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CLEAR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_TRANSFORM</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_MODIFY</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CHANGES</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv416omega_io_flags_t"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_NONE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_OVERWRITE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_FORCE_OVERWRITE</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li><a class="reference internal" href="#license-h">license.h</a></li>
 <li><a class="reference internal" href="#scoped-ptr-hpp">scoped_ptr.hpp</a></li>
 <li><a class="reference internal" href="#search-h">search.h</a></li>
-<li><a class="reference internal" href="#session-h">session.h</a></li>
+<li><a class="reference internal" href="#session-h">session.h</a><ul>
+<li><a class="reference internal" href="#_CPPv430omega_byte_frequency_profile_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_frequency_profile_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv415PROFILE_DOS_EOL"><code class="docutils literal notranslate"><span class="pre">PROFILE_DOS_EOL</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#stl-string-adaptor-hpp">stl_string_adaptor.hpp</a></li>
-<li><a class="reference internal" href="#utility-h">utility.h</a></li>
+<li><a class="reference internal" href="#utility-h">utility.h</a><ul>
+<li><a class="reference internal" href="#_CPPv427omega_util_byte_transform_t"><code class="docutils literal notranslate"><span class="pre">omega_util_byte_transform_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv417omega_mask_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_AND</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_OR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_XOR</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li><a class="reference internal" href="#version-h">version.h</a></li>
 <li><a class="reference internal" href="#viewport-h">viewport.h</a></li>
-<li><a class="reference internal" href="#visit-h">visit.h</a></li>
+<li><a class="reference internal" href="#visit-h">visit.h</a><ul>
+<li><a class="reference internal" href="#_CPPv434omega_session_change_visitor_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_session_change_visitor_cbk_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_visit_change_context_t"><code class="docutils literal notranslate"><span class="pre">omega_visit_change_context_t</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -95,24 +157,24 @@
            <div itemprop="articleBody">
              
   <section id="welcome-to-edit-s-documentation">
-<h1>Welcome to ΩEdit’s documentation!<a class="headerlink" href="#welcome-to-edit-s-documentation" title="Permalink to this heading"></a></h1>
+<h1>Welcome to ΩEdit’s documentation!<a class="headerlink" href="#welcome-to-edit-s-documentation" title="Link to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 </div>
 <p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p>
 <section id="byte-h">
-<h2>byte.h<a class="headerlink" href="#byte-h" title="Permalink to this heading"></a></h2>
+<h2>byte.h<a class="headerlink" href="#byte-h" title="Link to this heading"></a></h2>
 <p>omega_byte_t definition. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv412omega_byte_t">
-<span id="_CPPv312omega_byte_t"></span><span id="_CPPv212omega_byte_t"></span><span id="omega_byte_t"></span><span class="target" id="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">OMEGA_BYTE_T</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_t</span></span></span><a class="headerlink" href="#_CPPv412omega_byte_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv312omega_byte_t"></span><span id="_CPPv212omega_byte_t"></span><span id="omega_byte_t"></span><span class="target" id="byte_8h_1a71ecc5e2fe9ac399b6dc19818c65f793"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">OMEGA_BYTE_T</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_t</span></span></span><a class="headerlink" href="#_CPPv412omega_byte_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
 </section>
 <section id="change-h">
-<h2>change.h<a class="headerlink" href="#change-h" title="Permalink to this heading"></a></h2>
+<h2>change.h<a class="headerlink" href="#change-h" title="Link to this heading"></a></h2>
 <p>Functions that operate on editing changes (omega_change_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -217,7 +279,7 @@
 </div>
 </section>
 <section id="check-h">
-<h2>check.h<a class="headerlink" href="#check-h" title="Permalink to this heading"></a></h2>
+<h2>check.h<a class="headerlink" href="#check-h" title="Link to this heading"></a></h2>
 <p>Function to assert the integrity of the internal editing model. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -238,64 +300,64 @@
 </div>
 </section>
 <section id="config-h">
-<h2>config.h<a class="headerlink" href="#config-h" title="Permalink to this heading"></a></h2>
+<h2>config.h<a class="headerlink" href="#config-h" title="Link to this heading"></a></h2>
 <p>Configuration settings. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.DEBUG">
-<span class="target" id="config_8h_1ad72dbcf6d0153db1b8d8a58001feed83"></span><span class="sig-name descname"><span class="n"><span class="pre">DEBUG</span></span></span><a class="headerlink" href="#c.DEBUG" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1ad72dbcf6d0153db1b8d8a58001feed83"></span><span class="sig-name descname"><span class="n"><span class="pre">DEBUG</span></span></span><a class="headerlink" href="#c.DEBUG" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_VIEWPORT_CAPACITY_LIMIT">
-<span class="target" id="config_8h_1a87645e45814f167cde647fcb6e757006"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a87645e45814f167cde647fcb6e757006"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT">
-<span class="target" id="config_8h_1ae069bf6052517eb79f6303735e174a74"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1ae069bf6052517eb79f6303735e174a74"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></span></span><a class="headerlink" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_BYTE_T">
-<span class="target" id="config_8h_1a02e763ef59507b75acb10633737cb9c4"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BYTE_T</span></span></span><a class="headerlink" href="#c.OMEGA_BYTE_T" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a02e763ef59507b75acb10633737cb9c4"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BYTE_T</span></span></span><a class="headerlink" href="#c.OMEGA_BYTE_T" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_BUILD_UNIX">
-<span class="target" id="config_8h_1ab06708c2f6879e0bb549f03dc4159976"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BUILD_UNIX</span></span></span><a class="headerlink" href="#c.OMEGA_BUILD_UNIX" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1ab06708c2f6879e0bb549f03dc4159976"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BUILD_UNIX</span></span></span><a class="headerlink" href="#c.OMEGA_BUILD_UNIX" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_BUILD_64_BIT">
-<span class="target" id="config_8h_1a484526b3e68594533668ed679530a444"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BUILD_64_BIT</span></span></span><a class="headerlink" href="#c.OMEGA_BUILD_64_BIT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a484526b3e68594533668ed679530a444"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BUILD_64_BIT</span></span></span><a class="headerlink" href="#c.OMEGA_BUILD_64_BIT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OPEN">
-<span class="target" id="config_8h_1a1354b70ac6803a06beebe84f61b5f95b"></span><span class="sig-name descname"><span class="n"><span class="pre">OPEN</span></span></span><a class="headerlink" href="#c.OPEN" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a1354b70ac6803a06beebe84f61b5f95b"></span><span class="sig-name descname"><span class="n"><span class="pre">OPEN</span></span></span><a class="headerlink" href="#c.OPEN" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.CLOSE">
-<span class="target" id="config_8h_1a0e29f488071372aa0530842e60b64511"></span><span class="sig-name descname"><span class="n"><span class="pre">CLOSE</span></span></span><a class="headerlink" href="#c.CLOSE" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a0e29f488071372aa0530842e60b64511"></span><span class="sig-name descname"><span class="n"><span class="pre">CLOSE</span></span></span><a class="headerlink" href="#c.CLOSE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.FSEEK">
-<span class="target" id="config_8h_1aea660a9139172ebd945a83b409fb4f67"></span><span class="sig-name descname"><span class="n"><span class="pre">FSEEK</span></span></span><a class="headerlink" href="#c.FSEEK" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1aea660a9139172ebd945a83b409fb4f67"></span><span class="sig-name descname"><span class="n"><span class="pre">FSEEK</span></span></span><a class="headerlink" href="#c.FSEEK" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.FTELL">
-<span class="target" id="config_8h_1a13626ef7288234ec5471d94d9f45e06a"></span><span class="sig-name descname"><span class="n"><span class="pre">FTELL</span></span></span><a class="headerlink" href="#c.FTELL" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="config_8h_1a13626ef7288234ec5471d94d9f45e06a"></span><span class="sig-name descname"><span class="n"><span class="pre">FTELL</span></span></span><a class="headerlink" href="#c.FTELL" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
 </section>
 <section id="edit-h">
-<h2>edit.h<a class="headerlink" href="#edit-h" title="Permalink to this heading"></a></h2>
+<h2>edit.h<a class="headerlink" href="#edit-h" title="Link to this heading"></a></h2>
 <p>Main editing functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -588,7 +650,7 @@
 </div>
 </section>
 <section id="encode-h">
-<h2>encode.h<a class="headerlink" href="#encode-h" title="Permalink to this heading"></a></h2>
+<h2>encode.h<a class="headerlink" href="#encode-h" title="Link to this heading"></a></h2>
 <p>Encoding functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -631,39 +693,39 @@
 </div>
 </section>
 <section id="export-h">
-<h2>export.h<a class="headerlink" href="#export-h" title="Permalink to this heading"></a></h2>
+<h2>export.h<a class="headerlink" href="#export-h" title="Link to this heading"></a></h2>
 <p>Export macros. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_EDIT_EXPORT">
-<span class="target" id="export_8h_1aeeca33efab8cac52d03011dcf2f1f105"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_EXPORT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="export_8h_1aeeca33efab8cac52d03011dcf2f1f105"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_EXPORT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_EDIT_NO_EXPORT">
-<span class="target" id="export_8h_1a9257b2aed4e6213a415ecd35e2243903"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_NO_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_NO_EXPORT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="export_8h_1a9257b2aed4e6213a415ecd35e2243903"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_NO_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_NO_EXPORT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_EDIT_DEPRECATED">
-<span class="target" id="export_8h_1aa69d67761191f77c175df939ebc8f7aa"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="export_8h_1aa69d67761191f77c175df939ebc8f7aa"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_EDIT_DEPRECATED_EXPORT">
-<span class="target" id="export_8h_1ac91555010410546dffaf5ae528c1eb49"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED_EXPORT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="export_8h_1ac91555010410546dffaf5ae528c1eb49"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED_EXPORT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OMEGA_EDIT_DEPRECATED_NO_EXPORT">
-<span class="target" id="export_8h_1a54ec63455f9d0a272483e172681f54e2"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED_NO_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED_NO_EXPORT" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="export_8h_1a54ec63455f9d0a272483e172681f54e2"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_DEPRECATED_NO_EXPORT</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_DEPRECATED_NO_EXPORT" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
 </section>
 <section id="filesystem-h">
-<h2>filesystem.h<a class="headerlink" href="#filesystem-h" title="Permalink to this heading"></a></h2>
+<h2>filesystem.h<a class="headerlink" href="#filesystem-h" title="Link to this heading"></a></h2>
 <p>Filesystem functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -959,23 +1021,23 @@
 </div>
 </section>
 <section id="fwd-defs-h">
-<h2>fwd_defs.h<a class="headerlink" href="#fwd-defs-h" title="Permalink to this heading"></a></h2>
+<h2>fwd_defs.h<a class="headerlink" href="#fwd-defs-h" title="Link to this heading"></a></h2>
 <p>Forward definitions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.ALL_EVENTS">
-<span class="target" id="fwd__defs_8h_1aed91c5e7fac293ba4fd2181dca73a59e"></span><span class="sig-name descname"><span class="n"><span class="pre">ALL_EVENTS</span></span></span><a class="headerlink" href="#c.ALL_EVENTS" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="fwd__defs_8h_1aed91c5e7fac293ba4fd2181dca73a59e"></span><span class="sig-name descname"><span class="n"><span class="pre">ALL_EVENTS</span></span></span><a class="headerlink" href="#c.ALL_EVENTS" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.NO_EVENTS">
-<span class="target" id="fwd__defs_8h_1add514abcca055aed020fdd963cc84a1e"></span><span class="sig-name descname"><span class="n"><span class="pre">NO_EVENTS</span></span></span><a class="headerlink" href="#c.NO_EVENTS" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="fwd__defs_8h_1add514abcca055aed020fdd963cc84a1e"></span><span class="sig-name descname"><span class="n"><span class="pre">NO_EVENTS</span></span></span><a class="headerlink" href="#c.NO_EVENTS" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.ORIGINAL_MODIFIED">
-<span class="target" id="fwd__defs_8h_1add342904c0c3cbeac1c5b1284b921616"></span><span class="sig-name descname"><span class="n"><span class="pre">ORIGINAL_MODIFIED</span></span></span><a class="headerlink" href="#c.ORIGINAL_MODIFIED" title="Permalink to this definition"></a><br /></dt>
+<span class="target" id="fwd__defs_8h_1add342904c0c3cbeac1c5b1284b921616"></span><span class="sig-name descname"><span class="n"><span class="pre">ORIGINAL_MODIFIED</span></span></span><a class="headerlink" href="#c.ORIGINAL_MODIFIED" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
@@ -983,38 +1045,38 @@
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv414omega_change_t">
-<span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv422omega_search_context_t">
-<span id="_CPPv322omega_search_context_t"></span><span id="_CPPv222omega_search_context_t"></span><span id="omega_search_context_t"></span><span class="target" id="fwd__defs_8h_1ac42f7f1b319d997e71141ffe151b6ea2"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_search_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_search_context_t</span></span></span><a class="headerlink" href="#_CPPv422omega_search_context_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv322omega_search_context_t"></span><span id="_CPPv222omega_search_context_t"></span><span id="omega_search_context_t"></span><span class="target" id="fwd__defs_8h_1ac42f7f1b319d997e71141ffe151b6ea2"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_search_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_search_context_t</span></span></span><a class="headerlink" href="#_CPPv422omega_search_context_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv415omega_segment_t">
-<span id="_CPPv315omega_segment_t"></span><span id="_CPPv215omega_segment_t"></span><span id="omega_segment_t"></span><span class="target" id="fwd__defs_8h_1a148130cbe6a7ae34b6da06f90df91f12"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_segment_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_segment_t</span></span></span><a class="headerlink" href="#_CPPv415omega_segment_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv315omega_segment_t"></span><span id="_CPPv215omega_segment_t"></span><span id="omega_segment_t"></span><span class="target" id="fwd__defs_8h_1a148130cbe6a7ae34b6da06f90df91f12"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_segment_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_segment_t</span></span></span><a class="headerlink" href="#_CPPv415omega_segment_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv415omega_session_t">
-<span id="_CPPv315omega_session_t"></span><span id="_CPPv215omega_session_t"></span><span id="omega_session_t"></span><span class="target" id="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_session_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_t</span></span></span><a class="headerlink" href="#_CPPv415omega_session_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv315omega_session_t"></span><span id="_CPPv215omega_session_t"></span><span id="omega_session_t"></span><span class="target" id="fwd__defs_8h_1a434d49f122af804723abd5b7e8993839"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_session_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_t</span></span></span><a class="headerlink" href="#_CPPv415omega_session_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv416omega_viewport_t">
-<span id="_CPPv316omega_viewport_t"></span><span id="_CPPv216omega_viewport_t"></span><span id="omega_viewport_t"></span><span class="target" id="fwd__defs_8h_1aed03d2f64e2dd18e0a6cf1eb59bd0d5e"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_viewport_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_t</span></span></span><a class="headerlink" href="#_CPPv416omega_viewport_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv316omega_viewport_t"></span><span id="_CPPv216omega_viewport_t"></span><span id="omega_viewport_t"></span><span class="target" id="fwd__defs_8h_1aed03d2f64e2dd18e0a6cf1eb59bd0d5e"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_viewport_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_t</span></span></span><a class="headerlink" href="#_CPPv416omega_viewport_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv425omega_session_event_cbk_t">
-<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1af1377a8f25ac3040ac09124eca99fde1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv325omega_session_event_cbk_t"></span><span id="_CPPv225omega_session_event_cbk_t"></span><span id="omega_session_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1af1377a8f25ac3040ac09124eca99fde1"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv421omega_session_event_t" title="omega_session_event_t"><span class="n"><span class="pre">omega_session_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv425omega_session_event_cbk_t" title="Link to this definition"></a><br /></dt>
 <dd><p>On session change callback. This under-defined function will be called when a session event occurs. </p>
 </dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv426omega_viewport_event_cbk_t">
-<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1ad6597dd1fbbf9919692f0feadc2a3d15"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv326omega_viewport_event_cbk_t"></span><span id="_CPPv226omega_viewport_event_cbk_t"></span><span id="omega_viewport_event_cbk_t"></span><span class="target" id="fwd__defs_8h_1ad6597dd1fbbf9919692f0feadc2a3d15"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv416omega_viewport_t" title="omega_viewport_t"><span class="n"><span class="pre">omega_viewport_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_viewport_event_t" title="omega_viewport_event_t"><span class="n"><span class="pre">omega_viewport_event_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv426omega_viewport_event_cbk_t" title="Link to this definition"></a><br /></dt>
 <dd><p>On viewport change callback. This under-defined function will be called when an associated viewport event occurs. </p>
 </dd></dl>
 
@@ -1023,141 +1085,141 @@
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
 <dl class="cpp enum">
 <dt class="sig sig-object cpp" id="_CPPv421omega_session_event_t">
-<span id="_CPPv321omega_session_event_t"></span><span id="_CPPv221omega_session_event_t"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_t</span></span></span><a class="headerlink" href="#_CPPv421omega_session_event_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv321omega_session_event_t"></span><span id="_CPPv221omega_session_event_t"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_event_t</span></span></span><a class="headerlink" href="#_CPPv421omega_session_event_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Enumeration of session events </p>
 <p><em>Values:</em></p>
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE">
-<span id="_CPPv3N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"></span><span id="_CPPv2N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7af68e06b593092033de80802099bdc4b4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_UNDEFINED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"></span><span id="_CPPv2N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7af68e06b593092033de80802099bdc4b4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_UNDEFINED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE">
-<span id="_CPPv3N21omega_session_event_t18SESSION_EVT_CREATEE"></span><span id="_CPPv2N21omega_session_event_t18SESSION_EVT_CREATEE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a28d3769c52ed6f04eff0d7b0078c5336"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t18SESSION_EVT_CREATEE"></span><span id="_CPPv2N21omega_session_event_t18SESSION_EVT_CREATEE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a28d3769c52ed6f04eff0d7b0078c5336"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE">
-<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_EDITE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_EDITE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a572b3677a5877bc93ecf5b4b9529a5a9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_EDIT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_EDITE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_EDITE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a572b3677a5877bc93ecf5b4b9529a5a9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_EDIT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE">
-<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_UNDOE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_UNDOE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ab9e78d1c1c56eef77381e1efcab3fbe4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_UNDO</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_UNDOE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_UNDOE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ab9e78d1c1c56eef77381e1efcab3fbe4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_UNDO</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE">
-<span id="_CPPv3N21omega_session_event_t17SESSION_EVT_CLEARE"></span><span id="_CPPv2N21omega_session_event_t17SESSION_EVT_CLEARE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a1a80ffe796e77fb0462a57a12d3bd44a"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CLEAR</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t17SESSION_EVT_CLEARE"></span><span id="_CPPv2N21omega_session_event_t17SESSION_EVT_CLEARE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a1a80ffe796e77fb0462a57a12d3bd44a"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CLEAR</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME">
-<span id="_CPPv3N21omega_session_event_t21SESSION_EVT_TRANSFORME"></span><span id="_CPPv2N21omega_session_event_t21SESSION_EVT_TRANSFORME"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ad705398640340b1506ca09bda57486b0"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_TRANSFORM</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t21SESSION_EVT_TRANSFORME"></span><span id="_CPPv2N21omega_session_event_t21SESSION_EVT_TRANSFORME"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ad705398640340b1506ca09bda57486b0"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_TRANSFORM</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE">
-<span id="_CPPv3N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"></span><span id="_CPPv2N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a369a288a316c31956de5fa993ab53ff0"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE_CHECKPOINT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"></span><span id="_CPPv2N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a369a288a316c31956de5fa993ab53ff0"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE_CHECKPOINT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE">
-<span id="_CPPv3N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"></span><span id="_CPPv2N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a9319a91ff0152ac7307339501585b0ab"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_DESTROY_CHECKPOINT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"></span><span id="_CPPv2N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a9319a91ff0152ac7307339501585b0ab"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_DESTROY_CHECKPOINT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE">
-<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ab87a1e849828c8935d7d8a490b5827a2"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_SAVE</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span id="_CPPv2N21omega_session_event_t16SESSION_EVT_SAVEE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7ab87a1e849828c8935d7d8a490b5827a2"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_SAVE</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE">
-<span id="_CPPv3N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span id="_CPPv2N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a9ebe5b97ddda2b3f88b880905314495c"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_PAUSED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span id="_CPPv2N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a9ebe5b97ddda2b3f88b880905314495c"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_PAUSED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE">
-<span id="_CPPv3N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span id="_CPPv2N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a3d62a9fdfb082e87da1701bd867da6ae"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_RESUMED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span id="_CPPv2N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a3d62a9fdfb082e87da1701bd867da6ae"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CHANGES_RESUMED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE">
-<span id="_CPPv3N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"></span><span id="_CPPv2N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a2173891d8c39122c313f3b4d78162920"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE_VIEWPORT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"></span><span id="_CPPv2N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a2173891d8c39122c313f3b4d78162920"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_CREATE_VIEWPORT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE">
-<span id="_CPPv3N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span id="_CPPv2N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a7a5a07510446f4b30d2be498209680b9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_DESTROY_VIEWPORT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span id="_CPPv2N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a7a5a07510446f4b30d2be498209680b9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_DESTROY_VIEWPORT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="cpp enum">
 <dt class="sig sig-object cpp" id="_CPPv422omega_viewport_event_t">
-<span id="_CPPv322omega_viewport_event_t"></span><span id="_CPPv222omega_viewport_event_t"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_t</span></span></span><a class="headerlink" href="#_CPPv422omega_viewport_event_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv322omega_viewport_event_t"></span><span id="_CPPv222omega_viewport_event_t"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_viewport_event_t</span></span></span><a class="headerlink" href="#_CPPv422omega_viewport_event_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Enumeration of viewport events </p>
 <p><em>Values:</em></p>
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE">
-<span id="_CPPv3N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"></span><span id="_CPPv2N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb57ed282e4517a86b42e950da00d"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_UNDEFINED</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"></span><span id="_CPPv2N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb57ed282e4517a86b42e950da00d"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_UNDEFINED</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE">
-<span id="_CPPv3N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"></span><span id="_CPPv2N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aca3e696d600a2e8ff2e0368e7dcdd5a6"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CREATE</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"></span><span id="_CPPv2N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aca3e696d600a2e8ff2e0368e7dcdd5a6"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CREATE</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE">
-<span id="_CPPv3N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"></span><span id="_CPPv2N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a9e39f94a385d7ded20c47743ec8ad8e6"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_EDIT</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"></span><span id="_CPPv2N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a9e39f94a385d7ded20c47743ec8ad8e6"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_EDIT</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE">
-<span id="_CPPv3N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"></span><span id="_CPPv2N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a9da9562bd73dbbdcc9f4e188f9ffb422"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_UNDO</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"></span><span id="_CPPv2N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a9da9562bd73dbbdcc9f4e188f9ffb422"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_UNDO</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE">
-<span id="_CPPv3N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"></span><span id="_CPPv2N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a88dfa4c72041c2a5a2fa7256617ef476"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CLEAR</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"></span><span id="_CPPv2N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a88dfa4c72041c2a5a2fa7256617ef476"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CLEAR</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME">
-<span id="_CPPv3N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span id="_CPPv2N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40ac4fa315ef659ee3b826172dc238dc811"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_TRANSFORM</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span id="_CPPv2N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40ac4fa315ef659ee3b826172dc238dc811"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_TRANSFORM</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE">
-<span id="_CPPv3N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span id="_CPPv2N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a072bbece5c968c8ddeedc1acd32e33a7"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_MODIFY</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span id="_CPPv2N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40a072bbece5c968c8ddeedc1acd32e33a7"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_MODIFY</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE">
-<span id="_CPPv3N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span id="_CPPv2N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb90830f52d09f55eaecbb34ece8e"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CHANGES</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span id="_CPPv2N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"></span><span class="target" id="fwd__defs_8h_1ab1195ee2ee7743cf37fcd09821c5ff40aaf5fb90830f52d09f55eaecbb34ece8e"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">VIEWPORT_EVT_CHANGES</span></span></span><a class="headerlink" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
 
 <dl class="cpp enum">
 <dt class="sig sig-object cpp" id="_CPPv416omega_io_flags_t">
-<span id="_CPPv316omega_io_flags_t"></span><span id="_CPPv216omega_io_flags_t"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140b"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_io_flags_t</span></span></span><a class="headerlink" href="#_CPPv416omega_io_flags_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv316omega_io_flags_t"></span><span id="_CPPv216omega_io_flags_t"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140b"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_io_flags_t</span></span></span><a class="headerlink" href="#_CPPv416omega_io_flags_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Enumeration of IO flags </p>
 <p><em>Values:</em></p>
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t11IO_FLG_NONEE">
-<span id="_CPPv3N16omega_io_flags_t11IO_FLG_NONEE"></span><span id="_CPPv2N16omega_io_flags_t11IO_FLG_NONEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5c39b866e0ad521093d9e7558ce2d038"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_NONE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N16omega_io_flags_t11IO_FLG_NONEE"></span><span id="_CPPv2N16omega_io_flags_t11IO_FLG_NONEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5c39b866e0ad521093d9e7558ce2d038"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_NONE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE">
-<span id="_CPPv3N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5ff37a4bb4a907b1c665a14452cc12c5"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t16IO_FLG_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140ba5ff37a4bb4a907b1c665a14452cc12c5"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE">
-<span id="_CPPv3N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140bade1d931e359fa1967daaaaeb04c109ac"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_FORCE_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140bade1d931e359fa1967daaaaeb04c109ac"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_FORCE_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1165,7 +1227,7 @@
 </div>
 </section>
 <section id="license-h">
-<h2>license.h<a class="headerlink" href="#license-h" title="Permalink to this heading"></a></h2>
+<h2>license.h<a class="headerlink" href="#license-h" title="Link to this heading"></a></h2>
 <p>Function to get the license text associated with omega-edit. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -1183,11 +1245,11 @@
 </div>
 </section>
 <section id="scoped-ptr-hpp">
-<h2>scoped_ptr.hpp<a class="headerlink" href="#scoped-ptr-hpp" title="Permalink to this heading"></a></h2>
+<h2>scoped_ptr.hpp<a class="headerlink" href="#scoped-ptr-hpp" title="Link to this heading"></a></h2>
 <p>Define a scoped smart pointer that can be used for Resource Acquisition Is Initialization (RAII) in C++ code. </p>
 </section>
 <section id="search-h">
-<h2>search.h<a class="headerlink" href="#search-h" title="Permalink to this heading"></a></h2>
+<h2>search.h<a class="headerlink" href="#search-h" title="Link to this heading"></a></h2>
 <p>Functions that enable searching within an editing session. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -1352,13 +1414,13 @@
 </div>
 </section>
 <section id="session-h">
-<h2>session.h<a class="headerlink" href="#session-h" title="Permalink to this heading"></a></h2>
+<h2>session.h<a class="headerlink" href="#session-h" title="Link to this heading"></a></h2>
 <p>Functions that operate on editing sessions (omega_session_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv430omega_byte_frequency_profile_t">
-<span id="_CPPv330omega_byte_frequency_profile_t"></span><span id="_CPPv230omega_byte_frequency_profile_t"></span><span id="omega_byte_frequency_profile_t"></span><span class="target" id="session_8h_1a29854dc763cfa633b5742a16be095e21"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_frequency_profile_t</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">257</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#_CPPv430omega_byte_frequency_profile_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv330omega_byte_frequency_profile_t"></span><span id="_CPPv230omega_byte_frequency_profile_t"></span><span id="omega_byte_frequency_profile_t"></span><span class="target" id="session_8h_1a29854dc763cfa633b5742a16be095e21"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_frequency_profile_t</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">257</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#_CPPv430omega_byte_frequency_profile_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
@@ -1793,23 +1855,23 @@
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-variables">Variables</p>
 <dl class="cpp var">
 <dt class="sig sig-object cpp" id="_CPPv415PROFILE_DOS_EOL">
-<span id="_CPPv315PROFILE_DOS_EOL"></span><span id="_CPPv215PROFILE_DOS_EOL"></span><span id="PROFILE_DOS_EOL__sC"></span><span class="target" id="session_8h_1a41ac1c863c49b0948610fcc167e2bacb"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">PROFILE_DOS_EOL</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">256</span></span><a class="headerlink" href="#_CPPv415PROFILE_DOS_EOL" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv315PROFILE_DOS_EOL"></span><span id="_CPPv215PROFILE_DOS_EOL"></span><span id="PROFILE_DOS_EOL__sC"></span><span class="target" id="session_8h_1a41ac1c863c49b0948610fcc167e2bacb"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">PROFILE_DOS_EOL</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">256</span></span><a class="headerlink" href="#_CPPv415PROFILE_DOS_EOL" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
 </section>
 <section id="stl-string-adaptor-hpp">
-<h2>stl_string_adaptor.hpp<a class="headerlink" href="#stl-string-adaptor-hpp" title="Permalink to this heading"></a></h2>
+<h2>stl_string_adaptor.hpp<a class="headerlink" href="#stl-string-adaptor-hpp" title="Link to this heading"></a></h2>
 <p>C++ convenience functions for using STL strings. </p>
 </section>
 <section id="utility-h">
-<h2>utility.h<a class="headerlink" href="#utility-h" title="Permalink to this heading"></a></h2>
+<h2>utility.h<a class="headerlink" href="#utility-h" title="Link to this heading"></a></h2>
 <p>Various utility functions. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv427omega_util_byte_transform_t">
-<span id="_CPPv327omega_util_byte_transform_t"></span><span id="_CPPv227omega_util_byte_transform_t"></span><span id="omega_util_byte_transform_t"></span><span class="target" id="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_byte_transform_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">user_data</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv427omega_util_byte_transform_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv327omega_util_byte_transform_t"></span><span id="_CPPv227omega_util_byte_transform_t"></span><span id="omega_util_byte_transform_t"></span><span class="target" id="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_byte_transform_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">user_data</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv427omega_util_byte_transform_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Byte transform function pointer </p>
 </dd></dl>
 
@@ -1818,22 +1880,22 @@
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
 <dl class="cpp enum">
 <dt class="sig sig-object cpp" id="_CPPv417omega_mask_kind_t">
-<span id="_CPPv317omega_mask_kind_t"></span><span id="_CPPv217omega_mask_kind_t"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_mask_kind_t</span></span></span><a class="headerlink" href="#_CPPv417omega_mask_kind_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv317omega_mask_kind_t"></span><span id="_CPPv217omega_mask_kind_t"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_mask_kind_t</span></span></span><a class="headerlink" href="#_CPPv417omega_mask_kind_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Mask types </p>
 <p><em>Values:</em></p>
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_ANDE">
-<span id="_CPPv3N17omega_mask_kind_t8MASK_ANDE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_ANDE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_AND</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N17omega_mask_kind_t8MASK_ANDE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_ANDE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_AND</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t7MASK_ORE">
-<span id="_CPPv3N17omega_mask_kind_t7MASK_ORE"></span><span id="_CPPv2N17omega_mask_kind_t7MASK_ORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_OR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N17omega_mask_kind_t7MASK_ORE"></span><span id="_CPPv2N17omega_mask_kind_t7MASK_ORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_OR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_XORE">
-<span id="_CPPv3N17omega_mask_kind_t8MASK_XORE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_XORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_XOR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv3N17omega_mask_kind_t8MASK_XORE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_XORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_XOR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -2053,7 +2115,7 @@
 </div>
 </section>
 <section id="version-h">
-<h2>version.h<a class="headerlink" href="#version-h" title="Permalink to this heading"></a></h2>
+<h2>version.h<a class="headerlink" href="#version-h" title="Link to this heading"></a></h2>
 <p>Functions that return version information. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -2121,7 +2183,7 @@
 </div>
 </section>
 <section id="viewport-h">
-<h2>viewport.h<a class="headerlink" href="#viewport-h" title="Permalink to this heading"></a></h2>
+<h2>viewport.h<a class="headerlink" href="#viewport-h" title="Link to this heading"></a></h2>
 <p>Functions that operate on viewports (omega_viewport_t). </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -2354,19 +2416,19 @@
 </div>
 </section>
 <section id="visit-h">
-<h2>visit.h<a class="headerlink" href="#visit-h" title="Permalink to this heading"></a></h2>
+<h2>visit.h<a class="headerlink" href="#visit-h" title="Link to this heading"></a></h2>
 <p>Functions that enable visiting changes in an editing session. </p>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv434omega_session_change_visitor_cbk_t">
-<span id="_CPPv334omega_session_change_visitor_cbk_t"></span><span id="_CPPv234omega_session_change_visitor_cbk_t"></span><span id="omega_session_change_visitor_cbk_t"></span><span class="target" id="visit_8h_1a7ada78058954a355bf04dc22a6c10588"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_change_visitor_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv434omega_session_change_visitor_cbk_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv334omega_session_change_visitor_cbk_t"></span><span id="_CPPv234omega_session_change_visitor_cbk_t"></span><span id="omega_session_change_visitor_cbk_t"></span><span class="target" id="visit_8h_1a7ada78058954a355bf04dc22a6c10588"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_change_visitor_cbk_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv414omega_change_t" title="omega_change_t"><span class="n"><span class="pre">omega_change_t</span></span></a><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv434omega_session_change_visitor_cbk_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Callback to implement for visiting changes in a session. Return 0 to continue visiting changes and non-zero to stop. </p>
 </dd></dl>
 
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv428omega_visit_change_context_t">
-<span id="_CPPv328omega_visit_change_context_t"></span><span id="_CPPv228omega_visit_change_context_t"></span><span id="omega_visit_change_context_t"></span><span class="target" id="visit_8h_1a4516bf628dbc272ff9803b9f9ede222f"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_visit_change_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></span><a class="headerlink" href="#_CPPv428omega_visit_change_context_t" title="Permalink to this definition"></a><br /></dt>
+<span id="_CPPv328omega_visit_change_context_t"></span><span id="_CPPv228omega_visit_change_context_t"></span><span id="omega_visit_change_context_t"></span><span class="target" id="visit_8h_1a4516bf628dbc272ff9803b9f9ede222f"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_visit_change_context_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_visit_change_context_t</span></span></span><a class="headerlink" href="#_CPPv428omega_visit_change_context_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Opaque visit change context </p>
 </dd></dl>
 
