@@ -23,7 +23,7 @@
     "package-no-sbt": "yarn workspace @omega-edit/server package-no-sbt && yarn workspace @omega-edit/client package"
   },
   "devDependencies": {
-    "@types/node": "^20.5.1",
+    "@types/node": "^20.5.7",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.47.0",
     "eslint-config-prettier": "^9.0.0",
