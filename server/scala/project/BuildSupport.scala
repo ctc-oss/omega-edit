@@ -153,18 +153,13 @@ object BuildSupport {
     }
 
   lazy val mapping: List[(String, String)] = {
-    println(libdir)
     val libFileList =
       new java.io.File(libdir).listFiles
         .filter(_.isFile)
-        .filter { x =>
-          println(x)
-          println(x.getName)
-          // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
-          x.getName
-            .filter(_ == '.')
-            .size == 1
-        }
+        // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
+        .filter(
+          _.getName.filter(_ == '.').size == 1
+        )
         .toList
 
     getMappings(

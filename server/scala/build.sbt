@@ -149,7 +149,7 @@ lazy val native = project
     Compile / packageBin / mappings ++=
       mapping
         .map(mp =>
-          (if (libdir.startsWith("/") || libdir.startsWith("C:"))
+          (if (libdir.startsWith("/") || libdir.charAt(1) == ':')
              new java.io.File(s"${libdir}/${mp._1}")
            else baseDirectory.value / s"${libdir}/${mp._1}") -> s"${version.value}/${mp._2}"
         ),
