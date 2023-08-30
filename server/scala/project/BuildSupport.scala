@@ -27,7 +27,9 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String = sys.env.get("OE_LIB_DIR").getOrElse("../../../_install/lib")
+  val libdir: String = new java.io.File(
+    sys.env.get("OE_LIB_DIR").getOrElse("../../_install/lib")
+  ).getAbsolutePath // make sure to get full path as relative can cause issues
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
@@ -151,9 +153,18 @@ object BuildSupport {
     }
 
   lazy val mapping: List[(String, String)] = {
+    println(libdir)
     val libFileList =
-      new java.io.File(libdir.substring(3)).listFiles
+      new java.io.File(libdir).listFiles
         .filter(_.isFile)
+        .filter { x =>
+          println(x)
+          println(x.getName)
+          // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
+          x.getName
+            .filter(_ == '.')
+            .size == 1
+        }
         .toList
 
     getMappings(
@@ -166,7 +177,7 @@ object BuildSupport {
     )
   }
 
-  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { opts: Seq[String] =>
+  lazy val adjustScalacOptionsForScalatest: Seq[String] => Seq[String] = { (opts: Seq[String]) =>
     opts.filterNot(
       Set(
         "-Wvalue-discard",
