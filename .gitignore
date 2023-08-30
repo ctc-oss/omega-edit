@@ -52,6 +52,7 @@ package-lock.json
 **/.vscode/settings.json
 
 .metals
+.scala-build
 project
 !server/scala/project
 
