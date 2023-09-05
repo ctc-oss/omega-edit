@@ -30,7 +30,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
@@ -73,7 +73,7 @@ jobs:
     name: Build middleware ${{ matrix.os }} 🔧
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Java ☕
         uses: actions/setup-java@v3.12.0
