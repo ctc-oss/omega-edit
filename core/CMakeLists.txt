@@ -76,6 +76,7 @@ set(OMEGA_EDIT_SOURCE_FILES
         "src/include/omega_edit/scoped_ptr.hpp"
         "src/include/omega_edit/stl_string_adaptor.hpp" "src/lib/stl_string_adapter.cpp"
         "src/include/omega_edit/change.h" "src/lib/change.cpp" "src/lib/impl_/change_def.hpp"
+        "src/include/omega_edit/character_counts.h" "src/lib/character_counts.c" "src/lib/impl_/character_counts_def.h"
         "src/include/omega_edit/check.h" "src/lib/check.cpp"
         "src/include/omega_edit/edit.h" "src/lib/edit.cpp"
         "src/include/omega_edit/search.h" "src/lib/search.cpp" "src/lib/impl_/search_context_def.h"
@@ -124,6 +125,15 @@ endforeach ()
 # EXAMPLES
 #######################################################################################################################
 if (BUILD_EXAMPLES)
+    add_executable(add_bom "src/examples/add_bom.cpp")
+    target_link_libraries(add_bom PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
+    add_executable(count_characters "src/examples/count_characters.c")
+    target_link_libraries(count_characters PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
+    add_executable(detect_bom "src/examples/detect_bom.c")
+    target_link_libraries(detect_bom PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
+
     add_executable(replace "src/examples/replace.cpp")
     target_link_libraries(replace PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
 

@@ -1,5 +1,4 @@
 /*
- *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -13,21 +12,14 @@
  * limitations under the License.
  */
 
-// allow access to snapshots
-resolvers += "Apache Snapshots".at(
-  "https://repository.apache.org/content/repositories/snapshots/"
-)
-
 // Bindings
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
-addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.4.1")
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.0")
-addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
-addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.2")
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.5")
 addSbtPlugin("com.github.battermann" % "sbt-json" % "0.5.0")
-addSbtPlugin(
-  "org.apache.pekko" % "sbt-pekko-grpc" % "0.0.0-15-3d8bff9d-SNAPSHOT"
-)
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.2")
 addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.8.1")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.6.5")
+addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.4.1")
+addSbtPlugin("org.apache.pekko" % "pekko-grpc-sbt-plugin" % "1.0.0")
+addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.0")

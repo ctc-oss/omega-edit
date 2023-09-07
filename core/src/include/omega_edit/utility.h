@@ -23,6 +23,7 @@
 #include "byte.h"
 #include "export.h"
 #include "filesystem.h"
+#include "fwd_defs.h"
 
 #ifdef __cplusplus
 
@@ -81,13 +82,6 @@ OMEGA_EDIT_EXPORT int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t
  * @return zero on success, non-zero on failure
  */
 OMEGA_EDIT_EXPORT int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
-
-/**
- * Mask types
- */
-typedef enum {
-    MASK_AND, MASK_OR, MASK_XOR
-} omega_mask_kind_t;
 
 /**
  * Byte transform function pointer
@@ -160,6 +154,52 @@ OMEGA_EDIT_EXPORT char *omega_util_strndup(const char *s, size_t n);
  * @param n number of bytes to search
  */
 OMEGA_EDIT_EXPORT const void *omega_util_memrchr(const void *s, int c, size_t n);
+
+/**
+ * Detect the byte order mark (BOM) of the given memory
+ * @param data memory to detect the BOM of
+ * @param length length of the memory to detect the BOM of
+ * @return BOM_NONE if no BOM is detected, otherwise the detected BOM
+ */
+OMEGA_EDIT_EXPORT omega_bom_t omega_util_detect_BOM_from_memory(const unsigned char *data, size_t length);
+
+/**
+ * Detect the byte order mark (BOM) of the given file
+ * @param filename path of the file to detect the BOM of
+ * @return BOM_NONE if no BOM is detected, otherwise the detected BOM
+ */
+OMEGA_EDIT_EXPORT omega_bom_t omega_util_detect_BOM_from_file(const char *filename);
+
+/**
+ * Convert the given byte order mark (BOM) to a string
+ * @param bom byte order mark (BOM) to convert
+ * @return string representation of the given BOM
+ */
+OMEGA_EDIT_EXPORT char const *omega_util_BOM_to_string(omega_bom_t bom);
+
+/**
+ * Count the number of single byte, and multi-byte characters in the given data
+ * @param data data to count the characters in
+ * @param length length of the data
+ * @param counts_ptr pointer to the character counts to populate
+ * @note make sure the BOM is set in the given character counts before calling this function
+ */
+OMEGA_EDIT_EXPORT void omega_util_count_characters(const unsigned char* data, size_t length, omega_character_counts_t* counts_ptr);
+
+/**
+ * Byte buffer
+ */
+typedef struct {
+    const omega_byte_t *data;
+    size_t length;
+} omega_byte_buffer_t;
+
+/**
+ * Get the byte order mark buffer (BOM) associated with the given byte order mark (BOM)
+ * @param bom byte order mark (BOM) to get
+ * @return byte buffer containing the given BOM, or NULL if the given BOM is BOM_NONE
+ */
+OMEGA_EDIT_EXPORT const omega_byte_buffer_t* omega_util_BOM_to_buffer(omega_bom_t bom);
 
 #ifdef __cplusplus
 }

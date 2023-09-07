@@ -26,13 +26,17 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
-import java.io.{BufferedInputStream, FileInputStream, IOException}
+import java.io.{BufferedInputStream, FileInputStream}
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
 import omega_edit._
+
 import org.apache.pekko
+
 import org.apache.tika.detect.DefaultDetector
+import org.apache.tika.langdetect.optimaize.OptimaizeLangDetector
 import org.apache.tika.metadata.Metadata
+
 import pekko.NotUsed
 import pekko.actor.ActorSystem
 import pekko.grpc.GrpcServiceException
@@ -45,7 +49,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
@@ -79,7 +83,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
       // If server is to shutdown gracefully, don't create new sessions
-      Future.successful(CreateSessionResponse("", "", None, None))
+      Future.successful(CreateSessionResponse("", "", None, None, None, None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
       val chkptDir = in.checkpointDirectory.map(Paths.get(_))
@@ -88,15 +92,19 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         .map {
           case ok: Ok with CheckpointDirectory =>
             filePath match {
-              // If a file path is provided, detect file type, otherwise return None
+              // If a file path is provided, detect file type and language
               case Some(path) =>
+                val (fileType: Option[String], language: Option[String]) =
+                  detectFileTypeAndLanguage(path.toString, ok.bom)
                 CreateSessionResponse(
                   ok.id,
                   ok.checkpointDirectory.toString,
-                  detectFileType(path.toString),
+                  Option(ok.bom),
+                  fileType,
+                  language,
                   Option(ok.fileSize)
                 )
-              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None, None)
+              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None, None, None, None)
             }
           case Ok(id) =>
             throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")
@@ -104,16 +112,29 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         }
     }
 
-  private def detectFileType(filePath: String): Option[String] =
-    try {
+  def detectFileTypeAndLanguage(filePath: String, bom: String): (Option[String], Option[String]) = {
+    val fileType = Try {
       val file = new BufferedInputStream(new FileInputStream(filePath))
       val detector = new DefaultDetector()
-      val metadata = new Metadata()
-      val mediaType = detector.detect(file, metadata)
-      Option(mediaType.toString)
-    } catch {
-      case _: IOException => None
+      val mediaTypeResult = detector.detect(file, new Metadata())
+      file.close
+      mediaTypeResult.toString
     }
+
+    val language = Try {
+      val file = new BufferedInputStream(new FileInputStream(filePath))
+      val buffer = new Array[Byte](8192)
+      val bytesRead = file.read(buffer)
+      file.close
+      // Convert the bytes read into a String, sssuming the file is UTF-8 encoded; adjust encoding as necessary
+      val text = new String(buffer, 0, bytesRead, if (bom == "unknown" || bom == "none") "UTF-8" else bom)
+      val detector = new OptimaizeLangDetector().loadModels
+      val languageResult = detector.detect(text)
+      if (languageResult.isReasonablyCertain) languageResult.getLanguage else "unknown"
+    }
+
+    (fileType.toOption, language.toOption)
+  }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
     // First destroy the session, then destroy the actor
@@ -173,7 +194,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       in.sessionId,
       Save(
         Paths.get(in.filePath),
-        in.ioFlags
+        in.ioFlags,
+        in.offset.getOrElse(0L),
+        in.length.getOrElse(0L)
       )
     )).mapTo[Result].map {
       case ok: Ok with SavedTo => SaveSessionResponse(ok.id, ok.path.toString, ok.status)
@@ -461,10 +484,14 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     }
 
   def getByteFrequencyProfile(
-      in: ByteFrequencyProfileRequest
+      in: SegmentRequest
   ): Future[ByteFrequencyProfileResponse] =
     (editors ? SessionOp(in.sessionId, Session.Profile(in)))
       .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
+
+  def getCharacterCounts(in: omega_edit.SegmentRequest): Future[CharacterCountResponse] =
+    (editors ? SessionOp(in.sessionId, Session.CharCount(in)))
+      .mapTo[CharacterCountResponse] // No `Ok` wrapper
 
   def searchSession(in: SearchRequest): Future[SearchResponse] =
     (editors ? SessionOp(in.sessionId, Session.Search(in)))
