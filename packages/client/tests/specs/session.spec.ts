@@ -84,6 +84,9 @@ function touch(filePath: string) {
 
 describe('Sessions', () => {
   const iterations = 500
+  const emptyFile = require('path').join(__dirname, 'data', 'empty.txt')
+  const oneByteFile = require('path').join(__dirname, 'data', '1-byte.txt')
+  const twoByteFile = require('path').join(__dirname, 'data', '2-bytes.txt')
   const testFile = require('path').join(__dirname, 'data', 'csstest.html')
   const save1 = require('path').join(__dirname, 'data', 'csstest-1.html')
   const checkpointDir = require('path').join(__dirname, 'data', 'checkpoint')
@@ -107,6 +110,75 @@ describe('Sessions', () => {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ]
+
+  it(`Should read an empty file ${emptyFile}`, async () => {
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getSessionCount()).to.equal(0)
+    const session = await createSession(emptyFile)
+    const session_id = session.getSessionId()
+    expect(session_id).to.equal(base64Encode(emptyFile))
+    expect(await getSessionCount()).to.equal(1)
+    expect(session.getFileSize()).to.equal(0)
+    expect(await getComputedFileSize(session_id)).to.equal(0)
+    expect(await getViewportCount(session_id)).to.equal(0)
+    const viewportResponse = await createViewport(
+      undefined,
+      session_id,
+      0,
+      10,
+      false
+    )
+    expect(await getViewportCount(session_id)).to.equal(1)
+    expect(viewportResponse.getData_asU8().length).to.equal(0)
+    expect(await destroySession(session_id)).to.equal(session_id)
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it(`Should read a one-byte file ${oneByteFile}`, async () => {
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getSessionCount()).to.equal(0)
+    const session = await createSession(oneByteFile)
+    const session_id = session.getSessionId()
+    expect(session_id).to.equal(base64Encode(oneByteFile))
+    expect(await getSessionCount()).to.equal(1)
+    expect(session.getFileSize()).to.equal(1)
+    expect(await getComputedFileSize(session_id)).to.equal(1)
+    expect(await getViewportCount(session_id)).to.equal(0)
+    const viewportResponse = await createViewport(
+      undefined,
+      session_id,
+      0,
+      10,
+      false
+    )
+    expect(await getViewportCount(session_id)).to.equal(1)
+    expect(viewportResponse.getData_asU8()).to.deep.equal(Buffer.from('1'))
+    expect(await destroySession(session_id)).to.equal(session_id)
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it(`Should read a two-byte file ${twoByteFile}`, async () => {
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getSessionCount()).to.equal(0)
+    const session = await createSession(twoByteFile)
+    const session_id = session.getSessionId()
+    expect(session_id).to.equal(base64Encode(twoByteFile))
+    expect(await getSessionCount()).to.equal(1)
+    expect(session.getFileSize()).to.equal(2)
+    expect(await getComputedFileSize(session_id)).to.equal(2)
+    expect(await getViewportCount(session_id)).to.equal(0)
+    const viewportResponse = await createViewport(
+      undefined,
+      session_id,
+      0,
+      10,
+      false
+    )
+    expect(await getViewportCount(session_id)).to.equal(1)
+    expect(viewportResponse.getData_asU8()).to.deep.equal(Buffer.from('12'))
+    expect(await destroySession(session_id)).to.equal(session_id)
+    expect(await getSessionCount()).to.equal(0)
+  })
 
   it(`Should read test file ${testFile} (${iterations} times)`, async () => {
     expect(fileData.length).to.equal(464)
