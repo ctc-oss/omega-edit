@@ -106,6 +106,23 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_undo_last_change(omega_session_t *session_p
 OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 
 /**
+ * Save a segment of the the given session (the edited file) to the given file path.  If the save file already exists,
+ * it can be overwritten if overwrite is non zero.  If the file exists and overwrite is zero, a new unique file name
+ * will be used as determined by omega_util_available_filename.  If the file being edited is overwritten, the affected
+ * editing session will be reset.
+ * @param session_ptr session to save
+ * @param file_path file path to save to
+ * @param io_flags save IO flags (see omega_io_flags_t for details)
+ * @param saved_file_path if overwrite is not set and the target file_path exists, a new file path will be created, and if
+ * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
+ * @param offset save starting at this offset in the session
+ * @param length save this many bytes from the given start offset
+ * @return 0 on success, non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags,
+                                              char *saved_file_path, int64_t offset, int64_t length);
+
+/**
  * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
  * if overwrite is non zero.  If the file exists and overwrite is zero, a new unique file name will be used as determined
  * by omega_util_available_filename.  If the file being edited is overwritten, the affected editing session will be reset.

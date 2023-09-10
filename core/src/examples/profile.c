@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     omega_byte_frequency_profile_t byte_frequency_profile;
     omega_session_t *session_ptr = omega_edit_create_session(argv[1], NULL, NULL, NO_EVENTS, NULL);
     const int64_t file_size = omega_session_get_computed_file_size(session_ptr);
-    omega_session_profile(session_ptr, &byte_frequency_profile, 0, file_size);
+    omega_session_byte_frequency_profile(session_ptr, &byte_frequency_profile, 0, file_size);
     omega_edit_destroy_session(session_ptr);
     int64_t ascii_bytes = 0;
     int64_t non_ascii_bytes = 0;

@@ -46,6 +46,7 @@
 #endif
 
 #include "../include/omega_edit/utility.h"
+#include "impl_/character_counts_def.h"
 #include "impl_/macros.h"
 #include <assert.h>
 #include <ctype.h>
@@ -288,4 +289,235 @@ const void *omega_util_memrchr(const void *s, int c, size_t n) {
         }
     }
     return NULL;
+}
+
+omega_bom_t omega_util_detect_BOM_from_memory(const unsigned char *data, size_t length) {
+    if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
+        return BOM_UTF8;
+    } else if (length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
+        return (length >= 4 && data[2] == 0x00 && data[3] == 0x00) ? BOM_UTF32LE : BOM_UTF16LE;
+    } else if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
+        return BOM_UTF16BE;
+    } else if (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) {
+        return BOM_UTF32BE;
+    }
+    return BOM_NONE;
+}
+
+omega_bom_t omega_util_detect_BOM_from_file(const char *filename) {
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        perror("Error opening file");
+        return BOM_NONE;
+    }
+
+    unsigned char bom[4];
+    const size_t bytesRead = fread(bom, 1, 4, file);
+    fclose(file);
+
+    return omega_util_detect_BOM_from_memory(bom, bytesRead);
+}
+
+char const *omega_util_BOM_to_string(omega_bom_t bom) {
+    switch (bom) {
+        case BOM_NONE:
+            return "none";
+        case BOM_UTF8:
+            return "UTF-8";
+        case BOM_UTF16LE:
+            return "UTF-16LE";
+        case BOM_UTF16BE:
+            return "UTF-16BE";
+        case BOM_UTF32LE:
+            return "UTF-32LE";
+        case BOM_UTF32BE:
+            return "UTF-32BE";
+        default:
+            return "unknown";
+    }
+}
+
+static inline int is_lead_surrogate_UTF16_(uint16_t word) {
+    // https://en.wikipedia.org/wiki/UTF-16#Code_points_from_U+010000_to_U+10FFFF
+    return word >= 0xD800 && word <= 0xDBFF ? 1 : 0;
+}
+
+static inline int is_low_surrogate_UTF16_(uint16_t word) {
+    // https://en.wikipedia.org/wiki/UTF-16#Code_points_from_U+010000_to_U+10FFFF
+    return word >= 0xDC00 && word <= 0xDFFF ? 1 : 0;
+}
+
+
+void omega_util_count_characters(const unsigned char *data, size_t length,
+                                 omega_character_counts_t *counts_ptr) {
+    assert(data);
+    assert(counts_ptr);
+
+    // Skip the BOM if present (the BOM is metadata, not part of the text)
+    switch (counts_ptr->bom) {
+        case BOM_UTF8:
+            if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
+                data += 3;
+                length -= 3;
+                counts_ptr->bomBytes = 3;
+            }
+            break;
+        case BOM_UTF16LE:
+            if (length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
+                data += 2;
+                length -= 2;
+                counts_ptr->bomBytes = 2;
+            }
+            break;
+        case BOM_UTF16BE:
+            if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
+                data += 2;
+                length -= 2;
+                counts_ptr->bomBytes = 2;
+            }
+            break;
+        case BOM_UTF32LE:
+            if (length >= 4 && data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00) {
+                data += 4;
+                length -= 4;
+                counts_ptr->bomBytes = 4;
+            }
+            break;
+        case BOM_UTF32BE:
+            if (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) {
+                data += 4;
+                length -= 4;
+                counts_ptr->bomBytes = 4;
+            }
+            break;
+        default:
+            // No BOM specified, do nothing
+            break;
+    }
+    size_t i = 0;
+    switch (counts_ptr->bom) {
+        case BOM_NONE: // fall through, assume UTF-8 if the BOM is not specified
+        case BOM_UTF8:
+            while (i < length) {
+                if ((data[i] & 0x80) == 0) {
+                    ++counts_ptr->singleByteChars; // ASCII character
+                    ++i;
+                } else if ((data[i] & 0xE0) == 0xC0) {
+                    // check for 2-byte UTF-8 character
+                    if (i + 1 < length && (data[i + 1] & 0xC0) == 0x80) {
+                        ++counts_ptr->doubleByteChars; // 2-byte UTF-8 character (e.g. é)
+                        i += 2;
+                    } else {
+                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++i;
+                    }
+                } else if ((data[i] & 0xF0) == 0xE0) {
+                    // check for 3-byte UTF-8 character
+                    if (i + 2 < length && (data[i + 1] & 0xC0) == 0x80 && (data[i + 2] & 0xC0) == 0x80) {
+                        ++counts_ptr->tripleByteChars; // 3-byte UTF-8 character (e.g. €)
+                        i += 3;
+                    } else {
+                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++i;
+                    }
+                } else {
+                    // check for 4-byte UTF-8 character
+                    if (i + 3 < length && (data[i + 1] & 0xC0) == 0x80 && (data[i + 2] & 0xC0) == 0x80 &&
+                        (data[i + 3] & 0xC0) == 0x80) {
+                        ++counts_ptr->quadByteChars; // 4-byte UTF-8 character (e.g. 🌍)
+                        i += 4;
+                    } else {
+                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++i;
+                    }
+                }
+            }
+            break;
+
+        case BOM_UTF16LE: // fall through
+        case BOM_UTF16BE:
+            while (i + 1 < length) {
+                // Swap the bytes if the BOM is little endian
+                const uint16_t char16 = counts_ptr->bom == BOM_UTF16LE ?
+                                        (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8 :
+                                        (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
+
+                if (is_lead_surrogate_UTF16_(char16)) {
+                    if (i + 3 < length) {
+                        const uint16_t next_char16 = counts_ptr->bom == BOM_UTF16LE ?
+                                                     (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8 :
+                                                     (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
+                        if (is_low_surrogate_UTF16_(next_char16)) {
+                            ++counts_ptr->doubleByteChars;
+                            i += 4; // skip the low surrogate as well
+                        } else {
+                            ++counts_ptr->invalidBytes; // incomplete surrogate pair
+                            ++i;
+                        }
+                    } else {
+                        ++counts_ptr->invalidBytes; // incomplete surrogate pair at end of data
+                        break;  // exit loop
+                    }
+                } else if (is_low_surrogate_UTF16_(char16)) {
+                    ++counts_ptr->invalidBytes; // low surrogate without preceding high surrogate
+                    ++i;
+                } else if (char16 <= 0x7F) {
+                    ++counts_ptr->singleByteChars; // ASCII characters
+                    i += 2;
+                } else {
+                    ++counts_ptr->doubleByteChars; // all other characters
+                    i += 2;
+                }
+            }
+            break;
+
+        case BOM_UTF32LE: // fall through
+        case BOM_UTF32BE:
+            while (i + 3 < length) {
+                // Swap the bytes if the BOM is little endian
+                const uint32_t char32 = counts_ptr->bom == BOM_UTF32LE ?
+                                        (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24)) :
+                                        ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
+
+                if ((char32 >= 0xD800 && char32 <= 0xDFFF) || char32 > 0x10FFFF) {
+                    ++counts_ptr->invalidBytes; // surrogate pairs and characters above 0x10FFFF are invalid in UTF-32
+                    ++i;
+                } else if (char32 <= 0x7F) {
+                    ++counts_ptr->singleByteChars; // ASCII characters
+                    i += 4;
+                } else {
+                    ++counts_ptr->quadByteChars; // all other characters
+                    i += 4;
+                }
+            }
+            break;
+
+        default:
+            ABORT(LOG_ERROR("unhandled BOM"););
+    }
+    // Handle trailing invalid bytes
+    counts_ptr->invalidBytes += length - i;
+}
+
+const omega_byte_buffer_t *omega_util_BOM_to_buffer(omega_bom_t bom) {
+    static const omega_byte_buffer_t utf8_bom = {.data = (omega_byte_t *) "\xEF\xBB\xBF", .length = 3};
+    static const omega_byte_buffer_t utf16le_bom = {.data = (omega_byte_t *) "\xFF\xFE", .length = 2};
+    static const omega_byte_buffer_t utf16be_bom = {.data = (omega_byte_t *) "\xFE\xFF", .length = 2};
+    static const omega_byte_buffer_t utf32le_bom = {.data = (omega_byte_t *) "\xFF\xFE\x00\x00", .length = 4};
+    static const omega_byte_buffer_t utf32be_bom = {.data = (omega_byte_t *) "\x00\x00\xFE\xFF", .length = 4};
+
+    switch (bom) {
+        case BOM_UTF8:
+            return &utf8_bom;
+        case BOM_UTF16LE:
+            return &utf16le_bom;
+        case BOM_UTF16BE:
+            return &utf16be_bom;
+        case BOM_UTF32LE:
+            return &utf32le_bom;
+        case BOM_UTF32BE:
+            return &utf32be_bom;
+        default:
+            return NULL;
+    }
 }

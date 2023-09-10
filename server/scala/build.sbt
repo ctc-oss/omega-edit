@@ -1,11 +1,20 @@
-/** ********************************************************************************************************************
-  * Copyright (c) 2021 Concurrent Technologies Corporation. * * Licensed under the Apache License, Version 2.0 (the
-  * "License"); you may not use this file except in compliance * with the License. You may obtain a copy of the License
-  * at * * http://www.apache.org/licenses/LICENSE-2.0 * * Unless required by applicable law or agreed to in writing,
-  * software is distributed under the License is * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
-  * ANY KIND, either express or * implied. See the License for the specific language governing permissions and
-  * limitations under the License. * *
-  */
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import BuildSupport._
 import play.api.libs.json._
 import scala.io.Source
@@ -39,15 +48,8 @@ lazy val isRelease =
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
-lazy val pekkoVersion = "0.0.0+26599-83545a33-SNAPSHOT"
-lazy val tikaVersion = "2.7.0"
-
-// allow access to snapshots
-lazy val apacheSnapshotResolver = "Apache Snapshots".at(
-  "https://repository.apache.org/content/repositories/snapshots/"
-)
-
-resolvers += apacheSnapshotResolver
+lazy val pekkoVersion = "1.0.1" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
+lazy val tikaVersion = "2.9.0"
 
 lazy val commonSettings =
   Seq(
@@ -75,8 +77,7 @@ lazy val commonSettings =
     fork := (if (isRelease) false else true),
     externalResolvers ++= Seq(
       ghb_resolver,
-      Resolver.mavenLocal,
-      apacheSnapshotResolver
+      Resolver.mavenLocal
     )
   )
 
@@ -162,6 +163,7 @@ lazy val native = project
     buildInfoOptions += BuildInfoOption.Traits(
       "com.ctc.omega_edit.spi.NativeBuildInfo"
     ),
+
     /** Not sure why these need added here since they are in common settings, but they are needed to not cause errors
       * with publishM2.
       */
@@ -191,18 +193,18 @@ lazy val serv = project
         "com.ctc" %% "omega-edit" % omegaVersion,
         "com.ctc" %% "omega-edit-native" % omegaVersion,
         "com.monovore" %% "decline" % "2.4.1",
-        // this needs updated in tandom with the sbt-pekko-grpc plugin
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "org.apache.tika" % "tika-core" % tikaVersion,
+        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
     else
       libraryDependencies ++= Seq(
         "com.monovore" %% "decline" % "2.4.1",
-        // this needs updated in tandom with the sbt-pekko-grpc plugin
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "org.apache.tika" % "tika-core" % tikaVersion,
+        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       ),

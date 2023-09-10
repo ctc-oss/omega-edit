@@ -20,6 +20,7 @@
 #ifndef OMEGA_EDIT_FWD_DEFS_H
 #define OMEGA_EDIT_FWD_DEFS_H
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -71,6 +72,26 @@ typedef enum {
 
 #define ORIGINAL_MODIFIED (-100)// original session file has been modified since the session was created
 
+/**
+ * Mask types
+ */
+typedef enum {
+    MASK_AND, MASK_OR, MASK_XOR
+} omega_mask_kind_t;
+
+/**
+ * Byte order mark (BOM) types
+ */
+typedef enum {
+    BOM_NONE = 0,
+    BOM_UTF8,
+    BOM_UTF16LE,
+    BOM_UTF16BE,
+    BOM_UTF32LE,
+    BOM_UTF32BE
+} omega_bom_t;
+
+typedef struct omega_character_counts_struct omega_character_counts_t;
 typedef struct omega_change_struct omega_change_t;
 typedef struct omega_search_context_struct omega_search_context_t;
 typedef struct omega_segment_struct omega_segment_t;

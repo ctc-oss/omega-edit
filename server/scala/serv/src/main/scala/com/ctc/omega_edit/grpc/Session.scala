@@ -71,16 +71,21 @@ object Session {
       }
 
   }
-  case class Save(to: Path, flags: Int) extends Op
+
+  case class Save(to: Path, flags: Int, offset: Long, length: Long) extends Op
+
   case class View(
       offset: Long,
       capacity: Long,
       isFloating: Boolean,
       id: Option[String]
   ) extends Op
+
   case object Destroy extends Op
+
   case class Watch(eventInterest: Option[Int]) extends Op
   case object Unwatch extends Op
+
   case object GetSize extends Op
   case object GetNumCheckpoints extends Op
   case object GetNumChanges extends Op
@@ -102,7 +107,8 @@ object Session {
   case class GetLastChange() extends Op
   case class GetLastUndo() extends Op
 
-  case class Profile(request: ByteFrequencyProfileRequest) extends Op
+  case class Profile(request: SegmentRequest) extends Op
+  case class CharCount(request: SegmentRequest) extends Op
 
   case class Search(request: SearchRequest) extends Op
 
@@ -113,8 +119,10 @@ object Session {
 
   case class PauseViewportEvents() extends Op
   case class ResumeViewportEvents() extends Op
+
   case class BeginTransaction() extends Op
   case class EndTransaction() extends Op
+
   case object NotifyChangedViewports extends Op
 
   trait Serial {
@@ -131,13 +139,15 @@ object Session {
   trait CheckpointDirectory {
     def checkpointDirectory: Path
     def fileSize: Long
+    def bom: String
   }
 
   object CheckpointDirectory {
-    def ok(sessionId: String, checkpointDirectory0: Path, size: Long): Ok with CheckpointDirectory =
+    def ok(sessionId: String, checkpointDirectory0: Path, size: Long, bom0: String): Ok with CheckpointDirectory =
       new Ok(sessionId) with CheckpointDirectory {
         val checkpointDirectory: Path = checkpointDirectory0
         val fileSize: Long = size
+        val bom: String = bom0
       }
   }
 
@@ -349,8 +359,8 @@ class Session(
         def count: Long = session.numSearchContexts
       }
 
-    case Save(to, flags) =>
-      session.save(to, flags) match {
+    case Save(to, flags, offset, length) =>
+      session.save(to, flags, offset, length) match {
         case Success(actual) =>
           sender() ! new Ok(sessionId) with SavedTo {
             def path: Path = actual._1
@@ -361,8 +371,8 @@ class Session(
       }
 
     case Profile(request) =>
-      val offset = request.offset.getOrElse(0L)
-      val length = request.length.getOrElse(session.size - offset)
+      val offset = request.offset
+      val length = request.length
       session.profile(offset, length) match {
         case Right(profileArray) =>
           sender() ! ByteFrequencyProfileResponse.of(
@@ -375,11 +385,32 @@ class Session(
           sender() ! Err(Status.UNKNOWN.withDescription(s"Profile function failed with error code: $errorCode"))
       }
 
+    case CharCount(request) =>
+      val offset = request.offset
+      val length = request.length
+      session.charCount(offset, length) match {
+        case Right(charCounts) =>
+          sender() ! CharacterCountResponse.of(
+            sessionId,
+            offset,
+            length,
+            charCounts.bom,
+            charCounts.bomBytes,
+            charCounts.singleByteChars,
+            charCounts.doubleByteChars,
+            charCounts.tripleByteChars,
+            charCounts.quadByteChars,
+            charCounts.invalidBytes
+          )
+        case Left(errorCode) =>
+          sender() ! Err(Status.UNKNOWN.withDescription(s"CharCount function failed with error code: $errorCode"))
+      }
+
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)
       val isReverse = request.isReverse.getOrElse(false)
       val offset = request.offset.getOrElse(0L)
-      val length = request.length.getOrElse(session.size - offset)
+      val length = request.length.getOrElse(0L)
       sender() ! SearchResponse.of(
         sessionId,
         request.pattern,

@@ -242,6 +242,13 @@ OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, 
                                             const void *event_ptr);
 
 /**
+ * Given a session, return the detected byte order marker (BOM)
+ * @param session_ptr session to get the BOM from
+ * @return detected byte order marker (BOM)
+ */
+OMEGA_EDIT_EXPORT omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr);
+
+/**
  * Given a session, offset and length, populate a byte frequency profile
  * @param session_ptr session to profile
  * @param profile_ptr pointer to the byte frequency profile to populate
@@ -249,9 +256,21 @@ OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, 
  * @param length number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session)
  * @return zero on success and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_profile(const omega_session_t *session_ptr,
-                                            omega_byte_frequency_profile_t *profile_ptr, int64_t offset,
-                                            int64_t length);
+OMEGA_EDIT_EXPORT int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
+                                                           omega_byte_frequency_profile_t *profile_ptr, int64_t offset,
+                                                           int64_t length);
+
+/**
+ * Given a session, offset and length, populate character counts
+ * @param session_ptr session to count characters in
+ * @param counts_ptr pointer to the character counts to populate
+ * @param offset where in the session to begin counting characters
+ * @param length number of bytes from the offset to stop counting characters (if 0, it will count to the end of the session)
+ * @return zero on success and non-zero otherwise
+ */
+OMEGA_EDIT_EXPORT int omega_session_character_counts(const omega_session_t *session_ptr,
+                                                     omega_character_counts_t *counts_ptr, int64_t offset,
+                                                     int64_t length);
 
 /**
  * Given a session, return the checkpoint directory

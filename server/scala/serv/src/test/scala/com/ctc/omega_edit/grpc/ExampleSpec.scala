@@ -101,16 +101,16 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
 
     "profile session data" in newSession { sid =>
       val testString =
-        ByteString.copyFromUtf8("5555544443332210122333444455555")
+        ByteString.copyFromUtf8("5555544443332210122333444455555\n\r\n")
       val len = testString.size()
-      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      val expectedProfile = ArraySeq(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 4, 6, 8, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0)
+        0, 0, 0, 0, 0, 0, 1)
       for {
         _ <- service.submitChange(
           ChangeRequest(
@@ -122,7 +122,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         profileResponse <- service.getByteFrequencyProfile(
-          ByteFrequencyProfileRequest(sid, offset = None, length = None)
+          SegmentRequest(sid, offset = 0L, length = len.toLong)
         )
       } yield profileResponse should matchPattern {
         case ByteFrequencyProfileResponse(
@@ -130,6 +130,40 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
               0,
               `len`,
               `expectedProfile`,
+              _
+            ) =>
+      }
+    }
+
+    "count characters in session data" in newSession { sid =>
+      val testString =
+        ByteString.copyFromUtf8("5555544443332210122333444455555\n\r\n")
+      val len = testString.size()
+      for {
+        _ <- service.submitChange(
+          ChangeRequest(
+            sid,
+            ChangeKind.CHANGE_INSERT,
+            offset = 0,
+            length = len.toLong,
+            data = Some(testString)
+          )
+        )
+        charCountResponse <- service.getCharacterCounts(
+          SegmentRequest(sid, offset = 0L, length = len.toLong)
+        )
+      } yield charCountResponse should matchPattern {
+        case CharacterCountResponse(
+              `sid`,
+              0L,
+              `len`,
+              "none",
+              0L,
+              `len`,
+              0L,
+              0L,
+              0L,
+              0L,
               _
             ) =>
       }
@@ -204,7 +238,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse <- service.saveSession(
-          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath = tmp.resolve("dat.txt").toString, IOFlags.IO_FLG_NONE.value, None, None)
         )
         contents = Using(Source.fromFile(saveResponse.filePath))(source => source.mkString).get
       } yield contents shouldBe testString
@@ -227,7 +261,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -240,7 +274,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten
@@ -271,7 +305,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -285,18 +319,18 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.undoLastChange(ObjectId(sid))
 
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.redoLastUndo(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten
@@ -341,7 +375,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -354,7 +388,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         getBeforeChangeCount <- service
@@ -406,7 +440,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -419,12 +453,12 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.getLastChange(ObjectId(sid))
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten
@@ -457,7 +491,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -470,7 +504,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.submitChange(
@@ -483,17 +517,17 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         saveResponse3 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.undoLastChange(ObjectId(sid))
         saveResponse4 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         _ <- service.getLastUndo(ObjectId(sid))
         saveResponse5 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten
@@ -621,7 +655,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         pausedSid <- service.pauseSessionChanges(ObjectId(sid))
@@ -637,7 +671,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse2 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten
@@ -671,7 +705,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
         )
 
         saveResponse1 <- service.saveSession(
-          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value)
+          SaveSessionRequest(sid, filePath, IOFlags.IO_FLG_NONE.value, None, None)
         )
 
         // to ensure first saved file not overwritten

@@ -166,14 +166,19 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       }
     )
 
-  def save(to: Path, flags: Int): Try[(Path, Int)] = {
+  def save(to: Path, flags: Int): Try[(Path, Int)] =
+    save(to, flags, 0, 0)
+
+  def save(to: Path, flags: Int, offset: Long, length: Long): Try[(Path, Int)] = {
     // todo;; obtain an accurate and portable number here
     val buffer = ByteBuffer.allocate(4096)
-    val rc = i.omega_edit_save(
+    val rc = i.omega_edit_save_segment(
       p,
       to.toString,
       flags,
-      Pointer.wrap(p.getRuntime, buffer)
+      Pointer.wrap(p.getRuntime, buffer),
+      offset,
+      length
     )
     if (rc == IOFlags.SaveStatus.Success || rc == IOFlags.SaveStatus.Modified) {
       Success((Paths.get(StandardCharsets.UTF_8.decode(buffer).toString.trim), rc))
@@ -182,9 +187,12 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
 
+  def bom: String =
+    i.omega_util_BOM_to_string(i.omega_session_detect_BOM(p))
+
   def profile(offset: Long, length: Long): Either[Int, Array[Long]] = {
     val profile = new Array[Long](257) // 256 bytes (0 - 255), plus 1 (256) for the DOS EOL '\r\n' pairs
-    val result = i.omega_session_profile(p, profile, offset, length)
+    val result = i.omega_session_byte_frequency_profile(p, profile, offset, length)
     if (result == 0) {
       Right(profile)
     } else {
@@ -192,6 +200,25 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
 
+  def charCount(offset: Long, length: Long): Either[Int, CharCounts] = {
+    val counts = i.omega_character_counts_create()
+    val result = i.omega_session_character_counts(p, counts, offset, length)
+    if (result == 0) {
+      Right(
+        CharCounts(
+          i.omega_util_BOM_to_string(i.omega_character_counts_get_BOM(counts)),
+          i.omega_character_counts_bom_bytes(counts),
+          i.omega_character_counts_single_byte_chars(counts),
+          i.omega_character_counts_double_byte_chars(counts),
+          i.omega_character_counts_triple_byte_chars(counts),
+          i.omega_character_counts_quad_byte_chars(counts),
+          i.omega_character_counts_invalid_bytes(counts)
+        )
+      )
+    } else {
+      Left(result)
+    }
+  }
   def search(
       pattern: Array[Byte],
       offset: Long,

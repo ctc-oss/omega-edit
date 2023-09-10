@@ -35,12 +35,15 @@ private[omega_edit] trait FFI {
 
   // editing
 
-  def omega_edit_save(
+  def omega_edit_save_segment(
       p: Pointer,
       path: String,
       flags: Int,
-      opath: Pointer
+      opath: Pointer,
+      offset: Long,
+      length: Long
   ): Int
+
   def omega_edit_create_session(
       path: String,
       cb: SessionCallback,
@@ -109,9 +112,26 @@ private[omega_edit] trait FFI {
   def omega_session_end_transaction(p: Pointer): Int
   def omega_session_get_num_change_transactions(p: Pointer): Long
   def omega_session_get_num_undone_change_transactions(p: Pointer): Long
-  def omega_session_profile(
+  def omega_session_detect_BOM(p: Pointer): Int
+  def omega_util_BOM_to_string(bom: Int): String
+  def omega_session_byte_frequency_profile(
       p: Pointer,
       profile: Array[Long],
+      offset: Long,
+      length: Long
+  ): Int
+  def omega_character_counts_create(): Pointer
+  def omega_character_counts_destroy(p: Pointer): Unit
+  def omega_character_counts_get_BOM(p: Pointer): Int
+  def omega_character_counts_bom_bytes(p: Pointer): Long
+  def omega_character_counts_single_byte_chars(p: Pointer): Long
+  def omega_character_counts_double_byte_chars(p: Pointer): Long
+  def omega_character_counts_triple_byte_chars(p: Pointer): Long
+  def omega_character_counts_quad_byte_chars(p: Pointer): Long
+  def omega_character_counts_invalid_bytes(p: Pointer): Long
+  def omega_session_character_counts(
+      p: Pointer,
+      counts: Pointer,
       offset: Long,
       length: Long
   ): Int

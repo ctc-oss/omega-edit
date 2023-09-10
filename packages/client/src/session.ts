@@ -18,8 +18,8 @@
  */
 
 import {
-  ByteFrequencyProfileRequest,
   ByteFrequencyProfileResponse,
+  CharacterCountResponse,
   ComputedFileSizeResponse,
   CountKind,
   CountRequest,
@@ -42,13 +42,6 @@ import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
 import { editSimple, IEditStats, overwrite } from './change'
-export {
-  CountKind,
-  CreateSessionResponse,
-  EventSubscriptionRequest,
-  IOFlags,
-  SessionEventKind,
-} from './omega_edit_pb'
 
 export enum SaveStatus {
   SUCCESS = 0, // session saved successfully
@@ -135,18 +128,24 @@ export function destroySession(session_id: string): Promise<string> {
  * @param session_id session to save
  * @param file_path file path to save to
  * @param flags IOFlags to control how the session is saved to the file
+ * @param offset offset within the session to begin saving from
+ * @param length number of bytes to save, if 0, save the entire session
  * @return name of the saved file, on success
  */
 export function saveSession(
   session_id: string,
   file_path: string,
-  flags: number = IOFlags.IO_FLG_NONE
+  flags: number = IOFlags.IO_FLG_NONE,
+  offset: number = 0,
+  length: number = 0
 ): Promise<SaveSessionResponse> {
   return new Promise<SaveSessionResponse>((resolve, reject) => {
     const request = new SaveSessionRequest()
       .setSessionId(session_id)
       .setFilePath(file_path)
       .setIoFlags(flags)
+      .setOffset(offset)
+      .setLength(length)
     getLogger().debug({ fn: 'saveSession', rqst: request.toObject() })
     getClient().saveSession(request, (err, r: SaveSessionResponse) => {
       if (err) {
@@ -490,12 +489,10 @@ export function profileSession(
   length: number = 0
 ): Promise<number[]> {
   return new Promise<number[]>((resolve, reject) => {
-    let request = new ByteFrequencyProfileRequest()
+    let request = new SegmentRequest()
       .setSessionId(session_id)
       .setOffset(offset)
-    if (length > 0) {
-      request.setLength(length)
-    }
+      .setLength(length)
     getLogger().debug({ fn: 'profileSession', rqst: request.toObject() })
     getClient().getByteFrequencyProfile(
       request,
@@ -528,6 +525,39 @@ export function numAscii(profile: number[]): number {
   return profile.slice(0, 128).reduce((accumulator, current) => {
     return accumulator + current
   }, 0)
+}
+
+export function countCharacters(
+  session_id: string,
+  offset: number = 0,
+  length: number = 0
+): Promise<CharacterCountResponse> {
+  return new Promise<CharacterCountResponse>((resolve, reject) => {
+    let request = new SegmentRequest()
+      .setSessionId(session_id)
+      .setOffset(offset)
+      .setLength(length)
+    getLogger().debug({ fn: 'countCharacters', rqst: request.toObject() })
+    getClient().getCharacterCounts(
+      request,
+      (err, r: CharacterCountResponse) => {
+        if (err) {
+          getLogger().error({
+            fn: 'countCharacters',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('countCharacters error: ' + err.message)
+        }
+        getLogger().debug({ fn: 'countCharacters', resp: r.toObject() })
+        return resolve(r)
+      }
+    )
+  })
 }
 
 /**

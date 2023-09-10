@@ -49,7 +49,8 @@ service Editor {
   rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
   rpc GetSegment(SegmentRequest) returns (SegmentResponse);
   rpc SearchSession(SearchRequest) returns (SearchResponse);
-  rpc GetByteFrequencyProfile(ByteFrequencyProfileRequest) returns (ByteFrequencyProfileResponse);
+  rpc GetByteFrequencyProfile(SegmentRequest) returns (ByteFrequencyProfileResponse);
+  rpc GetCharacterCounts(SegmentRequest) returns (CharacterCountResponse);
   rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
   rpc GetHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
@@ -201,14 +202,18 @@ message CreateSessionRequest {
 message CreateSessionResponse {
   string session_id = 1;
   string checkpoint_directory = 2;
-  optional string content_type = 3;
-  optional int64 file_size = 4;
+  optional string byte_order_mark = 3;
+  optional string content_type = 4;
+  optional string language = 5;
+  optional int64 file_size = 6;
 }
 
 message SaveSessionRequest {
   string session_id = 1;
   string file_path = 2;
   int32 io_flags = 3;
+  optional int64 offset = 4;
+  optional int64 length = 5;
 }
 
 message SaveSessionResponse {
@@ -262,6 +267,26 @@ message SegmentResponse {
   bytes data = 3;
 }
 
+message ByteFrequencyProfileResponse {
+  string session_id = 1;
+  int64 offset = 2;
+  int64 length = 3;
+  repeated int64 frequency = 4;
+}
+
+message CharacterCountResponse {
+  string session_id = 1;
+  int64 offset = 2;
+  int64 length = 3;
+  string byte_order_mark = 4;
+  int64 byte_order_mark_bytes = 5;
+  int64 single_byte_chars = 6;
+  int64 double_byte_chars = 7;
+  int64 triple_byte_chars = 8;
+  int64 quad_byte_chars = 9;
+  int64 invalid_bytes = 10;
+}
+
 message SearchRequest {
   string session_id = 1;
   bytes pattern = 2;
@@ -280,19 +305,6 @@ message SearchResponse {
   int64 offset = 5;
   int64 length = 6;
   repeated int64 match_offset = 7;
-}
-
-message ByteFrequencyProfileRequest {
-  string session_id = 1;
-  optional int64 offset = 2;
-  optional int64 length = 3;
-}
-
-message ByteFrequencyProfileResponse {
-  string session_id = 1;
-  int64 offset = 2;
-  int64 length = 3;
-  repeated int64 frequency = 4;
 }
 
 message BooleanResponse {

@@ -19,6 +19,7 @@
 
 import { expect } from 'chai'
 import {
+  countCharacters,
   createSession,
   createViewport,
   destroySession,
@@ -191,6 +192,7 @@ describe('Sessions', () => {
       expect(session_id).to.equal(expected_session_id)
       expect(session.hasContentType()).to.be.true
       expect(session.getContentType()).to.equal('text/html')
+      expect(session.getLanguage()).to.equal('en')
       expect(session.hasFileSize()).to.be.true
       expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
@@ -213,14 +215,390 @@ describe('Sessions', () => {
     }
   })
 
-  it('Should fail to create session with invalid file', async () => {
-    expect(await waitForReady(getClient(testPort))).to.be.true
-    try {
-      await createSession('-invalid-')
-      expect.fail('Should have thrown')
-    } catch (e) {
-      // expected
-    }
+  it('Should be able to save segments from a session', async () => {
+    const session = await createSession()
+    const session_id = session.getSessionId()
+
+    await insert(session_id, 0, Buffer.from('0123456789'))
+    expect(await getComputedFileSize(session_id)).to.equal(10)
+    expect(await getSegment(session_id, 0, 10)).to.deep.equal(
+      Buffer.from('0123456789')
+    )
+
+    // save various segments of the session to different files
+    let saveFile = require('path').join(__dirname, 'data', 'save-seg.1.dat')
+    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 1, 8)
+    let verify_session = await createSession(saveFile)
+    let expected = Buffer.from('12345678')
+    let verify_session_id = verify_session.getSessionId()
+    expect(await getComputedFileSize(verify_session_id)).to.equal(
+      expected.length
+    )
+    expect(
+      await getSegment(verify_session_id, 0, expected.length)
+    ).to.deep.equal(expected)
+    await destroySession(verify_session_id)
+    fs.unlinkSync(saveFile)
+
+    saveFile = require('path').join(__dirname, 'data', 'save-seg.2.dat')
+    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 2, 6)
+    verify_session = await createSession(saveFile)
+    expected = Buffer.from('234567')
+    verify_session_id = verify_session.getSessionId()
+    expect(await getComputedFileSize(verify_session_id)).to.equal(
+      expected.length
+    )
+    expect(
+      await getSegment(verify_session_id, 0, expected.length)
+    ).to.deep.equal(expected)
+    await destroySession(verify_session_id)
+    fs.unlinkSync(saveFile)
+
+    saveFile = require('path').join(__dirname, 'data', 'save-seg.3.dat')
+    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 3, 0)
+    verify_session = await createSession(saveFile)
+    expected = Buffer.from('3456789')
+    verify_session_id = verify_session.getSessionId()
+    expect(await getComputedFileSize(verify_session_id)).to.equal(
+      expected.length
+    )
+    expect(
+      await getSegment(verify_session_id, 0, expected.length)
+    ).to.deep.equal(expected)
+    await destroySession(verify_session_id)
+    fs.unlinkSync(saveFile)
+
+    saveFile = require('path').join(__dirname, 'data', 'save-seg.4.dat')
+    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 0, 100)
+    verify_session = await createSession(saveFile)
+    expected = Buffer.from('0123456789')
+    verify_session_id = verify_session.getSessionId()
+    expect(await getComputedFileSize(verify_session_id)).to.equal(
+      expected.length
+    )
+    expect(
+      await getSegment(verify_session_id, 0, expected.length)
+    ).to.deep.equal(expected)
+    await destroySession(verify_session_id)
+    fs.unlinkSync(saveFile)
+
+    saveFile = require('path').join(__dirname, 'data', 'save-seg.5.dat')
+    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE)
+    verify_session = await createSession(saveFile)
+    expected = Buffer.from('0123456789')
+    verify_session_id = verify_session.getSessionId()
+    expect(await getComputedFileSize(verify_session_id)).to.equal(
+      expected.length
+    )
+    expect(
+      await getSegment(verify_session_id, 0, expected.length)
+    ).to.deep.equal(expected)
+    await destroySession(verify_session_id)
+    fs.unlinkSync(saveFile)
+
+    await destroySession(session_id)
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it('Should be able to detect byte order marks', async () => {
+    let testFile = require('path').join(__dirname, 'data', 'empty.txt')
+    let session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('')
+    expect(session.getByteOrderMark()).to.equal('none')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('none')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('UTF-8')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('UTF-16BE')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('UTF-16LE')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('UTF-32BE')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    expect(session.getByteOrderMark()).to.equal('UTF-32LE')
+    await destroySession(session.getSessionId())
+
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it('Should be able to detect various languages', async () => {
+    let testFile = require('path').join(__dirname, 'data', 'arabic.txt')
+    let session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('ar')
+    let charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('none')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
+    expect(charCounts.getSingleByteChars()).to.equal(7)
+    expect(charCounts.getDoubleByteChars()).to.equal(35)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(0)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'chinese.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('zh-CN')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'dutch.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('nl')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'english.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('en')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'french.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('fr')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'german.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('de')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('none')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(46)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(0)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-8')
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(3)
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(46)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(0)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-16LE')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(2)
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(46)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(0)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-16BE')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(2)
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(46)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(0)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-32LE')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(4)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(0)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(46)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+
+    // force character frame misalignment by starting at an offset not divisible
+    // by four and force invalid bytes by requesting a partial character
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      2,
+      (await getComputedFileSize(session.getSessionId())) - 4
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-32LE')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(2)
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      (await getComputedFileSize(session.getSessionId())) - 4
+    )
+    expect(charCounts.getSingleByteChars()).to.equal(0)
+    expect(charCounts.getDoubleByteChars()).to.equal(0)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(55)
+    expect(charCounts.getInvalidBytes()).to.equal(4) // two at the beginning and two at the end
+
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('el')
+    charCounts = await countCharacters(
+      session.getSessionId(),
+      0,
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMark()).to.equal('UTF-32BE')
+    expect(charCounts.getSessionId()).to.equal(session.getSessionId())
+    expect(charCounts.getOffset()).to.equal(0)
+    expect(charCounts.getLength()).to.equal(
+      await getComputedFileSize(session.getSessionId())
+    )
+    expect(charCounts.getByteOrderMarkBytes()).to.equal(4)
+    expect(charCounts.getSingleByteChars()).to.equal(10)
+    expect(charCounts.getDoubleByteChars()).to.equal(0)
+    expect(charCounts.getTripleByteChars()).to.equal(0)
+    expect(charCounts.getQuadByteChars()).to.equal(46)
+    expect(charCounts.getInvalidBytes()).to.equal(0)
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'hindi.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('hi')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'italian.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('it')
+    await destroySession(session.getSessionId())
+
+    // The short Japanese file is not long enough to be detected as Japanese
+    testFile = require('path').join(__dirname, 'data', 'japanese-short.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('unknown')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'japanese.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('ja')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'korean.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('ko')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'portuguese.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('pt')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'russian.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('ru')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'spanish.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('es')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'swedish.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('sv')
+    await destroySession(session.getSessionId())
+
+    testFile = require('path').join(__dirname, 'data', 'empty.txt')
+    session = await createSession(testFile)
+    expect(session.getLanguage()).to.equal('')
+    await destroySession(session.getSessionId())
+
+    expect(await getSessionCount()).to.equal(0)
   })
 
   it('Should be able to use a different checkpoint directory', async () => {
@@ -346,5 +724,15 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(1)
     await destroySession(session_id2)
     expect(await getSessionCount()).to.equal(0)
+  })
+
+  it('Should fail to create session with invalid file', async () => {
+    expect(await waitForReady(getClient(testPort))).to.be.true
+    try {
+      await createSession('-invalid-')
+      expect.fail('Should have thrown')
+    } catch (e) {
+      // expected
+    }
   })
 })
