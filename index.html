@@ -60,6 +60,7 @@
 <li><a class="reference internal" href="#export-h">export.h</a></li>
 <li><a class="reference internal" href="#filesystem-h">filesystem.h</a></li>
 <li><a class="reference internal" href="#fwd-defs-h">fwd_defs.h</a><ul>
+<li><a class="reference internal" href="#_CPPv424omega_character_counts_t"><code class="docutils literal notranslate"><span class="pre">omega_character_counts_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv414omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_search_context_t"><code class="docutils literal notranslate"><span class="pre">omega_search_context_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv415omega_segment_t"><code class="docutils literal notranslate"><span class="pre">omega_segment_t</span></code></a></li>
@@ -100,6 +101,21 @@
 <li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_FORCE_OVERWRITE</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#_CPPv417omega_mask_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_AND</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_OR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_XOR</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv411omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_bom_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_NONEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_NONE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_UTF8E"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF8</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16LEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF16LE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16BEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF16BE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32LEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF32LE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32BEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF32BE</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#license-h">license.h</a></li>
@@ -113,10 +129,9 @@
 <li><a class="reference internal" href="#stl-string-adaptor-hpp">stl_string_adaptor.hpp</a></li>
 <li><a class="reference internal" href="#utility-h">utility.h</a><ul>
 <li><a class="reference internal" href="#_CPPv427omega_util_byte_transform_t"><code class="docutils literal notranslate"><span class="pre">omega_util_byte_transform_t</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv417omega_mask_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_AND</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_OR</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_XOR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv419omega_byte_buffer_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t4dataE"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t::data</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t6lengthE"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t::length</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -466,6 +481,27 @@
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>positive serial number of the redone change if successful, zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="edit_8h_1a886547631c4d686e63b6234c6cfe123f"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_edit_save_segment</span> <span class="pre">(omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">const</span> <span class="pre">char</span> <span class="pre">*file_path,</span> <span class="pre">int</span> <span class="pre">io_flags,</span> <span class="pre">char</span> <span class="pre">*saved_file_path,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
+<dd><p>Save a segment of the the given session (the edited file) to the given file path. If the save file already exists, it can be overwritten if overwrite is non zero. If the file exists and overwrite is zero, a new unique file name will be used as determined by omega_util_available_filename. If the file being edited is overwritten, the affected editing session will be reset. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to save </p></li>
+<li><p><strong>file_path</strong> – file path to save to </p></li>
+<li><p><strong>io_flags</strong> – save IO flags (see omega_io_flags_t for details) </p></li>
+<li><p><strong>saved_file_path</strong> – if overwrite is not set and the target file_path exists, a new file path will be created, and if this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes) </p></li>
+<li><p><strong>offset</strong> – save starting at this offset in the session </p></li>
+<li><p><strong>length</strong> – save this many bytes from the given start offset </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, non-zero otherwise </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1044,6 +1080,11 @@
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
+<dt class="sig sig-object cpp" id="_CPPv424omega_character_counts_t">
+<span id="_CPPv324omega_character_counts_t"></span><span id="_CPPv224omega_character_counts_t"></span><span id="omega_character_counts_t"></span><span class="target" id="fwd__defs_8h_1a09a9316943305180bd09fbd5659115f4"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_character_counts_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_character_counts_t</span></span></span><a class="headerlink" href="#_CPPv424omega_character_counts_t" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv414omega_change_t">
 <span id="_CPPv314omega_change_t"></span><span id="_CPPv214omega_change_t"></span><span id="omega_change_t"></span><span class="target" id="fwd__defs_8h_1abd76c7cfa54e74e06d920dfc2753e3dd"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="n"><span class="pre">omega_change_struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_change_t</span></span></span><a class="headerlink" href="#_CPPv414omega_change_t" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
@@ -1220,6 +1261,65 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE">
 <span id="_CPPv3N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span id="_CPPv2N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"></span><span class="target" id="fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140bade1d931e359fa1967daaaaeb04c109ac"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">IO_FLG_FORCE_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv417omega_mask_kind_t">
+<span id="_CPPv317omega_mask_kind_t"></span><span id="_CPPv217omega_mask_kind_t"></span><span class="target" id="fwd__defs_8h_1a253863278e68560d3c6342ddf3b6e016"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_mask_kind_t</span></span></span><a class="headerlink" href="#_CPPv417omega_mask_kind_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Mask types </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_ANDE">
+<span id="_CPPv3N17omega_mask_kind_t8MASK_ANDE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_ANDE"></span><span class="target" id="fwd__defs_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_AND</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t7MASK_ORE">
+<span id="_CPPv3N17omega_mask_kind_t7MASK_ORE"></span><span id="_CPPv2N17omega_mask_kind_t7MASK_ORE"></span><span class="target" id="fwd__defs_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_OR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_XORE">
+<span id="_CPPv3N17omega_mask_kind_t8MASK_XORE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_XORE"></span><span class="target" id="fwd__defs_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_XOR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv411omega_bom_t">
+<span id="_CPPv311omega_bom_t"></span><span id="_CPPv211omega_bom_t"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057c"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_bom_t</span></span></span><a class="headerlink" href="#_CPPv411omega_bom_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Byte order mark (BOM) types </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t8BOM_NONEE">
+<span id="_CPPv3N11omega_bom_t8BOM_NONEE"></span><span id="_CPPv2N11omega_bom_t8BOM_NONEE"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057cabdde70698f48979d32aa9899f78a1564"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_NONE</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t8BOM_NONEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t8BOM_UTF8E">
+<span id="_CPPv3N11omega_bom_t8BOM_UTF8E"></span><span id="_CPPv2N11omega_bom_t8BOM_UTF8E"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057ca035d500556b3f457a3879f37550da702"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_UTF8</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t8BOM_UTF8E" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t11BOM_UTF16LEE">
+<span id="_CPPv3N11omega_bom_t11BOM_UTF16LEE"></span><span id="_CPPv2N11omega_bom_t11BOM_UTF16LEE"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057cac3b9d8f6faf6e15f7e8b32669c725ca4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_UTF16LE</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t11BOM_UTF16LEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t11BOM_UTF16BEE">
+<span id="_CPPv3N11omega_bom_t11BOM_UTF16BEE"></span><span id="_CPPv2N11omega_bom_t11BOM_UTF16BEE"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057ca120da20245eba9e15c0e83290a968c99"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_UTF16BE</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t11BOM_UTF16BEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t11BOM_UTF32LEE">
+<span id="_CPPv3N11omega_bom_t11BOM_UTF32LEE"></span><span id="_CPPv2N11omega_bom_t11BOM_UTF32LEE"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057ca7a5324f2ee8ccc48b39a8b2b9d17dd09"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_UTF32LE</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t11BOM_UTF32LEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N11omega_bom_t11BOM_UTF32BEE">
+<span id="_CPPv3N11omega_bom_t11BOM_UTF32BEE"></span><span id="_CPPv2N11omega_bom_t11BOM_UTF32BEE"></span><span class="target" id="fwd__defs_8h_1a30819a5cb86d689af88a50eccd55057cac699b1f11e9dc7ec55f8ca3222133acc"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">BOM_UTF32BE</span></span></span><a class="headerlink" href="#_CPPv4N11omega_bom_t11BOM_UTF32BEE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
@@ -1819,7 +1919,21 @@
 
 <dl class="cpp function">
 <dt class="sig sig-object cpp">
-<span class="target" id="session_8h_1a5527487ee82528925a8216d94ce8e1f4"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_profile</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_byte_frequency_profile_t</span> <span class="pre">*profile_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
+<span class="target" id="session_8h_1a202cf36617229e31cc2433f318e03fca"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_bom_t</span> <span class="pre">omega_session_detect_BOM</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr)</span></span></dt>
+<dd><p>Given a session, return the detected byte order marker (BOM) </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>session_ptr</strong> – session to get the BOM from </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>detected byte order marker (BOM) </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1a6adbab07e02854cbbe9922bd0f6c56ad"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_byte_frequency_profile</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_byte_frequency_profile_t</span> <span class="pre">*profile_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
 <dd><p>Given a session, offset and length, populate a byte frequency profile </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1828,6 +1942,25 @@
 <li><p><strong>profile_ptr</strong> – pointer to the byte frequency profile to populate </p></li>
 <li><p><strong>offset</strong> – where in the session to begin profiling </p></li>
 <li><p><strong>length</strong> – number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session) </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="session_8h_1aa1e02fe8b8538832c2b208af9b42eb19"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">int</span> <span class="pre">omega_session_character_counts</span> <span class="pre">(const</span> <span class="pre">omega_session_t</span> <span class="pre">*session_ptr,</span> <span class="pre">omega_character_counts_t</span> <span class="pre">*counts_ptr,</span> <span class="pre">int64_t</span> <span class="pre">offset,</span> <span class="pre">int64_t</span> <span class="pre">length)</span></span></dt>
+<dd><p>Given a session, offset and length, populate character counts </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to count characters in </p></li>
+<li><p><strong>counts_ptr</strong> – pointer to the character counts to populate </p></li>
+<li><p><strong>offset</strong> – where in the session to begin counting characters </p></li>
+<li><p><strong>length</strong> – number of bytes from the offset to stop counting characters (if 0, it will count to the end of the session) </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
@@ -1873,31 +2006,6 @@
 <dt class="sig sig-object cpp" id="_CPPv427omega_util_byte_transform_t">
 <span id="_CPPv327omega_util_byte_transform_t"></span><span id="_CPPv227omega_util_byte_transform_t"></span><span id="omega_util_byte_transform_t"></span><span class="target" id="utility_8h_1ab53a955a49916eee07c72f7dc648a9b0"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">(</span></span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_byte_transform_t</span></span></span><span class="p"><span class="pre">)</span></span><span class="p"><span class="pre">(</span></span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n"><span class="pre">user_data</span></span><span class="p"><span class="pre">)</span></span><a class="headerlink" href="#_CPPv427omega_util_byte_transform_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Byte transform function pointer </p>
-</dd></dl>
-
-</div>
-<div class="breathe-sectiondef docutils container">
-<p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
-<dl class="cpp enum">
-<dt class="sig sig-object cpp" id="_CPPv417omega_mask_kind_t">
-<span id="_CPPv317omega_mask_kind_t"></span><span id="_CPPv217omega_mask_kind_t"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_mask_kind_t</span></span></span><a class="headerlink" href="#_CPPv417omega_mask_kind_t" title="Link to this definition"></a><br /></dt>
-<dd><p>Mask types </p>
-<p><em>Values:</em></p>
-<dl class="cpp enumerator">
-<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_ANDE">
-<span id="_CPPv3N17omega_mask_kind_t8MASK_ANDE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_ANDE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016aa1cfd49c9cfc05c3e7dc9fd84873ffed"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_AND</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE" title="Link to this definition"></a><br /></dt>
-<dd></dd></dl>
-
-<dl class="cpp enumerator">
-<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t7MASK_ORE">
-<span id="_CPPv3N17omega_mask_kind_t7MASK_ORE"></span><span id="_CPPv2N17omega_mask_kind_t7MASK_ORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a5ec2e48a8e34d8b2858a86722d9a69f9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_OR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE" title="Link to this definition"></a><br /></dt>
-<dd></dd></dl>
-
-<dl class="cpp enumerator">
-<dt class="sig sig-object cpp" id="_CPPv4N17omega_mask_kind_t8MASK_XORE">
-<span id="_CPPv3N17omega_mask_kind_t8MASK_XORE"></span><span id="_CPPv2N17omega_mask_kind_t8MASK_XORE"></span><span class="target" id="utility_8h_1a253863278e68560d3c6342ddf3b6e016a68ad6c9110aa503c601b960a87cab7a4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">MASK_XOR</span></span></span><a class="headerlink" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE" title="Link to this definition"></a><br /></dt>
-<dd></dd></dl>
-
 </dd></dl>
 
 </div>
@@ -2112,7 +2220,106 @@
 </dl>
 </dd></dl>
 
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a04824f287b61310c46ad318fc362c613"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_bom_t</span> <span class="pre">omega_util_detect_BOM_from_memory</span> <span class="pre">(const</span> <span class="pre">unsigned</span> <span class="pre">char</span> <span class="pre">*data,</span> <span class="pre">size_t</span> <span class="pre">length)</span></span></dt>
+<dd><p>Detect the byte order mark (BOM) of the given memory </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – memory to detect the BOM of </p></li>
+<li><p><strong>length</strong> – length of the memory to detect the BOM of </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>BOM_NONE if no BOM is detected, otherwise the detected BOM </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1abed35b7439a13aaf0fa4356c381d1f26"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">omega_bom_t</span> <span class="pre">omega_util_detect_BOM_from_file</span> <span class="pre">(const</span> <span class="pre">char</span> <span class="pre">*filename)</span></span></dt>
+<dd><p>Detect the byte order mark (BOM) of the given file </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>filename</strong> – path of the file to detect the BOM of </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>BOM_NONE if no BOM is detected, otherwise the detected BOM </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a90a4b02a078367e320728123c409e66c"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">char</span> <span class="pre">const</span> <span class="pre">*</span> <span class="pre">omega_util_BOM_to_string</span> <span class="pre">(omega_bom_t</span> <span class="pre">bom)</span></span></dt>
+<dd><p>Convert the given byte order mark (BOM) to a string </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>bom</strong> – byte order mark (BOM) to convert </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>string representation of the given BOM </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a00f5a661f5053bb38df83fb9d07dfa56"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">void</span> <span class="pre">omega_util_count_characters</span> <span class="pre">(const</span> <span class="pre">unsigned</span> <span class="pre">char</span> <span class="pre">*data,</span> <span class="pre">size_t</span> <span class="pre">length,</span> <span class="pre">omega_character_counts_t</span> <span class="pre">*counts_ptr)</span></span></dt>
+<dd><p>Count the number of single byte, and multi-byte characters in the given data </p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>make sure the BOM is set in the given character counts before calling this function </p>
 </div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> – data to count the characters in </p></li>
+<li><p><strong>length</strong> – length of the data </p></li>
+<li><p><strong>counts_ptr</strong> – pointer to the character counts to populate </p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp">
+<span class="target" id="utility_8h_1a3427d9148b7bf4bac9c578dce6cf8424"></span><span class="sig-name descname"><span class="pre">OMEGA_EDIT_EXPORT</span> <span class="pre">const</span> <span class="pre">omega_byte_buffer_t</span> <span class="pre">*</span> <span class="pre">omega_util_BOM_to_buffer</span> <span class="pre">(omega_bom_t</span> <span class="pre">bom)</span></span></dt>
+<dd><p>Get the byte order mark buffer (BOM) associated with the given byte order mark (BOM) </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>bom</strong> – byte order mark (BOM) to get </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>byte buffer containing the given BOM, or NULL if the given BOM is BOM_NONE </p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv419omega_byte_buffer_t">
+<span id="_CPPv319omega_byte_buffer_t"></span><span id="_CPPv219omega_byte_buffer_t"></span><span id="omega_byte_buffer_t"></span><span class="target" id="structomega__byte__buffer__t"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_buffer_t</span></span></span><a class="headerlink" href="#_CPPv419omega_byte_buffer_t" title="Link to this definition"></a><br /></dt>
+<dd><div class="docutils container">
+<em>#include &lt;utility.h&gt;</em></div>
+<p>Byte buffer </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N19omega_byte_buffer_t4dataE">
+<span id="_CPPv3N19omega_byte_buffer_t4dataE"></span><span id="_CPPv2N19omega_byte_buffer_t4dataE"></span><span id="omega_byte_buffer_t::data__omega_byte_tCP"></span><span class="target" id="structomega__byte__buffer__t_1a50038cfa62cefeacd78eb6de9df9daf4"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">data</span></span></span><a class="headerlink" href="#_CPPv4N19omega_byte_buffer_t4dataE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N19omega_byte_buffer_t6lengthE">
+<span id="_CPPv3N19omega_byte_buffer_t6lengthE"></span><span id="_CPPv2N19omega_byte_buffer_t6lengthE"></span><span id="omega_byte_buffer_t::length__s"></span><span class="target" id="structomega__byte__buffer__t_1a505652d0ba5dfbdc5f6dd5f87380117a"></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">length</span></span></span><a class="headerlink" href="#_CPPv4N19omega_byte_buffer_t6lengthE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
 </section>
 <section id="version-h">
 <h2>version.h<a class="headerlink" href="#version-h" title="Link to this heading"></a></h2>
