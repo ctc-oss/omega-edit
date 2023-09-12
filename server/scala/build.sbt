@@ -124,6 +124,9 @@ lazy val api = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoObject := "ApiBuildInfo",
     buildInfoPackage := organization.value + ".omega_edit",
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true),
     // trim the dep to the native project from the pom
     pomPostProcess := filterScopedDependenciesFromPom,
     // #region Needed for packaging to work without an extra command for native/publishM2
@@ -177,7 +180,10 @@ lazy val spi = project
   .in(file("spi"))
   .settings(commonSettings)
   .settings(
-    name := "omega-edit-spi"
+    name := "omega-edit-spi",
+    publishConfiguration := publishConfiguration.value.withOverwrite(true),
+    publishLocalConfiguration := publishLocalConfiguration.value
+      .withOverwrite(true)
   )
   .enablePlugins(GitVersioning)
 
