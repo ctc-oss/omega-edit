@@ -30,14 +30,9 @@
     "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."
   },
   "devDependencies": {
-    "@types/chai": "^4.3.6",
-    "@types/mocha": "^10.0.0",
-    "chai": "^4.3.8",
     "grpc-tools": "^1.12.4",
     "grpc_tools_node_protoc_ts": "^5.3.3",
-    "mocha": "^10.0.0",
-    "run-script-os": "^1.1.6",
-    "typedoc": "^0.24.8"
+    "run-script-os": "^1.1.6"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.9.2",
