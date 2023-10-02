@@ -12,8 +12,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include <omega_edit/utility.h>
 #include <iostream>
+#include <omega_edit/utility.h>
 
 omega_bom_t string_to_BOM(const std::string_view &bom_str) {
     if (bom_str == "utf8") {
@@ -57,9 +57,7 @@ int main(int argc, char **argv) {
 
     // Copy from stdin to stdout
     char buffer[4096];
-    while (std::cin.read(buffer, sizeof(buffer))) {
-        std::cout.write(buffer, sizeof(buffer));
-    }
+    while (std::cin.read(buffer, sizeof(buffer))) { std::cout.write(buffer, sizeof(buffer)); }
     std::cout.write(buffer, std::cin.gcount());
 
     return 0;

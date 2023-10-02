@@ -21,7 +21,6 @@
 #define OMEGA_EDIT_EDIT_H
 
 #include "byte.h"
-#include "export.h"
 #include "fwd_defs.h"
 #include "utility.h"
 
@@ -50,15 +49,14 @@ extern "C" {
  * current working directory
  * @return pointer to the created session, or NULL on failure
  */
-OMEGA_EDIT_EXPORT omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
-                                                             void *user_data_ptr, int32_t event_interest,
-                                                             const char *checkpoint_directory);
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
+                                           int32_t event_interest, const char *checkpoint_directory);
 
 /**
  * Destroy the given session and all associated objects (changes, and viewports)
  * @param session_ptr session to destroy
  */
-OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
+void omega_edit_destroy_session(omega_session_t *session_ptr);
 
 /**
  * Create a new viewport, returns a pointer to the new viewport
@@ -72,38 +70,36 @@ OMEGA_EDIT_EXPORT void omega_edit_destroy_session(omega_session_t *session_ptr);
  * @param event_interest oring together the viewport events of interest, or zero if all viewport events are desired
  * @return pointer to the new viewport, or NULL on failure
  */
-OMEGA_EDIT_EXPORT omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset,
-                                                               int64_t capacity, int is_floating,
-                                                               omega_viewport_event_cbk_t cbk, void *user_data_ptr,
-                                                               int32_t event_interest);
+omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset, int64_t capacity,
+                                             int is_floating, omega_viewport_event_cbk_t cbk, void *user_data_ptr,
+                                             int32_t event_interest);
 
 /**
  * Destroy a given viewport
  * @param viewport_ptr viewport to destroy
- * @return 0 of the viewport was successfully destroyed, and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
+void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr);
 
 /**
  * Given a session, clear all active changes
  * @param session_ptr session to clear all changes for
  * @return zero on success and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_clear_changes(omega_session_t *session_ptr);
+int omega_edit_clear_changes(omega_session_t *session_ptr);
 
 /**
  * Given a session, undo the last change
  * @param session_ptr session to undo the last change for
  * @return negative serial number of the undone change if successful, zero otherwise
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
+int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
 
 /**
  * Redoes the last undo (if available)
  * @param session_ptr session to redo the last undo for
  * @return positive serial number of the redone change if successful, zero otherwise
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
+int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
 
 /**
  * Save a segment of the the given session (the edited file) to the given file path.  If the save file already exists,
@@ -119,8 +115,8 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr
  * @param length save this many bytes from the given start offset
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags,
-                                              char *saved_file_path, int64_t offset, int64_t length);
+int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
+                            int64_t offset, int64_t length);
 
 /**
  * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be overwritten
@@ -133,8 +129,7 @@ OMEGA_EDIT_EXPORT int omega_edit_save_segment(omega_session_t *session_ptr, cons
  * this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes)
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags,
-                                      char *saved_file_path);
+int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
 
 /**
  * Delete a number of bytes at the given offset
@@ -143,7 +138,7 @@ OMEGA_EDIT_EXPORT int omega_edit_save(omega_session_t *session_ptr, const char *
  * @param length number of bytes to delete
  * @return positive change serial number on success, zero otherwise
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
+int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
 
 /**
  * Insert a number of bytes at the given offset
@@ -156,8 +151,8 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_delete(omega_session_t *session_ptr, int64_
  * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
  * and should not be used in production code.  In production code, explicitly pass in the length.
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset,
-                                                  const omega_byte_t *bytes, int64_t length);
+int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
+                                int64_t length);
 
 /**
  * Insert a C string at the given offset
@@ -171,8 +166,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, 
  * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
  * and should not be used in production code.  In production code, explicitly pass in the length.
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr,
-                                            int64_t length);
+int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new bytes
@@ -185,8 +179,8 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_insert(omega_session_t *session_ptr, int64_
  * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
  * and should not be used in production code.  In production code, explicitly pass in the length.
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
-                                                     const omega_byte_t *bytes, int64_t length);
+int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
+                                   int64_t length);
 
 /**
  * Overwrite bytes at the given offset with the given new C string
@@ -199,8 +193,7 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite_bytes(omega_session_t *session_pt
  * function compute the length using strlen, because it will be wrong.  Passing length 0 is a convenience for testing
  * and should not be used in production code.  In production code, explicitly pass in the length.
  */
-OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr,
-                                               int64_t length);
+int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
 
 /**
  * Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given
@@ -212,22 +205,22 @@ OMEGA_EDIT_EXPORT int64_t omega_edit_overwrite(omega_session_t *session_ptr, int
  * @param length the number of bytes from the given offset to apply the mask to
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform,
-                                                 void *user_data_ptr, int64_t offset, int64_t length);
+int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
+                               int64_t offset, int64_t length);
 
 /**
  * Creates a session checkpoint.
  * @param session_ptr session to checkpoint
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_create_checkpoint(omega_session_t *session_ptr);
+int omega_edit_create_checkpoint(omega_session_t *session_ptr);
 
 /**
  * Destroys the last checkpoint created on the given session
  * @param session_ptr session to remove the checkpoint
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
+int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

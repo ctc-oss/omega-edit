@@ -20,8 +20,6 @@
 #ifndef OMEGA_EDIT_FILESYSTEM_H
 #define OMEGA_EDIT_FILESYSTEM_H
 
-#include "export.h"
-
 #ifdef __cplusplus
 
 #include <cstdint>
@@ -38,56 +36,56 @@ extern "C" {
  * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return current working directory or NULL on error
  */
-OMEGA_EDIT_EXPORT const char *omega_util_get_current_dir(char *buffer);
+const char *omega_util_get_current_dir(char *buffer);
 
 /**
  * Check if the given file name exists
  * @param file_name file name to check existence of
  * @return non-zero if the file exists, and zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_file_exists(const char *file_name);
+int omega_util_file_exists(const char *file_name);
 
 /**
  * Check if the given directory exists
  * @param path directory to check for the existence of
  * @return non-zero if the directory exists and zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_directory_exists(const char *path);
+int omega_util_directory_exists(const char *path);
 
 /**
  * Create the given directory
  * @param path directory to create
  * @return zero if the path was created successfully and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_create_directory(char const *path);
+int omega_util_create_directory(char const *path);
 
 /**
  * Remove the given file
  * @param path path to the fle to remove
  * @return zero if the file was removed successfully and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_remove_file(char const *path);
+int omega_util_remove_file(char const *path);
 
 /**
  * Remove the given directory
  * @param path directory to remove
  * @return zero if the path was removed successfully and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_remove_directory(char const *path);
+int omega_util_remove_directory(char const *path);
 
 /**
  * Remove the given path, whether it is a file or directory
  * @param path directory or file to remove
  * @return number of files removed
  */
-OMEGA_EDIT_EXPORT uint64_t omega_util_remove_all(char const *path);
+uint64_t omega_util_remove_all(char const *path);
 
 /**
  * Given a file path, return the file size
  * @param path path to get the file size of
  * @return file size
  */
-OMEGA_EDIT_EXPORT int64_t omega_util_file_size(char const *path);
+int64_t omega_util_file_size(char const *path);
 
 /**
  * Given two file paths, determine if they are equivalent
@@ -95,7 +93,7 @@ OMEGA_EDIT_EXPORT int64_t omega_util_file_size(char const *path);
  * @param path2 second path
  * @return non-zero if the paths are equivalent and zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_util_paths_equivalent(char const *path1, char const *path2);
+int omega_util_paths_equivalent(char const *path1, char const *path2);
 
 /**
  * Compare the modification times of two files
@@ -103,7 +101,7 @@ OMEGA_EDIT_EXPORT int omega_util_paths_equivalent(char const *path1, char const 
  * @param path2 second path
  * @return 0 if the modification times are equal, -1 if the modification time of path1 is less than path2, 1 if the modification time of path1 is greater than path2, or -2 if an error occurred
  */
-OMEGA_EDIT_EXPORT int omega_util_compare_modification_times(const char *path1, const char *path2);
+int omega_util_compare_modification_times(const char *path1, const char *path2);
 
 /**
  * Given a file name, return the associated basename (filename without the directory) and if a matching suffix is given, the returned basename will have the suffix removed
@@ -112,7 +110,7 @@ OMEGA_EDIT_EXPORT int omega_util_compare_modification_times(const char *path1, c
  * @param drop_suffix if non-zero, remove the suffix (file extension) from the path basename
  * @return associated basename, possibly without the suffix
  */
-OMEGA_EDIT_EXPORT char *omega_util_basename(char const *path, char *buffer, int drop_suffix);
+char *omega_util_basename(char const *path, char *buffer, int drop_suffix);
 
 /**
  * Given a file name, return the associated file extension, with or without the dot prefix
@@ -120,7 +118,7 @@ OMEGA_EDIT_EXPORT char *omega_util_basename(char const *path, char *buffer, int 
  * @param buffer pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return associated file extension or NULL if no extension exists
  */
-OMEGA_EDIT_EXPORT char *omega_util_file_extension(char const *path, char *buffer);
+char *omega_util_file_extension(char const *path, char *buffer);
 
 /**
  * Creates a available filename from the given path
@@ -128,7 +126,7 @@ OMEGA_EDIT_EXPORT char *omega_util_file_extension(char const *path, char *buffer
  * @param buffer pointer to a buffer that can hold up to FILENAME_MAX bytes, or NULL to use an internal static buffer
  * @return a path that is currently available (insecure as the file may exist later at the time of attempted creation)
  */
-OMEGA_EDIT_EXPORT char *omega_util_available_filename(char const *path, char *buffer);
+char *omega_util_available_filename(char const *path, char *buffer);
 
 /**
  * Given a path, which must exist, returns an absolute path that has no symbolic link, dot, or dot-dot elements
@@ -136,7 +134,7 @@ OMEGA_EDIT_EXPORT char *omega_util_available_filename(char const *path, char *bu
  * @param buffer pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return absolute path that has no symbolic link, dot, or dot-dot elements
  */
-OMEGA_EDIT_EXPORT char *omega_util_normalize_path(char const *path, char *buffer);
+char *omega_util_normalize_path(char const *path, char *buffer);
 
 /**
  * Given a file name, return the associated directory
@@ -144,7 +142,7 @@ OMEGA_EDIT_EXPORT char *omega_util_normalize_path(char const *path, char *buffer
  * @param buffer pointer to memory to hold the directory name (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return associated directory
  */
-OMEGA_EDIT_EXPORT char *omega_util_dirname(char const *path, char *buffer);
+char *omega_util_dirname(char const *path, char *buffer);
 
 /**
  * Copy the file at the given source path to the given destination path
@@ -153,13 +151,13 @@ OMEGA_EDIT_EXPORT char *omega_util_dirname(char const *path, char *buffer);
  * @param mode mode to set the destination file to, if zero then the mode of the source file is used
  * @return zero on success, non-zero on failure
  */
-OMEGA_EDIT_EXPORT int omega_util_file_copy(const char *src_path, const char *dst_path, int mode);
+int omega_util_file_copy(const char *src_path, const char *dst_path, int mode);
 
 /**
  * Try to get the temporary directory for the host system
  * @return temporary directory for the host system allocated by malloc (must be free'd by the caller), or NULL on error
  */
-OMEGA_EDIT_EXPORT char *omega_util_get_temp_directory();
+char *omega_util_get_temp_directory();
 
 /**
  * Touch the given file, optionally creating it if it does not exist
@@ -167,13 +165,13 @@ OMEGA_EDIT_EXPORT char *omega_util_get_temp_directory();
  * @param create if non-zero, create the file name if it does not exist
  * @return zero on success, non-zero on failure
  */
-OMEGA_EDIT_EXPORT int omega_util_touch(const char *file_name, int create);
+int omega_util_touch(const char *file_name, int create);
 
 /**
  * Returns the directory separator character used on the host system
  * @return directory separator character used on the host system
  */
-OMEGA_EDIT_EXPORT char omega_util_directory_separator();
+char omega_util_directory_separator();
 
 #ifdef __cplusplus
 }

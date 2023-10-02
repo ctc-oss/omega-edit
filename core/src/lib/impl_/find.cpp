@@ -23,7 +23,7 @@ struct omega_find_skip_table_t : public std::vector<std::ptrdiff_t> {
     int is_reverse_search;
 
     omega_find_skip_table_t(std::ptrdiff_t vec_size, std::ptrdiff_t fill, int isReverse)
-            : std::vector<std::ptrdiff_t>(vec_size, fill), is_reverse_search(isReverse) {}
+        : std::vector<std::ptrdiff_t>(vec_size, fill), is_reverse_search(isReverse) {}
 };
 
 int omega_find_is_reversed(const omega_find_skip_table_t *skip_table_ptr) {
@@ -35,8 +35,8 @@ int omega_find_is_reversed(const omega_find_skip_table_t *skip_table_ptr) {
  * Function to create the skip table for Boyer-Moore searching algorithm. Depending on the direction of the search,
  * it creates a forward skip table or a reverse skip table.
  */
-const omega_find_skip_table_t *
-omega_find_create_skip_table(const unsigned char *needle, size_t needle_length, int is_reverse_search) {
+const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char *needle, size_t needle_length,
+                                                            int is_reverse_search) {
     assert(needle);
     assert(needle_length > 0);
 
@@ -86,25 +86,24 @@ const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_l
 
     // If the needle is a single character, use memchr/memrchr instead of the skip table.
     if (needle_length == 1) {
-        return skip_table_ptr->is_reverse_search ?
-               (const unsigned char *) omega_util_memrchr(haystack, *needle, haystack_length) :
-               (const unsigned char *) std::memchr(haystack, *needle, haystack_length);
+        return skip_table_ptr->is_reverse_search
+                       ? (const unsigned char *) omega_util_memrchr(haystack, *needle, haystack_length)
+                       : (const unsigned char *) std::memchr(haystack, *needle, haystack_length);
     }
 
     assert(skip_table_ptr);
 
     const auto needle_length_minus_1 = needle_length - 1;
     const auto last_needle_char = skip_table_ptr->is_reverse_search ? needle[0] : needle[needle_length_minus_1];
-    std::ptrdiff_t haystack_position = skip_table_ptr->is_reverse_search ? static_cast<std::ptrdiff_t>(haystack_length -
-                                                                                                       needle_length)
-                                                                         : 0;
+    std::ptrdiff_t haystack_position =
+            skip_table_ptr->is_reverse_search ? static_cast<std::ptrdiff_t>(haystack_length - needle_length) : 0;
 
-    while (skip_table_ptr->is_reverse_search ? haystack_position >= 0 : haystack_position <=
-                                                                        haystack_length - needle_length) {
+    while (skip_table_ptr->is_reverse_search ? haystack_position >= 0
+                                             : haystack_position <= haystack_length - needle_length) {
         const auto skip = haystack[haystack_position + (skip_table_ptr->is_reverse_search ? 0 : needle_length_minus_1)];
 
-        if (const auto probe = haystack + haystack_position; last_needle_char == skip &&
-                                                             std::memcmp(needle, probe, needle_length) == 0) {
+        if (const auto probe = haystack + haystack_position;
+            last_needle_char == skip && std::memcmp(needle, probe, needle_length) == 0) {
             return probe;
         }
 

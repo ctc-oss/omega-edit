@@ -31,9 +31,8 @@ int main(int argc, char **argv) {
     const auto reverse_search = stoi(argv[6]);
     if (auto session_ptr = omega_edit_create_session(in_filename, nullptr, nullptr, NO_EVENTS, nullptr)) {
         int num_matches = 0;
-        auto search_context =
-                omega_search_create_context(session_ptr, pattern, 0, start_offset, length, case_insensitive,
-                                            reverse_search);
+        auto search_context = omega_search_create_context(session_ptr, pattern, 0, start_offset, length,
+                                                          case_insensitive, reverse_search);
         while (omega_search_next_match(search_context, 1)) {
             const auto match_offset = omega_search_context_get_match_offset(search_context);
             const auto match_length = omega_search_context_get_pattern_length(search_context);

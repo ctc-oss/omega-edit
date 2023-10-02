@@ -53,9 +53,7 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     assert(data_segment_ptr);
     const auto &model_ptr = session_ptr->models_.back();
     data_segment_ptr->length = 0;
-    if (model_ptr->model_segments.empty()) {
-        return 0;
-    }
+    if (model_ptr->model_segments.empty()) { return 0; }
     assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
     const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
@@ -64,8 +62,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(print_model_segments_(session_ptr->models_.back().get(), CLOG);
-                          LOG_ERROR("break in model continuity, expected: " << read_offset
-                                                                            << ", got: " << (*iter)->computed_offset););
+                  LOG_ERROR("break in model continuity, expected: " << read_offset
+                                                                    << ", got: " << (*iter)->computed_offset););
         }
         if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
             // We're at the first model segment that intersects with the data segment, but the model segment and the
@@ -130,8 +128,8 @@ static inline void print_change_(const omega_change_t *change_ptr, std::ostream 
     out_stream << "}";
 }
 
-static inline void
-print_model_segment_(const omega_model_segment_ptr_t &segment_ptr, std::ostream &out_stream) noexcept {
+static inline void print_model_segment_(const omega_model_segment_ptr_t &segment_ptr,
+                                        std::ostream &out_stream) noexcept {
     out_stream << R"({"kind": ")" << omega_model_segment_kind_as_char(omega_model_segment_get_kind(segment_ptr.get()))
                << R"(", "computed_offset": )" << segment_ptr->computed_offset << R"(, "computed_length": )"
                << segment_ptr->computed_length << R"(, "change_offset": )" << segment_ptr->change_offset
@@ -142,5 +140,5 @@ print_model_segment_(const omega_model_segment_ptr_t &segment_ptr, std::ostream 
 
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream) noexcept {
     assert(model_ptr);
-    for (const auto &segment: model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
+    for (const auto &segment : model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
 }

@@ -31,4 +31,4 @@ struct omega_character_counts_struct {
     int64_t invalidBytes;
 };
 
-#endif //OMEGA_EDIT_CHARACTER_COUNTS_DEF_H
+#endif//OMEGA_EDIT_CHARACTER_COUNTS_DEF_H

@@ -23,11 +23,11 @@
 // Data segment functions
 int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr)
 
-noexcept;
+        noexcept;
 
 // Model segment functions
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream)
 
-noexcept;
+        noexcept;
 
 #endif//OMEGA_EDIT_INTERNAL_FUN_HPP

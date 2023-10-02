@@ -31,13 +31,13 @@ int64_t omega_edit_insert_string(omega_session_t *session_ptr, int64_t offset, c
     return omega_edit_insert(session_ptr, offset, str.data(), static_cast<int64_t>(str.length()));
 }
 
-int64_t
-omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset, const std::string_view &str) noexcept {
+int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset,
+                                    const std::string_view &str) noexcept {
     return omega_edit_overwrite(session_ptr, offset, str.data(), static_cast<int64_t>(str.length()));
 }
 
-std::string
-omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset, int64_t length) noexcept {
+std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
+                                             int64_t length) noexcept {
     const auto segment_ptr = omega_segment_create(length);
     const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
     assert(0 == rc);
@@ -47,10 +47,10 @@ omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t off
     return result;
 }
 
-omega_search_context_t *
-omega_search_create_context_string(omega_session_t *session_ptr, const std::string_view &pattern,
-                                   int64_t session_offset, int64_t session_length, bool case_insensitive,
-                                   bool reverse_search) noexcept {
+omega_search_context_t *omega_search_create_context_string(omega_session_t *session_ptr,
+                                                           const std::string_view &pattern, int64_t session_offset,
+                                                           int64_t session_length, bool case_insensitive,
+                                                           bool reverse_search) noexcept {
     return omega_search_create_context(session_ptr, pattern.data(), static_cast<int64_t>(pattern.length()),
                                        session_offset, session_length, case_insensitive ? 1 : 0,
                                        reverse_search ? 1 : 0);
