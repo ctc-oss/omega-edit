@@ -21,7 +21,6 @@
 #define OMEGA_EDIT_SESSION_H
 
 #include "byte.h"
-#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -37,9 +36,10 @@ extern "C" {
 
 #endif
 
-// index of the DOS end of line (EOL) byte pairs '\r\n' in the byte frequency profile
+/** Index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile. */
 const size_t PROFILE_DOS_EOL = 256;
 
+/** Byte frequency profile */
 typedef int64_t omega_byte_frequency_profile_t[257];
 
 /**
@@ -47,21 +47,21 @@ typedef int64_t omega_byte_frequency_profile_t[257];
  * @param session_ptr session to return the file path from
  * @return file path, or null if not known
  */
-OMEGA_EDIT_EXPORT const char *omega_session_get_file_path(const omega_session_t *session_ptr);
+const char *omega_session_get_file_path(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the session event callback
  * @param session_ptr session to return the event callback from
  * @return session event callback
  */
-OMEGA_EDIT_EXPORT omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr);
+omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the session event interest
  * @param session_ptr session to return the session event interest from
  * @return session event interest
  */
-OMEGA_EDIT_EXPORT int32_t omega_session_get_event_interest(const omega_session_t *session_ptr);
+int32_t omega_session_get_event_interest(const omega_session_t *session_ptr);
 
 /**
  * Set the session event interest to the given session event interest for the the given session
@@ -69,13 +69,13 @@ OMEGA_EDIT_EXPORT int32_t omega_session_get_event_interest(const omega_session_t
  * @param event_interest desired session event interest
  * @return session event interest
  */
-OMEGA_EDIT_EXPORT int32_t omega_session_set_event_interest(omega_session_t *session_ptr, int32_t event_interest);
+int32_t omega_session_set_event_interest(omega_session_t *session_ptr, int32_t event_interest);
 /**
  * Given a session, return the associated user data
  * @param session_ptr session to get the associated user data from
  * @return associated user data for the given session
  */
-OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
+void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr);
 
 /**
  * Given a session and offset, populate a data segment
@@ -84,57 +84,56 @@ OMEGA_EDIT_EXPORT void *omega_session_get_user_data_ptr(const omega_session_t *s
  * @param offset session offset to begin getting data from
  * @return zero on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr,
-                                                int64_t offset);
+int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset);
 
 /**
  * Given a session, return the number of active viewports
  * @param session_ptr session to get the number of active viewports for
  * @return number of active viewports
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the number of active search contexts
  * @param session_ptr session to get the number of active search contexts for
  * @return number of active search contexts
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of active changes
  * @param session_ptr session to get number of active changes from
  * @return number of active changes
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_changes(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of undone changes eligible for being redone
  * @param session_ptr session to get the number of undone changes for
  * @return number of undone changes eligible for being redone
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the computed file size in bytes
  * @param session_ptr session to get the computed file size from
  * @return computed file size in bytes, or -1 on failure
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr);
+int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last change (if any)
  * @param session_ptr session to get the last change from
  * @return last change, or nullptr if there are no changes
  */
-OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr);
+const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr);
 
 /**
  * Given a session, get the last undone change eligible for redo (if any)
  * @param session_ptr session to get the last undone change eligible for redo from
  * @return last undone change eligible for redo, or nullptr if there are no eligible changes for redo
  */
-OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr);
+const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr);
 
 /**
  * Given a change serial, get the change
@@ -142,95 +141,94 @@ OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_last_undo(const omega_
  * @param change_serial change serial of the change to get
  * @return change with the matching serial, or nullptr on failure
  */
-OMEGA_EDIT_EXPORT const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr,
-                                                                 int64_t change_serial);
+const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial);
 
 /**
  * Determine if the viewport on-change callbacks have been paused or not
  * @param session_ptr session to determine if viewport on-change callbacks are paused on
  * @return non-zero if viewport on-change callbacks are paused and zero if they are not
  */
-OMEGA_EDIT_EXPORT int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr);
+int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr);
 
 /**
  * Pause viewport on-change callbacks for the given session
  * @param session_ptr session to pause viewport on-change callbacks on
  */
-OMEGA_EDIT_EXPORT void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr);
+void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr);
 
 /**
  * Resume viewport on-change callbacks for the given session
  * @param session_ptr session to resume viewport on-change callbacks on
  */
-OMEGA_EDIT_EXPORT void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr);
+void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr);
 
 /**
  * Notify changed viewports in the given session with a VIEWPORT_EVT_CHANGES event
  * @param session_ptr session to notify viewports with changes
  * @return number of viewports that were notified, or -1 on failure
  */
-OMEGA_EDIT_EXPORT int omega_session_notify_changed_viewports(const omega_session_t *session_ptr);
+int omega_session_notify_changed_viewports(const omega_session_t *session_ptr);
 
 /**
  * Determine if the session is accepting changes or not
  * @param session_ptr session to determine if changes are accepted or not
  * @return non-zero if the session is accepting changes and zero if it is not
  */
-OMEGA_EDIT_EXPORT int omega_session_changes_paused(const omega_session_t *session_ptr);
+int omega_session_changes_paused(const omega_session_t *session_ptr);
 
 /**
  * Pause data changes to the session
  * @param session_ptr session to pause changes to
  */
-OMEGA_EDIT_EXPORT void omega_session_pause_changes(omega_session_t *session_ptr);
+void omega_session_pause_changes(omega_session_t *session_ptr);
 
 /**
  * Resume data changes to the session
  * @param session_ptr session to resume changes to
  */
-OMEGA_EDIT_EXPORT void omega_session_resume_changes(omega_session_t *session_ptr);
+void omega_session_resume_changes(omega_session_t *session_ptr);
 
 /**
  * Given a session, begin a transaction
  * @param session_ptr session to begin a transaction on
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_begin_transaction(omega_session_t *session_ptr);
+int omega_session_begin_transaction(omega_session_t *session_ptr);
 
 /**
  * Given a session, end a transaction
  * @param session_ptr session to end a transaction on
  * @return 0 on success, non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_end_transaction(omega_session_t *session_ptr);
+int omega_session_end_transaction(omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current transaction state
  * @param session_ptr session to get the transaction state for
  * @return 0 for no transaction, 1 for transaction is opened, and 2 for transaction in progress, and -1 on failure
  */
-OMEGA_EDIT_EXPORT int omega_session_get_transaction_state(const omega_session_t *session_ptr);
+int omega_session_get_transaction_state(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of session change transactions
  * @param session_ptr session to get the number of session change transactions for
  * @return number of session change transactions
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr);
 
 /**
  * Given a session, return the current number of session undone change transactions
  * @param session_ptr session to get the number of session undone change transactions for
  * @return number of session undone change transactions
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr);
 
 /**
 * Given a session, return the current number of session checkpoints
 * @param session_ptr session to get the number of session checkpoints for
 * @return number of session checkpoints
  */
-OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr);
 
 /**
  * Call the registered session event handler
@@ -238,15 +236,15 @@ OMEGA_EDIT_EXPORT int64_t omega_session_get_num_checkpoints(const omega_session_
  * @param session_event session event
  * @param event_ptr pointer to the change
  */
-OMEGA_EDIT_EXPORT void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
-                                            const void *event_ptr);
+void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                          const void *event_ptr);
 
 /**
  * Given a session, return the detected byte order marker (BOM)
  * @param session_ptr session to get the BOM from
  * @return detected byte order marker (BOM)
  */
-OMEGA_EDIT_EXPORT omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr);
+omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr);
 
 /**
  * Given a session, offset and length, populate a byte frequency profile
@@ -256,9 +254,8 @@ OMEGA_EDIT_EXPORT omega_bom_t omega_session_detect_BOM(const omega_session_t *se
  * @param length number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session)
  * @return zero on success and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
-                                                           omega_byte_frequency_profile_t *profile_ptr, int64_t offset,
-                                                           int64_t length);
+int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
+                                         omega_byte_frequency_profile_t *profile_ptr, int64_t offset, int64_t length);
 
 /**
  * Given a session, offset and length, populate character counts
@@ -268,16 +265,15 @@ OMEGA_EDIT_EXPORT int omega_session_byte_frequency_profile(const omega_session_t
  * @param length number of bytes from the offset to stop counting characters (if 0, it will count to the end of the session)
  * @return zero on success and non-zero otherwise
  */
-OMEGA_EDIT_EXPORT int omega_session_character_counts(const omega_session_t *session_ptr,
-                                                     omega_character_counts_t *counts_ptr, int64_t offset,
-                                                     int64_t length);
+int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
+                                   int64_t offset, int64_t length);
 
 /**
  * Given a session, return the checkpoint directory
  * @param session_ptr  session to get the checkpoint directory for
  * @return checkpoint directory
  */
-OMEGA_EDIT_EXPORT const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
+const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
 
 #ifdef __cplusplus
 }

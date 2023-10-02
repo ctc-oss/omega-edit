@@ -10,10 +10,12 @@
   # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
   # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-.. ΩEdit documentation master file
+.. Ωedit™ documentation master file
 
-Welcome to ΩEdit's documentation!
-=================================
+Welcome to Ωedit™'s API documentation!
+======================================
+
+For more information, please visit the `Ωedit™ Wiki <https://github.com/ctc-oss/omega-edit/wiki>`_.
 
 .. toctree::
    :maxdepth: 2
@@ -46,17 +48,12 @@ edit.h
 .. doxygenfile:: edit.h
 
 encode.h
------------
+--------
 
 .. doxygenfile:: encode.h
 
-export.h
------------
-
-.. doxygenfile:: export.h
-
 filesystem.h
-----------
+------------
 
 .. doxygenfile:: filesystem.h
 

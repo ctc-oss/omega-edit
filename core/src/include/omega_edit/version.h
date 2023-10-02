@@ -22,8 +22,6 @@
 #ifndef OMEGA_EDIT_VERSION_H
 #define OMEGA_EDIT_VERSION_H
 
-#include "export.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,19 +30,19 @@ extern "C" {
  * Get the major version of the library
  * @return the major version of the library
  */
-OMEGA_EDIT_EXPORT int omega_version_major();
+int omega_version_major();
 
 /**
  * Get the minor version of the library
  * @return the minor version of the library
  */
-OMEGA_EDIT_EXPORT int omega_version_minor();
+int omega_version_minor();
 
 /**
  * Get the patch-level of the library
  * @return the patch-level of the library
  */
-OMEGA_EDIT_EXPORT int omega_version_patch();
+int omega_version_patch();
 
 /**
  * Get the integer representation of the version of the library
@@ -56,7 +54,7 @@ OMEGA_EDIT_EXPORT int omega_version_patch();
  *      auto patch = version & 0xFF;
  * @endcode
  */
-OMEGA_EDIT_EXPORT int omega_version();
+int omega_version();
 
 /**
  * Returns "shared" if the library has been built as a shared library, or "static" if the library is built as a static
@@ -64,7 +62,7 @@ OMEGA_EDIT_EXPORT int omega_version();
  * @return "shared" if the library has been built as a shared library, or "static" if the library is built as a static
  * library
  */
-OMEGA_EDIT_EXPORT char const *omega_libtype();
+char const *omega_libtype();
 
 #ifdef __cplusplus
 }

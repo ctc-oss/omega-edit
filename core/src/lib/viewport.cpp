@@ -39,7 +39,7 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
     auto const remaining_file_size =
             std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
-                     omega_viewport_get_offset(viewport_ptr),
+                             omega_viewport_get_offset(viewport_ptr),
                      static_cast<int64_t>(0));
     return capacity < remaining_file_size ? capacity : remaining_file_size;
 }
@@ -121,9 +121,9 @@ int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
 
 int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offset, int64_t length) {
     return (offset + length) >= omega_viewport_get_offset(viewport_ptr) &&
-           offset <= omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)
-           ? 1
-           : 0;
+                           offset <= omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)
+                   ? 1
+                   : 0;
 }
 
 int omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,

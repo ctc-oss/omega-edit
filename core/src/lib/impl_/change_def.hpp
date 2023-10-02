@@ -19,9 +19,7 @@
 #include "data_def.hpp"
 #include <cstdint>
 
-enum class change_kind_t {
-    CHANGE_DELETE = 0, CHANGE_INSERT = 1, CHANGE_OVERWRITE = 2
-};
+enum class change_kind_t { CHANGE_DELETE = 0, CHANGE_INSERT = 1, CHANGE_OVERWRITE = 2 };
 #define OMEGA_CHANGE_KIND_MASK 0x03
 #define OMEGA_CHANGE_TRANSACTION_BIT 0x04
 

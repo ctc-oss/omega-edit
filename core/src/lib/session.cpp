@@ -54,9 +54,9 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
     assert(session_ptr->models_.back());
     const auto computed_file_size =
             session_ptr->models_.back()->model_segments.empty()
-            ? 0
-            : session_ptr->models_.back()->model_segments.back()->computed_offset +
-              session_ptr->models_.back()->model_segments.back()->computed_length;
+                    ? 0
+                    : session_ptr->models_.back()->model_segments.back()->computed_offset +
+                              session_ptr->models_.back()->model_segments.back()->computed_length;
     assert(0 <= computed_file_size);
     return computed_file_size;
 }
@@ -83,8 +83,8 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
     assert(session_ptr);
     assert(session_ptr->models_.back());
     return session_ptr->models_.back()->changes_undone.empty()
-           ? nullptr
-           : session_ptr->models_.back()->changes_undone.back().get();
+                   ? nullptr
+                   : session_ptr->models_.back()->changes_undone.back().get();
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
@@ -142,7 +142,7 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
 int omega_session_notify_changed_viewports(const omega_session_t *session_ptr) {
     assert(session_ptr);
     int result = 0;
-    for (const auto &viewport: session_ptr->viewports_) {
+    for (const auto &viewport : session_ptr->viewports_) {
         if (omega_viewport_has_changes(viewport.get()) &&
             1 == omega_viewport_notify(viewport.get(), VIEWPORT_EVT_CHANGES, nullptr))
             ++result;
@@ -206,11 +206,11 @@ int64_t omega_session_get_num_change_transactions(const omega_session_t *session
     assert(session_ptr);
     int64_t result = 0;
     // Count the number of transactions in each model
-    for (const auto &model: session_ptr->models_) {
+    for (const auto &model : session_ptr->models_) {
         int64_t transactions_in_model = 0;
         bool transaction_bit = false;
         // Count the number of transactions in this model
-        for (const auto &change: model->changes) {
+        for (const auto &change : model->changes) {
             // If the transaction bit is different from the current transaction bit, then we have a new transaction
             if (transactions_in_model) {
                 if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
@@ -231,11 +231,11 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
     assert(session_ptr);
     int64_t result = 0;
     // Count the number of transactions in each model
-    for (const auto &model: session_ptr->models_) {
+    for (const auto &model : session_ptr->models_) {
         int64_t transactions_in_model = 0;
         bool transaction_bit = false;
         // Count the number of transactions in this model
-        for (const auto &change: model->changes_undone) {
+        for (const auto &change : model->changes_undone) {
             // If the transaction bit is different from the current transaction bit, then we have a new transaction
             if (transactions_in_model) {
                 if (transaction_bit != omega_change_get_transaction_bit_(change.get())) {
@@ -275,9 +275,8 @@ omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr) {
     return bom;
 }
 
-int
-omega_session_byte_frequency_profile(const omega_session_t *session_ptr, omega_byte_frequency_profile_t *profile_ptr,
-                                     int64_t offset, int64_t length) {
+int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
+                                         omega_byte_frequency_profile_t *profile_ptr, int64_t offset, int64_t length) {
     assert(session_ptr);
     assert(profile_ptr);
     assert(0 <= offset);

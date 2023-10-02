@@ -20,7 +20,6 @@
 #ifndef OMEGA_EDIT_CHARACTER_COUNTS_H
 #define OMEGA_EDIT_CHARACTER_COUNTS_H
 
-#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -38,78 +37,78 @@ extern "C" {
  * Create a new omega_character_counts_t object
  * @return new omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT omega_character_counts_t *omega_character_counts_create();
+omega_character_counts_t *omega_character_counts_create();
 
 /**
  * Destroy an omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to destroy
  */
-OMEGA_EDIT_EXPORT void omega_character_counts_destroy(omega_character_counts_t *counts_ptr);
+void omega_character_counts_destroy(omega_character_counts_t *counts_ptr);
 
 /**
  * Reset an omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to reset
  */
-OMEGA_EDIT_EXPORT void omega_character_counts_reset(omega_character_counts_t *counts_ptr);
+void omega_character_counts_reset(omega_character_counts_t *counts_ptr);
 
 /**
  * Get the byte order mark (BOM) for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the BOM from
  * @return BOM for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT omega_bom_t omega_character_counts_get_BOM(const omega_character_counts_t *counts_ptr);
+omega_bom_t omega_character_counts_get_BOM(const omega_character_counts_t *counts_ptr);
 
 /**
  * Set the byte order mark (BOM) for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to set the BOM for
  * @param bom BOM to set for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT void omega_character_counts_set_BOM(omega_character_counts_t *counts_ptr, omega_bom_t bom);
+void omega_character_counts_set_BOM(omega_character_counts_t *counts_ptr, omega_bom_t bom);
 
 /**
  * Get the number of BOM bytes found for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of BOM bytes from
  * @return number of BOM bytes found for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_bom_bytes(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_bom_bytes(const omega_character_counts_t *counts_ptr);
 
 /**
  * Get the number of single byte characters for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of single byte characters from
  * @return number of single byte characters for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_single_byte_chars(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_single_byte_chars(const omega_character_counts_t *counts_ptr);
 
 /**
  * Get the number of double byte characters for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of double byte characters from
  * @return number of double byte characters for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_double_byte_chars(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_double_byte_chars(const omega_character_counts_t *counts_ptr);
 
 /**
  * Get the number of triple byte characters for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of triple byte characters from
  * @return number of triple byte characters for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_triple_byte_chars(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_triple_byte_chars(const omega_character_counts_t *counts_ptr);
 
 /**
  * Get the number of quad byte characters for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of quad byte characters from
  * @return number of quad byte characters for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_quad_byte_chars(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_quad_byte_chars(const omega_character_counts_t *counts_ptr);
 
 /**
  * Get the number of invalid sequences for the given omega_character_counts_t object
  * @param counts_ptr omega_character_counts_t object to get the number of invalid sequences from
  * @return number of invalid sequences for the given omega_character_counts_t object
  */
-OMEGA_EDIT_EXPORT int64_t omega_character_counts_invalid_bytes(const omega_character_counts_t *counts_ptr);
+int64_t omega_character_counts_invalid_bytes(const omega_character_counts_t *counts_ptr);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //OMEGA_EDIT_CHARACTER_COUNTS_H
+#endif//OMEGA_EDIT_CHARACTER_COUNTS_H

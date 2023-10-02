@@ -20,9 +20,7 @@
 
 using namespace std;
 
-enum class display_mode_t {
-    BIT_MODE, BYTE_MODE, CHAR_MODE
-};
+enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
 struct view_mode_t {
     display_mode_t display_mode = display_mode_t::BYTE_MODE;
 };

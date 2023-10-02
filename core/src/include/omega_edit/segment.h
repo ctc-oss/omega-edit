@@ -21,7 +21,6 @@
 #define OMEGA_EDIT_SEGMENT_H
 
 #include "byte.h"
-#include "export.h"
 #include "fwd_defs.h"
 
 #ifdef __cplusplus
@@ -42,48 +41,48 @@ extern "C" {
  * @param capacity desired capacity of the segment, must be greater then zero
  * @return segment of the desired capacity
  */
-OMEGA_EDIT_EXPORT omega_segment_t *omega_segment_create(int64_t capacity);
+omega_segment_t *omega_segment_create(int64_t capacity);
 
 /**
  * Gets the capacity of the segment
  * @param segment_ptr segment to get the capacity from
  * @return given segment's capacity
  */
-OMEGA_EDIT_EXPORT int64_t omega_segment_get_capacity(const omega_segment_t *segment_ptr);
+int64_t omega_segment_get_capacity(const omega_segment_t *segment_ptr);
 
 /**
  * Gets the length of a populated segment
  * @param segment_ptr populated segment to get the length from
  * @return given segment's length
  */
-OMEGA_EDIT_EXPORT int64_t omega_segment_get_length(const omega_segment_t *segment_ptr);
+int64_t omega_segment_get_length(const omega_segment_t *segment_ptr);
 
 /**
  * Gets the offset of a populated segment
  * @param segment_ptr populated segment to get the offset from
  * @return given segment's offset, or a negative number if the segment is not populated
  */
-OMEGA_EDIT_EXPORT int64_t omega_segment_get_offset(const omega_segment_t *segment_ptr);
+int64_t omega_segment_get_offset(const omega_segment_t *segment_ptr);
 
 /**
  * Gets the offset adjustment of a populated segment
  * @param segment_ptr populated segment to get the offset adjustment from
  * @return given segment's offset adjustment
  */
-OMEGA_EDIT_EXPORT int64_t omega_segment_get_offset_adjustment(const omega_segment_t *segment_ptr);
+int64_t omega_segment_get_offset_adjustment(const omega_segment_t *segment_ptr);
 
 /**
  * Gets the data in a populated segment (data in the segment is a copy, not a reference)
  * @param segment_ptr populated segment to get the offset from
  * @return given segment's data, or null if the segment is not populated
  */
-OMEGA_EDIT_EXPORT omega_byte_t *omega_segment_get_data(omega_segment_t *segment_ptr);
+omega_byte_t *omega_segment_get_data(omega_segment_t *segment_ptr);
 
 /**
  * Destroy the given segment
  * @param segment_ptr segment to destroy
  */
-OMEGA_EDIT_EXPORT void omega_segment_destroy(omega_segment_t *segment_ptr);
+void omega_segment_destroy(omega_segment_t *segment_ptr);
 
 #ifdef __cplusplus
 }

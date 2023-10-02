@@ -20,8 +20,6 @@
 #ifndef OMEGA_EDIT_LICENSE_H
 #define OMEGA_EDIT_LICENSE_H
 
-#include "export.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,7 +28,7 @@ extern "C" {
  * Gets the license text
  * @return null-terminated license text
  */
-OMEGA_EDIT_EXPORT const char *omega_license_get();
+const char *omega_license_get();
 
 #ifdef __cplusplus
 }

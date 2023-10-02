@@ -38,7 +38,7 @@ author = 'Concurrent Technologies Corporation'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-#...
+# ...
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -55,7 +55,7 @@ extensions = [
     'breathe'
 ]
 
-#...
+# ...
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -75,7 +75,7 @@ highlight_language = 'c++'
 html_theme = 'sphinx_rtd_theme'
 html_theme_options = {
     'canonical_url': '',
-    'analytics_id': '',  #  Provided by Google in your dashboard
+    'analytics_id': '',  # Provided by Google in your dashboard
     'display_version': True,
     'prev_next_buttons_location': 'bottom',
     'style_external_links': False,
@@ -94,6 +94,9 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# RTD Theme Options
+html_logo="_static/OmegaEditLogo.png"
 
 # Breathe Configuration
 breathe_default_project = "omega_edit"

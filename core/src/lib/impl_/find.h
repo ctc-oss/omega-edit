@@ -35,8 +35,8 @@ struct omega_find_skip_table_t;
  * @param is_reverse_search non-zero if the search is to be done in reverse, zero otherwise
  * @return skip table for use in the omega_find function
  */
-const omega_find_skip_table_t *
-omega_find_create_skip_table(const unsigned char *needle, size_t needle_length, int is_reverse_search);
+const omega_find_skip_table_t *omega_find_create_skip_table(const unsigned char *needle, size_t needle_length,
+                                                            int is_reverse_search);
 
 /**
  * Determines if the skip table is for a reverse search

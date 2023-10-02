@@ -26,11 +26,15 @@
 extern "C" {
 #endif
 
+/** omega_byte_t is configured (via OMEGA_BYTE_T in config.h) as a single byte */
 typedef OMEGA_BYTE_T omega_byte_t;
 
 #ifdef __cplusplus
 }
+
+// static assert that omega_byte_t is indeed 1 byte
 static_assert(1 == sizeof(omega_byte_t), "size of omega_byte_t is expected to be 1 byte");
+
 #endif
 
 #endif//OMEGA_EDIT_BYTE_H

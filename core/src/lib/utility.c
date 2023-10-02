@@ -283,9 +283,7 @@ const void *omega_util_memrchr(const void *s, int c, size_t n) {
     if (n >= 1) {
         const unsigned char *cp = (const unsigned char *) s;
         for (const unsigned char *p = cp + n; p-- > cp;) {
-            if (*p == c) {
-                return p;
-            }
+            if (*p == c) { return p; }
         }
     }
     return NULL;
@@ -348,8 +346,7 @@ static inline int is_low_surrogate_UTF16_(uint16_t word) {
 }
 
 
-void omega_util_count_characters(const unsigned char *data, size_t length,
-                                 omega_character_counts_t *counts_ptr) {
+void omega_util_count_characters(const unsigned char *data, size_t length, omega_character_counts_t *counts_ptr) {
     assert(data);
     assert(counts_ptr);
 
@@ -396,97 +393,98 @@ void omega_util_count_characters(const unsigned char *data, size_t length,
     }
     size_t i = 0;
     switch (counts_ptr->bom) {
-        case BOM_NONE: // fall through, assume UTF-8 if the BOM is not specified
+        case BOM_NONE:// fall through, assume UTF-8 if the BOM is not specified
         case BOM_UTF8:
             while (i < length) {
                 if ((data[i] & 0x80) == 0) {
-                    ++counts_ptr->singleByteChars; // ASCII character
+                    ++counts_ptr->singleByteChars;// ASCII character
                     ++i;
                 } else if ((data[i] & 0xE0) == 0xC0) {
                     // check for 2-byte UTF-8 character
                     if (i + 1 < length && (data[i + 1] & 0xC0) == 0x80) {
-                        ++counts_ptr->doubleByteChars; // 2-byte UTF-8 character (e.g. é)
+                        ++counts_ptr->doubleByteChars;// 2-byte UTF-8 character (e.g. é)
                         i += 2;
                     } else {
-                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++counts_ptr->invalidBytes;// invalid UTF-8 sequence
                         ++i;
                     }
                 } else if ((data[i] & 0xF0) == 0xE0) {
                     // check for 3-byte UTF-8 character
                     if (i + 2 < length && (data[i + 1] & 0xC0) == 0x80 && (data[i + 2] & 0xC0) == 0x80) {
-                        ++counts_ptr->tripleByteChars; // 3-byte UTF-8 character (e.g. €)
+                        ++counts_ptr->tripleByteChars;// 3-byte UTF-8 character (e.g. €)
                         i += 3;
                     } else {
-                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++counts_ptr->invalidBytes;// invalid UTF-8 sequence
                         ++i;
                     }
                 } else {
                     // check for 4-byte UTF-8 character
                     if (i + 3 < length && (data[i + 1] & 0xC0) == 0x80 && (data[i + 2] & 0xC0) == 0x80 &&
                         (data[i + 3] & 0xC0) == 0x80) {
-                        ++counts_ptr->quadByteChars; // 4-byte UTF-8 character (e.g. 🌍)
+                        ++counts_ptr->quadByteChars;// 4-byte UTF-8 character (e.g. 🌍)
                         i += 4;
                     } else {
-                        ++counts_ptr->invalidBytes; // invalid UTF-8 sequence
+                        ++counts_ptr->invalidBytes;// invalid UTF-8 sequence
                         ++i;
                     }
                 }
             }
             break;
 
-        case BOM_UTF16LE: // fall through
+        case BOM_UTF16LE:// fall through
         case BOM_UTF16BE:
             while (i + 1 < length) {
                 // Swap the bytes if the BOM is little endian
-                const uint16_t char16 = counts_ptr->bom == BOM_UTF16LE ?
-                                        (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8 :
-                                        (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
+                const uint16_t char16 = counts_ptr->bom == BOM_UTF16LE
+                                                ? (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8
+                                                : (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
 
                 if (is_lead_surrogate_UTF16_(char16)) {
                     if (i + 3 < length) {
-                        const uint16_t next_char16 = counts_ptr->bom == BOM_UTF16LE ?
-                                                     (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8 :
-                                                     (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
+                        const uint16_t next_char16 = counts_ptr->bom == BOM_UTF16LE
+                                                             ? (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8
+                                                             : (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
                         if (is_low_surrogate_UTF16_(next_char16)) {
                             ++counts_ptr->doubleByteChars;
-                            i += 4; // skip the low surrogate as well
+                            i += 4;// skip the low surrogate as well
                         } else {
-                            ++counts_ptr->invalidBytes; // incomplete surrogate pair
+                            ++counts_ptr->invalidBytes;// incomplete surrogate pair
                             ++i;
                         }
                     } else {
-                        ++counts_ptr->invalidBytes; // incomplete surrogate pair at end of data
-                        break;  // exit loop
+                        ++counts_ptr->invalidBytes;// incomplete surrogate pair at end of data
+                        break;                     // exit loop
                     }
                 } else if (is_low_surrogate_UTF16_(char16)) {
-                    ++counts_ptr->invalidBytes; // low surrogate without preceding high surrogate
+                    ++counts_ptr->invalidBytes;// low surrogate without preceding high surrogate
                     ++i;
                 } else if (char16 <= 0x7F) {
-                    ++counts_ptr->singleByteChars; // ASCII characters
+                    ++counts_ptr->singleByteChars;// ASCII characters
                     i += 2;
                 } else {
-                    ++counts_ptr->doubleByteChars; // all other characters
+                    ++counts_ptr->doubleByteChars;// all other characters
                     i += 2;
                 }
             }
             break;
 
-        case BOM_UTF32LE: // fall through
+        case BOM_UTF32LE:// fall through
         case BOM_UTF32BE:
             while (i + 3 < length) {
                 // Swap the bytes if the BOM is little endian
-                const uint32_t char32 = counts_ptr->bom == BOM_UTF32LE ?
-                                        (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24)) :
-                                        ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
+                const uint32_t char32 =
+                        counts_ptr->bom == BOM_UTF32LE
+                                ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
+                                : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
 
                 if ((char32 >= 0xD800 && char32 <= 0xDFFF) || char32 > 0x10FFFF) {
-                    ++counts_ptr->invalidBytes; // surrogate pairs and characters above 0x10FFFF are invalid in UTF-32
+                    ++counts_ptr->invalidBytes;// surrogate pairs and characters above 0x10FFFF are invalid in UTF-32
                     ++i;
                 } else if (char32 <= 0x7F) {
-                    ++counts_ptr->singleByteChars; // ASCII characters
+                    ++counts_ptr->singleByteChars;// ASCII characters
                     i += 4;
                 } else {
-                    ++counts_ptr->quadByteChars; // all other characters
+                    ++counts_ptr->quadByteChars;// all other characters
                     i += 4;
                 }
             }
