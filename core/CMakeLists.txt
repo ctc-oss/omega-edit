@@ -9,15 +9,6 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
-cmake_minimum_required(VERSION 3.13)
-
-# Project information
-project(omega_edit
-        VERSION 0.9.73
-        DESCRIPTION "Apache open source library for building editors"
-        HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
-        LANGUAGES C CXX)
-
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
 option(BUILD_TESTS "build tests" ON)
 option(BUILD_DOCS "build documentation" ON)
@@ -61,13 +52,6 @@ set_target_properties(omega_edit PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
 target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB})
-
-# Packaging rules
-string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" is_top_level)
-option(omega_edit_INCLUDE_PACKAGING "Include packaging rules for OmegaEdit" "${is_top_level}")
-if (omega_edit_INCLUDE_PACKAGING)
-    add_subdirectory(packaging)
-endif ()
 
 # Version definitions
 string(TOUPPER "${PROJECT_NAME}" PREFIX)

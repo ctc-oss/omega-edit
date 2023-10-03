@@ -22,63 +22,21 @@ import * as grpc from '@grpc/grpc-js'
 import { getLogger } from './logger'
 
 // client instance
-let client_: EditorClient | undefined = undefined
+let clientInstance_: EditorClient | undefined = undefined
 
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
 export const ALL_EVENTS = ~NO_EVENTS // subscribe to all events
 
+const DEFAULT_PORT = 9000
+const DEFAULT_HOST = '127.0.0.1'
+const DEFAULT_DEADLINE_SECONDS = 10
+
 /**
  * Reset the client back to undefined.
  */
 export function resetClient() {
-  client_ = undefined
-}
-
-/**
- * Gets the connected editor client. Initializes the client if not already
- * @param port port to bind to
- * @param host interface to connect to
- * @return connected editor client
- */
-export function getClient(
-  port: number = 9000,
-  host: string = '127.0.0.1'
-): EditorClient {
-  if (!client_) {
-    getLogger().debug({
-      fn: 'getClient',
-      port: port,
-      host: host,
-      state: 'initializing',
-    })
-    const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
-    client_ = new EditorClient(uri, grpc.credentials.createInsecure())
-    waitForReady(client_)
-      .catch((err) => {
-        getLogger().error({
-          cmd: 'getClient',
-          host: host,
-          port: port,
-          err: {
-            name: err.name,
-            msg: err.message,
-            stack: err.stack,
-          },
-        })
-      })
-      .then((ready: boolean | void) => {
-        if (!ready) {
-          getLogger().error({
-            cmd: 'getClient',
-            host: host,
-            port: port,
-            msg: 'client not ready',
-          })
-        }
-      })
-  }
-  return client_
+  clientInstance_ = undefined
 }
 
 /**
@@ -89,27 +47,95 @@ export function getClient(
  */
 export function waitForReady(
   client: EditorClient,
-  deadline?: grpc.Deadline
-): Promise<boolean> {
-  if (!deadline) {
-    deadline = new Date()
-    deadline.setSeconds(deadline.getSeconds() + 10)
-  }
-  return new Promise<boolean>((resolve, reject) => {
-    client.waitForReady(deadline as grpc.Deadline, (err: Error | undefined) => {
+  deadline: grpc.Deadline = new Date(
+    Date.now() + DEFAULT_DEADLINE_SECONDS * 1000
+  )
+): Promise<void> {
+  const log = getLogger()
+  return new Promise<void>((resolve, reject) => {
+    client.waitForReady(deadline, (err: Error | undefined) => {
       if (err) {
-        getLogger().error({
+        log.error({
           cmd: 'waitForReady',
+          state: 'not ready',
           err: {
             name: err.name,
             msg: err.message,
             stack: err.stack,
           },
         })
-        return reject(false)
+        return reject(err)
       }
-      getLogger().debug({ cmd: 'waitForReady', msg: 'ready' })
-      return resolve(true)
+      log.debug({ cmd: 'waitForReady', state: 'ready' })
+      return resolve()
     })
   })
+}
+
+/**
+ * Gets the connected editor client. Initializes the client if not already
+ * @param port port to bind to
+ * @param host interface to connect to
+ * @return connected editor client
+ */
+export async function getClient(
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST
+): Promise<EditorClient> {
+  const log = getLogger()
+
+  if (!clientInstance_) {
+    log.debug({
+      fn: 'getClient',
+      port: port,
+      host: host,
+      state: 'initializing',
+    })
+
+    const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
+    clientInstance_ = new EditorClient(uri, grpc.credentials.createInsecure())
+
+    try {
+      await waitForReady(clientInstance_) // awaiting the Promise instead of providing a callback
+
+      log.debug({
+        fn: 'getClient',
+        port: port,
+        host: host,
+        state: 'ready',
+      })
+
+      return clientInstance_
+    } catch (err) {
+      if (err instanceof Error) {
+        // Ensure that we caught an Error object
+        log.error({
+          cmd: 'getClient',
+          host: host,
+          port: port,
+          state: 'not ready',
+          err: {
+            name: err.name,
+            msg: err.message,
+            stack: err.stack,
+          },
+        })
+      } else {
+        // handle non-Error type, and log the error as a string.
+        log.error({
+          cmd: 'getClient',
+          host: host,
+          port: port,
+          state: 'not ready',
+          err: {
+            msg: String(err),
+          },
+        })
+      }
+      resetClient()
+      throw err // Rethrow the caught error after logging it and resetting the client
+    }
+  }
+
+  return clientInstance_
 }

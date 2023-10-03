@@ -37,10 +37,10 @@ jobs:
 
       - name: Prepare, Build, and Install Ωedit 🔧
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
           cmake --build build --config Release
-          ctest -C Release --test-dir build --output-on-failure
-          cmake --install build/packaging --prefix "${PWD}/_install" --config Release
+          ctest -C Release --test-dir build/core --output-on-failure
+          cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
 
       - name: Upload Native (.dylib) library - Macos 🔺
         uses: actions/upload-artifact@v3

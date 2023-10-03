@@ -25,21 +25,23 @@ else
   endif
 endif
 
-lib/$(LIBNAME): core/CMakeLists.txt
-	cmake -G $(GENERATOR) -S core -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=YES -DBUILD_EXAMPLES=NO -DCMAKE_BUILD_TYPE=$(TYPE)
+lib/$(LIBNAME): CMakeLists.txt core/CMakeLists.txt
+	cmake -G $(GENERATOR) -S . -B _build -DBUILD_SHARED_LIBS=YES -DBUILD_DOCS=NO -DBUILD_EXAMPLES=NO -DCMAKE_BUILD_TYPE=$(TYPE)
 	cmake --build _build --config $(TYPE)
-	ctest -C $(TYPE) --test-dir _build --output-on-failure
-	cmake --install _build/packaging --prefix _install --config $(TYPE)
+	ctest -C $(TYPE) --test-dir _build/core --output-on-failure
+	cmake --install _build/packages/core --prefix _install --config $(TYPE)
 	mkdir -p lib
 	cp _install/lib/$(LIBNAME) $@
 
 update-version:
 	sed -i '' -e 's|"version": .*|"version": "$(version)",|' package.json packages/server/package.json packages/client/package.json
 	sed -i '' -e 's|"\@omega-edit\/server": .*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
-	sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' core/CMakeLists.txt
+	sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' CMakeLists.txt
 
 clean:
 	rm -rf _build _install lib/$(LIBNAME)
 
 all: lib/$(LIBNAME)
 	@echo $<
+
+.default: all

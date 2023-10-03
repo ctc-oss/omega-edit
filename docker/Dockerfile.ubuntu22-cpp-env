@@ -10,9 +10,9 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
 # Build:
-#   docker build -t build/ubuntu-20.04/cpp-env:1.0 -f Dockerfile.ubuntu20-cpp-env .
+#   docker build -t build/ubuntu-22.04/cpp-env:1.0 -f Dockerfile.ubuntu22-cpp-env .
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL maintainer="oss@ctc.com" \
       version="1.1" \

@@ -19,14 +19,13 @@
 
 import { expect } from 'chai'
 import {
-  EventSubscriptionRequest,
-  SessionEventKind,
-  ViewportEventKind,
   createSession,
   destroySession,
+  EventSubscriptionRequest,
   getClient,
   getSessionCount,
-  waitForReady,
+  SessionEventKind,
+  ViewportEventKind,
 } from '@omega-edit/client'
 
 export let session_callbacks = new Map()
@@ -36,7 +35,7 @@ export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
 
 export async function createTestSession(port: number) {
   let session_id = ''
-  expect(await waitForReady(getClient(port)))
+  expect(await getClient(port)).to.not.be.undefined
   expect(await getSessionCount()).to.equal(0)
   const new_session = await createSession()
   const new_session_id = new_session.getSessionId()
@@ -110,7 +109,8 @@ export async function subscribeSession(
 ): Promise<string> {
   let subscriptionRequest = new EventSubscriptionRequest().setId(session_id)
   if (interest !== undefined) subscriptionRequest.setInterest(interest)
-  getClient()
+  const client = await getClient()
+  client
     .subscribeToSessionEvents(subscriptionRequest)
     .on('data', (sessionEvent) => {
       session_callbacks.set(
@@ -160,7 +160,8 @@ export async function subscribeViewport(
   if (interest) {
     subscriptionRequest.setInterest(interest)
   }
-  getClient()
+  const client = await getClient()
+  client
     .subscribeToViewportEvents(subscriptionRequest)
     .on('data', (viewportEvent) => {
       viewport_callbacks.set(

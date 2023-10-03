@@ -19,8 +19,8 @@
 
 import { expect } from 'chai'
 import {
-  CountKind,
   clear,
+  CountKind,
   createViewport,
   del,
   destroyViewport,
@@ -36,11 +36,21 @@ import {
   resumeSessionChanges,
   undo,
 } from '@omega-edit/client'
-import { ALL_EVENTS } from '../../src/client'
+import { ALL_EVENTS } from '../../src'
 
 // prettier-ignore
 // @ts-ignore
-import { checkCallbackCount, createTestSession, destroyTestSession, log_info, session_callbacks, subscribeSession, subscribeViewport, viewport_callbacks, testPort } from './common'
+import {
+  checkCallbackCount,
+  createTestSession,
+  destroyTestSession,
+  log_info,
+  session_callbacks,
+  subscribeSession,
+  subscribeViewport,
+  testPort,
+  viewport_callbacks
+} from "./common";
 
 describe('StressTest', () => {
   const full_rotations = 10
