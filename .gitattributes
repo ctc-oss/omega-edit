@@ -14,6 +14,7 @@
 
 # Explicitly declare text files you want to always be normalized and converted
 # to native line endings on checkout.
+*.bat text
 *.c text
 *.cpp text
 *.gyp text
@@ -23,6 +24,8 @@
 *.js text
 *.json text
 *.md text
+*.sh text
+*.ts text
 *.yml text
 *.xml text
 

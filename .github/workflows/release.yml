@@ -30,14 +30,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Count lines of code (CLOC)
+      - name: Count lines of code (CLOC) 📐
         uses: djdefi/cloc-action@5
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           checkName: "CLOC"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check ratCheck
+      - name: Check ratCheck ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: rat-check
         with:
@@ -46,7 +46,7 @@ jobs:
           checkName: "Rat Check"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
-      - name: Check scala format
+      - name: Check Scala format ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: scala-format
         with:
@@ -55,7 +55,7 @@ jobs:
           checkName: "Scala code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
-      - name: Check typescript format
+      - name: Check TypeScript format ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: ts-format
         with:
@@ -64,7 +64,7 @@ jobs:
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
-      - name: Check tests - macos
+      - name: Check tests - macOS ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: macos-tests
         with:
@@ -73,7 +73,7 @@ jobs:
           checkName: "Build middleware macos-11 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - ubuntu
+      - name: Check tests - Linux ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: ubuntu-tests
         with:
@@ -82,7 +82,7 @@ jobs:
           checkName: "Build middleware ubuntu-20.04 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
-      - name: Check tests - windows
+      - name: Check tests - Windows ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
         id: windows-tests
         with:
@@ -91,7 +91,7 @@ jobs:
           checkName: "Build middleware windows-2019 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Quality gate
+      - name: Quality Gate ✅
         if: steps.rat-check.outputs.conclusion != 'success' || steps.scala-format.outputs.conclusion != 'success' || steps.ts-format.outputs.conclusion != 'success' || steps.macos-tests.outputs.conclusion != 'success' || steps.ubuntu-tests.outputs.conclusion != 'success' || steps.windows-tests.outputs.conclusion != 'success'
         run: |
           echo "Rat Check Status: ${{ steps.rat-check.conclusion }}"
@@ -287,7 +287,7 @@ jobs:
         with:
           name: upload_url
 
-      - name: Add upload_url to GITHUB_ENV
+      - name: Add upload_url to GITHUB_ENV 📐
         run: |
           UPLOAD_URL=$(cat upload_url)
           echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV

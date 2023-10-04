@@ -3,7 +3,7 @@
   "version": "0.9.74",
   "private": "true",
   "description": "OmegaEdit Client and Server",
-  "publisher": "ctc-oss",
+  "publisher": "CTC-OSS",
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",
     "type": "git"
@@ -11,7 +11,7 @@
   "bugs": {
     "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
-  "author": "Shane Dell, Davin Shearer, John Wass",
+  "author": "CTC-OSS",
   "license": "Apache-2.0",
   "workspaces": [
     "packages/*"
@@ -33,6 +33,7 @@
     "eslint-plugin-prettier": "^5.0.0",
     "mocha": "^10.0.0",
     "prettier": "^3.0.3",
+    "run-script-os": "^1.1.6",
     "ts-loader": "^9.4.4",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.1",

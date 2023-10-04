@@ -153,7 +153,6 @@ jobs:
         timeout-minutes: 30
 
       - name: Yarn Install 🏗️
-        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         run: yarn
         shell: bash
 
@@ -161,6 +160,7 @@ jobs:
         if: runner.os != 'Windows' # TODO: Make sure tests run on windows
         run: yarn workspace @omega-edit/server package
         shell: bash
+        timeout-minutes: 30
 
       - name: Yarn Test - Client 🧑‍💼
         if: runner.os != 'Windows' # TODO: Make sure tests run on windows

@@ -12,7 +12,8 @@
  * limitations under the License.
  */
 
-// Bindings
+// SBT plugins automatically added to all projects.
+// See https://www.scala-sbt.org/1.x/docs/Using-Plugins.html for more information.
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
 addSbtPlugin("com.github.battermann" % "sbt-json" % "0.5.0")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.2")
@@ -23,3 +24,4 @@ addSbtPlugin("org.apache.pekko" % "pekko-grpc-sbt-plugin" % "1.0.0")
 addSbtPlugin("org.musigma" % "sbt-rat" % "0.7.0")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.0")
+addSbtPlugin("com.sksamuel.scapegoat" %% "sbt-scapegoat" % "1.2.2")

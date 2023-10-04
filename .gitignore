@@ -12,7 +12,9 @@
 # generated files
 .DS_Store
 Release
+_build
 _build*/
+_install
 _install*/
 build*/
 cmake-build*/
