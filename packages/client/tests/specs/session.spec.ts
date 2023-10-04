@@ -35,7 +35,6 @@ import {
   profileSession,
   saveSession,
   SaveStatus,
-  waitForReady,
 } from '@omega-edit/client'
 // @ts-ignore
 import { testPort } from './common'
@@ -113,7 +112,7 @@ describe('Sessions', () => {
   ]
 
   it(`Should read an empty file ${emptyFile}`, async () => {
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(emptyFile)
     const session_id = session.getSessionId()
@@ -136,7 +135,7 @@ describe('Sessions', () => {
   })
 
   it(`Should read a one-byte file ${oneByteFile}`, async () => {
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(oneByteFile)
     const session_id = session.getSessionId()
@@ -159,7 +158,7 @@ describe('Sessions', () => {
   })
 
   it(`Should read a two-byte file ${twoByteFile}`, async () => {
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(twoByteFile)
     const session_id = session.getSessionId()
@@ -184,7 +183,7 @@ describe('Sessions', () => {
   it(`Should read test file ${testFile} (${iterations} times)`, async () => {
     expect(fileData.length).to.equal(464)
     expect(fileBuffer.length).to.equal(464)
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     expect(await getSessionCount()).to.equal(0)
     for (let i = 0; i < iterations; ++i) {
       const session = await createSession(testFile)
@@ -604,7 +603,7 @@ describe('Sessions', () => {
   it('Should be able to use a different checkpoint directory', async () => {
     removeDirectory(checkpointDir)
     expect(fs.existsSync(checkpointDir)).to.be.false
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     const session = await createSession(
       testFile,
       'checkpoint_test',
@@ -727,7 +726,7 @@ describe('Sessions', () => {
   })
 
   it('Should fail to create session with invalid file', async () => {
-    expect(await waitForReady(getClient(testPort))).to.be.true
+    expect(await getClient(testPort)).to.not.be.undefined
     try {
       await createSession('-invalid-')
       expect.fail('Should have thrown')

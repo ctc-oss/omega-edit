@@ -97,6 +97,31 @@ pushd cmake-build-tests && ctest -C Debug --output-on-failure && popd
 
 ## Packaging Ωedit™
 
+### Scala API and Native
+
+This publishes for Scala version 2.13 to GitHub packages.
+
+- Requires the `GITHUB_TOKEN` environment variable to be set
+
+```bash
+sbt publishAll
+```
+
+### Scala Reference Server
+
+This packages the reference Scala server to a local zip folder
+
+```bash
+cd server/scala
+sbt universal:packageBin
+```
+
+Zip file will be located at
+
+```bash
+server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
+```
+
 ### TypeScript Client
 
 This package is normally uploaded to npmjs.com
@@ -122,31 +147,6 @@ This package is normally uploaded to npmjs.com
   ```bash
   yarn publish omega-edit-v${VERSION}.tgz
   ```
-
-### Scala API and Native
-
-This publishes for Scala version 2.13 to GitHub packages.
-
-- Requires the `GITHUB_TOKEN` environment variable to be set
-
-```bash
-sbt publishAll
-```
-
-### Scala Reference Server
-
-This packages the reference Scala server to a local zip folder
-
-```bash
-cd server/scala
-sbt universal:packageBin
-```
-
-Zip file will be located at
-
-```bash
-server/scala/target/universal/omega-edit-grpc-server-${VERSION}.zip
-```
 
 ## Development
 

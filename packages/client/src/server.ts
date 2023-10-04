@@ -21,6 +21,9 @@ import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
 import * as path from 'path'
+import { createServer, Server } from 'net'
+import { runServer } from '@omega-edit/server'
+import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
   HeartbeatRequest,
   HeartbeatResponse,
@@ -29,63 +32,81 @@ import {
   ServerControlResponse,
   ServerInfoResponse,
 } from './omega_edit_pb'
-import { runServer } from '@omega-edit/server'
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
+
+const DEFAULT_PORT = 9000 // default port for the server
+const DEFAULT_HOST = '127.0.0.1' // default host for the server
 
 /**
  * Wait for file to exist
- * @param file path to file to wait for
+ * @param filePath path to file to wait for
  * @param timeout timeout in milliseconds
- * @returns 0 if the file exists, otherwise an error
+ * @returns true if the file exists, otherwise an error
  */
 async function waitForFileToExist(
-  file: string,
+  filePath: string,
   timeout: number = 1000
-): Promise<number> {
-  getLogger().debug({
+): Promise<boolean> {
+  const log = getLogger()
+  log.debug({
     fn: 'waitForFileToExist',
-    file: file,
+    file: filePath,
   })
 
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      watcher.close()
-      const errMsg = `file does not exist after ${timeout} milliseconds`
-      getLogger().error({
+  let watcher: fs.FSWatcher | null = null
+  let timer: NodeJS.Timeout | null = null
+
+  return new Promise(async (resolve, reject) => {
+    const cleanup = () => {
+      if (watcher) watcher.close()
+      if (timer) clearTimeout(timer)
+    }
+
+    // Check if the file already exists
+    try {
+      await fs.promises.access(filePath, fs.constants.R_OK)
+      log.debug({
         fn: 'waitForFileToExist',
-        file: file,
-        err: {
-          msg: errMsg,
-        },
+        file: filePath,
+        exists: true,
       })
+      cleanup()
+      return resolve(true)
+    } catch (err) {
+      // File doesn't exist, continue with setting up the watcher
+    }
+
+    watcher = fs.watch(path.dirname(filePath), (eventType, filename) => {
+      if (eventType === 'rename' && filename === path.basename(filePath)) {
+        log.debug({
+          fn: 'waitForFileToExist',
+          file: filePath,
+          exists: true,
+        })
+        cleanup()
+        resolve(true)
+      }
+    })
+
+    watcher.on('error', (err) => {
+      log.error({
+        fn: 'waitForFileToExist',
+        file: filePath,
+        err: { msg: err.message },
+      })
+      cleanup()
+      reject(err)
+    })
+
+    timer = setTimeout(() => {
+      const errMsg = `File does not exist after ${timeout} milliseconds`
+      log.error({
+        fn: 'waitForFileToExist',
+        file: filePath,
+        err: { msg: errMsg },
+      })
+      cleanup()
       reject(new Error(errMsg))
     }, timeout)
-
-    fs.access(file, fs.constants.R_OK, (err) => {
-      if (!err) {
-        clearTimeout(timer)
-        watcher.close()
-        getLogger().debug({
-          fn: 'waitForFileToExist',
-          file: file,
-          exists: true,
-        })
-        resolve(0)
-      }
-    })
-
-    const watcher = fs.watch(path.dirname(file), (eventType, filename) => {
-      if (eventType === 'rename' && filename === path.basename(file)) {
-        clearTimeout(timer)
-        watcher.close()
-        getLogger().debug({
-          fn: 'waitForFileToExist',
-          file: file,
-          exists: true,
-        })
-        resolve(0)
-      }
-    })
   })
 }
 
@@ -96,29 +117,18 @@ async function waitForFileToExist(
  * @returns true if the port is available, false otherwise
  */
 function isPortAvailable(port: number, host: string): Promise<boolean> {
-  getLogger().debug({
+  const log = getLogger()
+  log.debug({
     fn: 'isPortAvailable',
     host: host,
     port: port,
   })
 
   return new Promise((resolve) => {
-    const server = require('net').createServer()
-
-    server.once('error', (err) => {
-      if (err.code === 'EADDRINUSE') {
-        // port is currently in use
-        getLogger().debug({
-          fn: 'isPortAvailable',
-          host: host,
-          port: port,
-          avail: false,
-        })
-
-        resolve(false)
-      } else {
-        // unexpected error
-        getLogger().error({
+    const server: Server = createServer()
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code !== 'EADDRINUSE') {
+        log.error({
           fn: 'isPortAvailable',
           host: host,
           port: port,
@@ -128,23 +138,30 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
             code: err.code,
           },
         })
-
-        resolve(false)
+      } else {
+        log.debug({
+          fn: 'isPortAvailable',
+          host: host,
+          port: port,
+          avail: false,
+        })
       }
+      // Ensure server closes before resolving the promise
+      server.close(() => resolve(false))
     })
 
     server.once('listening', () => {
-      // port is available
-      getLogger().debug({
+      // Port is available
+      log.debug({
         fn: 'isPortAvailable',
         host: host,
         port: port,
         avail: true,
       })
-      server.close()
-      resolve(true)
+      // Ensure server closes before resolving the promise
+      server.close(() => resolve(true))
     })
-
+    // Start listening to determine if port is available
     server.listen(port, host)
   })
 }
@@ -158,80 +175,89 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServer(
-  port: number = 9000,
-  host: string = '127.0.0.1',
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST,
   pidFile?: string,
   logConf?: string
 ): Promise<number | undefined> {
-  // Set up the server
-  getLogger().debug({
+  const logMetadata = {
     fn: 'startServer',
     host: host,
     port: port,
     pidFile: pidFile,
     logConf: logConf,
-  })
+  }
+  const log = getLogger()
+  log.debug(logMetadata)
 
-  if (pidFile) {
-    // check if the pidFile already exists
-    if (fs.existsSync(pidFile)) {
-      const pidFromFile = Number(fs.readFileSync(pidFile).toString())
-      getLogger().warn({
-        fn: 'startServer',
+  async function handleExistingPidFile(pidFilePath: string): Promise<void> {
+    if (fs.existsSync(pidFilePath)) {
+      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      log.warn({
+        ...logMetadata,
         err: {
           msg: 'pidFile already exists',
-          pidFile: pidFile,
           pid: pidFromFile,
         },
       })
-      // stop the old server
+
       if (!(await stopServerUsingPID(pidFromFile))) {
-        getLogger().error({
-          fn: 'startServer',
+        const errMsg = `server pidFile ${pidFilePath} already exists and server shutdown using PID ${pidFromFile} failed`
+        log.error({
+          ...logMetadata,
           err: {
-            msg: 'server pidFile already exists and server shutdown failed',
-            pidFile: pidFile,
+            msg: errMsg,
             pid: pidFromFile,
           },
         })
-        throw new Error(
-          `server pidFile ${pidFile} already exists and server shutdown using PID ${pidFromFile} failed`
-        )
+        throw new Error(errMsg)
       }
-      // remove stale pidFile (as needed)
-      fs.unlinkSync(pidFile)
+
+      fs.unlinkSync(pidFilePath)
     }
   }
 
-  if (logConf && !fs.existsSync(logConf)) {
-    getLogger().warn({
-      fn: 'startServer',
-      err: {
-        msg: 'logback configuration file does not exist',
-        logConf: logConf,
-      },
-    })
-    logConf = undefined
+  async function checkLogConf(
+    logConfPath?: string
+  ): Promise<string | undefined> {
+    if (logConfPath && !fs.existsSync(logConfPath)) {
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: 'logback configuration file does not exist',
+          logConf: logConfPath,
+        },
+      })
+      return undefined
+    }
+    return logConfPath
   }
 
-  // Check if the port is available
+  async function getServerPid(pidFilePath: string): Promise<number> {
+    await waitForFileToExist(pidFilePath)
+    return Number(fs.readFileSync(pidFilePath).toString())
+  }
+
+  if (pidFile) {
+    await handleExistingPidFile(pidFile)
+  }
+
+  logConf = await checkLogConf(logConf)
+
   if (!(await isPortAvailable(port, host))) {
-    getLogger().error({
-      fn: 'startServer',
+    const errMsg = `port ${port} on host ${host} is not currently available`
+    log.error({
+      ...logMetadata,
       err: {
-        msg: 'port is not currently available',
-        port: port,
-        host: host,
+        msg: errMsg,
       },
     })
-    throw new Error(`port ${port} on host ${host} is not currently available`)
+    throw new Error(errMsg)
   }
 
-  // Start the server
-  const pid = (await runServer(port, host, pidFile, logConf)).pid
+  const { pid } = await runServer(port, host, pidFile, logConf)
 
-  // Wait for the server come online
-  getLogger().debug(
+  log.debug(
     `waiting for server to come online on interface ${host}, port ${port}`
   )
   await require('wait-port')({
@@ -239,57 +265,42 @@ export async function startServer(
     port: port,
     output: 'silent',
   })
-  getLogger().debug(`server came online on interface ${host}, port ${port}`)
+  log.debug(`server came online on interface ${host}, port ${port}`)
 
   if (pidFile) {
-    await waitForFileToExist(pidFile)
+    const pidFromFile = await getServerPid(pidFile)
 
-    const pidFromFile = Number(fs.readFileSync(pidFile).toString())
-
-    // NOTE: The server wrapper script and the actual server process have different PIDs in Windows, so this check is
-    // only valid for non-Windows platforms.  The PID in the pidFile ought to be correct on all platforms.
     if (pidFromFile !== pid && process.platform !== 'win32') {
-      getLogger().error({
-        fn: 'startServer',
+      const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
+      log.error({
+        ...logMetadata,
         err: {
-          msg: 'Error pid from pidFile and pid from server script do not match',
+          msg: errMsg,
           pid: pid,
           pidFromFile: pidFromFile,
-          pidFile: pidFile,
         },
       })
-      // Here we are in a state where the server is running but the pid is ambiguous.
-      // This is a fatal error that should not happen.
-      throw new Error(
-        `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
-      )
+      throw new Error(errMsg)
     }
   }
 
-  // Return the server pid if it exists
-  return new Promise((resolve, reject) => {
-    if (pid !== undefined && pid) {
-      getLogger().debug({
-        fn: 'startServer',
-        host: host,
-        port: port,
-        pid: pid,
-      })
-      // initialize the client
-      getClient(port, host)
-      resolve(pid)
-    } else {
-      getLogger().error({
-        fn: 'startServer',
-        err: {
-          msg: 'Error getting server pid',
-          host: host,
-          port: port,
-        },
-      })
-      reject('Error getting server pid')
-    }
-  })
+  if (pid !== undefined && pid) {
+    log.debug({
+      ...logMetadata,
+      pid: pid,
+    })
+    await getClient(port, host)
+    return pid
+  } else {
+    const errMsg = 'Error getting server pid'
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
+  }
 }
 
 /**
@@ -316,85 +327,107 @@ export function stopServerImmediate(): Promise<number> {
   })
 }
 
+type ServerControlResponseCode = number
+
 /**
  * Stop the server
  * @param kind defines how the server should shut down
  * @returns 0 if the server was stopped, non-zero otherwise
  */
-function stopServer(kind: ServerControlKind): Promise<number> {
-  getLogger().debug({
+async function stopServer(
+  kind: ServerControlKind
+): Promise<ServerControlResponseCode> {
+  const logMetadata = {
     fn: 'stopServer',
     kind: kind.toString(),
-  })
+  }
+  const log = getLogger()
+  log.debug(logMetadata)
+  const client = await getClient()
 
-  return new Promise<number>((resolve, reject) => {
-    getClient().serverControl(
-      new ServerControlRequest().setKind(kind),
-      (err, resp: ServerControlResponse) => {
-        if (err) {
-          if (err.message.includes('Call cancelled')) {
-            getLogger().debug({
-              fn: 'stopServer',
-              kind: kind.toString(),
-              stopped: true,
-              msg: err.message,
-            })
-            return resolve(0)
-          } else if (
-            err.message.includes('No connection established') ||
-            err.message.includes('INTERNAL:')
-          ) {
-            getLogger().debug({
-              fn: 'stopServer',
-              kind: kind.toString(),
-              stopped: false,
-              msg: 'API failed to stop server',
-            })
-
-            /**
-             * 0 indicates the API stopped the server,
-             * 1 indicates the API failed to stop the server, caused by either:
-             *  - No connection established to server
-             *  - There was n issue trying to connect to the server
-             */
-
-            return resolve(1)
+  try {
+    const resp: ServerControlResponse = await new Promise((resolve, reject) => {
+      client.serverControl(
+        new ServerControlRequest().setKind(kind),
+        (err, response) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve(response)
           }
+        }
+      )
+    })
 
-          getLogger().error({
-            fn: 'stopServer',
+    if (resp.getResponseCode() !== 0) {
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        err: { msg: 'stopServer exit status: ' + resp.getResponseCode() },
+      })
+    } else {
+      log.debug({
+        ...logMetadata,
+        stopped: true,
+      })
+    }
+    return resp.getResponseCode()
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      if ('code' in err) {
+        // Checks if it is a ServiceError
+        if (err.message.includes('Call cancelled')) {
+          log.debug({
+            ...logMetadata,
+            stopped: true,
+            msg: err.message,
+          })
+        } else if (
+          err.message.includes('No connection established') ||
+          err.message.includes('INTERNAL:')
+        ) {
+          log.debug({
+            ...logMetadata,
+            stopped: false,
+            msg: 'API failed to stop server',
             err: {
               msg: err.message,
-              details: err.details,
               code: err.code,
               stack: err.stack,
             },
           })
-
-          return reject('stopServer error: ' + err.message)
-        }
-
-        if (resp.getResponseCode() !== 0) {
-          getLogger().error({
-            fn: 'stopServer',
-            kind: kind.toString(),
+        } else {
+          log.error({
+            ...logMetadata,
             stopped: false,
-            err: { msg: 'stopServer exit status: ' + resp.getResponseCode() },
+            err: {
+              msg: err.message,
+              code: err.code,
+              stack: err.stack,
+            },
           })
-
-          return reject('stopServer error')
         }
-
-        getLogger().debug({
-          fn: 'stopServer',
-          kind: kind.toString(),
-          stopped: true,
+      } else {
+        log.error({
+          ...logMetadata,
+          stopped: false,
+          err: {
+            msg: err.message,
+            stack: err.stack,
+          },
         })
-
-        return resolve(resp.getResponseCode())
       }
-    )
-  })
+    } else {
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        err: {
+          msg: String(err),
+        },
+      })
+    }
+    return -1
+  }
 }
 
 /**
@@ -402,44 +435,34 @@ function stopServer(kind: ServerControlKind): Promise<number> {
  * @param pid pid of the server process
  * @returns true if the server was stopped, false otherwise
  */
-export async function stopServerUsingPID(
-  pid: number | undefined
-): Promise<boolean> {
-  if (pid) {
-    getLogger().debug({ fn: 'stopServerUsingPID', pid: pid })
-
-    try {
-      const result = process.kill(pid, 'SIGTERM')
-      getLogger().debug({ fn: 'stopServerUsingPID', pid: pid, stopped: result })
-      return result
-    } catch (err) {
-      // @ts-ignore
-      if (err.code === 'ESRCH') {
-        getLogger().debug({
-          fn: 'stopServerUsingPID',
-          msg: 'Server already stopped',
-          pid: pid,
-        })
-
-        // the server is already stopped
-        return true
-      }
-
-      getLogger().error({
-        fn: 'stopServerUsingPID',
-        err: { msg: 'Error stopping server', pid: pid, err: err },
-      })
-
-      return false
-    }
-  }
-
-  getLogger().error({
+export async function stopServerUsingPID(pid: number): Promise<boolean> {
+  const logMetadata = {
     fn: 'stopServerUsingPID',
-    err: { msg: 'Error stopping server, no PID' },
-  })
+    pid,
+  }
+  const log = getLogger()
+  log.debug(logMetadata)
 
-  return false
+  try {
+    process.kill(pid, 'SIGTERM')
+    log.debug({ ...logMetadata, stopped: true })
+    return true
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
+      log.debug({
+        ...logMetadata,
+        stopped: true,
+        msg: 'Server already stopped',
+      })
+      return true
+    }
+    log.error({
+      ...logMetadata,
+      stopped: false,
+      err: { msg: 'Error stopping server', err },
+    })
+    return false
+  }
 }
 
 export interface IServerInfo {
@@ -452,14 +475,18 @@ export interface IServerInfo {
   availableProcessors: number // available processors
 }
 
-export function getServerInfo(): Promise<IServerInfo> {
+export async function getServerInfo(): Promise<IServerInfo> {
+  const log = getLogger()
+  const logMetadata = { fn: 'getServerInfo' }
+  log.debug(logMetadata)
+  const client = await getClient()
   return new Promise<IServerInfo>((resolve, reject) => {
-    getClient().getServerInfo(
+    client.getServerInfo(
       new Empty(),
       (err, serverInfoResponse: ServerInfoResponse) => {
         if (err) {
-          getLogger().error({
-            fn: 'getServerInfo',
+          log.error({
+            ...logMetadata,
             err: {
               msg: err.message,
               details: err.details,
@@ -470,13 +497,13 @@ export function getServerInfo(): Promise<IServerInfo> {
           return reject('getServerInfo error: ' + err.message)
         }
         if (!serverInfoResponse) {
-          getLogger().error({
-            fn: 'getServerInfo',
+          log.error({
+            ...logMetadata,
             err: { msg: 'undefined server info' },
           })
           return reject('undefined server info')
         }
-        return resolve({
+        resolve({
           serverHostname: serverInfoResponse.getHostname(),
           serverProcessId: serverInfoResponse.getProcessId(),
           serverVersion: serverInfoResponse.getServerVersion(),
@@ -511,22 +538,28 @@ export interface IServerHeartbeat {
  * @param heartbeatInterval heartbeat interval in ms
  * @returns a promise that resolves to the server heartbeat
  */
-export function getServerHeartbeat(
+export async function getServerHeartbeat(
   activeSessions: string[],
   heartbeatInterval: number = 1000
 ): Promise<IServerHeartbeat> {
+  const log = getLogger()
+  const client = await getClient()
+  const hostname = require('os').hostname()
+  const startTime: number = Date.now()
+
   return new Promise<IServerHeartbeat>((resolve, reject) => {
-    const startTime = Date.now()
-    getClient().getHeartbeat(
+    client.getHeartbeat(
       new HeartbeatRequest()
-        .setHostname(require('os').hostname())
+        .setHostname(hostname)
         .setProcessId(process.pid)
         .setHeartbeatInterval(heartbeatInterval)
         .setSessionIdsList(activeSessions),
       (err, heartbeatResponse: HeartbeatResponse) => {
+        const logMetadata = { fn: 'getServerHeartbeat' }
+
         if (err) {
-          getLogger().error({
-            fn: 'getServerHeartbeat',
+          log.error({
+            ...logMetadata,
             err: {
               msg: err.message,
               details: err.details,
@@ -538,14 +571,15 @@ export function getServerHeartbeat(
         }
 
         if (!heartbeatResponse) {
-          getLogger().error({
-            fn: 'getServerHeartbeat',
+          log.error({
+            ...logMetadata,
             err: { msg: 'undefined heartbeat' },
           })
           return reject('undefined heartbeat')
         }
-        const latency = Date.now() - startTime
-        return resolve({
+
+        const latency: number = Date.now() - startTime
+        resolve({
           latency: latency,
           sessionCount: heartbeatResponse.getSessionCount(),
           serverTimestamp: heartbeatResponse.getTimestamp(),

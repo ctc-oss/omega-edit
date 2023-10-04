@@ -27,10 +27,16 @@ look something like this:
 docker build -t build/centos-8/cpp-env:1.0 -f Dockerfile.centos8-cpp-env .
 ```
 
-Similarly for Ubuntu 20:
+Similarly for Ubuntu 20.04:
 
 ```bash
 docker build -t build/ubuntu-20.04/cpp-env:1.0 -f Dockerfile.ubuntu20-cpp-env .
+```
+
+And for Ubuntu 22.04:
+
+```bash
+docker build -t build/ubuntu-22.04/cpp-env:1.0 -f Dockerfile.ubuntu22-cpp-env .
 ```
 
 With these images built we can use them in an IDE for building the project.

@@ -32,11 +32,11 @@ jobs:
           python-version: '3.x'
       - name: Prepare and Build Docs 🔧
         run: |
-          cmake -S core -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
           cmake --build build --target sphinx --config Release
-          touch build/docs/sphinx/.nojekyll
+          touch build/core/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
-          folder: build/docs/sphinx # The deployment folder should match the name of the artifact.
+          folder: build/core/docs/sphinx # The deployment folder should match the name of the artifact.

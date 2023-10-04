@@ -35,6 +35,7 @@ import {
   notifyChangedViewports,
 } from './session'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
+
 export { ChangeKind } from './omega_edit_pb'
 
 /**
@@ -98,25 +99,27 @@ export class EditStats implements IEditStats {
  * @return positive change serial number
  * @remarks function is named del because delete is a keyword
  */
-export function del(
+export async function del(
   session_id: string,
   offset: number,
   len: number,
   stats?: IEditStats
 ): Promise<number> {
+  const log = getLogger()
+  const request = new ChangeRequest()
+    .setSessionId(session_id)
+    .setKind(ChangeKind.CHANGE_DELETE)
+    .setOffset(offset)
+    .setLength(len)
+  log.debug({ fn: 'del', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new ChangeRequest()
-      .setSessionId(session_id)
-      .setKind(ChangeKind.CHANGE_DELETE)
-      .setOffset(offset)
-      .setLength(len)
-    getLogger().debug({ fn: 'del', rqst: request.toObject() })
-    getClient().submitChange(request, (err, r: ChangeResponse) => {
+    client.submitChange(request, (err, r: ChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'del',
           err: {
             msg: err.message,
@@ -132,7 +135,7 @@ export function del(
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'del',
           err: { resp: r.toObject() },
         })
@@ -141,7 +144,7 @@ export function del(
       if (stats) {
         ++stats.delete_count
       }
-      getLogger().debug({ fn: 'del', resp: r.toObject() })
+      log.debug({ fn: 'del', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -155,26 +158,28 @@ export function del(
  * @param stats optional edit stats to update
  * @return positive change serial number on success
  */
-export function insert(
+export async function insert(
   session_id: string,
   offset: number,
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
+  const log = getLogger()
+  const request = new ChangeRequest()
+    .setSessionId(session_id)
+    .setKind(ChangeKind.CHANGE_INSERT)
+    .setOffset(offset)
+    .setData(data)
+    .setLength(data.length)
+  log.debug({ fn: 'insert', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new ChangeRequest()
-      .setSessionId(session_id)
-      .setKind(ChangeKind.CHANGE_INSERT)
-      .setOffset(offset)
-      .setData(data)
-      .setLength(data.length)
-    getLogger().debug({ fn: 'insert', rqst: request.toObject() })
-    getClient().submitChange(request, (err, r: ChangeResponse) => {
+    client.submitChange(request, (err, r: ChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'insert',
           err: {
             msg: err.message,
@@ -190,7 +195,7 @@ export function insert(
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'insert',
           err: { resp: r.toObject() },
         })
@@ -199,7 +204,7 @@ export function insert(
       if (stats) {
         ++stats.insert_count
       }
-      getLogger().debug({ fn: 'insert', resp: r.toObject() })
+      log.debug({ fn: 'insert', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -213,26 +218,28 @@ export function insert(
  * @param stats optional edit stats to update
  * @return positive change serial number on success, zero otherwise
  */
-export function overwrite(
+export async function overwrite(
   session_id: string,
   offset: number,
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
+  const log = getLogger()
+  const request = new ChangeRequest()
+    .setSessionId(session_id)
+    .setKind(ChangeKind.CHANGE_OVERWRITE)
+    .setOffset(offset)
+    .setData(data)
+    .setLength(data.length)
+  log.debug({ fn: 'overwrite', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new ChangeRequest()
-      .setSessionId(session_id)
-      .setKind(ChangeKind.CHANGE_OVERWRITE)
-      .setOffset(offset)
-      .setData(data)
-      .setLength(data.length)
-    getLogger().debug({ fn: 'overwrite', rqst: request.toObject() })
-    getClient().submitChange(request, (err, r: ChangeResponse) => {
+    client.submitChange(request, (err, r: ChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'overwrite',
           err: {
             msg: err.message,
@@ -248,7 +255,7 @@ export function overwrite(
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'overwrite',
           err: { resp: r.toObject() },
         })
@@ -257,7 +264,7 @@ export function overwrite(
       if (stats) {
         ++stats.overwrite_count
       }
-      getLogger().debug({ fn: 'overwrite', resp: r.toObject() })
+      log.debug({ fn: 'overwrite', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -417,16 +424,21 @@ export async function editSimple(
  * @param stats optional edit stats to update
  * @return negative serial number of the undone change if successful
  */
-export function undo(session_id: string, stats?: IEditStats): Promise<number> {
+export async function undo(
+  session_id: string,
+  stats?: IEditStats
+): Promise<number> {
+  const log = getLogger()
+  const request = new ObjectId().setId(session_id)
+  log.debug({ fn: 'undo', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new ObjectId().setId(session_id)
-    getLogger().debug({ fn: 'undo', rqst: request.toObject() })
-    getClient().undoLastChange(request, (err, r: ChangeResponse) => {
+    client.undoLastChange(request, (err, r: ChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'undo',
           err: {
             msg: err.message,
@@ -442,7 +454,7 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'undo',
           err: { resp: r.toObject() },
         })
@@ -451,7 +463,7 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
       if (stats) {
         ++stats.undo_count
       }
-      getLogger().debug({ fn: 'undo', resp: r.toObject() })
+      log.debug({ fn: 'undo', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -463,16 +475,21 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
  * @param stats optional edit stats to update
  * @return positive serial number of the redone change if successful
  */
-export function redo(session_id: string, stats?: IEditStats): Promise<number> {
+export async function redo(
+  session_id: string,
+  stats?: IEditStats
+): Promise<number> {
+  const log = getLogger()
+  const request = new ObjectId().setId(session_id)
+  log.debug({ fn: 'redo', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new ObjectId().setId(session_id)
-    getLogger().debug({ fn: 'redo', rqst: request.toObject() })
-    getClient().redoLastUndo(request, (err, r: ChangeResponse) => {
+    client.redoLastUndo(request, (err, r: ChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'redo',
           err: {
             msg: err.message,
@@ -488,7 +505,7 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'redo',
           err: { resp: r.toObject() },
         })
@@ -497,7 +514,7 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
       if (stats) {
         ++stats.redo_count
       }
-      getLogger().debug({ fn: 'redo', resp: r.toObject() })
+      log.debug({ fn: 'redo', resp: r.toObject() })
       return resolve(serial)
     })
   })
@@ -509,16 +526,21 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
  * @param stats optional edit stats to update
  * @return cleared session ID on success
  */
-export function clear(session_id: string, stats?: IEditStats): Promise<string> {
+export async function clear(
+  session_id: string,
+  stats?: IEditStats
+): Promise<string> {
+  const log = getLogger()
+  const request = new ObjectId().setId(session_id)
+  log.debug({ fn: 'clear', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    const request = new ObjectId().setId(session_id)
-    getLogger().debug({ fn: 'clear', rqst: request.toObject() })
-    getClient().clearChanges(request, (err, r: ObjectId) => {
+    client.clearChanges(request, (err, r: ObjectId) => {
       if (err) {
         if (stats) {
           ++stats.error_count
         }
-        getLogger().error({
+        log.error({
           fn: 'clear',
           err: {
             msg: err.message,
@@ -532,7 +554,7 @@ export function clear(session_id: string, stats?: IEditStats): Promise<string> {
       if (stats) {
         ++stats.clear_count
       }
-      getLogger().debug({ fn: 'clear', resp: r.toObject() })
+      log.debug({ fn: 'clear', resp: r.toObject() })
       return resolve(r.getId())
     })
   })
@@ -543,15 +565,17 @@ export function clear(session_id: string, stats?: IEditStats): Promise<string> {
  * @param session_id session to get the last change from
  * @return last change details
  */
-export function getLastChange(
+export async function getLastChange(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
+  const log = getLogger()
+  const request = new ObjectId().setId(session_id)
+  log.debug({ fn: 'getLastChange', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    const request = new ObjectId().setId(session_id)
-    getLogger().debug({ fn: 'getLastChange', rqst: request.toObject() })
-    getClient().getLastChange(request, (err, r: ChangeDetailsResponse) => {
+    client.getLastChange(request, (err, r: ChangeDetailsResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getLastChange',
           err: {
             msg: err.message,
@@ -562,7 +586,7 @@ export function getLastChange(
         })
         return reject(new Error('getLastChange failed: ' + err))
       }
-      getLogger().debug({ fn: 'getLastChange', resp: r.toObject() })
+      log.debug({ fn: 'getLastChange', resp: r.toObject() })
       return resolve(r)
     })
   })
@@ -573,15 +597,17 @@ export function getLastChange(
  * @param session_id session to get the last undone change from
  * @return last undone change details
  */
-export function getLastUndo(
+export async function getLastUndo(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
+  const log = getLogger()
+  const request = new ObjectId().setId(session_id)
+  log.debug({ fn: 'getLastUndo', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    const request = new ObjectId().setId(session_id)
-    getLogger().debug({ fn: 'getLastUndo', rqst: request.toObject() })
-    getClient().getLastUndo(request, (err, r: ChangeDetailsResponse) => {
+    client.getLastUndo(request, (err, r: ChangeDetailsResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getLastUndo',
           err: {
             msg: err.message,
@@ -592,7 +618,7 @@ export function getLastUndo(
         })
         return reject(new Error('getLastUndo failed: ' + err))
       }
-      getLogger().debug({ fn: 'getLastUndo', resp: r.toObject() })
+      log.debug({ fn: 'getLastUndo', resp: r.toObject() })
       return resolve(r)
     })
   })
@@ -603,15 +629,17 @@ export function getLastUndo(
  * @param session_id session to get number of active changes from
  * @return number of active changes for the session, on success
  */
-export function getChangeCount(session_id: string): Promise<number> {
+export async function getChangeCount(session_id: string): Promise<number> {
+  const log = getLogger()
+  const request: CountRequest = new CountRequest()
+    .setSessionId(session_id)
+    .setKindList([CountKind.COUNT_CHANGES])
+  log.debug({ fn: 'getChangeCount', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request: CountRequest = new CountRequest()
-      .setSessionId(session_id)
-      .setKindList([CountKind.COUNT_CHANGES])
-    getLogger().debug({ fn: 'getChangeCount', rqst: request.toObject() })
-    getClient().getCount(request, (err, r: CountResponse) => {
+    client.getCount(request, (err, r: CountResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getChangeCount',
           err: {
             msg: err.message,
@@ -622,7 +650,7 @@ export function getChangeCount(session_id: string): Promise<number> {
         })
         return reject(new Error('getChangeCount failed: ' + err))
       }
-      getLogger().debug({ fn: 'getChangeCount', resp: r.toObject() })
+      log.debug({ fn: 'getChangeCount', resp: r.toObject() })
       return resolve(r.getCountsList()[0].getCount())
     })
   })
@@ -633,15 +661,17 @@ export function getChangeCount(session_id: string): Promise<number> {
  * @param session_id session to get number of undone changes from
  * @return number of undone changes for the session, on success
  */
-export function getUndoCount(session_id: string): Promise<number> {
+export async function getUndoCount(session_id: string): Promise<number> {
+  const log = getLogger()
+  const request = new CountRequest()
+    .setSessionId(session_id)
+    .setKindList([CountKind.COUNT_UNDOS])
+  log.debug({ fn: 'getUndoCount', rqst: request.toObject() })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new CountRequest()
-      .setSessionId(session_id)
-      .setKindList([CountKind.COUNT_UNDOS])
-    getLogger().debug({ fn: 'getUndoCount', rqst: request.toObject() })
-    getClient().getCount(request, (err, r: CountResponse) => {
+    client.getCount(request, (err, r: CountResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getUndoCount',
           err: {
             msg: err.message,
@@ -652,7 +682,7 @@ export function getUndoCount(session_id: string): Promise<number> {
         })
         return reject(new Error('getUndoCount failed: ' + err))
       }
-      getLogger().debug({ fn: 'getUndoCount', resp: r.toObject() })
+      log.debug({ fn: 'getUndoCount', resp: r.toObject() })
       return resolve(r.getCountsList()[0].getCount())
     })
   })
@@ -663,18 +693,22 @@ export function getUndoCount(session_id: string): Promise<number> {
  * @param session_id session to get number of change transactions from
  * @return number of change transactions for the session, on success
  */
-export function getChangeTransactionCount(session_id: string): Promise<number> {
+export async function getChangeTransactionCount(
+  session_id: string
+): Promise<number> {
+  const log = getLogger()
+  const request = new CountRequest()
+    .setSessionId(session_id)
+    .setKindList([CountKind.COUNT_CHANGE_TRANSACTIONS])
+  log.debug({
+    fn: 'getChangeTransactionCount',
+    rqst: request.toObject(),
+  })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new CountRequest()
-      .setSessionId(session_id)
-      .setKindList([CountKind.COUNT_CHANGE_TRANSACTIONS])
-    getLogger().debug({
-      fn: 'getChangeTransactionCount',
-      rqst: request.toObject(),
-    })
-    getClient().getCount(request, (err, r: CountResponse) => {
+    client.getCount(request, (err, r: CountResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getChangeTransactionCount',
           err: {
             msg: err.message,
@@ -685,7 +719,7 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
         })
         return reject(new Error('getChangeTransactionCount failed: ' + err))
       }
-      getLogger().debug({ fn: 'getChangeTransactionCount', resp: r.toObject() })
+      log.debug({ fn: 'getChangeTransactionCount', resp: r.toObject() })
       return resolve(r.getCountsList()[0].getCount())
     })
   })
@@ -696,18 +730,22 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
  * @param session_id session to get number of undo transactions from
  * @return number of undo transactions for the session, on success
  */
-export function getUndoTransactionCount(session_id: string): Promise<number> {
+export async function getUndoTransactionCount(
+  session_id: string
+): Promise<number> {
+  const log = getLogger()
+  const request = new CountRequest()
+    .setSessionId(session_id)
+    .setKindList([CountKind.COUNT_UNDO_TRANSACTIONS])
+  log.debug({
+    fn: 'getUndoTransactionCount',
+    rqst: request.toObject(),
+  })
+  const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    const request = new CountRequest()
-      .setSessionId(session_id)
-      .setKindList([CountKind.COUNT_UNDO_TRANSACTIONS])
-    getLogger().debug({
-      fn: 'getUndoTransactionCount',
-      rqst: request.toObject(),
-    })
-    getClient().getCount(request, (err, r: CountResponse) => {
+    client.getCount(request, (err, r: CountResponse) => {
       if (err) {
-        getLogger().error({
+        log.error({
           fn: 'getUndoTransactionCount',
           err: {
             msg: err.message,
@@ -718,7 +756,7 @@ export function getUndoTransactionCount(session_id: string): Promise<number> {
         })
         return reject(new Error('getUndoTransactionCount failed: ' + err))
       }
-      getLogger().debug({ fn: 'getUndoTransactionCount', resp: r.toObject() })
+      log.debug({ fn: 'getUndoTransactionCount', resp: r.toObject() })
       return resolve(r.getCountsList()[0].getCount())
     })
   })

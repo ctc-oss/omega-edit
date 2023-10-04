@@ -26,7 +26,6 @@ import {
   stopServerGraceful,
   stopServerImmediate,
   stopServerUsingPID,
-  waitForReady,
 } from '@omega-edit/client'
 import { expect } from 'chai'
 
@@ -63,7 +62,7 @@ describe('Server', () => {
       pid = await startServer(serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
-      expect(await waitForReady(getClient(serverTestPort))).to.be.true
+      expect(await getClient(serverTestPort)).to.not.be.undefined
       expect(await getSessionCount()).to.equal(0)
       session_id = (await createSession()).getSessionId()
       expect(session_id.length).to.equal(36)
@@ -84,7 +83,7 @@ describe('Server', () => {
 
   it(`on port ${serverTestPort} should stop immediately via PID`, async () => {
     // stop the server using its pid should stop the server immediately using the operating system
-    expect(await stopServerUsingPID(pid)).to.be.true
+    expect(await stopServerUsingPID(pid as number)).to.be.true
   })
 
   xit(`on port ${serverTestPort} should stop immediately via API`, async () => {
