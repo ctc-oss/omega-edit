@@ -19,7 +19,7 @@ on:
 
 jobs:
   scala-steward:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     name: Scala Steward 🔔
     steps:
       - name: Scala Steward 🔔

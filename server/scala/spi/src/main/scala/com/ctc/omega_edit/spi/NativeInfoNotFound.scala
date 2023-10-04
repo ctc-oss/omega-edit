@@ -16,7 +16,10 @@
 
 package com.ctc.omega_edit.spi
 
-case class NativeInfoNotFound(api: String)
+/** Thrown when no native library is found for the given API.
+  * @param api
+  */
+final case class NativeInfoNotFound(api: String)
     extends RuntimeException(
       s"Could not find BuildInfoService via SPI for $api"
     )

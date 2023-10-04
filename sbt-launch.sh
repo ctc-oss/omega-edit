@@ -12,45 +12,14 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.         #
 #                                                                                                                      #
 ########################################################################################################################
+# Navigate to the script's directory
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Exit immediately if a command exits with a non-zero status and print each command to stdout before executing it
 set -ex
-cd "$(dirname "${BASH_SOURCE[0]}")"
 
-#type="Release"
-#generator="Unix Makefiles"
+# Navigate to the Scala server source directory
+cd "${SCRIPT_DIR}/server/scala"
 
-type=${type:-"Debug"}
-generator=${generator:-"Ninja"}
-build_docs=${build_docs:-"NO"}
-install_dir="${PWD}/_install"
-
-for objtype in shared static; do
-  build_shared_libs="NO"
-  if [ $objtype == "shared" ]; then
-    build_shared_libs="YES"
-  fi
-
-  rm -rf "build-$objtype-$type" "$install_dir-$objtype-$type"
-  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
-  cmake --build "build-$objtype-$type" --config "$type"
-  ctest -C "$type" --test-dir "build-$objtype-$type/core" --output-on-failure
-  cmake --install "build-$objtype-$type/packages/core" --prefix "$install_dir-$objtype-$type" --config "$type"
-  cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
-  cpack --config "build-$objtype-$type/CPackConfig.cmake"
-done
-
-# used by scala native code to bundle the proper library file
-# shellcheck disable=SC2155
-export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/lib")"
-
-# install common packages and check lint for client and server
-yarn install
-yarn lint
-
-# Build, test, and package Scala server node module
-yarn workspace @omega-edit/server package
-
-# Build, test, and package the TypeScript client node module
-yarn workspace @omega-edit/client test
-
-echo "✔ Done! ✨"
+# Run sbt with the given arguments
+sbt "$@"

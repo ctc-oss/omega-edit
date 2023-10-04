@@ -16,6 +16,8 @@
 
 package com.ctc.omega_edit.spi
 
+/** Service provider interface for obtaining build information.
+  */
 trait BuildInfoService {
   def info(): NativeBuildInfo
 }

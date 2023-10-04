@@ -27,7 +27,7 @@ lazy val packageData = Json
     Using(Source.fromFile("../../package.json"))(source => source.mkString).get
   )
   .as[JsObject]
-lazy val omegaVersion = packageData("version").as[String]
+lazy val omegaEditVersion = packageData("version").as[String]
 
 lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
@@ -40,8 +40,8 @@ lazy val ghb_resolver = (
 /** The script templates only need to know the version. The updating of the classpaths was moved to the template files
   * in serv/src/templates
   */
-lazy val bashExtras = s"""declare omegaVersion="${omegaVersion}""""
-lazy val batchExtras = s"""set "OMEGAVERSION=${omegaVersion}""""
+lazy val bashExtras = s"""declare omegaEditVersion="${omegaEditVersion}""""
+lazy val batchExtras = s"""set "OMEGAEditVERSION=${omegaEditVersion}""""
 
 lazy val isRelease =
   Try(sys.env.get("IS_RELEASE").getOrElse("").toBoolean).getOrElse(false)
@@ -54,12 +54,10 @@ lazy val tikaVersion = "2.9.0"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.10",
-    version := omegaVersion,
-    licenses += ("Apache-2.0", new URL(
-      "https://www.apache.org/licenses/LICENSE-2.0.txt"
-    )),
+    scalaVersion := "2.13.12",
+    version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
+    maintainer := "oss@ctc.com",
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
     publishTo := Some(ghb_resolver),
@@ -80,6 +78,9 @@ lazy val commonSettings =
       Resolver.mavenLocal
     )
   )
+
+// Keys to exclude from the `lintUnused` check
+Global / excludeLintKeys += maintainer
 
 lazy val ratSettings = Seq(
   ratLicenses := Seq(
@@ -196,8 +197,8 @@ lazy val serv = project
     name := "omega-edit-grpc-server",
     if (isRelease)
       libraryDependencies ++= Seq(
-        "com.ctc" %% "omega-edit" % omegaVersion,
-        "com.ctc" %% "omega-edit-native" % omegaVersion,
+        "com.ctc" %% "omega-edit" % omegaEditVersion,
+        "com.ctc" %% "omega-edit-native" % omegaEditVersion,
         "com.monovore" %% "decline" % "2.4.1",
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "org.apache.tika" % "tika-core" % tikaVersion,
@@ -230,8 +231,7 @@ lazy val serv = project
     ClasspathJarPlugin,
     GitVersioning,
     JavaServerAppPackaging,
-    UniversalPlugin,
-    ClasspathJarPlugin
+    UniversalPlugin
   )
 
 addCommandAlias(

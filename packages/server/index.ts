@@ -24,7 +24,7 @@
  * It can be imported as a module.
  */
 
-import * as child_process from 'child_process'
+import { ChildProcess, spawn } from 'child_process'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
@@ -41,16 +41,16 @@ const checkForBinPath = (baseDir: string) => {
   const serverbasePath = 'node_modules/@omega-edit/server'
 
   // These two are checked as when testing locally it will want to use out/bin
-  const pathsToCheck = [
-    path.join(baseDir, `${serverbasePath}/bin`),
-    path.join(baseDir, `${serverbasePath}/out/bin`),
+  const pathsToCheck: string[] = [
+    path.join(baseDir, serverbasePath, 'bin'),
+    path.join(baseDir, serverbasePath, 'out', 'bin'),
   ]
 
-  for (var i = 0; i < pathsToCheck.length; i++) {
+  for (let i = 0; i < pathsToCheck.length; i++) {
     if (fs.existsSync(pathsToCheck[i])) return path.resolve(pathsToCheck[i])
   }
 
-  return getBinFolderPath(path.join(baseDir, '../'))
+  return getBinFolderPath(path.join(baseDir, '..'))
 }
 
 /**
@@ -65,7 +65,7 @@ const getBinFolderPath = (baseDir: string) => {
   if (!baseDir.endsWith('node_modules')) {
     if (fs.readdirSync(baseDir).includes('node_modules'))
       return checkForBinPath(baseDir)
-    else return getBinFolderPath(path.join(baseDir, '../'))
+    else return getBinFolderPath(path.join(baseDir, '..'))
   } else {
     return checkForBinPath(baseDir.replace('node_modules', ''))
   }
@@ -76,9 +76,7 @@ const getBinFolderPath = (baseDir: string) => {
  * @param args arguments to pass to the server
  * @returns {ChildProcess} server process
  */
-async function executeServer(
-  args: string[]
-): Promise<child_process.ChildProcess> {
+async function executeServer(args: string[]): Promise<ChildProcess> {
   const serverScript = path.join(
     getBinFolderPath(path.resolve(__dirname)),
     os.platform() === 'win32'
@@ -88,13 +86,13 @@ async function executeServer(
 
   fs.chmodSync(serverScript, '755')
 
-  const serverProcess = child_process.spawn(serverScript, args, {
+  const serverProcess: ChildProcess = spawn(serverScript, args, {
     cwd: path.dirname(serverScript),
     stdio: 'ignore',
     detached: true,
   })
 
-  serverProcess.on('error', (err) => {
+  serverProcess.on('error', (err: Error) => {
     // ignore the error if the process was cancelled
     if (!err.message.includes('Call cancelled')) throw err
   })
@@ -113,16 +111,13 @@ async function executeServer(
 export async function runServer(
   port: number,
   host: string = '127.0.0.1',
-  pidfile: string | undefined = undefined,
-  logConf: string | undefined = undefined
-): Promise<child_process.ChildProcess> {
-  /**
-   * NOTE:
-   *  Do not wrap args with double quotes, this causes issue when being
-   *  passed to the script
-   */
+  pidfile?: string,
+  logConf?: string
+): Promise<ChildProcess> {
+  // NOTE: Do not wrap args with double quotes, this causes issues when being
+  // passed to the script
 
-  const args = [`--interface=${host}`, `--port=${port}`]
+  const args: string[] = [`--interface=${host}`, `--port=${port}`]
 
   if (pidfile) {
     args.push(`--pidfile=${pidfile}`)

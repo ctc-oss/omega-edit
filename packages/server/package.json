@@ -12,12 +12,13 @@
   "bugs": {
     "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
-  "author": "Shane Dell, Davin Shearer, John Wass",
+  "author": "CTC-OSS",
   "license": "Apache-2.0",
   "scripts": {
+    "test": "cd ../../server/scala && sbt test && sbt serv/test",
     "sbt-server": "cd ../../server/scala && sbt pkgServer",
     "build": "webpack --mode=production",
-    "prepackage": "yarn sbt-server && yarn build",
+    "prepackage": "yarn test && yarn sbt-server && yarn build",
     "prepackage-no-sbt": "yarn build",
     "package": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v$npm_package_version.tgz",
     "package-no-sbt": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v$npm_package_version.tgz",
