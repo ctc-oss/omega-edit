@@ -135,6 +135,8 @@ Node packages will be in `.tgz` files located at:
 /packages/client/omega-edit-node-client-${VERSION}.tgz
 ```
 
+More information about the node packages can be found in the [packages](packages/README.md) folder.
+
 ## Release Binaries
 
 [Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS (Apple Silicon and x86), Windows (x86), and
