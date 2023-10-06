@@ -1,5 +1,7 @@
 # Ωedit™ Node Packages
 
+:exclamation: These commands should be executed in the `packages` folder after a successful [build](../README.md). :exclamation:
+
 This folder contains different node packages that will be created for `omega-edit`.  These packages are:
 
 * `@omega-edit/server` - The server package for `omega-edit`
@@ -13,8 +15,8 @@ local `node_modules` folder in the project that has Ωedit™ dependencies.  Her
 1. In the packages folder, run `yarn link`.
 
 ```bash
-pushd packages/server && yarn link && popd
-pushd packages/client && yarn link && popd
+yarn --cwd server link
+yarn --cwd client link
 ```
 
 2. In the project folder that you want to use the packages in, run `yarn link <package-name>`.  If the project uses npm,
@@ -36,6 +38,6 @@ yarn unlink @omega-edit/server @omega-edit/client
 5. You can also unlink the packages from the package folder by running `yarn unlink` in the package folder.
 
 ```bash
-pushd packages/server && yarn unlink && popd
-pushd packages/client && yarn unlink && popd
+yarn --cwd server unlink
+yarn --cwd client unlink
 ```

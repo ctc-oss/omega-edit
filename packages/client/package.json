@@ -1,7 +1,7 @@
 {
   "name": "@omega-edit/client",
   "version": "0.9.74",
-  "description": "OmegaEdit gRPC Client TypeScript Types",
+  "description": "OmegaEdit gRPC Client",
   "publisher": "ctc-oss",
   "main": "out/index.js",
   "types": "out/index.d.ts",
