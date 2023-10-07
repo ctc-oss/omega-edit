@@ -331,6 +331,7 @@ char const *omega_util_BOM_to_string(omega_bom_t bom) {
         case BOM_UTF32BE:
             return "UTF-32BE";
         default:
+            // Should never happen
             return "unknown";
     }
 }
@@ -436,14 +437,14 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
             while (i + 1 < length) {
                 // Swap the bytes if the BOM is little endian
                 const uint16_t char16 = counts_ptr->bom == BOM_UTF16LE
-                                                ? (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8
-                                                : (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
+                                        ? (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8
+                                        : (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
 
                 if (is_lead_surrogate_UTF16_(char16)) {
                     if (i + 3 < length) {
                         const uint16_t next_char16 = counts_ptr->bom == BOM_UTF16LE
-                                                             ? (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8
-                                                             : (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
+                                                     ? (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8
+                                                     : (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
                         if (is_low_surrogate_UTF16_(next_char16)) {
                             ++counts_ptr->doubleByteChars;
                             i += 4;// skip the low surrogate as well
@@ -474,8 +475,8 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
                 // Swap the bytes if the BOM is little endian
                 const uint32_t char32 =
                         counts_ptr->bom == BOM_UTF32LE
-                                ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
-                                : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
+                        ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
+                        : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
 
                 if ((char32 >= 0xD800 && char32 <= 0xDFFF) || char32 > 0x10FFFF) {
                     ++counts_ptr->invalidBytes;// surrogate pairs and characters above 0x10FFFF are invalid in UTF-32
@@ -495,6 +496,22 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     }
     // Handle trailing invalid bytes
     counts_ptr->invalidBytes += length - i;
+}
+
+size_t omega_util_BOM_size(omega_bom_t bom) {
+    switch (bom) {
+        case BOM_UTF8:
+            return 3;
+        case BOM_UTF16LE: // fall through
+        case BOM_UTF16BE:
+            return 2;
+        case BOM_UTF32LE: // fall through
+        case BOM_UTF32BE:
+            return 4;
+        case BOM_NONE: // fall through
+        default:
+            return 0;
+    }
 }
 
 const omega_byte_buffer_t *omega_util_BOM_to_buffer(omega_bom_t bom) {
