@@ -171,7 +171,7 @@ omega_bom_t omega_util_detect_BOM_from_file(const char *filename);
 /**
  * Convert the given byte order mark (BOM) to a string
  * @param bom byte order mark (BOM) to convert
- * @return string representation of the given BOM
+ * @return string representation of the given BOM ("none", "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE")
  */
 char const *omega_util_BOM_to_string(omega_bom_t bom);
 
@@ -194,6 +194,13 @@ typedef struct {
     /** The length of the buffer */
     size_t length;
 } omega_byte_buffer_t;
+
+/**
+ * Given a byte order mark (BOM), return the size of the byte order mark (BOM) in bytes
+ * @param bom byte order mark (BOM) to get the size of
+ * @return size of the byte order mark (BOM) in bytes
+ */
+size_t omega_util_BOM_size(omega_bom_t bom);
 
 /**
  * Get the byte order mark buffer (BOM) associated with the given byte order mark (BOM)

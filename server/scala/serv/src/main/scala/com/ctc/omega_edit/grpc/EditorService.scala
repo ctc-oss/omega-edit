@@ -126,7 +126,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       val buffer = new Array[Byte](8192)
       val bytesRead = file.read(buffer)
       file.close
-      // Convert the bytes read into a String, sssuming the file is UTF-8 encoded; adjust encoding as necessary
+      // Convert the bytes read into a String, assuming the file is UTF-8 encoded; adjust encoding as necessary
       val text = new String(buffer, 0, bytesRead, if (bom == "unknown" || bom == "none") "UTF-8" else bom)
       val detector = new OptimaizeLangDetector().loadModels
       val languageResult = detector.detect(text)
