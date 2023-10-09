@@ -247,6 +247,7 @@
 <li><a class="reference internal" href="#_CPPv431omega_util_detect_BOM_from_filePKc"><code class="docutils literal notranslate"><span class="pre">omega_util_detect_BOM_from_file()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_BOM_to_string11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_string()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_util_count_charactersPKh6size_tP24omega_character_counts_t"><code class="docutils literal notranslate"><span class="pre">omega_util_count_characters()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv419omega_util_BOM_size11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_BOM_to_buffer11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_buffer()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv419omega_byte_buffer_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t</span></code></a><ul>
 <li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t4dataE"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t::data</span></code></a></li>
@@ -2399,7 +2400,7 @@
 <dd class="field-odd"><p><strong>bom</strong> – byte order mark (BOM) to convert </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>string representation of the given BOM </p>
+<dd class="field-even"><p>string representation of the given BOM (“none”, “UTF-8”, “UTF-16LE”, “UTF-16BE”, “UTF-32LE”, “UTF-32BE”) </p>
 </dd>
 </dl>
 </dd></dl>
@@ -2419,6 +2420,20 @@
 <li><p><strong>length</strong> – length of the data </p></li>
 <li><p><strong>counts_ptr</strong> – pointer to the character counts to populate </p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv419omega_util_BOM_size11omega_bom_t">
+<span id="_CPPv319omega_util_BOM_size11omega_bom_t"></span><span id="_CPPv219omega_util_BOM_size11omega_bom_t"></span><span id="omega_util_BOM_size__omega_bom_t"></span><span class="target" id="utility_8h_1aa165400095be00d1aace70a6f1ee843d"></span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_BOM_size</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv411omega_bom_t" title="omega_bom_t"><span class="n"><span class="pre">omega_bom_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">bom</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv419omega_util_BOM_size11omega_bom_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Given a byte order mark (BOM), return the size of the byte order mark (BOM) in bytes </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>bom</strong> – byte order mark (BOM) to get the size of </p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>size of the byte order mark (BOM) in bytes </p>
 </dd>
 </dl>
 </dd></dl>
