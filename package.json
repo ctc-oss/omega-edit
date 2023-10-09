@@ -34,7 +34,7 @@
     "mocha": "^10.0.0",
     "prettier": "^3.0.3",
     "run-script-os": "^1.1.6",
-    "ts-loader": "^9.4.4",
+    "ts-loader": "^9.5.0",
     "ts-node": "^10.9.1",
     "typedoc": "^0.25.1",
     "typescript": "^5.2.2",
