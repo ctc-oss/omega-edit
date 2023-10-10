@@ -108,7 +108,10 @@ object Session {
   case class GetLastUndo() extends Op
 
   case class Profile(request: SegmentRequest) extends Op
-  case class CharCount(request: SegmentRequest) extends Op
+  case class CharCount(request: TextRequest) extends Op
+  case class ByteOrderMark(request: SegmentRequest) extends Op
+  case class ContentType(request: SegmentRequest) extends Op
+  case class Language(request: TextRequest) extends Op
 
   case class Search(request: SearchRequest) extends Op
 
@@ -139,15 +142,13 @@ object Session {
   trait CheckpointDirectory {
     def checkpointDirectory: Path
     def fileSize: Long
-    def bom: String
   }
 
   object CheckpointDirectory {
-    def ok(sessionId: String, checkpointDirectory0: Path, size: Long, bom0: String): Ok with CheckpointDirectory =
+    def ok(sessionId: String, checkpointDirectory0: Path, size: Long): Ok with CheckpointDirectory =
       new Ok(sessionId) with CheckpointDirectory {
         val checkpointDirectory: Path = checkpointDirectory0
         val fileSize: Long = size
-        val bom: String = bom0
       }
   }
 
@@ -388,7 +389,7 @@ class Session(
     case CharCount(request) =>
       val offset = request.offset
       val length = request.length
-      session.charCount(offset, length) match {
+      session.charCount(offset, length, request.byteOrderMark) match {
         case Right(charCounts) =>
           sender() ! CharacterCountResponse.of(
             sessionId,
@@ -405,6 +406,29 @@ class Session(
         case Left(errorCode) =>
           sender() ! Err(Status.UNKNOWN.withDescription(s"CharCount function failed with error code: $errorCode"))
       }
+
+    case ByteOrderMark(request) =>
+      sender() ! ByteOrderMarkResponse.of(sessionId, request.offset, request.length, session.detectByteOrderMark(request.offset))
+
+    case ContentType(request) =>
+      sender() ! ContentTypeResponse.of(
+        sessionId,
+        request.offset,
+        request.length,
+        session.detectContentType(request.offset, request.length)
+      )
+
+    case Language(request) =>
+      sender() ! LanguageResponse.of(
+        sessionId,
+        request.offset,
+        request.length,
+        session.detectLanguage(
+          request.offset,
+          request.length,
+          request.byteOrderMark
+        )
+      )
 
     case Search(request) =>
       val isCaseInsensitive = request.isCaseInsensitive.getOrElse(false)

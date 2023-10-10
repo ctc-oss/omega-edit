@@ -114,7 +114,7 @@ class Editors extends Actor with ActorLogging {
             ),
             id
           )
-          sender() ! CheckpointDirectory.ok(id, session.checkpointDirectory, session.size, session.bom)
+          sender() ! CheckpointDirectory.ok(id, session.checkpointDirectory, session.size)
       }
 
     case Find(id) =>

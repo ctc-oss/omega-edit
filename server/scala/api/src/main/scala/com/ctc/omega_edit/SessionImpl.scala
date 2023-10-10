@@ -25,6 +25,10 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
 
+import org.apache.tika.detect.DefaultDetector
+import org.apache.tika.langdetect.optimaize.OptimaizeLangDetector
+import org.apache.tika.metadata.Metadata
+
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   require(p != null, "native session pointer was null")
 
@@ -172,7 +176,8 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def save(to: Path, flags: Int, offset: Long, length: Long): Try[(Path, Int)] = {
     // todo;; obtain an accurate and portable number here
     val buffer = ByteBuffer.allocate(4096)
-    val rc = i.omega_edit_save_segment(
+
+    val resultCode = i.omega_edit_save_segment(
       p,
       to.toString,
       flags,
@@ -180,45 +185,53 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
       offset,
       length
     )
-    if (rc == IOFlags.SaveStatus.Success || rc == IOFlags.SaveStatus.Modified) {
-      Success((Paths.get(StandardCharsets.UTF_8.decode(buffer).toString.trim), rc))
-    } else {
-      Failure(new RuntimeException(s"Failed to save session to file: $rc"))
+
+    resultCode match {
+      case IOFlags.SaveStatus.Success | IOFlags.SaveStatus.Modified =>
+        Success((Paths.get(StandardCharsets.UTF_8.decode(buffer).toString.trim), resultCode))
+      case _ =>
+        Failure(new RuntimeException(s"Failed to save session to file: $resultCode"))
     }
   }
+  def detectByteOrderMark(offset: Long): String =
+    i.omega_util_BOM_to_string(i.omega_session_detect_BOM(p, offset)) match {
+      case "none" | "unknown" => "UTF-8"
+      case detectedBOM        => detectedBOM
+    }
 
-  def bom: String =
-    i.omega_util_BOM_to_string(i.omega_session_detect_BOM(p))
+  def detectByteOrderMark: String =
+    detectByteOrderMark(0)
 
   def profile(offset: Long, length: Long): Either[Int, Array[Long]] = {
     val profile = new Array[Long](257) // 256 bytes (0 - 255), plus 1 (256) for the DOS EOL '\r\n' pairs
-    val result = i.omega_session_byte_frequency_profile(p, profile, offset, length)
-    if (result == 0) {
-      Right(profile)
-    } else {
-      Left(result)
+    i.omega_session_byte_frequency_profile(p, profile, offset, length) match {
+      case 0      => Right(profile)
+      case result => Left(result)
     }
   }
 
-  def charCount(offset: Long, length: Long): Either[Int, CharCounts] = {
+  def charCount(offset: Long, length: Long, bom: Int): Either[Int, CharCounts] = {
     val counts = i.omega_character_counts_create()
-    val result = i.omega_session_character_counts(p, counts, offset, length)
-    if (result == 0) {
-      Right(
-        CharCounts(
-          i.omega_util_BOM_to_string(i.omega_character_counts_get_BOM(counts)),
-          i.omega_character_counts_bom_bytes(counts),
-          i.omega_character_counts_single_byte_chars(counts),
-          i.omega_character_counts_double_byte_chars(counts),
-          i.omega_character_counts_triple_byte_chars(counts),
-          i.omega_character_counts_quad_byte_chars(counts),
-          i.omega_character_counts_invalid_bytes(counts)
+    i.omega_session_character_counts(p, counts, offset, length, bom) match {
+      case 0 =>
+        Right(
+          CharCounts(
+            i.omega_util_BOM_to_string(i.omega_character_counts_get_BOM(counts)),
+            i.omega_character_counts_bom_bytes(counts),
+            i.omega_character_counts_single_byte_chars(counts),
+            i.omega_character_counts_double_byte_chars(counts),
+            i.omega_character_counts_triple_byte_chars(counts),
+            i.omega_character_counts_quad_byte_chars(counts),
+            i.omega_character_counts_invalid_bytes(counts)
+          )
         )
-      )
-    } else {
-      Left(result)
+      case result => Left(result)
     }
   }
+
+  def charCount(offset: Long, length: Long, bom: String): Either[Int, CharCounts] =
+    charCount(offset, length, i.omega_util_string_to_BOM(bom))
+
   def search(
       pattern: Array[Byte],
       offset: Long,
@@ -267,6 +280,26 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         Segment(offset, out)
       }
     } finally i.omega_segment_destroy(sp)
+  }
+
+  def detectContentType(offset: Long, length: Long): String = {
+    val detector = new DefaultDetector()
+    val metadata = new Metadata()
+    val segment = getSegment(offset, length)
+    val stream = new java.io.ByteArrayInputStream(segment.get.data)
+    val mediaType = detector.detect(stream, metadata)
+    mediaType.toString
+  }
+
+  def detectLanguage(offset: Long, length: Long, bom: String): String = {
+    val detector = new OptimaizeLangDetector()
+    val segment = getSegment(offset, length)
+
+    // Convert byte array to String
+    val content = new String(segment.get.data, if (bom == "none" || bom == "unknown") "UTF-8" else bom)
+
+    val languageResult = detector.detect(content) // Removed the metadata argument
+    if (languageResult.isReasonablyCertain) languageResult.getLanguage.toString else "unknown"
   }
 
   def destroy(): Unit =

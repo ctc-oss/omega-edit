@@ -175,6 +175,8 @@ omega_bom_t omega_util_detect_BOM_from_file(const char *filename);
  */
 char const *omega_util_BOM_to_string(omega_bom_t bom);
 
+omega_bom_t omega_util_string_to_BOM(char const *str);
+
 /**
  * Count the number of single byte, and multi-byte characters in the given data
  * @param data data to count the characters in

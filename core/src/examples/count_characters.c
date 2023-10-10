@@ -27,7 +27,8 @@ int main(int argc, char *argv[]) {
     omega_session_t *session_ptr = omega_edit_create_session(argv[1], NULL, NULL, NO_EVENTS, NULL);
     omega_character_counts_t *character_counts_ptr = omega_character_counts_create();
     omega_session_character_counts(session_ptr, character_counts_ptr, 0,
-                                   omega_session_get_computed_file_size(session_ptr));
+                                   omega_session_get_computed_file_size(session_ptr),
+                                   omega_session_detect_BOM(session_ptr, 0));
 
     printf("File: %s, BOM: %s\n", argv[1],
            omega_util_BOM_to_string(omega_character_counts_get_BOM(character_counts_ptr)));

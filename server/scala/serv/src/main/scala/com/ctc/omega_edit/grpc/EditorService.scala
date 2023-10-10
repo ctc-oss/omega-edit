@@ -26,16 +26,11 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 
-import java.io.{BufferedInputStream, FileInputStream}
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
 import omega_edit._
 
 import org.apache.pekko
-
-import org.apache.tika.detect.DefaultDetector
-import org.apache.tika.langdetect.optimaize.OptimaizeLangDetector
-import org.apache.tika.metadata.Metadata
 
 import pekko.NotUsed
 import pekko.actor.ActorSystem
@@ -49,7 +44,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
@@ -83,7 +78,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def createSession(in: CreateSessionRequest): Future[CreateSessionResponse] =
     if (isGracefulShutdown) {
       // If server is to shutdown gracefully, don't create new sessions
-      Future.successful(CreateSessionResponse("", "", None, None, None, None))
+      Future.successful(CreateSessionResponse("", "", None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
       val chkptDir = in.checkpointDirectory.map(Paths.get(_))
@@ -92,49 +87,20 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         .map {
           case ok: Ok with CheckpointDirectory =>
             filePath match {
-              // If a file path is provided, detect file type and language
-              case Some(path) =>
-                val (fileType: Option[String], language: Option[String]) =
-                  detectFileTypeAndLanguage(path.toString, ok.bom)
+              // If a file path is provided, add the file size to the response
+              case Some(_) =>
                 CreateSessionResponse(
                   ok.id,
                   ok.checkpointDirectory.toString,
-                  Option(ok.bom),
-                  fileType,
-                  language,
                   Option(ok.fileSize)
                 )
-              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None, None, None, None)
+              case None => CreateSessionResponse(ok.id, ok.checkpointDirectory.toString, None)
             }
           case Ok(id) =>
             throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")
           case Err(c) => throw grpcFailure(c)
         }
     }
-
-  def detectFileTypeAndLanguage(filePath: String, bom: String): (Option[String], Option[String]) = {
-    val fileType = Try {
-      val file = new BufferedInputStream(new FileInputStream(filePath))
-      val detector = new DefaultDetector()
-      val mediaTypeResult = detector.detect(file, new Metadata())
-      file.close
-      mediaTypeResult.toString
-    }
-
-    val language = Try {
-      val file = new BufferedInputStream(new FileInputStream(filePath))
-      val buffer = new Array[Byte](8192)
-      val bytesRead = file.read(buffer)
-      file.close
-      // Convert the bytes read into a String, assuming the file is UTF-8 encoded; adjust encoding as necessary
-      val text = new String(buffer, 0, bytesRead, if (bom == "unknown" || bom == "none") "UTF-8" else bom)
-      val detector = new OptimaizeLangDetector().loadModels
-      val languageResult = detector.detect(text)
-      if (languageResult.isReasonablyCertain) languageResult.getLanguage else "unknown"
-    }
-
-    (fileType.toOption, language.toOption)
-  }
 
   def destroySession(in: ObjectId): Future[ObjectId] =
     // First destroy the session, then destroy the actor
@@ -483,13 +449,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
     }
 
-  def getByteFrequencyProfile(
-      in: SegmentRequest
-  ): Future[ByteFrequencyProfileResponse] =
+  def getByteFrequencyProfile(in: SegmentRequest): Future[ByteFrequencyProfileResponse] =
     (editors ? SessionOp(in.sessionId, Session.Profile(in)))
       .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
 
-  def getCharacterCounts(in: omega_edit.SegmentRequest): Future[CharacterCountResponse] =
+  def getCharacterCounts(in: omega_edit.TextRequest): Future[CharacterCountResponse] =
     (editors ? SessionOp(in.sessionId, Session.CharCount(in)))
       .mapTo[CharacterCountResponse] // No `Ok` wrapper
 
@@ -604,6 +568,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           grpcFailure(Status.UNKNOWN, s"undefined kind: ${in.kind}")
         )
     }
+
+  def getByteOrderMark(in: SegmentRequest): Future[ByteOrderMarkResponse] =
+    (editors ? SessionOp(in.sessionId, Session.ByteOrderMark(in)))
+      .mapTo[ByteOrderMarkResponse] // No `Ok` wrapper
+
+  def getContentType(in: SegmentRequest): Future[ContentTypeResponse] =
+    (editors ? SessionOp(in.sessionId, Session.ContentType(in)))
+      .mapTo[ContentTypeResponse] // No `Ok` wrapper
+
+  def getLanguage(in: TextRequest): Future[LanguageResponse] =
+    (editors ? SessionOp(in.sessionId, Session.Language(in)))
+      .mapTo[LanguageResponse] // No `Ok` wrapper
 }
 
 object EditorService {

@@ -587,57 +587,66 @@ TEST_CASE("Model Tests", "[ModelTests]") {
 }
 
 TEST_CASE("Detect BOM", "[DetectBOM]") {
+    REQUIRE(BOM_UNKNOWN == omega_util_string_to_BOM(""));
+    REQUIRE(BOM_UNKNOWN == omega_util_string_to_BOM("unknown"));
     auto session_ptr = omega_edit_create_session("data/utf-8_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    auto bom = omega_session_detect_BOM(session_ptr);
+    auto bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_NONE);
     REQUIRE(0 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("none", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_NONE == omega_util_string_to_BOM("none"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/utf-8bom_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_UTF8);
     REQUIRE(3 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("UTF-8", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_UTF8 == omega_util_string_to_BOM("UTF-8"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/utf-16le_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_UTF16LE);
     REQUIRE(2 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("UTF-16LE", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_UTF16LE == omega_util_string_to_BOM("UTF-16LE"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/utf-16be_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_UTF16BE);
     REQUIRE(2 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("UTF-16BE", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_UTF16BE == omega_util_string_to_BOM("UTF-16BE"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/utf-32le_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_UTF32LE);
     REQUIRE(4 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("UTF-32LE", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_UTF32LE == omega_util_string_to_BOM("UTF-32LE"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/utf-32be_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_UTF32BE);
     REQUIRE(4 == omega_util_BOM_size(bom));
     REQUIRE(0 == strcmp("UTF-32BE", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_UTF32BE == omega_util_string_to_BOM("UTF-32BE"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session("data/ascii_1.txt", nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_NONE);
     REQUIRE(0 == strcmp("none", omega_util_BOM_to_string(bom)));
+    REQUIRE(BOM_NONE == omega_util_string_to_BOM("none"));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
-    bom = omega_session_detect_BOM(session_ptr);
+    bom = omega_session_detect_BOM(session_ptr, 0);
     REQUIRE(bom == BOM_NONE);
     omega_edit_destroy_session(session_ptr);
 }
@@ -654,7 +663,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     auto session_ptr = omega_edit_create_session("data/utf-8_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -666,7 +675,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/utf-8bom_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -678,7 +687,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     // Force invalid bytes by not including the full sequence of a triple-byte character (e.g., ™).
     // Removing the last 2 bytes removes the trailing newline and the last byte of the 3-byte ™ character.
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0,
-                                                omega_session_get_computed_file_size(session_ptr) - 2));
+                                                omega_session_get_computed_file_size(session_ptr) - 2, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_single_byte_chars(char_counts_ptr));// minus the newline
@@ -690,7 +699,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/utf-16le_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -702,7 +711,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/utf-16be_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -714,7 +723,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/utf-32le_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -726,7 +735,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/utf-32be_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -738,7 +747,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session("data/ascii_1.txt", nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(14 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -750,7 +759,7 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_single_byte_chars(char_counts_ptr));
