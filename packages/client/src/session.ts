@@ -19,8 +19,10 @@
 
 import {
   ByteFrequencyProfileResponse,
+  ByteOrderMarkResponse,
   CharacterCountResponse,
   ComputedFileSizeResponse,
+  ContentTypeResponse,
   CountKind,
   CountRequest,
   CountResponse,
@@ -28,6 +30,7 @@ import {
   CreateSessionResponse,
   IntResponse,
   IOFlags,
+  LanguageResponse,
   ObjectId,
   SaveSessionRequest,
   SaveSessionResponse,
@@ -37,6 +40,7 @@ import {
   SegmentResponse,
   SessionCountResponse,
   SingleCount,
+  TextRequest,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
@@ -555,16 +559,121 @@ export function numAscii(profile: number[]): number {
   }, 0)
 }
 
-export async function countCharacters(
+/**
+ * Given a session and offset, return the byte order mark (BOM) at that offset, if any
+ * @param session_id session to get the BOM from
+ * @param offset offset within the session to get the BOM from
+ * @return byte order mark response, on success
+ */
+export async function getByteOrderMark(
   session_id: string,
-  offset: number = 0,
-  length: number = 0
-): Promise<CharacterCountResponse> {
+  offset: number = 0
+): Promise<ByteOrderMarkResponse> {
+  const log = getLogger()
+  const request = new SegmentRequest()
+    .setSessionId(session_id)
+    .setOffset(offset)
+    .setLength(4)
+  log.debug({ fn: 'getByteOrderMark', rqst: request.toObject() })
+  const client = await getClient()
+  return new Promise<ByteOrderMarkResponse>((resolve, reject) => {
+    client.getByteOrderMark(request, (err, r: ByteOrderMarkResponse) => {
+      if (err) {
+        log.error({
+          fn: 'getByteOrderMark',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        reject('getByteOrderMark error: ' + err.message)
+      }
+      log.debug({ fn: 'getByteOrderMark', resp: r.toObject() })
+      resolve(r)
+    })
+  })
+}
+
+export async function getContentType(
+  session_id: string,
+  offset: number,
+  length: number
+): Promise<ContentTypeResponse> {
   const log = getLogger()
   const request = new SegmentRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(length)
+  log.debug({ fn: 'getContentType', rqst: request.toObject() })
+  const client = await getClient()
+  return new Promise<ContentTypeResponse>((resolve, reject) => {
+    client.getContentType(request, (err, r: ContentTypeResponse) => {
+      if (err) {
+        log.error({
+          fn: 'getContentType',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        reject('getContentType error: ' + err.message)
+      }
+      log.debug({ fn: 'getContentType', resp: r.toObject() })
+      resolve(r)
+    })
+  })
+}
+
+export async function getLanguage(
+  session_id: string,
+  offset: number,
+  length: number,
+  bom: string
+): Promise<LanguageResponse> {
+  const log = getLogger()
+  const request = new TextRequest()
+    .setSessionId(session_id)
+    .setOffset(offset)
+    .setLength(length)
+    .setByteOrderMark(bom)
+  log.debug({ fn: 'getLanguage', rqst: request.toObject() })
+  const client = await getClient()
+  return new Promise<LanguageResponse>((resolve, reject) => {
+    client.getLanguage(request, (err, r: LanguageResponse) => {
+      if (err) {
+        log.error({
+          fn: 'getLanguage',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        reject('getLanguage error: ' + err.message)
+      }
+      log.debug({ fn: 'getLanguage', resp: r.toObject() })
+      resolve(r)
+    })
+  })
+}
+
+export async function countCharacters(
+  session_id: string,
+  offset: number = 0,
+  length: number = 0,
+  bom: string = 'none'
+): Promise<CharacterCountResponse> {
+  const log = getLogger()
+  const request = new TextRequest()
+    .setSessionId(session_id)
+    .setOffset(offset)
+    .setLength(length)
+    .setByteOrderMark(bom)
   log.debug({ fn: 'countCharacters', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<CharacterCountResponse>((resolve, reject) => {

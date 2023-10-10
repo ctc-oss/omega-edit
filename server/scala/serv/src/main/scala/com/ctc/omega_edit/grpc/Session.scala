@@ -408,7 +408,8 @@ class Session(
       }
 
     case ByteOrderMark(request) =>
-      sender() ! ByteOrderMarkResponse.of(sessionId, request.offset, request.length, session.detectByteOrderMark(request.offset))
+      val bom = session.detectByteOrderMark(request.offset)
+      sender() ! ByteOrderMarkResponse.of(sessionId, request.offset, session.byteOrderMarkSize(bom), bom)
 
     case ContentType(request) =>
       sender() ! ContentTypeResponse.of(

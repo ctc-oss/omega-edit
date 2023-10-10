@@ -28,7 +28,7 @@ object OmegaEdit extends OmegaEdit {
   def newSession(path: Option[Path] = None, chkptDir: Option[Path] = None): Session = newSessionCb(path, chkptDir, null)
 
   def newSessionCb(path: Option[Path], chkptDir: Option[Path], cb: SessionCallback): Session = {
-    require(path.forall(_.toFile.exists()), "specified file path does not exist")
+    require(path.forall(_.toFile.exists()), s"specified file path \"${path.getOrElse("N/A")}\" does not exist")
     new SessionImpl(
       ffi.omega_edit_create_session(
         path.map(_.toString).orNull,

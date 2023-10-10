@@ -654,7 +654,7 @@ TEST_CASE("Detect BOM", "[DetectBOM]") {
 TEST_CASE("Character Counts", "[CharCounts]") {
     const auto char_counts_ptr = omega_character_counts_create();
     REQUIRE(char_counts_ptr);
-    REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
+    REQUIRE(BOM_UNKNOWN == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_single_byte_chars(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_double_byte_chars(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_triple_byte_chars(char_counts_ptr));
