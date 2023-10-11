@@ -47,6 +47,11 @@ export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/lib")"
 yarn install
 yarn lint
 
+if [[ -d "$OE_LIB_DIR" ]]; then
+  rm -f _install
+  ln -s "$OE_LIB_DIR" _install
+fi
+
 # Build, test, and package Scala server node module
 yarn workspace @omega-edit/server package
 

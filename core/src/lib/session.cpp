@@ -265,10 +265,13 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
     }
 }
 
-omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr) {
+omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t offset) {
     assert(session_ptr);
+    // get the first 4 bytes at the given offset
     const auto segment_ptr = omega_segment_create(4);
-    omega_session_get_segment(session_ptr, segment_ptr, 0);
+    omega_session_get_segment(session_ptr, segment_ptr, offset);
+
+    // detect the BOM from the first 4 bytes
     const auto bom = omega_util_detect_BOM_from_memory(omega_segment_get_data(segment_ptr),
                                                        omega_segment_get_length(segment_ptr));
     omega_segment_destroy(segment_ptr);
@@ -304,15 +307,14 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
 }
 
 int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
-                                   int64_t offset, int64_t length) {
+                                   int64_t offset, int64_t length, omega_bom_t bom) {
     assert(session_ptr);
     assert(counts_ptr);
     assert(0 <= offset);
     length = length ? length : omega_session_get_computed_file_size(session_ptr) - offset;
     assert(0 <= length);
     assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
-    omega_character_counts_reset(counts_ptr);
-    omega_character_counts_set_BOM(counts_ptr, omega_session_detect_BOM(session_ptr));
+    omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
         if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }

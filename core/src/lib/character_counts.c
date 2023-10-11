@@ -18,7 +18,7 @@
 #include <stdlib.h>
 
 omega_character_counts_t *omega_character_counts_create() {
-    // use calloc to initialize all fields to zero
+    // use calloc to initialize all fields to zero, BOM is set to BOM_UNKNOWN
     omega_character_counts_t *counts_ptr = (omega_character_counts_t *) calloc(1, sizeof(omega_character_counts_t));
     assert(counts_ptr);
     return counts_ptr;
@@ -29,7 +29,7 @@ void omega_character_counts_destroy(omega_character_counts_t *counts_ptr) {
     free(counts_ptr);
 }
 
-void omega_character_counts_reset(omega_character_counts_t *counts_ptr) {
+omega_character_counts_t *omega_character_counts_reset(omega_character_counts_t *counts_ptr) {
     assert(counts_ptr);
     counts_ptr->bomBytes = 0;
     counts_ptr->singleByteChars = 0;
@@ -37,6 +37,7 @@ void omega_character_counts_reset(omega_character_counts_t *counts_ptr) {
     counts_ptr->tripleByteChars = 0;
     counts_ptr->quadByteChars = 0;
     counts_ptr->invalidBytes = 0;
+    return counts_ptr;
 }
 
 omega_bom_t omega_character_counts_get_BOM(const omega_character_counts_t *counts_ptr) {
@@ -44,9 +45,10 @@ omega_bom_t omega_character_counts_get_BOM(const omega_character_counts_t *count
     return counts_ptr->bom;
 }
 
-void omega_character_counts_set_BOM(omega_character_counts_t *counts_ptr, omega_bom_t bom) {
+omega_character_counts_t *omega_character_counts_set_BOM(omega_character_counts_t *counts_ptr, omega_bom_t bom) {
     assert(counts_ptr);
     counts_ptr->bom = bom;
+    return counts_ptr;
 }
 
 int64_t omega_character_counts_bom_bytes(const omega_character_counts_t *counts_ptr) {

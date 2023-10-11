@@ -68,9 +68,16 @@ trait Session {
   def save(to: Path, overwrite: Boolean): Try[(Path, Int)]
   def save(to: Path, flags: Int): Try[(Path, Int)]
   def save(to: Path, flags: Int, offset: Long, length: Long): Try[(Path, Int)]
-  def bom: String
+  def detectByteOrderMark(offset: Long): String
+  def detectByteOrderMark: String
+  def byteOrderMarkSize(bom: String): Long
+  def byteOrderMarkSize(bom: Int): Long
   def profile(offset: Long, length: Long): Either[Int, Array[Long]]
-  def charCount(offset: Long, length: Long): Either[Int, CharCounts]
+  def charCount(offset: Long, length: Long, bom: Int): Either[Int, CharCounts]
+  def charCount(offset: Long, length: Long, bom: String): Either[Int, CharCounts]
+
+  def detectContentType(offset: Long, length: Long): String
+  def detectLanguage(offset: Long, length: Long, bom: String): String
   def search(
       pattern: Array[Byte],
       offset: Long,

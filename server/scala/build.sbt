@@ -117,6 +117,8 @@ lazy val api = project
       Seq(
         "com.beachape" %% "enumeratum" % "1.7.2",
         "com.ctc" %% s"omega-edit-native" % version.value,
+        "org.apache.tika" % "tika-core" % tikaVersion,
+        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
         "com.github.jnr" % "jnr-ffi" % "2.2.13",
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
@@ -201,8 +203,6 @@ lazy val serv = project
         "com.ctc" %% "omega-edit-native" % omegaEditVersion,
         "com.monovore" %% "decline" % "2.4.1",
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
-        "org.apache.tika" % "tika-core" % tikaVersion,
-        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       )
@@ -210,8 +210,6 @@ lazy val serv = project
       libraryDependencies ++= Seq(
         "com.monovore" %% "decline" % "2.4.1",
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
-        "org.apache.tika" % "tika-core" % tikaVersion,
-        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
         "org.scalatest" %% "scalatest" % "3.2.15" % Test
       ),

@@ -74,7 +74,7 @@ typedef enum {
 typedef enum { MASK_AND, MASK_OR, MASK_XOR } omega_mask_kind_t;
 
 /** Byte order mark (BOM) types */
-typedef enum { BOM_NONE = 0, BOM_UTF8, BOM_UTF16LE, BOM_UTF16BE, BOM_UTF32LE, BOM_UTF32BE } omega_bom_t;
+typedef enum { BOM_UNKNOWN = 0, BOM_NONE, BOM_UTF8, BOM_UTF16LE, BOM_UTF16BE, BOM_UTF32LE, BOM_UTF32BE } omega_bom_t;
 
 /** Opaque character counts */
 typedef struct omega_character_counts_struct omega_character_counts_t;

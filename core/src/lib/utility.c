@@ -330,10 +330,28 @@ char const *omega_util_BOM_to_string(omega_bom_t bom) {
             return "UTF-32LE";
         case BOM_UTF32BE:
             return "UTF-32BE";
+        case BOM_UNKNOWN: // fall through
         default:
             // Should never happen
             return "unknown";
     }
+}
+
+omega_bom_t omega_util_string_to_BOM(char const *str) {
+    if (0 == omega_util_strnicmp(str, "none", 4)) {
+        return BOM_NONE;
+    } else if (0 == omega_util_strnicmp(str, "UTF-8", 5)) {
+        return BOM_UTF8;
+    } else if (0 == omega_util_strnicmp(str, "UTF-16LE", 8)) {
+        return BOM_UTF16LE;
+    } else if (0 == omega_util_strnicmp(str, "UTF-16BE", 8)) {
+        return BOM_UTF16BE;
+    } else if (0 == omega_util_strnicmp(str, "UTF-32LE", 8)) {
+        return BOM_UTF32LE;
+    } else if (0 == omega_util_strnicmp(str, "UTF-32BE", 8)) {
+        return BOM_UTF32BE;
+    }
+    return BOM_UNKNOWN;
 }
 
 static inline int is_lead_surrogate_UTF16_(uint16_t word) {
@@ -352,49 +370,51 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     assert(counts_ptr);
 
     // Skip the BOM if present (the BOM is metadata, not part of the text)
+    const size_t bomSize = omega_util_BOM_size(counts_ptr->bom);
     switch (counts_ptr->bom) {
         case BOM_UTF8:
             if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
-                data += 3;
-                length -= 3;
-                counts_ptr->bomBytes = 3;
+                data += bomSize;
+                length -= bomSize;
+                counts_ptr->bomBytes = bomSize;
             }
             break;
         case BOM_UTF16LE:
             if (length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
-                data += 2;
-                length -= 2;
-                counts_ptr->bomBytes = 2;
+                data += bomSize;
+                length -= bomSize;
+                counts_ptr->bomBytes = bomSize;
             }
             break;
         case BOM_UTF16BE:
             if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
-                data += 2;
-                length -= 2;
-                counts_ptr->bomBytes = 2;
+                data += bomSize;
+                length -= bomSize;
+                counts_ptr->bomBytes = bomSize;
             }
             break;
         case BOM_UTF32LE:
             if (length >= 4 && data[0] == 0xFF && data[1] == 0xFE && data[2] == 0x00 && data[3] == 0x00) {
-                data += 4;
-                length -= 4;
-                counts_ptr->bomBytes = 4;
+                data += bomSize;
+                length -= bomSize;
+                counts_ptr->bomBytes = bomSize;
             }
             break;
         case BOM_UTF32BE:
             if (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) {
-                data += 4;
-                length -= 4;
-                counts_ptr->bomBytes = 4;
+                data += bomSize;
+                length -= bomSize;
+                counts_ptr->bomBytes = bomSize;
             }
             break;
         default:
-            // No BOM specified, do nothing
+            // No actual BOM specified, do nothing
             break;
     }
     size_t i = 0;
     switch (counts_ptr->bom) {
-        case BOM_NONE:// fall through, assume UTF-8 if the BOM is not specified
+        case BOM_UNKNOWN:// fall through, assume UTF-8 if the BOM is unknown
+        case BOM_NONE:// fall through, assume UTF-8 if the BOM is none
         case BOM_UTF8:
             while (i < length) {
                 if ((data[i] & 0x80) == 0) {
@@ -532,6 +552,8 @@ const omega_byte_buffer_t *omega_util_BOM_to_buffer(omega_bom_t bom) {
             return &utf32le_bom;
         case BOM_UTF32BE:
             return &utf32be_bom;
+        case BOM_NONE: // fall through
+        case BOM_UNKNOWN: // fall through
         default:
             return NULL;
     }

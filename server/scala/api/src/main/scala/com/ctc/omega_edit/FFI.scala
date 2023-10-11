@@ -112,8 +112,11 @@ private[omega_edit] trait FFI {
   def omega_session_end_transaction(p: Pointer): Int
   def omega_session_get_num_change_transactions(p: Pointer): Long
   def omega_session_get_num_undone_change_transactions(p: Pointer): Long
-  def omega_session_detect_BOM(p: Pointer): Int
+  def omega_session_detect_BOM(p: Pointer, offset: Long): Int
   def omega_util_BOM_to_string(bom: Int): String
+  def omega_util_string_to_BOM(bom: String): Int
+  def omega_util_BOM_size(bom: Int): Long
+
   def omega_session_byte_frequency_profile(
       p: Pointer,
       profile: Array[Long],
@@ -122,6 +125,7 @@ private[omega_edit] trait FFI {
   ): Int
   def omega_character_counts_create(): Pointer
   def omega_character_counts_destroy(p: Pointer): Unit
+  def omega_character_counts_set_BOM(p: Pointer, bom: Int): Pointer
   def omega_character_counts_get_BOM(p: Pointer): Int
   def omega_character_counts_bom_bytes(p: Pointer): Long
   def omega_character_counts_single_byte_chars(p: Pointer): Long
@@ -133,7 +137,8 @@ private[omega_edit] trait FFI {
       p: Pointer,
       counts: Pointer,
       offset: Long,
-      length: Long
+      length: Long,
+      bom: Int
   ): Int
 
   // viewport

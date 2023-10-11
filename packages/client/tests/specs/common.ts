@@ -39,7 +39,6 @@ export async function createTestSession(port: number) {
   expect(await getSessionCount()).to.equal(0)
   const new_session = await createSession()
   const new_session_id = new_session.getSessionId()
-  expect(new_session.hasContentType()).to.be.false
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
 
   // Generated IDs are 36 character UUIDs

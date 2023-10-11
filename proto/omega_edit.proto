@@ -45,12 +45,15 @@ service Editor {
   rpc GetLastChange(ObjectId) returns (ChangeDetailsResponse);
   rpc GetLastUndo(ObjectId) returns (ChangeDetailsResponse);
   rpc GetComputedFileSize(ObjectId) returns (ComputedFileSizeResponse);
+  rpc GetByteOrderMark(SegmentRequest) returns (ByteOrderMarkResponse);
+  rpc GetContentType(SegmentRequest) returns (ContentTypeResponse);
+  rpc GetLanguage(TextRequest) returns (LanguageResponse);
   rpc GetCount(CountRequest) returns (CountResponse);
   rpc GetSessionCount(google.protobuf.Empty) returns (SessionCountResponse);
   rpc GetSegment(SegmentRequest) returns (SegmentResponse);
   rpc SearchSession(SearchRequest) returns (SearchResponse);
   rpc GetByteFrequencyProfile(SegmentRequest) returns (ByteFrequencyProfileResponse);
-  rpc GetCharacterCounts(SegmentRequest) returns (CharacterCountResponse);
+  rpc GetCharacterCounts(TextRequest) returns (CharacterCountResponse);
   rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
   rpc GetHeartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 
@@ -136,7 +139,7 @@ message CountResponse {
 }
 
 message SessionCountResponse {
-  int64 count = 1;
+  int64 count = 1; // session count
 }
 
 message ServerInfoResponse {
@@ -202,10 +205,28 @@ message CreateSessionRequest {
 message CreateSessionResponse {
   string session_id = 1;
   string checkpoint_directory = 2;
-  optional string byte_order_mark = 3;
-  optional string content_type = 4;
-  optional string language = 5;
-  optional int64 file_size = 6;
+  optional int64 file_size = 3;
+}
+
+message ByteOrderMarkResponse {
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the byte order mark in bytes
+  int64 length = 3; // length of the byte order mark in bytes (0, 2, 3, or 4)
+  string byte_order_mark = 4; // byte order mark as a string (e.g. "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none")
+}
+
+message ContentTypeResponse {
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of where the content type was detected in bytes
+  int64 length = 3; // number of bytes used to detect the content type
+  string content_type = 4; // detected content type
+}
+
+message LanguageResponse {
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of where the language was detected in bytes
+  int64 length = 3; // number of bytes used to detect the language
+  string language = 4; // 2-letter ISO 639-1 language code
 }
 
 message SaveSessionRequest {
@@ -251,50 +272,57 @@ message ChangeDetailsResponse {
 }
 
 message ComputedFileSizeResponse {
-  string session_id = 1;
-  int64 computed_file_size = 2;
+  string session_id = 1; // session id
+  int64 computed_file_size = 2; // computed file size in bytes
 }
 
 message SegmentRequest {
-  string session_id = 1;
-  int64 offset = 2;
-  int64 length = 3;
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the segment in bytes
+  int64 length = 3; // length of the segment in bytes
+}
+
+message TextRequest {
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the segment in bytes
+  int64 length = 3; // length of the segment in bytes
+  string byte_order_mark = 4; // byte order mark as a string (e.g. "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none") used to decode the segment
 }
 
 message SegmentResponse {
-  string session_id = 1;
-  int64 offset = 2;
-  bytes data = 3;
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the segment in bytes
+  bytes data = 3; // segment content in bytes
 }
 
 message ByteFrequencyProfileResponse {
-  string session_id = 1;
-  int64 offset = 2;
-  int64 length = 3;
-  repeated int64 frequency = 4;
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the segment in bytes
+  int64 length = 3; // length of the segment in bytes
+  repeated int64 frequency = 4; // frequency of each byte value (0-255) found in the segment, 256 is the count of DOS line endings (CR+LF)
 }
 
 message CharacterCountResponse {
-  string session_id = 1;
-  int64 offset = 2;
-  int64 length = 3;
-  string byte_order_mark = 4;
-  int64 byte_order_mark_bytes = 5;
-  int64 single_byte_chars = 6;
-  int64 double_byte_chars = 7;
-  int64 triple_byte_chars = 8;
-  int64 quad_byte_chars = 9;
-  int64 invalid_bytes = 10;
+  string session_id = 1; // session id
+  int64 offset = 2; // offset of the segment in bytes
+  int64 length = 3; // length of the segment in bytes
+  string byte_order_mark = 4; // byte order mark as a string (e.g. "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none") used to decode the segment
+  int64 byte_order_mark_bytes = 5; // count of the byte order mark in bytes (0, 2, 3, or 4) found at the beginning of the segment
+  int64 single_byte_chars = 6; // count of single byte characters found in the segment
+  int64 double_byte_chars = 7; // count of double byte characters found in the segment
+  int64 triple_byte_chars = 8; // count of triple byte characters found in the segment
+  int64 quad_byte_chars = 9; // count of quad byte characters found in the segment
+  int64 invalid_bytes = 10; // count of invalid bytes found in the segment
 }
 
 message SearchRequest {
-  string session_id = 1;
-  bytes pattern = 2;
-  optional bool is_case_insensitive = 3;
-  optional bool is_reverse = 4;
-  optional int64 offset = 5;
-  optional int64 length = 6;
-  optional int64 limit = 7;
+  string session_id = 1; // session id
+  bytes pattern = 2; // search pattern
+  optional bool is_case_insensitive = 3; // case insensitive search
+  optional bool is_reverse = 4; // reverse search
+  optional int64 offset = 5; // offset in bytes to start search
+  optional int64 length = 6; // length in bytes to search
+  optional int64 limit = 7; // limit of matches
 }
 
 message SearchResponse {

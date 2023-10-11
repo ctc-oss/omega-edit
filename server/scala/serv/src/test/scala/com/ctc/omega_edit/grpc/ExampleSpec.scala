@@ -150,7 +150,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         charCountResponse <- service.getCharacterCounts(
-          SegmentRequest(sid, offset = 0L, length = len.toLong)
+          TextRequest(sid, offset = 0L, length = len.toLong, byteOrderMark = "none")
         )
       } yield charCountResponse should matchPattern {
         case CharacterCountResponse(

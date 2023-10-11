@@ -242,9 +242,10 @@ void omega_session_notify(const omega_session_t *session_ptr, omega_session_even
 /**
  * Given a session, return the detected byte order marker (BOM)
  * @param session_ptr session to get the BOM from
+ * @param offset where in the session to begin detecting the BOM
  * @return detected byte order marker (BOM)
  */
-omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr);
+omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t offset);
 
 /**
  * Given a session, offset and length, populate a byte frequency profile
@@ -263,10 +264,11 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
  * @param counts_ptr pointer to the character counts to populate
  * @param offset where in the session to begin counting characters
  * @param length number of bytes from the offset to stop counting characters (if 0, it will count to the end of the session)
+ * @param bom byte order marker (BOM) to use when counting characters
  * @return zero on success and non-zero otherwise
  */
 int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
-                                   int64_t offset, int64_t length);
+                                   int64_t offset, int64_t length, omega_bom_t bom);
 
 /**
  * Given a session, return the checkpoint directory

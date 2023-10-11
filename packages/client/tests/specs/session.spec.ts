@@ -23,8 +23,10 @@ import {
   createSession,
   createViewport,
   destroySession,
+  getByteOrderMark,
   getClient,
   getComputedFileSize,
+  getLanguage,
   getSegment,
   getServerHeartbeat,
   getSessionCount,
@@ -189,9 +191,6 @@ describe('Sessions', () => {
       const session = await createSession(testFile)
       const session_id = session.getSessionId()
       expect(session_id).to.equal(expected_session_id)
-      expect(session.hasContentType()).to.be.true
-      expect(session.getContentType()).to.equal('text/html')
-      expect(session.getLanguage()).to.equal('en')
       expect(session.hasFileSize()).to.be.true
       expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
@@ -302,44 +301,30 @@ describe('Sessions', () => {
   it('Should be able to detect byte order marks', async () => {
     let testFile = require('path').join(__dirname, 'data', 'empty.txt')
     let session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('')
-    expect(session.getByteOrderMark()).to.equal('none')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('none')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('UTF-8')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('UTF-16BE')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('UTF-16LE')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('UTF-32BE')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
-    expect(session.getByteOrderMark()).to.equal('UTF-32LE')
     await destroySession(session.getSessionId())
 
     expect(await getSessionCount()).to.equal(0)
@@ -348,54 +333,116 @@ describe('Sessions', () => {
   it('Should be able to detect various languages', async () => {
     let testFile = require('path').join(__dirname, 'data', 'arabic.txt')
     let session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('ar')
+    let fileSize = await getComputedFileSize(session.getSessionId())
+    let byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
     let charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('none')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
     expect(charCounts.getSingleByteChars()).to.equal(7)
     expect(charCounts.getDoubleByteChars()).to.equal(35)
     expect(charCounts.getTripleByteChars()).to.equal(0)
     expect(charCounts.getQuadByteChars()).to.equal(0)
     expect(charCounts.getInvalidBytes()).to.equal(0)
+    let languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('ar')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'chinese.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('zh-CN')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('zh-CN')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'dutch.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('nl')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('nl')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'english.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('en')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('en')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'french.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('fr')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('fr')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'german.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('de')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('de')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
@@ -404,9 +451,7 @@ describe('Sessions', () => {
     expect(charCounts.getByteOrderMark()).to.equal('none')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(46)
@@ -417,19 +462,27 @@ describe('Sessions', () => {
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-8')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-8')
     expect(charCounts.getByteOrderMarkBytes()).to.equal(3)
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(46)
     expect(charCounts.getTripleByteChars()).to.equal(0)
@@ -439,18 +492,26 @@ describe('Sessions', () => {
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-16LE')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-16LE')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(2)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(46)
@@ -461,18 +522,26 @@ describe('Sessions', () => {
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-16BE')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-16BE')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(2)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(46)
@@ -483,19 +552,27 @@ describe('Sessions', () => {
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-32LE')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-32LE')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(4)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(0)
     expect(charCounts.getTripleByteChars()).to.equal(0)
@@ -507,37 +584,43 @@ describe('Sessions', () => {
     charCounts = await countCharacters(
       session.getSessionId(),
       2,
-      (await getComputedFileSize(session.getSessionId())) - 4
+      fileSize - 4,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-32LE')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(2)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      (await getComputedFileSize(session.getSessionId())) - 4
-    )
+    expect(charCounts.getLength()).to.equal(fileSize - 4)
     expect(charCounts.getSingleByteChars()).to.equal(0)
     expect(charCounts.getDoubleByteChars()).to.equal(0)
     expect(charCounts.getTripleByteChars()).to.equal(0)
     expect(charCounts.getQuadByteChars()).to.equal(55)
     expect(charCounts.getInvalidBytes()).to.equal(4) // two at the beginning and two at the end
-
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('el')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('UTF-32BE')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('el')
     charCounts = await countCharacters(
       session.getSessionId(),
       0,
-      await getComputedFileSize(session.getSessionId())
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
     )
     expect(charCounts.getByteOrderMark()).to.equal('UTF-32BE')
     expect(charCounts.getSessionId()).to.equal(session.getSessionId())
     expect(charCounts.getOffset()).to.equal(0)
-    expect(charCounts.getLength()).to.equal(
-      await getComputedFileSize(session.getSessionId())
-    )
+    expect(charCounts.getLength()).to.equal(fileSize)
     expect(charCounts.getByteOrderMarkBytes()).to.equal(4)
     expect(charCounts.getSingleByteChars()).to.equal(10)
     expect(charCounts.getDoubleByteChars()).to.equal(0)
@@ -548,53 +631,143 @@ describe('Sessions', () => {
 
     testFile = require('path').join(__dirname, 'data', 'hindi.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('hi')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('hi')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'italian.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('it')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('it')
     await destroySession(session.getSessionId())
 
     // The short Japanese file is not long enough to be detected as Japanese
     testFile = require('path').join(__dirname, 'data', 'japanese-short.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('unknown')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('unknown')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'japanese.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('ja')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('ja')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'korean.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('ko')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('ko')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'portuguese.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('pt')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('pt')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'russian.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('ru')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('ru')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'spanish.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('es')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('es')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'swedish.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('sv')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('sv')
     await destroySession(session.getSessionId())
 
     testFile = require('path').join(__dirname, 'data', 'empty.txt')
     session = await createSession(testFile)
-    expect(session.getLanguage()).to.equal('')
+    fileSize = await getComputedFileSize(session.getSessionId())
+    byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
+    expect(byteOrderMarkResponse.getByteOrderMark()).to.equal('none')
+    languageResponse = await getLanguage(
+      session.getSessionId(),
+      0,
+      fileSize,
+      byteOrderMarkResponse.getByteOrderMark()
+    )
+    expect(languageResponse.getLanguage()).to.equal('unknown')
     await destroySession(session.getSessionId())
 
     expect(await getSessionCount()).to.equal(0)
@@ -693,7 +866,6 @@ describe('Sessions', () => {
     const session2 = await createSession()
     const session_id2 = session2.getSessionId()
     expect(session_id1).to.not.equal(session_id2)
-    expect(session1.hasContentType()).to.be.false
     expect(session1.hasFileSize()).to.be.false
 
     let change_id = await insert(session_id1, 0, Buffer.from('a'))
