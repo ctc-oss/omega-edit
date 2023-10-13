@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/core",
-  "version": "0.9.74",
+  "version": "0.9.75",
   "private": "true",
   "description": "OmegaEdit Client and Server",
   "publisher": "CTC-OSS",
