@@ -283,10 +283,10 @@
   resolved "https://registry.yarnpkg.com/@types/estree/-/estree-1.0.2.tgz#ff02bc3dc8317cd668dfec247b750ba1f1d62453"
   integrity sha512-VeiPZ9MMwXjO32/Xu7+OwflfmeoRwkE/qzndw42gGtgJwZopBnzy2gD//NN1+go1mADzkDcqf/KnFRSjTJ8xJA==
 
-"@types/google-protobuf@3.15.7":
-  version "3.15.7"
-  resolved "https://registry.yarnpkg.com/@types/google-protobuf/-/google-protobuf-3.15.7.tgz#882e7351bc8ccf30bb21c507cc4597cf76f8888b"
-  integrity sha512-pIEMnb04J60c5eExVLUY/R4eWT5QEQ5cC792JOSfDI3kLjaKC4TjdgMp3xIrN1vxbi2Zk8LcscTm0VaNrIdniA==
+"@types/google-protobuf@3.15.9":
+  version "3.15.9"
+  resolved "https://registry.yarnpkg.com/@types/google-protobuf/-/google-protobuf-3.15.9.tgz#a983fc4bc35acb2b84a824d2ec8107d084e8603f"
+  integrity sha512-l51aVJnCNNMBkmSUQddSStXinB2qSXqfrmY9zkdcE9sqPzDneQ3BGg/hu7LfeOCUeGHOu+Rly89YhuDhvbmmPw==
 
 "@types/json-schema@*", "@types/json-schema@^7.0.8", "@types/json-schema@^7.0.9":
   version "7.0.13"
