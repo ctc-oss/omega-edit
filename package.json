@@ -23,7 +23,7 @@
     "package-no-sbt": "yarn workspace @omega-edit/server package-no-sbt && yarn workspace @omega-edit/client package"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.9",
+    "@types/chai": "^4.3.10",
     "@types/mocha": "^10.0.4",
     "@types/node": "^20.9.0",
     "chai": "^4.3.10",
