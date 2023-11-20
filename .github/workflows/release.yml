@@ -171,8 +171,8 @@ jobs:
           java-version: 8
           cache: sbt
       
-      - name: Make _install/lib directory to store lib files
-        run: mkdir -p _install/lib
+      - name: Make _install directory to store lib files
+        run: mkdir -p _install
 
       - name: Download linux library file 🔻
         uses: dawidd6/action-download-artifact@v2
@@ -181,7 +181,7 @@ jobs:
           branch: main
           workflow_conclusion: success
           name: libomega_edit.so
-          path: _install/lib/libomega_edit_linux_amd64.so
+          path: _install/libomega_edit_linux_amd64.so
       
       - name: Download macos library file 🔻
         uses: dawidd6/action-download-artifact@v2
@@ -190,7 +190,7 @@ jobs:
           branch: main
           workflow_conclusion: success
           name: libomega_edit.dylib
-          path: _install/lib/libomega_edit_macos_x86_64.dylib
+          path: _install/libomega_edit_macos_x86_64.dylib
       
       - name: Download windows library file 🔻
         uses: dawidd6/action-download-artifact@v2
@@ -199,7 +199,7 @@ jobs:
           branch: main
           workflow_conclusion: success
           name: omega_edit.dll
-          path: _install/lib/omega_edit_windows_64.dll
+          path: _install/omega_edit_windows_64.dll
 
       - name: Move out library files 🛻
         run: |
@@ -209,7 +209,7 @@ jobs:
             mv -v "${lib_filename}_dir/$downloaded_filename" "$lib_filename"
             rm -rf "${lib_filename}_dir"
           done
-        working-directory: _install/lib
+        working-directory: _install
         shell: bash
 
       - name: Download shared lib files for M1 mac 🔻
@@ -218,7 +218,7 @@ jobs:
 
           curl ${base_url}/libomega_edit_macos_aarch64.dylib --output libomega_edit_macos_aarch64.dylib
           curl ${base_url}/libomega_edit_linux_aarch64.dylib --output libomega_edit_linux_aarch64.so
-        working-directory: _install/lib
+        working-directory: _install
 
       ###########################
       ## Scala publish process ##

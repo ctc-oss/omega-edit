@@ -35,7 +35,7 @@ jobs:
       - name: Setup cmake 🔧
         uses: lukka/get-cmake@latest
 
-      - name: Prepare, Build, and Install Ωedit 🔧
+      - name: Prepare, Build, Test, and Install Ωedit™ 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
           cmake --build build --config Release
@@ -82,29 +82,29 @@ jobs:
           java-version: 8
           cache: sbt
 
-      - name: Make _install/lib directory to store lib files 🔧
-        run: mkdir -p _install/lib
+      - name: Make _install directory to store lib files 🔧
+        run: mkdir -p _install
 
-      - name: Download macos library file 🔻
+      - name: Download macOS library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
-          path: _install/lib/libomega_edit.dylib
+          path: _install/libomega_edit.dylib
 
-      - name: Download linux library file 🔻
+      - name: Download Linux library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
-          path: _install/lib/libomega_edit.so
+          path: _install/libomega_edit.so
 
-      - name: Download windows library file 🔻
+      - name: Download Windows library file 🔻
         uses: actions/download-artifact@v3
         if: runner.os == 'Windows'
         with:
           name: omega_edit.dll
-          path: _install/lib/omega_edit.dll
+          path: _install/omega_edit.dll
 
       - name: Move out library file 🛻
         run: |
@@ -116,9 +116,9 @@ jobs:
             LIB_FILENAME="omega_edit.dll"
           fi
 
-          mv -v "_install/lib/${LIB_FILENAME}" "_install/lib/${LIB_FILENAME}_dir"
-          mv -v "_install/lib/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/lib/$LIB_FILENAME"
-          rm -rf "_install/lib/${LIB_FILENAME}_dir"
+          mv -v "_install/${LIB_FILENAME}" "_install/${LIB_FILENAME}_dir"
+          mv -v "_install/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/$LIB_FILENAME"
+          rm -rf "_install/${LIB_FILENAME}_dir"
         shell: bash
 
       - name: Check Scala headers ✔️

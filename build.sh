@@ -36,21 +36,24 @@ for objtype in shared static; do
   ctest -C "$type" --test-dir "build-$objtype-$type/core" --output-on-failure
   cmake --install "build-$objtype-$type/packages/core" --prefix "$install_dir-$objtype-$type" --config "$type"
   cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
-  cpack --config "build-$objtype-$type/CPackConfig.cmake"
+  cpack --config "build-$objtype-$type/CPackConfig.cmake" -C "$type"
 done
 
 # used by scala native code to bundle the proper library file
 # shellcheck disable=SC2155
-export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/lib")"
+# Windows uses bin for shared libraries, and non-Windows uses lib
+[[ -d "$install_dir-shared-$type/bin" ]] && export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/bin")" || export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/lib")"
+
+# Copy the shared library to the _install directory
+if [[ -d "$OE_LIB_DIR" ]]; then
+  rm -rf _install
+  # Use cp instead of a symlink so it works on Windows
+  cp -a "$OE_LIB_DIR" _install
+fi
 
 # install common packages and check lint for client and server
 yarn install
 yarn lint
-
-if [[ -d "$OE_LIB_DIR" ]]; then
-  rm -f _install
-  ln -s "$OE_LIB_DIR" _install
-fi
 
 # Build, test, and package Scala server node module
 yarn workspace @omega-edit/server package

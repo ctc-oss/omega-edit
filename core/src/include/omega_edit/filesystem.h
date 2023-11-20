@@ -32,6 +32,15 @@ extern "C" {
 #endif
 
 /**
+ * Generate a temporary file name based on tmpl.  The name constructed does not exist at the time of the call.
+ * The tmpl parameter is overwritten with the result.
+ * @param tmpl must match the rules for mk[s]temp (i.e. end in "XXXXXX")
+ * @param mode mode to set the file to, if zero then the mode is set to 0600 modulo umask
+ * @return read-write file descriptor opened with mode 0600 modulo umask or -1 with errno set on error
+ */
+int omega_util_mkstemp(char *tmpl, int mode);
+
+/**
  * Gets the current working directory
  * @param buffer pointer to memory to hold the current working directory (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
  * @return current working directory or NULL on error
@@ -94,6 +103,14 @@ int64_t omega_util_file_size(char const *path);
  * @return non-zero if the paths are equivalent and zero otherwise
  */
 int omega_util_paths_equivalent(char const *path1, char const *path2);
+
+/**
+ * Compare the contents of two files
+ * @param path1 first path
+ * @param path2 second path
+ * @return 0 if the contents are equal, 1 if the contents are not equal, or -1 if an error occurred opening the file at path1 or -2 if an error occurred opening the file at path2
+ */
+int omega_util_compare_files(const char* path1, const char* path2);
 
 /**
  * Compare the modification times of two files
