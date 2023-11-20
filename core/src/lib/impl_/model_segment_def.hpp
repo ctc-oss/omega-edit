@@ -18,7 +18,9 @@
 #include "../../include/omega_edit/change.h"
 #include "internal_fwd_defs.hpp"
 
-enum class model_segment_kind_t { SEGMENT_READ, SEGMENT_INSERT };
+enum class model_segment_kind_t {
+    SEGMENT_READ, SEGMENT_INSERT
+};
 
 struct omega_model_segment_struct {
     int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split

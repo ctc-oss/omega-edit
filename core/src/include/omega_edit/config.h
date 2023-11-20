@@ -20,8 +20,8 @@
 #ifndef OMEGA_EDIT_CONFIG_H
 #define OMEGA_EDIT_CONFIG_H
 
-#include <omega_edit/features.h> // this header is generated at build time
 #include <fcntl.h>
+#include <omega_edit/features.h>// this header is generated at build time
 
 #ifdef __cplusplus
 
@@ -57,7 +57,7 @@
 #define OMEGA_BYTE_T unsigned char
 #endif//OMEGA_BYTE_T
 
-#if !defined(__CYGWIN__) &&                                                                                            \
+#if !defined(__CYGWIN__) && \
         (defined(WIN32) || defined(_WIN32) || defined(__WIN32) || defined(_WIN64) || defined(_MSC_BUILD))
 /** Define if building for Windows */
 #define OMEGA_BUILD_WINDOWS
@@ -79,17 +79,19 @@
 #ifdef _MSC_VER
 #include <io.h>
 // For MSVC, use _sopen_s
-static inline int safe_open_(const char* filename, int oflag, int pmode) {
+static inline int safe_open_(const char *filename, int oflag, int pmode) {
     int fd;
     _sopen_s(&fd, filename, oflag | _O_BINARY, _SH_DENYWR, pmode);
     return fd;
 }
 #else
+
 // For other compilers/platforms, fall back to open
-static inline int safe_open_(const char* filename, int oflag, int pmode) {
+static inline int safe_open_(const char *filename, int oflag, int pmode) {
     // Note: The mode only applies if O_CREAT is part of oflag
     return open(filename, oflag, pmode);
 }
+
 #endif
 
 /**
@@ -105,8 +107,8 @@ static inline int safe_open_(const char* filename, int oflag, int pmode) {
  * @param mode mode to open the file in
  * @return opened file pointer
  */
-static inline FILE* safe_fopen_(const char* filename, const char* mode) {
-    FILE* file;
+static inline FILE *safe_fopen_(const char *filename, const char *mode) {
+    FILE *file;
 #ifdef HAVE_FOPEN_S
     // Use fopen_s where supported
     fopen_s(&file, filename, mode);

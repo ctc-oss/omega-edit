@@ -53,12 +53,12 @@ int omega_util_mkstemp(char *tmpl, int mode) {
         if (fd != -1) {
             return fd;
         } else if (errno != EEXIST) {
-            return -1; // If the error is not "File exists", give up.
+            return -1;// If the error is not "File exists", give up.
         }
     }
 
     errno = EEXIST;
-    return -2; // Exhausted all attempts
+    return -2;// Exhausted all attempts
 }
 
 int omega_util_file_exists(const char *path) {
@@ -102,26 +102,26 @@ int omega_util_paths_equivalent(char const *path1, char const *path2) {
     return fs::equivalent(path1, path2) ? 1 : 0;
 }
 
-int omega_util_compare_files(const char* path1, const char* path2) {
+int omega_util_compare_files(const char *path1, const char *path2) {
     // Open the first file
     std::ifstream file1(path1, std::ios::binary);
     if (!file1) {
         LOG_ERROR("Error opening file: '" << path1 << "'");
-        return -1; // Error opening the first file
+        return -1;// Error opening the first file
     }
 
     // Open the second file
     std::ifstream file2(path2, std::ios::binary);
     if (!file2) {
         LOG_ERROR("Error opening file: '" << path2 << "'");
-        return -2; // Error opening the second file
+        return -2;// Error opening the second file
     }
 
     // Compare the files
     std::istreambuf_iterator<char> end, iter1(file1), iter2(file2);
     while (iter1 != end && iter2 != end) {
         if (*iter1 != *iter2) {
-            return 1; // Files are not equal
+            return 1;// Files are not equal
         }
         ++iter1;
         ++iter2;
@@ -154,8 +154,11 @@ int omega_util_compare_modification_times(const char *path1, const char *path2) 
 const char *omega_util_get_current_dir(char *buffer) {
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const path = fs::current_path();
-    auto const len = path.string().copy(buffer, FILENAME_MAX);
+    auto const path_str = fs::current_path().string();
+    assert(0 < path_str.length());
+    assert(FILENAME_MAX > path_str.length());
+    auto const len = path_str.copy(buffer, path_str.length());
+    assert(len == path_str.length());
     buffer[len] = '\0';
     return buffer;
 }
@@ -164,17 +167,24 @@ char *omega_util_dirname(char const *path, char *buffer) {
     assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const len = fs::path(path).parent_path().string().copy(buffer, FILENAME_MAX);
+    auto const dirname_str = fs::path(path).parent_path().string();
+    assert(0 <= dirname_str.length());
+    assert(FILENAME_MAX > dirname_str.length());
+    auto const len = dirname_str.copy(buffer, dirname_str.length());
+    assert(len == dirname_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
     assert(path);
+    assert(0 < strlen(path));
+    assert(FILENAME_MAX > strlen(path));
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const len = drop_suffix ? fs::path(path).stem().string().copy(buffer, FILENAME_MAX)
-                                 : fs::path(path).filename().string().copy(buffer, FILENAME_MAX);
+    auto const basename_str = (drop_suffix == 0) ? fs::path(path).filename().string() : fs::path(path).stem().string();
+    auto const len = basename_str.copy(buffer, basename_str.length());
+    assert(len == basename_str.length());
     buffer[len] = '\0';
     return buffer;
 }
@@ -183,16 +193,24 @@ char *omega_util_file_extension(char const *path, char *buffer) {
     assert(path);
     static char buff[FILENAME_MAX];//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const len = fs::path(path).extension().string().copy(buffer, FILENAME_MAX);
+    auto const path_str = fs::path(path).extension().string();
+    assert(0 <= path_str.length());
+    assert(FILENAME_MAX > path_str.length());
+    auto const len = path_str.copy(buffer, path_str.length());
+    assert(len == path_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_normalize_path(char const *path, char *buffer) {
     assert(path);
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
-    auto const len = fs::absolute(fs::canonical(path)).string().copy(buffer, FILENAME_MAX);
+    auto const absolute_path_str = fs::absolute(fs::canonical(path)).string();
+    assert(0 < absolute_path_str.length());
+    assert(FILENAME_MAX > absolute_path_str.length());
+    auto const len = absolute_path_str.copy(buffer, absolute_path_str.length());
+    assert(len == absolute_path_str.length());
     buffer[len] = '\0';
     return buffer;
 }
@@ -214,10 +232,11 @@ char *omega_util_available_filename(char const *path, char *buffer) {
             // stop after 999 filenames exist
             return nullptr;
         }
-        auto const len = fs::path(dirname)
-                                 .append(basename + "-" + std::to_string(i) + extension)
-                                 .string()
-                                 .copy(buffer, FILENAME_MAX);
+        auto const filename_str = fs::path(dirname)
+                .append(basename + "-" + std::to_string(i) + extension)
+                .string();
+        auto const len = filename_str.copy(buffer, filename_str.length());
+        assert(len == filename_str.length());
         buffer[len] = '\0';
     } while (omega_util_file_exists(buffer));
     return buffer;
@@ -245,9 +264,7 @@ int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
         }
 
         // Remove the destination file if it already exists
-        if (fs::exists(dst_fs_path)) {
-            fs::remove(dst_fs_path);
-        }
+        if (fs::exists(dst_fs_path)) { fs::remove(dst_fs_path); }
 
         // Copy the file to the destination path, overwriting if it already exists
         if (!fs::copy_file(src_fs_path, dst_fs_path, fs::copy_options::overwrite_existing)) {

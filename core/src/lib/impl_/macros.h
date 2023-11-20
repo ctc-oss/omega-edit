@@ -53,7 +53,9 @@
 #define LOG_ERROR(x)                                                                                                   \
     do { CLOG << LOCATION << x << std::endl; } while (0)
 #ifdef _WIN32
+
 #include <windows.h>
+
 #define LOG_ERRNO()                                                                                                    \
     do {                                                                                                               \
         DWORD errCode = GetLastError();                                                                                \

@@ -49,7 +49,13 @@ module.exports = {
   },
   plugins: [
     new CopyPlugin({
-      patterns: ['package.json', 'README.md'],
+      patterns: [
+        'package.json',
+        'README.md',
+        '../../LICENSE.txt',
+        'src/omega_edit_grpc_pb.d.ts',
+        'src/omega_edit_pb.d.ts',
+      ],
     }),
     {
       // generate a file with the client version before compiling
