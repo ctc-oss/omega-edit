@@ -48,18 +48,52 @@
 #define LOCATION SOURCE_FILENAME << "@" << __LINE__ << "::" << __FUNCTION__ << ": "
 #ifndef CLOG
 #define CLOG std::clog
-#endif//CLOG
+#endif// CLOG
+
 #define LOG_ERROR(x)                                                                                                   \
     do { CLOG << LOCATION << x << std::endl; } while (0)
+#ifdef _WIN32
+#include <windows.h>
+#define LOG_ERRNO()                                                                                                    \
+    do {                                                                                                               \
+        DWORD errCode = GetLastError();                                                                                \
+        LPSTR errMsgBuff = nullptr;                                                                                    \
+        size_t size = FormatMessageA(                                                                                  \
+                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,     \
+                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &errMsgBuff, 0, NULL);                     \
+        CLOG << LOCATION << "Windows error code=" << errCode << ": " << errMsgBuff << std::endl;                       \
+        LocalFree(errMsgBuff);                                                                                         \
+    } while (0)
+#else
 #define LOG_ERRNO()                                                                                                    \
     do { CLOG << LOCATION << "errno=" << errno << ": " << std::strerror(errno) << std::endl; } while (0)
-#else
+#endif
+
+#else// C-style macros for non-C++ environments
+
 #define LOG_ERROR(x)                                                                                                   \
     do { fprintf(stderr, "%s@%d::%s: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, (x)); } while (0)
+
+#ifdef _WIN32
+#include <windows.h>
+#define LOG_ERRNO()                                                                                                    \
+    do {                                                                                                               \
+        DWORD errCode = GetLastError();                                                                                \
+        LPSTR errMsgBuff = nullptr;                                                                                    \
+        size_t size = FormatMessageA(                                                                                  \
+                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,     \
+                errCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &errMsgBuff, 0, NULL);                     \
+        fprintf(stderr, "%s@%d::%s: Windows error code=%lu: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, errCode,   \
+                errMsgBuff);                                                                                           \
+        LocalFree(errMsgBuff);                                                                                         \
+    } while (0)
+#else
 #define LOG_ERRNO()                                                                                                    \
     do {                                                                                                               \
         fprintf(stderr, "%s@%d::%s: errno=%d: %s\n", SOURCE_FILENAME, __LINE__, __FUNCTION__, errno, strerror(errno)); \
     } while (0)
+#endif
+
 #endif
 
 #endif//OMEGA_EDIT_MACROS_H

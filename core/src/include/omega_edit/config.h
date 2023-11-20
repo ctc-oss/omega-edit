@@ -20,13 +20,18 @@
 #ifndef OMEGA_EDIT_CONFIG_H
 #define OMEGA_EDIT_CONFIG_H
 
+#include <omega_edit/features.h> // this header is generated at build time
+#include <fcntl.h>
+
 #ifdef __cplusplus
 
 #include <cstdint>
+#include <cstdio>
 
 #else
 
 #include <stdint.h>
+#include <stdio.h>
 
 #endif//__cplusplus
 
@@ -71,15 +76,59 @@
 #error Unknown pointer size or missing size macros!
 #endif
 
+#ifdef _MSC_VER
+#include <io.h>
+// For MSVC, use _sopen_s
+static inline int safe_open_(const char* filename, int oflag, int pmode) {
+    int fd;
+    _sopen_s(&fd, filename, oflag | _O_BINARY, _SH_DENYWR, pmode);
+    return fd;
+}
+#else
+// For other compilers/platforms, fall back to open
+static inline int safe_open_(const char* filename, int oflag, int pmode) {
+    // Note: The mode only applies if O_CREAT is part of oflag
+    return open(filename, oflag, pmode);
+}
+#endif
+
 /**
  * @brief Alias for the open function, accommodating large files if _LARGEFILE_SOURCE is defined.
  */
 #ifndef OPEN
-#ifdef _LARGEFILE_SOURCE
-#define OPEN open
-#else
-#define OPEN open
+#define OPEN safe_open_
 #endif
+
+/**
+ * @brief Function to safely open a file pointer, using fopen_s where supported.
+ * @param filename file name to open
+ * @param mode mode to open the file in
+ * @return opened file pointer
+ */
+static inline FILE* safe_fopen_(const char* filename, const char* mode) {
+    FILE* file;
+#ifdef HAVE_FOPEN_S
+    // Use fopen_s where supported
+    fopen_s(&file, filename, mode);
+#else
+    // Fallback for compilers that don't support fopen_s
+    file = fopen(filename, mode);
+#endif
+    return file;
+}
+
+/**
+ * Alias for the fopen function used to open a file pointer.
+ */
+#ifndef FOPEN
+#define FOPEN safe_fopen_
+#endif
+
+/**
+ * Alias for the fclose function used to close a file pointer.
+ */
+#ifndef FCLOSE
+#define FCLOSE fclose
 #endif
 
 /**
@@ -93,7 +142,7 @@
  * Alias for the fseek/fseeko function, using fseeko if _LARGEFILE_SOURCE is defined to accommodate large files.
  */
 #ifndef FSEEK
-#ifdef _LARGEFILE_SOURCE
+#ifdef HAVE_FSEEKO
 #define FSEEK fseeko
 #else
 #define FSEEK fseek
@@ -104,7 +153,7 @@
  * Alias for the ftell/ftello function, using ftello if _LARGEFILE_SOURCE is defined to accommodate large files.
  */
 #ifndef FTELL
-#ifdef _LARGEFILE_SOURCE
+#ifdef HAVE_FTELLO
 #define FTELL ftello
 #else
 #define FTELL ftell

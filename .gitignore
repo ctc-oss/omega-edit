@@ -18,6 +18,7 @@ _install
 _install*/
 build*/
 cmake-build*/
+core/src/include/omega-edit/features.h
 node_modules/
 venv/
 package-lock.json

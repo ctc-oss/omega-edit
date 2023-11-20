@@ -30,47 +30,14 @@
 #define OMEGA_EDIT_TEST_UTIL_H
 
 #include "omega_edit/byte.h"
+#include "omega_edit/config.h"
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 
-// Returns 0 if the content of the 2 file pointers are the same (from where the pointers are currently) and 1 if contents are not the same
-static inline int compare_file_pointers(FILE *f1, FILE *f2) {
-    const size_t buff_size = 1024 * 4;
-    omega_byte_t buf1[buff_size];
-    omega_byte_t buf2[buff_size];
-
-    do {
-        auto r1 = fread(buf1, sizeof(omega_byte_t), buff_size, f1);
-        auto r2 = fread(buf2, sizeof(omega_byte_t), buff_size, f2);
-
-        if (r1 != r2 || memcmp(buf1, buf2, r1) != 0) {
-            return 1;// Files are not equal
-        }
-    } while (!feof(f1) && !feof(f2));
-    return (feof(f1) && feof(f2)) ? 0 : 1;
-}
-
-static inline int compare_files(const char *f1, const char *f2) {
-    const auto f1_ptr = fopen(f1, "rb");
-    if (!f1_ptr) {
-        fprintf(stderr, "Failed to open file: %s\n", f1);
-        abort();
-    }
-    const auto f2_ptr = fopen(f2, "rb");
-    if (!f2_ptr) {
-        fprintf(stderr, "Failed to open file: %s\n", f2);
-        abort();
-    }
-    const auto result = compare_file_pointers(f1_ptr, f2_ptr);
-    fclose(f1_ptr);
-    fclose(f2_ptr);
-    return result;
-}
-
 static inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int64_t fill_length) {
-    const auto f1_ptr = fopen(f1, "w+");
+    const auto f1_ptr = FOPEN(f1, "w+");
     while (file_size) {
         const auto count = (fill_length > file_size) ? file_size : fill_length;
         if (count != fwrite(fill, 1, count, f1_ptr)) { abort(); }

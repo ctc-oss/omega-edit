@@ -19,7 +19,7 @@ if (DEFINED omega_edit_SHARED_LIBS)
     set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
 endif ()
 
-message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared libs: ${BUILD_SHARED_LIBS})")
+message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared: ${BUILD_SHARED_LIBS}, tests: ${BUILD_TESTS}, docs: ${BUILD_DOCS}, examples: ${BUILD_EXAMPLES})")
 
 # Common configurations
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -32,17 +32,12 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
 endif ()
 
-# Dependencies
-if (BUILD_TESTS)
-    include(FetchContent)
-    FetchContent_Declare(
-            Catch2
-            GIT_SHALLOW TRUE
-            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-            GIT_TAG v3.4.0)
-    FetchContent_MakeAvailable(Catch2)
-    list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
-endif ()
+include(CheckFunctionExists)
+# Check platform features
+check_function_exists(fseeko HAVE_FSEEKO)
+check_function_exists(ftello HAVE_FTELLO)
+check_function_exists(fopen_s HAVE_FOPEN_S)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/features.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/src/include/omega_edit/features.h")
 
 # Core library configuration
 file(GLOB_RECURSE OMEGA_EDIT_SOURCE_FILES "src/include/*.h" "src/include/*.hpp" "src/lib/*.c" "src/lib/*.cpp")
@@ -72,9 +67,22 @@ endif ()
 # Tests
 if (BUILD_TESTS)
     enable_testing()
+    include(FetchContent)
+    # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DDL when running tests
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        Catch2
+        GIT_SHALLOW TRUE
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.4.0
+    )
+    FetchContent_MakeAvailable(Catch2)
+    list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
     add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.h")
     target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain ${FILESYSTEM_LIB})
-    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "$<TARGET_FILE_DIR:omega_test>/data")
+    # Set the runtime output directory
+    set_target_properties(omega_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "${CMAKE_CURRENT_BINARY_DIR}/data")
     include(CTest)
     include(Catch)
     catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

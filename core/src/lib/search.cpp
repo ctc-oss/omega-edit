@@ -174,7 +174,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
                     is_begin ? search_context_ptr->session_offset : search_context_ptr->match_offset + advance_context;
         }
 
-        // Loop until a match is found or we have searched the entire segment.
+        // Loop until a match is found, or we have searched the entire segment.
         do {
             // Populate the data segment to be searched.
             populate_data_segment_(search_context_ptr->session_ptr, &data_segment);

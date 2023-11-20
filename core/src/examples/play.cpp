@@ -87,7 +87,7 @@ void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_
         case SESSION_EVT_EDIT: {
             auto file_info_ptr = (file_info_t *) omega_session_get_user_data_ptr(session_ptr);
             file_info_ptr->deletes = file_info_ptr->inserts = file_info_ptr->overwrites = 0;
-            file_info_ptr->save_fptr = fopen(file_info_ptr->save_filename, "wb");
+            file_info_ptr->save_fptr = FOPEN(file_info_ptr->save_filename, "wb");
             omega_visit_changes(session_ptr, save_changes_cbk, file_info_ptr);
             fclose(file_info_ptr->save_fptr);
         }

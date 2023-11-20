@@ -15,11 +15,8 @@
 #include "../include/omega_edit/config.h"
 
 #ifdef OMEGA_BUILD_WINDOWS
-#include <direct.h>
 #include <io.h>
 #include <process.h>
-#include <sys/utime.h>
-#include <windows.h>
 #ifdef OPEN
 #undef OPEN
 #endif
@@ -30,9 +27,7 @@
 #define O_CREAT _O_CREAT
 #define O_RDWR _O_RDWR
 #define CLOSE _close
-#define getcwd _getcwd
 #define getpid _getpid
-#define utime _utime
 #else
 
 #include <errno.h>
@@ -53,68 +48,21 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 
 int omega_util_compute_mode(int mode) {
 #ifdef OMEGA_BUILD_WINDOWS
-    return mode;
+    // Convert Unix-style mode bits to the equivalent Windows style
+    int winMode = 0;
+    if (mode & 0400) winMode |= _S_IREAD;  // Owner read
+    if (mode & 0200) winMode |= _S_IWRITE; // Owner write
+    return winMode;
 #else
     const mode_t umask_value = umask(0);
     umask(umask_value);
     return mode & ~umask_value;
 #endif
-}
-
-int omega_util_mkstemp(char *tmpl, int mode) {
-    static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";//len = 62
-    static uint64_t value;
-    const size_t len = strlen(tmpl);
-    char *template;
-    int saved_errno = errno;
-
-    if (len < 6 || 0 != strcmp(&tmpl[len - 6], "XXXXXX")) {
-        errno = EINVAL;
-        return -1;
-    }
-
-    // This is where the Xs start.
-    template = &tmpl[len - 6];
-
-#ifdef OMEGA_BUILD_WINDOWS
-    value += rand();
-    value += ((value << 32) + rand()) ^ getpid();
-#else
-    value += random() ^ getpid();
-#endif
-
-    for (int count = 0; count < TMP_MAX; value += 7777, ++count) {
-        uint64_t v = value;
-
-        // Fill in the random bits.
-        template[0] = letters[v % 62];
-        v /= 62;
-        template[1] = letters[v % 62];
-        v /= 62;
-        template[2] = letters[v % 62];
-        v /= 62;
-        template[3] = letters[v % 62];
-        v /= 62;
-        template[4] = letters[v % 62];
-        v /= 62;
-        template[5] = letters[v % 62];
-        mode = (mode) ? mode : omega_util_compute_mode(0600);
-        int fd = OPEN(tmpl, O_RDWR | O_CREAT | O_EXCL | O_BINARY, mode);
-        if (fd >= 0) {
-            errno = saved_errno;
-            return fd;
-        } else if (errno != EEXIST)
-            // Any other error will apply to other names we might try, and there are about 2^32 of them, so give up.
-            return -1;
-    }
-
-    // We got out of the loop because we ran out of combinations to try.
-    errno = EEXIST;
-    return -1;
 }
 
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
@@ -182,7 +130,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
     assert(transform);
     assert(0 <= offset);
     assert(0 <= length);
-    FILE *in_fp = fopen(in_path, "rb");
+    FILE *in_fp = FOPEN(in_path, "rb");
     assert(in_fp);
     FSEEK(in_fp, 0, SEEK_END);
     int64_t in_file_length = FTELL(in_fp);
@@ -192,12 +140,12 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
             LOG_ERROR("transform out of range");
             break;
         }
-        FILE *out_fp = fopen(out_path, "wb");
+        FILE *out_fp = FOPEN(out_path, "wb");
         assert(out_fp);
         if (omega_util_write_segment_to_file(in_fp, 0, offset, out_fp) != offset ||
             0 != FSEEK(in_fp, offset, SEEK_SET)) {
             LOG_ERROR("failed to write first segment bytes to file");
-            fclose(out_fp);
+            FCLOSE(out_fp);
             omega_util_remove_file(out_path);
             break;
         }
@@ -220,7 +168,7 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         }
         if (remaining) {
             LOG_ERROR("there are remaining bytes");
-            fclose(out_fp);
+            FCLOSE(out_fp);
             omega_util_remove_file(out_path);
             break;
         }
@@ -228,15 +176,15 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
         length = in_file_length - offset;
         if (offset < in_file_length && omega_util_write_segment_to_file(in_fp, offset, length, out_fp) != length) {
             LOG_ERROR("failed to write last segment");
-            fclose(out_fp);
+            FCLOSE(out_fp);
             omega_util_remove_file(out_path);
             break;
         }
-        fclose(out_fp);
-        fclose(in_fp);
+        FCLOSE(out_fp);
+        FCLOSE(in_fp);
         return 0;
     } while (0);
-    fclose(in_fp);
+    FCLOSE(in_fp);
     LOG_ERROR("transform failed");
     return -1;
 }
@@ -303,7 +251,7 @@ omega_bom_t omega_util_detect_BOM_from_memory(const unsigned char *data, size_t 
 }
 
 omega_bom_t omega_util_detect_BOM_from_file(const char *filename) {
-    FILE *file = fopen(filename, "rb");
+    FILE *file = FOPEN(filename, "rb");
     if (!file) {
         perror("Error opening file");
         return BOM_NONE;
@@ -311,7 +259,7 @@ omega_bom_t omega_util_detect_BOM_from_file(const char *filename) {
 
     unsigned char bom[4];
     const size_t bytesRead = fread(bom, 1, 4, file);
-    fclose(file);
+    FCLOSE(file);
 
     return omega_util_detect_BOM_from_memory(bom, bytesRead);
 }

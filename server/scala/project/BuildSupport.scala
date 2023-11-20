@@ -28,7 +28,7 @@ object BuildSupport {
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
   val libdir: String = new java.io.File(
-    sys.env.get("OE_LIB_DIR").getOrElse("../../_install/lib")
+    sys.env.get("OE_LIB_DIR").getOrElse("../../_install")
   ).getAbsolutePath // make sure to get full path as relative can cause issues
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
