@@ -141,7 +141,7 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
     } else {
         search_length = is_begin ? search_context_ptr->session_length
                                  : search_context_ptr->session_length -
-                                           (search_context_ptr->match_offset - search_context_ptr->session_offset);
+                                   (search_context_ptr->match_offset - search_context_ptr->session_offset);
     }
 
     // Only start searching if the pattern length is less than the search length.

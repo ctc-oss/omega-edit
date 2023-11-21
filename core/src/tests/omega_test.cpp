@@ -45,9 +45,7 @@ const auto DATA_DIR = std::filesystem::current_path() / "data";
  * Sleep for the given number of seconds.
  * @param seconds Number of seconds to sleep.
  */
-static inline void omega_util_sleep_(int seconds) {
-    std::this_thread::sleep_for(std::chrono::seconds(seconds));
-}
+static inline void omega_util_sleep_(int seconds) { std::this_thread::sleep_for(std::chrono::seconds(seconds)); }
 
 TEST_CASE("Size Tests", "[SizeTests]") {
     REQUIRE(1 == sizeof(omega_byte_t));//must always be 1-byte
@@ -118,16 +116,15 @@ TEST_CASE("File Compare", "[UtilTests]") {
     SECTION("Identity") {
         // Same file ought to yield identical contents
         REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.dat"), MAKE_PATH("test1.dat")));
-    }
-    SECTION("Difference") {
+    }SECTION("Difference") {
         // Different files with different contents
         REQUIRE(0 != omega_util_compare_files(MAKE_PATH("test1.dat"), MAKE_PATH("test2.dat")));
     }
 }
 
 TEST_CASE("File Copy", "[UtilTests]") {
-    struct stat src_stat {};
-    struct stat dst_stat {};
+    struct stat src_stat{};
+    struct stat dst_stat{};
     omega_util_remove_file(MAKE_PATH("test1.copy.dat"));
 #ifdef OMEGA_BUILD_WINDOWS
     // sleep for 1 second to ensure the file modification time is different,
@@ -159,7 +156,7 @@ TEST_CASE("File Copy", "[UtilTests]") {
     // On Windows, the mode is not preserved as expected on non-Windows platforms
     REQUIRE(dst_mode == dst_stat.st_mode);
 #endif
-    
+
     REQUIRE(omega_util_directory_exists(DATA_DIR.string().c_str()));
     REQUIRE(!omega_util_file_exists(DATA_DIR.string().c_str()));
     REQUIRE(!omega_util_directory_exists((DATA_DIR / "test1.copy.dat").string().c_str()));
@@ -205,7 +202,8 @@ TEST_CASE("File Touch", "[UtilTests]") {
     REQUIRE_THAT(omega_util_available_filename(exists.c_str(), nullptr), Equals(expected));
     expected = dont_exist;
     REQUIRE_THAT(omega_util_available_filename(dont_exist.c_str(), nullptr), Equals(expected));
-    omega_util_touch(dont_exist.c_str(), 0); // logs an error as expected because create is false and the file does not exist
+    omega_util_touch(dont_exist.c_str(),
+                     0);// logs an error as expected because create is false and the file does not exist
     REQUIRE(!omega_util_file_exists(dont_exist.c_str()));
 #ifdef OMEGA_BUILD_WINDOWS
     // sleep for 1 second to ensure the file modification time is different,
@@ -332,14 +330,18 @@ TEST_CASE("Transformer", "[TransformerTest]") {
 }
 
 TEST_CASE("File Transformer", "[TransformerTest]") {
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.1.dat"),
-                                                         to_upper, nullptr, 0, 0));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.1.dat"), MAKE_PATH("test1.actual.transformed.1.dat")));
-    REQUIRE(0 == omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.2.dat"),
-                                                         to_lower, nullptr, 37, 10));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.2.dat"), MAKE_PATH("test1.actual.transformed.2.dat")));
-    REQUIRE(0 != omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.3.dat"),
-                                                         to_lower, nullptr, 37, 100));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file(
+            MAKE_PATH("test1.dat"), MAKE_PATH("test1.actual.transformed.1.dat"), to_upper, nullptr, 0, 0));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.1.dat"),
+                                          MAKE_PATH("test1.actual.transformed.1.dat")));
+    REQUIRE(0 == omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"),
+                                                         MAKE_PATH("test1.actual.transformed.2.dat"), to_lower, nullptr,
+                                                         37, 10));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.transformed.2.dat"),
+                                          MAKE_PATH("test1.actual.transformed.2.dat")));
+    REQUIRE(0 != omega_util_apply_byte_transform_to_file(MAKE_PATH("test1.dat"),
+                                                         MAKE_PATH("test1.actual.transformed.3.dat"), to_lower, nullptr,
+                                                         37, 100));
     REQUIRE(0 == omega_util_file_exists(MAKE_PATH("test1.actual.transformed.3.dat")));
 }
 
@@ -467,34 +469,38 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(2 == omega_edit_overwrite_string(session_ptr, 37, "BCDEFGHIJKLMNOPQRSTUVWXY"));
     REQUIRE(2 == omega_session_get_num_changes(session_ptr));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"), MAKE_PATH("test1.actual.checkpoint.1.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.1.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.1.dat")));
     mask_info_t mask_info;
     mask_info.mask_kind = MASK_XOR;
     mask_info.mask = 0xFF;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(2 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.2.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.2.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26));
     REQUIRE(3 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.3.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"), MAKE_PATH("test1.actual.checkpoint.3.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.3.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.3.dat")));
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(4 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.4.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"), MAKE_PATH("test1.actual.checkpoint.4.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.4.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.4.dat")));
     mask_info.mask_kind = MASK_OR;
     mask_info.mask = 0x00;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(5 == omega_session_get_num_checkpoints(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.5.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"), MAKE_PATH("test1.actual.checkpoint.5.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.5.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.5.dat")));
     mask_info.mask_kind = MASK_AND;
     REQUIRE(0 == omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 0));
     REQUIRE(6 == omega_session_get_num_checkpoints(session_ptr));
@@ -502,9 +508,10 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
                                              "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
     REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(3 == omega_session_get_num_change_transactions(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.6.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.6.dat"), MAKE_PATH("test1.actual.checkpoint.6.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.6.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.6.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.6.dat")));
     auto change_ptr = omega_session_get_last_change(session_ptr);
     REQUIRE(change_ptr);
     REQUIRE(3 == omega_change_get_serial(change_ptr));
@@ -519,9 +526,10 @@ TEST_CASE("Checkpoint Tests", "[CheckpointTests]") {
     REQUIRE(2 == omega_session_get_num_changes(session_ptr));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
     REQUIRE(nullptr == omega_session_get_last_change(session_ptr));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.7.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                 nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"), MAKE_PATH("test1.actual.checkpoint.7.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.actual.checkpoint.7.dat"),
+                                 omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.expected.checkpoint.1.dat"),
+                                          MAKE_PATH("test1.actual.checkpoint.7.dat")));
     omega_edit_destroy_session(session_ptr);
 }
 
@@ -543,26 +551,30 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     char saved_filename[FILENAME_MAX];
     omega_util_remove_file(MAKE_PATH("test_dir/model-test.actual.1.dat"));
     omega_util_remove_directory(MAKE_PATH("test_dir"));
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test_dir/model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
-                                 saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"), MAKE_PATH("test_dir/model-test.actual.1.dat")));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test_dir/model-test.actual.1.dat"),
+                                 omega_io_flags_t::IO_FLG_NONE, saved_filename));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"),
+                                          MAKE_PATH("test_dir/model-test.actual.1.dat")));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1.dat"));
     REQUIRE(0 == omega_util_remove_file(MAKE_PATH("test_dir/model-test.actual.1.dat")));
     REQUIRE(0 == omega_util_remove_directory(MAKE_PATH("test_dir")));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
                                  saved_filename));
     REQUIRE(0 != omega_util_compare_files(MAKE_PATH("model-test.dat"), MAKE_PATH("model-test.actual.1.dat")));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"), MAKE_PATH("model-test.actual.1.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.expected.1.dat"), MAKE_PATH("model-test.actual.1.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1.dat"), saved_filename));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1-1.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
                                  saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-1.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-1.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1-1.dat"), saved_filename));
     omega_util_remove_file(MAKE_PATH("model-test.actual.1-2.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.1.dat"), omega_io_flags_t::IO_FLG_NONE,
                                  saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-2.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.actual.1.dat"), MAKE_PATH("model-test.actual.1-2.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.1-2.dat"), saved_filename));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 10, reinterpret_cast<const omega_byte_t *>("0"), 1));
     file_size += 1;
@@ -570,7 +582,8 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     omega_util_remove_file(MAKE_PATH("model-test.actual.2.dat"));
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.2.dat"), omega_io_flags_t::IO_FLG_NONE,
                                  saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.2.dat"), MAKE_PATH("model-test.actual.2.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.expected.2.dat"), MAKE_PATH("model-test.actual.2.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.2.dat"), saved_filename));
     REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 5, reinterpret_cast<const omega_byte_t *>("xxx"), 0));
     file_size += 3;
@@ -578,7 +591,8 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.3.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
                                  saved_filename));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.3.dat"), saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.3.dat"), MAKE_PATH("model-test.actual.3.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.expected.3.dat"), MAKE_PATH("model-test.actual.3.dat")));
     auto num_changes = file_info.num_changes;
     REQUIRE(num_changes * -1 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
@@ -592,7 +606,8 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == file_size);
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.4.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
                                  saved_filename));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.4.dat"), MAKE_PATH("model-test.actual.4.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.expected.4.dat"), MAKE_PATH("model-test.actual.4.dat")));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("model-test.actual.4.dat"), saved_filename));
     REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 0, "-"));
@@ -610,14 +625,15 @@ TEST_CASE("Model Tests", "[ModelTests]") {
     REQUIRE((last_change = omega_session_get_last_change(session_ptr)));
     REQUIRE('O' == omega_change_get_kind_as_char(last_change));
     REQUIRE(1 == omega_change_get_length(last_change));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.5.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                 nullptr));
     REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.5.dat"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.5.dat"), MAKE_PATH("model-test.actual.5.dat")));
+            omega_util_compare_files(MAKE_PATH("model-test.expected.5.dat"), MAKE_PATH("model-test.actual.5.dat")));
     REQUIRE(0 < omega_edit_delete(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
     while (file_info.num_changes) { omega_edit_undo_last_change(session_ptr); }
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.6.dat"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.6.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                 nullptr));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.dat"), MAKE_PATH("model-test.actual.6.dat")));
     omega_edit_destroy_session(session_ptr);
@@ -700,7 +716,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     auto session_ptr = omega_edit_create_session(MAKE_PATH("utf-8_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -712,7 +729,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-8bom_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -724,7 +742,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
     // Force invalid bytes by not including the full sequence of a triple-byte character (e.g., ™).
     // Removing the last 2 bytes removes the trailing newline and the last byte of the 3-byte ™ character.
     REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0,
-                                                omega_session_get_computed_file_size(session_ptr) - 2, omega_session_detect_BOM(session_ptr, 0)));
+                                                omega_session_get_computed_file_size(session_ptr) - 2,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF8 == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(3 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_single_byte_chars(char_counts_ptr));// minus the newline
@@ -736,7 +755,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-16le_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -748,7 +768,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-16be_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF16BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(2 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -760,7 +781,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-32le_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32LE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -772,7 +794,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("utf-32be_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_UTF32BE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(4 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(5 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -784,7 +807,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("ascii_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(14 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -796,7 +820,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(MAKE_PATH("ascii-dos_1.dat"), nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(15 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -808,7 +833,8 @@ TEST_CASE("Character Counts", "[CharCounts]") {
 
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
-    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0, omega_session_detect_BOM(session_ptr, 0)));
+    REQUIRE(0 == omega_session_character_counts(session_ptr, char_counts_ptr, 0, 0,
+                                                omega_session_detect_BOM(session_ptr, 0)));
     REQUIRE(BOM_NONE == omega_character_counts_get_BOM(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_bom_bytes(char_counts_ptr));
     REQUIRE(0 == omega_character_counts_single_byte_chars(char_counts_ptr));
@@ -897,10 +923,11 @@ TEST_CASE("Hanoi insert", "[ModelTests]") {
     REQUIRE(!omega_change_is_undone(omega_session_get_change(session_ptr, rc)));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(0 == omega_check_model(session_ptr));
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.7.dat"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("model-test.actual.7.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                 nullptr));
     REQUIRE(file_info.num_changes == omega_session_get_num_changes(session_ptr));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("model-test.expected.7.dat"), MAKE_PATH("model-test.actual.7.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("model-test.expected.7.dat"), MAKE_PATH("model-test.actual.7.dat")));
     omega_edit_clear_changes(session_ptr);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     omega_edit_insert_string(session_ptr, 0, "\rUnix EOL\n Mac EOL\n DOS EOL\r\n \r");
@@ -1005,8 +1032,8 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(1 == omega_session_get_num_undone_changes(session_ptr));
             REQUIRE(omega_session_get_num_changes(session_ptr) == num_changes_before_undo - 1);
             REQUIRE(71 == omega_session_get_computed_file_size(session_ptr));
-            REQUIRE(0 ==
-                    omega_edit_save(session_ptr, MAKE_PATH("test1.dat.out"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+            REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.dat.out"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                         nullptr));
             REQUIRE(6 == omega_session_get_num_changes(session_ptr));
             REQUIRE(-6 == omega_edit_undo_last_change(session_ptr));
             REQUIRE(5 == omega_session_get_num_changes(session_ptr));
@@ -1014,15 +1041,17 @@ TEST_CASE("Check initialization", "[InitTests]") {
             REQUIRE(0 == omega_edit_clear_changes(session_ptr));
             REQUIRE(0 == omega_session_get_num_changes(session_ptr));
             REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
-            REQUIRE(0 ==
-                    omega_edit_save(session_ptr, MAKE_PATH("test1.reset.dat"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+            REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("test1.reset.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                         nullptr));
             REQUIRE(0 == omega_util_compare_files(MAKE_PATH("test1.dat"), MAKE_PATH("test1.reset.dat")));
             omega_edit_destroy_session(session_ptr);
         }
     }
 }
 
-enum class display_mode_t { BIT_MODE, BYTE_MODE, CHAR_MODE };
+enum class display_mode_t {
+    BIT_MODE, BYTE_MODE, CHAR_MODE
+};
 struct view_mode_t {
     display_mode_t display_mode = display_mode_t::CHAR_MODE;
 };
@@ -1130,24 +1159,24 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     REQUIRE(-3 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(-3 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
     REQUIRE('I' == omega_change_get_kind_as_char(omega_session_get_change(
-                           session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+            session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(nullptr != omega_change_get_bytes(omega_session_get_change(
-                               session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+            session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(!omega_change_get_string(
-                     omega_session_get_change(session_ptr,
-                                              omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
-                     .empty());
+            omega_session_get_change(session_ptr,
+                                     omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
+            .empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 1);
     REQUIRE(-2 == omega_edit_undo_last_change(session_ptr));
     REQUIRE(omega_change_is_undone(omega_session_get_last_undo(session_ptr)));
     REQUIRE(-2 == omega_change_get_serial(omega_session_get_last_undo(session_ptr)));
     REQUIRE('D' == omega_change_get_kind_as_char(omega_session_get_change(
-                           session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+            session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(nullptr == omega_change_get_bytes(omega_session_get_change(
-                               session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
+            session_ptr, omega_change_get_serial(omega_session_get_last_undo(session_ptr)))));
     REQUIRE(omega_change_get_string(
-                    omega_session_get_change(session_ptr,
-                                             omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
+            omega_session_get_change(session_ptr,
+                                     omega_change_get_serial(omega_session_get_last_undo(session_ptr))))
                     .empty());
     REQUIRE(omega_session_get_num_undone_changes(session_ptr) == 2);
     REQUIRE(0 < omega_edit_overwrite_string(session_ptr, 16, needle));
@@ -1235,10 +1264,11 @@ TEST_CASE("Search-Forward", "[SearchTests]") {
     while (omega_search_next_match(match_context, 1)) { ++needles_found; }
     REQUIRE(12 == needles_found);
     omega_search_destroy_context(match_context);
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("search-test.actual.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE, nullptr));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("search-test.actual.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
+                                 nullptr));
     omega_edit_destroy_session(session_ptr);
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("search-test.expected.1.dat"), MAKE_PATH("search-test.actual.1.dat")));
+    REQUIRE(0 ==
+            omega_util_compare_files(MAKE_PATH("search-test.expected.1.dat"), MAKE_PATH("search-test.actual.1.dat")));
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
     std::string as = "bbbbabbbbaabbbba";
@@ -1473,17 +1503,20 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
                                  saved_filename));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.1.dat"), saved_filename));
-    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.1.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                         saved_filename, 1, 0));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.1.dat"), MAKE_PATH("session_save_seg.1.dat")));
+    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.1.dat"),
+                                         omega_io_flags_t::IO_FLG_OVERWRITE, saved_filename, 1, 0));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.1.dat"),
+                                          MAKE_PATH("session_save_seg.1.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.1.dat"));
-    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.2.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                         saved_filename, 0, 4));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.2.dat"), MAKE_PATH("session_save_seg.2.dat")));
+    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.2.dat"),
+                                         omega_io_flags_t::IO_FLG_OVERWRITE, saved_filename, 0, 4));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.2.dat"),
+                                          MAKE_PATH("session_save_seg.2.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.2.dat"));
-    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.3.dat"), omega_io_flags_t::IO_FLG_OVERWRITE,
-                                         saved_filename, 2, 6));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.3.dat"), MAKE_PATH("session_save_seg.3.dat")));
+    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.3.dat"),
+                                         omega_io_flags_t::IO_FLG_OVERWRITE, saved_filename, 2, 6));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.3.dat"),
+                                          MAKE_PATH("session_save_seg.3.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.3.dat"));
     REQUIRE(7 == session_events_count); // SESSION_EVT_SAVE
     REQUIRE(2 == viewport_events_count);// no additional viewport events
@@ -1516,32 +1549,34 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     omega_util_remove_file(MAKE_PATH("session_save.1-1.dat"));
     REQUIRE(5 == session_events_count); // SESSION_EVT_SAVE
     REQUIRE(3 == viewport_events_count);// VIEWPORT_EVT_EDIT
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE, saved_filename));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE,
+                                 saved_filename));
     REQUIRE(6 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.1-1.dat"), saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save.expected.2.dat"), MAKE_PATH("session_save.1-1.dat")));
     omega_util_remove_file(MAKE_PATH("session_save.1-2.dat"));
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE, saved_filename));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE,
+                                 saved_filename));
     REQUIRE(7 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.1-2.dat"), saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save.expected.2.dat"), MAKE_PATH("session_save.1-2.dat")));
     omega_util_remove_file(MAKE_PATH("session_save.1-3.dat"));
-    REQUIRE(0 ==
-            omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE, saved_filename));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1.dat"), omega_io_flags_t::IO_FLG_NONE,
+                                 saved_filename));
     REQUIRE(8 == session_events_count);// SESSION_EVT_SAVE
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.1-3.dat"), saved_filename));
     REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save.expected.2.dat"), MAKE_PATH("session_save.1-3.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.2.dat"));
-    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.2.dat"), omega_io_flags_t::IO_FLG_NONE,
-                                         saved_filename, 0, 4));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.2.dat"), MAKE_PATH("session_save_seg.2.dat")));
+    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.2.dat"),
+                                         omega_io_flags_t::IO_FLG_NONE, saved_filename, 0, 4));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.2.dat"),
+                                          MAKE_PATH("session_save_seg.2.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.2.dat"));
     omega_util_remove_file(MAKE_PATH("session_save_seg.3.dat"));
-    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.3.dat"), omega_io_flags_t::IO_FLG_NONE,
-                                         saved_filename, 2, 6));
-    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.3.dat"), MAKE_PATH("session_save_seg.3.dat")));
+    REQUIRE(0 == omega_edit_save_segment(session_ptr, MAKE_PATH("session_save_seg.3.dat"),
+                                         omega_io_flags_t::IO_FLG_NONE, saved_filename, 2, 6));
+    REQUIRE(0 == omega_util_compare_files(MAKE_PATH("session_save_seg.expected.3.dat"),
+                                          MAKE_PATH("session_save_seg.3.dat")));
     omega_util_remove_file(MAKE_PATH("session_save_seg.3.dat"));
     omega_edit_destroy_session(session_ptr);
 
@@ -1559,8 +1594,8 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(0 == omega_util_touch(MAKE_PATH("session_save.1-3.dat"), 0));
     // overwrite should fail because the original file has been modified elsewhere
     const auto save_rc = omega_edit_save(session_ptr, MAKE_PATH("session_save.1-3.dat"),
-                                                 omega_io_flags_t::IO_FLG_OVERWRITE, saved_filename);
-#ifdef OMEGA_BUILD_WINDOWS // Windows doesn't always support this
+                                         omega_io_flags_t::IO_FLG_OVERWRITE, saved_filename);
+#ifdef OMEGA_BUILD_WINDOWS// Windows doesn't always support this
     REQUIRE((ORIGINAL_MODIFIED == save_rc || 0 == save_rc));
     REQUIRE((saved_filename[0] == '\0' || 0 == save_rc));
 #else
@@ -1568,8 +1603,8 @@ TEST_CASE("Session Save", "[SessionSaveTests]") {
     REQUIRE(saved_filename[0] == '\0');
 #endif
     // force overwrite should succeed
-    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1-3.dat"), omega_io_flags_t::IO_FLG_FORCE_OVERWRITE,
-                                 saved_filename));
+    REQUIRE(0 == omega_edit_save(session_ptr, MAKE_PATH("session_save.1-3.dat"),
+                                 omega_io_flags_t::IO_FLG_FORCE_OVERWRITE, saved_filename));
     REQUIRE(omega_util_paths_equivalent(MAKE_PATH("session_save.1-3.dat"), saved_filename));
     omega_edit_destroy_session(session_ptr);
     session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);

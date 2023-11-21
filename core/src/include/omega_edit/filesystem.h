@@ -110,7 +110,7 @@ int omega_util_paths_equivalent(char const *path1, char const *path2);
  * @param path2 second path
  * @return 0 if the contents are equal, 1 if the contents are not equal, or -1 if an error occurred opening the file at path1 or -2 if an error occurred opening the file at path2
  */
-int omega_util_compare_files(const char* path1, const char* path2);
+int omega_util_compare_files(const char *path1, const char *path2);
 
 /**
  * Compare the modification times of two files
@@ -149,7 +149,7 @@ char *omega_util_available_filename(char const *path, char *buffer);
  * Given a path, which must exist, returns an absolute path that has no symbolic link, dot, or dot-dot elements
  * @param path path to get the absolute path of
  * @param buffer pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
- * @return absolute path that has no symbolic link, dot, or dot-dot elements
+ * @return absolute path that has no symbolic link, dot, or dot-dot path elements
  */
 char *omega_util_normalize_path(char const *path, char *buffer);
 

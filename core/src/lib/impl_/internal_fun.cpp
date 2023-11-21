@@ -62,8 +62,8 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
         if (read_offset != (*iter)->computed_offset) {
             ABORT(print_model_segments_(session_ptr->models_.back().get(), CLOG);
-                  LOG_ERROR("break in model continuity, expected: " << read_offset
-                                                                    << ", got: " << (*iter)->computed_offset););
+                          LOG_ERROR("break in model continuity, expected: " << read_offset
+                                                                            << ", got: " << (*iter)->computed_offset););
         }
         if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
             // We're at the first model segment that intersects with the data segment, but the model segment and the
@@ -140,5 +140,5 @@ static inline void print_model_segment_(const omega_model_segment_ptr_t &segment
 
 void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream) noexcept {
     assert(model_ptr);
-    for (const auto &segment : model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
+    for (const auto &segment: model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
 }

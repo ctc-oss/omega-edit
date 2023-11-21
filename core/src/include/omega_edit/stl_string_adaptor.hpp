@@ -71,6 +71,7 @@ int64_t omega_edit_overwrite_string(omega_session_t *session_ptr, int64_t offset
  */
 std::string omega_session_get_segment_string(const omega_session_t *session_ptr, int64_t offset,
                                              int64_t length) noexcept;
+
 /**
  * Create a search context
  * @param session_ptr session to find patterns in

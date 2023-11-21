@@ -16,6 +16,7 @@
 * @file features.h
 * @brief Features that are available on the current platform.
 * @warning Dummy file to satisfy IDEs.  A real version is generated at build time.
+* @info To ignore changes to this file, use: git update-index --assume-unchanged core/src/include/omega_edit/features.h
 */
 
 #ifndef OMEGA_EDIT_FEATURES_H

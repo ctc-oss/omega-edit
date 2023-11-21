@@ -15,8 +15,10 @@
 #include "../include/omega_edit/config.h"
 
 #ifdef OMEGA_BUILD_WINDOWS
+
 #include <io.h>
 #include <process.h>
+
 #ifdef OPEN
 #undef OPEN
 #endif
@@ -55,8 +57,8 @@ int omega_util_compute_mode(int mode) {
 #ifdef OMEGA_BUILD_WINDOWS
     // Convert Unix-style mode bits to the equivalent Windows style
     int winMode = 0;
-    if (mode & 0400) winMode |= _S_IREAD;  // Owner read
-    if (mode & 0200) winMode |= _S_IWRITE; // Owner write
+    if (mode & 0400) winMode |= _S_IREAD; // Owner read
+    if (mode & 0200) winMode |= _S_IWRITE;// Owner write
     return winMode;
 #else
     const mode_t umask_value = umask(0);
@@ -278,7 +280,7 @@ char const *omega_util_BOM_to_string(omega_bom_t bom) {
             return "UTF-32LE";
         case BOM_UTF32BE:
             return "UTF-32BE";
-        case BOM_UNKNOWN: // fall through
+        case BOM_UNKNOWN:// fall through
         default:
             // Should never happen
             return "unknown";
@@ -362,7 +364,7 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     size_t i = 0;
     switch (counts_ptr->bom) {
         case BOM_UNKNOWN:// fall through, assume UTF-8 if the BOM is unknown
-        case BOM_NONE:// fall through, assume UTF-8 if the BOM is none
+        case BOM_NONE:   // fall through, assume UTF-8 if the BOM is none
         case BOM_UTF8:
             while (i < length) {
                 if ((data[i] & 0x80) == 0) {
@@ -470,13 +472,13 @@ size_t omega_util_BOM_size(omega_bom_t bom) {
     switch (bom) {
         case BOM_UTF8:
             return 3;
-        case BOM_UTF16LE: // fall through
+        case BOM_UTF16LE:// fall through
         case BOM_UTF16BE:
             return 2;
-        case BOM_UTF32LE: // fall through
+        case BOM_UTF32LE:// fall through
         case BOM_UTF32BE:
             return 4;
-        case BOM_NONE: // fall through
+        case BOM_NONE:// fall through
         default:
             return 0;
     }
@@ -500,8 +502,8 @@ const omega_byte_buffer_t *omega_util_BOM_to_buffer(omega_bom_t bom) {
             return &utf32le_bom;
         case BOM_UTF32BE:
             return &utf32be_bom;
-        case BOM_NONE: // fall through
-        case BOM_UNKNOWN: // fall through
+        case BOM_NONE:   // fall through
+        case BOM_UNKNOWN:// fall through
         default:
             return NULL;
     }
