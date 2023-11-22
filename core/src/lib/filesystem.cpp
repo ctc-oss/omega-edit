@@ -152,7 +152,7 @@ int omega_util_compare_modification_times(const char *path1, const char *path2) 
 }
 
 const char *omega_util_get_current_dir(char *buffer) {
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const path_str = fs::current_path().string();
     assert(0 < path_str.length());
@@ -165,7 +165,7 @@ const char *omega_util_get_current_dir(char *buffer) {
 
 char *omega_util_dirname(char const *path, char *buffer) {
     assert(path);
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const dirname_str = fs::path(path).parent_path().string();
     assert(0 <= dirname_str.length());
@@ -180,7 +180,7 @@ char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
     assert(path);
     assert(0 < strlen(path));
     assert(FILENAME_MAX > strlen(path));
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const basename_str = (drop_suffix == 0) ? fs::path(path).filename().string() : fs::path(path).stem().string();
     auto const len = basename_str.copy(buffer, basename_str.length());
@@ -191,7 +191,7 @@ char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
 
 char *omega_util_file_extension(char const *path, char *buffer) {
     assert(path);
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     auto const path_str = fs::path(path).extension().string();
     assert(0 <= path_str.length());
@@ -217,7 +217,7 @@ char *omega_util_normalize_path(char const *path, char *buffer) {
 
 char *omega_util_available_filename(char const *path, char *buffer) {
     assert(path);
-    static char buff[FILENAME_MAX];//create string buffer to hold path
+    static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {
         memcpy(buffer, path, strlen(path) + 1);

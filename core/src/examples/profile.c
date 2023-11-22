@@ -15,7 +15,6 @@
 /**
 * This application can be used to test out and demonstrate the Omega-Edit session profiler.
 */
-#define __STDC_FORMAT_MACROS
 
 #include <assert.h>
 #include <ctype.h>

@@ -12,8 +12,6 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#define __STDC_FORMAT_MACROS
-
 #include <inttypes.h>
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>

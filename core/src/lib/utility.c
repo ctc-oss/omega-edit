@@ -16,8 +16,10 @@
 
 #ifdef OMEGA_BUILD_WINDOWS
 
+#include <fcntl.h>
 #include <io.h>
 #include <process.h>
+#include <sys/stat.h>
 
 #ifdef OPEN
 #undef OPEN
@@ -32,10 +34,8 @@
 #define getpid _getpid
 #else
 
-#include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 #ifndef O_BINARY
 #define O_BINARY (0)
@@ -47,10 +47,8 @@
 #include "impl_/macros.h"
 #include <assert.h>
 #include <ctype.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
 
 int omega_util_compute_mode(int mode) {
