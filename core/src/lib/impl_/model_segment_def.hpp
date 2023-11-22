@@ -22,6 +22,7 @@ enum class model_segment_kind_t {
     SEGMENT_READ, SEGMENT_INSERT
 };
 
+// NOTE: omega_model_segment_struct is used in internal_fwd_defs.hpp despite what sonarlint says
 struct omega_model_segment_struct {
     int64_t computed_offset{};            ///< Computed offset can differ from the change as segments move and split
     int64_t computed_length{};            ///< Computed length can differ from the change as segments split

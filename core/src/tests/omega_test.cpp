@@ -39,7 +39,7 @@ using Catch::Matchers::EndsWith;
 using Catch::Matchers::Equals;
 
 const auto DATA_DIR = std::filesystem::current_path() / "data";
-#define MAKE_PATH(path) (DATA_DIR / path).string().c_str()
+#define MAKE_PATH(path) (DATA_DIR / (path)).string().c_str()
 
 /**
  * Sleep for the given number of seconds.
@@ -95,7 +95,7 @@ TEST_CASE("Buffer Shift", "[BufferShift]") {
     REQUIRE_THAT(fill + 1, Equals((const char *) buffer));
 
     // Reset the buffer
-    memcpy(buffer, fill, buff_len);
+    strcpy((char *)buffer, fill);
     REQUIRE_THAT(fill, Equals((const char *) buffer));
 
     // Shift the buffer 6 bits to the left
