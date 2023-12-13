@@ -26,7 +26,7 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#include "test_util.h"
+#include "test_util.hpp"
 #include <cstdio>
 
 int main(int argc, char *argv[]) {

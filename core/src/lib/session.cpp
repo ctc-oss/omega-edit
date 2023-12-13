@@ -195,11 +195,10 @@ int omega_session_get_transaction_state(const omega_session_t *session_ptr) {
             return 2;// Transaction in progress
         }
         return 1;// Transaction opened
-    } else {
-        // If there is no transaction opened, then there should be no transaction in progress
-        assert(0 == (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS));
-        return 0;// No transaction
     }
+    // If there is no transaction opened, then there should be no transaction in progress
+    assert(0 == (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS));
+    return 0;// No transaction
 }
 
 int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr) {

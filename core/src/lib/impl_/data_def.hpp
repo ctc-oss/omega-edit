@@ -18,6 +18,8 @@
 #include "../../include/omega_edit/byte.h"
 #include <cstdint>
 
+#define DATA_T_SIZE (8)
+
 /**
  * Union to hold consecutive bytes of data.  If the length of the data is less than 8, the data will be stored directly
  * in the sm_bytes field.  If the length is greater than 7, the data will be stored in allocated space on the heap
@@ -25,10 +27,10 @@
  */
 using omega_data_t = union omega_data_union {
     omega_byte_t *bytes_ptr{};///< Hold bytes of length greater than 7
-    omega_byte_t sm_bytes[8]; ///< Hold bytes of length less than 8
+    omega_byte_t sm_bytes[DATA_T_SIZE]; ///< Hold bytes of length less than 8
 };
 
-static_assert(8 == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
+static_assert(DATA_T_SIZE == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
 
 inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
     return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
