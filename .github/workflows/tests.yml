@@ -43,21 +43,21 @@ jobs:
           cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
 
       - name: Upload Native (.dylib) library - Macos 🔺
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
         with:
           name: libomega_edit.dylib
           path: _install/lib/libomega_edit.dylib
 
       - name: Upload Native (.so) library - Linux 🔺
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: runner.os == 'Linux'
         with:
           name: libomega_edit.so
           path: _install/lib/libomega_edit.so
 
       - name: Upload Native (.dll) library - Windows 🔺
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: runner.os == 'Windows'
         with:
           name: omega_edit.dll
@@ -139,7 +139,7 @@ jobs:
         working-directory: server/scala
 
       - name: Archive M2 🔺
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: success() || failure()
         with:
           name: ${{ matrix.os }}-artifacts
