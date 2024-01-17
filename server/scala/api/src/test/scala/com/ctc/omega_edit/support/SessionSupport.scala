@@ -33,6 +33,11 @@ trait SessionSupport {
     test(s)
   }
 
+  def sessionWithAllPathParams(filepath: Path, chkptDir: Path)(test: api.Session => Unit): Unit = {
+    val s = OmegaEdit.newSession(Some(filepath), Some(chkptDir))
+    test(s)
+  }
+
   def session(string: String)(test: api.Session => Unit): Unit =
     session(string.getBytes())(test)
 

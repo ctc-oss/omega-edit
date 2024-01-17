@@ -30,6 +30,7 @@ import org.apache.tika.langdetect.optimaize.OptimaizeLangDetector
 import org.apache.tika.metadata.Metadata
 
 private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
+
   require(p != null, "native session pointer was null")
 
   def size: Long =
@@ -86,8 +87,17 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def endTransaction: Int =
     i.omega_session_end_transaction(p)
 
-  def checkpointDirectory: Path =
-    Paths.get(i.omega_session_get_checkpoint_directory(p))
+  def checkpointDirectory: Path = {
+    val chkptDir: String =
+      i.omega_session_get_checkpoint_directory(p).substring(0, this.checkpointDirectoryStrLen.toInt)
+    Paths.get(chkptDir)
+  }
+
+  /** Currently required to truncate the String return value of `ffi.checkpointDirectoy`. Otherwise, the returned String
+    * contains a `\0` terminating byte the Scala seems to ignore.
+    */
+  def checkpointDirectoryStrLen: Long =
+    i.omega_session_get_checkpoint_directory_length(p)
 
   def delete(offset: Long, len: Long): Result =
     Edit(i.omega_edit_delete(p, offset, len))

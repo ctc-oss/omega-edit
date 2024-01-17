@@ -29,13 +29,16 @@ object OmegaEdit extends OmegaEdit {
 
   def newSessionCb(path: Option[Path], chkptDir: Option[Path], cb: SessionCallback): Session = {
     require(path.forall(_.toFile.exists()), s"specified file path \"${path.getOrElse("N/A")}\" does not exist")
+    val pathArg = path.map[String](_.toString()).orNull
+    val chkptDirArg = chkptDir.map[String](_.toString()).orNull
+
     new SessionImpl(
       ffi.omega_edit_create_session(
-        path.map(_.toString).orNull,
+        pathArg,
         cb,
         null,
         0,
-        chkptDir.map(_.toString).orNull
+        chkptDirArg
       ),
       ffi
     )

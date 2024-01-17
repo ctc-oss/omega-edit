@@ -333,6 +333,11 @@ const char *omega_session_get_checkpoint_directory(const omega_session_t *sessio
     return session_ptr->checkpoint_directory_.c_str();
 }
 
+int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *session_ptr) {
+    assert(session_ptr);
+    return session_ptr->checkpoint_directory_.length();
+}
+
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->changes.empty()) ||
            omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());
