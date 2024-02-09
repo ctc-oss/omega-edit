@@ -1,0 +1,144 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#                                                                                                               
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at                                                    
+#                                                                                                               
+#     http://www.apache.org/licenses/LICENSE-2.0                                                                
+#                                                                                                               
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
+# implied.  See the License for the specific language governing permissions and limitations under the License.  
+
+---
+name: Build Middleware
+description: Reusable action to build omega-edit middleware
+inputs:
+  runner-os:
+    description: 'OS Name of Runner (macOS, Linux, Windows)'
+    required: true
+  os-name:
+    description: 'OS Name (runs-on value)'
+    required: true
+  github-token:
+    description: 'GitHub token retrieved from secrets'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout 🛎️
+      uses: actions/checkout@v4
+
+    # NOTE: The macos-14 runner doesn't support JAVA 8, only 11+ can be used.
+    # macos-14 uses an M1 apple silicon chip, most likely being the reason it can't
+    # use JAVA 8.
+    - name: Setup Java 8 - non macos 14 ☕
+      uses: actions/setup-java@v4.0.0
+      with:
+        distribution: temurin
+        java-version: 8
+        cache: sbt
+      if: ${{ !contains(inputs.os-name, 'macos-14') }}
+    
+    - name: Setup Java 11 - macos 14 ☕
+      uses: actions/setup-java@v4.0.0
+      with:
+        distribution: temurin
+        java-version: 11
+        cache: sbt
+      if: contains(inputs.os-name, 'macos-14')
+
+    - name: Install SBT - macos-14 # if macos-13 is added this will done for it as well
+      shell: bash
+      run: brew install sbt
+      if: contains(inputs.os-name, 'macos-14')
+
+    - name: Make _install directory to store lib files 🔧
+      shell: bash
+      run: mkdir -p _install
+
+    - name: Download macOS library file 🔻
+      uses: actions/download-artifact@v4
+      if: inputs.runner-os == 'macOS'
+      with:
+        name: ${{ inputs.os-name }}-libomega_edit.dylib
+        path: _install/libomega_edit.dylib
+
+    - name: Download Linux library file 🔻
+      uses: actions/download-artifact@v4
+      if: inputs.runner-os == 'Linux'
+      with:
+        name: ${{ inputs.os-name }}-libomega_edit.so
+        path: _install/libomega_edit.so
+
+    - name: Download Windows library file 🔻
+      uses: actions/download-artifact@v4
+      if: inputs.runner-os == 'Windows'
+      with:
+        name: omega_edit.dll
+        path: _install/omega_edit.dll
+
+    - name: Move out library file 🛻
+      run: |
+        if [[ ${{ inputs.runner-os }} == 'Linux' ]]; then
+          LIB_FILENAME="libomega_edit.so"
+        elif [[ ${{ inputs.runner-os }} == 'macOS' ]]; then
+          LIB_FILENAME="libomega_edit.dylib"
+        else
+          LIB_FILENAME="omega_edit.dll"
+        fi
+
+        mv -v "_install/${LIB_FILENAME}" "_install/${LIB_FILENAME}_dir"
+        mv -v "_install/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/$LIB_FILENAME"
+        rm -rf "_install/${LIB_FILENAME}_dir"
+      shell: bash
+
+    - name: Check Scala headers ✔️
+      shell: bash
+      run: sbt headerCheckAll
+      working-directory: server/scala
+
+    - name: Package Scala API - Non windows 🎁
+      shell: bash
+      run: sbt installM2 # runs test so specifically running sbt test not needed  # TODO: Make sure tests run on windows
+      if: inputs.runner-os != 'Windows'
+      working-directory: server/scala
+      # timeout-minutes: 30
+  
+    - name: Package Scala Native - Windows 🎁
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      if: inputs.runner-os == 'Windows'  # TODO: Remove, current workaround so we can download all OS jars from tests for release
+      run: sbt native/publishM2
+      working-directory: server/scala
+
+    # - name: Archive M2 🔺
+    #   uses: actions/upload-artifact@v4
+    #   if: success() || failure()
+    #   with:
+    #     name: ${{ inputs.os-name }}-artifacts
+    #     path: ~/.m2/repository/com/ctc/*
+    #     if-no-files-found: error
+
+    - name: Test Scala RPC server 📋
+      shell: bash
+      run: sbt serv/test
+      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
+      working-directory: server/scala
+      # timeout-minutes: 30
+
+    - name: Yarn Install 🏗️
+      run: yarn
+      shell: bash
+
+    - name: Yarn Package - Server 📦
+      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
+      run: yarn workspace @omega-edit/server package
+      shell: bash
+      # timeout-minutes: 30
+
+    - name: Yarn Test - Client 🧑‍💼
+      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
+      run: yarn workspace @omega-edit/client test
+      shell: bash
+      # timeout-minutes: 30
