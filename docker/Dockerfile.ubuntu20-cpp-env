@@ -77,12 +77,15 @@ RUN apt-get update \
   && apt-get install -y nodejs \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install yarn
+RUN npm i -g yarn
+
 # Verify the installation
 RUN node --version \
     && npm --version
 
-# Create a non-root user
-RUN useradd -ms /bin/bash developer \
-    && install -d -m 0755 -o developer -g developer /home/developer/project
-USER developer
-WORKDIR /home/developer/project
+# Create a non-root user - this breaks CI if trying to use it
+# RUN useradd -ms /bin/bash developer \
+#     && install -d -m 0755 -o developer -g developer /home/developer/project
+# USER developer
+# WORKDIR /home/developer/project
