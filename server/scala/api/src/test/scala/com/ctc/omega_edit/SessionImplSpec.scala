@@ -26,6 +26,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 import scala.util.Success
+import java.nio.file.Path
 
 class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
 
@@ -36,7 +37,39 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
   val as = "bbbbabbbbaabbbba"
   val binary: Array[Byte] = Array[Byte](1, 2, 3, 4, 0, 5, 6)
 
+  def sbtTestDir(): Path = {
+    val userHomePathString = System.getProperty("user.home")
+    val sbtTestDir = Paths.get(userHomePathString, "/.sbtTests")
+    if (!Files.exists(sbtTestDir))
+      Files.createDirectory(sbtTestDir)
+    sbtTestDir
+  }
+  def defaultFile(): Path = {
+    val sbtTestDir = this.sbtTestDir()
+
+    val fileDir = Paths.get(sbtTestDir.toString(), "tmpFile")
+    if (!Files.exists(fileDir))
+      Files.createFile(fileDir)
+    fileDir
+  }
+  def defaultChkptDir(): Path = {
+    val sbtTestDir = this.sbtTestDir()
+    val fileDir = Paths.get(sbtTestDir.toString(), ".checkpoint")
+    if (!Files.exists(fileDir))
+      Files.createDirectory(fileDir)
+    fileDir
+  }
+
+  val defaultFilePath = this.defaultFile()
+  val defaultChkptDirPath = this.defaultChkptDir()
+
   "a session" must {
+    "be constructable with Path params" in sessionWithAllPathParams(defaultFilePath, defaultChkptDirPath) { s =>
+      s.checkpointDirectory shouldBe defaultChkptDirPath
+      s.destroy()
+      defaultFilePath.toFile.deleteOnExit()
+      defaultChkptDirPath.toFile.deleteOnExit()
+    }
     "be empty" in emptySession { s =>
       s.isEmpty shouldBe true
       s.size shouldBe 0
@@ -45,7 +78,6 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
       s.numUndoTransactions shouldBe 0
       s.destroy()
     }
-
     "be able to create and destroy viewports" in emptySession { s =>
       s.numViewports shouldBe 0
       val v1 = s.view(offset = 0, capacity = 10, isFloating = false)

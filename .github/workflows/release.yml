@@ -64,13 +64,22 @@ jobs:
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
-      - name: Check tests - macOS ✅
+      - name: Check tests - macOS 12 ✅
         uses: fountainhead/action-wait-for-check@v1.1.0
-        id: macos-tests
+        id: macos12-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware macos-11 🔧"
+          checkName: "Build middleware macos-12 🔧"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      
+      - name: Check tests - macOS 14 ✅
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: macos14-tests
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
+          checkName: "Build middleware macos-14 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Linux ✅
@@ -90,9 +99,26 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Build middleware windows-2019 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        
+      - name: Check native build arm64 - Linux ✅
+        uses: fountainhead/action-wait-for-check@v1.1.0
+        id: ubuntu-arm64-native
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
+          checkName: "Native build ubuntu-20.04 arm64 🦙"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Quality Gate ✅
-        if: steps.rat-check.outputs.conclusion != 'success' || steps.scala-format.outputs.conclusion != 'success' || steps.ts-format.outputs.conclusion != 'success' || steps.macos-tests.outputs.conclusion != 'success' || steps.ubuntu-tests.outputs.conclusion != 'success' || steps.windows-tests.outputs.conclusion != 'success'
+        if: |
+          steps.rat-check.outputs.conclusion != 'success' ||
+          steps.scala-format.outputs.conclusion != 'success' ||
+          steps.ts-format.outputs.conclusion != 'success' ||
+          steps.macos12-tests.outputs.conclusion != 'success' ||
+          steps.macos14-tests.outputs.conclusion != 'success' ||
+          steps.ubuntu-tests.outputs.conclusion != 'success' ||
+          steps.ubuntu-arm64-native.outputs.conclusion != 'success' ||
+          steps.windows-tests.outputs.conclusion != 'success'
         run: |
           echo "Rat Check Status: ${{ steps.rat-check.conclusion }}"
           echo "Scala Format Status: ${{ steps.scala-format.conclusion }}"
@@ -174,22 +200,40 @@ jobs:
       - name: Make _install directory to store lib files
         run: mkdir -p _install
 
-      - name: Download linux library file 🔻
+      - name: Download linux x86 library file 🔻
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: libomega_edit.so
+          name: ubuntu-20.04-x64-libomega_edit.so
           path: _install/libomega_edit_linux_amd64.so
       
-      - name: Download macos library file 🔻
+      - name: Download linux arm64 library file 🔻
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: libomega_edit.dylib
+          name: ubuntu-20.04-arm64-libomega_edit.so
+          path: _install/libomega_edit_linux_aarch64.so
+      
+      - name: Download macos-12 library file 🔻
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: tests.yml
+          branch: main
+          workflow_conclusion: success
+          name: macos-14-arm64-libomega_edit.dylib
+          path: _install/libomega_edit_macos_aarch64.dylib
+
+      - name: Download macos-14 library file 🔻
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: tests.yml
+          branch: main
+          workflow_conclusion: success
+          name: macos-12-x64-libomega_edit.dylib
           path: _install/libomega_edit_macos_x86_64.dylib
       
       - name: Download windows library file 🔻
@@ -203,22 +247,26 @@ jobs:
 
       - name: Move out library files 🛻
         run: |
-          for lib_filename in "libomega_edit_linux_amd64.so" "libomega_edit_macos_x86_64.dylib" "omega_edit_windows_64.dll"; do
-            downloaded_filename=$(echo $lib_filename | sed "s|_linux_amd64||g" | sed "s|_macos_x86_64||g" | sed "s|_windows_64||g")
+          for lib_filename in \
+            "libomega_edit_linux_amd64.so" \
+            "libomega_edit_linux_aarch64.so" \
+            "libomega_edit_macos_x86_64.dylib" \
+            "libomega_edit_macos_aarch64.dylib" \
+            "omega_edit_windows_64.dll"
+          do
+            downloaded_filename=$(echo $lib_filename \
+              | sed "s|_linux_amd64||g" \
+              | sed "s|_linux_aarch64||g" \
+              | sed "s|_macos_x86_64||g" \
+              | sed "s|_macos_aarch64||g" \
+              | sed "s|_windows_64||g"
+            )
             mv -v "${lib_filename}" "${lib_filename}_dir"
             mv -v "${lib_filename}_dir/$downloaded_filename" "$lib_filename"
             rm -rf "${lib_filename}_dir"
           done
         working-directory: _install
         shell: bash
-
-      - name: Download shared lib files for M1 mac 🔻
-        run: |
-          base_url=https://raw.githubusercontent.com/Shanedell/omega-edit-aarch/main
-
-          curl ${base_url}/libomega_edit_macos_aarch64.dylib --output libomega_edit_macos_aarch64.dylib
-          curl ${base_url}/libomega_edit_linux_aarch64.dylib --output libomega_edit_linux_aarch64.so
-        working-directory: _install
 
       ###########################
       ## Scala publish process ##

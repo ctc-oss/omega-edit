@@ -1,0 +1,69 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#                                                                                                               
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at                                                    
+#                                                                                                               
+#     http://www.apache.org/licenses/LICENSE-2.0                                                                
+#                                                                                                               
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
+# implied.  See the License for the specific language governing permissions and limitations under the License.  
+
+---
+name: Build Native
+description: Reusable action for building native code
+inputs:
+  runner-os:
+    description: 'OS Name of Runner (macOS, Linux, Windows)'
+    required: true
+  os-name:
+    description: 'OS Name (runs-on value)'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Enable Developer Command Prompt 💻
+      if: inputs.runner-os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Setup cmake 🔧
+      uses: lukka/get-cmake@latest
+
+    - name: Prepare, Build, Test, and Install Ωedit™- Non Windows 🔧
+      if: inputs.runner-os != 'Windows'
+      shell: bash
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
+        cmake --build build --config Release
+        ctest -C Release --test-dir build/core --output-on-failure
+        cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
+    
+    - name: Prepare, Build, Test, and Install Ωedit™ - Windows 🔧
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
+        cmake --build build --config Release
+        ctest -C Release --test-dir build/core --output-on-failure
+        cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
+
+    - name: Upload Native (.dylib) library - Macos 🔺
+      uses: actions/upload-artifact@v4
+      if: inputs.runner-os == 'macOS'
+      with:
+        name: ${{ inputs.os-name }}-libomega_edit.dylib
+        path: _install/lib/libomega_edit.dylib
+
+    - name: Upload Native (.so) library - Linux 🔺
+      uses: actions/upload-artifact@v4
+      if: inputs.runner-os == 'Linux'
+      with:
+        name: ${{ inputs.os-name }}-libomega_edit.so
+        path: _install/lib/libomega_edit.so
+
+    - name: Upload Native (.dll) library - Windows 🔺
+      uses: actions/upload-artifact@v4
+      if: inputs.runner-os == 'Windows'
+      with:
+        name: omega_edit.dll
+        path: _install/bin/omega_edit.dll

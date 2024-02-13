@@ -20,150 +20,85 @@ jobs:
   build-native:
     strategy:
       matrix:
-        os: [ windows-2019, macos-11, ubuntu-20.04 ] # NOTE: build on older OS versions to support older OS versions
+        # NOTE: build on older OS versions to support older OS versions
+        # macos-14 is m1 mac
+        # macos-13 not used as it doesn't by default have sbt installed.
+        # if macos-12 is updated to 13 SBT needs to be installed before
+        # trying to run it for every workflow using this os.
+        os: [ windows-2019, macos-12, ubuntu-20.04, macos-14 ]
       fail-fast: false  # don't immediately fail all other jobs if a single job fails
     name: Native build and test on ${{ matrix.os }} 🦙
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Enable Developer Command Prompt 💻
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Checkout 🛎️
         uses: actions/checkout@v4
 
-      - name: Setup cmake 🔧
-        uses: lukka/get-cmake@latest
-
-      - name: Prepare, Build, Test, and Install Ωedit™ 🔧
+      - name: Convert runner arch to lower
+        shell: bash
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
-          cmake --build build --config Release
-          ctest -C Release --test-dir build/core --output-on-failure
-          cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
+          echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
-      - name: Upload Native (.dylib) library - Macos 🔺
-        uses: actions/upload-artifact@v4
-        if: runner.os == 'macOS'
+      - name: Build Native ${{ matrix.os }}
+        uses: ./.github/workflows/build-native
         with:
-          name: libomega_edit.dylib
-          path: _install/lib/libomega_edit.dylib
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}-${{ env.runner_arch }}
+  
+  build-native-linux-arm64:
+    name: Native build ubuntu-20.04 arm64 🦙
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
 
-      - name: Upload Native (.so) library - Linux 🔺
-        uses: actions/upload-artifact@v4
-        if: runner.os == 'Linux'
+      - name: Build Native Linux arm64
+        uses: ./.github/workflows/build-native-docker
         with:
-          name: libomega_edit.so
-          path: _install/lib/libomega_edit.so
-
-      - name: Upload Native (.dll) library - Windows 🔺
-        uses: actions/upload-artifact@v4
-        if: runner.os == 'Windows'
-        with:
-          name: omega_edit.dll
-          path: _install/bin/omega_edit.dll
+          os-name: ubuntu-20.04-arm64
+          docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-20.04
+          library-filename: libomega_edit.so
 
   build-middleware:
     needs: [ build-native ]
     strategy:
       matrix:
-        os: [ macos-11, ubuntu-20.04, windows-2019 ]
+        # NOTE: build on older OS versions to support older OS versions
+        # macos-14 is m1 mac
+        # macos-13 not used as it doesn't by default have sbt installed.
+        # if macos-12 is updated to 13 SBT needs to be installed before
+        # trying to run it for every workflow using this os.
+        os: [ windows-2019, macos-12, ubuntu-20.04, macos-14 ]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: Build middleware ${{ matrix.os }} 🔧
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
-
-      - name: Setup Java ☕
-        uses: actions/setup-java@v4.0.0
-        with:
-          distribution: temurin
-          java-version: 8
-          cache: sbt
-
-      - name: Make _install directory to store lib files 🔧
-        run: mkdir -p _install
-
-      - name: Download macOS library file 🔻
-        uses: actions/download-artifact@v4
-        if: runner.os == 'macOS'
-        with:
-          name: libomega_edit.dylib
-          path: _install/libomega_edit.dylib
-
-      - name: Download Linux library file 🔻
-        uses: actions/download-artifact@v4
-        if: runner.os == 'Linux'
-        with:
-          name: libomega_edit.so
-          path: _install/libomega_edit.so
-
-      - name: Download Windows library file 🔻
-        uses: actions/download-artifact@v4
-        if: runner.os == 'Windows'
-        with:
-          name: omega_edit.dll
-          path: _install/omega_edit.dll
-
-      - name: Move out library file 🛻
+      
+      - name: Convert runner arch to lower
+        shell: bash
         run: |
-          if [[ ${{ runner.os }} == 'Linux' ]]; then
-            LIB_FILENAME="libomega_edit.so"
-          elif [[ ${{ runner.os }} == 'macOS' ]]; then
-            LIB_FILENAME="libomega_edit.dylib"
-          else
-            LIB_FILENAME="omega_edit.dll"
-          fi
+          echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
-          mv -v "_install/${LIB_FILENAME}" "_install/${LIB_FILENAME}_dir"
-          mv -v "_install/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/$LIB_FILENAME"
-          rm -rf "_install/${LIB_FILENAME}_dir"
-        shell: bash
-
-      - name: Check Scala headers ✔️
-        run: sbt headerCheckAll
-        working-directory: server/scala
-
-      - name: Package Scala API - Non windows 🎁
-        run: sbt installM2 # runs test so specifically running sbt test not needed  # TODO: Make sure tests run on windows
-        if: runner.os != 'Windows'
-        working-directory: server/scala
-        timeout-minutes: 30
-    
-      - name: Package Scala Native - Windows 🎁
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        if: runner.os == 'Windows'  # TODO: Remove, current workaround so we can download all OS jars from tests for release
-        run: sbt native/publishM2
-        working-directory: server/scala
-
-      - name: Archive M2 🔺
-        uses: actions/upload-artifact@v4
-        if: success() || failure()
+      - name: Build Middleware ${{ matrix.os }}
+        uses: ./.github/workflows/build-middleware
         with:
-          name: ${{ matrix.os }}-artifacts
-          path: ~/.m2/repository/com/ctc/*
-          if-no-files-found: error
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}-${{ env.runner_arch }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Test Scala RPC server 📋
-        run: sbt serv/test
-        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
-        working-directory: server/scala
-        timeout-minutes: 30
-
-      - name: Yarn Install 🏗️
-        run: yarn
-        shell: bash
-
-      - name: Yarn Package - Server 📦
-        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
-        run: yarn workspace @omega-edit/server package
-        shell: bash
-        timeout-minutes: 30
-
-      - name: Yarn Test - Client 🧑‍💼
-        if: runner.os != 'Windows' # TODO: Make sure tests run on windows
-        run: yarn workspace @omega-edit/client test
-        shell: bash
-        timeout-minutes: 30
+  # TODO: Currently this action fails on sbt installM2 due to a timeout on sbt test 'should listen to session event'
+  # build-middleware-linux-arm64:
+  #   needs: [ build-native-linux-arm64 ]
+  #   runs-on: ubuntu-20.04
+  #   name: Build middleware ubuntu-20.04 arm64 🔧
+  #   steps:
+  #     - name: Checkout 🛎️
+  #       uses: actions/checkout@v4
+      
+  #     - name: Build Middleware ${{ matrix.os }}
+  #       uses: ./.github/workflows/build-middleware-docker
+  #       with:
+  #         os-name: ubuntu-20.04-arm64
+  #         docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-20.04
+  #         library-filename: libomega_edit.so
