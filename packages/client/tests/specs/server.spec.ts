@@ -22,6 +22,7 @@ import {
   destroySession,
   getClient,
   getSessionCount,
+  pidIsRunning,
   startServer,
   stopServerGraceful,
   stopServerImmediate,
@@ -32,32 +33,13 @@ import { expect } from 'chai'
 // @ts-ignore
 import { testPort } from './common'
 
-const path = require('path')
-
-function pidIsRunning(pid) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (e) {
-    return false
-  }
-}
-
 describe('Server', () => {
   let pid: number | undefined
   let session_id: string
-  const rootPath = path.resolve(__dirname, '..', '..')
-  const serverScript = path.join(
-    rootPath,
-    'node_modules',
-    '@omega-edit/client',
-    'bin',
-    'omega-edit-grpc-server.js'
-  )
   const serverTestPort = testPort + 1
 
   beforeEach(
-    `create a server using ${serverScript} on port ${serverTestPort} and a session`,
+    `create a server on port ${serverTestPort} and create a single session`,
     async () => {
       pid = await startServer(serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)

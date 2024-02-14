@@ -167,6 +167,62 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
 }
 
 /**
+ * Kill the service running on a port
+ * @param port port
+ * @param host host
+ * @returns true if the service was killed or no service was listening to the given port, false otherwise
+ */
+async function killServiceOnPort(port: number, host: string): Promise<boolean> {
+  const log = getLogger()
+  const logMetadata = {
+    fn: 'killServiceOnPort',
+    host: host,
+    port: port,
+  }
+  try {
+    const isWindows = process.platform === 'win32'
+    const cmd = isWindows
+      ? `netstat -aon | findstr :${port} | findstr TCP | findstr LISTENING`
+      : `lsof -i @${host}:${port} | grep TCP | grep LISTEN`
+    const { exec } = require('child_process')
+    const { promisify } = require('util')
+    const execAsync = promisify(exec)
+    const { stdout } = await execAsync(cmd)
+    const pid = isWindows
+      ? stdout
+          .split('\n')
+          .find((line) => line.includes(host))
+          ?.trim()
+          .split(/\s+/)
+          .pop() // PID is the last column
+      : stdout.trim().split(/\s+/)[1] // PID is the second column
+    if (!pid) {
+      log.debug({
+        ...logMetadata,
+        msg: `No service found on host ${host}, port ${port}`,
+      })
+    } else {
+      const killCmd = isWindows ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`
+      await execAsync(killCmd)
+      log.debug({
+        ...logMetadata,
+        msg: `Killed service running on host ${host}, port ${port}, with pid ${pid}`,
+      })
+    }
+  } catch (err) {
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: `Error killing service on host ${host}, port ${port}`,
+        exception: err,
+      },
+    })
+    return false
+  }
+  return true
+}
+
+/**
  * Start the server
  * @param port port to listen on (default 9000)
  * @param host interface to listen on (default 127.0.0.1)
@@ -245,14 +301,16 @@ export async function startServer(
   logConf = await checkLogConf(logConf)
 
   if (!(await isPortAvailable(port, host))) {
-    const errMsg = `port ${port} on host ${host} is not currently available`
-    log.error({
-      ...logMetadata,
-      err: {
-        msg: errMsg,
-      },
-    })
-    throw new Error(errMsg)
+    if (!killServiceOnPort(port, host)) {
+      const errMsg = `port ${port} on host ${host} is not currently available`
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: errMsg,
+        },
+      })
+      throw new Error(errMsg)
+    }
   }
 
   const { pid } = await runServer(port, host, pidFile, logConf)
@@ -431,6 +489,20 @@ async function stopServer(
 }
 
 /**
+ * Check if a process is running
+ * @param pid process id
+ * @returns true if the process is running, false otherwise
+ */
+export function pidIsRunning(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+/**
  * Stop the server
  * @param pid pid of the server process
  * @returns true if the server was stopped, false otherwise
@@ -445,8 +517,15 @@ export async function stopServerUsingPID(pid: number): Promise<boolean> {
 
   try {
     process.kill(pid, 'SIGTERM')
+    if (pidIsRunning(pid)) {
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        msg: 'Server still running after SIGTERM',
+      })
+      return false
+    }
     log.debug({ ...logMetadata, stopped: true })
-    return true
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
       log.debug({
@@ -454,15 +533,16 @@ export async function stopServerUsingPID(pid: number): Promise<boolean> {
         stopped: true,
         msg: 'Server already stopped',
       })
-      return true
+    } else {
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        err: { msg: 'Error stopping server', err },
+      })
+      return false
     }
-    log.error({
-      ...logMetadata,
-      stopped: false,
-      err: { msg: 'Error stopping server', err },
-    })
-    return false
   }
+  return true
 }
 
 export interface IServerInfo {

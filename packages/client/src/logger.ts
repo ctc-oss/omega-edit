@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import pino, { DestinationStream } from 'pino'
+import pino from 'pino'
 import * as fs from 'fs'
 
 /**
@@ -31,18 +31,14 @@ let logger_: Logger
 
 /**
  * Builds a logger
- * @param transports array of transports to log to
+ * @param stream destination stream
  * @param level log level
  * @returns logger
  */
 function buildLogger(
-  transports: DestinationStream[],
+  stream: pino.DestinationStream,
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
-): pino.Logger {
-  const transport = pino.transport({
-    targets: transports.map((target) => ({ target })),
-  })
-
+): Logger {
   const logger = pino(
     {
       level: level,
@@ -53,14 +49,13 @@ function buildLogger(
       },
       timestamp: pino.stdTimeFunctions.isoTime,
     },
-    transport
+    stream
   )
 
   logger.debug({
     fn: 'buildLogger',
     msg: 'logger built',
     level: level,
-    transports: transports,
   })
 
   return logger
@@ -97,12 +92,16 @@ export function createSimpleFileLogger(
 export function getLogger(): Logger {
   if (!logger_) {
     setLogger(
-      buildLogger([
-        {
-          target: 'pino/file',
-          options: { destination: 2 }, // use 1 for stdout and 2 for stderr
-        },
-      ])
+      buildLogger(
+        pino.transport({
+          targets: [
+            {
+              target: 'pino/file',
+              options: { destination: 2 }, // use 1 for stdout and 2 for stderr
+            },
+          ],
+        })
+      )
     )
     getLogger().debug({ fn: 'getLogger', msg: 'logger initialized' })
   }
