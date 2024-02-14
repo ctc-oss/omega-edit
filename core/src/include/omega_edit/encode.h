@@ -23,7 +23,9 @@
 #include "byte.h"
 
 #ifdef __cplusplus
+
 #include <cstddef>
+
 extern "C" {
 #else
 

@@ -30,7 +30,7 @@ int main(int arc, char **argv) {
         return -1;
     }
     const auto in_filename = argv[1];
-    if (!omega_util_file_exists(in_filename)) {
+    if (0 == omega_util_file_exists(in_filename)) {
         cerr << "ERROR: Input file '" << in_filename << "' does not exist (cwd: " << omega_util_get_current_dir(nullptr)
              << ")" << endl;
         return -1;
@@ -42,7 +42,7 @@ int main(int arc, char **argv) {
     auto match_context_ptr = omega_scoped_ptr<omega_search_context_t>(
             omega_search_create_context_string(session_ptr.get(), argv[3]), omega_search_destroy_context);
     const auto pattern_length = omega_search_context_get_pattern_length(match_context_ptr.get());
-    if (omega_search_next_match(match_context_ptr.get(), 1)) {
+    if (0 != omega_search_next_match(match_context_ptr.get(), 1)) {
         const auto replacement_length = static_cast<int64_t>(replacement.length());
         do {
             const auto pattern_offset = omega_search_context_get_match_offset(match_context_ptr.get());
@@ -67,8 +67,8 @@ int main(int arc, char **argv) {
                 }
             }
             ++replacements;
-        } while (omega_search_next_match(match_context_ptr.get(),
-                                         replacement_length));//advance find by the replacement length
+        } while (0 != omega_search_next_match(match_context_ptr.get(),
+                                              replacement_length));//advance find by the replacement length
     }
     if (0 != omega_edit_save(session_ptr.get(), argv[2], omega_io_flags_t::IO_FLG_NONE, nullptr)) {
         cerr << "Error saving session to " << argv[2] << endl;

@@ -26,8 +26,8 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_TEST_UTIL_H
-#define OMEGA_EDIT_TEST_UTIL_H
+#ifndef OMEGA_EDIT_TEST_UTIL_HPP
+#define OMEGA_EDIT_TEST_UTIL_HPP
 
 #include "omega_edit/byte.h"
 #include "omega_edit/config.h"
@@ -72,4 +72,4 @@ static inline void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
-#endif//OMEGA_EDIT_TEST_UTIL_H
+#endif//OMEGA_EDIT_TEST_UTIL_HPP

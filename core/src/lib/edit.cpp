@@ -37,7 +37,9 @@
 #define min std::min
 #define max std::max
 #else
+
 #include <unistd.h>
+
 #define min std::min
 #define max std::max
 #endif
@@ -80,7 +82,7 @@ namespace {
                 (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_INSERT;
         change_ptr->offset = offset;
         change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
-        if (change_ptr->length < 8) {
+        if (change_ptr->length < DATA_T_SIZE) {
             // small bytes optimization
             memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
             change_ptr->data.sm_bytes[change_ptr->length] = '\0';
@@ -101,7 +103,7 @@ namespace {
                 (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_OVERWRITE;
         change_ptr->offset = offset;
         change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
-        if (change_ptr->length < 8) {
+        if (change_ptr->length < DATA_T_SIZE) {
             // small bytes optimization
             memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
             change_ptr->data.sm_bytes[change_ptr->length] = '\0';
