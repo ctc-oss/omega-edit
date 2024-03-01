@@ -25,7 +25,7 @@
   "devDependencies": {
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.11.17",
+    "@types/node": "^20.11.20",
     "chai": "^4.3.10",
     "copy-webpack-plugin": "^11.0.0",
     "eslint": "^8.56.0",
@@ -36,7 +36,7 @@
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.25.7",
+    "typedoc": "^0.25.9",
     "typescript": "^5.3.3",
     "unzip-stream": "^0.3.1",
     "webpack": "^5.90.1",
