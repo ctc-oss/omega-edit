@@ -169,51 +169,26 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
 /**
  * Kill the service running on a port
  * @param port port
- * @param host host
  * @returns true if the service was killed or no service was listening to the given port, false otherwise
  */
-async function killServiceOnPort(port: number, host: string): Promise<boolean> {
+async function killServiceOnPort(port: number): Promise<boolean> {
   const log = getLogger()
   const logMetadata = {
     fn: 'killServiceOnPort',
-    host: host,
     port: port,
   }
   try {
-    const isWindows = process.platform === 'win32'
-    const cmd = isWindows
-      ? `netstat -aon | findstr :${port} | findstr TCP | findstr LISTENING`
-      : `lsof -i @${host}:${port} | grep TCP | grep LISTEN`
-    const { exec } = require('child_process')
-    const { promisify } = require('util')
-    const execAsync = promisify(exec)
-    const { stdout } = await execAsync(cmd)
-    const pid = isWindows
-      ? stdout
-          .split('\n')
-          .find((line) => line.includes(host))
-          ?.trim()
-          .split(/\s+/)
-          .pop() // PID is the last column
-      : stdout.trim().split(/\s+/)[1] // PID is the second column
-    if (!pid) {
-      log.debug({
-        ...logMetadata,
-        msg: `No service found on host ${host}, port ${port}`,
-      })
-    } else {
-      const killCmd = isWindows ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`
-      await execAsync(killCmd)
-      log.debug({
-        ...logMetadata,
-        msg: `Killed service running on host ${host}, port ${port}, with pid ${pid}`,
-      })
-    }
+    const { killPortProcess } = require('kill-port-process')
+    await killPortProcess(port)
+    log.debug({
+      ...logMetadata,
+      msg: `Killed service running on port ${port}`,
+    })
   } catch (err) {
     log.error({
       ...logMetadata,
       err: {
-        msg: `Error killing service on host ${host}, port ${port}`,
+        msg: `Error killing service on port ${port}`,
         exception: err,
       },
     })
@@ -301,7 +276,7 @@ export async function startServer(
   logConf = await checkLogConf(logConf)
 
   if (!(await isPortAvailable(port, host))) {
-    if (!killServiceOnPort(port, host)) {
+    if (!(await killServiceOnPort(port))) {
       const errMsg = `port ${port} on host ${host} is not currently available`
       log.error({
         ...logMetadata,

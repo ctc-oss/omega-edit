@@ -19,6 +19,7 @@
 
 const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
+const { PinoWebpackPlugin } = require('pino-webpack-plugin')
 const fs = require('fs')
 const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
@@ -56,6 +57,9 @@ module.exports = {
         'src/omega_edit_grpc_pb.d.ts',
         'src/omega_edit_pb.d.ts',
       ],
+    }),
+    new PinoWebpackPlugin({
+      transports: ['pino-pretty'],
     }),
     {
       // generate a file with the client version before compiling
