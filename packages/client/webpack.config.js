@@ -31,7 +31,7 @@ module.exports = {
   target: 'node',
   output: {
     path: path.resolve(__dirname, 'out'),
-    filename: 'index.js',
+    filename: '[name].js',
     libraryTarget: 'commonjs2',
   },
   resolve: {

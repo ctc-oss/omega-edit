@@ -3,6 +3,8 @@
   "version": "0.9.78",
   "description": "OmegaEdit gRPC Client",
   "publisher": "ctc-oss",
+  "exports": "./out/main.js",
+  "main": "./out/main.js",
   "types": "./out/index.d.ts",
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",
@@ -30,7 +32,8 @@
   },
   "devDependencies": {
     "grpc-tools": "^1.12.4",
-    "grpc_tools_node_protoc_ts": "^5.3.3"
+    "grpc_tools_node_protoc_ts": "^5.3.3",
+    "spawn-sync": "^2.0.0"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.10.1",
@@ -39,6 +42,7 @@
     "google-protobuf": "3.21.2",
     "kill-port-process": "3.2.1",
     "pino": "8.18.0",
+    "pino-pretty": "^10.3.1",
     "pino-webpack-plugin": "^2.0.0",
     "wait-port": "1.1.0"
   }
