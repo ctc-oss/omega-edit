@@ -31,7 +31,7 @@ const zipFilePath = path.resolve(
 )
 
 module.exports = {
-  entry: './index.ts',
+  entry: './src/index.ts',
   devtool: 'source-map',
   target: 'node',
   output: {

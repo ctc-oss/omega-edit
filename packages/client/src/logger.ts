@@ -114,5 +114,5 @@ export function getLogger(): Logger {
  */
 export function setLogger(logger: Logger) {
   logger_ = logger
-  getLogger().info({ fn: 'setLogger', msg: 'logger set' })
+  getLogger().debug({ fn: 'setLogger', msg: 'logger set' })
 }

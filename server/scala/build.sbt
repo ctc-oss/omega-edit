@@ -48,8 +48,9 @@ lazy val isRelease =
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
-lazy val pekkoVersion = "1.0.1" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
-lazy val tikaVersion = "2.9.0"
+lazy val pekkoVersion = "1.0.2" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
+lazy val tikaVersion = "2.9.1"
+lazy val scalaTestVersion = "3.2.18"
 
 lazy val commonSettings =
   Seq(
@@ -119,8 +120,8 @@ lazy val api = project
         "com.ctc" %% s"omega-edit-native" % version.value,
         "org.apache.tika" % "tika-core" % tikaVersion,
         "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
-        "com.github.jnr" % "jnr-ffi" % "2.2.13",
-        "org.scalatest" %% "scalatest" % "3.2.15" % Test
+        "com.github.jnr" % "jnr-ffi" % "2.2.16",
+        "org.scalatest" %% "scalatest" % scalaTestVersion % Test
       )
     },
     scalacOptions ~= adjustScalacOptionsForScalatest,
@@ -203,15 +204,23 @@ lazy val serv = project
         "com.ctc" %% "omega-edit-native" % omegaEditVersion,
         "com.monovore" %% "decline" % "2.4.1",
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-protobuf-v3" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-discovery" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-stream" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
-        "org.scalatest" %% "scalatest" % "3.2.15" % Test
+        "org.scalatest" %% "scalatest" % scalaTestVersion % Test
       )
     else
       libraryDependencies ++= Seq(
         "com.monovore" %% "decline" % "2.4.1",
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-protobuf-v3" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-discovery" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-stream" % pekkoVersion,
+        "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
         "ch.qos.logback" % "logback-classic" % "1.3.5", // latest version that supports Java 8
-        "org.scalatest" %% "scalatest" % "3.2.15" % Test
+        "org.scalatest" %% "scalatest" % scalaTestVersion % Test
       ),
     excludeDependencies ++= Seq(
       ExclusionRule("org.checkerframework", "checker-compat-qual")

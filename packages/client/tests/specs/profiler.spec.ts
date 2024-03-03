@@ -22,12 +22,9 @@ import {
   getComputedFileSize,
   numAscii,
   overwrite,
-  profileSession,
   PROFILE_DOS_EOL,
+  profileSession,
 } from '@omega-edit/client'
-
-// prettier-ignore
-// @ts-ignore
 import { createTestSession, destroyTestSession, testPort } from './common'
 
 describe('Profiling', () => {

@@ -20,17 +20,13 @@
 import {
   createSimpleFileLogger,
   getLogger,
-  resetClient,
-  setAutoFixViewportDataLength,
+  pidIsRunning,
   setLogger,
   startServer,
-  stopServerImmediate,
-  stopServerUsingPID,
+  stopProcessUsingPID,
+  stopServiceOnPort,
 } from '@omega-edit/client'
 import * as fs from 'fs'
-
-// prettier-ignore
-// @ts-ignore
 import { testHost, testPort } from './specs/common'
 
 const path = require('path')
@@ -38,6 +34,7 @@ const rootPath = path.resolve(__dirname, '..')
 
 /**
  * Gets the pid file for the given port
+ * @param rootPath root path to use
  * @param port port to get the pid file for
  * @returns path to the pid file
  */
@@ -68,9 +65,6 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     port: testPort,
     pidfile: pidFile,
   })
-
-  // don't fix viewport data length in tests
-  setAutoFixViewportDataLength(false)
 
   await mochaGlobalTeardown()
 
@@ -106,66 +100,100 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
  */
 export async function mochaGlobalTeardown(): Promise<boolean> {
   const pidFile = getPidFile(rootPath, testPort)
-  getLogger().debug({
+  const logMetadata = {
     fn: 'mochaGlobalTeardown',
-  })
+    port: testPort,
+    pidFile,
+  }
+  getLogger().debug(logMetadata)
 
   // if the pid file exists, stop the server
   if (fs.existsSync(pidFile)) {
     const pid = parseInt(fs.readFileSync(pidFile, 'utf8').toString())
+    if (pidIsRunning(pid)) {
+      getLogger().debug({
+        ...logMetadata,
+        msg: 'stopping server',
+        pid,
+      })
 
-    getLogger().debug({
-      fn: 'mochaGlobalTeardown',
-      msg: 'stopping server',
-      port: testPort,
-      pidfile: pidFile,
-      pid: pid,
-    })
-
-    // first try to stop the server via the api
-    if ((await stopServerImmediate()) === 0) {
+      // stop the server via the PID
+      if (await stopProcessUsingPID(pid)) {
+        getLogger().info({
+          ...logMetadata,
+          msg: 'server stopped via pid',
+          pid,
+          stopped: true,
+        })
+      } else {
+        // if that fails, log an error and return false
+        getLogger().error({
+          ...logMetadata,
+          msg: 'failed to stop server',
+          pid,
+          stopped: false,
+        })
+        if (await stopProcessUsingPID(pid, 'SIGKILL')) {
+          getLogger().info({
+            ...logMetadata,
+            msg: 'server stopped via pid with SIGKILL',
+            pid,
+            stopped: true,
+          })
+        } else {
+          getLogger().error({
+            ...logMetadata,
+            msg: 'failed to stop server with SIGKILL',
+            pid,
+            stopped: false,
+          })
+          return false
+        }
+      }
+    } else {
       getLogger().debug({
         fn: 'mochaGlobalTeardown',
-        msg: 'server stopped via api',
+        msg: 'stale pid file found',
         port: testPort,
-        pid: pid,
-        stopped: true,
       })
-
-      return true
     }
-
-    // needed after api stop in case it initialized the client
-    resetClient()
-
-    getLogger().warn({
+    try {
+      fs.unlinkSync(pidFile)
+    } catch (err) {
+      if (err instanceof Error) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          getLogger().error({
+            ...logMetadata,
+            msg: 'failed to delete pid file',
+            err: {
+              name: err.name,
+              msg: err.message,
+              stack: err.stack,
+              code: (err as NodeJS.ErrnoException).code,
+            },
+          })
+          return false
+        }
+      } else {
+        getLogger().error({
+          ...logMetadata,
+          msg: 'failed to delete pid file',
+          err: {
+            msg: String(err),
+          },
+        })
+        return false
+      }
+    }
+  } else {
+    getLogger().debug({
       fn: 'mochaGlobalTeardown',
-      msg: 'api stop failed',
+      msg: 'no pid file found',
+      port: testPort,
+      pidfile: pidFile,
     })
-
-    // if that fails, try to stop the server via the pid
-    if (await stopServerUsingPID(pid)) {
-      getLogger().info({
-        fn: 'mochaGlobalTeardown',
-        msg: 'server stopped via pid',
-        port: testPort,
-        pid: pid,
-        stopped: true,
-      })
-
-      return true
-    } else {
-      // if that fails, log an error and return false
-      getLogger().error({
-        fn: 'mochaGlobalTeardown',
-        msg: 'failed to stop server',
-        port: testPort,
-        pidfile: pidFile,
-        stopped: false,
-      })
-
-      return false
-    }
+    // PID file doesn't exist, but make sure the port is clear
+    await stopServiceOnPort(testPort)
   }
 
   // if the pid file doesn't exist, return true

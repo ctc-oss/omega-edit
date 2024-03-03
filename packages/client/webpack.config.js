@@ -58,9 +58,7 @@ module.exports = {
         'src/omega_edit_pb.d.ts',
       ],
     }),
-    new PinoWebpackPlugin({
-      transports: ['pino-pretty'],
-    }),
+    new PinoWebpackPlugin(),
     {
       // generate a file with the client version before compiling
       apply: (compiler) => {

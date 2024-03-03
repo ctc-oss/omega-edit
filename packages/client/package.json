@@ -25,7 +25,9 @@
     "package": "yarn --cwd out cache clean && yarn --cwd out pack --install-if-needed -f omega-edit-node-client-v${npm_package_version}.tgz",
     "install-client-local": "yarn add file://$INIT_CWD/omega-edit-node-client-v${npm_package_version}.tgz",
     "pretest": "yarn package && yarn install-client-local",
-    "test": "mocha --exit --timeout 100000 --slow 50000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts && mocha --exit --timeout 100000 --slow 50000 --require ts-node/register ./tests/specs/server.spec.ts || (yarn posttest && exit 1)",
+    "test:client": "mocha --exit --timeout 100000 --slow 50000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts",
+    "test:lifecycle": "mocha --exit --timeout 100000 --slow 50000 --require ts-node/register ./tests/specs/server.spec.ts",
+    "test": "(yarn test:client && yarn test:lifecycle) || (yarn posttest && exit 1)",
     "posttest": "yarn remove @omega-edit/client",
     "lint": "prettier --check package.json webpack.config.js src tests && eslint .",
     "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."
@@ -33,17 +35,16 @@
   "devDependencies": {
     "grpc-tools": "^1.12.4",
     "grpc_tools_node_protoc_ts": "^5.3.3",
-    "spawn-sync": "^2.0.0"
+    "pino-webpack-plugin": "^2.0.0",
+    "ts-node": "^10.9.2"
   },
   "dependencies": {
     "@grpc/grpc-js": "1.10.1",
     "@omega-edit/server": "0.9.78",
     "@types/google-protobuf": "3.15.12",
     "google-protobuf": "3.21.2",
-    "kill-port-process": "3.2.1",
-    "pino": "8.18.0",
-    "pino-pretty": "^10.3.1",
-    "pino-webpack-plugin": "^2.0.0",
+    "pid-port": "0.2.0",
+    "pino": "8.19.0",
     "wait-port": "1.1.0"
   }
 }

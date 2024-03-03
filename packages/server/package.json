@@ -23,7 +23,7 @@
     "prepackage-no-sbt": "yarn build",
     "package": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v${npm_package_version}.tgz",
     "package-no-sbt": "yarn --cwd out pack --install-if-needed -f omega-edit-node-server-v${npm_package_version}.tgz",
-    "lint": "prettier --check package.json webpack.config.js index.ts && eslint .",
-    "lint:fix": "prettier --write package.json webpack.config.js index.ts && eslint --fix ."
+    "lint": "prettier --check package.json webpack.config.js src && eslint .",
+    "lint:fix": "prettier --write package.json webpack.config.js src && eslint --fix ."
   }
 }

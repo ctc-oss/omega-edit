@@ -38,7 +38,6 @@ import {
   saveSession,
   SaveStatus,
 } from '@omega-edit/client'
-// @ts-ignore
 import { testPort } from './common'
 import * as fs from 'fs'
 import * as path from 'path'

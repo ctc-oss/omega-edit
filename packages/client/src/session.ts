@@ -84,6 +84,7 @@ export async function createSession(
       if (err) {
         log.error({
           fn: 'createSession',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -114,6 +115,7 @@ export async function destroySession(session_id: string): Promise<string> {
       if (err) {
         log.error({
           fn: 'destroySession',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -161,6 +163,7 @@ export async function saveSession(
       if (err) {
         log.error({
           fn: 'saveSession',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -191,6 +194,7 @@ export async function getComputedFileSize(session_id: string): Promise<number> {
       if (err) {
         log.error({
           fn: 'getComputedFileSize',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -225,6 +229,7 @@ export async function getCounts(
       if (err) {
         log.error({
           fn: 'getCounts',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -255,6 +260,7 @@ export async function pauseSessionChanges(session_id: string): Promise<string> {
       if (err) {
         log.error({
           fn: 'pauseSessionChanges',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -287,6 +293,7 @@ export async function beginSessionTransaction(
       if (err) {
         log.error({
           fn: 'beginSessionTransaction',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -319,6 +326,7 @@ export async function endSessionTransaction(
       if (err) {
         log.error({
           fn: 'endSessionTransaction',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -351,6 +359,7 @@ export async function resumeSessionChanges(
       if (err) {
         log.error({
           fn: 'resumeSessionChanges',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -382,6 +391,7 @@ export async function unsubscribeSession(session_id: string): Promise<string> {
         if (err) {
           log.error({
             fn: 'unsubscribeSession',
+            rqst: request.toObject(),
             err: {
               msg: err.message,
               details: err.details,
@@ -427,6 +437,7 @@ export async function getSegment(
       if (err) {
         log.error({
           fn: 'getSegment',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -490,6 +501,7 @@ export async function notifyChangedViewports(
       if (err) {
         log.error({
           fn: 'notifyChangedViewports',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -532,6 +544,7 @@ export async function profileSession(
         if (err) {
           log.error({
             fn: 'profileSession',
+            rqst: request.toObject(),
             err: {
               msg: err.message,
               details: err.details,
@@ -581,6 +594,7 @@ export async function getByteOrderMark(
       if (err) {
         log.error({
           fn: 'getByteOrderMark',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -613,6 +627,7 @@ export async function getContentType(
       if (err) {
         log.error({
           fn: 'getContentType',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -647,6 +662,7 @@ export async function getLanguage(
       if (err) {
         log.error({
           fn: 'getLanguage',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -681,6 +697,7 @@ export async function countCharacters(
       if (err) {
         log.error({
           fn: 'countCharacters',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
