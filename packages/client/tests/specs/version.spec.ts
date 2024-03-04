@@ -24,10 +24,7 @@ import {
   getClientVersion,
   getServerInfo,
 } from '@omega-edit/client'
-
-// prettier-ignore
-// @ts-ignore
-import { testPort } from "./common";
+import { testPort } from './common'
 
 describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {

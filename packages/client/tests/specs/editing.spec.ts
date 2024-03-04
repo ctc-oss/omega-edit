@@ -19,10 +19,7 @@
 
 import { expect } from 'chai'
 import {
-  getComputedFileSize,
-  getSegment,
-  SessionEventKind,
-  unsubscribeSession,
+  ALL_EVENTS,
   ChangeKind,
   clear,
   del,
@@ -33,16 +30,23 @@ import {
   EditStats,
   getChangeCount,
   getChangeTransactionCount,
+  getComputedFileSize,
   getLastChange,
+  getSegment,
   insert,
   overwrite,
   removeCommonSuffix,
-  ALL_EVENTS,
+  SessionEventKind,
+  unsubscribeSession,
 } from '@omega-edit/client'
-
-// prettier-ignore
-// @ts-ignore
-import { checkCallbackCount, createTestSession, destroyTestSession, session_callbacks, subscribeSession, testPort} from "./common";
+import {
+  checkCallbackCount,
+  createTestSession,
+  destroyTestSession,
+  session_callbacks,
+  subscribeSession,
+  testPort,
+} from './common'
 
 describe('Editing', () => {
   let session_id = ''

@@ -19,11 +19,11 @@
 
 import { expect } from 'chai'
 import {
-  EditStats,
   beginSessionTransaction,
   clear,
   edit,
   editOptimizer,
+  EditStats,
   endSessionTransaction,
   getChangeCount,
   getChangeTransactionCount,
@@ -39,9 +39,6 @@ import {
   searchSession,
   undo,
 } from '@omega-edit/client'
-
-// prettier-ignore
-// @ts-ignore
 import { createTestSession, destroyTestSession, testPort } from './common'
 
 describe('Searching', () => {

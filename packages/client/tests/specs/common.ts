@@ -55,10 +55,6 @@ export async function destroyTestSession(session_id: string) {
   }
 }
 
-export async function delay(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds))
-}
-
 export async function checkCallbackCount(
   callback_map: Map<string, number>,
   key: string,

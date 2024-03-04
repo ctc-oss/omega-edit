@@ -56,7 +56,7 @@ export function waitForReady(
     client.waitForReady(deadline, (err: Error | undefined) => {
       if (err) {
         log.error({
-          cmd: 'waitForReady',
+          fn: 'waitForReady',
           state: 'not ready',
           err: {
             name: err.name,
@@ -66,7 +66,7 @@ export function waitForReady(
         })
         return reject(err)
       }
-      log.debug({ cmd: 'waitForReady', state: 'ready' })
+      log.debug({ fn: 'waitForReady', state: 'ready' })
       return resolve()
     })
   })
@@ -110,7 +110,7 @@ export async function getClient(
       if (err instanceof Error) {
         // Ensure that we caught an Error object
         log.error({
-          cmd: 'getClient',
+          fn: 'getClient',
           host: host,
           port: port,
           state: 'not ready',
@@ -123,7 +123,7 @@ export async function getClient(
       } else {
         // handle non-Error type, and log the error as a string.
         log.error({
-          cmd: 'getClient',
+          fn: 'getClient',
           host: host,
           port: port,
           state: 'not ready',
