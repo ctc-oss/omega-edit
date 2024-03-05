@@ -96,20 +96,9 @@ describe('Server', () => {
     expect(pidIsRunning(pid as number)).to.be.false
   })
 
-  xit(`on port ${serverTestPort} should stop immediately via API`, async () => {
-    // stop the server immediately should stop the server immediately without waiting for sessions to end
-    expect(await stopServerImmediate()).to.equal(0)
-    // pause to allow server some time to stop
-    await delay(1000) // 1 second
-    expect(pidIsRunning(pid as number)).to.be.false
-  })
-
-  xit(`on port ${serverTestPort} should stop gracefully via API`, async () => {
+  it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
-    expect(await stopServerGraceful()).to.equal(0)
-
-    // pause to allow server some time to remain up
-    await delay(1000) // 1 second
+    await stopServerGraceful()
 
     // for graceful shutdown, the server should still be running until the session count drops to 0
     expect(pidIsRunning(pid as number)).to.be.true
@@ -121,8 +110,26 @@ describe('Server', () => {
     // destroy the session, dropping the count to 0, then the server should stop
     expect(await destroySession(session_id)).to.equal(session_id)
 
-    // pause to allow server some time to stop
-    await delay(1000) // 1 second
+    // pause for up to 2 seconds to allow server some time to stop
+    for (let i = 0; i < 20; ++i) {
+      await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop immediately via API`, async () => {
+    // stop the server immediately should stop the server immediately without waiting for sessions to end
+    await stopServerImmediate()
+    // pause for up to 2 seconds to allow server some time to stop
+    for (let i = 0; i < 20; ++i) {
+      await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
     expect(pidIsRunning(pid as number)).to.be.false
   })
 })

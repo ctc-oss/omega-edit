@@ -17,33 +17,27 @@
 package com.ctc.omega_edit.grpc
 
 import com.ctc.omega_edit.api
-import com.ctc.omega_edit.api.OmegaEdit
-import com.ctc.omega_edit.api.Version
+import com.ctc.omega_edit.api.{OmegaEdit, Version}
 import com.ctc.omega_edit.grpc.EditorService._
 import com.ctc.omega_edit.grpc.Editors._
 import com.ctc.omega_edit.grpc.Session._
 import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
+import omega_edit._
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.grpc.GrpcServiceException
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.Timeout
 
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
-import omega_edit._
-
-import org.apache.pekko
-
-import pekko.NotUsed
-import pekko.actor.ActorSystem
-import pekko.grpc.GrpcServiceException
-import pekko.http.scaladsl.Http
-import pekko.pattern.ask
-import pekko.stream.scaladsl.Source
-import pekko.util.Timeout
-
-import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
@@ -149,10 +143,22 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .terminate()
       .transform {
         case Success(_) =>
-          Success(ServerControlResponse(kind, getServerPID(), 0))
+          // Server stopped successfully, send response and terminate process
+          val response = ServerControlResponse(kind, getServerPID(), 0)
+          Future {
+            // Terminate the JVM process
+            System.exit(0)
+          }(ExecutionContext.global)
+          Success(response)
         case Failure(e) =>
+          // Server stop failed, log the error and send error response
           (editors ? LogOp("debug", e))
-          Success(ServerControlResponse(kind, getServerPID(), 1))
+          val response = ServerControlResponse(kind, getServerPID(), 1)
+          Future {
+            // Terminate the JVM process with a non-zero status code to indicate error
+            System.exit(1)
+          }(ExecutionContext.global)
+          Success(response)
       }(ExecutionContext.global)
 
   def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
