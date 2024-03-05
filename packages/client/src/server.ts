@@ -219,13 +219,13 @@ export async function stopProcessUsingPID(
       log.debug({
         ...logMetadata,
         stopped: true,
-        msg: 'Server already stopped',
+        msg: 'process already stopped',
       })
     } else {
       log.error({
         ...logMetadata,
         stopped: false,
-        err: { msg: 'Error stopping server', err },
+        err: { msg: String(err) },
       })
       return false
     }

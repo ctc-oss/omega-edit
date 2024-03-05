@@ -18,31 +18,41 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 #type="Release"
 #generator="Unix Makefiles"
+#toolchain_file=mingw64-toolchain.cmake
 
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
+cmake_extra_args=""
+
+if [[ -n "$toolchain_file" ]]; then
+  cmake_extra_args=-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}
+fi
 
 for objtype in shared static; do
   build_shared_libs="NO"
-  if [ $objtype == "shared" ]; then
+  if [[ $objtype == "shared" ]]; then
     build_shared_libs="YES"
   fi
 
-  rm -rf "build-$objtype-$type" "$install_dir-$objtype-$type"
-  cmake -G "$generator" -S . -B "build-$objtype-$type" -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
-  cmake --build "build-$objtype-$type" --config "$type"
-  ctest -C "$type" --test-dir "build-$objtype-$type/core" --output-on-failure
-  cmake --install "build-$objtype-$type/packages/core" --prefix "$install_dir-$objtype-$type" --config "$type"
-  cpack --config "build-$objtype-$type/CPackSourceConfig.cmake"
-  cpack --config "build-$objtype-$type/CPackConfig.cmake" -C "$type"
+  rm -rf "build-${objtype}-$type" "${install_dir}-${objtype}-$type"
+  # shellcheck disable=SC2090
+  cmake -G "$generator" -S . -B "build-${objtype}-$type" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
+  cmake --build "build-${objtype}-$type" --config "$type"
+  ctest -C "$type" --test-dir "build-${objtype}-${type}/core" --output-on-failure
+  cmake --install "build-${objtype}-${type}/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
+  cpack --config "build-${objtype}-${type}/CPackSourceConfig.cmake"
+  cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
 done
 
-# used by scala native code to bundle the proper library file
-# shellcheck disable=SC2155
-# Windows uses bin for shared libraries, and non-Windows uses lib
-[[ -d "$install_dir-shared-$type/bin" ]] && export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/bin")" || export OE_LIB_DIR="$(readlink -f "$install_dir-shared-$type/lib")"
+# OE_LIB_DIR is used by scala native code to bundle the proper library file
+# NOTE: Windows uses bin for shared libraries, and non-Windows uses lib
+if [[ -d "${install_dir}-shared-${type}/bin" ]]; then
+  export OE_LIB_DIR="$(readlink -f "${install_dir}-shared-${type}/bin")"
+else
+  export OE_LIB_DIR="$(readlink -f "${install_dir}-shared-${type}/lib")"
+fi
 
 # Copy the shared library to the _install directory
 if [[ -d "$OE_LIB_DIR" ]]; then
@@ -51,7 +61,7 @@ if [[ -d "$OE_LIB_DIR" ]]; then
   cp -a "$OE_LIB_DIR" _install
 fi
 
-# install common packages and check lint for client and server
+# Install common packages and check lint for client and server
 yarn install
 yarn lint
 

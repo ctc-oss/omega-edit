@@ -32,8 +32,13 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
 endif ()
 
-include(CheckFunctionExists)
+if(WIN32)
+    # Shared library prefix for Windows does not include "lib" by convention
+    set(CMAKE_SHARED_LIBRARY_PREFIX "")
+endif()
+
 # Check platform features
+include(CheckFunctionExists)
 check_function_exists(fseeko HAVE_FSEEKO)
 check_function_exists(ftello HAVE_FTELLO)
 check_function_exists(fopen_s HAVE_FOPEN_S)
@@ -74,7 +79,7 @@ if (BUILD_TESTS)
         Catch2
         GIT_SHALLOW TRUE
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.1
+        GIT_TAG v3.5.3
     )
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
