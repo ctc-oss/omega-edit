@@ -38,7 +38,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check ratCheck ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: rat-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -47,7 +47,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check Scala format ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: scala-format
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -56,7 +56,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check TypeScript format ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: ts-format
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,7 +65,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check tests - macOS 12 ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: macos12-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -74,7 +74,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check tests - macOS 14 ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: macos14-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -83,7 +83,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Linux ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: ubuntu-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -92,7 +92,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check tests - Windows ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: windows-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -101,7 +101,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
         
       - name: Check native build arm64 - Linux ✅
-        uses: fountainhead/action-wait-for-check@v1.1.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
         id: ubuntu-arm64-native
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
