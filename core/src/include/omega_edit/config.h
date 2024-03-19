@@ -84,6 +84,12 @@ static inline int safe_open_(const char *filename, int oflag, int pmode) {
     _sopen_s(&fd, filename, oflag | _O_BINARY, _SH_DENYWR, pmode);
     return fd;
 }
+
+// Define ATTRIBUTE_UNUSED for MSVC
+#ifndef ATTRIBUTE_UNUSED
+#define ATTRIBUTE_UNUSED
+#endif
+
 #else
 
 // For other compilers/platforms, fall back to open
@@ -91,6 +97,11 @@ static inline int safe_open_(const char *filename, int oflag, int pmode) {
     // Note: The mode only applies if O_CREAT is part of oflag
     return open(filename, oflag, pmode);
 }
+
+// Define ATTRIBUTE_UNUSED for other compilers/platforms
+#ifndef ATTRIBUTE_UNUSED
+#define ATTRIBUTE_UNUSED __attribute__((unused))
+#endif
 
 #endif
 

@@ -26,7 +26,7 @@
     "install-client-local": "yarn add file://$INIT_CWD/omega-edit-node-client-v${npm_package_version}.tgz",
     "pretest": "yarn package && yarn install-client-local",
     "test:client": "mocha --exit --timeout 100000 --slow 50000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts",
-    "test:lifecycle": "mocha --exit --timeout 100000 --slow 50000 --require ts-node/register ./tests/specs/server.spec.ts",
+    "test:lifecycle": "mocha --exit --timeout 50000 --slow 25000 --require ts-node/register ./tests/specs/server.spec.ts",
     "test": "(yarn test:client && yarn test:lifecycle) || (yarn posttest && exit 1)",
     "posttest": "yarn remove @omega-edit/client",
     "lint": "prettier --check package.json webpack.config.js src tests && eslint .",

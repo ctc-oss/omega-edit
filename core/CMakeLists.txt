@@ -32,8 +32,13 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
 endif ()
 
-include(CheckFunctionExists)
+if(WIN32)
+    # Shared library prefix for Windows does not include "lib" by convention
+    set(CMAKE_SHARED_LIBRARY_PREFIX "")
+endif()
+
 # Check platform features
+include(CheckFunctionExists)
 check_function_exists(fseeko HAVE_FSEEKO)
 check_function_exists(ftello HAVE_FTELLO)
 check_function_exists(fopen_s HAVE_FOPEN_S)

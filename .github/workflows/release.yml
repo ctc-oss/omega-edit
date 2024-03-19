@@ -170,7 +170,7 @@ jobs:
 
   scala-publish:
     needs: [create-release]
-    name: Scala Publish API, Native and Server✨
+    name: Scala Publish API, Native and Server ✨
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout 🛎️
@@ -242,7 +242,7 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: omega_edit.dll
+          name: windows-2019-x64-omega_edit.dll
           path: _install/omega_edit_windows_64.dll
 
       - name: Move out library files 🛻

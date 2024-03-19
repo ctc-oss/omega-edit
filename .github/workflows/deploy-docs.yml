@@ -18,7 +18,7 @@ on:
 
 jobs:
   deploy-docs:
-    runs-on: macos-12
+    runs-on: macos-14
     steps:
       - name: Install Prerequisites 📚
         run: |
@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Prepare and Build Docs 🔧
+      - name: Prepare and Build Documentation 🔧
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
           cmake --build build --target sphinx --config Release

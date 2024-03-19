@@ -1,7 +1,3 @@
-import sbt.URL
-
-import scala.util.matching.Regex
-
 /*
  * Copyright 2021 Concurrent Technologies Corporation
  *
@@ -17,7 +13,9 @@ import scala.util.matching.Regex
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import sbt.URL
 
+import scala.util.matching.Regex
 import scala.xml.transform.{RewriteRule, RuleTransformer}
 import scala.xml.{Node => XmlNode, NodeSeq => XmlNodeSeq, _}
 
@@ -28,15 +26,17 @@ object BuildSupport {
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
   val libdir: String = new java.io.File(
-    sys.env.get("OE_LIB_DIR").getOrElse("../../_install")
-  ).getAbsolutePath // make sure to get full path as relative can cause issues
+    sys.env.getOrElse("OE_LIB_DIR", "../../_install")
+  ).toPath.toAbsolutePath.normalize.toString // get full path as relative can cause issues
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
 
-  // some regexes for arch parsing
+  // regexes for platform parsing
   val Mac: Regex = """mac.+""".r
   val Win: Regex = """windows.+""".r
+
+  // regexes for arch parsing
   val Amd: Regex = """amd(\d+)""".r
   val x86: Regex = """x86_(\d+)""".r
   val aarch: Regex = """aarch(\d+)""".r
@@ -69,7 +69,7 @@ object BuildSupport {
       case "linux" => "linux"
       case Mac()   => "macos"
       case Win()   => "windows"
-      case os      => throw new IllegalStateException(s"Unsupported OS: $os")
+      case os      => throw new IllegalStateException(s"unsupported OS: $os")
     }
 
     val arch =
@@ -140,16 +140,14 @@ object BuildSupport {
       case "so"    => "linux"
       case "dylib" => "macos"
       case "dll"   => "windows"
-      case _       => throw new IllegalStateException("bad shared library file extension")
+      case _       => throw new IllegalStateException(s"bad shared library file extension $sharedFileExtension")
     }
 
   def getMappings(libFileList: List[java.io.File], multiple: Boolean): List[(String, String)] =
-    multiple match {
-      case false => List(findPair(libFileList(0).getName))
-      case true =>
-        libFileList
-          .map(f => findPair(f.getName))
-          .toList
+    if (multiple) {
+      libFileList.map(f => findPair(f.getName))
+    } else {
+      List(findPair(libFileList(0).getName))
     }
 
   lazy val mapping: List[(String, String)] = {
@@ -167,7 +165,7 @@ object BuildSupport {
       libFileList.length match {
         case single if single == 1 => false
         case mult if mult > 1      => true
-        case _                     => throw new IllegalStateException("no lib files found")
+        case _                     => throw new IllegalStateException(s"no lib files found in $libdir")
       }
     )
   }

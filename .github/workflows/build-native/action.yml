@@ -29,41 +29,45 @@ runs:
     - name: Setup cmake 🔧
       uses: lukka/get-cmake@latest
 
-    - name: Prepare, Build, Test, and Install Ωedit™- Non Windows 🔧
-      if: inputs.runner-os != 'Windows'
+    - name: Set install path 🔧
       shell: bash
       run: |
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
-        cmake --build build --config Release
-        ctest -C Release --test-dir build/core --output-on-failure
-        cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
-    
-    - name: Prepare, Build, Test, and Install Ωedit™ - Windows 🔧
-      if: inputs.runner-os == 'Windows'
-      shell: pwsh
+          mkdir -p _install
+          echo "install_path=$(pwd)/_install" >> $GITHUB_ENV
+          echo "install_rel_path=_install" >> $GITHUB_ENV
+
+    - name: Prepare, Build, Test, and Install Ωedit™ native library 🦙
+      shell: bash
       run: |
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${PWD}/_install"
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${{ env.install_path }}"
         cmake --build build --config Release
         ctest -C Release --test-dir build/core --output-on-failure
-        cmake --install build/packages/core --prefix "${PWD}/_install" --config Release
+        cmake --install build/packages/core --prefix "${{ env.install_path }}" --config Release
 
-    - name: Upload Native (.dylib) library - Macos 🔺
-      uses: actions/upload-artifact@v4
-      if: inputs.runner-os == 'macOS'
-      with:
-        name: ${{ inputs.os-name }}-libomega_edit.dylib
-        path: _install/lib/libomega_edit.dylib
+    - name: Find Library For ${{ inputs.runner-os }} 📖
+      shell: bash
+      run: |
+        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+          libname=omega_edit.dll
+        elif [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          libname=libomega_edit.dylib
+        else
+          libname=libomega_edit.so
+        fi
+        libpath=$(find -L "${{ env.install_rel_path }}" -type f -name "${libname}" | head -n 1)
+        if ! [ -s "${libpath}" ]; then
+          echo "ERROR: Library ${libname} not found in ${{ env.install_rel_path }}" >&2
+          find -L "${{ env.install_rel_path }}" -type f
+          exit 1
+        fi
+        ls -l "${libpath}"
+        echo "libname=${libname}" >> $GITHUB_ENV
+        echo "libpath=${libpath}" >> $GITHUB_ENV
 
-    - name: Upload Native (.so) library - Linux 🔺
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) 🔺
       uses: actions/upload-artifact@v4
-      if: inputs.runner-os == 'Linux'
       with:
-        name: ${{ inputs.os-name }}-libomega_edit.so
-        path: _install/lib/libomega_edit.so
-
-    - name: Upload Native (.dll) library - Windows 🔺
-      uses: actions/upload-artifact@v4
-      if: inputs.runner-os == 'Windows'
-      with:
-        name: omega_edit.dll
-        path: _install/bin/omega_edit.dll
+        name: ${{ inputs.os-name }}-${{ env.libname }}
+        path: ${{ env.libpath }}
+        retention-days: 5
+        if-no-files-found: error
