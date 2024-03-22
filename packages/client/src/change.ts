@@ -542,6 +542,7 @@ export async function clear(
         }
         log.error({
           fn: 'clear',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,

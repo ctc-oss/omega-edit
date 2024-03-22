@@ -29,20 +29,6 @@ import {
 import { getLogger } from './logger'
 import { getClient } from './client'
 
-let autoFixViewportDataLength_ = false
-
-/**
- * Set whether to automatically fix viewport data length
- * @param shouldAutoFix true if the client should automatically fix viewport data length, false otherwise
- */
-export function setAutoFixViewportDataLength(shouldAutoFix: boolean): void {
-  getLogger().debug({
-    fn: 'setAutoFixViewportDataLength',
-    shouldAutoFix: shouldAutoFix,
-  })
-  autoFixViewportDataLength_ = shouldAutoFix
-}
-
 /**
  * Create a new viewport in a session
  * @param desired_viewport_id if defined, the viewport ID to assign to this viewport, if undefined a unique viewport ID
@@ -77,6 +63,7 @@ export async function createViewport(
       if (err) {
         log.error({
           fn: 'createViewport',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -120,6 +107,7 @@ export async function modifyViewport(
       if (err) {
         log.error({
           fn: 'modifyViewport',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -150,6 +138,7 @@ export async function destroyViewport(viewport_id: string): Promise<string> {
       if (err) {
         log.error({
           fn: 'destroyViewport',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -182,6 +171,7 @@ export async function getViewportCount(sesssion_id: string): Promise<number> {
       if (err) {
         log.error({
           fn: 'getViewportCount',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -215,6 +205,7 @@ export async function getViewportData(
       if (err) {
         log.error({
           fn: 'getViewportData',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -224,37 +215,7 @@ export async function getViewportData(
         })
         return reject(`getViewportData error: ${err.message}`)
       }
-
       log.debug({ fn: 'getViewportData', resp: r.toObject() })
-
-      // TODO: remove this once the server issue is discovered and fixed
-      if (autoFixViewportDataLength_) {
-        const dataLength = r.getData().length
-        const expectedLength = r.getLength()
-        if (dataLength !== expectedLength) {
-          if (dataLength > expectedLength) {
-            log.error({
-              fn: 'getViewportData',
-              err: {
-                msg: `AUTO FIX: truncating data length to ${expectedLength}`,
-              },
-            })
-            r.setData(r.getData().slice(0, expectedLength))
-          } else {
-            const errorMsg = 'data has unexpected length'
-            log.error({
-              fn: 'getViewportData',
-              err: {
-                msg: errorMsg,
-                datalength: dataLength,
-                length: expectedLength,
-              },
-            })
-            return reject(errorMsg)
-          }
-        }
-      }
-
       return resolve(r)
     })
   })
@@ -277,6 +238,7 @@ export async function viewportHasChanges(
       if (err) {
         log.error({
           fn: 'viewportHasChanges',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -307,6 +269,7 @@ export async function pauseViewportEvents(session_id: string): Promise<string> {
       if (err) {
         log.error({
           fn: 'pauseViewportEvents',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -339,6 +302,7 @@ export async function resumeViewportEvents(
       if (err) {
         log.error({
           fn: 'resumeViewportEvents',
+          rqst: request.toObject(),
           err: {
             msg: err.message,
             details: err.details,
@@ -372,6 +336,7 @@ export async function unsubscribeViewport(
         if (err) {
           log.error({
             fn: 'unsubscribeViewport',
+            rqst: request.toObject(),
             err: {
               msg: err.message,
               details: err.details,

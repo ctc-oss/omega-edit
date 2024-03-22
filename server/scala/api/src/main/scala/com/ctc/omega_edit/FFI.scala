@@ -93,6 +93,7 @@ private[omega_edit] trait FFI {
   def omega_session_get_last_undo(p: Pointer): Pointer
   def omega_session_get_num_changes(p: Pointer): Long
   def omega_session_get_checkpoint_directory(p: Pointer): String
+  def omega_session_get_checkpoint_directory_length(p: Pointer): Long
   def omega_session_get_num_checkpoints(p: Pointer): Long
   def omega_session_get_num_undone_changes(p: Pointer): Long
   def omega_session_get_num_viewports(p: Pointer): Long

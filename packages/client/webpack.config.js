@@ -19,6 +19,7 @@
 
 const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
+const { PinoWebpackPlugin } = require('pino-webpack-plugin')
 const fs = require('fs')
 const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
@@ -30,7 +31,7 @@ module.exports = {
   target: 'node',
   output: {
     path: path.resolve(__dirname, 'out'),
-    filename: 'index.js',
+    filename: '[name].js',
     libraryTarget: 'commonjs2',
   },
   resolve: {
@@ -57,6 +58,7 @@ module.exports = {
         'src/omega_edit_pb.d.ts',
       ],
     }),
+    new PinoWebpackPlugin(),
     {
       // generate a file with the client version before compiling
       apply: (compiler) => {

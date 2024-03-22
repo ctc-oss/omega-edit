@@ -74,11 +74,11 @@ if (BUILD_TESTS)
         Catch2
         GIT_SHALLOW TRUE
         GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.4.0
+        GIT_TAG v3.5.3
     )
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
-    add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.h")
+    add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.hpp")
     target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain ${FILESYSTEM_LIB})
     # Set the runtime output directory
     set_target_properties(omega_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")

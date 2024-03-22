@@ -35,7 +35,7 @@ int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
-    if (!omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
+    if (0 == omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
     auto const remaining_file_size =
             std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
@@ -89,7 +89,7 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
             viewport_ptr->data_segment.is_floating != (bool) is_floating) {
             omega_data_destroy(&viewport_ptr->data_segment.data, omega_viewport_get_capacity(viewport_ptr));
             viewport_ptr->data_segment.offset = offset;
-            viewport_ptr->data_segment.is_floating = is_floating;
+            viewport_ptr->data_segment.is_floating = (bool) is_floating;
             viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
             omega_data_create(&viewport_ptr->data_segment.data, capacity);
@@ -103,7 +103,7 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
     assert(viewport_ptr);
     const auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
-    if (omega_viewport_has_changes(viewport_ptr)) {
+    if (0 != omega_viewport_has_changes(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
         mut_viewport_ptr->data_segment.capacity = std::abs(viewport_ptr->data_segment.capacity);
         if (populate_data_segment_(viewport_ptr->session_ptr, &mut_viewport_ptr->data_segment) != 0) { return nullptr; }
@@ -131,7 +131,7 @@ int omega_viewport_notify(const omega_viewport_t *viewport_ptr, omega_viewport_e
     assert(viewport_ptr);
     assert(viewport_ptr->session_ptr);
     if (viewport_ptr->event_handler && (viewport_event & viewport_ptr->event_interest_) &&
-        !omega_session_viewport_event_callbacks_paused(viewport_ptr->session_ptr)) {
+        0 == omega_session_viewport_event_callbacks_paused(viewport_ptr->session_ptr)) {
         (*viewport_ptr->event_handler)(viewport_ptr, viewport_event, event_ptr);
         return 1;
     }

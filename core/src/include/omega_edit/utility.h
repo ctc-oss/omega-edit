@@ -55,22 +55,24 @@ int omega_util_compute_mode(int mode);
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr);
 
 /**
- * Shift the bits of the given buffer by a given number of bits to the left
+ * Shift the bits of the given buffer by a given number of bits to the left towards the start of the buffer
  * @param buffer pointer to the start of the buffer
  * @param len length of the buffer
  * @param shift_left number of bits (greater than 0 and less than 8) to shift to the left
+ * @param fill_bit bit to fill the shifted bit vacancies created at the end of the buffer with (0 or 1)
  * @return zero on success, non-zero on failure
  */
-int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left);
+int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left, int fill_bit);
 
 /**
- * Shift the bits of the given buffer by a given number of bits to the right
+ * Shift the bits of the given buffer by a given number of bits to the right towards the end of the buffer
  * @param buffer pointer to the start of the buffer
  * @param len length of the buffer
  * @param shift_right number of bits (greater than 0 and less than 8) to shift to the right
+ * @param fill_bit bit to fill the shifted bit vacancies created at the beginning of the buffer with (0 or 1)
  * @return zero on success, non-zero on failure
  */
-int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right);
+int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right, int fill_bit);
 
 /**
  * Byte transform function pointer

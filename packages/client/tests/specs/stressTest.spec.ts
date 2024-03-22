@@ -19,6 +19,7 @@
 
 import { expect } from 'chai'
 import {
+  ALL_EVENTS,
   clear,
   CountKind,
   createViewport,
@@ -36,10 +37,6 @@ import {
   resumeSessionChanges,
   undo,
 } from '@omega-edit/client'
-import { ALL_EVENTS } from '../../src'
-
-// prettier-ignore
-// @ts-ignore
 import {
   checkCallbackCount,
   createTestSession,
@@ -49,11 +46,11 @@ import {
   subscribeSession,
   subscribeViewport,
   testPort,
-  viewport_callbacks
-} from "./common";
+  viewport_callbacks,
+} from './common'
 
 describe('StressTest', () => {
-  const full_rotations = 10
+  const full_rotations = 12
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
@@ -235,7 +232,7 @@ describe('StressTest', () => {
             expect(c).to.equal(computedFileSize)
             break
           case CountKind.COUNT_CHANGES:
-            expect(c).to.equal(2760)
+            expect(c).to.equal(276 * full_rotations)
             break
           case CountKind.COUNT_UNDOS:
             expect(c).to.equal(1)
@@ -250,7 +247,7 @@ describe('StressTest', () => {
             expect(c).to.equal(0)
             break
           case CountKind.COUNT_CHANGE_TRANSACTIONS:
-            expect(c).to.equal(2760)
+            expect(c).to.equal(276 * full_rotations)
             break
           case CountKind.COUNT_UNDO_TRANSACTIONS:
             expect(c).to.equal(1)

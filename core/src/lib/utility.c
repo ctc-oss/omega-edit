@@ -82,39 +82,50 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
     return byte_count - remaining;
 }
 
-int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left) {
-    assert(buffer);
-    if (shift_left > 0 && shift_left < 8) {
-        omega_byte_t shift_right = 8 - shift_left;
-        omega_byte_t mask = (omega_byte_t) (((1 << shift_left) - 1) << shift_right);
-        omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
-            const unsigned char bits2 = buffer[i] & mask;
-            buffer[i] <<= shift_left;
-            buffer[i] |= bits1 >> shift_right;
-            bits1 = bits2;
-        }
-        return 0;
+int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right, int fill_bit) {
+    assert(buffer != NULL);
+    if (shift_right <= 0 || shift_right >= 8) {
+        return -1; // Invalid shift amount
     }
-    return -1;
+
+    if (fill_bit != 0 && fill_bit != 1) {
+        return -2; // Invalid fill bit
+    }
+
+    // Now perform the right shift across the buffer
+    for (int64_t i = len - 1; i >= 0; --i) {
+        // Right shift current byte and include bits from the previous byte
+        buffer[i] = (i > 0 ? buffer[i - 1] << (8 - shift_right) : 0) | (buffer[i] >> shift_right);
+    }
+
+    // Apply fill mask to the first byte
+    buffer[0] |= (fill_bit ? 0xFF << (8 - shift_right) : 0x00);
+
+    return 0;
 }
 
-int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right) {
-    assert(buffer);
-    if (shift_right > 0 && shift_right < 8) {
-        omega_byte_t shift_left = 8 - shift_right;
-        omega_byte_t mask = (omega_byte_t) ((1 << shift_right) - 1);
-        omega_byte_t bits1 = 0;
-        for (int64_t i = len - 1; i >= 0; --i) {
-            const unsigned char bits2 = buffer[i] & mask;
-            buffer[i] >>= shift_right;
-            buffer[i] |= bits1 << shift_left;
-            bits1 = bits2;
-        }
-        return 0;
+int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left, int fill_bit) {
+    assert(buffer != NULL);
+    if (shift_left <= 0 || shift_left >= 8) {
+        return -1; // Invalid shift amount
     }
-    return -1;
+
+    if (fill_bit != 0 && fill_bit != 1) {
+        return -2; // Invalid fill bit
+    }
+
+    // Now perform the left shift across the buffer
+    for (int64_t i = 0; i < len; ++i) {
+        // Left shift current byte and include bits from the next byte
+        buffer[i] = (i < len - 1 ? buffer[i + 1] >> (8 - shift_left) : 0) | (buffer[i] << shift_left);
+    }
+
+    // Apply fill mask to the last byte
+    buffer[len - 1] |= (fill_bit ? 0xFF >> (8 - shift_left) : 0x00);
+
+    return 0;
 }
+
 
 void omega_util_apply_byte_transform(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform,
                                      void *user_data_ptr) {

@@ -277,6 +277,13 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
  */
 const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr);
 
+/**
+ * Given a session, return the checkpoint directory path string length
+ * @param session_ptr  session to get the checkpoint directory for
+ * @return string length of the checkpoint directory
+ */
+int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *session_ptr);
+
 #ifdef __cplusplus
 }
 #endif

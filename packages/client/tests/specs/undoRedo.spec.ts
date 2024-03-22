@@ -20,10 +20,10 @@
 import { expect } from 'chai'
 import {
   ChangeKind,
-  EditStats,
   clear,
   createSession,
   destroySession,
+  EditStats,
   getChangeCount,
   getComputedFileSize,
   getLastUndo,
@@ -38,9 +38,6 @@ import {
   undo,
 } from '@omega-edit/client'
 import { unlinkSync } from 'fs'
-
-// prettier-ignore
-// @ts-ignore
 import { createTestSession, destroyTestSession, testPort } from './common'
 
 describe('Undo/Redo', () => {

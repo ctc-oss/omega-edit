@@ -19,46 +19,38 @@
 
 import {
   createSession,
+  createSimpleFileLogger,
+  delay,
   destroySession,
   getClient,
   getSessionCount,
+  pidIsRunning,
+  setLogger,
   startServer,
+  stopProcessUsingPID,
   stopServerGraceful,
   stopServerImmediate,
-  stopServerUsingPID,
+  stopServiceOnPort,
 } from '@omega-edit/client'
 import { expect } from 'chai'
-
-// @ts-ignore
 import { testPort } from './common'
 
 const path = require('path')
-
-function pidIsRunning(pid) {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (e) {
-    return false
-  }
-}
+const rootPath = path.resolve(__dirname, '../..')
 
 describe('Server', () => {
   let pid: number | undefined
   let session_id: string
-  const rootPath = path.resolve(__dirname, '..', '..')
-  const serverScript = path.join(
-    rootPath,
-    'node_modules',
-    '@omega-edit/client',
-    'bin',
-    'omega-edit-grpc-server.js'
-  )
   const serverTestPort = testPort + 1
+  const logFile = path.join(rootPath, 'server-lifecycle-tests.log')
+  const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
+  const logger = createSimpleFileLogger(logFile, level)
 
   beforeEach(
-    `create a server using ${serverScript} on port ${serverTestPort} and a session`,
+    `create on port ${serverTestPort} with a single session`,
     async () => {
+      setLogger(logger)
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
       pid = await startServer(serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
@@ -70,33 +62,43 @@ describe('Server', () => {
     }
   )
 
-  afterEach(
-    `server on port ${serverTestPort} should no longer exist`,
-    async () => {
-      // pause to allow server some time to shut down gracefully
-      await new Promise((resolve) => setTimeout(resolve, 1000)) // 1 second
-
-      // after each test, the server should be stopped
-      expect(pidIsRunning(pid as number)).to.be.false
-    }
-  )
-
-  it(`on port ${serverTestPort} should stop immediately via PID`, async () => {
-    // stop the server using its pid should stop the server immediately using the operating system
-    expect(await stopServerUsingPID(pid as number)).to.be.true
+  afterEach(`on port ${serverTestPort} should no longer exist`, async () => {
+    // after each test, the server should be stopped
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
   })
 
-  xit(`on port ${serverTestPort} should stop immediately via API`, async () => {
-    // stop the server immediately should stop the server immediately without waiting for sessions to end
-    expect(await stopServerImmediate()).to.equal(0)
+  it(`on port ${serverTestPort} should stop immediately via stopServiceOnPort using 'SIGTERM'`, async () => {
+    expect(pid).to.be.a('number').greaterThan(0)
+    // stop the server using its PID should stop the server immediately using the operating system
+    expect(await stopServiceOnPort(serverTestPort, 'SIGTERM')).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
   })
 
-  xit(`on port ${serverTestPort} should stop gracefully via API`, async () => {
+  it(`on port ${serverTestPort} should stop immediately via PID using 'SIGTERM'`, async () => {
+    expect(pid).to.be.a('number').greaterThan(0)
+    // stop the server using its PID should stop the server immediately using the operating system
+    expect(await stopProcessUsingPID(pid as number, 'SIGTERM')).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop immediately via stopServiceOnPort using 'SIGKILL'`, async () => {
+    expect(pid).to.be.a('number').greaterThan(0)
+    // stop the server using its PID should stop the server immediately using the operating system
+    expect(await stopServiceOnPort(serverTestPort, 'SIGKILL')).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop immediately via PID using 'SIGKILL'`, async () => {
+    expect(pid).to.be.a('number').greaterThan(0)
+    // stop the server using its PID should stop the server immediately using the operating system
+    expect(await stopProcessUsingPID(pid as number, 'SIGKILL')).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
-    expect(await stopServerGraceful()).to.equal(0)
-
-    // pause to allow server some time to remain up
-    await new Promise((resolve) => setTimeout(resolve, 1000)) // 1 second
+    await stopServerGraceful()
 
     // for graceful shutdown, the server should still be running until the session count drops to 0
     expect(pidIsRunning(pid as number)).to.be.true
@@ -107,5 +109,27 @@ describe('Server', () => {
 
     // destroy the session, dropping the count to 0, then the server should stop
     expect(await destroySession(session_id)).to.equal(session_id)
+
+    // pause for up to 2 seconds to allow server some time to stop
+    for (let i = 0; i < 20; ++i) {
+      await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop immediately via API`, async () => {
+    // stop the server immediately should stop the server immediately without waiting for sessions to end
+    await stopServerImmediate()
+    // pause for up to 2 seconds to allow server some time to stop
+    for (let i = 0; i < 20; ++i) {
+      await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
   })
 })

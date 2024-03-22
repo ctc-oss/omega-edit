@@ -31,30 +31,33 @@ let logger_: Logger
 
 /**
  * Builds a logger
- * @param transports array of transports to log to
+ * @param stream destination stream
  * @param level log level
  * @returns logger
  */
 function buildLogger(
-  transports: any[],
+  stream: pino.DestinationStream,
   level: string = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
 ): Logger {
-  const logger = pino({
-    level: level,
-    formatters: {
-      level: (label) => {
-        return { level: label.toUpperCase() }
+  const logger = pino(
+    {
+      level: level,
+      formatters: {
+        level: (label) => {
+          return { level: label.toUpperCase() }
+        },
       },
+      timestamp: pino.stdTimeFunctions.isoTime,
     },
-    timestamp: pino.stdTimeFunctions.isoTime,
-    transports: transports,
-  })
+    stream
+  )
+
   logger.debug({
     fn: 'buildLogger',
     msg: 'logger built',
     level: level,
-    transports: transports,
   })
+
   return logger
 }
 
@@ -89,12 +92,16 @@ export function createSimpleFileLogger(
 export function getLogger(): Logger {
   if (!logger_) {
     setLogger(
-      buildLogger([
-        {
-          target: 'pino/file',
-          options: { destination: 2 }, // use 1 for stdout and 2 for stderr
-        },
-      ])
+      buildLogger(
+        pino.transport({
+          targets: [
+            {
+              target: 'pino/file',
+              options: { destination: 2 }, // use 1 for stdout and 2 for stderr
+            },
+          ],
+        })
+      )
     )
     getLogger().debug({ fn: 'getLogger', msg: 'logger initialized' })
   }
@@ -107,5 +114,5 @@ export function getLogger(): Logger {
  */
 export function setLogger(logger: Logger) {
   logger_ = logger
-  getLogger().info({ fn: 'setLogger', msg: 'logger set' })
+  getLogger().debug({ fn: 'setLogger', msg: 'logger set' })
 }

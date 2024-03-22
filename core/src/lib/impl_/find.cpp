@@ -78,6 +78,7 @@ const unsigned char *omega_find(const unsigned char *haystack, size_t haystack_l
                                 const omega_find_skip_table_t *skip_table_ptr, const unsigned char *needle,
                                 size_t needle_length) {
     assert(haystack);
+    assert(skip_table_ptr);
     assert(needle);
     assert(needle_length > 0);
 

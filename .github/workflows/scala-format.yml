@@ -30,8 +30,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Check project is formatted
-        uses: jrouly/scalafmt-native-action@v2
+        uses: jrouly/scalafmt-native-action@v3
         with:
           # NOTE: make sure this version matches the version in .scalafmt.conf
-          version: '3.7.3'
+          version: '3.7.17'
           arguments: '--list --mode diff-ref=origin/main'

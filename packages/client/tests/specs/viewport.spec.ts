@@ -20,7 +20,6 @@
 import { expect } from 'chai'
 import {
   ALL_EVENTS,
-  ViewportEventKind,
   createViewport,
   del,
   destroyViewport,
@@ -36,12 +35,18 @@ import {
   pauseViewportEvents,
   resumeViewportEvents,
   unsubscribeViewport,
+  ViewportEventKind,
   viewportHasChanges,
 } from '@omega-edit/client'
-
-// prettier-ignore
-// @ts-ignore
-import { checkCallbackCount, createTestSession, destroyTestSession, log_info, subscribeViewport, viewport_callbacks, testPort } from './common'
+import {
+  checkCallbackCount,
+  createTestSession,
+  destroyTestSession,
+  log_info,
+  subscribeViewport,
+  testPort,
+  viewport_callbacks,
+} from './common'
 
 describe('Viewports', () => {
   let session_id = ''
