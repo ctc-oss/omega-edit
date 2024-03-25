@@ -19,11 +19,11 @@
 #include <omega_edit.h>
 #include <stdio.h>
 
-static inline omega_byte_t to_lower(omega_byte_t byte, __attribute__((unused)) void *_unused) {
+static inline omega_byte_t to_lower(omega_byte_t byte, ATTRIBUTE_UNUSED void *_unused) {
     return (omega_byte_t) tolower(byte);
 }
 
-static inline omega_byte_t to_upper(omega_byte_t byte, __attribute__((unused)) void *_unused) {
+static inline omega_byte_t to_upper(omega_byte_t byte, ATTRIBUTE_UNUSED void *_unused) {
     return (omega_byte_t) toupper(byte);
 }
 

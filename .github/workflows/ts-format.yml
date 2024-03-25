@@ -24,19 +24,19 @@ jobs:
     name: TypeScript code is properly formatted
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout current branch (full)
+      - name: Checkout current branch (full) 🛎️
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
       
-      - name: Setup Node
+      - name: Setup Node 📐
         uses: actions/setup-node@v4
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: 16
 
-      - name: yarn lint - all workspaces
+      - name: yarn lint - all workspaces 🧶
         run: |
           yarn
           yarn lint

@@ -56,7 +56,7 @@ runs:
           omega-edit-${{ inputs.os-name }}-cont:/omega-edit/lib/${{ inputs.library-filename }} \
           ${{ inputs.library-filename }}
 
-    - name: Upload Native library 🔺
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ inputs.library-filename }}) 🔺
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.os-name }}-${{ inputs.library-filename }}

@@ -9,29 +9,15 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
----
-name: Scala Formatting
+# Set the system name
+set(CMAKE_SYSTEM_NAME Windows)
 
-permissions: {}
+# Specify the cross-compiler
+set(CMAKE_C_COMPILER gcc)
+set(CMAKE_CXX_COMPILER g++)
 
-on:
-  push:
-    branches:
-      - '**'
+# Set the root path for MinGW (adjust as necessary)
+set(MINGW_ROOT "${HOME}/mingw64")
 
-jobs:
-  build:
-    name: Scala Code Format
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Current Branch (full) 🛎️
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Check Scala Format ✅
-        uses: jrouly/scalafmt-native-action@v3
-        with:
-          # NOTE: make sure this version matches the version in .scalafmt.conf
-          version: '3.7.17'
-          arguments: '--list --mode diff-ref=origin/main'
+# Add the MinGW bin directory to the system PATH
+set(CMAKE_FIND_ROOT_PATH "${MINGW_ROOT}" "${MINGW_ROOT}/bin")

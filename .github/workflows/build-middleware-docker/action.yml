@@ -20,7 +20,7 @@ inputs:
     description: 'Docker image to use'
     required: true
   library-filename:
-    description: 'Filename of library file (libomega_edit.so, libomega_edit.dylib or omega_edit.dll)'
+    description: 'Filename of library file (e.g., libomega_edit.so, libomega_edit.dylib, omega_edit.dll)'
     required: true
 runs:
   using: "composite"
@@ -30,18 +30,19 @@ runs:
       with:
         platforms: arm64
 
-    - name: Download library file 🔻
+    - name: Download Library File (${{ inputs.os-name }}-${{ inputs.library-filename }}) 🔻
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.os-name }}-${{ inputs.library-filename }}
-        path: _install/${{ inputs.library-filename }}
+        path: _artifacts/
 
-    - name: Move out library file 🛻
-      run: |
-        mv -v "_install/${{ inputs.library-filename }}" "_install/${{ inputs.library-filename }}_dir"
-        mv -v "_install/${{ inputs.library-filename }}_dir/${{ inputs.library-filename }}" "_install/${{ inputs.library-filename }}"
-        rm -rf "_install/${{ inputs.library-filename }}_dir"
+    - name: Install Library File (${{ inputs.library-filename }}) 🛻
       shell: bash
+      run: |
+        mkdir -p _install/
+        cp "_artifacts/${{ inputs.library-filename }}" _install/
+        ls -Rl _install/
+        echo "OE_LIB_DIR=$(pwd)/_install" >> $GITHUB_ENV
 
     - name: Start container 🐳
       shell: bash

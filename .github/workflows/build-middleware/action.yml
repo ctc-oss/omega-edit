@@ -56,41 +56,30 @@ runs:
       shell: bash
       run: mkdir -p _install
 
-    - name: Download macOS library file 🔻
-      uses: actions/download-artifact@v4
-      if: inputs.runner-os == 'macOS'
-      with:
-        name: ${{ inputs.os-name }}-libomega_edit.dylib
-        path: _install/libomega_edit.dylib
-
-    - name: Download Linux library file 🔻
-      uses: actions/download-artifact@v4
-      if: inputs.runner-os == 'Linux'
-      with:
-        name: ${{ inputs.os-name }}-libomega_edit.so
-        path: _install/libomega_edit.so
-
-    - name: Download Windows library file 🔻
-      uses: actions/download-artifact@v4
-      if: inputs.runner-os == 'Windows'
-      with:
-        name: omega_edit.dll
-        path: _install/omega_edit.dll
-
-    - name: Move out library file 🛻
+    - name: Set Library Name For ${{ inputs.runner-os }} 📖
+      shell: bash
       run: |
-        if [[ ${{ inputs.runner-os }} == 'Linux' ]]; then
-          LIB_FILENAME="libomega_edit.so"
-        elif [[ ${{ inputs.runner-os }} == 'macOS' ]]; then
-          LIB_FILENAME="libomega_edit.dylib"
+        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+          echo "libname=omega_edit.dll" >> $GITHUB_ENV
+        elif [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          echo "libname=libomega_edit.dylib" >> $GITHUB_ENV
         else
-          LIB_FILENAME="omega_edit.dll"
+          echo "libname=libomega_edit.so" >> $GITHUB_ENV
         fi
 
-        mv -v "_install/${LIB_FILENAME}" "_install/${LIB_FILENAME}_dir"
-        mv -v "_install/${LIB_FILENAME}_dir/$LIB_FILENAME" "_install/$LIB_FILENAME"
-        rm -rf "_install/${LIB_FILENAME}_dir"
+    - name: Download Library File (${{ env.libname }}) 🔻
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.os-name }}-${{ env.libname }}
+        path: _artifacts/
+
+    - name: Install Library File (${{ env.libname }}) 🛻
       shell: bash
+      run: |
+        mkdir -p _install/
+        cp "_artifacts/${{ env.libname }}" _install/
+        ls -Rl _install/
+        echo "OE_LIB_DIR=$(pwd)/_install" >> $GITHUB_ENV
 
     - name: Check Scala headers ✔️
       shell: bash

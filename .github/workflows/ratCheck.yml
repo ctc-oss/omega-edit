@@ -20,7 +20,7 @@ on:
 
 jobs:
   check:
-    name: Rat Check
+    name: Rat Check 🐀
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,15 +29,15 @@ jobs:
       SBT: sbt -J-Xms1024m -J-Xmx5120m -J-XX:ReservedCodeCacheSize=512m -J-XX:MaxMetaspaceSize=1024m
     
     steps:
-      - name: Setup Java
+      - name: Setup Java ☕
         uses: actions/setup-java@v4.2.1
         with:
           distribution: temurin
           java-version: 8
 
-      - name: Check out Repository
+      - name: Check out Repository 🛎️
         uses: actions/checkout@v4
 
-      - name: Run Rat Check
+      - name: Run Rat Check 🐀
         run: $SBT ratCheck || (cat target/rat.txt; exit 1)
         working-directory: server/scala
