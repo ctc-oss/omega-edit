@@ -202,6 +202,8 @@
 </li>
 <li><a class="reference internal" href="#session-h">session.h</a><ul>
 <li><a class="reference internal" href="#_CPPv430omega_byte_frequency_profile_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_frequency_profile_t</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv441omega_session_byte_frequency_profile_sizev"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_size()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_dos_eol_index()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_file_pathPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_file_path()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_session_get_event_cbkPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_event_cbk()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv432omega_session_get_event_interestPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_event_interest()</span></code></a></li>
@@ -235,7 +237,6 @@
 <li><a class="reference internal" href="#_CPPv430omega_session_character_countsPK15omega_session_tP24omega_character_counts_t7int64_t7int64_t11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_session_character_counts()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv438omega_session_get_checkpoint_directoryPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_checkpoint_directory()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv445omega_session_get_checkpoint_directory_lengthPK15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_session_get_checkpoint_directory_length()</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv415PROFILE_DOS_EOL"><code class="docutils literal notranslate"><span class="pre">PROFILE_DOS_EOL</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#stl-string-adaptor-hpp">stl_string_adaptor.hpp</a></li>
@@ -254,8 +255,8 @@
 <li><a class="reference internal" href="#_CPPv418omega_util_memrchrPKvi6size_t"><code class="docutils literal notranslate"><span class="pre">omega_util_memrchr()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv433omega_util_detect_BOM_from_memoryPKh6size_t"><code class="docutils literal notranslate"><span class="pre">omega_util_detect_BOM_from_memory()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv431omega_util_detect_BOM_from_filePKc"><code class="docutils literal notranslate"><span class="pre">omega_util_detect_BOM_from_file()</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv424omega_util_BOM_to_string11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_string()</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv424omega_util_string_to_BOMPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_string_to_BOM()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv425omega_util_BOM_to_cstring11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_cstring()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv425omega_util_cstring_to_BOMPKc"><code class="docutils literal notranslate"><span class="pre">omega_util_cstring_to_BOM()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_util_count_charactersPKh6size_tP24omega_character_counts_t"><code class="docutils literal notranslate"><span class="pre">omega_util_count_characters()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv419omega_util_BOM_size11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_BOM_to_buffer11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_buffer()</span></code></a></li>
@@ -518,6 +519,11 @@
 <span class="target" id="config_8h_1a484526b3e68594533668ed679530a444"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_BUILD_64_BIT</span></span></span><a class="headerlink" href="#c.OMEGA_BUILD_64_BIT" title="Link to this definition"></a><br /></dt>
 <dd><p>Define if building for 64-bit </p>
 </dd></dl>
+
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.ATTRIBUTE_UNUSED">
+<span class="target" id="config_8h_1a635a8d08da53567d5c3b67deb7f98ed3"></span><span class="sig-name descname"><span class="n"><span class="pre">ATTRIBUTE_UNUSED</span></span></span><a class="headerlink" href="#c.ATTRIBUTE_UNUSED" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
 
 <dl class="cpp macro">
 <dt class="sig sig-object cpp" id="c.OPEN">
@@ -1741,16 +1747,53 @@
 <h2>session.h<a class="headerlink" href="#session-h" title="Link to this heading"></a></h2>
 <p>Functions that operate on editing sessions (omega_session_t). </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-defines">Defines</p>
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE">
+<span class="target" id="session_8h_1aba84726036e36c63825deb49f94ddeeb"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE" title="Link to this definition"></a><br /></dt>
+<dd><p>Size of the byte frequency profile in bytes. </p>
+</dd></dl>
+
+<dl class="cpp macro">
+<dt class="sig sig-object cpp" id="c.OMEGA_EDIT_PROFILE_DOS_EOL">
+<span class="target" id="session_8h_1a4be32b9657e05757f1459b3c0f5c8727"></span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_PROFILE_DOS_EOL</span></span></span><a class="headerlink" href="#c.OMEGA_EDIT_PROFILE_DOS_EOL" title="Link to this definition"></a><br /></dt>
+<dd><p>Index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile. </p>
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-typedefs">Typedefs</p>
 <dl class="cpp type">
 <dt class="sig sig-object cpp" id="_CPPv430omega_byte_frequency_profile_t">
-<span id="_CPPv330omega_byte_frequency_profile_t"></span><span id="_CPPv230omega_byte_frequency_profile_t"></span><span id="omega_byte_frequency_profile_t"></span><span class="target" id="session_8h_1a29854dc763cfa633b5742a16be095e21"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_frequency_profile_t</span></span></span><span class="p"><span class="pre">[</span></span><span class="m"><span class="pre">257</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#_CPPv430omega_byte_frequency_profile_t" title="Link to this definition"></a><br /></dt>
+<span id="_CPPv330omega_byte_frequency_profile_t"></span><span id="_CPPv230omega_byte_frequency_profile_t"></span><span id="omega_byte_frequency_profile_t"></span><span class="target" id="session_8h_1a03b5ad29e188d5a3c0087a9b6a691e67"></span><span class="k"><span class="pre">typedef</span></span><span class="w"> </span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_byte_frequency_profile_t</span></span></span><span class="p"><span class="pre">[</span></span><span class="n"><span class="pre">OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE</span></span><span class="p"><span class="pre">]</span></span><a class="headerlink" href="#_CPPv430omega_byte_frequency_profile_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Byte frequency profile </p>
 </dd></dl>
 
 </div>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv441omega_session_byte_frequency_profile_sizev">
+<span id="_CPPv341omega_session_byte_frequency_profile_sizev"></span><span id="_CPPv241omega_session_byte_frequency_profile_sizev"></span><span id="omega_session_byte_frequency_profile_size"></span><span class="target" id="session_8h_1a9f4dbe2341365c4b6965821aeca4953f"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_byte_frequency_profile_size</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv441omega_session_byte_frequency_profile_sizev" title="Link to this definition"></a><br /></dt>
+<dd><p>Get the size of the byte frequency profile in bytes </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>size of the byte frequency profile in bytes </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv">
+<span id="_CPPv350omega_session_byte_frequency_profile_dos_eol_indexv"></span><span id="_CPPv250omega_session_byte_frequency_profile_dos_eol_indexv"></span><span id="omega_session_byte_frequency_profile_dos_eol_index"></span><span class="target" id="session_8h_1a952e7db075f998ecdbf00cd711f8ad43"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_byte_frequency_profile_dos_eol_index</span></span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv" title="Link to this definition"></a><br /></dt>
+<dd><p>Get the index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile </p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile </p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv427omega_session_get_file_pathPK15omega_session_t">
 <span id="_CPPv327omega_session_get_file_pathPK15omega_session_t"></span><span id="_CPPv227omega_session_get_file_pathPK15omega_session_t"></span><span id="omega_session_get_file_path__omega_session_tCP"></span><span class="target" id="session_8h_1a249fb98715ee8ff5b2707063acf477f8"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_session_get_file_path</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv427omega_session_get_file_pathPK15omega_session_t" title="Link to this definition"></a><br /></dt>
@@ -2227,15 +2270,6 @@
 </dd></dl>
 
 </div>
-<div class="breathe-sectiondef docutils container">
-<p class="breathe-sectiondef-title rubric" id="breathe-section-title-variables">Variables</p>
-<dl class="cpp var">
-<dt class="sig sig-object cpp" id="_CPPv415PROFILE_DOS_EOL">
-<span id="_CPPv315PROFILE_DOS_EOL"></span><span id="_CPPv215PROFILE_DOS_EOL"></span><span id="PROFILE_DOS_EOL__sC"></span><span class="target" id="session_8h_1a41ac1c863c49b0948610fcc167e2bacb"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">PROFILE_DOS_EOL</span></span></span><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="m"><span class="pre">256</span></span><a class="headerlink" href="#_CPPv415PROFILE_DOS_EOL" title="Link to this definition"></a><br /></dt>
-<dd><p>Index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile. </p>
-</dd></dl>
-
-</div>
 </section>
 <section id="stl-string-adaptor-hpp">
 <h2>stl_string_adaptor.hpp<a class="headerlink" href="#stl-string-adaptor-hpp" title="Link to this heading"></a></h2>
@@ -2481,22 +2515,22 @@
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv424omega_util_BOM_to_string11omega_bom_t">
-<span id="_CPPv324omega_util_BOM_to_string11omega_bom_t"></span><span id="_CPPv224omega_util_BOM_to_string11omega_bom_t"></span><span id="omega_util_BOM_to_string__omega_bom_t"></span><span class="target" id="utility_8h_1a277c9ab288878349d222a3dccf058f60"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_BOM_to_string</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv411omega_bom_t" title="omega_bom_t"><span class="n"><span class="pre">omega_bom_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">bom</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_util_BOM_to_string11omega_bom_t" title="Link to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv425omega_util_BOM_to_cstring11omega_bom_t">
+<span id="_CPPv325omega_util_BOM_to_cstring11omega_bom_t"></span><span id="_CPPv225omega_util_BOM_to_cstring11omega_bom_t"></span><span id="omega_util_BOM_to_cstring__omega_bom_t"></span><span class="target" id="utility_8h_1a62dec02e2209db0a7dbc97b27a3d69d4"></span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_BOM_to_cstring</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv411omega_bom_t" title="omega_bom_t"><span class="n"><span class="pre">omega_bom_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">bom</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv425omega_util_BOM_to_cstring11omega_bom_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Convert the given byte order mark (BOM) to a string </p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>bom</strong> – byte order mark (BOM) to convert </p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>string representation of the given BOM (“none”, “UTF-8”, “UTF-16LE”, “UTF-16BE”, “UTF-32LE”, “UTF-32BE”) </p>
+<dd class="field-even"><p>C-string representation of the given BOM (“none”, “UTF-8”, “UTF-16LE”, “UTF-16BE”, “UTF-32LE”, “UTF-32BE”) </p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="cpp function">
-<dt class="sig sig-object cpp" id="_CPPv424omega_util_string_to_BOMPKc">
-<span id="_CPPv324omega_util_string_to_BOMPKc"></span><span id="_CPPv224omega_util_string_to_BOMPKc"></span><span id="omega_util_string_to_BOM__cCP"></span><span class="target" id="utility_8h_1ae54ff848717944c3750d69d613343ef1"></span><a class="reference internal" href="#_CPPv411omega_bom_t" title="omega_bom_t"><span class="n"><span class="pre">omega_bom_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_string_to_BOM</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">str</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_util_string_to_BOMPKc" title="Link to this definition"></a><br /></dt>
+<dt class="sig sig-object cpp" id="_CPPv425omega_util_cstring_to_BOMPKc">
+<span id="_CPPv325omega_util_cstring_to_BOMPKc"></span><span id="_CPPv225omega_util_cstring_to_BOMPKc"></span><span id="omega_util_cstring_to_BOM__cCP"></span><span class="target" id="utility_8h_1af6c3d9077ae965353fb45b250b6adc37"></span><a class="reference internal" href="#_CPPv411omega_bom_t" title="omega_bom_t"><span class="n"><span class="pre">omega_bom_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_util_cstring_to_BOM</span></span></span><span class="sig-paren">(</span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">str</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv425omega_util_cstring_to_BOMPKc" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 <dl class="cpp function">

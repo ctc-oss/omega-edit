@@ -82,7 +82,6 @@
  | <a href="#F"><strong>F</strong></a>
  | <a href="#N"><strong>N</strong></a>
  | <a href="#O"><strong>O</strong></a>
- | <a href="#P"><strong>P</strong></a>
  | <a href="#S"><strong>S</strong></a>
  
 </div>
@@ -90,6 +89,10 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="index.html#c.ALL_EVENTS">ALL_EVENTS (C macro)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="index.html#c.ATTRIBUTE_UNUSED">ATTRIBUTE_UNUSED (C macro)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -191,6 +194,8 @@
 </li>
       <li><a href="index.html#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t">omega_edit_apply_transform (C++ function)</a>
 </li>
+      <li><a href="index.html#c.OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE">OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE (C macro)</a>
+</li>
       <li><a href="index.html#_CPPv424omega_edit_clear_changesP15omega_session_t">omega_edit_clear_changes (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv428omega_edit_create_checkpointP15omega_session_t">omega_edit_create_checkpoint (C++ function)</a>
@@ -214,6 +219,8 @@
       <li><a href="index.html#_CPPv420omega_edit_overwriteP15omega_session_t7int64_tPKc7int64_t">omega_edit_overwrite (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv426omega_edit_overwrite_bytesP15omega_session_t7int64_tPK12omega_byte_t7int64_t">omega_edit_overwrite_bytes (C++ function)</a>
+</li>
+      <li><a href="index.html#c.OMEGA_EDIT_PROFILE_DOS_EOL">OMEGA_EDIT_PROFILE_DOS_EOL (C macro)</a>
 </li>
       <li><a href="index.html#_CPPv425omega_edit_redo_last_undoP15omega_session_t">omega_edit_redo_last_undo (C++ function)</a>
 </li>
@@ -275,6 +282,10 @@
 </li>
       <li><a href="index.html#_CPPv436omega_session_byte_frequency_profilePK15omega_session_tP30omega_byte_frequency_profile_t7int64_t7int64_t">omega_session_byte_frequency_profile (C++ function)</a>
 </li>
+      <li><a href="index.html#_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv">omega_session_byte_frequency_profile_dos_eol_index (C++ function)</a>
+</li>
+      <li><a href="index.html#_CPPv441omega_session_byte_frequency_profile_sizev">omega_session_byte_frequency_profile_size (C++ function)</a>
+</li>
       <li><a href="index.html#_CPPv434omega_session_change_visitor_cbk_t">omega_session_change_visitor_cbk_t (C++ type)</a>
 </li>
       <li><a href="index.html#_CPPv428omega_session_changes_pausedPK15omega_session_t">omega_session_changes_paused (C++ function)</a>
@@ -331,12 +342,12 @@
 </li>
       <li><a href="index.html#_CPPv429omega_session_get_last_changePK15omega_session_t">omega_session_get_last_change (C++ function)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="index.html#_CPPv427omega_session_get_last_undoPK15omega_session_t">omega_session_get_last_undo (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv441omega_session_get_num_change_transactionsPK15omega_session_t">omega_session_get_num_change_transactions (C++ function)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="index.html#_CPPv429omega_session_get_num_changesPK15omega_session_t">omega_session_get_num_changes (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv433omega_session_get_num_checkpointsPK15omega_session_t">omega_session_get_num_checkpoints (C++ function)</a>
@@ -385,7 +396,7 @@
 </li>
       <li><a href="index.html#_CPPv424omega_util_BOM_to_buffer11omega_bom_t">omega_util_BOM_to_buffer (C++ function)</a>
 </li>
-      <li><a href="index.html#_CPPv424omega_util_BOM_to_string11omega_bom_t">omega_util_BOM_to_string (C++ function)</a>
+      <li><a href="index.html#_CPPv425omega_util_BOM_to_cstring11omega_bom_t">omega_util_BOM_to_cstring (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv427omega_util_byte_transform_t">omega_util_byte_transform_t (C++ type)</a>
 </li>
@@ -398,6 +409,8 @@
       <li><a href="index.html#_CPPv427omega_util_count_charactersPKh6size_tP24omega_character_counts_t">omega_util_count_characters (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv427omega_util_create_directoryPKc">omega_util_create_directory (C++ function)</a>
+</li>
+      <li><a href="index.html#_CPPv425omega_util_cstring_to_BOMPKc">omega_util_cstring_to_BOM (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv431omega_util_detect_BOM_from_filePKc">omega_util_detect_BOM_from_file (C++ function)</a>
 </li>
@@ -440,8 +453,6 @@
       <li><a href="index.html#_CPPv422omega_util_remove_filePKc">omega_util_remove_file (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv429omega_util_right_shift_bufferP12omega_byte_t7int64_t12omega_byte_ti">omega_util_right_shift_buffer (C++ function)</a>
-</li>
-      <li><a href="index.html#_CPPv424omega_util_string_to_BOMPKc">omega_util_string_to_BOM (C++ function)</a>
 </li>
       <li><a href="index.html#_CPPv418omega_util_strncmpPKcPKc8uint64_t">omega_util_strncmp (C++ function)</a>
 </li>
@@ -536,14 +547,6 @@
       <li><a href="index.html#c.OPEN">OPEN (C macro)</a>
 </li>
       <li><a href="index.html#c.ORIGINAL_MODIFIED">ORIGINAL_MODIFIED (C macro)</a>
-</li>
-  </ul></td>
-</tr></table>
-
-<h2 id="P">P</h2>
-<table style="width: 100%" class="indextable genindextable"><tr>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="index.html#_CPPv415PROFILE_DOS_EOL">PROFILE_DOS_EOL (C++ member)</a>
 </li>
   </ul></td>
 </tr></table>
