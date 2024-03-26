@@ -22,7 +22,7 @@
 - Scala SPI for determing different build info
 - Scala gRPC reference implementation using Apache Pekko.
 
-## Copile and Install
+## Compile and Install
 
 For all of these subsections you will need to be inside of folder `server/scala`
 

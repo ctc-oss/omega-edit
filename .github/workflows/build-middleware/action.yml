@@ -86,20 +86,11 @@ runs:
       run: sbt headerCheckAll
       working-directory: server/scala
 
-    - name: Package Scala API - Non windows 🎁
+    - name: Package Scala API 🎁
       shell: bash
-      run: sbt installM2 # runs test so specifically running sbt test not needed  # TODO: Make sure tests run on windows
-      if: inputs.runner-os != 'Windows'
+      run: sbt installM2 # runs test so specifically running sbt test not needed
       working-directory: server/scala
       # timeout-minutes: 30
-  
-    - name: Package Scala Native - Windows 🎁
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      if: inputs.runner-os == 'Windows'  # TODO: Remove, current workaround so we can download all OS jars from tests for release
-      run: sbt native/publishM2
-      working-directory: server/scala
 
     # - name: Archive M2 🔺
     #   uses: actions/upload-artifact@v4
@@ -112,7 +103,6 @@ runs:
     - name: Test Scala RPC server 📋
       shell: bash
       run: sbt serv/test
-      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
       working-directory: server/scala
       # timeout-minutes: 30
 
@@ -121,13 +111,11 @@ runs:
       shell: bash
 
     - name: Yarn Package - Server 📦
-      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
       run: yarn workspace @omega-edit/server package
       shell: bash
       # timeout-minutes: 30
 
     - name: Yarn Test - Client 🧑‍💼
-      if: inputs.runner-os != 'Windows' # TODO: Make sure tests run on windows
       run: yarn workspace @omega-edit/client test
       shell: bash
       # timeout-minutes: 30
