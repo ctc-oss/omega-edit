@@ -164,11 +164,11 @@ omega_bom_t omega_util_detect_BOM_from_file(const char *filename);
 /**
  * Convert the given byte order mark (BOM) to a string
  * @param bom byte order mark (BOM) to convert
- * @return string representation of the given BOM ("none", "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE")
+ * @return C-string representation of the given BOM ("none", "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE")
  */
-char const *omega_util_BOM_to_string(omega_bom_t bom);
+char const *omega_util_BOM_to_cstring(omega_bom_t bom);
 
-omega_bom_t omega_util_string_to_BOM(char const *str);
+omega_bom_t omega_util_cstring_to_BOM(char const *str);
 
 /**
  * Count the number of single byte, and multi-byte characters in the given data

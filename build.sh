@@ -26,7 +26,15 @@ build_docs=${build_docs:-"NO"}
 install_dir="${PWD}/_install"
 cmake_extra_args=""
 
+if [[ -n "$toolchain" && -z "$toolchain_file" ]]; then
+  toolchain_file="${PWD}/toolchains/${toolchain}.cmake"
+fi
+
 if [[ -n "$toolchain_file" ]]; then
+  if [[ ! -f "$toolchain_file" ]]; then
+    echo "Toolchain file not found: $toolchain_file"
+    exit 1
+  fi
   cmake_extra_args=-DCMAKE_TOOLCHAIN_FILE=${toolchain_file}
 fi
 

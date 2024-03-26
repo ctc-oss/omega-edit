@@ -32,10 +32,10 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
 endif ()
 
-if(WIN32)
+if (WIN32)
     # Shared library prefix for Windows does not include "lib" by convention
     set(CMAKE_SHARED_LIBRARY_PREFIX "")
-endif()
+endif ()
 
 # Check platform features
 include(CheckFunctionExists)
@@ -76,10 +76,10 @@ if (BUILD_TESTS)
     # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DDL when running tests
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
-        Catch2
-        GIT_SHALLOW TRUE
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.3
+            Catch2
+            GIT_SHALLOW TRUE
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.5.3
     )
     FetchContent_MakeAvailable(Catch2)
     list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")

@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
                                    omega_session_detect_BOM(session_ptr, 0));
 
     printf("File: %s, BOM: %s\n", argv[1],
-           omega_util_BOM_to_string(omega_character_counts_get_BOM(character_counts_ptr)));
+           omega_util_BOM_to_cstring(omega_character_counts_get_BOM(character_counts_ptr)));
     printf("  Single-byte characters: %" PRId64 "\n", omega_character_counts_single_byte_chars(character_counts_ptr));
     printf("  Double-byte characters: %" PRId64 "\n", omega_character_counts_double_byte_chars(character_counts_ptr));
     printf("  Triple-byte characters: %" PRId64 "\n", omega_character_counts_triple_byte_chars(character_counts_ptr));

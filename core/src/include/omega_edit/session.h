@@ -36,11 +36,26 @@ extern "C" {
 
 #endif
 
+/** Size of the byte frequency profile in bytes. */
+#define OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE (257)
+
 /** Index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile. */
-const size_t PROFILE_DOS_EOL = 256;
+#define OMEGA_EDIT_PROFILE_DOS_EOL (256)
 
 /** Byte frequency profile */
-typedef int64_t omega_byte_frequency_profile_t[257];
+typedef int64_t omega_byte_frequency_profile_t[OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE];
+
+/**
+ * Get the size of the byte frequency profile in bytes
+ * @return size of the byte frequency profile in bytes
+ */
+int omega_session_byte_frequency_profile_size();
+
+/**
+ * Get the index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile
+ * @return index for the DOS end-of-line byte pair (CR LF) in the byte frequency profile
+ */
+int omega_session_byte_frequency_profile_dos_eol_index();
 
 /**
  * Given a session, return the file path being edited (if known)

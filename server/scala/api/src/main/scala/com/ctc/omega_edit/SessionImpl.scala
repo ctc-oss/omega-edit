@@ -18,13 +18,12 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api.Change.{Changed, Result}
 import com.ctc.omega_edit.api._
-import jnr.ffi.Pointer
+import jnr.ffi.{Memory, Pointer}
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Path, Paths}
 import scala.util.{Failure, Success, Try}
-
 import org.apache.tika.detect.DefaultDetector
 import org.apache.tika.langdetect.optimaize.OptimaizeLangDetector
 import org.apache.tika.metadata.Metadata
@@ -204,7 +203,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
     }
   }
   def detectByteOrderMark(offset: Long): String =
-    i.omega_util_BOM_to_string(i.omega_session_detect_BOM(p, offset))
+    i.omega_util_BOM_to_cstring(i.omega_session_detect_BOM(p, offset)).getString(0)
 
   def detectByteOrderMark: String =
     detectByteOrderMark(0)
@@ -212,12 +211,17 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   def byteOrderMarkSize(bom: Int): Long =
     i.omega_util_BOM_size(bom)
   def byteOrderMarkSize(bom: String): Long =
-    byteOrderMarkSize(i.omega_util_string_to_BOM(bom))
+    byteOrderMarkSize(i.omega_util_cstring_to_BOM(bom))
 
   def profile(offset: Long, length: Long): Either[Int, Array[Long]] = {
-    val profile = new Array[Long](257) // 256 bytes (0 - 255), plus 1 (256) for the DOS EOL '\r\n' pairs
-    i.omega_session_byte_frequency_profile(p, profile, offset, length) match {
-      case 0      => Right(profile)
+    lazy val ProfileSize = i.omega_session_byte_frequency_profile_size()
+    val profilePtr = Memory.allocateDirect(p.getRuntime, ProfileSize * 8)
+    i.omega_session_byte_frequency_profile(p, profilePtr, offset, length) match {
+      case 0 => // success
+        val profile = new Array[Long](ProfileSize)
+        for (i <- 0 until ProfileSize)
+          profile(i) = profilePtr.getLong(i.toLong * 8L)
+        Right(profile)
       case result => Left(result)
     }
   }
@@ -229,7 +233,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         case 0 =>
           Right(
             CharCounts(
-              i.omega_util_BOM_to_string(i.omega_character_counts_get_BOM(pCounts)),
+              i.omega_util_BOM_to_cstring(i.omega_character_counts_get_BOM(pCounts)).getString(0),
               i.omega_character_counts_bom_bytes(pCounts),
               i.omega_character_counts_single_byte_chars(pCounts),
               i.omega_character_counts_double_byte_chars(pCounts),
@@ -245,7 +249,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
   }
 
   def charCount(offset: Long, length: Long, bom: String): Either[Int, CharCounts] =
-    charCount(offset, length, i.omega_util_string_to_BOM(bom))
+    charCount(offset, length, i.omega_util_cstring_to_BOM(bom))
 
   def search(
       pattern: Array[Byte],
@@ -303,7 +307,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         val stream = new java.io.ByteArrayInputStream(segment.data)
         val mediaType = detector.detect(stream, metadata)
         mediaType.toString
-      case None => throw new RuntimeException("Failed to get segment")
+      case None => throw new RuntimeException(s"Failed to get segment at offset $offset and length $length")
     }
 
   def detectLanguage(offset: Long, length: Long, bom: String): String =
@@ -318,7 +322,7 @@ private[omega_edit] class SessionImpl(p: Pointer, i: FFI) extends Session {
         val languageResult = detector.detect(content) // Noq metadata argument
         if (languageResult.isReasonablyCertain) languageResult.getLanguage.toString else "unknown"
 
-      case None => throw new RuntimeException("Failed to get segment")
+      case None => throw new RuntimeException(s"Failed to get segment at offset $offset and length $length")
     }
 
   def destroy(): Unit =
