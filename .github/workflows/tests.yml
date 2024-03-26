@@ -35,8 +35,7 @@ jobs:
 
       - name: Convert runner arch to lower
         shell: bash
-        run: |
-          echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
+        run: echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build Native ${{ matrix.os }}
         uses: ./.github/workflows/build-native
