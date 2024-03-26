@@ -16,6 +16,7 @@
 
 package com.ctc.omega_edit
 
+import com.ctc.omega_edit.FFI.i
 import com.ctc.omega_edit.api.Change.Changed
 import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.support.SessionSupport
@@ -254,6 +255,24 @@ class SessionImplSpec extends AnyWordSpec with Matchers with SessionSupport {
           prof(6) shouldBe 0
         case Left(errorCode) =>
           fail(s"Failed to retrieve profile. Error code: $errorCode")
+      }
+    }
+  }
+
+  "byte order mark" should {
+    "be decoded" in session(numbers) { s =>
+      val bomString = i.omega_util_BOM_to_cstring(i.omega_util_cstring_to_BOM("Utf-8")).getString(0)
+      bomString shouldBe "UTF-8"
+      s.charCount(0, 0, bom = i.omega_util_cstring_to_BOM(bomString)) match {
+        case Right(chars) =>
+          chars.bomBytes shouldBe 0
+          chars.singleByteChars shouldBe 9
+          chars.doubleByteChars shouldBe 0
+          chars.tripleByteChars shouldBe 0
+          chars.quadByteChars shouldBe 0
+          chars.invalidBytes shouldBe 0
+        case Left(errorCode) =>
+          fail(s"Failed to retrieve character counts. Error code: $errorCode")
       }
     }
   }

@@ -55,7 +55,7 @@ int omega_util_compute_mode(int mode) {
 #ifdef OMEGA_BUILD_WINDOWS
     // Convert Unix-style mode bits to the equivalent Windows style
     int winMode = 0;
-    if (mode & 0400) winMode |= _S_IREAD; // Owner read
+    if (mode & 0400) winMode |= _S_IREAD;// Owner read
     if (mode & 0200) winMode |= _S_IWRITE;// Owner write
     return winMode;
 #else
@@ -74,9 +74,7 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
     while (remaining) {
         const int64_t count = (int64_t) sizeof(buff) > remaining ? remaining : (int64_t) sizeof(buff);
         if (count != (int64_t) fread(buff, sizeof(omega_byte_t), count, from_file_ptr) ||
-            count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) {
-            break;
-        }
+            count != (int64_t) fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr)) { break; }
         remaining -= count;
     }
     return byte_count - remaining;
@@ -85,11 +83,11 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right, int fill_bit) {
     assert(buffer != NULL);
     if (shift_right <= 0 || shift_right >= 8) {
-        return -1; // Invalid shift amount
+        return -1;// Invalid shift amount
     }
 
     if (fill_bit != 0 && fill_bit != 1) {
-        return -2; // Invalid fill bit
+        return -2;// Invalid fill bit
     }
 
     // Now perform the right shift across the buffer
@@ -107,11 +105,11 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left, int fill_bit) {
     assert(buffer != NULL);
     if (shift_left <= 0 || shift_left >= 8) {
-        return -1; // Invalid shift amount
+        return -1;// Invalid shift amount
     }
 
     if (fill_bit != 0 && fill_bit != 1) {
-        return -2; // Invalid fill bit
+        return -2;// Invalid fill bit
     }
 
     // Now perform the left shift across the buffer
@@ -215,17 +213,13 @@ omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_ma
 
 int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
     int rc = 0;
-    for (uint64_t i = 0; i < sz; ++i) {
-        if (0 != (rc = s1[i] - s2[i])) break;
-    }
+    for (uint64_t i = 0; i < sz; ++i) { if (0 != (rc = s1[i] - s2[i])) break; }
     return rc;
 }
 
 int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
     int rc = 0;
-    for (uint64_t i = 0; i < sz; ++i) {
-        if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break;
-    }
+    for (uint64_t i = 0; i < sz; ++i) { if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break; }
     return rc;
 }
 
@@ -241,23 +235,17 @@ char *omega_util_strndup(const char *s, size_t len) {
 const void *omega_util_memrchr(const void *s, int c, size_t n) {
     if (n >= 1) {
         const unsigned char *cp = (const unsigned char *) s;
-        for (const unsigned char *p = cp + n; p-- > cp;) {
-            if (*p == c) { return p; }
-        }
+        for (const unsigned char *p = cp + n; p-- > cp;) { if (*p == c) { return p; } }
     }
     return NULL;
 }
 
 omega_bom_t omega_util_detect_BOM_from_memory(const unsigned char *data, size_t length) {
-    if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) {
-        return BOM_UTF8;
-    } else if (length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
+    if (length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) { return BOM_UTF8; } else if (
+        length >= 2 && data[0] == 0xFF && data[1] == 0xFE) {
         return (length >= 4 && data[2] == 0x00 && data[3] == 0x00) ? BOM_UTF32LE : BOM_UTF16LE;
-    } else if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF) {
-        return BOM_UTF16BE;
-    } else if (length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) {
-        return BOM_UTF32BE;
-    }
+    } else if (length >= 2 && data[0] == 0xFE && data[1] == 0xFF) { return BOM_UTF16BE; } else if (
+        length >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0xFE && data[3] == 0xFF) { return BOM_UTF32BE; }
     return BOM_NONE;
 }
 
@@ -275,7 +263,7 @@ omega_bom_t omega_util_detect_BOM_from_file(const char *filename) {
     return omega_util_detect_BOM_from_memory(bom, bytesRead);
 }
 
-char const *omega_util_BOM_to_string(omega_bom_t bom) {
+char const *omega_util_BOM_to_cstring(omega_bom_t bom) {
     switch (bom) {
         case BOM_NONE:
             return "none";
@@ -289,27 +277,20 @@ char const *omega_util_BOM_to_string(omega_bom_t bom) {
             return "UTF-32LE";
         case BOM_UTF32BE:
             return "UTF-32BE";
-        case BOM_UNKNOWN:// fall through
+        case BOM_UNKNOWN: // fall through
         default:
             // Should never happen
             return "unknown";
     }
 }
 
-omega_bom_t omega_util_string_to_BOM(char const *str) {
-    if (0 == omega_util_strnicmp(str, "none", 4)) {
-        return BOM_NONE;
-    } else if (0 == omega_util_strnicmp(str, "UTF-8", 5)) {
-        return BOM_UTF8;
-    } else if (0 == omega_util_strnicmp(str, "UTF-16LE", 8)) {
-        return BOM_UTF16LE;
-    } else if (0 == omega_util_strnicmp(str, "UTF-16BE", 8)) {
-        return BOM_UTF16BE;
-    } else if (0 == omega_util_strnicmp(str, "UTF-32LE", 8)) {
-        return BOM_UTF32LE;
-    } else if (0 == omega_util_strnicmp(str, "UTF-32BE", 8)) {
-        return BOM_UTF32BE;
-    }
+omega_bom_t omega_util_cstring_to_BOM(char const *str) {
+    if (0 == omega_util_strnicmp(str, "none", 4)) { return BOM_NONE; } else if (
+        0 == omega_util_strnicmp(str, "UTF-8", 5)) { return BOM_UTF8; } else if (
+        0 == omega_util_strnicmp(str, "UTF-16LE", 8)) { return BOM_UTF16LE; } else if (
+        0 == omega_util_strnicmp(str, "UTF-16BE", 8)) { return BOM_UTF16BE; } else if (
+        0 == omega_util_strnicmp(str, "UTF-32LE", 8)) { return BOM_UTF32LE; } else if (
+        0 == omega_util_strnicmp(str, "UTF-32BE", 8)) { return BOM_UTF32BE; }
     return BOM_UNKNOWN;
 }
 
@@ -373,7 +354,7 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
     size_t i = 0;
     switch (counts_ptr->bom) {
         case BOM_UNKNOWN:// fall through, assume UTF-8 if the BOM is unknown
-        case BOM_NONE:   // fall through, assume UTF-8 if the BOM is none
+        case BOM_NONE:// fall through, assume UTF-8 if the BOM is none
         case BOM_UTF8:
             while (i < length) {
                 if ((data[i] & 0x80) == 0) {
@@ -416,14 +397,14 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
             while (i + 1 < length) {
                 // Swap the bytes if the BOM is little endian
                 const uint16_t char16 = counts_ptr->bom == BOM_UTF16LE
-                                        ? (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8
-                                        : (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
+                                            ? (uint16_t) (data[i]) | (uint16_t) (data[i + 1]) << 8
+                                            : (uint16_t) (data[i]) << 8 | (uint16_t) (data[i + 1]);
 
                 if (is_lead_surrogate_UTF16_(char16)) {
                     if (i + 3 < length) {
                         const uint16_t next_char16 = counts_ptr->bom == BOM_UTF16LE
-                                                     ? (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8
-                                                     : (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
+                                                         ? (uint16_t) (data[i + 2]) | (uint16_t) (data[i + 3]) << 8
+                                                         : (uint16_t) (data[i + 2]) << 8 | (uint16_t) (data[i + 3]);
                         if (is_low_surrogate_UTF16_(next_char16)) {
                             ++counts_ptr->doubleByteChars;
                             i += 4;// skip the low surrogate as well
@@ -433,7 +414,7 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
                         }
                     } else {
                         ++counts_ptr->invalidBytes;// incomplete surrogate pair at end of data
-                        break;                     // exit loop
+                        break;// exit loop
                     }
                 } else if (is_low_surrogate_UTF16_(char16)) {
                     ++counts_ptr->invalidBytes;// low surrogate without preceding high surrogate
@@ -454,8 +435,8 @@ void omega_util_count_characters(const unsigned char *data, size_t length, omega
                 // Swap the bytes if the BOM is little endian
                 const uint32_t char32 =
                         counts_ptr->bom == BOM_UTF32LE
-                        ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
-                        : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
+                            ? (data[i] | (data[i + 1] << 8) | (data[i + 2] << 16) | (data[i + 3] << 24))
+                            : ((data[i] << 24) | (data[i + 1] << 16) | (data[i + 2] << 8) | data[i + 3]);
 
                 if ((char32 >= 0xD800 && char32 <= 0xDFFF) || char32 > 0x10FFFF) {
                     ++counts_ptr->invalidBytes;// surrogate pairs and characters above 0x10FFFF are invalid in UTF-32
@@ -487,7 +468,7 @@ size_t omega_util_BOM_size(omega_bom_t bom) {
         case BOM_UTF32LE:// fall through
         case BOM_UTF32BE:
             return 4;
-        case BOM_NONE:// fall through
+        case BOM_NONE: // fall through
         default:
             return 0;
     }
@@ -511,8 +492,8 @@ const omega_byte_buffer_t *omega_util_BOM_to_buffer(omega_bom_t bom) {
             return &utf32le_bom;
         case BOM_UTF32BE:
             return &utf32be_bom;
-        case BOM_NONE:   // fall through
-        case BOM_UNKNOWN:// fall through
+        case BOM_NONE:// fall through
+        case BOM_UNKNOWN: // fall through
         default:
             return NULL;
     }

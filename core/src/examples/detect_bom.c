@@ -21,6 +21,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     omega_bom_t bom = omega_util_detect_BOM_from_file(argv[1]);
-    printf("File: %s, BOM: %s\n", argv[1], omega_util_BOM_to_string(bom));
+    printf("File: %s, BOM: %s\n", argv[1], omega_util_BOM_to_cstring(bom));
     return 0;
 }

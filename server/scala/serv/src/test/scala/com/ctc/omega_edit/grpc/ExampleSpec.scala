@@ -139,6 +139,7 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
       val testString =
         ByteString.copyFromUtf8("5555544443332210122333444455555\n\r\n")
       val len = testString.size()
+      val bom = "none"
       for {
         _ <- service.submitChange(
           ChangeRequest(
@@ -150,14 +151,14 @@ class ExampleSpec extends AsyncWordSpecLike with Matchers with EditorServiceSupp
           )
         )
         charCountResponse <- service.getCharacterCounts(
-          TextRequest(sid, offset = 0L, length = len.toLong, byteOrderMark = "none")
+          TextRequest(sid, offset = 0L, length = len.toLong, byteOrderMark = bom)
         )
       } yield charCountResponse should matchPattern {
         case CharacterCountResponse(
               `sid`,
               0L,
               `len`,
-              "none",
+              `bom`,
               0L,
               `len`,
               0L,

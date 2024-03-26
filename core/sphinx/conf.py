@@ -96,7 +96,7 @@ html_theme_options = {
 html_static_path = ['_static']
 
 # RTD Theme Options
-html_logo="_static/OmegaEditLogo.png"
+html_logo = "_static/OmegaEditLogo.png"
 
 # Breathe Configuration
 breathe_default_project = "omega_edit"

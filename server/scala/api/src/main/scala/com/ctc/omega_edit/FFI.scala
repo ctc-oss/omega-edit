@@ -18,6 +18,7 @@ package com.ctc.omega_edit
 
 import com.ctc.omega_edit.api._
 import com.ctc.omega_edit.spi.{NativeBuildInfo, NativeInfoNotFound, PlatformInfoLoader, VersionMismatch}
+import jnr.ffi.types.int64_t
 import jnr.ffi.{LibraryLoader, Pointer}
 
 import java.nio.file.{Files, Paths}
@@ -114,15 +115,17 @@ private[omega_edit] trait FFI {
   def omega_session_get_num_change_transactions(p: Pointer): Long
   def omega_session_get_num_undone_change_transactions(p: Pointer): Long
   def omega_session_detect_BOM(p: Pointer, offset: Long): Int
-  def omega_util_BOM_to_string(bom: Int): String
-  def omega_util_string_to_BOM(bom: String): Int
+  def omega_util_BOM_to_cstring(bom: Int): Pointer
+  def omega_util_cstring_to_BOM(bom: String): Int
   def omega_util_BOM_size(bom: Int): Long
+
+  def omega_session_byte_frequency_profile_size(): Int
 
   def omega_session_byte_frequency_profile(
       p: Pointer,
-      profile: Array[Long],
-      offset: Long,
-      length: Long
+      profile: Pointer,
+      @int64_t offset: Long,
+      @int64_t length: Long
   ): Int
   def omega_character_counts_create(): Pointer
   def omega_character_counts_destroy(p: Pointer): Unit
@@ -243,6 +246,7 @@ private[omega_edit] object FFI {
 
     lazy val sharedLibraryPath = NativeBuildInfo.getSharedLibraryPath(native)
     lazy val sharedLibraryName = NativeBuildInfo.sharedLibraryName
+    var tempDir = "unassigned"
 
     try {
       logger.fine(s"extracting ${sharedLibraryPath}")
@@ -251,6 +255,7 @@ private[omega_edit] object FFI {
       )
 
       val tmpdir = Files.createTempDirectory(nativeLibraryName).toFile
+      tempDir = tmpdir.toString
       val tmpfile = Paths.get(tmpdir.toString, sharedLibraryName).toFile
       tmpfile.deleteOnExit()
       tmpdir.deleteOnExit()
@@ -266,7 +271,7 @@ private[omega_edit] object FFI {
     } catch {
       case e: Exception =>
         throw new RuntimeException(
-          s"Failed to load OmegaEdit native library from ${sharedLibraryPath}",
+          s"Failed to load OmegaEdit native library '${nativeLibraryName}' from '${tempDir}'",
           e
         )
     }

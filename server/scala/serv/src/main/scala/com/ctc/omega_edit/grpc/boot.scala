@@ -83,6 +83,7 @@ class boot(iface: String, port: Int, pidfile: String) {
   def run(): Unit = {
     val v = OmegaEdit.version()
     val pid = getServerPID()
+    val servInfo = s"Ωedit gRPC server (v${v.major}.${v.minor}.${v.patch}) with PID $pid"
 
     // write the PID to the pidfile (if specified)
     if (pidfile != null) {
@@ -97,14 +98,9 @@ class boot(iface: String, port: Int, pidfile: String) {
     val done =
       for {
         binding <- EditorService.bind(iface = iface, port = port)
-
-        _ = println(
-          s"gRPC server (v${v.major}.${v.minor}.${v.patch}) bound to: ${binding.localAddress} with PID: $pid"
-        )
-
+        _ = println(s"${servInfo} bound to ${binding.localAddress}: ready...")
         done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
-
-        _ = println(s"gRPC server with PID $pid exiting...")
+        _ = println(s"${servInfo} bound to ${binding.localAddress}: exiting...")
       } yield done
 
     Await.result(done, atMost = Duration.Inf)
