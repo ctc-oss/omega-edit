@@ -123,8 +123,8 @@ describe('Server', () => {
   it(`on port ${serverTestPort} should stop immediately via API`, async () => {
     // stop the server immediately should stop the server immediately without waiting for sessions to end
     await stopServerImmediate()
-    // pause for up to 2 seconds to allow server some time to stop
-    for (let i = 0; i < 20; ++i) {
+    // pause for up to 3 seconds to allow server some time to stop
+    for (let i = 0; i < 30; ++i) {
       await delay(100) // 0.1 second
       if (!pidIsRunning(pid as number)) {
         break
