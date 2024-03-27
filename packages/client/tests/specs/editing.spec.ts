@@ -147,6 +147,7 @@ describe('Editing', () => {
       expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
       expect(last_change.getSerial()).to.equal(1)
       expect(last_change.getLength()).to.equal(data.length)
+      expect(last_change.getData().length).to.equal(data.length)
       expect(last_change.getData_asU8().length).equals(data.length)
       expect(last_change.getData_asU8()).deep.equals(data)
       let overwrite_change_id = await overwrite(
