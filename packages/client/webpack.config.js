@@ -20,6 +20,8 @@
 const path = require('path')
 const CopyPlugin = require('copy-webpack-plugin')
 const { PinoWebpackPlugin } = require('pino-webpack-plugin')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const webpack = require('webpack') // to access built-in plugins
 const fs = require('fs')
 const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
   'version'
@@ -49,6 +51,8 @@ module.exports = {
     ],
   },
   plugins: [
+    new webpack.ProgressPlugin(),
+    new CleanWebpackPlugin(),
     new CopyPlugin({
       patterns: [
         'package.json',
