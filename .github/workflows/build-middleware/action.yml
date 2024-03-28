@@ -104,18 +104,15 @@ runs:
       shell: bash
       run: sbt serv/test
       working-directory: server/scala
-      # timeout-minutes: 30
 
     - name: Yarn Install 🏗️
-      run: yarn
       shell: bash
+      run: yarn
 
     - name: Yarn Package - Server 📦
-      run: yarn workspace @omega-edit/server package
       shell: bash
-      # timeout-minutes: 30
+      run: yarn workspace @omega-edit/server package
 
     - name: Yarn Test - Client 🧑‍💼
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/client test
-      shell: bash
-      # timeout-minutes: 30
