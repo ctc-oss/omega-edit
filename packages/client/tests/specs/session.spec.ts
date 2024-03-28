@@ -816,6 +816,10 @@ describe('Sessions', () => {
     expect(save_session_response.getFilePath()).to.equal(save1)
     fs.unlinkSync(save_session_response.getFilePath())
 
+    // pause for 1 second because that's the highest resolution supported by
+    // Windows file timestamps
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
     // touch the original file to simulate an out-of-band change
     touch(testFile)
 
@@ -860,9 +864,13 @@ describe('Sessions', () => {
   })
 
   it('Should be able to handle multiple simultaneous sessions', async () => {
+    expect(await getSessionCount()).to.equal(0)
     const session1 = await createSession()
-    const session_id1 = session1.getSessionId()
+    expect(await getSessionCount()).to.equal(1)
     const session2 = await createSession()
+    expect(await getSessionCount()).to.equal(2)
+
+    const session_id1 = session1.getSessionId()
     const session_id2 = session2.getSessionId()
     expect(session_id1).to.not.equal(session_id2)
     expect(session1.hasFileSize()).to.be.false

@@ -16,6 +16,7 @@
 # to native line endings on checkout.
 *.bat text
 *.c text
+*.cmake text
 *.cpp text
 *.gyp text
 *.h text
@@ -24,6 +25,8 @@
 *.js text
 *.json text
 *.md text
+*.proto text
+*.scala text
 *.sh text
 *.ts text
 *.yml text
@@ -32,3 +35,7 @@
 # Denote all files that are truly binary and should not be modified.
 *.dat binary
 *.png binary
+
+# Test data files should not be modified.
+core/src/tests/data/* binary
+packages/client/tests/specs/data/* binary

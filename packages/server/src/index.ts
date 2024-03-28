@@ -79,7 +79,7 @@ const getBinFolderPath = (baseDir: string) => {
 async function executeServer(args: string[]): Promise<ChildProcess> {
   const serverScript = path.join(
     getBinFolderPath(path.resolve(__dirname)),
-    os.platform() === 'win32'
+    os.platform() === 'win32' && !process.env.SHELL?.includes('bash')
       ? 'omega-edit-grpc-server.bat'
       : 'omega-edit-grpc-server'
   )

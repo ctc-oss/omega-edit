@@ -93,7 +93,7 @@ private[omega_edit] trait FFI {
   def omega_session_get_last_change(p: Pointer): Pointer
   def omega_session_get_last_undo(p: Pointer): Pointer
   def omega_session_get_num_changes(p: Pointer): Long
-  def omega_session_get_checkpoint_directory(p: Pointer): String
+  def omega_session_get_checkpoint_directory(p: Pointer): Pointer
   def omega_session_get_checkpoint_directory_length(p: Pointer): Long
   def omega_session_get_num_checkpoints(p: Pointer): Long
   def omega_session_get_num_undone_changes(p: Pointer): Long
@@ -170,7 +170,7 @@ private[omega_edit] trait FFI {
   def omega_change_get_serial(p: Pointer): Long
   def omega_change_get_offset(p: Pointer): Long
   def omega_change_get_length(p: Pointer): Long
-  def omega_change_get_bytes(p: Pointer): String
+  def omega_change_get_bytes(p: Pointer): Pointer
   def omega_change_get_kind_as_char(p: Pointer): Byte
 
   // search
@@ -219,18 +219,6 @@ private[omega_edit] trait FFI {
   def omega_segment_get_offset_adjustment(p: Pointer): Long
   def omega_segment_get_data(p: Pointer): Pointer
   def omega_segment_destroy(p: Pointer): Unit
-
-  // find
-
-  def omega_find_create_skip_table(needle: String, needleLength: Long, reverseSearch: Boolean): Pointer
-  def omega_find(
-      haystack: String,
-      length: Long,
-      p: Pointer,
-      needle: String,
-      needleLength: Long
-  ): String
-  def omega_find_destroy_skip_table(p: Pointer): Unit
 }
 
 /** Provides the FFI, initialized from the native contract and the OmegaEdit shared library

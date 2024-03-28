@@ -130,6 +130,7 @@ describe('Editing', () => {
     it('Should overwrite some data', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
       const data: Uint8Array = Buffer.from('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
+      expect(data.length).equals(27)
       const stats = new EditStats()
       let change_id = await overwrite(session_id, 0, data, stats)
       expect(stats.overwrite_count).to.equal(1)
@@ -141,12 +142,14 @@ describe('Editing', () => {
       let file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
       let last_change = await getLastChange(session_id)
-      expect(last_change.getData_asU8()).deep.equals(data)
+      expect(last_change.getSessionId()).to.equal(session_id)
       expect(last_change.getOffset()).to.equal(0)
       expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
       expect(last_change.getSerial()).to.equal(1)
-      expect(last_change.getLength()).to.equal(27)
-      expect(last_change.getSessionId()).to.equal(session_id)
+      expect(last_change.getLength()).to.equal(data.length)
+      expect(last_change.getData().length).to.equal(data.length)
+      expect(last_change.getData_asU8().length).equals(data.length)
+      expect(last_change.getData_asU8()).deep.equals(data)
       let overwrite_change_id = await overwrite(
         session_id,
         13,

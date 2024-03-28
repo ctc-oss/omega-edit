@@ -22,15 +22,25 @@ import jnr.ffi.Pointer
 private[omega_edit] class ChangeImpl(p: Pointer, i: FFI) extends Change {
   require(p != null, "native change pointer was null")
 
-  val id: Long = i.omega_change_get_serial(p)
+  lazy val id: Long = i.omega_change_get_serial(p)
 
-  val offset: Long = i.omega_change_get_offset(p)
+  lazy val offset: Long = i.omega_change_get_offset(p)
 
-  val length: Long = i.omega_change_get_length(p)
+  lazy val length: Long = i.omega_change_get_length(p)
 
-  lazy val data: Array[Byte] = i.omega_change_get_bytes(p).getBytes()
+  lazy val data: Array[Byte] = {
+    val dataPointer = Option(i.omega_change_get_bytes(p))
+    dataPointer match {
+      case Some(pointer) =>
+        val dataArray = new Array[Byte](length.toInt)
+        pointer.get(0, dataArray, 0, length.toInt) // Read the data into the byte array
+        dataArray
+      case None =>
+        throw new IllegalStateException("Data pointer for change is null")
+    }
+  }
 
-  val operation: Change.Op = i.omega_change_get_kind_as_char(p).toChar match {
+  lazy val operation: Change.Op = i.omega_change_get_kind_as_char(p).toChar match {
     case 'D' => Change.Delete
     case 'I' => Change.Insert
     case 'O' => Change.Overwrite
