@@ -316,7 +316,6 @@ class Session(
       }
 
     case Unwatch =>
-      println(s"Unwatch sessionId $sessionId")
       session.eventInterest = 0
       sender() ! Ok(sessionId)
 
@@ -375,10 +374,8 @@ class Session(
       val offset = request.offset
       val length = request.length
       // emit log message before calling profile function
-      println(s"Profile request: offset=$offset, length=$length")
       session.profile(offset, length) match {
         case Right(profileArray) =>
-          println("Profile function succeeded, sending response")
           sender() ! ByteFrequencyProfileResponse.of(
             sessionId,
             offset,
@@ -386,7 +383,6 @@ class Session(
             ArraySeq.unsafeWrapArray(profileArray)
           )
         case Left(errorCode) =>
-          println(s"Profile function failed with error code: $errorCode")
           sender() ! Err(Status.UNKNOWN.withDescription(s"Profile function failed with error code: $errorCode"))
       }
 

@@ -176,6 +176,13 @@ describe('Viewports', () => {
     await checkCallbackCount(viewport_callbacks, viewport_1_id, 1)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 3)
     log_info(viewport_callbacks)
+    // Unsubscribe all viewporta
+    await unsubscribeViewport(viewport_1_id)
+    await unsubscribeViewport(viewport_2_id)
+    // Note the viewports are not destroyed, just unsubscribed
+    expect(await getViewportCount(session_id)).to.equal(1)
+    await destroyViewport(viewport_1_id)
+    expect(await getViewportCount(session_id)).to.equal(0)
   }).timeout(8000)
 
   it('Should handle floating viewports', async () => {
@@ -185,7 +192,7 @@ describe('Viewports', () => {
       Buffer.from('0123456789LABEL01234567890')
     )
     expect(change_id).to.equal(1)
-
+    expect(await getViewportCount(session_id)).to.equal(0)
     const viewport_response = await createViewport(
       'test_vpt_no_float',
       session_id,
@@ -194,6 +201,8 @@ describe('Viewports', () => {
     )
     const viewport_id = viewport_response.getViewportId()
     expect(await subscribeViewport(viewport_id)).to.equal(viewport_id)
+    expect(await getViewportCount(session_id)).to.equal(1)
+    expect(await viewportHasChanges(viewport_id)).to.be.false
     const viewport_floating_response = await createViewport(
       'test_vpt_label',
       session_id,
@@ -273,12 +282,22 @@ describe('Viewports', () => {
     expect(viewport_data.getLength()).to.equal(0)
     expect(viewport_data.getOffset()).to.equal(100)
     expect(viewport_data.getFollowingByteCount()).to.equal(-74)
+    await unsubscribeViewport(viewport_off_id)
+    await destroyViewport(viewport_off_id)
+    expect(await getViewportCount(session_id)).to.equal(2)
+    // unsubscribe all viewports
+    await unsubscribeViewport(viewport_id)
+    await unsubscribeViewport(viewport_floating_id)
+    await destroyViewport(viewport_id)
+    await destroyViewport(viewport_floating_id)
+    expect(await getViewportCount(session_id)).to.equal(0)
   }).timeout(8000)
 
   it('Should be able to scroll through an editing session', async () => {
     const capacity = 100
+    const desired_viewport_id = 'scroller'
     let viewport_response = await createViewport(
-      'scroller',
+      desired_viewport_id,
       session_id,
       0,
       capacity,
@@ -393,5 +412,12 @@ describe('Viewports', () => {
     expect(dataResponse.getData_asU8()).to.deep.equal(
       Buffer.from('WXYZ/0123456789abcde')
     )
+    expect(await getViewportCount(session_id)).to.equal(1)
+    // Unsubscribe the viewport
+    expect(await unsubscribeViewport(viewport_id)).to.equal(desired_viewport_id)
+    // Note the viewport is not destroyed, just unsubscribed
+    expect(await getViewportCount(session_id)).to.equal(1)
+    await destroyViewport(viewport_id)
+    expect(await getViewportCount(session_id)).to.equal(0)
   }).timeout(8000)
 })

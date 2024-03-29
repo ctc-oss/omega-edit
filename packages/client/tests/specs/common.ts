@@ -107,7 +107,7 @@ export async function subscribeSession(
   const client = await getClient()
   client
     .subscribeToSessionEvents(subscriptionRequest)
-    .on('data', (sessionEvent) => {
+    .on('data', (sessionEvent): void => {
       session_callbacks.set(
         session_id,
         session_callbacks.has(session_id)
@@ -137,11 +137,16 @@ export async function subscribeSession(
         )
       }
     })
-    .on('error', (err) => {
+    .on('error', (err: Error): void => {
       // Call cancelled thrown when server is shutdown
-      if (!err.message.includes('Call cancelled')) {
+      if (
+        !err.message.includes('Call cancelled') &&
+        !err.message.includes('ECONNRESET')
+      ) {
+        log_error('subscribeSession critical error: ' + err.message)
         throw err
       }
+      log_info('subscribeSession error: ' + err.message)
     })
 
   return session_id
@@ -158,7 +163,7 @@ export async function subscribeViewport(
   const client = await getClient()
   client
     .subscribeToViewportEvents(subscriptionRequest)
-    .on('data', (viewportEvent) => {
+    .on('data', (viewportEvent): void => {
       viewport_callbacks.set(
         viewport_id,
         viewport_callbacks.has(viewport_id)
@@ -194,11 +199,16 @@ export async function subscribeViewport(
         )
       }
     })
-    .on('error', (err) => {
+    .on('error', (err: Error): void => {
       // Call cancelled thrown when server is shutdown
-      if (!err.message.includes('Call cancelled')) {
+      if (
+        !err.message.includes('Call cancelled') &&
+        !err.message.includes('ECONNRESET')
+      ) {
+        log_error('subscribeViewport critical error: ' + err.message)
         throw err
       }
+      log_info('subscribeViewport error: ' + err.message)
     })
 
   return viewport_id
