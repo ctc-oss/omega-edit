@@ -123,8 +123,10 @@ jobs:
           echo "Rat Check Status: ${{ steps.rat-check.conclusion }}"
           echo "Scala Format Status: ${{ steps.scala-format.conclusion }}"
           echo "Typescript Format Status: ${{ steps.ts-format.conclusion }}"
-          echo "MacOS Test Status: ${{ steps.macos-tests.conclusion }}"
+          echo "MacOS 12 Test Status: ${{ steps.macos12-tests.outputs.conclusion }}"
+          echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outputs.conclusion }}"
           echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.conclusion }}"
+          echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.conclusion }}"
           echo "Windows Test Status: ${{ steps.windows-tests.conclusion }}"
           false
 
