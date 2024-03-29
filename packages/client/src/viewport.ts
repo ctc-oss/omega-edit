@@ -352,8 +352,10 @@ export async function unsubscribeViewport(
       .on('error', (err) => {
         // Call cancelled thrown when server is shutdown
         if (!err.message.includes('Call cancelled')) {
+          log.error('unsubscribeViewport critical error: ' + err.message)
           throw err
         }
+        log.info('unsubscribeViewport error: ' + err.message)
       })
   })
 }
