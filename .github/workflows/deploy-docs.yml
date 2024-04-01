@@ -37,7 +37,7 @@ jobs:
         run: |
           source venv/bin/activate
           pip install --upgrade pip
-          pip install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap sphinx-doc
+          pip install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap sphinx
       - name: Prepare and Build Documentation 🔧
         run: |
           source venv/bin/activate
