@@ -12,6 +12,7 @@
 ---
 name: Deploy Documentation
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -22,16 +23,24 @@ jobs:
     steps:
       - name: Install Prerequisites 📚
         run: |
-          brew install ninja doxygen graphviz sphinx-doc
-          sudo pip3 install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap
+          brew install ninja doxygen graphviz
       - name: Checkout Source 🛎️
         uses: actions/checkout@v4
       - name: Setup Python 🐍
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      - name: Create Virtual Environment 🌐
+        run: |
+          python -m venv venv
+      - name: Install Python Dependencies 📦
+        run: |
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install breathe sphinx_rtd_theme sphinx-rtd-dark-mode sphinx-sitemap sphinx
       - name: Prepare and Build Documentation 🔧
         run: |
+          source venv/bin/activate
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
           cmake --build build --target sphinx --config Release
           touch build/core/docs/sphinx/.nojekyll
