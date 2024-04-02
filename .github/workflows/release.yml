@@ -31,11 +31,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Count lines of code (CLOC) 📐
-        uses: djdefi/cloc-action@5
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "CLOC"
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        id: cloc
+        uses: djdefi/cloc-action@6
 
       - name: Check ratCheck ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
