@@ -40,7 +40,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Rat Check"
+          checkName: "Rat Check 🐀"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check Scala format ✅
@@ -49,7 +49,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Scala code is properly formatted"
+          checkName: "Scala Code Format"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       
       - name: Check TypeScript format ✅
@@ -87,7 +87,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Build middleware ubuntu-20.04 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      
+
       - name: Check tests - Windows ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: windows-tests
