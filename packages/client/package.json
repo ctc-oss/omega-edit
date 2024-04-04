@@ -3,9 +3,8 @@
   "version": "0.9.81",
   "description": "OmegaEdit gRPC Client",
   "publisher": "ctc-oss",
-  "exports": "./out/main.js",
-  "main": "./out/main.js",
-  "types": "./out/index.d.ts",
+  "main": "./main.js",
+  "types": "./index.d.ts",
   "repository": {
     "url": "https://github.com/ctc-oss/omega-edit",
     "type": "git"

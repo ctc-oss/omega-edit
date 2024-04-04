@@ -3,7 +3,6 @@
   "version": "0.9.81",
   "description": "OmegaEdit gRPC Server",
   "publisher": "ctc-oss",
-  "exports": "./out/index.js",
   "main": "./out/index.js",
   "types": "./out/index.d.ts",
   "repository": {
