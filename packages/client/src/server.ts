@@ -33,6 +33,7 @@ import {
   ServerControlResponse,
   ServerInfoResponse,
 } from './omega_edit_pb'
+import { IHeartbeatReceiver } from './registry'
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
@@ -681,6 +682,64 @@ export async function getServerHeartbeat(
         }
 
         const latency: number = Date.now() - startTime
+        resolve({
+          latency: latency,
+          sessionCount: heartbeatResponse.getSessionCount(),
+          serverTimestamp: heartbeatResponse.getTimestamp(),
+          serverUptime: heartbeatResponse.getUptime(),
+          serverCpuCount: heartbeatResponse.getCpuCount(),
+          serverCpuLoadAverage: heartbeatResponse.getCpuLoadAverage(),
+          serverMaxMemory: heartbeatResponse.getMaxMemory(),
+          serverCommittedMemory: heartbeatResponse.getCommittedMemory(),
+          serverUsedMemory: heartbeatResponse.getUsedMemory(),
+        })
+      }
+    )
+  })
+}
+
+export async function getServerHeartbeatFor(
+  receiver: IHeartbeatReceiver,
+  heartbeatInterval: number = 1000 
+): Promise<IServerHeartbeat> {
+  const log = getLogger()
+  const client = await getClient()
+  const hostname = require('os').hostname()
+  const startTime: number = Date.now()
+
+  return new Promise<IServerHeartbeat>((resolve, reject) => {
+    client.getHeartbeat(
+      new HeartbeatRequest()
+        .setHostname(hostname)
+        .setProcessId(process.pid)
+        .setHeartbeatInterval(heartbeatInterval),
+      (err, heartbeatResponse: HeartbeatResponse) => {
+        const logMetadata = { fn: 'getServerHeartbeat' }
+
+        if (err) {
+          log.error({
+            ...logMetadata,
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('getServerHeartbeat error: ' + err.message)
+        }
+
+        if (!heartbeatResponse) {
+          log.error({
+            ...logMetadata,
+            err: { msg: 'undefined heartbeat' },
+          })
+          return reject('undefined heartbeat')
+        }
+
+        const latency: number = Date.now() - startTime
+        // HeartbeatRegistry.update(receiver, {timestampMs: startTime, nextTimestampMs: startTime + heartbeatInterval})
+
         resolve({
           latency: latency,
           sessionCount: heartbeatResponse.getSessionCount(),
