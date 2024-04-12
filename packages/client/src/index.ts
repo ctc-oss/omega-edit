@@ -24,6 +24,7 @@ export * from './server'
 export * from './session'
 export * from './version'
 export * from './viewport'
+export { IHeartbeatReceiver } from './registry'
 
 // generated files from protoc
 export * from './omega_edit_grpc_pb'

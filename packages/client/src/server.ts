@@ -33,7 +33,7 @@ import {
   ServerControlResponse,
   ServerInfoResponse,
 } from './omega_edit_pb'
-import { IHeartbeatReceiver } from './registry'
+import { IHeartbeatReceiver, HeartbeatRegistry } from './registry'
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
@@ -738,7 +738,7 @@ export async function getServerHeartbeatFor(
         }
 
         const latency: number = Date.now() - startTime
-        // HeartbeatRegistry.update(receiver, {timestampMs: startTime, nextTimestampMs: startTime + heartbeatInterval})
+        HeartbeatRegistry.update(receiver, {failAfterMs: heartbeatInterval + latency})
 
         resolve({
           latency: latency,

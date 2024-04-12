@@ -1,97 +1,123 @@
-import { describe, it, Done } from "mocha";
-import { IHeartbeatReceiver, IHeartbeatRegistry, TimeInfo } from "../../src/registry"
-import EventEmitter from "events";
-import assert from "assert";
+import { afterEach, describe, it } from 'mocha'
+import { TimedRegistry } from './registryMock'
+import { IHeartbeatReceiver } from '../../src/registry'
+import assert from 'assert'
+import { IServerHeartbeat } from '../../src/server'
 
-class MockRegistry implements IHeartbeatRegistry {
-  private registry_: Map<IHeartbeatReceiver, TimeInfo> = new Map()
-  // private temporalRegistry_: Map<IHeartbeatReceiver, NodeJS.Timeout> = new Map()
-  private checkIntervalId: NodeJS.Timeout | undefined = undefined
-  private registryEventEmitter = new EventEmitter()
-  private eventName = 'empty'
-  private checkEvent = 'checked'
-  private checkIntervalMs: number = 3000
-  private toleranceMs: number = 3000
-
-  constructor(){
-  }
-  // Expected public event
-  onEmpty(listener: ()=>any) { this.registryEventEmitter.on(this.eventName, listener) }
-
-  // Mock-only events
-  _onCheck(listener: ()=>any) { this.registryEventEmitter.on(this.checkEvent, listener) }
-  _onRemoval(listener: (context: any)=>any){ this.registryEventEmitter.on('removal', listener) }
-  _onToleranceFailure(listener: (context: any)=>any){ this.registryEventEmitter.on('dead', listener) }
-
-  setTolerance(tolerance: number){ this.toleranceMs = tolerance }
-  tolerance(): number { return this.toleranceMs }
-  setCheckInterval(checkIntervalMs: number){ this.checkIntervalMs = checkIntervalMs }
-  checkInterval(): number { return this.checkIntervalMs }
-
-  update(receiver: IHeartbeatReceiver, expectNextInMs: number) { 
-    this.registry_.set(receiver, { nextTimestampMs: Date.now() + expectNextInMs })
-    if(!this.checkIntervalId)
-      this.checkIntervalId = setInterval(() => { this.check() }, this.checkIntervalMs)
-  }
-
-  remove(id: string) {
-    this.registry_.forEach((time, receiver) => {
-      if( receiver.id == id ) {
-        this.registry_.delete(receiver)
-        this.registryEventEmitter.emit('removal', receiver.id)
-      }
-    })
-    if(this.registry_.size == 0){
-      clearInterval(this.checkIntervalId)
-      this.checkIntervalId = undefined
-      this.registryEventEmitter.emit(this.eventName)
-    }
-  }
-
-  private check() {
-    this.registry_.forEach((time, receiver) => {
-      
-      if(!this.inTolerance(time)) {
-        this.registryEventEmitter.emit('dead')
-        this.remove(receiver.id)
-      }
-      this.registryEventEmitter.emit(this.checkEvent)
-    })
-  }
-  private inTolerance(time: TimeInfo): boolean {
-    console.log(`Tolerance Calc: ${Date.now()} - ${time.nextTimestampMs + this.toleranceMs} = ${Date.now() - time.nextTimestampMs + this.toleranceMs}`)
-    return Date.now() <= time.nextTimestampMs + this.toleranceMs
-  }
+const nullProcessFn = () => {}
+const receiverMocks: IHeartbeatReceiver[] = [
+  { id: 'abc-123', process: nullProcessFn },
+  { id: 'de1', process: nullProcessFn },
+  { id: 'dfdl-debug-de', process: nullProcessFn },
+]
+const mockServerHeartbeat: IServerHeartbeat = {
+  latency: 15, // latency in ms
+  sessionCount: 0, // session count
+  serverTimestamp: Date.now(), // timestamp in ms
+  serverUptime: 100, // uptime in ms
+  serverCpuCount: 4, // cpu count
+  serverCpuLoadAverage: 0, // cpu load average
+  serverMaxMemory: 16, // max memory in bytes
+  serverCommittedMemory: 2, // committed memory in bytes
+  serverUsedMemory: 2, // used memory in bytes
 }
 
-describe("Heartbeat Registry Functionality", function(){
-  const mockReceiver: IHeartbeatReceiver = {id: "abc123", process: (_) => {}}
+const registry = new TimedRegistry()
 
-  it("Should drop the receiver at the next check when out of tolerance", function(done){
-    const registry = new MockRegistry()
-    registry.setTolerance(500)
-    registry.setCheckInterval(250)
-
-    registry._onToleranceFailure((ctx) => {
-      assert(ctx.variance <= 550, `variance: ${ctx.variance}`)
-      done()
-    })
-    registry.update(mockReceiver, 500)
+const getServerHeartbeatMock = (
+  receiver: IHeartbeatReceiver,
+  heartbeatInterval: number = 1000
+): Promise<IServerHeartbeat> => {
+  return new Promise((resolve) => {
+    registry.update(receiver, { failAfterMs: heartbeatInterval })
+    receiver.process(mockServerHeartbeat)
+    resolve(mockServerHeartbeat)
   })
+}
+class HeartbeatRetention implements IHeartbeatReceiver {
+  id: string = 'retention'
+  private last: IServerHeartbeat | undefined = undefined
+  process(heartbeat: IServerHeartbeat) {
+    this.last = heartbeat
+  }
+  getLast(): IServerHeartbeat {
+    return this.last!
+  }
+}
+const LastHeartbeatKeeper = new HeartbeatRetention()
 
-  it("Should emit an event when receiver count drops to zero", function(done){
-    const registry = new MockRegistry()
-    registry.setTolerance(500)
-    registry.setCheckInterval(250)
-
-    let timeout: NodeJS.Timeout | undefined = undefined
-    registry.onEmpty(()=>{ 
-      clearTimeout(timeout)
-      done()
+describe('Heartbeat Receivers', () => {
+  let timeout: NodeJS.Timeout | undefined
+  afterEach(() => {
+    clearTimeout(timeout)
+    registry.M_reset()
+  })
+  describe('Registry Interactions', () => {
+    it('Should be able to interact with the registery through the `getServerHeartbeatFor` function', (done) => {
+      getServerHeartbeatMock(LastHeartbeatKeeper).then((hb) => {
+        assert.equal(LastHeartbeatKeeper.getLast(), hb)
+        assert(
+          registry.M_registry().size == 1 &&
+            registry.M_registry().get(LastHeartbeatKeeper)
+        )
+        done()
+      })
     })
-    registry.update(mockReceiver, 500)
-    timeout = setTimeout(()=>{ 
-      assert.fail("Empty Event was not emitted")
-    }, 5000)
   })
 })
+
+describe('Heartbeat Registry Implementations', () => {
+  let timeout: NodeJS.Timeout | undefined
+  afterEach(() => {
+    clearTimeout(timeout)
+    registry.M_reset()
+  })
+  describe('Timeout Based registry', () => {
+    it('Should automatically remove a receiver upon uncleared timeout', (done) => {
+      registry.update(receiverMocks[1], { failAfterMs: 250 })
+      registry.OnAllReceiversRemoved(() => {
+        assert(true)
+        done()
+      })
+
+      timeout = setTimeout(() => {
+        assert.fail('Did not emit removal before 250ms')
+      }, 300)
+    })
+
+    it("Should refresh a receiver's timeout upon updates", (done) => {
+      const ExpectedUpdateCount = 3
+      let updateCount = 0
+
+      registry.update(receiverMocks[1], { failAfterMs: 100 })
+      registry.OnAllReceiversRemoved(() => {
+        assert.equal(updateCount, 3)
+        done()
+      })
+      let updateInterval = setInterval(() => {
+        updateCount++
+        if (updateCount >= ExpectedUpdateCount) clearInterval(updateInterval)
+        registry.update(receiverMocks[1], { failAfterMs: 100 })
+      }, 50)
+
+      timeout = setTimeout(() => {
+        assert.fail('Did not ')
+      }, 500)
+    })
+
+    it('Should not emit "OnAllReceiversRemoved" with active receivers', (done) => {
+      registry.update(receiverMocks[0], { failAfterMs: 250 })
+      registry.update(receiverMocks[1], { failAfterMs: 50 })
+      timeout = setTimeout(() => {
+        assert(registry.M_registry().size == 1)
+        assert(registry.M_registry().has(receiverMocks[0]))
+        done()
+      }, 100)
+    })
+  })
+})
+
+function shortTime(time: number): string {
+  const timeStr = time.toString()
+  return '..' + timeStr.substring(timeStr.length - 4)
+}
