@@ -55,7 +55,7 @@ lazy val scalaTestVersion = "3.2.18"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.12",
+    scalaVersion := "2.13.13",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
     maintainer := "oss@ctc.com",
