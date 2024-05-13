@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Check Scala Format ✅
-        uses: jrouly/scalafmt-native-action@v3
+        uses: jrouly/scalafmt-native-action@v4
         with:
           # NOTE: make sure this version matches the version in .scalafmt.conf
           version: '3.7.17'
