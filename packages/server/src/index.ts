@@ -88,9 +88,10 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
 
   const serverProcess: ChildProcess = spawn(serverScript, args, {
     cwd: path.dirname(serverScript),
-    stdio: 'ignore',
     detached: true,
     shell: os.platform().startsWith('win'), // use shell on Windows because it can't execute scripts directly
+    stdio: ['ignore', 'ignore', 'ignore'],
+    windowsHide: true, // avoid showing a console window
   })
 
   serverProcess.on('error', (err: Error) => {
