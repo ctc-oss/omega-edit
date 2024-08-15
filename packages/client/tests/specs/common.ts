@@ -171,10 +171,13 @@ export async function subscribeViewport(
           : 1
       )
       const event = viewportEvent.getViewportEventKind()
+      const viewport_id_from_event = viewportEvent.getViewportId()
       if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
         log_info(
           'viewport_id: ' +
             viewport_id +
+            ', viewport_id_from_event: ' +
+            viewport_id_from_event +
             ', event: ' +
             event +
             ', serial: ' +
@@ -188,6 +191,15 @@ export async function subscribeViewport(
             '", callbacks: ' +
             viewport_callbacks.get(viewport_id)
         )
+        if (viewport_id_from_event !== viewport_id) {
+          log_error(
+            'viewport ID mismatch: "' +
+              viewport_id +
+              '" not equal to "' +
+              viewport_id_from_event +
+              '"'
+          )
+        }
       } else {
         log_info(
           'viewport: ' +
