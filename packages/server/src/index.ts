@@ -88,8 +88,9 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
 
   const serverProcess: ChildProcess = spawn(serverScript, args, {
     cwd: path.dirname(serverScript),
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'ignore'],
     detached: true,
+    windowsHide: true, // avoid showing a console window
   })
 
   serverProcess.on('error', (err: Error) => {
@@ -127,5 +128,5 @@ export async function runServer(
     args.push(`-Dlogback.configurationFile=${logConf}`)
   }
 
-  return await executeServer(args)
+  return executeServer(args)
 }
