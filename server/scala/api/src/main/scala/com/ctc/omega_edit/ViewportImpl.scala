@@ -67,6 +67,7 @@ private[omega_edit] class ViewportImpl(p: Pointer, i: FFI) extends Viewport {
 
   def modify(offset: Long, capacity: Long, isFloating: Boolean): Boolean =
     i.omega_viewport_modify(p, offset, capacity, if (isFloating) 1 else 0) == 0
+
   override def toString: String =
     data.mkString // TODO: probably render instead as hex
 
