@@ -194,7 +194,7 @@ class Session(
       val vid = id.getOrElse(Viewport.Id.uuid())
       val fqid = s"$sessionId:$vid"
 
-      context.child(fqid) match {
+      context.child(vid) match {
         case Some(_) =>
           sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
@@ -204,8 +204,8 @@ class Session(
           val cb = ViewportCallback { (v, e, c) =>
             input.queue.offer(
               ViewportEvent(
-                sessionId = fqid,
-                viewportId = vid,
+                sessionId = sessionId,
+                viewportId = fqid,
                 serial = c.map(_.id),
                 data = Option(ByteString.copyFrom(v.data)),
                 length = Some(v.data.size.toLong),
