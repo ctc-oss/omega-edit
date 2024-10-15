@@ -33,6 +33,11 @@ import {
   ServerControlResponse,
   ServerInfoResponse,
 } from './omega_edit_pb'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+
+// Convert execFile to a promise-based function
+const execFilePromise = promisify(execFile)
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
@@ -234,6 +239,36 @@ export async function stopProcessUsingPID(
 }
 
 /**
+ * Get the process id using the port
+ * @param port port to check
+ * @returns process id or undefined if the port is not in use
+ */
+async function getPidByPort(port: number): Promise<number | undefined> {
+  try {
+    // Try to get the PID using `lsof`
+    const { stdout } = await execFilePromise('lsof', [
+      '-iTCP:' + port,
+      '-sTCP:LISTEN',
+      '-n',
+      '-P',
+    ])
+    const lines = stdout.trim().split('\n')
+    if (lines.length > 1) {
+      const [_, pid] = lines[1].trim().split(/\s+/)
+      return parseInt(pid, 10)
+    }
+    return undefined
+  } catch (error) {
+    // Fallback to `portToPid` if `lsof` fails
+    try {
+      return await portToPid(port)
+    } catch (portToPidError) {
+      return undefined
+    }
+  }
+}
+
+/**
  * Stop the service running on a port
  * @param port port
  * @param signal signal to send to the service (default: SIGTERM)
@@ -250,10 +285,31 @@ export async function stopServiceOnPort(
     signal,
   }
   log.debug(logMetadata)
+
   try {
-    const pid = await portToPid(port)
-    return pid ? stopProcessUsingPID(pid as number, signal) : true
+    // Attempt to get the PID for the given port
+    const pid = await getPidByPort(port)
+
+    if (pid) {
+      log.debug({ ...logMetadata, msg: `Found PID ${pid} for port ${port}` })
+
+      // Attempt to stop the process using the PID
+      const result = await stopProcessUsingPID(pid, signal)
+      log.debug({
+        ...logMetadata,
+        msg: `stopProcessUsingPID result: ${result}`,
+      })
+      return result
+    } else {
+      log.debug({
+        ...logMetadata,
+        stopped: true,
+        msg: 'No process found using the port',
+      })
+      return true // No process was using the port, so consider it as stopped
+    }
   } catch (err) {
+    // Handle case where `portToPid` cannot find a process for the port
     if (err instanceof Error) {
       if (err.message.startsWith('Could not find a process that uses port')) {
         log.debug({
@@ -261,10 +317,10 @@ export async function stopServiceOnPort(
           stopped: true,
           msg: err.message,
         })
-        // if the port is not in use, return true
-        return true
+        return true // No process using the port, so we consider it stopped
       }
-      log.debug({
+      // Log other types of errors that occur
+      log.error({
         ...logMetadata,
         stopped: false,
         err: {
@@ -279,8 +335,8 @@ export async function stopServiceOnPort(
         err: { msg: String(err) },
       })
     }
+    return false // Return false for any errors that occur
   }
-  return false
 }
 
 /**
@@ -563,7 +619,10 @@ export function pidIsRunning(pid) {
     process.kill(pid, 0)
     return true
   } catch (e) {
-    return false
+    if ((e as NodeJS.ErrnoException).code === 'ESRCH') {
+      return false
+    }
+    throw e
   }
 }
 
