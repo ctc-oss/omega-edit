@@ -1,13 +1,13 @@
 # Copyright (c) 2021 Concurrent Technologies Corporation.
-#                                                                                                               
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at                                                    
-#                                                                                                               
-#     http://www.apache.org/licenses/LICENSE-2.0                                                                
-#                                                                                                               
-# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-# implied.  See the License for the specific language governing permissions and limitations under the License.  
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 
 ---
 name: Automatic Release
@@ -16,7 +16,7 @@ on:
     tags:
       - 'v*.*.*'
 env:
-  node_version: 16
+  node_version: 18
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
     PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
@@ -42,7 +42,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Rat Check 🐀"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      
+
       - name: Check Scala format ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: scala-format
@@ -51,7 +51,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Scala Code Format"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      
+
       - name: Check TypeScript format ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: ts-format
@@ -60,7 +60,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      
+
       - name: Check tests - macOS 12 ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: macos12-tests
@@ -69,7 +69,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Build middleware macos-12 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      
+
       - name: Check tests - macOS 14 ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: macos14-tests
@@ -96,7 +96,7 @@ jobs:
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
           checkName: "Build middleware windows-2019 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-        
+
       - name: Check native build arm64 - Linux ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: ubuntu-arm64-native
@@ -178,7 +178,7 @@ jobs:
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
-      
+
       - name: Download upload_url 🔻
         uses: actions/download-artifact@v4
         with:
@@ -190,12 +190,12 @@ jobs:
           echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
 
       - name: Setup Java ☕
-        uses: actions/setup-java@v4.2.1
+        uses: actions/setup-java@v4.4.0
         with:
           distribution: temurin
           java-version: 8
           cache: sbt
-      
+
       - name: Make _install directory to store lib files
         run: mkdir -p _install
 
@@ -207,7 +207,7 @@ jobs:
           workflow_conclusion: success
           name: ubuntu-20.04-x64-libomega_edit.so
           path: _install/libomega_edit_linux_amd64.so
-      
+
       - name: Download linux arm64 library file 🔻
         uses: dawidd6/action-download-artifact@v3
         with:
@@ -216,7 +216,7 @@ jobs:
           workflow_conclusion: success
           name: ubuntu-20.04-arm64-libomega_edit.so
           path: _install/libomega_edit_linux_aarch64.so
-      
+
       - name: Download macos-12 library file 🔻
         uses: dawidd6/action-download-artifact@v3
         with:
@@ -234,7 +234,7 @@ jobs:
           workflow_conclusion: success
           name: macos-12-x64-libomega_edit.dylib
           path: _install/libomega_edit_macos_x86_64.dylib
-      
+
       - name: Download windows library file 🔻
         uses: dawidd6/action-download-artifact@v3
         with:
