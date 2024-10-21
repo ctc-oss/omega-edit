@@ -176,12 +176,15 @@ describe('Viewports', () => {
     await checkCallbackCount(viewport_callbacks, viewport_1_id, 1)
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 3)
     log_info(viewport_callbacks)
+
     // Unsubscribe all viewporta
-    await unsubscribeViewport(viewport_1_id)
-    await unsubscribeViewport(viewport_2_id)
+    expect(await unsubscribeViewport(viewport_1_id)).to.equal(viewport_1_id)
+    expect(await unsubscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
+
     // Note the viewports are not destroyed, just unsubscribed
     expect(await getViewportCount(session_id)).to.equal(1)
-    await destroyViewport(viewport_1_id)
+
+    expect(await destroyViewport(viewport_1_id)).to.equal(viewport_1_id)
     expect(await getViewportCount(session_id)).to.equal(0)
   }).timeout(8000)
 
@@ -304,6 +307,7 @@ describe('Viewports', () => {
       false
     )
     const viewport_id = viewport_response.getViewportId()
+    expect(viewport_id).to.equal(session_id + ':' + desired_viewport_id)
     expect(await viewportHasChanges(viewport_id)).to.be.false
     expect(viewport_response.getData_asU8()).to.deep.equal(Buffer.from(''))
     expect(viewport_response.getLength()).to.equal(0)
@@ -414,7 +418,9 @@ describe('Viewports', () => {
     )
     expect(await getViewportCount(session_id)).to.equal(1)
     // Unsubscribe the viewport
-    expect(await unsubscribeViewport(viewport_id)).to.equal(desired_viewport_id)
+    expect(await unsubscribeViewport(viewport_id)).to.equal(
+      session_id + ':' + desired_viewport_id
+    )
     // Note the viewport is not destroyed, just unsubscribed
     expect(await getViewportCount(session_id)).to.equal(1)
     await destroyViewport(viewport_id)

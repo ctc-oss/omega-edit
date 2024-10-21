@@ -29,12 +29,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      
+
       - name: Setup Node 📐
         uses: actions/setup-node@v4
         with:
           registry-url: 'https://registry.npmjs.org'
-          node-version: 16
+          node-version: 18
 
       - name: yarn lint - all workspaces 🧶
         run: |
