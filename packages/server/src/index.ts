@@ -90,6 +90,7 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
     cwd: path.dirname(serverScript),
     stdio: 'ignore',
     detached: true,
+    shell: os.platform().startsWith('win'), // use shell on Windows because it can't execute scripts directly
   })
 
   serverProcess.on('error', (err: Error) => {
