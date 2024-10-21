@@ -34,9 +34,22 @@ lib/$(LIBNAME): CMakeLists.txt core/CMakeLists.txt
 	cp _install/lib/$(LIBNAME) $@
 
 update-version:
-	sed -i '' -e 's|"version": .*|"version": "$(version)",|' package.json packages/server/package.json packages/client/package.json
-	sed -i '' -e 's|"\@omega-edit\/server": .*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
-	sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' CMakeLists.txt
+  # Make sure version is set for this target
+	@if [ -z "$(version)" ]; then \
+		echo "version is not set, please run \`make update-version version=1.2.3\` where 1.2.3 is the new version"; \
+		exit 1; \
+	fi
+	@sed -i '' -e 's|"version": .*|"version": "$(version)",|' package.json packages/server/package.json packages/client/package.json
+	@sed -i '' -e 's|"\@omega-edit\/server": .*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
+	@sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' CMakeLists.txt
+	@echo "------------------------------------------------------------------------"
+	@echo "Updated version to v$(version), next steps:"
+	@echo "  git commit -am \"v$(version) [node_publish]\""
+	@echo "  git push origin main"
+	@echo "Wait for CI to pass, then tag the release to publish the artifacts:"
+	@echo "  git tag -a v$(version) -m \"v$(version)\""
+	@echo "  git push origin v$(version)"
+	@echo "------------------------------------------------------------------------"
 
 clean:
 	rm -rf _build _install lib/$(LIBNAME)
@@ -45,3 +58,4 @@ all: lib/$(LIBNAME)
 	@echo $<
 
 .default: all
+.phony: all clean update-version
