@@ -37,7 +37,7 @@ import * as path from 'path'
  *    OR
  *    - calls the getBinFolderPath going back a directory
  */
-const checkForBinPath = (baseDir: string) => {
+const checkForBinPath = (baseDir: string): string => {
   const serverbasePath = 'node_modules/@omega-edit/server'
 
   // These two are checked as when testing locally it will want to use out/bin
@@ -46,26 +46,28 @@ const checkForBinPath = (baseDir: string) => {
     path.join(baseDir, serverbasePath, 'out', 'bin'),
   ]
 
-  for (let i = 0; i < pathsToCheck.length; i++) {
-    if (fs.existsSync(pathsToCheck[i])) return path.resolve(pathsToCheck[i])
+  for (const p of pathsToCheck) {
+    if (fs.existsSync(p)) return path.resolve(p)
   }
 
   return getBinFolderPath(path.join(baseDir, '..'))
 }
 
 /**
- *
+ * Recursively finds the bin folder path
  * @param baseDir the base path to the directory to check against
  * @returns
  *    - path to bin directory
  *    OR
  *    - recursively calls itself till path is found
  */
-const getBinFolderPath = (baseDir: string) => {
+const getBinFolderPath = (baseDir: string): string => {
   if (!baseDir.endsWith('node_modules')) {
-    if (fs.readdirSync(baseDir).includes('node_modules'))
+    if (fs.readdirSync(baseDir).includes('node_modules')) {
       return checkForBinPath(baseDir)
-    else return getBinFolderPath(path.join(baseDir, '..'))
+    } else {
+      return getBinFolderPath(path.join(baseDir, '..'))
+    }
   } else {
     return checkForBinPath(baseDir.replace('node_modules', ''))
   }
@@ -74,7 +76,7 @@ const getBinFolderPath = (baseDir: string) => {
 /**
  * Execute the server
  * @param args arguments to pass to the server
- * @returns {ChildProcess} server process
+ * @returns {Promise<ChildProcess>} server process
  */
 async function executeServer(args: string[]): Promise<ChildProcess> {
   const serverScript = path.join(
@@ -88,9 +90,10 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
 
   const serverProcess: ChildProcess = spawn(serverScript, args, {
     cwd: path.dirname(serverScript),
-    stdio: 'ignore',
     detached: true,
     shell: os.platform().startsWith('win'), // use shell on Windows because it can't execute scripts directly
+    stdio: ['ignore', 'ignore', 'ignore'],
+    windowsHide: true, // avoid showing a console window
   })
 
   serverProcess.on('error', (err: Error) => {
@@ -107,7 +110,7 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
  * @param host hostname or IP address (default: 127.0.0.1)
  * @param pidfile resolved path to the PID file
  * @param logConf resolved path to a logback configuration file
- * @returns {ChildProcess} server process
+ * @returns {Promise<ChildProcess>} server process
  */
 export async function runServer(
   port: number,
