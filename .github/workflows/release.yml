@@ -61,15 +61,6 @@ jobs:
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - macOS 12 ✅
-        uses: fountainhead/action-wait-for-check@v1.2.0
-        id: macos12-tests
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware macos-12 🔧"
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
       - name: Check tests - macOS 14 ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
         id: macos14-tests
@@ -217,7 +208,7 @@ jobs:
           name: ubuntu-20.04-arm64-libomega_edit.so
           path: _install/libomega_edit_linux_aarch64.so
 
-      - name: Download macos-12 library file 🔻
+      - name: Download macos-14 library file 🔻
         uses: dawidd6/action-download-artifact@v7
         with:
           workflow: tests.yml
@@ -232,7 +223,7 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: macos-12-x64-libomega_edit.dylib
+          name: macos-14-x64-libomega_edit.dylib
           path: _install/libomega_edit_macos_x86_64.dylib
 
       - name: Download windows library file 🔻
