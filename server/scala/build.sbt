@@ -37,9 +37,6 @@ lazy val ghb_resolver = (
       s"https://maven.pkg.github.com/${ghb_repo_owner}/${ghb_repo}"
 )
 
-/** The script templates only need to know the version. The updating of the classpaths was moved to the template files
-  * in serv/src/templates
-  */
 lazy val bashExtras = s"""declare omegaEditVersion="${omegaEditVersion}""""
 lazy val batchExtras = s"""set "OMEGAEditVERSION=${omegaEditVersion}""""
 
@@ -48,7 +45,7 @@ lazy val isRelease =
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
-lazy val pekkoVersion = "1.0.2" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
+lazy val pekkoVersion = "1.0.2"
 lazy val tikaVersion = "2.9.2"
 lazy val scalaTestVersion = "3.2.18"
 lazy val logbackVersion = "1.3.5"
@@ -81,10 +78,21 @@ lazy val commonSettings =
     externalResolvers ++= Seq(
       ghb_resolver,
       Resolver.mavenLocal
-    )
+    ),
+    scalacOptions ++=
+      Seq(
+        "-deprecation",
+        "-feature",
+        "-unchecked",
+        "-encoding",
+        "utf8",
+        "-Xfatal-warnings",
+        "-Ywarn-dead-code",
+        "-Ywarn-unused",
+        "-Ywarn-unused-import"
+      )
   )
 
-// Keys to exclude from the `lintUnused` check
 Global / excludeLintKeys += maintainer
 
 lazy val ratSettings = Seq(
@@ -107,81 +115,70 @@ lazy val `omega-edit` = project
   )
   .aggregate(api, spi, native, serv)
 
+lazy val apiSettings = Seq(
+  name := "omega-edit",
+  libraryDependencies ++= Seq(
+    "com.beachape" %% "enumeratum" % enumeratumVersion,
+    "com.ctc" %% s"omega-edit-native" % version.value,
+    "org.apache.tika" % "tika-core" % tikaVersion,
+    "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
+    "com.github.jnr" % "jnr-ffi" % jnrFfiVersion,
+    "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+  ),
+  scalacOptions ~= adjustScalacOptionsForScalatest,
+  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+  buildInfoObject := "ApiBuildInfo",
+  buildInfoPackage := organization.value + ".omega_edit",
+  publishConfiguration := publishConfiguration.value.withOverwrite(true),
+  publishLocalConfiguration := publishLocalConfiguration.value
+    .withOverwrite(true),
+  pomPostProcess := filterScopedDependenciesFromPom,
+  Compile / Keys.compile :=
+    (Compile / Keys.compile)
+      .dependsOn(native / publishM2)
+      .value,
+  Test / Keys.test :=
+    (Test / Keys.test)
+      .dependsOn(native / publishM2)
+      .value
+)
+
 lazy val api = project
   .in(file("api"))
-  /*
-   * technically changing .dependsOn to this:
-   *   .dependsOn(spi, native % "compile->publishM2;test->publishM2")
-   * should be the same as the #region section but doesn't ever run native/publishM2
-   */
   .dependsOn(spi)
   .settings(commonSettings)
-  .settings(
-    name := "omega-edit",
-    libraryDependencies ++= {
-      Seq(
-        "com.beachape" %% "enumeratum" % enumeratumVersion,
-        "com.ctc" %% s"omega-edit-native" % version.value,
-        "org.apache.tika" % "tika-core" % tikaVersion,
-        "org.apache.tika" % "tika-langdetect-optimaize" % tikaVersion,
-        "com.github.jnr" % "jnr-ffi" % jnrFfiVersion,
-        "org.scalatest" %% "scalatest" % scalaTestVersion % Test
-      )
-    },
-    scalacOptions ~= adjustScalacOptionsForScalatest,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoObject := "ApiBuildInfo",
-    buildInfoPackage := organization.value + ".omega_edit",
-    publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value
-      .withOverwrite(true),
-    // trim the dep to the native project from the pom
-    pomPostProcess := filterScopedDependenciesFromPom,
-    // #region Needed for packaging to work without an extra command for native/publishM2
-    Compile / Keys.compile :=
-      (Compile / Keys.compile)
-        .dependsOn(native / publishM2)
-        .value,
-    Test / Keys.test :=
-      (Test / Keys.test)
-        .dependsOn(native / publishM2)
-        .value
-    // #endregion
-  )
+  .settings(apiSettings)
   .enablePlugins(BuildInfoPlugin, GitVersioning)
+
+lazy val nativeSettings = Seq(
+  name := "omega-edit-native",
+  exportJars := (if (isRelease) false else true),
+  Compile / packageBin / mappings ++=
+    mapping
+      .map(mp =>
+        (if (libdir.startsWith("/") || libdir.charAt(1) == ':')
+           new java.io.File(s"${libdir}/${mp._1}")
+         else baseDirectory.value / s"${libdir}/${mp._1}") -> s"${version.value}/${mp._2}"
+      ),
+  Compile / packageDoc / publishArtifact := false,
+  buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+  buildInfoPackage := organization.value + ".omega_edit.native",
+  buildInfoKeys ++= Seq(
+    "sharedLibraryBasePath" -> s"${version.value}/lib"
+  ),
+  buildInfoOptions += BuildInfoOption.Traits(
+    "com.ctc.omega_edit.spi.NativeBuildInfo"
+  ),
+  publishConfiguration := publishConfiguration.value.withOverwrite(true),
+  publishLocalConfiguration := publishLocalConfiguration.value
+    .withOverwrite(true)
+)
 
 lazy val native = project
   .in(file("native"))
   .dependsOn(spi)
   .settings(commonSettings)
-  .settings(
-    name := "omega-edit-native",
-    // artifactClassifier := Some(platform.id),
-    exportJars := (if (isRelease) false else true),
-    Compile / packageBin / mappings ++=
-      mapping
-        .map(mp =>
-          (if (libdir.startsWith("/") || libdir.charAt(1) == ':')
-             new java.io.File(s"${libdir}/${mp._1}")
-           else baseDirectory.value / s"${libdir}/${mp._1}") -> s"${version.value}/${mp._2}"
-        ),
-    Compile / packageDoc / publishArtifact := false,
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := organization.value + ".omega_edit.native",
-    buildInfoKeys ++= Seq(
-      "sharedLibraryBasePath" -> s"${version.value}/lib"
-    ),
-    buildInfoOptions += BuildInfoOption.Traits(
-      "com.ctc.omega_edit.spi.NativeBuildInfo"
-    ),
-
-    /** Not sure why these need added here since they are in common settings, but they are needed to not cause errors
-      * with publishM2.
-      */
-    publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value
-      .withOverwrite(true)
-  )
+  .settings(nativeSettings)
   .enablePlugins(BuildInfoPlugin, GitVersioning)
 
 lazy val spi = project
@@ -195,15 +192,11 @@ lazy val spi = project
   )
   .enablePlugins(GitVersioning)
 
-lazy val serv = project
-  .in(file("serv"))
-  // shouldn't dependOn spi since api does but need to have an else
-  .dependsOn(api, if (!isRelease) native else spi)
-  .settings(commonSettings)
-  .settings(
-    name := "omega-edit-grpc-server",
+lazy val servSettings = Seq(
+  name := "omega-edit-grpc-server",
+  libraryDependencies ++= {
     if (isRelease)
-      libraryDependencies ++= Seq(
+      Seq(
         "com.ctc" %% "omega-edit" % omegaEditVersion,
         "com.ctc" %% "omega-edit-native" % omegaEditVersion,
         "com.monovore" %% "decline" % declineVersion,
@@ -212,31 +205,38 @@ lazy val serv = project
         "org.apache.pekko" %% "pekko-discovery" % pekkoVersion,
         "org.apache.pekko" %% "pekko-stream" % pekkoVersion,
         "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
-        "ch.qos.logback" % "logback-classic" % logbackVersion, // latest version that supports Java 8
+        "ch.qos.logback" % "logback-classic" % logbackVersion,
         "org.scalatest" %% "scalatest" % scalaTestVersion % Test
       )
     else
-      libraryDependencies ++= Seq(
+      Seq(
         "com.monovore" %% "decline" % declineVersion,
         "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion,
         "org.apache.pekko" %% "pekko-protobuf-v3" % pekkoVersion,
         "org.apache.pekko" %% "pekko-discovery" % pekkoVersion,
         "org.apache.pekko" %% "pekko-stream" % pekkoVersion,
         "org.apache.pekko" %% "pekko-actor" % pekkoVersion,
-        "ch.qos.logback" % "logback-classic" % logbackVersion, // latest version that supports Java 8
+        "ch.qos.logback" % "logback-classic" % logbackVersion,
         "org.scalatest" %% "scalatest" % scalaTestVersion % Test
-      ),
-    excludeDependencies ++= Seq(
-      ExclusionRule("org.checkerframework", "checker-compat-qual")
-    ),
-    scalacOptions ~= adjustScalacOptionsForScalatest,
-    Compile / PB.protoSources += baseDirectory.value / "../../../proto", // path relative to projects directory
-    publishConfiguration := publishConfiguration.value.withOverwrite(true),
-    publishLocalConfiguration := publishLocalConfiguration.value
-      .withOverwrite(true),
-    bashScriptExtraDefines += bashExtras,
-    batScriptExtraDefines += batchExtras
-  )
+      )
+  },
+  excludeDependencies ++= Seq(
+    ExclusionRule("org.checkerframework", "checker-compat-qual")
+  ),
+  scalacOptions ~= adjustScalacOptionsForScalatest,
+  Compile / PB.protoSources += baseDirectory.value / "../../../proto",
+  publishConfiguration := publishConfiguration.value.withOverwrite(true),
+  publishLocalConfiguration := publishLocalConfiguration.value
+    .withOverwrite(true),
+  bashScriptExtraDefines += bashExtras,
+  batScriptExtraDefines += batchExtras
+)
+
+lazy val serv = project
+  .in(file("serv"))
+  .dependsOn(api, if (!isRelease) native else spi)
+  .settings(commonSettings)
+  .settings(servSettings)
   .enablePlugins(
     PekkoGrpcPlugin,
     ClasspathJarPlugin,
