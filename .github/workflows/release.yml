@@ -61,13 +61,13 @@ jobs:
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - macOS 12 ✅
+      - name: Check tests - macOS 13 ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
-        id: macos12-tests
+        id: macos13-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware macos-12 🔧"
+          checkName: "Build middleware macos-13 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - macOS 14 ✅
@@ -111,7 +111,7 @@ jobs:
           steps.rat-check.outputs.conclusion != 'success' ||
           steps.scala-format.outputs.conclusion != 'success' ||
           steps.ts-format.outputs.conclusion != 'success' ||
-          steps.macos12-tests.outputs.conclusion != 'success' ||
+          steps.macos13-tests.outputs.conclusion != 'success' ||
           steps.macos14-tests.outputs.conclusion != 'success' ||
           steps.ubuntu-tests.outputs.conclusion != 'success' ||
           steps.ubuntu-arm64-native.outputs.conclusion != 'success' ||
@@ -120,7 +120,7 @@ jobs:
           echo "Rat Check Status: ${{ steps.rat-check.conclusion }}"
           echo "Scala Format Status: ${{ steps.scala-format.conclusion }}"
           echo "Typescript Format Status: ${{ steps.ts-format.conclusion }}"
-          echo "MacOS 12 Test Status: ${{ steps.macos12-tests.outputs.conclusion }}"
+          echo "MacOS 13 Test Status: ${{ steps.macos13-tests.outputs.conclusion }}"
           echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outputs.conclusion }}"
           echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.conclusion }}"
           echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.conclusion }}"
@@ -217,14 +217,14 @@ jobs:
           name: ubuntu-20.04-arm64-libomega_edit.so
           path: _install/libomega_edit_linux_aarch64.so
 
-      - name: Download macos-12 library file 🔻
+      - name: Download macos-13 library file 🔻
         uses: dawidd6/action-download-artifact@v7
         with:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: macos-14-arm64-libomega_edit.dylib
-          path: _install/libomega_edit_macos_aarch64.dylib
+          name: macos-13-x64-libomega_edit.dylib
+          path: _install/libomega_edit_macos_x86_64.dylib
 
       - name: Download macos-14 library file 🔻
         uses: dawidd6/action-download-artifact@v7
@@ -232,8 +232,8 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: macos-12-x64-libomega_edit.dylib
-          path: _install/libomega_edit_macos_x86_64.dylib
+          name: macos-14-arm64-libomega_edit.dylib
+          path: _install/libomega_edit_macos_aarch64.dylib
 
       - name: Download windows library file 🔻
         uses: dawidd6/action-download-artifact@v7

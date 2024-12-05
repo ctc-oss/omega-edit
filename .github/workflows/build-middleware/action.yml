@@ -47,10 +47,12 @@ runs:
         cache: sbt
       if: contains(inputs.os-name, 'macos-14')
 
-    - name: Install SBT - macos-14 # if macos-13 is added this will done for it as well
+    - name: Install SBT - macos-13 & macos-14
       shell: bash
       run: brew install sbt
-      if: contains(inputs.os-name, 'macos-14')
+      if: |
+        contains(inputs.os-name, 'macos-13') ||
+        contains(inputs.os-name, 'macos-14')
 
     - name: Make _install directory to store lib files 🔧
       shell: bash
