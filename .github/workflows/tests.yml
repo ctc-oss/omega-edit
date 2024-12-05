@@ -20,8 +20,7 @@ jobs:
   build-native:
     strategy:
       matrix:
-        # NOTE: build on older OS versions to support older OS versions
-        os: [ windows-2019, ubuntu-20.04, macos-14 ]
+        os: [ windows-2019, macos-13, ubuntu-20.04, macos-14 ]
       fail-fast: false  # don't immediately fail all other jobs if a single job fails
     name: Native build and test on ${{ matrix.os }} 🦙
     runs-on: ${{ matrix.os }}
@@ -57,8 +56,7 @@ jobs:
     needs: [ build-native ]
     strategy:
       matrix:
-        # NOTE: build on older OS versions to support older OS versions
-        os: [ windows-2019, ubuntu-20.04, macos-14 ]
+        os: [ windows-2019, macos-13, ubuntu-20.04, macos-14 ]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: Build middleware ${{ matrix.os }} 🔧
