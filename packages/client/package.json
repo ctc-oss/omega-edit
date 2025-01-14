@@ -43,7 +43,7 @@
     "ts-node": "^10.9.2"
   },
   "dependencies": {
-    "@grpc/grpc-js": "1.12.2",
+    "@grpc/grpc-js": "1.12.5",
     "@omega-edit/server": "0.9.83",
     "@types/google-protobuf": "3.15.12",
     "google-protobuf": "3.21.4",
