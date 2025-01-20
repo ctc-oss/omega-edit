@@ -35,6 +35,9 @@ jobs:
           distribution: temurin
           java-version: 8
 
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Check out Repository 🛎️
         uses: actions/checkout@v4
 

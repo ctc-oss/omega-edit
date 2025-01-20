@@ -22,7 +22,7 @@ on:
 jobs:
   build:
     name: TypeScript code is properly formatted
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout current branch (full) 🛎️
         uses: actions/checkout@v4
