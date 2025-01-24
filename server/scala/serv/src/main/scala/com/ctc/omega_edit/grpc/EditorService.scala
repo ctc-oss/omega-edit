@@ -444,7 +444,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     ObjectId(in.id) match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Unwatch)).mapTo[Result].map {
-          case Ok(_) => in
+          case Ok(_)  => in
           case Err(c) => throw grpcFailure(c)
         }
       case _ =>
