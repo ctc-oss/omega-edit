@@ -9,8 +9,6 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
-cmake_minimum_required(VERSION 3.13)
-
 set(omega_edit_known_comps static shared)
 set(omega_edit_comp_static NO)
 set(omega_edit_comp_shared NO)
