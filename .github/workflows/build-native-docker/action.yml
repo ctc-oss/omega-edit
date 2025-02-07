@@ -35,6 +35,7 @@ runs:
       run: |
         docker run \
           --platform linux/arm64/v8 \
+          --user root \
           --memory "12g" \
           --cpus "3" \
           -d \
