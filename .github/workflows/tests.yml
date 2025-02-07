@@ -1,27 +1,27 @@
 # Copyright (c) 2021 Concurrent Technologies Corporation.
-#                                                                                                               
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at                                                    
-#                                                                                                               
-#     http://www.apache.org/licenses/LICENSE-2.0                                                                
-#                                                                                                               
-# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-# implied.  See the License for the specific language governing permissions and limitations under the License.  
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 
 ---
 name: Unit Tests
 on:
   push:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   build-native:
     strategy:
       matrix:
-        os: [ windows-2019, macos-13, ubuntu-20.04, macos-14 ]
-      fail-fast: false  # don't immediately fail all other jobs if a single job fails
+        os: [windows-2019, macos-13, ubuntu-22.04, macos-14]
+      fail-fast: false # don't immediately fail all other jobs if a single job fails
     name: Native build and test on ${{ matrix.os }} 🦙
     runs-on: ${{ matrix.os }}
     steps:
@@ -37,10 +37,10 @@ jobs:
         with:
           runner-os: ${{ runner.os }}
           os-name: ${{ matrix.os }}-${{ env.runner_arch }}
-  
+
   build-native-linux-arm64:
-    name: Native build ubuntu-20.04 arm64 🦙
-    runs-on: ubuntu-20.04
+    name: Native build ubuntu-22.04 arm64 🦙
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -48,22 +48,22 @@ jobs:
       - name: Build Native Linux arm64
         uses: ./.github/workflows/build-native-docker
         with:
-          os-name: ubuntu-20.04-arm64
-          docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-20.04
+          os-name: ubuntu-22.04-arm64
+          docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-22.04
           library-filename: libomega_edit.so
 
   build-middleware:
-    needs: [ build-native ]
+    needs: [build-native]
     strategy:
       matrix:
-        os: [ windows-2019, macos-13, ubuntu-20.04, macos-14 ]
+        os: [windows-2019, macos-13, ubuntu-22.04, macos-14]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: Build middleware ${{ matrix.os }} 🔧
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
-      
+
       - name: Convert runner arch to lower
         shell: bash
         run: |
@@ -79,15 +79,15 @@ jobs:
   # TODO: Currently this action fails on sbt installM2 due to a timeout on sbt test 'should listen to session event'
   # build-middleware-linux-arm64:
   #   needs: [ build-native-linux-arm64 ]
-  #   runs-on: ubuntu-20.04
-  #   name: Build middleware ubuntu-20.04 arm64 🔧
+  #   runs-on: ubuntu-22.04
+  #   name: Build middleware ubuntu-22.04 arm64 🔧
   #   steps:
   #     - name: Checkout 🛎️
   #       uses: actions/checkout@v4
-      
+
   #     - name: Build Middleware ${{ matrix.os }}
   #       uses: ./.github/workflows/build-middleware-docker
   #       with:
-  #         os-name: ubuntu-20.04-arm64
-  #         docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-20.04
+  #         os-name: ubuntu-22.04-arm64
+  #         docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-22.04
   #         library-filename: libomega_edit.so
