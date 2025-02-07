@@ -26,7 +26,7 @@ env:
 jobs:
   quality-gate:
     name: Quality Gate
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +85,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware ubuntu-20.04 🔧"
+          checkName: "Build middleware ubuntu-22.04 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Windows ✅
@@ -103,7 +103,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Native build ubuntu-20.04 arm64 🦙"
+          checkName: "Native build ubuntu-22.04 arm64 🦙"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Quality Gate ✅
@@ -130,7 +130,7 @@ jobs:
   create-release:
     name: Create Release ✨
     needs: [quality-gate]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -170,7 +170,7 @@ jobs:
   scala-publish:
     needs: [create-release]
     name: Scala Publish API, Native and Server ✨
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v4
@@ -208,7 +208,7 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: ubuntu-20.04-x64-libomega_edit.so
+          name: ubuntu-22.04-x64-libomega_edit.so
           path: _install/libomega_edit_linux_amd64.so
 
       - name: Download linux arm64 library file 🔻
@@ -217,7 +217,7 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: ubuntu-20.04-arm64-libomega_edit.so
+          name: ubuntu-22.04-arm64-libomega_edit.so
           path: _install/libomega_edit_linux_aarch64.so
 
       - name: Download macos-13 library file 🔻
@@ -323,7 +323,7 @@ jobs:
 
   node-build:
     name: Node Release ✨
-    runs-on: ubuntu-20.04 # NOTE: build on older OS versions to support older OS versions
+    runs-on: ubuntu-22.04 # NOTE: build on older OS versions to support older OS versions
     needs: [scala-publish]
     steps:
       - name: Checkout 🛎️
