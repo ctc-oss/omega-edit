@@ -2136,10 +2136,10 @@ picomatch@^2.0.4, picomatch@^2.2.1, picomatch@^2.3.1:
   resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-2.3.1.tgz#3ba3833733646d9d3e4995946c1365a67fb07a42"
   integrity sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==
 
-pid-port@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/pid-port/-/pid-port-1.0.1.tgz#89b17c8c0390d03981d8f70879f1928ff16ebd8a"
-  integrity sha512-LgNj9suJjJqCRtOC93KAB1q4IyuhNbhyvL9L1Phvi9Qbe32E26R6ooJLDlG5/OvSqU/ywTppH3Grc+jmdcJjpw==
+pid-port@1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/pid-port/-/pid-port-1.0.2.tgz#23e4dd2780b122edba3c8ff97473472225a105e5"
+  integrity sha512-Khqp07zX8IJpmIg56bHrLxS3M0iSL4cq6wnMq8YE7r/hSw3Kn4QxYS6QJg8Bs22Z7CSVj7eSsxFuigYVIFWmjg==
   dependencies:
     execa "^8.0.1"
 
