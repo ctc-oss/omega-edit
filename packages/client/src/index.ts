@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 
+import * as path from 'path'
+
 export * from './change'
 export * from './client'
 export * from './logger'
@@ -28,3 +30,18 @@ export * from './viewport'
 // generated files from protoc
 export * from './omega_edit_grpc_pb'
 export * from './omega_edit_pb'
+
+// ---------------------------------------------------------------------------
+// Ensure worker files are resolved properly in bundlers (VS Code, Webpack, etc.)
+// ---------------------------------------------------------------------------
+if (typeof globalThis !== 'undefined') {
+  globalThis.__bundlerPathsOverrides = {
+    ...((globalThis as any).__bundlerPathsOverrides || {}),
+
+    // Resolve all required worker files dynamically
+    'thread-stream-worker': path.resolve(__dirname, 'thread-stream-worker.js'),
+    'pino-worker': path.resolve(__dirname, 'pino-worker.js'),
+    'pino-pipeline-worker': path.resolve(__dirname, 'pino-pipeline-worker.js'),
+    'pino-file': path.resolve(__dirname, 'pino-file.js'),
+  }
+}
