@@ -185,57 +185,57 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
 }
 
 /**
- * Stop the server
- * @param pid pid of the server process
- * @returns true if the server was stopped, false otherwise
+ * Sends a specified signal to a given PID and optionally falls back to SIGKILL
+ * if the process fails to stop within the retry limit.
+ * @param pid process id
+ * @param signal signal to send to the process (default: SIGTERM)
+ * @param maxRetries maximum number of retries before falling back to SIGKILL (default: 10)
+ * @param fallbackToKill whether to fallback to SIGKILL if the process fails to stop (default: true)
+ * @returns true if the process was stopped, false otherwise
  */
 export async function stopProcessUsingPID(
   pid: number,
-  signal: string = 'SIGTERM'
+  signal: string = 'SIGTERM',
+  maxRetries: number = 10,
+  fallbackToKill: boolean = true
 ): Promise<boolean> {
-  const logMetadata = {
-    fn: 'stopProcessUsingPID',
-    pid,
-    signal,
-  }
   const log = getLogger()
-  log.debug(logMetadata)
-  try {
-    process.kill(pid, signal)
-    // yield for a moment to allow the server to process the shutdown
-    const delayMs = Math.ceil(KILL_YIELD_MS / 10)
-    for (let i = 0; i < 10; ++i) {
+  const logMetadata = { fn: 'stopProcessUsingPID', pid, signal }
+  const delayMs = Math.ceil(KILL_YIELD_MS / maxRetries)
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      process.kill(pid, signal)
       await delay(delayMs)
       if (!pidIsRunning(pid)) {
-        break
+        log.debug({ ...logMetadata, stopped: true, attempt })
+        return true
       }
-    }
-    if (pidIsRunning(pid)) {
-      log.error({
-        ...logMetadata,
-        stopped: false,
-        msg: 'process failed to stop',
-      })
-      return false
-    }
-    log.debug({ ...logMetadata, stopped: true })
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
-      log.debug({
-        ...logMetadata,
-        stopped: true,
-        msg: 'process already stopped',
-      })
-    } else {
-      log.error({
-        ...logMetadata,
-        stopped: false,
-        err: { msg: String(err) },
-      })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ESRCH') {
+        log.debug({ ...logMetadata, stopped: true, msg: 'already stopped' })
+        return true
+      }
+      log.error({ ...logMetadata, stopped: false, err: { msg: String(err) } })
       return false
     }
   }
-  return true
+
+  if (fallbackToKill) {
+    try {
+      process.kill(pid, 'SIGKILL')
+      await delay(delayMs)
+      const stopped = !pidIsRunning(pid)
+      log.debug({ ...logMetadata, stopped, msg: 'fallback SIGKILL used' })
+      return stopped
+    } catch (err) {
+      log.error({ ...logMetadata, stopped: false, err: { msg: String(err) } })
+      return false
+    }
+  }
+
+  log.error({ ...logMetadata, stopped: false, msg: 'failed to stop' })
+  return false
 }
 
 /**

@@ -50,6 +50,10 @@ module.exports = {
       },
     ],
   },
+  optimization: {
+    usedExports: true,
+    minimize: true,
+  },
   plugins: [
     new webpack.ProgressPlugin(),
     new CleanWebpackPlugin(),
