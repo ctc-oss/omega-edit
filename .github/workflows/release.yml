@@ -14,7 +14,7 @@ name: Automatic Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
 env:
   node_version: 18
   export_cmd: |
@@ -278,6 +278,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
+          OE_LIB_DIR: "../../"
         run: sbt native/publish
         working-directory: server/scala
 
@@ -348,7 +349,7 @@ jobs:
       - name: Setup Node 📐
         uses: actions/setup-node@v4
         with:
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
           node-version: ${{ env.node_version }}
 
       - name: Download scala release file 🔻
