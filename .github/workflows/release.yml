@@ -278,7 +278,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
-          OE_LIB_DIR: "../../"
+          OE_LIB_DIR: "../../_install"
         run: sbt native/publish
         working-directory: server/scala
 
