@@ -286,6 +286,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
+          OE_LIB_DIR: "../../_install"
         run: sbt api/publish
         working-directory: server/scala
 
@@ -294,6 +295,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IS_RELEASE: true
           SERVER_RELEASE: true
+          OE_LIB_DIR: "../../_install"
         run: |
           rm -rf ~/.m2/repository
           sbt serv/Universal/packageBin
