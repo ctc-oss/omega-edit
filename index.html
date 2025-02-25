@@ -68,6 +68,19 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#config-h">config.h</a><ul>
+<li><a class="reference internal" href="#c.DEBUG"><code class="docutils literal notranslate"><span class="pre">DEBUG</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_VIEWPORT_CAPACITY_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_VIEWPORT_CAPACITY_LIMIT</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_SEARCH_PATTERN_LENGTH_LIMIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_SEARCH_PATTERN_LENGTH_LIMIT</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_BYTE_T"><code class="docutils literal notranslate"><span class="pre">OMEGA_BYTE_T</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_BUILD_UNIX"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_UNIX</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_BUILD_64_BIT"><code class="docutils literal notranslate"><span class="pre">OMEGA_BUILD_64_BIT</span></code></a></li>
+<li><a class="reference internal" href="#c.ATTRIBUTE_UNUSED"><code class="docutils literal notranslate"><span class="pre">ATTRIBUTE_UNUSED</span></code></a></li>
+<li><a class="reference internal" href="#c.OPEN"><code class="docutils literal notranslate"><span class="pre">OPEN</span></code></a></li>
+<li><a class="reference internal" href="#c.FOPEN"><code class="docutils literal notranslate"><span class="pre">FOPEN</span></code></a></li>
+<li><a class="reference internal" href="#c.FCLOSE"><code class="docutils literal notranslate"><span class="pre">FCLOSE</span></code></a></li>
+<li><a class="reference internal" href="#c.CLOSE"><code class="docutils literal notranslate"><span class="pre">CLOSE</span></code></a></li>
+<li><a class="reference internal" href="#c.FSEEK"><code class="docutils literal notranslate"><span class="pre">FSEEK</span></code></a></li>
+<li><a class="reference internal" href="#c.FTELL"><code class="docutils literal notranslate"><span class="pre">FTELL</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv410safe_open_PKcii"><code class="docutils literal notranslate"><span class="pre">safe_open_()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv411safe_fopen_PKcPKc"><code class="docutils literal notranslate"><span class="pre">safe_fopen_()</span></code></a></li>
 </ul>
@@ -122,6 +135,9 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#fwd-defs-h">fwd_defs.h</a><ul>
+<li><a class="reference internal" href="#c.ALL_EVENTS"><code class="docutils literal notranslate"><span class="pre">ALL_EVENTS</span></code></a></li>
+<li><a class="reference internal" href="#c.NO_EVENTS"><code class="docutils literal notranslate"><span class="pre">NO_EVENTS</span></code></a></li>
+<li><a class="reference internal" href="#c.ORIGINAL_MODIFIED"><code class="docutils literal notranslate"><span class="pre">ORIGINAL_MODIFIED</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_character_counts_t"><code class="docutils literal notranslate"><span class="pre">omega_character_counts_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv414omega_change_t"><code class="docutils literal notranslate"><span class="pre">omega_change_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_search_context_t"><code class="docutils literal notranslate"><span class="pre">omega_search_context_t</span></code></a></li>
@@ -131,52 +147,52 @@
 <li><a class="reference internal" href="#_CPPv425omega_session_event_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_session_event_cbk_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_viewport_event_cbk_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_cbk_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv421omega_session_event_t"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_UNDEFINED</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_EDIT</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_UNDO</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CLEAR</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_TRANSFORM</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE_CHECKPOINT</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_DESTROY_CHECKPOINT</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_SAVE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CHANGES_PAUSED</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CHANGES_RESUMED</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_CREATE_VIEWPORT</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">omega_session_event_t::SESSION_EVT_DESTROY_VIEWPORT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_UNDEFINED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t18SESSION_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CREATE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_EDIT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_UNDO</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t17SESSION_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CLEAR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t21SESSION_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSFORM</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_CREATE_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CREATE_CHECKPOINT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t30SESSION_EVT_DESTROY_CHECKPOINTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_DESTROY_CHECKPOINT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t16SESSION_EVT_SAVEE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_SAVE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t26SESSION_EVT_CHANGES_PAUSEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CHANGES_PAUSED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CHANGES_RESUMED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CREATE_VIEWPORT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_DESTROY_VIEWPORT</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv422omega_viewport_event_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_UNDEFINED</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CREATE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_EDIT</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_UNDO</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CLEAR</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_TRANSFORM</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_MODIFY</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t::VIEWPORT_EVT_CHANGES</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_UNDEFINEDE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_UNDEFINED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_CREATEE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_CREATE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_EDITE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_EDIT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t17VIEWPORT_EVT_UNDOE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_UNDO</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t18VIEWPORT_EVT_CLEARE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_CLEAR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t22VIEWPORT_EVT_TRANSFORME"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_TRANSFORM</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t19VIEWPORT_EVT_MODIFYE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_MODIFY</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_viewport_event_t20VIEWPORT_EVT_CHANGESE"><code class="docutils literal notranslate"><span class="pre">VIEWPORT_EVT_CHANGES</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv416omega_io_flags_t"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_NONE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_OVERWRITE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">omega_io_flags_t::IO_FLG_FORCE_OVERWRITE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t11IO_FLG_NONEE"><code class="docutils literal notranslate"><span class="pre">IO_FLG_NONE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t16IO_FLG_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">IO_FLG_OVERWRITE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N16omega_io_flags_t22IO_FLG_FORCE_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">IO_FLG_FORCE_OVERWRITE</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv417omega_mask_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_AND</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_OR</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE"><code class="docutils literal notranslate"><span class="pre">omega_mask_kind_t::MASK_XOR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_ANDE"><code class="docutils literal notranslate"><span class="pre">MASK_AND</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t7MASK_ORE"><code class="docutils literal notranslate"><span class="pre">MASK_OR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N17omega_mask_kind_t8MASK_XORE"><code class="docutils literal notranslate"><span class="pre">MASK_XOR</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv411omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_bom_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UNKNOWNE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UNKNOWN</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_NONEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_NONE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_UTF8E"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF8</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16LEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF16LE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16BEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF16BE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32LEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF32LE</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32BEE"><code class="docutils literal notranslate"><span class="pre">omega_bom_t::BOM_UTF32BE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UNKNOWNE"><code class="docutils literal notranslate"><span class="pre">BOM_UNKNOWN</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_NONEE"><code class="docutils literal notranslate"><span class="pre">BOM_NONE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t8BOM_UTF8E"><code class="docutils literal notranslate"><span class="pre">BOM_UTF8</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16LEE"><code class="docutils literal notranslate"><span class="pre">BOM_UTF16LE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF16BEE"><code class="docutils literal notranslate"><span class="pre">BOM_UTF16BE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32LEE"><code class="docutils literal notranslate"><span class="pre">BOM_UTF32LE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N11omega_bom_t11BOM_UTF32BEE"><code class="docutils literal notranslate"><span class="pre">BOM_UTF32BE</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -199,6 +215,8 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#session-h">session.h</a><ul>
+<li><a class="reference internal" href="#c.OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE</span></code></a></li>
+<li><a class="reference internal" href="#c.OMEGA_EDIT_PROFILE_DOS_EOL"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_PROFILE_DOS_EOL</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv430omega_byte_frequency_profile_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_frequency_profile_t</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv441omega_session_byte_frequency_profile_sizev"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv450omega_session_byte_frequency_profile_dos_eol_indexv"><code class="docutils literal notranslate"><span class="pre">omega_session_byte_frequency_profile_dos_eol_index()</span></code></a></li>
@@ -259,8 +277,8 @@
 <li><a class="reference internal" href="#_CPPv419omega_util_BOM_size11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_size()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_util_BOM_to_buffer11omega_bom_t"><code class="docutils literal notranslate"><span class="pre">omega_util_BOM_to_buffer()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv419omega_byte_buffer_t"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t</span></code></a><ul>
-<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t4dataE"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t::data</span></code></a></li>
-<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t6lengthE"><code class="docutils literal notranslate"><span class="pre">omega_byte_buffer_t::length</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t4dataE"><code class="docutils literal notranslate"><span class="pre">data</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N19omega_byte_buffer_t6lengthE"><code class="docutils literal notranslate"><span class="pre">length</span></code></a></li>
 </ul>
 </li>
 </ul>
