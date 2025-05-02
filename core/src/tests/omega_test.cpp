@@ -27,6 +27,7 @@
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <sys/stat.h>
 #include <thread>
@@ -1745,4 +1746,69 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(0 != omega_session_begin_transaction(session_ptr));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+}
+
+TEST_CASE("Emoji Filename Handling", "[FilesystemTests]") {
+    const char* emoji_filenames[] = {
+        "test_😀.dat",
+        "test_👍.dat",
+        "test_🔥.dat",
+        "test_💩.dat",
+        "test_🚀.dat",
+        "test_👨‍👩‍👧‍👦.dat"  // Family emoji with zero-width joiners
+    };
+    
+    char buffer[FILENAME_MAX];
+    
+    // Test filesystem operations with emoji filenames
+    for (const auto& emoji_filename : emoji_filenames) {
+        const char dir_sep = omega_util_directory_separator();
+        std::string base_path = std::string(DATA_DIR.string().c_str()) + dir_sep;
+        std::string full_path = base_path + emoji_filename;
+        
+        // Create a file with emoji in filename
+        std::ofstream file(full_path);
+        file << "Test content" << std::endl;
+        file.close();
+        
+        // Test file_exists
+        REQUIRE(omega_util_file_exists(full_path.c_str()));
+        
+        // Test available_filename - since the file exists, we expect a path with -1 suffix
+        char* available_name = omega_util_available_filename(full_path.c_str(), buffer);
+        REQUIRE(available_name != nullptr);
+        // The file exists so available_name should append -1 to the filename
+        std::string expected_path = full_path;
+        size_t dot_pos = expected_path.rfind('.');
+        expected_path.insert(dot_pos, "-1");
+        REQUIRE(std::string(available_name) == expected_path);
+        
+        // Test basename, dirname and extension
+        char* basename_result = omega_util_basename(full_path.c_str(), nullptr, 0);
+        REQUIRE(basename_result != nullptr);
+        REQUIRE(std::string(basename_result) == emoji_filename);
+        
+        char* dirname_result = omega_util_dirname(full_path.c_str(), nullptr);
+        REQUIRE(dirname_result != nullptr);
+        REQUIRE(std::string(dirname_result) == base_path.substr(0, base_path.length() - 1));
+        
+        char* ext_result = omega_util_file_extension(full_path.c_str(), nullptr);
+        REQUIRE(ext_result != nullptr);
+        REQUIRE(std::string(ext_result) == ".dat");
+        
+        // Create a second file for copy operations
+        std::string copy_path = base_path + "copy_" + emoji_filename;
+        
+        // Test file_copy
+        REQUIRE(0 == omega_util_file_copy(full_path.c_str(), copy_path.c_str(), 0));
+        REQUIRE(omega_util_file_exists(copy_path.c_str()));
+        REQUIRE(0 == omega_util_compare_files(full_path.c_str(), copy_path.c_str()));
+        
+        // Test remove_file
+        REQUIRE(0 == omega_util_remove_file(full_path.c_str()));
+        REQUIRE(!omega_util_file_exists(full_path.c_str()));
+        
+        REQUIRE(0 == omega_util_remove_file(copy_path.c_str()));
+        REQUIRE(!omega_util_file_exists(copy_path.c_str()));
+    }
 }
