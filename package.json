@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/core",
-  "version": "0.9.83",
+  "version": "0.9.87",
   "private": "true",
   "description": "OmegaEdit Client and Server",
   "publisher": "CTC-OSS",
@@ -38,7 +38,7 @@
     "typedoc": "^0.27.6",
     "typescript": "^5.7.3",
     "unzip-stream": "^0.3.4",
-    "webpack": "^5.97.1",
+    "webpack": "^5.98.0",
     "webpack-cli": "^6.0.1"
   },
   "prettier": {
