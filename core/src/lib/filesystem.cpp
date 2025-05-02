@@ -222,8 +222,13 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     if (!omega_util_file_exists(path)) {
         // Use std::string instead of direct memcpy to properly handle multi-byte characters
         std::string path_str(path);
-        path_str.copy(buffer, path_str.length());
-        buffer[path_str.length()] = '\0';
+        if (path_str.length() >= FILENAME_MAX) {
+            path_str.copy(buffer, FILENAME_MAX - 1); // Truncate to fit within buffer
+            buffer[FILENAME_MAX - 1] = '\0'; // Ensure null-termination
+        } else {
+            path_str.copy(buffer, path_str.length());
+            buffer[path_str.length()] = '\0';
+        }
         return buffer;
     }
     int i = 0;
