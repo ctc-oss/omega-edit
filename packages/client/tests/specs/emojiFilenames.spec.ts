@@ -59,22 +59,7 @@ describe('Emoji Filename Handling', () => {
         fs.unlinkSync(copyFilePath)
       }
     })
-  })
-
-  // Clean up test files after all tests
-  after(() => {
-    emojiFilenames.forEach((filename) => {
-      const filePath = path.join(testDataDir, filename)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-
-      const copyFilePath = path.join(testDataDir, `copy_${filename}`)
-      if (fs.existsSync(copyFilePath)) {
-        fs.unlinkSync(copyFilePath)
-      }
-    })
-  })
+  }
 
   it('Should handle files with emoji in filenames', async () => {
     // Ensure client is connected
@@ -130,5 +115,20 @@ describe('Emoji Filename Handling', () => {
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)
     }
+  })
+
+  // Clean up test files after all tests
+  after(() => {
+    emojiFilenames.forEach((filename) => {
+      const filePath = path.join(testDataDir, filename)
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath)
+      }
+
+      const copyFilePath = path.join(testDataDir, `copy_${filename}`)
+      if (fs.existsSync(copyFilePath)) {
+        fs.unlinkSync(copyFilePath)
+      }
+    })
   })
 })
