@@ -24,7 +24,6 @@ import {
   destroySession,
   getClient,
   getComputedFileSize,
-  getSegment,
   getSessionCount,
   insert,
   IOFlags,
