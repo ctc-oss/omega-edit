@@ -220,7 +220,22 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {
-        memcpy(buffer, path, strlen(path) + 1);
+        // Use std::string instead of direct memcpy to properly handle multi-byte characters
+        std::string path_str(path);
+        size_t max_len = FILENAME_MAX - 1; // Reserve space for null-termination
+        size_t utf8_len = 0;
+        for (size_t i = 0; i < path_str.length() && utf8_len < max_len; ++i) {
+            unsigned char c = static_cast<unsigned char>(path_str[i]);
+            if (c < 0x80 || (c >= 0xC0 && c <= 0xF7)) { // Start of a UTF-8 character
+                if (utf8_len + (c < 0x80 ? 1 : (c < 0xE0 ? 2 : (c < 0xF0 ? 3 : 4))) > max_len) {
+                    break; // Stop if adding this character exceeds max_len
+                }
+            }
+            ++utf8_len;
+        }
+        std::string truncated_path = path_str.substr(0, utf8_len);
+        truncated_path.copy(buffer, truncated_path.length());
+        buffer[truncated_path.length()] = '\0'; // Ensure null-termination
         return buffer;
     }
     int i = 0;
