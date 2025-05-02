@@ -20,10 +20,10 @@
 import { expect } from 'chai'
 import {
   createSession,
-  createViewport,
   destroySession,
   getClient,
   getComputedFileSize,
+  getSegment,
   getSessionCount,
   insert,
   IOFlags,
@@ -93,18 +93,18 @@ describe('Emoji Filename Handling', () => {
       expect(await getComputedFileSize(session_id)).to.equal(expectedSize)
 
       // Add some content
-      await insert(session_id, 0, Buffer.from('Added content '))
+      const data = Buffer.from('Added content')
+      await insert(session_id, 0, data)
+      const newSize = await getComputedFileSize(session_id)
+      expect(newSize).to.equal(expectedSize + data.length)
 
-      // Create and verify viewport
-      const viewport = await createViewport(
-        undefined,
-        session_id,
-        0,
-        100,
-        false
+      // Use getSegment to retrieve session data
+      const sessionDataAfterInsert = await getSegment(session_id, 0, newSize)
+
+      // Compare session data using Buffer.from and deep.equals
+      expect(sessionDataAfterInsert).to.deep.contains(
+        Buffer.from('Added content')
       )
-      expect(viewport).to.not.be.undefined
-      expect(viewport.getData_asU8().toString()).to.include('Added content')
 
       // Save to another emoji filename
       const copyFilePath = path.join(testDataDir, `copy_${emojiFilename}`)
