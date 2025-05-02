@@ -220,7 +220,10 @@ char *omega_util_available_filename(char const *path, char *buffer) {
     static char buff[FILENAME_MAX]{};//create string buffer to hold path
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {
-        memcpy(buffer, path, strlen(path) + 1);
+        // Use std::string instead of direct memcpy to properly handle multi-byte characters
+        std::string path_str(path);
+        path_str.copy(buffer, path_str.length());
+        buffer[path_str.length()] = '\0';
         return buffer;
     }
     int i = 0;
