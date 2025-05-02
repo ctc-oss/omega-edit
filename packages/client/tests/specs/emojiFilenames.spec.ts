@@ -36,6 +36,13 @@ import * as path from 'path'
 describe('Emoji Filename Handling', () => {
   const testDataDir = path.join(__dirname, 'data')
 
+  // Ensure the test data directory exists
+  before(() => {
+    if (!fs.existsSync(testDataDir)) {
+      fs.mkdirSync(testDataDir, { recursive: true })
+    }
+  })
+
   // Array of emoji filenames to test
   const emojiFilenames = [
     'test_😀.txt',
@@ -119,16 +126,6 @@ describe('Emoji Filename Handling', () => {
 
   // Clean up test files after all tests
   after(() => {
-    emojiFilenames.forEach((filename) => {
-      const filePath = path.join(testDataDir, filename)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-
-      const copyFilePath = path.join(testDataDir, `copy_${filename}`)
-      if (fs.existsSync(copyFilePath)) {
-        fs.unlinkSync(copyFilePath)
-      }
-    })
+    cleanupTestFiles()
   })
 })
