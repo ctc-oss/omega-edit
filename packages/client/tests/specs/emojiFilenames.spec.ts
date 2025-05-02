@@ -46,8 +46,8 @@ describe('Emoji Filename Handling', () => {
     'test_👨‍👩‍👧‍👦.txt', // Family emoji with zero-width joiners
   ]
 
-  // Clean up any test files that might exist from previous test runs
-  before(() => {
+  // Helper function to clean up test files
+  const cleanupTestFiles = () => {
     emojiFilenames.forEach((filename) => {
       const filePath = path.join(testDataDir, filename)
       if (fs.existsSync(filePath)) {
