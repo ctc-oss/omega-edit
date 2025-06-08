@@ -203,7 +203,7 @@ jobs:
         run: mkdir -p _install
 
       - name: Download linux x86 library file 🔻
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           workflow: tests.yml
           branch: main
@@ -212,7 +212,7 @@ jobs:
           path: _install/libomega_edit_linux_amd64.so
 
       - name: Download linux arm64 library file 🔻
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           workflow: tests.yml
           branch: main
@@ -221,7 +221,7 @@ jobs:
           path: _install/libomega_edit_linux_aarch64.so
 
       - name: Download macos-13 library file 🔻
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           workflow: tests.yml
           branch: main
@@ -230,7 +230,7 @@ jobs:
           path: _install/libomega_edit_macos_x86_64.dylib
 
       - name: Download macos-14 library file 🔻
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           workflow: tests.yml
           branch: main
@@ -239,7 +239,7 @@ jobs:
           path: _install/libomega_edit_macos_aarch64.dylib
 
       - name: Download windows library file 🔻
-        uses: dawidd6/action-download-artifact@v9
+        uses: dawidd6/action-download-artifact@v10
         with:
           workflow: tests.yml
           branch: main
