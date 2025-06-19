@@ -48,7 +48,7 @@ describe('Emoji Filename Handling', () => {
     'test_😀.txt',
     'test_👍.txt',
     'test_🔥.txt',
-    'test_💩.txt',
+    'test 💩.txt', // Space in filename as well
     'test_🚀.txt',
     'test_👨‍👩‍👧‍👦.txt', // Family emoji with zero-width joiners
   ]

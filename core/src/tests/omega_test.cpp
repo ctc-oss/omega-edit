@@ -1753,7 +1753,7 @@ TEST_CASE("Emoji Filename Handling", "[FilesystemTests]") {
         "test_😀.dat",
         "test_👍.dat",
         "test_🔥.dat",
-        "test_💩.dat",
+        "test 💩.dat", // Space in filename as well
         "test_🚀.dat",
         "test_👨‍👩‍👧‍👦.dat"  // Family emoji with zero-width joiners
     };
