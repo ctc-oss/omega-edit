@@ -94,7 +94,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware windows-2019 🔧"
+          checkName: "Build middleware windows-2022 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check native build arm64 - Linux ✅
@@ -244,7 +244,7 @@ jobs:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: windows-2019-x64-omega_edit.dll
+          name: windows-2022-x64-omega_edit.dll
           path: _install/omega_edit_windows_64.dll
 
       - name: Move out library files 🛻
