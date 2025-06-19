@@ -56,6 +56,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   private val editors = system.actorOf(Editors.props())
   private var isGracefulShutdown = false
 
+  private def isWindows: Boolean =
+    System.getProperty("os.name").toLowerCase.contains("windows")
+
   def getServerInfo(in: Empty): Future[ServerInfoResponse] =
     Future.successful(
       ServerInfoResponse(
@@ -75,6 +78,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       Future.successful(CreateSessionResponse("", "", None))
     } else {
       val filePath = in.filePath.map(Paths.get(_))
+
+      // With how omega-edit core works, windows will not support emojis inside of the filename
+      if (isWindows && filePath.toString.exists(_.isSurrogate)) {
+        throw grpcFailure(Status.INTERNAL, "Emojis in filenames is not supported on Windows")
+      }
+
       val chkptDir = in.checkpointDirectory.map(Paths.get(_))
       (editors ? Create(in.sessionIdDesired, filePath, chkptDir))
         .mapTo[Result]
@@ -93,6 +102,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           case Ok(id) =>
             throw grpcFailure(Status.INTERNAL, s"didn't receive checkpoint directory for session '$id'")
           case Err(c) => throw grpcFailure(c)
+        }
+        .recover { case ex: Throwable =>
+          throw grpcFailure(Status.INTERNAL, s"Failed to create session: ${ex.getMessage}")
         }
     }
 

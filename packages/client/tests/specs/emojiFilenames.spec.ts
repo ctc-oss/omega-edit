@@ -68,61 +68,65 @@ describe('Emoji Filename Handling', () => {
     })
   }
 
-  it('Should handle files with emoji in filenames', async () => {
-    // Ensure client is connected
-    expect(await getClient(testPort)).to.not.be.undefined
+  // Skip test on Windows due to omega-edit limitations with emoji filenames on windows
+  ;(process.platform === 'win32' ? it.skip : it)(
+    'Should handle files with emoji in filenames',
+    async () => {
+      // Ensure client is connected
+      expect(await getClient(testPort)).to.not.be.undefined
 
-    // Test each emoji filename
-    for (const emojiFilename of emojiFilenames) {
-      const filePath = path.join(testDataDir, emojiFilename)
+      // Test each emoji filename
+      for (const emojiFilename of emojiFilenames) {
+        const filePath = path.join(testDataDir, emojiFilename)
 
-      // Create a test file with emoji in filename
-      fs.writeFileSync(filePath, 'Test content with emoji filename')
-      expect(fs.existsSync(filePath)).to.be.true
+        // Create a test file with emoji in filename
+        fs.writeFileSync(filePath, 'Test content with emoji filename')
+        expect(fs.existsSync(filePath)).to.be.true
 
-      // Create a session with the emoji filename
-      const session = await createSession(filePath)
-      const session_id = session.getSessionId()
+        // Create a session with the emoji filename
+        const session = await createSession(filePath)
+        const session_id = session.getSessionId()
 
-      // Verify session was created successfully
-      expect(session_id).to.be.a('string')
-      expect(await getSessionCount()).to.equal(1)
+        // Verify session was created successfully
+        expect(session_id).to.be.a('string')
+        expect(await getSessionCount()).to.equal(1)
 
-      // Verify file size is correct
-      const expectedSize = fs.statSync(filePath).size
-      expect(await getComputedFileSize(session_id)).to.equal(expectedSize)
+        // Verify file size is correct
+        const expectedSize = fs.statSync(filePath).size
+        expect(await getComputedFileSize(session_id)).to.equal(expectedSize)
 
-      // Add some content
-      const data = Buffer.from('Added content')
-      await insert(session_id, 0, data)
-      const newSize = await getComputedFileSize(session_id)
-      expect(newSize).to.equal(expectedSize + data.length)
+        // Add some content
+        const data = Buffer.from('Added content')
+        await insert(session_id, 0, data)
+        const newSize = await getComputedFileSize(session_id)
+        expect(newSize).to.equal(expectedSize + data.length)
 
-      // Use getSegment to retrieve session data
-      const sessionDataAfterInsert = await getSegment(session_id, 0, newSize)
+        // Use getSegment to retrieve session data
+        const sessionDataAfterInsert = await getSegment(session_id, 0, newSize)
 
-      // Compare session data using Buffer.from and deep.equals
-      expect(sessionDataAfterInsert).to.deep.contains(
-        Buffer.from('Added content')
-      )
+        // Compare session data using Buffer.from and deep.equals
+        expect(sessionDataAfterInsert).to.deep.contains(
+          Buffer.from('Added content')
+        )
 
-      // Save to another emoji filename
-      const copyFilePath = path.join(testDataDir, `copy_${emojiFilename}`)
-      const saveResult = await saveSession(
-        session_id,
-        copyFilePath,
-        IOFlags.IO_FLG_OVERWRITE
-      )
+        // Save to another emoji filename
+        const copyFilePath = path.join(testDataDir, `copy_${emojiFilename}`)
+        const saveResult = await saveSession(
+          session_id,
+          copyFilePath,
+          IOFlags.IO_FLG_OVERWRITE
+        )
 
-      // Verify save was successful
-      expect(saveResult).to.not.be.undefined
-      expect(fs.existsSync(copyFilePath)).to.be.true
+        // Verify save was successful
+        expect(saveResult).to.not.be.undefined
+        expect(fs.existsSync(copyFilePath)).to.be.true
 
-      // Clean up
-      await destroySession(session_id)
-      expect(await getSessionCount()).to.equal(0)
+        // Clean up
+        await destroySession(session_id)
+        expect(await getSessionCount()).to.equal(0)
+      }
     }
-  })
+  )
 
   // Clean up test files after all tests
   after(() => {
