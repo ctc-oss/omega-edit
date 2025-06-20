@@ -85,7 +85,7 @@ export async function findFirstAvailablePort(
       })
 
       server.on('error', (err) => {
-        log.error(`Error when trying to listen on port ${currentPort}: ${err}`)
+        log.warn(`Port ${currentPort} is in use, trying next port: ${err}`)
         ++currentPort
         tryNextPort() // Try the next port
       })
