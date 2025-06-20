@@ -32,6 +32,7 @@ import java.nio.file.Path
 import java.util.{Base64, UUID}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
+import scala.concurrent.Future
 
 /** The Editors actor manages the backend Sessions
   */
@@ -72,7 +73,7 @@ object Editors {
   private def idFor(path: Option[Path]): String =
     path match {
       case None    => UUID.randomUUID().toString
-      case Some(p) => Base64.getEncoder.encodeToString(p.toString.getBytes)
+      case Some(p) => Base64.getUrlEncoder.encodeToString(p.toString.getBytes)
     }
 }
 
@@ -88,33 +89,46 @@ class Editors extends Actor with ActorLogging {
           sender() ! Err(Status.ALREADY_EXISTS)
         case None =>
           import context.system
-          val (input, stream) = Source
-            .queue[SessionEvent](8, OverflowStrategy.backpressure)
-            .preMaterialize()
-          val cb = SessionCallback { (session, event, change) =>
-            input.queue.offer(
-              SessionEvent.defaultInstance
-                .copy(
-                  sessionId = id,
-                  sessionEventKind = SessionEventKind.fromValue(event.value),
-                  serial = change.map(_.id),
-                  computedFileSize = session.size,
-                  changeCount = session.numChanges,
-                  undoCount = session.numUndos
-                )
+          import context.dispatcher
+
+          val originalSender = sender()
+
+          Future {
+            val (input, stream) = Source
+              .queue[SessionEvent](8, OverflowStrategy.backpressure)
+              .preMaterialize()
+            val cb = SessionCallback { (session, event, change) =>
+              input.queue.offer(
+                SessionEvent.defaultInstance
+                  .copy(
+                    sessionId = id,
+                    sessionEventKind = SessionEventKind.fromValue(event.value),
+                    serial = change.map(_.id),
+                    computedFileSize = session.size,
+                    changeCount = session.numChanges,
+                    undoCount = session.numUndos
+                  )
+              )
+              ()
+            }
+
+            val session = OmegaEdit.newSessionCb(path, chkptDir, cb)
+
+            (session, stream, cb)
+          }.map { case (session, stream, cb) =>
+            context.actorOf(
+              Session.props(
+                session,
+                stream,
+                cb
+              ),
+              id
             )
-            ()
+
+            originalSender ! CheckpointDirectory.ok(id, session.checkpointDirectory, session.size)
+          }.recover { case ex =>
+            originalSender ! Err(Status.INTERNAL.withDescription(s"Failed to create session: ${ex.getMessage}"))
           }
-          val session = OmegaEdit.newSessionCb(path, chkptDir, cb)
-          context.actorOf(
-            Session.props(
-              session,
-              stream,
-              cb
-            ),
-            id
-          )
-          sender() ! CheckpointDirectory.ok(id, session.checkpointDirectory, session.size)
       }
 
     case Find(id) =>
