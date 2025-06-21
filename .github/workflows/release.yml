@@ -274,6 +274,14 @@ jobs:
       ## Scala publish process ##
       ###########################
 
+      - name: Package Scala SPI 🎁
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IS_RELEASE: true
+          OE_LIB_DIR: "../../_install"
+        run: sbt spi/publish
+        working-directory: server/scala
+
       - name: Package Scala Native 🎁
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
