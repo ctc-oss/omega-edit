@@ -59,7 +59,7 @@ lazy val enumeratumVersion = "1.7.6"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.12",
+    scalaVersion := "2.13.16",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
     maintainer := "oss@ctc.com",

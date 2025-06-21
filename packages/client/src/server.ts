@@ -55,6 +55,47 @@ export function delay(milliseconds: number): Promise<void> {
 }
 
 /**
+ * Find the first available port in a range, or null if no ports are available
+ * @param startPort start of the port range
+ * @param endPort end of the port range
+ * @returns first available port in the range, or null if no ports are available
+ */
+export async function findFirstAvailablePort(
+  startPort: number,
+  endPort: number
+): Promise<number | null> {
+  const log = getLogger()
+  return new Promise((resolve) => {
+    let currentPort = startPort
+
+    const tryNextPort = () => {
+      if (currentPort > endPort) {
+        resolve(null) // No ports available in the range
+        return
+      }
+
+      const server = createServer()
+      server.listen(currentPort, '0.0.0.0', () => {
+        server.close((err) => {
+          if (err) {
+            log.error(`Error closing server on port ${currentPort}: ${err}`)
+          }
+          resolve(currentPort) // Found an available port
+        })
+      })
+
+      server.on('error', (err) => {
+        log.warn(`Port ${currentPort} is in use, trying next port: ${err}`)
+        ++currentPort
+        tryNextPort() // Try the next port
+      })
+    }
+
+    tryNextPort()
+  })
+}
+
+/**
  * Wait for file to exist
  * @param filePath path to file to wait for
  * @param timeout timeout in milliseconds
