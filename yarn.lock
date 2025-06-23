@@ -55,10 +55,10 @@
     "@shikijs/types" "^1.27.2"
     "@shikijs/vscode-textmate" "^10.0.1"
 
-"@grpc/grpc-js@1.12.2":
-  version "1.12.2"
-  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.12.2.tgz#97eda82dd49bb9c24eaf6434ea8d7de446e95aac"
-  integrity sha512-bgxdZmgTrJZX50OjyVwz3+mNEnCTNkh3cIqGPWVNeW9jX6bn1ZkU80uPd+67/ZpIJIjRQ9qaHCjhavyoWYxumg==
+"@grpc/grpc-js@1.13.4":
+  version "1.13.4"
+  resolved "https://registry.yarnpkg.com/@grpc/grpc-js/-/grpc-js-1.13.4.tgz#922fbc496e229c5fa66802d2369bf181c1df1c5a"
+  integrity sha512-GsFaMXCkMqkKIvwCQjCrwH+GHbPKBjhwo/8ZuUkWHqbI73Kky9I+pQltrlT0+MWpedCoosda53lgjYfyEPgxBg==
   dependencies:
     "@grpc/proto-loader" "^0.7.13"
     "@js-sdsl/ordered-map" "^4.4.2"
