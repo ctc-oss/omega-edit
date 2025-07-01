@@ -133,3 +133,66 @@ describe('Server', () => {
     expect(pidIsRunning(pid as number)).to.be.false
   })
 })
+
+// Tests involving running the server
+// Created for investigating https://github.com/apache/daffodil-vscode/pull/1277 and https://github.com/apache/daffodil-vscode/issues/1075
+
+const fs = require('fs').promises
+
+async function createDirectory(folder_name: string) {
+  const dirPath = path.join(__dirname, folder_name)
+
+  try {
+    await fs.mkdir(dirPath, { recursive: true })
+    console.log(`Directory created at: ${dirPath}`)
+  } catch (err: any) {
+    console.error(`Error creating directory: ${err.message}`)
+  }
+}
+
+describe('Directory with Spaces Test', () => {
+  createDirectory('space test')
+  const originalDir = process.cwd()
+  const newDir = path.join(__dirname, 'space test')
+
+  before(() => {
+    process.chdir(newDir)
+  })
+
+  after(() => {
+    // Change back to the original directory
+    process.chdir(originalDir)
+  })
+
+  it(`should be in the new directory: ${newDir}`, () => {
+    expect(process.cwd()).to.equal(newDir)
+  })
+
+  const serverTestPort = testPort + 1
+
+  it(`Create on port ${serverTestPort} with a single session and is able to be closed`, async () => {
+    // Logging stuff
+    const logFile = path.join(
+      newDir,
+      `server-lifecycle-tests-with-space-${serverTestPort}.log`
+    )
+    const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
+    const logger = createSimpleFileLogger(logFile, level)
+
+    // Create the session on the server test port
+    setLogger(logger)
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    const pid = await startServer(serverTestPort)
+    expect(pid).to.be.a('number').greaterThan(0)
+    expect(pidIsRunning(pid as number)).to.be.true
+    expect(await getClient(serverTestPort)).to.not.be.undefined
+    expect(await getSessionCount()).to.equal(0)
+    const session_id = (await createSession()).getSessionId()
+    expect(session_id.length).to.equal(36)
+    expect(await getSessionCount()).to.equal(1)
+
+    //Close the session
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+})
