@@ -73,6 +73,8 @@ endif ()
 if (BUILD_TESTS)
     enable_testing()
     include(FetchContent)
+    # Save the current BUILD_SHARED_LIBS value before forcing it OFF for Catch2
+    set(OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DDL when running tests
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
@@ -82,19 +84,9 @@ if (BUILD_TESTS)
             GIT_TAG v3.8.1
     )
     FetchContent_MakeAvailable(Catch2)
-    list(APPEND CMAKE_MODULE_PATH "${Catch2_SOURCE_DIR}/extras")
-    add_executable(omega_test "src/tests/omega_test.cpp" "src/tests/test_util.hpp")
-    target_link_libraries(omega_test PRIVATE omega_edit::omega_edit Catch2::Catch2WithMain ${FILESYSTEM_LIB})
-    # Set the runtime output directory
-    set_target_properties(omega_test PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-    add_custom_command(TARGET omega_test POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/tests/data" "${CMAKE_CURRENT_BINARY_DIR}/data")
-    include(CTest)
-    include(Catch)
-    catch_discover_tests(omega_test WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
-    find_program(VALGRIND "valgrind")
-    if (VALGRIND)
-        add_custom_target(valgrind COMMAND ${VALGRIND} --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind-out.txt $<TARGET_FILE:omega_test> COMMENT "Running tests under valgrind" DEPENDS omega_test)
-    endif ()
+    # Restore the original BUILD_SHARED_LIBS value for the main project
+    set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    add_subdirectory(src/tests)
 endif ()
 
 # Documentation

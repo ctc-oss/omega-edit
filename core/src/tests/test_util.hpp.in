@@ -12,29 +12,28 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-/**********************************************************************************************************************
- * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
- *                                                                                                                    *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
- * with the License.  You may obtain a copy of the License at                                                         *
- *                                                                                                                    *
- *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
- *                                                                                                                    *
- * Unless required by applicable law or agreed to in writing, software is distributed under the License is            *
- * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                   *
- * implied.  See the License for the specific language governing permissions and limitations under the License.       *
- *                                                                                                                    *
- **********************************************************************************************************************/
-
 #ifndef OMEGA_EDIT_TEST_UTIL_HPP
 #define OMEGA_EDIT_TEST_UTIL_HPP
 
 #include "omega_edit/byte.h"
 #include "omega_edit/config.h"
+#include "omega_edit/filesystem.h"
+#include "omega_edit/change.h"
+#include "omega_edit/session.h"
 #include <cstdio>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <filesystem>
+
+using file_info_t = struct file_info_struct {
+    size_t num_changes{};
+};
+
+// The template parameter is replaced by cmake at configure time with the appropriate value for the platform.
+static const std::filesystem::path DATA_DIR = "@OMEGA_EDIT_TEST_DATA_DIR@";
+
+#define MAKE_PATH(path) (DATA_DIR / (path)).string().c_str()
 
 static inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int64_t fill_length) {
     const auto f1_ptr = FOPEN(f1, "w+");
@@ -72,4 +71,37 @@ static inline void write_pretty_bytes(const omega_byte_t *data, int64_t size) {
     }
 }
 
+static inline omega_byte_t to_lower(omega_byte_t byte, void *) { return tolower(byte); }
+
+static inline omega_byte_t to_upper(omega_byte_t byte, void *) { return toupper(byte); }
+
+static inline void session_change_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event,
+                                      const void *session_event_ptr) {
+    // Not all session changes are the result of a standard change like delete / insert / overwrite
+    switch (session_event) {
+        case SESSION_EVT_EDIT:
+        case SESSION_EVT_UNDO: {
+            auto file_info_ptr = reinterpret_cast<file_info_t *>(omega_session_get_user_data_ptr(session_ptr));
+            const auto change_ptr = reinterpret_cast<const omega_change_t *>(session_event_ptr);
+            const auto bytes = omega_change_get_bytes(change_ptr);
+            const auto bytes_length = omega_change_get_length(change_ptr);
+            if (0 < omega_change_get_serial(change_ptr)) { ++file_info_ptr->num_changes; } else {
+                --file_info_ptr->num_changes;/* this is an UNDO */
+            }
+            auto file_path = omega_session_get_file_path(session_ptr);
+            file_path = (file_path) ? file_path : "NO FILENAME";
+            std::clog << std::dec << R"({ "filename" : ")" << file_path << R"(", "num_changes" : )"
+                    << omega_session_get_num_changes(session_ptr) << R"(, "computed_file_size": )"
+                    << omega_session_get_computed_file_size(session_ptr) << R"(, "change_transaction_bit": )"
+                    << omega_change_get_transaction_bit(change_ptr) << R"(, "change_serial": )"
+                    << omega_change_get_serial(change_ptr) << R"(, "change_kind": ")"
+                    << omega_change_get_kind_as_char(change_ptr) << R"(", "offset": )"
+                    << omega_change_get_offset(change_ptr) << R"(, "length": )" << omega_change_get_length(change_ptr);
+            if (bytes) { std::clog << R"(, "bytes": ")" << std::string((const char *) bytes, bytes_length) << R"(")"; }
+            std::clog << "}" << std::endl;
+        }
+        default:
+            break;
+    }
+}
 #endif//OMEGA_EDIT_TEST_UTIL_HPP
