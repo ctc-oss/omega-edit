@@ -34,14 +34,17 @@
 #include <io.h>
 
 #define close _close
-#define min std::min
-#define max std::max
+// Undefine Windows min/max macros to avoid conflicts with std::min/max
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 #else
 
 #include <unistd.h>
 
-#define min std::min
-#define max std::max
 #endif
 
 namespace {
@@ -498,7 +501,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     return (omega_session_changes_paused(session_ptr) == 0) && 0 < length && offset < computed_file_size
            ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
-                                       min(length, static_cast<int64_t>(computed_file_size) - offset),
+                                       std::min(length, static_cast<int64_t>(computed_file_size) - offset),
                                        determine_change_transaction_bit_(session_ptr)))
            : 0;
 }
@@ -564,7 +567,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     assert(file_path);
     assert(0 <= offset);
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
-    const auto adjusted_length = length <= 0 ? computed_file_size - offset : min(length, computed_file_size - offset);
+    const auto adjusted_length = length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
     if (adjusted_length < 0) {
         LOG_ERROR("invalid offset: " << offset << ", length: " << length << ", adjusted_length: " << adjusted_length
                                      << ", computed_file_size: " << computed_file_size);
@@ -641,8 +644,8 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         if (bytes_written >= adjusted_length) { break; }
 
         // Calculate how much to write from this segment
-        auto segment_start = max(offset - write_offset, int64_t(0));
-        auto segment_length = min(adjusted_length - bytes_written, segment->computed_length - segment_start);
+        auto segment_start = std::max(offset - write_offset, int64_t(0));
+        auto segment_length = std::min(adjusted_length - bytes_written, segment->computed_length - segment_start);
 
         switch (omega_model_segment_get_kind(segment.get())) {
             case model_segment_kind_t::SEGMENT_READ: {

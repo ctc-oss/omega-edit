@@ -30,6 +30,7 @@ using file_info_t = struct file_info_struct {
     size_t num_changes{};
 };
 
+// The template parameter is replaced by cmake at configure time with the appropriate value for the platform.
 static const std::filesystem::path DATA_DIR = "@OMEGA_EDIT_TEST_DATA_DIR@";
 
 #define MAKE_PATH(path) (DATA_DIR / (path)).string().c_str()

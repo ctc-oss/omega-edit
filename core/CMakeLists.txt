@@ -73,6 +73,8 @@ endif ()
 if (BUILD_TESTS)
     enable_testing()
     include(FetchContent)
+    # Save the current BUILD_SHARED_LIBS value before forcing it OFF for Catch2
+    set(OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
     # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DDL when running tests
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
@@ -82,6 +84,8 @@ if (BUILD_TESTS)
             GIT_TAG v3.8.1
     )
     FetchContent_MakeAvailable(Catch2)
+    # Restore the original BUILD_SHARED_LIBS value for the main project
+    set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
     add_subdirectory(src/tests)
 endif ()
 
