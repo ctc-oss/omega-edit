@@ -48,7 +48,7 @@
     "@types/google-protobuf": "3.15.12",
     "google-protobuf": "3.21.4",
     "pid-port": "1.0.2",
-    "pino": "9.7.0",
+    "pino": "9.8.0",
     "wait-port": "1.1.0"
   }
 }
