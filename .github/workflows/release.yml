@@ -28,7 +28,7 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Count lines of code (CLOC) 📐
         id: cloc
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
@@ -338,7 +338,7 @@ jobs:
     needs: [scala-publish]
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
