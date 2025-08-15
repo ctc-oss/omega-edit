@@ -31,7 +31,7 @@
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
-    "mocha": "^10.8.2",
+    "mocha": "^11.7.1",
     "prettier": "^3.6.2",
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.2",
