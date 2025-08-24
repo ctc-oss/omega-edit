@@ -17,6 +17,7 @@
     "packages/*"
   ],
   "scripts": {
+    "sync-version": "node sync-version.js",
     "lint": "prettier --check package.json && yarn workspaces run lint",
     "lint:fix": "prettier --write package.json && yarn workspaces run lint:fix",
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package",
