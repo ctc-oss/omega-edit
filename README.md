@@ -144,7 +144,7 @@ Linux (ARM, and x86; glibc 2.31 or greater required) are built and published via
 
 ## Versioning
 
-Ωedit™ follows [Semantic Versioning](http://semver.org/).
+Ωedit™ follows [Semantic Versioning](http://semver.org/). Version information is managed through a single source of truth in the `VERSION` file at the repository root. See [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) for details on updating versions across all components.
 
 ## &#9889;Powered by Ωedit™
 
