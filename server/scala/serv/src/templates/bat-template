@@ -56,13 +56,13 @@ set "NEW_CLASSPATH=%APP_LIB_DIR%\\com.ctc.omega-edit-native_2.13-%OMEGAVERSION%-
 
 rem Bundled JRE has priority over standard environment variables
 if defined BUNDLED_JVM (
-  set "_JAVACMD=%BUNDLED_JVM%\bin\java.exe"
+  set "_JAVACMD=%BUNDLED_JVM%\bin\javaw.exe"
 ) else (
   if "%JAVACMD%" neq "" (
     set "_JAVACMD=%JAVACMD%"
   ) else (
     if "%JAVA_HOME%" neq "" (
-      if exist "%JAVA_HOME%\bin\java.exe" set "_JAVACMD=%JAVA_HOME%\bin\java.exe"
+      if exist "%JAVA_HOME%\bin\javaw.exe" set "_JAVACMD=%JAVA_HOME%\bin\javaw.exe"
     )
   )
 )
@@ -91,7 +91,7 @@ if "%JAVAOK%"=="false" (
   echo and download a valid Java JDK and install before running omega-edit-grpc-server.
   echo.
   echo If you think this message is in error, please check
-  echo your environment variables to see if "java.exe" and "javac.exe" are
+  echo your environment variables to see if "javaw.exe" and "javac.exe" are
   echo available via JAVA_HOME or PATH.
   echo.
   if defined DOUBLECLICKED pause
