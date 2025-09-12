@@ -16,10 +16,6 @@
 set -ex
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-#type="Release"
-#generator="Unix Makefiles"
-#toolchain_file=mingw64-toolchain.cmake
-
 type=${type:-"Debug"}
 generator=${generator:-"Ninja"}
 build_docs=${build_docs:-"NO"}
@@ -73,10 +69,10 @@ fi
 yarn install
 yarn lint
 
-# Build, test, and package Scala server node module
-yarn workspace @omega-edit/server package
+# Packages modules in ./packages/{client, server}
+./packages/build.sh -fc
 
-# Build, test, and package the TypeScript client node module
+# Execute client module tests
 yarn workspace @omega-edit/client test
 
 echo "✔ Done! ✨"

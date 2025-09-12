@@ -28,7 +28,7 @@ const pkg_version = JSON.parse(fs.readFileSync('./package.json').toString())[
 ]
 
 module.exports = {
-  entry: './src/index.ts',
+  entry: { index: './src/index.ts' },
   devtool: 'source-map',
   target: 'node',
   output: {
@@ -59,7 +59,6 @@ module.exports = {
     new CleanWebpackPlugin(),
     new CopyPlugin({
       patterns: [
-        'package.json',
         'README.md',
         '../../LICENSE.txt',
         'src/omega_edit_grpc_pb.d.ts',

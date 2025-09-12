@@ -13,9 +13,10 @@
 set "OUT_DIR=%cd%\src"
 set "TS_OUT_DIR=%cd%\src"
 
-set "PROTOC=%cd%\node_modules\.bin\grpc_tools_node_protoc.cmd"
-set "PROTOC_GEN_TS_PATH=%cd%\node_modules\.bin\protoc-gen-ts.cmd"
-set "PROTOC_GEN_GRPC_PATH=%cd%\node_modules\.bin\grpc_tools_node_protoc_plugin.cmd"
+set "BIN_DIR=%cd%\..\..\node_modules\.bin"
+set "PROTOC=%BIN_DIR%\grpc_tools_node_protoc.cmd"
+set "PROTOC_GEN_TS_PATH=%BIN_DIR%\protoc-gen-ts.cmd"
+set "PROTOC_GEN_GRPC_PATH=%BIN_DIR%\grpc_tools_node_protoc_plugin.cmd"
 set "IN_DIR=%cd%\..\..\proto"
 
 for %%d in ("src" "out") do (
