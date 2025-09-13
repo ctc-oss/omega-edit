@@ -72,6 +72,9 @@ yarn lint
 # Packages modules in ./packages/{client, server}
 ./packages/build.sh -fc
 
+# Execute scala server tests
+yarn workspace @omega-edit/server test
+
 # Execute client module tests
 yarn workspace @omega-edit/client test
 
