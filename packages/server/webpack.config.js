@@ -56,7 +56,7 @@ module.exports = {
   },
   plugins: [
     new CopyPlugin({
-      patterns: ['package.json', 'README.md'],
+      patterns: ['README.md'],
     }),
     {
       // unzip server package file
