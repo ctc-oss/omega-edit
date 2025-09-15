@@ -12,7 +12,7 @@ set -e
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
 IN_DIR="../../proto"
-BIN_DIR="$(cd "$(dirname "$0")" && pwd)/../../node_modules/.bin"
+BIN_DIR="$(yarn bin)/../../node_modules/.bin"
 PROTOC="$BIN_DIR/grpc_tools_node_protoc"
 PROTOC_GEN_TS_PATH="$BIN_DIR/protoc-gen-ts"
 PROTOC_GEN_GRPC_PATH="$BIN_DIR/grpc_tools_node_protoc_plugin"
