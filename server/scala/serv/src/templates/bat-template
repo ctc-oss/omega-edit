@@ -62,7 +62,13 @@ if defined BUNDLED_JVM (
     set "_JAVACMD=%JAVACMD%"
   ) else (
     if "%JAVA_HOME%" neq "" (
-      if exist "%JAVA_HOME%\bin\javaw.exe" set "_JAVACMD=%JAVA_HOME%\bin\javaw.exe"
+      if exist "%JAVA_HOME%\bin\java.exe" (
+        if exist "%JAVA_HOME%\bin\javaw.exe" (
+          set "_JAVACMD=%JAVA_HOME%\bin\javaw.exe"
+        ) else (
+          set "_JAVACMD=%JAVA_HOME%\bin\java.exe"
+        )
+      )
     )
   )
 )
