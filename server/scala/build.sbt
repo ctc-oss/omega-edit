@@ -22,12 +22,8 @@ import scala.util.Using
 import scala.util.Try
 import scala.collection.mutable.ListBuffer
 
-lazy val packageData = Json
-  .parse(
-    Using(Source.fromFile("../../package.json"))(source => source.mkString).get
-  )
-  .as[JsObject]
-lazy val omegaEditVersion = packageData("version").as[String]
+// Read version from VERSION file
+lazy val omegaEditVersion = Using(Source.fromFile("../../VERSION"))(source => source.mkString.trim).get
 
 lazy val ghb_repo_owner = "ctc-oss"
 lazy val ghb_repo = "omega-edit"
