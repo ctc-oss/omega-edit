@@ -11,9 +11,13 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+# Read version from VERSION file
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" OMEGA_EDIT_VERSION)
+string(STRIP "${OMEGA_EDIT_VERSION}" OMEGA_EDIT_VERSION)
+
 # Project information
 project(omega_edit
-        VERSION 0.9.88
+        VERSION ${OMEGA_EDIT_VERSION}
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
