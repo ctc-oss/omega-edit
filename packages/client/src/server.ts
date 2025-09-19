@@ -741,8 +741,8 @@ export interface IServerHeartbeat {
  * @returns a promise that resolves to the server heartbeat
  */
 export async function getServerHeartbeat(
-  activeSessions: string[],
-  heartbeatInterval: number = 1000
+  heartbeatInterval: number = 1000,
+  ...activeSessions: string[]
 ): Promise<IServerHeartbeat> {
   const log = getLogger()
   const client = await getClient()

@@ -39,6 +39,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import java.util.concurrent.ConcurrentHashMap
+import java.time.Instant
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
@@ -53,11 +58,35 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   lazy val serverVersion: String = omegaEditVersion.toString
   lazy val availableProcessors: Int = Runtime.getRuntime().availableProcessors()
 
+  private val heartbeatReceivers = new ConcurrentHashMap[String, Instant]()
+  private val heartbeatTimeoutSecs = 20L
+
   private val editors = system.actorOf(Editors.props())
   private var isGracefulShutdown = false
 
   private def isWindows: Boolean =
     System.getProperty("os.name").toLowerCase.contains("windows")
+
+  private val scheduler: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+  scheduler.scheduleAtFixedRate(
+    new Runnable {
+      override def run(): Unit = {
+        val now = Instant.now()
+        // Remove clients past timeout
+        heartbeatReceivers.entrySet().removeIf { entry =>
+          now.isAfter(entry.getValue.plusSeconds(heartbeatTimeoutSecs))
+        }
+
+        if (heartbeatReceivers.isEmpty) {
+          println(s"[EditorService] No clients active for $heartbeatTimeoutSecs seconds. Shutting down.")
+          stopServer(kind = ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN)
+        }
+      }
+    },
+    heartbeatTimeoutSecs, // initial delay
+    heartbeatTimeoutSecs, // repeat period
+    TimeUnit.SECONDS
+  )
 
   def getServerInfo(in: Empty): Future[ServerInfoResponse] =
     Future.successful(
@@ -394,6 +423,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
+    for (sessionId <- in.sessionIds){
+      
+      heartbeatReceivers.put(sessionId, Instant.now())
+    }
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
     val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
