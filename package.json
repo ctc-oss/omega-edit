@@ -17,6 +17,7 @@
     "packages/*"
   ],
   "scripts": {
+    "sync-version": "node sync-version.js",
     "lint": "prettier --check package.json && yarn workspaces run lint",
     "lint:fix": "prettier --write package.json && yarn workspaces run lint:fix",
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package",
@@ -25,20 +26,20 @@
   "devDependencies": {
     "@types/chai": "^5.2.2",
     "@types/mocha": "^10.0.10",
-    "@types/node": "^24.1.0",
-    "chai": "^5.2.1",
+    "@types/node": "^24.4.0",
+    "chai": "^5.3.1",
     "copy-webpack-plugin": "^13.0.0",
-    "eslint": "^9.32.0",
+    "eslint": "^9.34.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-prettier": "^5.5.4",
     "mocha": "^10.8.2",
     "prettier": "^3.6.2",
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.2",
-    "typedoc": "^0.28.8",
+    "typedoc": "^0.28.10",
     "typescript": "^5.7.3",
     "unzip-stream": "^0.3.4",
-    "webpack": "^5.100.2",
+    "webpack": "^5.101.2",
     "webpack-cli": "^6.0.1"
   },
   "prettier": {

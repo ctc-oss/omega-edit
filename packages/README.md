@@ -1,6 +1,6 @@
 # Ωedit™ Node Packages
 
-:exclamation: These commands should be executed in the `packages` folder after a successful [build](../README.md). :exclamation:
+:exclamation: These commands should be executed in the `packages` folder after a successful [build & install](../README.md). :exclamation:
 
 This folder contains different node packages that will be created for `omega-edit`.  These packages are:
 
@@ -9,35 +9,35 @@ This folder contains different node packages that will be created for `omega-edi
 
 ## How to use these packages while in development
 
-It is often useful to use these packages while they are in development. To do so, you can use `yarn link` to link the package to your
-local `node_modules` folder in the project that has Ωedit™ dependencies.  Here is how to do that:
+It is often useful to use these packages while they are in development. To do so, you can utilize the `build.sh` script which uses `yarn link` to link the package to your local `node_modules` folder in the project that has Ωedit™ dependencies.  Here is how to do that:
 
-1. In the packages folder, run `yarn link`.
-
+1. In the packages folder, run:
+  
 ```bash
-yarn --cwd server link
-yarn --cwd client link
+build.sh -l <project-path>
 ```
 
-2. In the project folder that you want to use the packages in, run `yarn link <package-name>`.  If the project uses npm,
-you can run `npm link <package-name>` instead.
+This compiles and packages the *client* and *server* directories then creates yarn links to the packaged `out` directory the each respective location.
 
-```bash
-yarn link @omega-edit/server @omega-edit/client
-```
+> **NOTE**: `yarn link` works by taking the linkable package and caching that package, on Unix systems the `yarn` cache path default is `$HOME/.config/yarn/links/<package-name>`.
+> Then, when linking a cached package to another project, `yarn link <package-name>`, a symlink is created in the depedency modules folder. This symlink forces dependency
+> installations of linked packages to utilize the cached package instead.
+>
+> When using this method there is no need to try and re-link a cached package because the symlink will always have updated content. All that needs to be done is repacking
+> the cached packages project to update it's output directory contents.
 
-3. Now you can use the packages in your project as if they were installed from yarn/npm.
+2. When you are done, you can unlink the packages by running one of the following:
+- `build.sh -d` in the *omega-edit/packages* folder. 
+- `yarn unlink <package-name>` in the project folder.
+If the project uses npm, you can run `npm unlink <package-name>` instead.
 
-4. When you are done, you can unlink the packages by running `yarn unlink <package-name>` in the project folder. If the
-project uses npm, you can run `npm unlink <package-name>` instead.
+> **NOTE**: `build.sh -d` will fully destroy any links to the *@omega-edit/client* and *@omega-edit/server* links. This includes unlinking through `yarn unlink` and by deleting
+> the symlinks in the yarn link cache directory (`$HOME/.config/yarn/links/@omega-edit/{client, server}`).
 
+3. After removing the package links, run the following in the development project which depends on the *@omega-edit* module: 
 ```bash
 yarn unlink @omega-edit/server @omega-edit/client
+yarn install
 ```
 
-5. You can also unlink the packages from the package folder by running `yarn unlink` in the package folder.
-
-```bash
-yarn --cwd server unlink
-yarn --cwd client unlink
-```
+This removing the `yarn` force of points these modules to the symlinks and then `yarn install` points towards the publically available modules.

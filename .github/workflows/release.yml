@@ -28,7 +28,7 @@ jobs:
     name: Quality Gate
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Count lines of code (CLOC) 📐
         id: cloc
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
@@ -173,14 +173,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
         shell: bash
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: upload_url
 
@@ -190,7 +190,7 @@ jobs:
           echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
 
       - name: Setup Java ☕
-        uses: actions/setup-java@v4.7.1
+        uses: actions/setup-java@v5.0.0
         with:
           distribution: temurin
           java-version: 8
@@ -338,13 +338,13 @@ jobs:
     needs: [scala-publish]
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Export git tag and package.json version 🚢
         run: ${{ env.export_cmd }}
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: upload_url
 
@@ -357,13 +357,13 @@ jobs:
       ## Node release process ##
       ##########################
       - name: Setup Node 📐
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           registry-url: "https://registry.npmjs.org"
           node-version: ${{ env.node_version }}
 
       - name: Download scala release file 🔻
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           path: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip

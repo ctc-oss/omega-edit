@@ -111,6 +111,10 @@ runs:
       shell: bash
       run: yarn workspace @omega-edit/server package
 
+    - name: Yarn Prepare - Client
+      shell: bash
+      run: yarn workspace @omega-edit/client prepare
+      
     - name: Yarn Test - Client 🧑‍💼
       shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/client test
