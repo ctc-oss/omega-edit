@@ -120,7 +120,7 @@ create_oe_links() {
 link_to_project() {
   destination_dir=$1
 
-  [[ ! -e $destination_dir ]] && {  
+  [[ ! -e "$destination_dir" ]] && {  
     log_err "Cannot link packages to '${destination_dir}': Does not exist\n" 
     exit 1
   }
