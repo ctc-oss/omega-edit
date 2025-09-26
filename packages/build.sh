@@ -118,7 +118,7 @@ create_oe_links() {
 
 # Links the @omega-edit packages in the yarn link cache to a project directory
 link_to_project() {
-  destination_dir=$OPTARG
+  destination_dir=$1
 
   [[ ! -e $destination_dir ]] && {  
     log_err "Cannot link packages to '${destination_dir}': Does not exist\n" 
