@@ -73,7 +73,7 @@ if defined BUNDLED_JVM (
   )
 )
 
-if "%_JAVACMD%"=="" set _JAVACMD=java
+if "%_JAVACMD%"=="" set _JAVACMD=javaw
 
 rem Detect if this java is ok to use.
 for /F %%j in ('"%_JAVACMD%" -version  2^>^&1') do (
