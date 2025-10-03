@@ -16,7 +16,7 @@ on:
     tags:
       - "v*.*.*"
 env:
-  node_version: 18
+  node_version: 20
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
     PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')

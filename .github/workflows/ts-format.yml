@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           registry-url: 'https://registry.npmjs.org'
-          node-version: 18
+          node-version: 20
 
       - name: yarn lint - all workspaces 🧶
         run: |
