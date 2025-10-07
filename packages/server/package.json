@@ -19,7 +19,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "test": "cd ../../server/scala && sbt test && sbt serv/test",
-    "sbt-server": "cd ../../server/scala && sbt pkgServer",
+    "sbt-server": "cd ../../server/scala && sbt publishLocal && sbt pkgServer",
     "build": "webpack --mode=production",
     "prepare": "yarn sbt-server && yarn build",
     "package": "yarn prepare && yarn pack -f omega-edit-node-server-v${npm_package_version}.tgz",
