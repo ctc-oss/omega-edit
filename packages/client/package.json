@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OmegaEdit gRPC Client",
   "publisher": "ctc-oss",
   "main": "./out/index.js",
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "1.12.2",
-    "@omega-edit/server": "1.0.0",
+    "@omega-edit/server": "1.0.1",
     "@types/google-protobuf": "3.15.12",
     "google-protobuf": "3.21.4",
     "pid-port": "2.0.0",

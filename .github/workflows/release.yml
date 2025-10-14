@@ -406,6 +406,7 @@ jobs:
         run: yarn publish -f --access=public
         working-directory: packages/server/out
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
 
@@ -413,5 +414,6 @@ jobs:
         run: yarn publish -f --access=public
         working-directory: packages/client/out
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}

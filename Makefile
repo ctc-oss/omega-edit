@@ -34,14 +34,9 @@ lib/$(LIBNAME): CMakeLists.txt core/CMakeLists.txt
 	cp _install/lib/$(LIBNAME) $@
 
 update-version:
-  # Make sure version is set for this target
-	@if [ -z "$(version)" ]; then \
-		echo "version is not set, please run \`make update-version version=1.2.3\` where 1.2.3 is the new version"; \
-		exit 1; \
-	fi
-	@sed -i '' -e 's|"version": .*|"version": "$(version)",|' package.json packages/server/package.json packages/client/package.json
-	@sed -i '' -e 's|"\@omega-edit\/server": .*|"\@omega-edit\/server": "$(version)",|' packages/client/package.json
-	@sed -i '' -e '/project(omega_edit/{N;s|.* VERSION .*|project(omega_edit\n        VERSION $(version)|;}' CMakeLists.txt
+	@node -e "if (!process.env.version) { console.error('version is not set, please run make update-version version=1.2.3 where 1.2.3 is the new version'); process.exit(1); }"
+	@echo $(version) > VERSION
+	@node sync-version.js
 	@echo "------------------------------------------------------------------------"
 	@echo "Updated version to v$(version), next steps:"
 	@echo "  git commit -am \"v$(version) [node_publish]\""
