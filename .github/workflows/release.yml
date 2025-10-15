@@ -403,16 +403,16 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Publish server node package to npm registry 🚀
-        run: yarn publish -f --access=public
-        working-directory: packages/server/out
+        run: yarn publish omega-edit-node-server-v${{ env.PKG_VERSION }}.tgz -f --access=public
+        working-directory: packages/server
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
 
       - name: Publish client node package to npm registry 🚀
-        run: yarn publish -f --access=public
-        working-directory: packages/client/out
+        run: yarn publish omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz -f --access=public
+        working-directory: packages/client
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
