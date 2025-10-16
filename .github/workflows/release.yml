@@ -408,7 +408,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
+        if: ${{ contains(github.event.head_commit.message, '[node_publish]') || contains(github.event.head_commit.message, '[node-publish]')  }}
 
       - name: Publish client node package to npm registry 🚀
         run: yarn publish omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz -f --access=public
@@ -416,4 +416,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ contains(github.event.head_commit.message, '[node_publish]') }}
+        if: ${{ contains(github.event.head_commit.message, '[node_publish]') || contains(github.event.head_commit.message, '[node-publish]') }}
