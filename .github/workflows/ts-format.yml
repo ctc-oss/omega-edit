@@ -31,7 +31,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node 📐
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: 20
