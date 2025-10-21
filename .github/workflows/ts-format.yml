@@ -35,6 +35,7 @@ jobs:
         with:
           registry-url: 'https://registry.npmjs.org'
           node-version: 20
+          cache: 'yarn'
 
       - name: yarn lint - all workspaces 🧶
         run: |
