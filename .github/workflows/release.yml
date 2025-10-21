@@ -361,6 +361,7 @@ jobs:
         with:
           registry-url: "https://registry.npmjs.org"
           node-version: ${{ env.node_version }}
+          cache: 'yarn'
 
       - name: Download scala release file 🔻
         uses: actions/download-artifact@v5
