@@ -33,7 +33,7 @@
     "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."
   },
   "devDependencies": {
-    "@types/chai": "^5.2.2",
+    "@types/chai": "^5.2.3",
     "chai": "^6.2.0",
     "clean-webpack-plugin": "^4.0.0",
     "grpc-tools": "^1.12.4",
