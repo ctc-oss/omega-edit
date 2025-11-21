@@ -29,7 +29,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Convert runner arch to lower
         shell: bash
@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Build Native Linux arm64
         uses: ./.github/workflows/build-native-docker
@@ -65,7 +65,7 @@ jobs:
     name: Build middleware ${{ matrix.os }} 🔧
     steps:
       - name: Checkout 🛎️
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Convert runner arch to lower
         shell: bash
@@ -86,7 +86,7 @@ jobs:
   #   name: Build middleware ubuntu-22.04 arm64 🔧
   #   steps:
   #     - name: Checkout 🛎️
-  #       uses: actions/checkout@v5
+  #       uses: actions/checkout@v6
 
   #     - name: Build Middleware ${{ matrix.os }}
   #       uses: ./.github/workflows/build-middleware-docker

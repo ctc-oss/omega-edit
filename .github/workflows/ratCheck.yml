@@ -39,7 +39,7 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Check out Repository 🛎️
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Run Rat Check 🐀
         run: $SBT ratCheck || (cat target/rat.txt; exit 1)
