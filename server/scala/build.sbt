@@ -59,6 +59,9 @@ lazy val commonSettings =
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
     // Override dependency scheme to resolve scala-xml version conflicts with Pekko gRPC 1.2.0
+    // Pekko gRPC 1.2.0 transitively depends on twirl-api 2.0.9 which requires scala-xml 2.2.0,
+    // but other dependencies (scalatest 3.0.1, sbt-native-packager 1.8.1) require older versions.
+    // Using VersionScheme.Always allows sbt to select any version without treating it as incompatible.
     libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always,
     maintainer := "oss@ctc.com",
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
