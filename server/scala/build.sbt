@@ -58,6 +58,8 @@ lazy val commonSettings =
     scalaVersion := "2.13.16",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
+    // Override dependency scheme to resolve scala-xml version conflicts with Pekko gRPC 1.2.0
+    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always,
     maintainer := "oss@ctc.com",
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
