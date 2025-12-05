@@ -59,11 +59,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   private val editors = system.actorOf(Editors.props())
   private val heartbeatRegistry = system.actorOf(
-    HeartbeatRegistry.props(editors, timeoutMillis = heartbeatTimeoutMillis, checkIntervalSeconds = heartbeatCheckIntervalSeconds)(system.dispatcher)
+    HeartbeatRegistry.props(
+      editors,
+      timeoutMillis = heartbeatTimeoutMillis,
+      checkIntervalSeconds = heartbeatCheckIntervalSeconds
+    )(system.dispatcher)
   )
   private var isGracefulShutdown = false
-  
-  // Track client first-seen timestamps to ensure unique IDs across restarts
+
+  /** Tracks the first-seen timestamp for each client (by hostname:processId) to generate unique client IDs.
+    * This prevents collisions in containerized environments where the same hostname:processId combination
+    * might appear after container restarts. Entries persist for the lifetime of the EditorService instance.
+    */
   private val clientFirstSeen = scala.collection.concurrent.TrieMap.empty[String, Long]
 
   private def isWindows: Boolean =
