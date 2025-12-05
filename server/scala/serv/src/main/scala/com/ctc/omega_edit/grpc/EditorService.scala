@@ -62,6 +62,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     HeartbeatRegistry.props(editors, timeoutMillis = heartbeatTimeoutMillis, checkIntervalSeconds = heartbeatCheckIntervalSeconds)(system.dispatcher)
   )
   private var isGracefulShutdown = false
+  
+  // Track client first-seen timestamps to ensure unique IDs across restarts
+  private val clientFirstSeen = scala.collection.concurrent.TrieMap.empty[String, Long]
 
   private def isWindows: Boolean =
     System.getProperty("os.name").toLowerCase.contains("windows")
@@ -402,7 +405,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
     // Register client heartbeat with registry
-    val clientId = s"${in.hostname}:${in.processId}"
+    // Create a base ID and add timestamp on first registration to prevent collisions in containerized environments
+    val baseClientId = s"${in.hostname}:${in.processId}"
+    val timestamp = clientFirstSeen.getOrElseUpdate(baseClientId, System.currentTimeMillis())
+    val clientId = s"$baseClientId:$timestamp"
     heartbeatRegistry ! HeartbeatRegistry.RegisterClient(clientId, in.sessionIds.toSeq)
 
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
