@@ -21,6 +21,7 @@
     "target": "es6",
     "lib": ["es6", "es2021", "es2017"],
     "rootDir": "src",
+    "moduleResolution": "node",
     "strict": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
