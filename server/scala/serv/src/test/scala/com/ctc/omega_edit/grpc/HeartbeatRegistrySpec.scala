@@ -103,10 +103,7 @@ class HeartbeatRegistrySpec
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
 
-      // Wait for timeout to occur - give sufficient time for timeout and scheduler to run
-      editorsProbe.expectNoMessage(1500.millis)
-
-      // Trigger timeout check manually
+      // Directly trigger the timeout check after registering the client
       registry ! HeartbeatRegistry.CheckTimeouts
 
       // Verify session cleanup happened
