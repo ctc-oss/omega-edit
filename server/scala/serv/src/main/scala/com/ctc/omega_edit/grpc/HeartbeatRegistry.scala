@@ -21,7 +21,25 @@ import org.apache.pekko.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
+/** Registry actor that tracks client heartbeats and manages session cleanup.
+  *
+  * The registry monitors client heartbeats and automatically cleans up sessions
+  * when clients timeout or disconnect. It implements a grace period before initiating
+  * server shutdown when all clients have disconnected, preventing premature termination
+  * during startup or brief periods with no clients.
+  *
+  * The registry performs periodic checks every 5 seconds to detect timed-out clients
+  * and initiates cleanup. When the registry becomes empty, it waits for a 60-second
+  * grace period before shutting down the server.
+  */
 object HeartbeatRegistry {
+  /** Creates Props for a HeartbeatRegistry actor.
+    *
+    * @param editors Reference to the Editors actor for session cleanup
+    * @param timeoutMillis Timeout period in milliseconds before a client is considered dead (default: 30000)
+    * @param ec ExecutionContext for scheduling timeout checks
+    * @return Props for creating a HeartbeatRegistry actor
+    */
   def props(
       editors: ActorRef,
       timeoutMillis: Long = 30000
@@ -41,6 +59,12 @@ object HeartbeatRegistry {
   )
 }
 
+/** Registry actor implementation that tracks client heartbeats and manages session lifecycle.
+  *
+  * @param editors Reference to the Editors actor for session cleanup
+  * @param timeoutMillis Timeout period in milliseconds before a client is considered dead
+  * @param ec ExecutionContext for scheduling timeout checks
+  */
 class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
     ec: ExecutionContext
 ) extends Actor
