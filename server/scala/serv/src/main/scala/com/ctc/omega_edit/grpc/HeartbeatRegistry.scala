@@ -49,6 +49,8 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
 
   private var clients = Map.empty[String, ClientInfo]
   private var checkTimeoutsScheduler: Option[Cancellable] = None
+  private var emptyRegistrySince: Option[Long] = None
+  private val emptyRegistryGracePeriod: Long = 60000 // 1 minute grace period
 
   override def preStart(): Unit = {
     super.preStart()
@@ -112,6 +114,8 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
           clients = clients - clientId
         }
         checkAndShutdown()
+      } else {
+        log.debug(s"Timeout check completed. ${clients.size} active client(s), no timeouts detected.")
       }
 
     case GetClientCount =>
@@ -128,8 +132,17 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
 
   private def checkAndShutdown(): Unit = {
     if (clients.isEmpty) {
-      log.warning("All clients have timed out or disconnected. Initiating server shutdown.")
-      context.system.terminate()
+      emptyRegistrySince match {
+        case None =>
+          emptyRegistrySince = Some(System.currentTimeMillis())
+          log.info("Registry is empty. Will shutdown if no clients connect within grace period.")
+        case Some(since) if System.currentTimeMillis() - since > emptyRegistryGracePeriod =>
+          log.warning("All clients have timed out or disconnected. Initiating server shutdown.")
+          context.system.terminate()
+        case _ => // Still within grace period
+      }
+    } else {
+      emptyRegistrySince = None
     }
   }
 }

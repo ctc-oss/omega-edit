@@ -162,5 +162,48 @@ class HeartbeatRegistrySpec
       )
       count.count shouldBe 1
     }
+
+    "register clients with no sessions" in {
+      val editorsProbe = TestProbe()
+      val registry = system.actorOf(
+        HeartbeatRegistry.props(editorsProbe.ref, timeoutMillis = 10000)(system.dispatcher)
+      )
+
+      registry ! HeartbeatRegistry.RegisterClient("client1", Seq.empty)
+
+      val count = Await.result(
+        (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
+        1.second
+      )
+      count.count shouldBe 1
+
+      // Verify no cleanup messages sent when unregistering
+      registry ! HeartbeatRegistry.UnregisterClient("client1")
+      editorsProbe.expectNoMessage(500.millis)
+    }
+
+    "not immediately shutdown when registry becomes empty" in {
+      val editorsProbe = TestProbe()
+      val registry = system.actorOf(
+        HeartbeatRegistry.props(editorsProbe.ref, timeoutMillis = 10000)(system.dispatcher)
+      )
+
+      // Use a watch to detect if registry stops
+      watch(registry)
+
+      registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
+      editorsProbe.expectMsg(Editors.SessionOp("session1", Session.Destroy))
+      registry ! HeartbeatRegistry.UnregisterClient("client1")
+
+      // Should not receive termination signal immediately (within grace period)
+      expectNoMessage(2.seconds)
+
+      // Registry should still be alive
+      val count = Await.result(
+        (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
+        1.second
+      )
+      count.count shouldBe 0
+    }
   }
 }
