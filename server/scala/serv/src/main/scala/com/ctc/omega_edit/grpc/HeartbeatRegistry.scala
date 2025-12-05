@@ -28,23 +28,25 @@ import scala.concurrent.duration._
   * server shutdown when all clients have disconnected, preventing premature termination
   * during startup or brief periods with no clients.
   *
-  * The registry performs periodic checks every 5 seconds to detect timed-out clients
-  * and initiates cleanup. When the registry becomes empty, it waits for a 60-second
-  * grace period before shutting down the server.
+  * The registry performs periodic checks (configurable, default 5 seconds) to detect
+  * timed-out clients and initiates cleanup. When the registry becomes empty, it waits
+  * for a 60-second grace period before shutting down the server.
   */
 object HeartbeatRegistry {
   /** Creates Props for a HeartbeatRegistry actor.
     *
     * @param editors Reference to the Editors actor for session cleanup
     * @param timeoutMillis Timeout period in milliseconds before a client is considered dead (default: 30000)
+    * @param checkIntervalSeconds Interval in seconds for timeout checks (default: 5)
     * @param ec ExecutionContext for scheduling timeout checks
     * @return Props for creating a HeartbeatRegistry actor
     */
   def props(
       editors: ActorRef,
-      timeoutMillis: Long = 30000
+      timeoutMillis: Long = 30000,
+      checkIntervalSeconds: Int = 5
   )(implicit ec: ExecutionContext): Props =
-    Props(new HeartbeatRegistry(editors, timeoutMillis))
+    Props(new HeartbeatRegistry(editors, timeoutMillis, checkIntervalSeconds))
 
   case class RegisterClient(clientId: String, sessionIds: Seq[String])
   case class UnregisterClient(clientId: String)
@@ -63,9 +65,10 @@ object HeartbeatRegistry {
   *
   * @param editors Reference to the Editors actor for session cleanup
   * @param timeoutMillis Timeout period in milliseconds before a client is considered dead
+  * @param checkIntervalSeconds Interval in seconds for timeout checks
   * @param ec ExecutionContext for scheduling timeout checks
   */
-class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
+class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long, checkIntervalSeconds: Int)(implicit
     ec: ExecutionContext
 ) extends Actor
     with ActorLogging {
@@ -78,16 +81,15 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
 
   override def preStart(): Unit = {
     super.preStart()
-    // Check for timeouts every 5 seconds
     checkTimeoutsScheduler = Some(
       context.system.scheduler.scheduleWithFixedDelay(
-        5.seconds,
-        5.seconds,
+        checkIntervalSeconds.seconds,
+        checkIntervalSeconds.seconds,
         self,
         CheckTimeouts
       )
     )
-    log.info(s"HeartbeatRegistry started with timeout ${timeoutMillis}ms")
+    log.info(s"HeartbeatRegistry started with timeout ${timeoutMillis}ms, check interval ${checkIntervalSeconds}s")
   }
 
   override def postStop(): Unit = {
