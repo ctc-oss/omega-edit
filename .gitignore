@@ -66,6 +66,7 @@ project
 ## typescript
 **/*.js.map
 **/out/
+**/dist/
 .server_pid
 doc/
 omega-edit-grpc-server-*

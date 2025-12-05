@@ -31,6 +31,21 @@
 
 This package contains the TypeScript types and code needed to interact with the Ωedit library via a gRPC client.
 
+## Package Distribution
+
+This package is distributed with both ESM and CommonJS formats, along with full TypeScript source maps for enhanced debugging:
+
+- **ESM**: `dist/esm/` - ES2020 modules
+- **CommonJS**: `dist/cjs/` - CommonJS modules
+- **Source Maps**: All outputs include `.map` files with embedded TypeScript sources (`sourcesContent`)
+- **Type Definitions**: `.d.ts` files with declaration maps (`.d.ts.map`)
+
+This allows downstream consumers (like VS Code extensions and webviews) to:
+
+- Set breakpoints directly in the original TypeScript source
+- See readable function/class names in stack traces
+- Debug through the package code seamlessly
+
 ## Testing
 
 ### Testing the client
