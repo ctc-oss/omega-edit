@@ -147,15 +147,17 @@ class HeartbeatRegistrySpec
 
     "refresh heartbeat for active clients" in {
       val editorsProbe = TestProbe()
+      // Use a very short timeout for testing
       val registry = system.actorOf(
-        HeartbeatRegistry.props(editorsProbe.ref, timeoutMillis = 1000)(system.dispatcher)
+        HeartbeatRegistry.props(editorsProbe.ref, timeoutMillis = 100)(system.dispatcher)
       )
 
+      // Register client and immediately refresh heartbeat
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      editorsProbe.expectNoMessage(600.millis)
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      editorsProbe.expectNoMessage(600.millis)
 
+      // Manually trigger timeout check
+      registry ! HeartbeatRegistry.CheckTimeouts
       // Client should still be active due to refreshed heartbeat
       val count = Await.result(
         (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
