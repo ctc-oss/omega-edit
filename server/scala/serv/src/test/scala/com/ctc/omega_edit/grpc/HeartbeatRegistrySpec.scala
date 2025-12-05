@@ -63,7 +63,8 @@ class HeartbeatRegistrySpec
       )
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      Thread.sleep(100)
+      // Allow time for first registration to process
+      editorsProbe.expectNoMessage(100.millis)
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1", "session2"))
 
       val count = Await.result(
@@ -102,8 +103,8 @@ class HeartbeatRegistrySpec
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
 
-      // Wait for timeout to occur
-      Thread.sleep(1500)
+      // Wait for timeout to occur - give sufficient time for timeout and scheduler to run
+      editorsProbe.expectNoMessage(1500.millis)
 
       // Trigger timeout check manually
       registry ! HeartbeatRegistry.CheckTimeouts
@@ -151,9 +152,9 @@ class HeartbeatRegistrySpec
       )
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      Thread.sleep(600)
+      editorsProbe.expectNoMessage(600.millis)
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      Thread.sleep(600)
+      editorsProbe.expectNoMessage(600.millis)
 
       // Client should still be active due to refreshed heartbeat
       val count = Await.result(
