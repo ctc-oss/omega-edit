@@ -1,0 +1,278 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 13,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "description": "Debug build using Ninja generator with all options enabled",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "description": "Release build using Ninja generator with all options enabled",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-debug-minimal",
+      "displayName": "Ninja Debug (Minimal)",
+      "description": "Debug build using Ninja generator with minimal options",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-release-minimal",
+      "displayName": "Ninja Release (Minimal)",
+      "description": "Release build using Ninja generator with minimal options",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-debug-static",
+      "displayName": "Ninja Debug (Static)",
+      "description": "Debug build using Ninja generator with static libraries",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "OFF",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-release-static",
+      "displayName": "Ninja Release (Static)",
+      "description": "Release build using Ninja generator with static libraries",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "OFF",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-debug",
+      "displayName": "Make Debug",
+      "description": "Debug build using Unix Makefiles with all options enabled",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-release",
+      "displayName": "Make Release",
+      "description": "Release build using Unix Makefiles with all options enabled",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-debug-minimal",
+      "displayName": "Make Debug (Minimal)",
+      "description": "Debug build using Unix Makefiles with minimal options",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-release-minimal",
+      "displayName": "Make Release (Minimal)",
+      "description": "Release build using Unix Makefiles with minimal options",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-debug-static",
+      "displayName": "Make Debug (Static)",
+      "description": "Debug build using Unix Makefiles with static libraries",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "OFF",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "make-release-static",
+      "displayName": "Make Release (Static)",
+      "description": "Release build using Unix Makefiles with static libraries",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/_build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "ON",
+        "BUILD_SHARED_LIBS": "OFF",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI Build",
+      "description": "CI build configuration (Release, shared libs, tests enabled)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "OFF",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ci-docs",
+      "displayName": "CI Documentation",
+      "description": "CI documentation build (Release, docs only, no tests)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "ninja-debug-minimal",
+      "displayName": "Ninja Debug (Minimal)",
+      "configurePreset": "ninja-debug-minimal"
+    },
+    {
+      "name": "ninja-release-minimal",
+      "displayName": "Ninja Release (Minimal)",
+      "configurePreset": "ninja-release-minimal"
+    },
+    {
+      "name": "ninja-debug-static",
+      "displayName": "Ninja Debug (Static)",
+      "configurePreset": "ninja-debug-static"
+    },
+    {
+      "name": "ninja-release-static",
+      "displayName": "Ninja Release (Static)",
+      "configurePreset": "ninja-release-static"
+    },
+    {
+      "name": "make-debug",
+      "displayName": "Make Debug",
+      "configurePreset": "make-debug"
+    },
+    {
+      "name": "make-release",
+      "displayName": "Make Release",
+      "configurePreset": "make-release"
+    },
+    {
+      "name": "make-debug-minimal",
+      "displayName": "Make Debug (Minimal)",
+      "configurePreset": "make-debug-minimal"
+    },
+    {
+      "name": "make-release-minimal",
+      "displayName": "Make Release (Minimal)",
+      "configurePreset": "make-release-minimal"
+    },
+    {
+      "name": "make-debug-static",
+      "displayName": "Make Debug (Static)",
+      "configurePreset": "make-debug-static"
+    },
+    {
+      "name": "make-release-static",
+      "displayName": "Make Release (Static)",
+      "configurePreset": "make-release-static"
+    },
+    {
+      "name": "ci",
+      "displayName": "CI Build",
+      "configurePreset": "ci"
+    },
+    {
+      "name": "ci-docs",
+      "displayName": "CI Documentation",
+      "configurePreset": "ci-docs"
+    }
+  ]
+}

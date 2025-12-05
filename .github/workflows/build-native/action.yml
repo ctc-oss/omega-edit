@@ -39,8 +39,8 @@ runs:
     - name: Prepare, Build, Test, and Install Ωedit™ native library 🦙
       shell: bash
       run: |
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON --install-prefix "${{ env.install_path }}"
-        cmake --build build --config Release
+        cmake --preset ci
+        cmake --build --preset ci --config Release
         ctest -C Release --test-dir build/core --output-on-failure
         cmake --install build/packages/core --prefix "${{ env.install_path }}" --config Release
 

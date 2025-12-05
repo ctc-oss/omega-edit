@@ -20,7 +20,7 @@ build*/
 !.github/workflows/build-middleware*
 !.github/workflows/build-native*
 cmake-build*/
-core/src/include/omega-edit/features.h
+core/src/include/omega_edit/features.h
 node_modules/
 venv/
 package-lock.json
