@@ -79,6 +79,28 @@ Depending on your linking needs, Ωedit™ can be built _either_ as a static (e.
 (e.g., libomega_edit.so) library.  `Release` or `Debug` versions can be created.  Example programs and documentation can
 also be built if desired.  The Scala server _requires_ a shared library.
 
+#### Using CMake Presets (Recommended):
+
+The project includes a `CMakePresets.json` file with predefined build configurations. To list available presets:
+
+```bash
+cmake --list-presets
+```
+
+To configure and build using a preset:
+
+```bash
+cmake --preset ninja-debug-minimal
+cmake --build --preset ninja-debug-minimal
+```
+
+Available presets include combinations of:
+- Generators: `ninja-*` or `make-*`
+- Build types: `*-debug` or `*-release`
+- Options: `*-minimal` (no docs/examples), default (all options), or `*-static` (static libraries)
+
+#### Using Manual Configuration:
+
 Here is how to build a debug version of a shared library, with no documentation or example programs.
 
 ```bash
