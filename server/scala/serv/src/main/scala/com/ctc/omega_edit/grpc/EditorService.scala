@@ -53,9 +53,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   lazy val serverVersion: String = omegaEditVersion.toString
   lazy val availableProcessors: Int = Runtime.getRuntime().availableProcessors()
 
+  private val config = system.settings.config
+  private val heartbeatTimeoutMillis = config.getDuration("omega-edit.heartbeat.timeout-millis").toMillis
+  private val heartbeatCheckIntervalSeconds = config.getInt("omega-edit.heartbeat.check-interval-seconds")
+
   private val editors = system.actorOf(Editors.props())
   private val heartbeatRegistry = system.actorOf(
-    HeartbeatRegistry.props(editors, timeoutMillis = 30000)(system.dispatcher)
+    HeartbeatRegistry.props(editors, timeoutMillis = heartbeatTimeoutMillis, checkIntervalSeconds = heartbeatCheckIntervalSeconds)(system.dispatcher)
   )
   private var isGracefulShutdown = false
 
