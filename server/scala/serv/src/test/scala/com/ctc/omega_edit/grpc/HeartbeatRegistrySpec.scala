@@ -66,14 +66,12 @@ class HeartbeatRegistrySpec
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1", "session2"))
 
-      // Verify client count using awaitAssert for reliability
-      awaitAssert({
-        val count = Await.result(
-          (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
-          1.second
-        )
-        count.count shouldBe 1
-      }, 500.millis)
+      // Verify client count - actor processes messages in order, so this will reflect both updates
+      val count = Await.result(
+        (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
+        1.second
+      )
+      count.count shouldBe 1
     }
 
     "unregister clients and cleanup sessions" in {
