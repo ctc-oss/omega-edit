@@ -142,6 +142,8 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
         checkAndShutdown()
       } else {
         log.debug(s"Timeout check completed. ${clients.size} active client(s), no timeouts detected.")
+      } else {
+        log.debug(s"Timeout check completed. ${clients.size} active client(s), no timeouts detected.")
       }
 
     case GetClientCount =>
