@@ -17,19 +17,17 @@ PROTOC="$BIN_DIR/grpc_tools_node_protoc"
 PROTOC_GEN_TS_PATH="$BIN_DIR/protoc-gen-ts"
 PROTOC_GEN_GRPC_PATH="$BIN_DIR/grpc_tools_node_protoc_plugin"
 
-for dir in "src" "out"; do
-    OUT_DIR=$PWD/$dir
-    TS_OUT_DIR=$PWD/$dir
+OUT_DIR=$PWD/src
+TS_OUT_DIR=$PWD/src
 
-    if [[ ! -d $OUT_DIR ]]; then mkdir $OUT_DIR; fi
+if [[ ! -d $OUT_DIR ]]; then mkdir $OUT_DIR; fi
 
-    pushd "$IN_DIR" >/dev/null
-    $PROTOC \
-        --plugin=protoc-gen-ts="${PROTOC_GEN_TS_PATH}" \
-        --plugin=protoc-gen-grpc="${PROTOC_GEN_GRPC_PATH}" \
-        --js_out=import_style=commonjs:"${OUT_DIR}" \
-        --grpc_out=grpc_js:"${OUT_DIR}" \
-        --ts_out=grpc_js:"${TS_OUT_DIR}" \
-        omega_edit.proto
-    popd >/dev/null
-done
+pushd "$IN_DIR" >/dev/null
+$PROTOC \
+    --plugin=protoc-gen-ts="${PROTOC_GEN_TS_PATH}" \
+    --plugin=protoc-gen-grpc="${PROTOC_GEN_GRPC_PATH}" \
+    --js_out=import_style=commonjs:"${OUT_DIR}" \
+    --grpc_out=grpc_js:"${OUT_DIR}" \
+    --ts_out=grpc_js:"${TS_OUT_DIR}" \
+    omega_edit.proto
+popd >/dev/null

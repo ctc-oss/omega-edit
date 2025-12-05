@@ -19,20 +19,15 @@ set "PROTOC_GEN_TS_PATH=%BIN_DIR%\protoc-gen-ts.cmd"
 set "PROTOC_GEN_GRPC_PATH=%BIN_DIR%\grpc_tools_node_protoc_plugin.cmd"
 set "IN_DIR=%cd%\..\..\proto"
 
-for %%d in ("src" "out") do (
-    set "OUT_DIR=%cd%\%d%"
-    set "TS_OUT_DIR=%cd%\%d%"
-
-    if not exist "%OUT_DIR%" (
-        mkdir "%OUT_DIR%"
-    )
-
-    cd "%IN_DIR%"
-    %PROTOC% ^
-        --plugin=protoc-gen-ts="%PROTOC_GEN_TS_PATH%" ^
-        --plugin=protoc-gen-grpc="%PROTOC_GEN_GRPC_PATH%" ^
-        --js_out=import_style=commonjs:"%OUT_DIR%" ^
-        --grpc_out=grpc_js:"%OUT_DIR%" ^
-        --ts_out=grpc_js:"%TS_OUT_DIR%" ^
-        omega_edit.proto
+if not exist "%OUT_DIR%" (
+    mkdir "%OUT_DIR%"
 )
+
+cd "%IN_DIR%"
+%PROTOC% ^
+    --plugin=protoc-gen-ts="%PROTOC_GEN_TS_PATH%" ^
+    --plugin=protoc-gen-grpc="%PROTOC_GEN_GRPC_PATH%" ^
+    --js_out=import_style=commonjs:"%OUT_DIR%" ^
+    --grpc_out=grpc_js:"%OUT_DIR%" ^
+    --ts_out=grpc_js:"%TS_OUT_DIR%" ^
+    omega_edit.proto
