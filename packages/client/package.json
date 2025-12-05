@@ -29,9 +29,10 @@
   "scripts": {
     "clean": "rimraf dist",
     "generate-version": "node scripts/generate-version.js",
+    "copy-proto": "node scripts/copy-proto-files.js",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build": "yarn clean && yarn generate-version && yarn build:esm && yarn build:cjs",
+    "build": "yarn clean && yarn generate-version && yarn build:esm && yarn build:cjs && yarn copy-proto",
     "compile-src": "run-script-os",
     "compile-src:default": "./compile-proto.sh",
     "compile-src:windows": "./compile-proto.bat",
