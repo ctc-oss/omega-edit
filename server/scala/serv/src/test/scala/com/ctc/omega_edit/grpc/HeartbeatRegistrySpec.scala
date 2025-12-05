@@ -62,16 +62,18 @@ class HeartbeatRegistrySpec
         HeartbeatRegistry.props(editorsProbe.ref, timeoutMillis = 10000)(system.dispatcher)
       )
 
+      // Register client and immediately update - the actor will process messages in order
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      // Allow time for first registration to process
-      editorsProbe.expectNoMessage(100.millis)
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1", "session2"))
 
-      val count = Await.result(
-        (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
-        1.second
-      )
-      count.count shouldBe 1
+      // Verify client count using awaitAssert for reliability
+      awaitAssert({
+        val count = Await.result(
+          (registry ? HeartbeatRegistry.GetClientCount).mapTo[HeartbeatRegistry.ClientCount],
+          1.second
+        )
+        count.count shouldBe 1
+      }, 500.millis)
     }
 
     "unregister clients and cleanup sessions" in {
