@@ -192,8 +192,10 @@ class HeartbeatRegistrySpec
       watch(registry)
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
-      editorsProbe.expectMsg(Editors.SessionOp("session1", Session.Destroy))
       registry ! HeartbeatRegistry.UnregisterClient("client1")
+
+      // Verify session cleanup message
+      editorsProbe.expectMsg(Editors.SessionOp("session1", Session.Destroy))
 
       // Should not receive termination signal immediately (within grace period)
       expectNoMessage(2.seconds)

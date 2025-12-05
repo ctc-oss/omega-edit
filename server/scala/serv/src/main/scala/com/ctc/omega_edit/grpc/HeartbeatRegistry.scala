@@ -76,11 +76,13 @@ class HeartbeatRegistry(editors: ActorRef, timeoutMillis: Long)(implicit
       val now = System.currentTimeMillis()
       clients.get(clientId) match {
         case Some(existing) =>
-          val sessionChanges =
-            if (existing.sessionIds != sessionIds)
-              s" (sessions changed from [${existing.sessionIds.mkString(", ")}] to [${sessionIds.mkString(", ")}])"
-            else ""
-          log.debug(s"Updating heartbeat for client $clientId with ${sessionIds.size} session(s)$sessionChanges")
+          if (log.isDebugEnabled) {
+            val sessionChanges =
+              if (existing.sessionIds != sessionIds)
+                s" (sessions changed from [${existing.sessionIds.mkString(", ")}] to [${sessionIds.mkString(", ")}])"
+              else ""
+            log.debug(s"Updating heartbeat for client $clientId with ${sessionIds.size} session(s)$sessionChanges")
+          }
           clients = clients.updated(clientId, existing.copy(lastHeartbeat = now, sessionIds = sessionIds))
         case None =>
           log.info(s"Registering new client $clientId with sessions: $sessionIds")
