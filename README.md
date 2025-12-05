@@ -61,6 +61,20 @@ User documentation is published to https://ctc-oss.github.io/omega-edit/.
 The Ωedit™ project is built primarily using [CLion](https://www.jetbrains.com/clion/), though [Visual
 Studio Code](https://code.visualstudio.com/) also works well.
 
+#### Visual Studio Code with CMake Presets
+
+To use CMake presets in Visual Studio Code, install the [CMake Tools extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools) and configure it to use presets:
+
+1. Open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
+2. Run "Preferences: Open Settings (JSON)"
+3. Add the following setting:
+   ```json
+   {
+     "cmake.useCMakePresets": "always"
+   }
+   ```
+4. When you run "CMake: Configure", you'll be prompted to select a preset from the available options
+
 ## Build the core library (C/C++)
 
 :exclamation: These commands should be executed at the root level of the repository :exclamation:
