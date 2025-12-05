@@ -340,6 +340,17 @@ export async function stopServiceOnPort(
         ...logMetadata,
         msg: `stopProcessUsingPID result: ${result}`,
       })
+
+      // On Windows, add a small delay to ensure the port is fully released
+      // This is needed because Windows may not release ports immediately even after the process stops
+      if (result && process.platform === 'win32') {
+        await delay(500)
+        log.debug({
+          ...logMetadata,
+          msg: 'Added delay for Windows port release',
+        })
+      }
+
       return result
     } else {
       log.debug({
