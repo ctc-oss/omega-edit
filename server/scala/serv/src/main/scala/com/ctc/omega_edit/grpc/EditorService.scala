@@ -54,6 +54,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   lazy val availableProcessors: Int = Runtime.getRuntime().availableProcessors()
 
   private val editors = system.actorOf(Editors.props())
+  private val heartbeatRegistry = system.actorOf(
+    HeartbeatRegistry.props(editors, timeoutMillis = 30000)(system.dispatcher)
+  )
   private var isGracefulShutdown = false
 
   private def isWindows: Boolean =
@@ -394,6 +397,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
+    // Register client heartbeat with registry
+    val clientId = s"${in.hostname}:${in.processId}"
+    heartbeatRegistry ! HeartbeatRegistry.RegisterClient(clientId, in.sessionIds.toSeq)
+
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
     val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
