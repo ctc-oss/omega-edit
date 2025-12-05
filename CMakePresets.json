@@ -173,6 +173,32 @@
         "BUILD_SHARED_LIBS": "NO",
         "BUILD_TESTS": "ON"
       }
+    },
+    {
+      "name": "ci",
+      "displayName": "CI Build",
+      "description": "CI build configuration (Release, shared libs, tests enabled)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "NO",
+        "BUILD_EXAMPLES": "NO",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ci-docs",
+      "displayName": "CI Documentation",
+      "description": "CI documentation build (Release, docs only, no tests)",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_DOCS": "ON",
+        "BUILD_EXAMPLES": "OFF",
+        "BUILD_SHARED_LIBS": "ON",
+        "BUILD_TESTS": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -235,6 +261,16 @@
       "name": "make-release-static",
       "displayName": "Make Release (Static)",
       "configurePreset": "make-release-static"
+    },
+    {
+      "name": "ci",
+      "displayName": "CI Build",
+      "configurePreset": "ci"
+    },
+    {
+      "name": "ci-docs",
+      "displayName": "CI Documentation",
+      "configurePreset": "ci-docs"
     }
   ]
 }

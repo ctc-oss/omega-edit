@@ -112,6 +112,7 @@ Available presets include combinations of:
 - Generators: `ninja-*` or `make-*`
 - Build types: `*-debug` or `*-release`
 - Options: `*-minimal` (no docs/examples), default (all options), or `*-static` (static libraries)
+- CI presets: `ci` (for automated builds) and `ci-docs` (for documentation generation)
 
 #### Using Manual Configuration:
 
