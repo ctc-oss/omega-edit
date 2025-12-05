@@ -195,7 +195,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "BUILD_DOCS": "ON",
-        "BUILD_EXAMPLES": "OFF",
+        "BUILD_EXAMPLES": "NO",
         "BUILD_SHARED_LIBS": "ON",
         "BUILD_TESTS": "OFF"
       }
