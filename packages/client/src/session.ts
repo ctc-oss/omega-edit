@@ -110,8 +110,10 @@ export async function destroySession(session_id: string): Promise<string> {
   const request = new ObjectId().setId(session_id)
   log.debug({ fn: 'destroySession', rqst: request.toObject() })
   const client = await getClient()
-  return new Promise<string>(async (resolve, reject) => {
-    client.destroySession(request, async (err, r: ObjectId) => {
+
+  // Wrap the callback-based gRPC call in a Promise
+  const result = await new Promise<string>((resolve, reject) => {
+    client.destroySession(request, (err, r: ObjectId) => {
       if (err) {
         log.error({
           fn: 'destroySession',
@@ -126,17 +128,18 @@ export async function destroySession(session_id: string): Promise<string> {
         return reject('destroySession error: ' + err.message)
       }
       log.debug({ fn: 'destroySession', resp: r.toObject() })
-
-      // On Windows, add a small delay to ensure the session is fully cleaned up on the server
-      // This is needed because Windows may take longer to release resources and complete cleanup
-      if (process.platform === 'win32') {
-        await new Promise((delayResolve) => setTimeout(delayResolve, 200))
-        log.debug({ fn: 'destroySession', msg: 'Added Windows cleanup delay' })
-      }
-
       return resolve(r.getId())
     })
   })
+
+  // On Windows, add a small delay to ensure the session is fully cleaned up on the server
+  // This is needed because Windows may take longer to release resources and complete cleanup
+  if (process.platform === 'win32') {
+    await new Promise((delayResolve) => setTimeout(delayResolve, 200))
+    log.debug({ fn: 'destroySession', msg: 'Added Windows cleanup delay' })
+  }
+
+  return result
 }
 
 /**
