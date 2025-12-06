@@ -52,6 +52,11 @@ export async function destroyTestSession(session_id: string) {
   expect(session_count).to.be.lessThanOrEqual(1)
   if (0 < session_count) {
     expect(await destroySession(session_id)).to.equal(session_id)
+    // On Windows, add a small delay to ensure the session is fully cleaned up on the server
+    // This is needed because Windows may take longer to release resources
+    if (process.platform === 'win32') {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
   }
 }
 
