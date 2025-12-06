@@ -55,7 +55,7 @@ lazy val enumeratumVersion = "1.7.6"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.16",
+    scalaVersion := "2.13.17",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
     // Override dependency scheme to resolve scala-xml version conflicts with Pekko gRPC 1.2.0
