@@ -26,6 +26,9 @@
   },
   "author": "CTC-OSS",
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "generate-version": "node scripts/generate-version.js",
