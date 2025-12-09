@@ -24,10 +24,10 @@
     "package-no-sbt": "yarn workspace @omega-edit/server package-no-sbt && yarn workspace @omega-edit/client package"
   },
   "devDependencies": {
-    "@types/chai": "^5.2.3",
+    "@types/chai": "4.3.11",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.10.1",
-    "chai": "^6.2.1",
+    "chai": "4.5.0",
     "copy-webpack-plugin": "^13.0.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",

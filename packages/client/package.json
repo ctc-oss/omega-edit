@@ -46,10 +46,10 @@
     "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."
   },
   "devDependencies": {
-    "@types/chai": "^5.2.3",
-    "chai": "^6.2.1",
+    "@types/chai": "4.3.11",
+    "chai": "4.5.0",
     "clean-webpack-plugin": "^4.0.0",
-    "grpc-tools": "^1.12.4",
+    "grpc-tools": "^1.13.1",
     "grpc_tools_node_protoc_ts": "^5.3.3",
     "pino-webpack-plugin": "^2.0.0",
     "rimraf": "^3.0.2",
@@ -57,10 +57,10 @@
     "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
-    "@grpc/grpc-js": "1.12.2",
+    "@grpc/grpc-js": "^1.14.2",
     "@omega-edit/server": "1.0.1",
     "@types/google-protobuf": "3.15.12",
-    "google-protobuf": "3.21.4",
+    "google-protobuf": "^3.21.4",
     "pid-port": "2.0.0",
     "pino": "10.1.0",
     "wait-port": "1.1.0"
