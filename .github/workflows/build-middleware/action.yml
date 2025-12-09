@@ -28,6 +28,12 @@ runs:
     - name: Checkout 🛎️
       uses: actions/checkout@v4
 
+    - name: Setup Node 📐
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+        cache: 'yarn'
+
     # NOTE: The macos-14 runner doesn't support JAVA 8, only 11+ can be used.
     # macos-14 uses an M1 apple silicon chip, most likely being the reason it can't
     # use JAVA 8.
