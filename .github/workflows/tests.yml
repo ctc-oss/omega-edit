@@ -23,7 +23,7 @@ jobs:
   build-native:
     strategy:
       matrix:
-        os: [windows-2022, macos-13, ubuntu-22.04, macos-14]
+        os: [windows-2022, macos-15, ubuntu-22.04, macos-14]
       fail-fast: false # don't immediately fail all other jobs if a single job fails
     name: Native build and test on ${{ matrix.os }} 🦙
     runs-on: ${{ matrix.os }}
@@ -31,15 +31,29 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v6
 
-      - name: Convert runner arch to lower
+      - name: Compute artifact arch label
         shell: bash
-        run: echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
+        run: |
+          echo "artifact_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build Native ${{ matrix.os }}
         uses: ./.github/workflows/build-native
         with:
           runner-os: ${{ runner.os }}
-          os-name: ${{ matrix.os }}-${{ env.runner_arch }}
+          os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
+
+  build-native-macos-x64:
+    name: Native build macos-15 x64 🦙
+    runs-on: macos-15
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+
+      - name: Build Native macos-15 x64
+        uses: ./.github/workflows/build-native
+        with:
+          runner-os: ${{ runner.os }}
+          os-name: macos-15-x64
 
   build-native-linux-arm64:
     name: Native build ubuntu-22.04 arm64 🦙
@@ -59,7 +73,7 @@ jobs:
     needs: [build-native]
     strategy:
       matrix:
-        os: [windows-2022, macos-13, ubuntu-22.04, macos-14]
+        os: [windows-2022, macos-15, ubuntu-22.04, macos-14]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     name: Build middleware ${{ matrix.os }} 🔧
@@ -67,16 +81,16 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@v6
 
-      - name: Convert runner arch to lower
+      - name: Compute artifact arch label
         shell: bash
         run: |
-          echo "runner_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
+          echo "artifact_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build Middleware ${{ matrix.os }}
         uses: ./.github/workflows/build-middleware
         with:
           runner-os: ${{ runner.os }}
-          os-name: ${{ matrix.os }}-${{ env.runner_arch }}
+          os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # TODO: Currently this action fails on sbt installM2 due to a timeout on sbt test 'should listen to session event'
