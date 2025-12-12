@@ -70,7 +70,7 @@ jobs:
           library-filename: libomega_edit.so
 
   build-middleware:
-    needs: [build-native]
+    needs: [build-native, build-native-macos-x64]
     strategy:
       matrix:
         os: [windows-2022, macos-15, ubuntu-22.04, macos-14]
