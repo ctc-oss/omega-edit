@@ -53,8 +53,31 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   lazy val serverVersion: String = omegaEditVersion.toString
   lazy val availableProcessors: Int = Runtime.getRuntime().availableProcessors()
 
+  private val config = system.settings.config
+  private val heartbeatTimeoutMillis =
+    if (config.hasPath("omega-edit.heartbeat.timeout-millis"))
+      config.getDuration("omega-edit.heartbeat.timeout-millis").toMillis
+    else 30000L
+  private val heartbeatCheckIntervalSeconds =
+    if (config.hasPath("omega-edit.heartbeat.check-interval-seconds"))
+      config.getInt("omega-edit.heartbeat.check-interval-seconds")
+    else 5
+
   private val editors = system.actorOf(Editors.props())
+  private val heartbeatRegistry = system.actorOf(
+    HeartbeatRegistry.props(
+      editors,
+      timeoutMillis = heartbeatTimeoutMillis,
+      checkIntervalSeconds = heartbeatCheckIntervalSeconds
+    )(system.dispatcher)
+  )
   private var isGracefulShutdown = false
+
+  /** Tracks the first-seen timestamp for each client (by hostname:processId) to generate unique client IDs.
+    * This prevents collisions in containerized environments where the same hostname:processId combination
+    * might appear after container restarts. Entries persist for the lifetime of the EditorService instance.
+    */
+  private val clientFirstSeen = scala.collection.concurrent.TrieMap.empty[String, Long]
 
   private def isWindows: Boolean =
     System.getProperty("os.name").toLowerCase.contains("windows")
@@ -394,6 +417,13 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
+    // Register client heartbeat with registry
+    // Create a base ID and add timestamp on first registration to prevent collisions in containerized environments
+    val baseClientId = s"${in.hostname}:${in.processId}"
+    val timestamp = clientFirstSeen.getOrElseUpdate(baseClientId, System.currentTimeMillis())
+    val clientId = s"$baseClientId:$timestamp"
+    heartbeatRegistry ! HeartbeatRegistry.RegisterClient(clientId, in.sessionIds.toSeq)
+
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
     val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
