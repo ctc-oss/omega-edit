@@ -81,14 +81,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Compute artifact arch label
-        id: compute-arch
-        uses: ./.github/workflows/compute-artifact-arch
+        shell: bash
+        run: |
+          echo "artifact_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build Middleware ${{ matrix.os }}
         uses: ./.github/workflows/build-middleware
         with:
           runner-os: ${{ runner.os }}
-          os-name: ${{ matrix.os }}-${{ steps.compute-arch.outputs.artifact-arch }}
+          os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # TODO: Currently this action fails on sbt installM2 due to a timeout on sbt test 'should listen to session event'
