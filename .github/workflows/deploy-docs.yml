@@ -19,7 +19,7 @@ on:
 
 jobs:
   deploy-docs:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Install Prerequisites 📚
         run: |
