@@ -26,26 +26,33 @@ runs:
   using: "composite"
   steps:
     - name: Checkout 🛎️
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
-    # NOTE: The macos-14 runner doesn't support JAVA 8, only 11+ can be used.
-    # macos-14 uses an M1 apple silicon chip, most likely being the reason it can't
+    - name: Setup Node.js 🟢
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+        cache: yarn
+        cache-dependency-path: yarn.lock
+
+    # NOTE: The macos-14/macos-15 runners don't support JAVA 8, only 11+ can be used.
+    # macos-14/macos-15 use Apple silicon chips, most likely being the reason it can't
     # use JAVA 8.
-    - name: Setup Java 8 - non macos 14 ☕
+    - name: Setup Java 8 - non macos 14/15 ☕
       uses: actions/setup-java@v5.0.0
       with:
         distribution: temurin
         java-version: 8
         cache: sbt
-      if: ${{ !contains(inputs.os-name, 'macos-14') }}
+      if: ${{ !contains(inputs.os-name, 'macos-14') && !contains(inputs.os-name, 'macos-15') }}
     
-    - name: Setup Java 11 - macos 14 ☕
+    - name: Setup Java 11 - macos 14/15 ☕
       uses: actions/setup-java@v5.0.0
       with:
         distribution: temurin
         java-version: 11
         cache: sbt
-      if: contains(inputs.os-name, 'macos-14')
+      if: ${{ contains(inputs.os-name, 'macos-14') || contains(inputs.os-name, 'macos-15') }}
 
     - name: Setup sbt
       uses: sbt/setup-sbt@v1

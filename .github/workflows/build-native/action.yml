@@ -39,7 +39,11 @@ runs:
     - name: Prepare, Build, Test, and Install Ωedit™ native library 🦙
       shell: bash
       run: |
-        cmake --preset ci
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          cmake --preset ci -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        else
+          cmake --preset ci
+        fi
         cmake --build --preset ci --config Release
         ctest -C Release --test-dir build/core --output-on-failure
         cmake --install build/packages/core --prefix "${{ env.install_path }}" --config Release
@@ -60,6 +64,28 @@ runs:
           find -L "${{ env.install_rel_path }}" -type f
           exit 1
         fi
+
+        if [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          slice_arch=""
+          if echo "${{ inputs.os-name }}" | grep -q -- "-x64"; then
+            slice_arch="x86_64"
+          elif echo "${{ inputs.os-name }}" | grep -q -- "-arm64"; then
+            slice_arch="arm64"
+          fi
+
+          if [ -n "${slice_arch}" ]; then
+            echo "Extracting macOS slice ${slice_arch} from ${libpath}"
+            lipo -info "${libpath}"
+            thin_dir=$(mktemp -d)
+            thin_path="${thin_dir}/${libname}"
+            if ! lipo "${libpath}" -extract "${slice_arch}" -output "${thin_path}"; then
+              echo "ERROR: failed to extract ${slice_arch} slice via lipo" >&2
+              exit 1
+            fi
+            libpath="${thin_path}"
+          fi
+        fi
+
         ls -l "${libpath}"
         echo "libname=${libname}" >> $GITHUB_ENV
         echo "libpath=${libpath}" >> $GITHUB_ENV
