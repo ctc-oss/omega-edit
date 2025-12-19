@@ -44,7 +44,7 @@ lazy val isRelease =
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
-lazy val pekkoVersion = "1.1.1" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
+lazy val pekkoVersion = "1.3.0" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
 lazy val tikaVersion = "2.9.4"
 lazy val scalaTestVersion = "3.2.18"
 lazy val logbackVersion = "1.3.15" // latest version that supports Java 8
@@ -55,9 +55,14 @@ lazy val enumeratumVersion = "1.7.6"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.16",
+    scalaVersion := "2.13.17",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
+    // Override dependency scheme to resolve scala-xml version conflicts with Pekko gRPC 1.2.0
+    // Pekko gRPC 1.2.0 transitively depends on twirl-api 2.0.9 which requires scala-xml 2.2.0,
+    // but other dependencies (scalatest 3.0.1, sbt-native-packager 1.8.1) require older versions.
+    // Using VersionScheme.Always allows sbt to select any version without treating it as incompatible.
+    libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always,
     maintainer := "oss@ctc.com",
     licenses := Seq(("Apache-2.0", apacheLicenseUrl)),
     startYear := Some(2021),
