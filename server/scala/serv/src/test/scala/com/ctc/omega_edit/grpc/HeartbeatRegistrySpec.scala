@@ -103,7 +103,10 @@ class HeartbeatRegistrySpec
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
 
-      // Directly trigger the timeout check after registering the client
+      // Wait for timeout period to elapse
+      Thread.sleep(600)
+
+      // Trigger the timeout check after timeout period has elapsed
       registry ! HeartbeatRegistry.CheckTimeouts
 
       // Verify session cleanup happened
