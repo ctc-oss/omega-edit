@@ -61,13 +61,13 @@ jobs:
           checkName: "TypeScript code is properly formatted"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Check tests - macOS 13 ✅
+      - name: Check tests - macOS 15 ✅
         uses: fountainhead/action-wait-for-check@v1.2.0
-        id: macos13-tests
+        id: macos15-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # This check name is defined as the github action job name (in .github/workflows/testing.yaml)
-          checkName: "Build middleware macos-13 🔧"
+          checkName: "Build middleware macos-15 🔧"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - macOS 14 ✅
@@ -111,7 +111,7 @@ jobs:
           steps.rat-check.outputs.conclusion != 'success' ||
           steps.scala-format.outputs.conclusion != 'success' ||
           steps.ts-format.outputs.conclusion != 'success' ||
-          steps.macos13-tests.outputs.conclusion != 'success' ||
+          steps.macos15-tests.outputs.conclusion != 'success' ||
           steps.macos14-tests.outputs.conclusion != 'success' ||
           steps.ubuntu-tests.outputs.conclusion != 'success' ||
           steps.ubuntu-arm64-native.outputs.conclusion != 'success' ||
@@ -120,7 +120,7 @@ jobs:
           echo "Rat Check Status: ${{ steps.rat-check.conclusion }}"
           echo "Scala Format Status: ${{ steps.scala-format.conclusion }}"
           echo "Typescript Format Status: ${{ steps.ts-format.conclusion }}"
-          echo "MacOS 13 Test Status: ${{ steps.macos13-tests.outputs.conclusion }}"
+          echo "MacOS 15 Test Status: ${{ steps.macos15-tests.outputs.conclusion }}"
           echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outputs.conclusion }}"
           echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.conclusion }}"
           echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.conclusion }}"
@@ -162,7 +162,7 @@ jobs:
         run: echo "${{ steps.create_release.outputs.upload_url }}" > upload_url
 
       - name: Upload upload_url 🔺
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: upload_url
           path: upload_url
@@ -180,7 +180,7 @@ jobs:
         shell: bash
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: upload_url
 
@@ -220,13 +220,13 @@ jobs:
           name: ubuntu-22.04-arm64-libomega_edit.so
           path: _install/libomega_edit_linux_aarch64.so
 
-      - name: Download macos-13 library file 🔻
+      - name: Download macos-15 library file 🔻
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: tests.yml
           branch: main
           workflow_conclusion: success
-          name: macos-13-x64-libomega_edit.dylib
+          name: macos-15-x64-libomega_edit.dylib
           path: _install/libomega_edit_macos_x86_64.dylib
 
       - name: Download macos-14 library file 🔻
@@ -317,7 +317,7 @@ jobs:
             omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
 
       - name: Upload Scala RPC server - Not Release 🔺
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           path: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
@@ -344,7 +344,7 @@ jobs:
         run: ${{ env.export_cmd }}
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: upload_url
 
@@ -364,7 +364,7 @@ jobs:
           cache: 'yarn'
 
       - name: Download scala release file 🔻
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           path: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
