@@ -19,7 +19,7 @@ on:
 
 jobs:
   deploy-docs:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Install Prerequisites 📚
         run: |
@@ -41,8 +41,8 @@ jobs:
       - name: Prepare and Build Documentation 🔧
         run: |
           source venv/bin/activate
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_DOCS=ON -DBUILD_TESTS=OFF -DBUILD_EXAMPLES=OFF
-          cmake --build build --target sphinx --config Release
+          cmake --preset ci-docs
+          cmake --build --preset ci-docs --target sphinx --config Release
           touch build/core/docs/sphinx/.nojekyll
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
