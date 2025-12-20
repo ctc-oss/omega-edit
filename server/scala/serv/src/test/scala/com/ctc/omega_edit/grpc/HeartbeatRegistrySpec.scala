@@ -103,8 +103,8 @@ class HeartbeatRegistrySpec
 
       registry ! HeartbeatRegistry.RegisterClient("client1", Seq("session1"))
 
-      // Wait for timeout period to elapse
-      Thread.sleep(600)
+      // Wait for timeout period to elapse plus buffer for actor processing
+      Thread.sleep(800)
 
       // Trigger the timeout check after timeout period has elapsed
       registry ! HeartbeatRegistry.CheckTimeouts
