@@ -29,7 +29,7 @@
     "@types/node": "^25.0.2",
     "chai": "^6.2.1",
     "copy-webpack-plugin": "^13.0.1",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
     "mocha": "^10.8.2",
