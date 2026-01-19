@@ -2006,10 +2006,10 @@ picomatch@^4.0.2:
   resolved "https://registry.yarnpkg.com/picomatch/-/picomatch-4.0.2.tgz#77c742931e8f3b8820946c76cd0c1f13730d1dab"
   integrity sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==
 
-pid-port@2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/pid-port/-/pid-port-2.0.0.tgz#1f792be70c9d9a6dcb3f457cac02f4b65c731bb7"
-  integrity sha512-EDmfRxLl6lkhPjDI+19l5pkII89xVsiCP3aGjS808f7M16DyCKSXEWthD/hjyDLn5I4gKqTVw7hSgdvdXRJDTw==
+pid-port@2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/pid-port/-/pid-port-2.0.1.tgz#ada269fb98638e1c95ab24ae44a4d438dc7fb01a"
+  integrity sha512-pnLo01AmMclw8l+/gfknsP2N351oe8VkVmCLFUvJZ11NRPPmghJrv0OcwsdgPQxsZkFYwm6hPWW0JKmXYCaXAw==
   dependencies:
     execa "^9.6.0"
 
@@ -2054,10 +2054,10 @@ pino-webpack-plugin@^2.0.0:
   dependencies:
     memfs "^3.4.12"
 
-pino@10.1.1:
-  version "10.1.1"
-  resolved "https://registry.yarnpkg.com/pino/-/pino-10.1.1.tgz#48ee402967b960edf4e41751fa316dd83428c3b9"
-  integrity sha512-3qqVfpJtRQUCAOs4rTOEwLH6mwJJ/CSAlbis8fKOiMzTtXh0HN/VLsn3UWVTJ7U8DsWmxeNon2IpGb+wORXH4g==
+pino@10.2.0:
+  version "10.2.0"
+  resolved "https://registry.yarnpkg.com/pino/-/pino-10.2.0.tgz#01d7f0fdabdb7bb31102a55770b6fe2dd3f139e8"
+  integrity sha512-NFnZqUliT+OHkRXVSf8vdOr13N1wv31hRryVjqbreVh/SDCNaI6mnRDDq89HVRCbem1SAl7yj04OANeqP0nT6A==
   dependencies:
     "@pinojs/redact" "^0.4.0"
     atomic-sleep "^1.0.0"
