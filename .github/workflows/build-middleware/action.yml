@@ -39,7 +39,7 @@ runs:
     # macos-14/macos-15 use Apple silicon chips, most likely being the reason it can't
     # use JAVA 8.
     - name: Setup Java 8 - non macos 14/15 ☕
-      uses: actions/setup-java@v5.0.0
+      uses: actions/setup-java@v5.2.0
       with:
         distribution: temurin
         java-version: 8
@@ -47,7 +47,7 @@ runs:
       if: ${{ !contains(inputs.os-name, 'macos-14') && !contains(inputs.os-name, 'macos-15') }}
     
     - name: Setup Java 11 - macos 14/15 ☕
-      uses: actions/setup-java@v5.0.0
+      uses: actions/setup-java@v5.2.0
       with:
         distribution: temurin
         java-version: 11
