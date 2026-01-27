@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
 import {
   beginSessionTransaction,
   clear,
@@ -39,7 +38,12 @@ import {
   searchSession,
   undo,
 } from '@omega-edit/client'
-import { createTestSession, destroyTestSession, testPort } from './common'
+import {
+  createTestSession,
+  destroyTestSession,
+  expect,
+  testPort,
+} from './common'
 
 describe('Searching', () => {
   let session_id = ''

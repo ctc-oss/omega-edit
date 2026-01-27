@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
 import {
   ChangeKind,
   clear,
@@ -38,7 +37,12 @@ import {
   undo,
 } from '@omega-edit/client'
 import { unlinkSync } from 'fs'
-import { createTestSession, destroyTestSession, testPort } from './common'
+import {
+  createTestSession,
+  destroyTestSession,
+  expect,
+  testPort,
+} from './common'
 
 describe('Undo/Redo', () => {
   let session_id = ''

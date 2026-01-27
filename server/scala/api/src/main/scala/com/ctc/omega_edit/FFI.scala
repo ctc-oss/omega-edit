@@ -255,7 +255,9 @@ private[omega_edit] object FFI {
 
       val loader = LibraryLoader.create(classOf[FFI]).failImmediately()
       loader.search(tmpdir.getPath)
-      loader.load(nativeLibraryName)
+      val ffi = loader.load(nativeLibraryName)
+      validateNativeVersion(ffi, ApiBuildInfo.version)
+      ffi
     } catch {
       case e: Exception =>
         throw new RuntimeException(
@@ -264,5 +266,38 @@ private[omega_edit] object FFI {
         )
     }
   }
+
+  private def validateNativeVersion(ffi: FFI, expected: String): Unit = {
+    val expectedParts = expected.split("\\.").toList
+
+    def parseIntPrefix(value: String): Option[Int] = {
+      val digits = value.takeWhile(_.isDigit)
+      if (digits.isEmpty) None else Some(digits.toInt)
+    }
+
+    val parsed = expectedParts match {
+      case major :: minor :: patch :: _ =>
+        for {
+          maj <- parseIntPrefix(major)
+          min <- parseIntPrefix(minor)
+          pat <- parseIntPrefix(patch)
+        } yield (maj, min, pat)
+      case _ => None
+    }
+
+    parsed.foreach { case (expectedMajor, expectedMinor, expectedPatch) =>
+      val actualMajor = ffi.omega_version_major()
+      val actualMinor = ffi.omega_version_minor()
+      val actualPatch = ffi.omega_version_patch()
+
+      if (actualMajor != expectedMajor || actualMinor != expectedMinor || actualPatch != expectedPatch) {
+        throw new RuntimeException(
+          s"OmegaEdit native library version mismatch: expected $expectedMajor.$expectedMinor.$expectedPatch, " +
+            s"but loaded $actualMajor.$actualMinor.$actualPatch"
+        )
+      }
+    }
+  }
+
   private val nativeLibraryName = "omega_edit"
 }

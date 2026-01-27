@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
 import {
   ALL_EVENTS,
   ChangeKind,
@@ -43,6 +42,7 @@ import {
   checkCallbackCount,
   createTestSession,
   destroyTestSession,
+  expect,
   session_callbacks,
   subscribeSession,
   testPort,

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
+import { expect } from './common'
 import { ALL_EVENTS, NO_EVENTS, ViewportEventKind } from '@omega-edit/client'
 
 describe('Events', () => {

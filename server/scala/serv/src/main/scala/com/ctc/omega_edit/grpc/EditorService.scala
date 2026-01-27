@@ -26,7 +26,7 @@ import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
 import org.apache.pekko.NotUsed
-import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
 import org.apache.pekko.grpc.GrpcServiceException
 import org.apache.pekko.http.scaladsl.Http
 import org.apache.pekko.pattern.ask
@@ -35,13 +35,57 @@ import org.apache.pekko.util.Timeout
 
 import java.lang.management.ManagementFactory
 import java.nio.file.Paths
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+
+import scala.jdk.CollectionConverters._
 
 class EditorService(implicit val system: ActorSystem) extends Editor {
   private implicit val timeout: Timeout = Timeout(20.seconds)
+  private implicit val ec: ExecutionContext = system.dispatcher
+
+  private val config = system.settings.config
+
+  private val sessionTimeoutMillis: Long =
+    if (config.hasPath("omega-edit.grpc.heartbeat.session-timeout")) {
+      config.getDuration("omega-edit.grpc.heartbeat.session-timeout").toMillis
+    } else {
+      0L
+    }
+
+  private val cleanupIntervalMillis: Long =
+    if (config.hasPath("omega-edit.grpc.heartbeat.cleanup-interval")) {
+      config.getDuration("omega-edit.grpc.heartbeat.cleanup-interval").toMillis
+    } else {
+      10000L
+    }
+
+  private val shutdownWhenNoSessions: Boolean =
+    if (config.hasPath("omega-edit.grpc.heartbeat.shutdown-when-no-sessions")) {
+      config.getBoolean("omega-edit.grpc.heartbeat.shutdown-when-no-sessions")
+    } else {
+      false
+    }
+
+  private val requireHadSessionBeforeShutdown: Boolean = true
+
+  private val sessionLastSeenMillis = new ConcurrentHashMap[String, java.lang.Long]()
+  private val hadAnySession = new AtomicBoolean(false)
+  private val shutdownStarted = new AtomicBoolean(false)
+  private val lastReapAtMillis = new AtomicLong(0L)
+  private val reaper: Option[Cancellable] = startSessionReaper()
+
+  private def touchIfKnown(sessionId: String): Unit =
+    if (sessionLastSeenMillis.containsKey(sessionId)) touchSession(sessionId)
+
+  private def touchFromId(id: String): Unit = {
+    // Session ids are UUIDs; viewport ids are formatted as "<sessionId>:<viewportId>".
+    val sid = id.split(':').headOption.getOrElse(id)
+    touchIfKnown(sid)
+  }
 
   lazy val jvmVersion: String = System.getProperty("java.version")
   lazy val jvmVendor: String = System.getProperty("java.vendor")
@@ -89,6 +133,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         .mapTo[Result]
         .map {
           case ok: Ok with CheckpointDirectory =>
+            hadAnySession.set(true)
+            touchSession(ok.id)
             filePath match {
               // If a file path is provided, add the file size to the response
               case Some(_) =>
@@ -114,9 +160,11 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case Ok(id) =>
         (editors ? DestroyActor(id, timeout)).mapTo[Result].map {
           case Ok(_) =>
+            sessionLastSeenMillis.remove(id)
             // If after session is destroyed, the number of sessions is 0 and the server is to shutdown gracefully,
             // stop server after destroying the last session
             checkIsGracefulShutdown()
+            maybeAutoShutdownIfIdle()
             in
           case Err(c) => throw grpcFailure(c)
         }
@@ -150,7 +198,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         }
       )
 
-  def stopServer(kind: ServerControlKind): Future[ServerControlResponse] =
+  def stopServer(kind: ServerControlKind): Future[ServerControlResponse] = {
+    reaper.foreach(_.cancel())
     system
       .terminate()
       .transform {
@@ -173,7 +222,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           Success(response)
       }(ExecutionContext.global)
 
-  def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] =
+  }
+
+  def saveSession(in: SaveSessionRequest): Future[SaveSessionResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(
       in.sessionId,
       Save(
@@ -191,8 +243,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def createViewport(in: CreateViewportRequest): Future[ViewportDataResponse] =
+  def createViewport(in: CreateViewportRequest): Future[ViewportDataResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(
       in.sessionId,
       View(in.offset, in.capacity, in.isFloating, in.viewportIdDesired)
@@ -201,8 +255,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case Ok(id) => getViewportData(ViewportDataRequest(id))
         case Err(c) => Future.failed(grpcFailure(c))
       }
+  }
 
-  def getViewportData(in: ViewportDataRequest): Future[ViewportDataResponse] =
+  def getViewportData(in: ViewportDataRequest): Future[ViewportDataResponse] = {
+    touchFromId(in.viewportId)
     ObjectId(in.viewportId) match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Get)).mapTo[Result].map {
@@ -228,10 +284,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           s"malformed viewport id '${in.viewportId}'"
         )
     }
+  }
 
   def modifyViewport(
       in: ModifyViewportRequest
-  ): Future[ViewportDataResponse] =
+  ): Future[ViewportDataResponse] = {
+    touchFromId(in.viewportId)
     ObjectId(in.viewportId) match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(
@@ -265,8 +323,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
           s"malformed viewport id '${in.viewportId}'"
         )
     }
+  }
 
-  def destroyViewport(in: ObjectId): Future[ObjectId] =
+  def destroyViewport(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     in match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.Destroy)).mapTo[Result].map {
@@ -276,8 +336,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _ =>
         grpcFailFut(Status.INVALID_ARGUMENT, s"malformed viewport id '$in'")
     }
+  }
 
-  def viewportHasChanges(in: ObjectId): Future[BooleanResponse] =
+  def viewportHasChanges(in: ObjectId): Future[BooleanResponse] = {
+    touchFromId(in.id)
     in match {
       case Viewport.Id(sid, vid) =>
         (editors ? ViewportOp(sid, vid, Viewport.HasChanges))
@@ -294,8 +356,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _ =>
         grpcFailFut(Status.INVALID_ARGUMENT, s"malformed viewport id '$in'")
     }
+  }
 
-  def notifyChangedViewports(in: ObjectId): Future[IntResponse] =
+  def notifyChangedViewports(in: ObjectId): Future[IntResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, NotifyChangedViewports)).mapTo[Result].map {
       case ok: Ok with Count => IntResponse(ok.count)
       case Ok(id) =>
@@ -305,8 +369,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def submitChange(in: ChangeRequest): Future[ChangeResponse] =
+  def submitChange(in: ChangeRequest): Future[ChangeResponse] = {
+    touchIfKnown(in.sessionId)
     in match {
       case Session.Op(op) =>
         (editors ? SessionOp(in.sessionId, op)).mapTo[Result].flatMap {
@@ -319,8 +385,10 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       case _ =>
         grpcFailFut(Status.INVALID_ARGUMENT, "undefined change kind")
     }
+  }
 
-  def getChangeDetails(in: SessionEvent): Future[ChangeDetailsResponse] =
+  def getChangeDetails(in: SessionEvent): Future[ChangeDetailsResponse] = {
+    touchIfKnown(in.sessionId)
     in.serial match {
       case None =>
         grpcFailFut(Status.INVALID_ARGUMENT, "change serial id required")
@@ -337,13 +405,16 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             case Err(c) => throw grpcFailure(c)
           }
     }
+  }
 
-  def getComputedFileSize(in: ObjectId): Future[ComputedFileSizeResponse] =
+  def getComputedFileSize(in: ObjectId): Future[ComputedFileSizeResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, GetSize)).mapTo[Result].map {
       case ok: Ok with Count => ComputedFileSizeResponse(in.id, ok.count)
       case Err(c)            => throw grpcFailure(c)
       case _                 => throw grpcFailure(Status.UNKNOWN, "unable to compute size")
     }
+  }
 
   def getSessionCount(in: Empty): Future[SessionCountResponse] =
     (editors ? SessionCount)
@@ -351,6 +422,8 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
       .map(count => SessionCountResponse(count.toLong))
 
   def getCount(in: CountRequest): Future[CountResponse] = {
+
+    touchIfKnown(in.sessionId)
 
     // create a list of futures for each CountKind value in the request
     val futures = in.kind.map {
@@ -394,6 +467,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   }
 
   def getHeartbeat(in: HeartbeatRequest): Future[HeartbeatResponse] = {
+    in.sessionIds.foreach { sid =>
+      if (sessionLastSeenMillis.containsKey(sid)) touchSession(sid)
+    }
     val memory = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage()
     val numSessions = Await.result((editors ? SessionCount).mapTo[Int].map(_.toInt), 1.second)
     val res = HeartbeatResponse(
@@ -414,6 +490,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   def subscribeToSessionEvents(
       in: EventSubscriptionRequest
   ): Source[SessionEvent, NotUsed] = {
+    touchFromId(in.id)
     val f = (editors ? SessionOp(in.id, Session.Watch(in.interest)))
       .mapTo[Result]
       .map {
@@ -428,6 +505,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
   ): Source[ViewportEvent, NotUsed] =
     ObjectId(in.id) match {
       case Viewport.Id(sid, vid) =>
+        touchFromId(in.id)
         val f =
           (editors ? ViewportOp(sid, vid, Viewport.Watch(in.interest)))
             .mapTo[Result]
@@ -446,15 +524,18 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
     }
 
-  def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] =
+  def unsubscribeToSessionEvents(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.Unwatch)).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
   def unsubscribeToViewportEvents(in: ObjectId): Future[ObjectId] =
     ObjectId(in.id) match {
       case Viewport.Id(sid, vid) =>
+        touchFromId(in.id)
         (editors ? ViewportOp(sid, vid, Viewport.Unwatch)).mapTo[Result].map {
           case Ok(_)  => in
           case Err(c) => throw grpcFailure(c)
@@ -467,39 +548,52 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
     }
 
-  def getByteFrequencyProfile(in: SegmentRequest): Future[ByteFrequencyProfileResponse] =
+  def getByteFrequencyProfile(in: SegmentRequest): Future[ByteFrequencyProfileResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.Profile(in)))
       .mapTo[ByteFrequencyProfileResponse] // No `Ok` wrapper
+  }
 
-  def getCharacterCounts(in: omega_edit.TextRequest): Future[CharacterCountResponse] =
+  def getCharacterCounts(in: omega_edit.TextRequest): Future[CharacterCountResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.CharCount(in)))
       .mapTo[CharacterCountResponse] // No `Ok` wrapper
+  }
 
-  def searchSession(in: SearchRequest): Future[SearchResponse] =
+  def searchSession(in: SearchRequest): Future[SearchResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.Search(in)))
       .mapTo[SearchResponse] // No `Ok` wrapper
+  }
 
-  def undoLastChange(in: ObjectId): Future[ChangeResponse] =
+  def undoLastChange(in: ObjectId): Future[ChangeResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.UndoLast())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
       case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
+  }
 
-  def redoLastUndo(in: ObjectId): Future[ChangeResponse] =
+  def redoLastUndo(in: ObjectId): Future[ChangeResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.RedoUndo())).mapTo[Result].map {
       case ok: Ok with Serial => ChangeResponse(ok.id, ok.serial)
       case Err(c)             => throw grpcFailure(c)
       case _                  => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
+  }
 
-  def clearChanges(in: ObjectId): Future[ObjectId] =
+  def clearChanges(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.ClearChanges())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] =
+  def getLastChange(in: ObjectId): Future[ChangeDetailsResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.GetLastChange()))
       .mapTo[Result]
       .map {
@@ -509,55 +603,71 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         case o =>
           throw grpcFailure(Status.UNKNOWN, s"unable to compute $in: $o")
       }
+  }
 
-  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] =
+  def getLastUndo(in: ObjectId): Future[ChangeDetailsResponse] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.GetLastUndo())).mapTo[Result].map {
       case ok: Ok with ChangeDetails => ok.toChangeResponse(ok.id)
       case Err(c)                    => throw grpcFailure(c)
       case _                         => throw grpcFailure(Status.UNKNOWN, s"unable to compute $in")
     }
+  }
 
-  def pauseSessionChanges(in: ObjectId): Future[ObjectId] =
+  def pauseSessionChanges(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.PauseSession())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def resumeSessionChanges(in: ObjectId): Future[ObjectId] =
+  def resumeSessionChanges(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.ResumeSession())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def pauseViewportEvents(in: ObjectId): Future[ObjectId] =
+  def pauseViewportEvents(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.PauseViewportEvents()))
       .mapTo[Result]
       .map {
         case Ok(id) => ObjectId(id)
         case Err(c) => throw grpcFailure(c)
       }
+  }
 
-  def resumeViewportEvents(in: ObjectId): Future[ObjectId] =
+  def resumeViewportEvents(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.ResumeViewportEvents()))
       .mapTo[Result]
       .map {
         case Ok(id) => ObjectId(id)
         case Err(c) => throw grpcFailure(c)
       }
+  }
 
-  def sessionBeginTransaction(in: ObjectId): Future[ObjectId] =
+  def sessionBeginTransaction(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.BeginTransaction())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def sessionEndTransaction(in: ObjectId): Future[ObjectId] =
+  def sessionEndTransaction(in: ObjectId): Future[ObjectId] = {
+    touchFromId(in.id)
     (editors ? SessionOp(in.id, Session.EndTransaction())).mapTo[Result].map {
       case Ok(id) => ObjectId(id)
       case Err(c) => throw grpcFailure(c)
     }
+  }
 
-  def getSegment(in: SegmentRequest): Future[SegmentResponse] =
+  def getSegment(in: SegmentRequest): Future[SegmentResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.Segment(in)))
       .mapTo[Option[api.Segment]] // No `Ok` wrapper
       .flatMap {
@@ -571,6 +681,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
             SegmentResponse.of(in.sessionId, offset, ByteString.copyFrom(data))
           )
       }
+  }
 
   def serverControl(in: ServerControlRequest): Future[ServerControlResponse] =
     in.kind match {
@@ -587,29 +698,98 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
         )
     }
 
-  def getByteOrderMark(in: SegmentRequest): Future[ByteOrderMarkResponse] =
+  def getByteOrderMark(in: SegmentRequest): Future[ByteOrderMarkResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.ByteOrderMark(in)))
       .mapTo[ByteOrderMarkResponse] // No `Ok` wrapper
+  }
 
-  def getContentType(in: SegmentRequest): Future[ContentTypeResponse] =
+  def getContentType(in: SegmentRequest): Future[ContentTypeResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.ContentType(in)))
       .mapTo[ContentTypeResponse] // No `Ok` wrapper
+  }
 
-  def getLanguage(in: TextRequest): Future[LanguageResponse] =
+  def getLanguage(in: TextRequest): Future[LanguageResponse] = {
+    touchIfKnown(in.sessionId)
     (editors ? SessionOp(in.sessionId, Session.Language(in)))
       .mapTo[LanguageResponse] // No `Ok` wrapper
+  }
+
+  private def touchSession(sessionId: String): Unit =
+    sessionLastSeenMillis.put(sessionId, System.currentTimeMillis())
+
+  private def maybeAutoShutdownIfIdle(): Unit = {
+    if (!shutdownWhenNoSessions) return
+    if (requireHadSessionBeforeShutdown && !hadAnySession.get()) return
+    if (shutdownStarted.get()) return
+
+    checkNoSessionsRunning().foreach { isZero =>
+      if (isZero && shutdownStarted.compareAndSet(false, true)) {
+        stopServer(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN)
+        ()
+      }
+    }
+  }
+
+  private def startSessionReaper(): Option[Cancellable] = {
+    if (sessionTimeoutMillis <= 0L) return None
+
+    val intervalMillis = math.max(50L, cleanupIntervalMillis)
+    val cancellable =
+      system.scheduler.scheduleAtFixedRate(
+        initialDelay = intervalMillis.millis,
+        interval = intervalMillis.millis
+      )(() => reapStaleSessions())
+
+    system.registerOnTermination(() => cancellable.cancel())
+    Some(cancellable)
+  }
+
+  private def reapStaleSessions(): Unit = {
+    val now = System.currentTimeMillis()
+
+    // Avoid running too frequently if interval is tiny
+    val last = lastReapAtMillis.get()
+    if (last != 0L && now - last < cleanupIntervalMillis) return
+    lastReapAtMillis.set(now)
+
+    val timeoutMillis = sessionTimeoutMillis
+    if (timeoutMillis <= 0L) return
+
+    val stale = sessionLastSeenMillis.asScala.collect {
+      case (sid, lastSeen) if now - lastSeen.longValue() > timeoutMillis => (sid, lastSeen)
+    }.toList
+
+    stale.foreach { case (sid, lastSeen) =>
+      // Conditionally remove only if the lastSeen value has not changed, to avoid racing with touchSession
+      val removed = sessionLastSeenMillis.remove(sid, lastSeen)
+      if (removed) {
+        destroySession(ObjectId(sid)).onComplete {
+          case Success(_) =>
+            maybeAutoShutdownIfIdle()
+          case Failure(_) =>
+            // Re-add the session if it is still absent so that a transient failure does not prevent future reaping.
+            // Do not overwrite any newer lastSeen value that may have been set concurrently.
+            sessionLastSeenMillis.putIfAbsent(sid, java.lang.Long.valueOf(now))
+        }
+      }
+    }
+  }
 }
 
 object EditorService {
   def bind(iface: String, port: Int)(implicit
       system: ActorSystem
-  ): Future[Http.ServerBinding] =
+  ): Future[Http.ServerBinding] = {
+    implicit val ec: ExecutionContext = system.dispatcher
     Http()
       .newServerAt(iface, port)
       .bind(EditorHandler(new EditorService))
       .andThen { case Failure(_) =>
         system.terminate()
       }
+  }
 
   def getServerPID(): Int =
     ManagementFactory.getRuntimeMXBean().getName().split('@')(0).toInt

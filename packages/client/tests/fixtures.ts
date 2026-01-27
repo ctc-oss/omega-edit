@@ -27,7 +27,7 @@ import {
   stopServiceOnPort,
 } from '@omega-edit/client'
 import * as fs from 'fs'
-import { testHost, testPort } from './specs/common'
+import { initChai, testHost, testPort } from './specs/common'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
@@ -47,6 +47,7 @@ function getPidFile(rootPath: string, port: number): string {
  * @remarks used by mocha
  */
 export async function mochaGlobalSetup(): Promise<number | undefined> {
+  await initChai()
   const pidFile = getPidFile(rootPath, testPort)
   const logFile = path.join(rootPath, 'client-tests.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'

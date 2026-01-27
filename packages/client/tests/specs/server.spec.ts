@@ -22,9 +22,12 @@ import {
   createSimpleFileLogger,
   delay,
   destroySession,
+  getComputedFileSize,
   getClient,
+  getServerHeartbeat,
   getSessionCount,
   pidIsRunning,
+  resetClient,
   setLogger,
   startServer,
   stopProcessUsingPID,
@@ -32,8 +35,7 @@ import {
   stopServerImmediate,
   stopServiceOnPort,
 } from '@omega-edit/client'
-import { expect } from 'chai'
-import { testPort } from './common'
+import { expect, initChai, testPort } from './common'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '../..')
@@ -46,6 +48,10 @@ describe('Server', () => {
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
 
+  before(async () => {
+    await initChai()
+  })
+
   beforeEach(
     `create on port ${serverTestPort} with a single session`,
     async () => {
@@ -54,6 +60,7 @@ describe('Server', () => {
       pid = await startServer(serverTestPort)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
+      resetClient()
       expect(await getClient(serverTestPort)).to.not.be.undefined
       expect(await getSessionCount()).to.equal(0)
       session_id = (await createSession()).getSessionId()
@@ -134,44 +141,106 @@ describe('Server', () => {
   })
 })
 
+describe('Server Heartbeat Timeout', () => {
+  let pid: number | undefined
+  const serverTestPort = testPort + 1
+
+  const originalJavaOpts = process.env.JAVA_OPTS
+  const heartbeatJavaOpts = [
+    '-Domega-edit.grpc.heartbeat.session-timeout=200ms',
+    '-Domega-edit.grpc.heartbeat.cleanup-interval=50ms',
+    '-Domega-edit.grpc.heartbeat.shutdown-when-no-sessions=false',
+  ].join(' ')
+
+  const waitForSessionCount = async (
+    expected: number,
+    timeoutMs: number
+  ): Promise<void> => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      if ((await getSessionCount()) === expected) return
+      await delay(50)
+    }
+    expect(await getSessionCount()).to.equal(expected)
+  }
+
+  beforeEach(`start server on port ${serverTestPort}`, async () => {
+    // Override JAVA_OPTS so this server instance uses a short heartbeat timeout.
+    process.env.JAVA_OPTS = originalJavaOpts
+      ? `${originalJavaOpts} ${heartbeatJavaOpts}`
+      : heartbeatJavaOpts
+
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    pid = await startServer(serverTestPort)
+    expect(pid).to.be.a('number').greaterThan(0)
+    expect(pidIsRunning(pid as number)).to.be.true
+    resetClient()
+    expect(await getClient(serverTestPort)).to.not.be.undefined
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  afterEach(`stop server on port ${serverTestPort}`, async () => {
+    if (originalJavaOpts === undefined) {
+      delete process.env.JAVA_OPTS
+    } else {
+      process.env.JAVA_OPTS = originalJavaOpts
+    }
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should reap idle sessions`, async () => {
+    const session_id = (await createSession()).getSessionId()
+    expect(session_id.length).to.equal(36)
+    expect(await getSessionCount()).to.equal(1)
+
+    // Send a heartbeat to keep it alive.
+    await delay(75)
+    await getServerHeartbeat([session_id], 50)
+    await delay(150)
+    expect(await getSessionCount()).to.equal(1)
+
+    // Stop heartbeating and wait for the server to reap it.
+    await delay(600)
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  it(`on port ${serverTestPort} should keep sessions alive via normal session RPCs (no heartbeat)`, async () => {
+    const session_id = (await createSession()).getSessionId()
+    expect(session_id.length).to.equal(36)
+    expect(await getSessionCount()).to.equal(1)
+
+    // Keep the session active beyond the 200ms timeout using a regular session RPC.
+    for (let i = 0; i < 8; ++i) {
+      await getComputedFileSize(session_id)
+      await delay(100)
+    }
+    expect(await getSessionCount()).to.equal(1)
+
+    // Stop activity and verify it eventually expires.
+    await waitForSessionCount(0, 2000)
+  })
+})
+
 // Tests involving running the server
 // Created for investigating https://github.com/apache/daffodil-vscode/pull/1277 and https://github.com/apache/daffodil-vscode/issues/1075
 
 const fs = require('fs').promises
 
-async function createDirectory(folder_name: string) {
-  const dirPath = path.join(__dirname, folder_name)
-
-  try {
-    await fs.mkdir(dirPath, { recursive: true })
-    console.log(`Directory created at: ${dirPath}`)
-  } catch (err: any) {
-    console.error(`Error creating directory: ${err.message}`)
-  }
-}
-
 describe('Directory with Spaces Test', () => {
-  createDirectory('space test')
   const originalDir = process.cwd()
   const newDir = path.join(__dirname, 'space test')
-
-  before(() => {
-    process.chdir(newDir)
-  })
-
-  after(() => {
-    // Change back to the original directory
-    process.chdir(originalDir)
-  })
-
-  it(`should be in the new directory: ${newDir}`, () => {
-    expect(process.cwd()).to.equal(newDir)
-  })
-
   const serverTestPort = testPort + 1
 
-  it(`Create on port ${serverTestPort} with a single session and is able to be closed`, async () => {
-    // Logging stuff
+  let pid: number | undefined
+
+  before(async () => {
+    await fs.mkdir(newDir, { recursive: true })
+  })
+
+  beforeEach(async () => {
+    process.chdir(newDir)
+
     const logFile = path.join(
       newDir,
       `server-lifecycle-tests-with-space-${serverTestPort}.log`
@@ -179,20 +248,35 @@ describe('Directory with Spaces Test', () => {
     const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
     const logger = createSimpleFileLogger(logFile, level)
 
-    // Create the session on the server test port
     setLogger(logger)
+    expect(process.cwd()).to.equal(newDir)
+
     expect(await stopServiceOnPort(serverTestPort)).to.be.true
-    const pid = await startServer(serverTestPort)
+    pid = await startServer(serverTestPort)
     expect(pid).to.be.a('number').greaterThan(0)
     expect(pidIsRunning(pid as number)).to.be.true
+
+    resetClient()
     expect(await getClient(serverTestPort)).to.not.be.undefined
     expect(await getSessionCount()).to.equal(0)
+  })
+
+  afterEach(async () => {
+    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    if (pid !== undefined) {
+      expect(pidIsRunning(pid)).to.be.false
+    }
+    process.chdir(originalDir)
+    pid = undefined
+  })
+
+  it(`should be in the new directory: ${newDir}`, () => {
+    expect(process.cwd()).to.equal(newDir)
+  })
+
+  it(`Create on port ${serverTestPort} with a single session and is able to be closed`, async () => {
     const session_id = (await createSession()).getSessionId()
     expect(session_id.length).to.equal(36)
     expect(await getSessionCount()).to.equal(1)
-
-    //Close the session
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
-    expect(pidIsRunning(pid as number)).to.be.false
   })
 })

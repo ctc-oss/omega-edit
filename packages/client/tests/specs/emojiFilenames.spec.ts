@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
+import { expect, testPort } from './common'
 import {
   createSession,
   destroySession,
@@ -29,7 +29,6 @@ import {
   IOFlags,
   saveSession,
 } from '@omega-edit/client'
-import { testPort } from './common'
 import * as fs from 'fs'
 import * as path from 'path'
 

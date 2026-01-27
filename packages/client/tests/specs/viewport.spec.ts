@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
 import {
   ALL_EVENTS,
   createViewport,
@@ -42,6 +41,7 @@ import {
   checkCallbackCount,
   createTestSession,
   destroyTestSession,
+  expect,
   log_info,
   subscribeViewport,
   testPort,

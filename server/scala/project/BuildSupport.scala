@@ -25,15 +25,68 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String = new java.io.File(
+
+  private def isWindows: Boolean =
+    System.getProperty("os.name").toLowerCase.startsWith("win")
+
+  private def normalizeLibDirFromEnv(pathFromEnv: String): String = {
+    val p = pathFromEnv.trim
+
+    // GitHub Actions windows jobs often run steps under bash and propagate
+    // MSYS-style paths like "/d/a/..." into later PowerShell/Java steps.
+    // Java's File doesn't resolve these to the intended drive path, so map it.
+    if (isWindows && p.matches("^/[a-zA-Z]/.*")) {
+      val drive = p.charAt(1).toUpper
+      val rest = p.substring(2) // includes leading '/'
+      s"$drive:${rest.replace('/', '\\')}"
+    } else {
+      p
+    }
+  }
+
+  private def isSharedLibFile(file: java.io.File): Boolean = {
+    if (!file.isFile) return false
+
+    val name = file.getName
+    // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
+    if (name.count(_ == '.') != 1) return false
+
+    name.split("\\.").lastOption match {
+      case Some("so")    => true
+      case Some("dylib") => true
+      case Some("dll")   => true
+      case _             => false
+    }
+  }
+
+  private def directoryContainsSharedLibs(dir: java.io.File): Boolean =
+    Option(dir.listFiles()).exists(_.exists(isSharedLibFile))
+
+  private def resolveLibDir(pathFromEnv: String): String = {
+    val normalized = normalizeLibDirFromEnv(pathFromEnv)
+    val dir = new java.io.File(normalized)
+    if (!dir.exists() || !dir.isDirectory) return normalized
+
+    // If OE_LIB_DIR points at the install prefix, prefer its platform-specific lib directory.
+    if (directoryContainsSharedLibs(dir)) return normalized
+
+    val expectedSubdir = if (isWindows) "bin" else "lib"
+    if (dir.getName == expectedSubdir) return normalized
+
+    val child = new java.io.File(dir, expectedSubdir)
+    if (child.isDirectory && directoryContainsSharedLibs(child)) child.getPath else normalized
+  }
+
+  private val defaultLibSubdir = if (isWindows) "bin" else "lib"
+  private val rawLibDir =
     sys.env.getOrElse(
       "OE_LIB_DIR",
-      "../../_install/" + (System.getProperty("os.name").toLowerCase.startsWith("win") match {
-        case true  => "bin"
-        case false => "lib"
-      })
+      s"../../_install/$defaultLibSubdir"
     )
-  ).toPath.toAbsolutePath.normalize.toString // get full path as relative can cause issues
+
+  // get full path as relative can cause issues
+  val libdir: String =
+    new java.io.File(resolveLibDir(rawLibDir)).toPath.toAbsolutePath.normalize.toString
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
@@ -158,12 +211,9 @@ object BuildSupport {
 
   lazy val mapping: List[(String, String)] = {
     val libFileList =
-      new java.io.File(libdir).listFiles
-        .filter(_.isFile)
-        // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
-        .filter(
-          _.getName.filter(_ == '.').size == 1
-        )
+      Option(new java.io.File(libdir).listFiles())
+        .getOrElse(Array.empty)
+        .filter(isSharedLibFile)
         .toList
 
     getMappings(
