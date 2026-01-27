@@ -44,6 +44,39 @@ object BuildSupport {
     }
   }
 
+  private def isSharedLibFile(file: java.io.File): Boolean = {
+    if (!file.isFile) return false
+
+    val name = file.getName
+    // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
+    if (name.count(_ == '.') != 1) return false
+
+    name.split("\\.").lastOption match {
+      case Some("so")    => true
+      case Some("dylib") => true
+      case Some("dll")   => true
+      case _             => false
+    }
+  }
+
+  private def directoryContainsSharedLibs(dir: java.io.File): Boolean =
+    Option(dir.listFiles()).exists(_.exists(isSharedLibFile))
+
+  private def resolveLibDir(pathFromEnv: String): String = {
+    val normalized = normalizeLibDirFromEnv(pathFromEnv)
+    val dir = new java.io.File(normalized)
+    if (!dir.exists() || !dir.isDirectory) return normalized
+
+    // If OE_LIB_DIR points at the install prefix, prefer its platform-specific lib directory.
+    if (directoryContainsSharedLibs(dir)) return normalized
+
+    val expectedSubdir = if (isWindows) "bin" else "lib"
+    if (dir.getName == expectedSubdir) return normalized
+
+    val child = new java.io.File(dir, expectedSubdir)
+    if (child.isDirectory && directoryContainsSharedLibs(child)) child.getPath else normalized
+  }
+
   private val defaultLibSubdir = if (isWindows) "bin" else "lib"
   private val rawLibDir =
     sys.env.getOrElse(
@@ -53,7 +86,7 @@ object BuildSupport {
 
   // get full path as relative can cause issues
   val libdir: String =
-    new java.io.File(normalizeLibDirFromEnv(rawLibDir)).toPath.toAbsolutePath.normalize.toString
+    new java.io.File(resolveLibDir(rawLibDir)).toPath.toAbsolutePath.normalize.toString
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
