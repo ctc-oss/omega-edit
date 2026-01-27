@@ -211,12 +211,9 @@ object BuildSupport {
 
   lazy val mapping: List[(String, String)] = {
     val libFileList =
-      new java.io.File(libdir).listFiles
-        .filter(_.isFile)
-        // only want the lib files with a single period, for the filename like .dylib, .so, .dll.
-        .filter(
-          _.getName.filter(_ == '.').size == 1
-        )
+      Option(new java.io.File(libdir).listFiles())
+        .getOrElse(Array.empty)
+        .filter(isSharedLibFile)
         .toList
 
     getMappings(
