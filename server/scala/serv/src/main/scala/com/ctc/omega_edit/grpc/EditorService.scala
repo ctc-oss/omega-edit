@@ -758,16 +758,21 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
     if (timeoutMillis <= 0L) return
 
     val stale = sessionLastSeenMillis.asScala.collect {
-      case (sid, lastSeen) if now - lastSeen.longValue() > timeoutMillis => sid
+      case (sid, lastSeen) if now - lastSeen.longValue() > timeoutMillis => (sid, lastSeen)
     }.toList
 
-    stale.foreach { sid =>
-      // Remove first to prevent duplicate work if a second sweep runs
-      val removed = sessionLastSeenMillis.remove(sid)
-      if (removed != null) {
-        destroySession(ObjectId(sid))
-          .recover { case _ => ObjectId(sid) }
-          .foreach(_ => maybeAutoShutdownIfIdle())
+    stale.foreach { case (sid, lastSeen) =>
+      // Conditionally remove only if the lastSeen value has not changed, to avoid racing with touchSession
+      val removed = sessionLastSeenMillis.remove(sid, lastSeen)
+      if (removed) {
+        destroySession(ObjectId(sid)).onComplete {
+          case Success(_) =>
+            maybeAutoShutdownIfIdle()
+          case Failure(_) =>
+            // Re-add the session if it is still absent so that a transient failure does not prevent future reaping.
+            // Do not overwrite any newer lastSeen value that may have been set concurrently.
+            sessionLastSeenMillis.putIfAbsent(sid, java.lang.Long.valueOf(now))
+        }
       }
     }
   }
