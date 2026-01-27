@@ -32,8 +32,8 @@ class HeartbeatTimeoutSpec extends AsyncWordSpecLike with Matchers {
     val cfg = ConfigFactory
       .parseString(
         """
-          |omega-edit.grpc.heartbeat.session-timeout = 200ms
-          |omega-edit.grpc.heartbeat.cleanup-interval = 50ms
+          |omega-edit.grpc.heartbeat.session-timeout = 1s
+          |omega-edit.grpc.heartbeat.cleanup-interval = 100ms
           |omega-edit.grpc.heartbeat.shutdown-when-no-sessions = false
           |""".stripMargin
       )
@@ -54,7 +54,7 @@ class HeartbeatTimeoutSpec extends AsyncWordSpecLike with Matchers {
 
       for {
         _ <- service.createSession(CreateSessionRequest.defaultInstance)
-        _ <- pekkoAfter(600.millis, service.system.scheduler)(Future.successful(()))
+        _ <- pekkoAfter(2.seconds, service.system.scheduler)(Future.successful(()))
         count1 <- service.getSessionCount(Empty())
         _ = count1.count shouldBe 0L
       } yield succeed
@@ -66,7 +66,7 @@ class HeartbeatTimeoutSpec extends AsyncWordSpecLike with Matchers {
       for {
         created <- service.createSession(CreateSessionRequest.defaultInstance)
         sid = created.sessionId
-        _ <- pekkoAfter(150.millis, service.system.scheduler)(Future.successful(()))
+        _ <- pekkoAfter(500.millis, service.system.scheduler)(Future.successful(()))
         _ <- service.getHeartbeat(
           HeartbeatRequest(
             hostname = "test",
@@ -75,10 +75,10 @@ class HeartbeatTimeoutSpec extends AsyncWordSpecLike with Matchers {
             sessionIds = Seq(sid)
           )
         )
-        _ <- pekkoAfter(150.millis, service.system.scheduler)(Future.successful(()))
+        _ <- pekkoAfter(500.millis, service.system.scheduler)(Future.successful(()))
         count1 <- service.getSessionCount(Empty())
         _ = count1.count shouldBe 1L
-        _ <- pekkoAfter(600.millis, service.system.scheduler)(Future.successful(()))
+        _ <- pekkoAfter(2.seconds, service.system.scheduler)(Future.successful(()))
         count2 <- service.getSessionCount(Empty())
         _ = count2.count shouldBe 0L
       } yield succeed

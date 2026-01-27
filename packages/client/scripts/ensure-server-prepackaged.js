@@ -66,6 +66,34 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true })
 }
 
+function runYarn(args, { cwd }) {
+  const env = process.env
+
+  // When this script is launched via `yarn`, the most reliable way to re-run Yarn
+  // (especially on Windows) is to call node with the current yarn entrypoint.
+  const npmExecPath = env.npm_execpath
+  const result = npmExecPath
+    ? spawnSync(process.execPath, [npmExecPath, ...args], {
+        cwd,
+        stdio: 'inherit',
+      })
+    : spawnSync(process.platform === 'win32' ? 'yarn.cmd' : 'yarn', args, {
+        cwd,
+        stdio: 'inherit',
+      })
+
+  if (result.error) {
+    process.stderr.write(
+      `@omega-edit/client: failed to spawn yarn: ${String(result.error)}\n`
+    )
+    process.exit(1)
+  }
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1)
+  }
+}
+
 function main() {
   const versionFile = path.join(repoRoot, 'VERSION')
   const expectedVersion = readText(versionFile).trim()
@@ -118,15 +146,7 @@ function main() {
     `@omega-edit/client: refreshing server prepackage (expected v${expectedVersion})\n`
   )
 
-  const result = spawnSync(
-    process.platform === 'win32' ? 'yarn.cmd' : 'yarn',
-    ['workspace', '@omega-edit/server', 'prepackage'],
-    { cwd: repoRoot, stdio: 'inherit' }
-  )
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1)
-  }
+  runYarn(['workspace', '@omega-edit/server', 'prepackage'], { cwd: repoRoot })
 
   const refreshedOutStat = serverOutEntry ? tryStat(serverOutEntry) : null
   ensureDir(serverOutDir)
