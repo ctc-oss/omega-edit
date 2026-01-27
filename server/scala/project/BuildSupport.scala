@@ -53,11 +53,7 @@ object BuildSupport {
 
   // get full path as relative can cause issues
   val libdir: String =
-    new java.io.File(normalizeLibDirFromEnv(rawLibDir))
-      .toPath
-      .toAbsolutePath
-      .normalize
-      .toString
+    new java.io.File(normalizeLibDirFromEnv(rawLibDir)).toPath.toAbsolutePath.normalize.toString
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
