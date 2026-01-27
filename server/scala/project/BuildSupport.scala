@@ -45,9 +45,19 @@ object BuildSupport {
   }
 
   private val defaultLibSubdir = if (isWindows) "bin" else "lib"
-  private val rawLibDir = sys.env.getOrElse("OE_LIB_DIR", s"../../_install/$defaultLibSubdir")
+  private val rawLibDir =
+    sys.env.getOrElse(
+      "OE_LIB_DIR",
+      s"../../_install/$defaultLibSubdir"
+    )
+
+  // get full path as relative can cause issues
   val libdir: String =
-    new java.io.File(normalizeLibDirFromEnv(rawLibDir)).toPath.toAbsolutePath.normalize.toString // get full path as relative can cause issues
+    new java.io.File(normalizeLibDirFromEnv(rawLibDir))
+      .toPath
+      .toAbsolutePath
+      .normalize
+      .toString
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
