@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
+import { expect } from './common'
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {

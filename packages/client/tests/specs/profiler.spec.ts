@@ -17,7 +17,6 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
 import {
   getComputedFileSize,
   numAscii,
@@ -25,7 +24,12 @@ import {
   PROFILE_DOS_EOL,
   profileSession,
 } from '@omega-edit/client'
-import { createTestSession, destroyTestSession, testPort } from './common'
+import {
+  createTestSession,
+  destroyTestSession,
+  expect,
+  testPort,
+} from './common'
 
 describe('Profiling', () => {
   let session_id = ''

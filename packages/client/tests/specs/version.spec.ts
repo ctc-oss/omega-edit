@@ -17,14 +17,13 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
+import { expect, testPort } from './common'
 import {
   ClientVersion,
   getClient,
   getClientVersion,
   getServerInfo,
 } from '@omega-edit/client'
-import { testPort } from './common'
 
 describe('Version', () => {
   beforeEach('Ensure the client is ready', async () => {

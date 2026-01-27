@@ -81,7 +81,7 @@ if (BUILD_TESTS)
             Catch2
             GIT_SHALLOW TRUE
             GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-            GIT_TAG v3.11.0
+            GIT_TAG v3.12.0
     )
     FetchContent_MakeAvailable(Catch2)
     # Restore the original BUILD_SHARED_LIBS value for the main project

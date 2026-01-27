@@ -17,7 +17,15 @@
  * limitations under the License.
  */
 
-import { expect } from 'chai'
+let chaiInitialized = false
+
+export let expect!: Chai.ExpectStatic
+
+export async function initChai(): Promise<void> {
+  if (chaiInitialized) return
+  ;({ expect } = await import('chai'))
+  chaiInitialized = true
+}
 import {
   createSession,
   destroySession,
