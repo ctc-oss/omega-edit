@@ -25,15 +25,29 @@ object BuildSupport {
     def _id: String = s"${os}_$bits"
   }
   case class Arch(id: String, _id: String, os: String, arch: String)
-  val libdir: String = new java.io.File(
-    sys.env.getOrElse(
-      "OE_LIB_DIR",
-      "../../_install/" + (System.getProperty("os.name").toLowerCase.startsWith("win") match {
-        case true  => "bin"
-        case false => "lib"
-      })
-    )
-  ).toPath.toAbsolutePath.normalize.toString // get full path as relative can cause issues
+
+  private def isWindows: Boolean =
+    System.getProperty("os.name").toLowerCase.startsWith("win")
+
+  private def normalizeLibDirFromEnv(pathFromEnv: String): String = {
+    val p = pathFromEnv.trim
+
+    // GitHub Actions windows jobs often run steps under bash and propagate
+    // MSYS-style paths like "/d/a/..." into later PowerShell/Java steps.
+    // Java's File doesn't resolve these to the intended drive path, so map it.
+    if (isWindows && p.matches("^/[a-zA-Z]/.*")) {
+      val drive = p.charAt(1).toUpper
+      val rest = p.substring(2) // includes leading '/'
+      s"$drive:${rest.replace('/', '\\')}"
+    } else {
+      p
+    }
+  }
+
+  private val defaultLibSubdir = if (isWindows) "bin" else "lib"
+  private val rawLibDir = sys.env.getOrElse("OE_LIB_DIR", s"../../_install/$defaultLibSubdir")
+  val libdir: String =
+    new java.io.File(normalizeLibDirFromEnv(rawLibDir)).toPath.toAbsolutePath.normalize.toString // get full path as relative can cause issues
   val apacheLicenseUrl: URL = new URL(
     "https://www.apache.org/licenses/LICENSE-2.0.txt"
   )
