@@ -42,6 +42,9 @@
     "package": "yarn prepare && yarn pack -f omega-edit-node-client-v${npm_package_version}.tgz",
     "test:client": "mocha --timeout 100000 --slow 50000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts --exit",
     "test:lifecycle": "mocha --timeout 50000 --slow 35000 --require ts-node/register ./tests/specs/server.spec.ts --exit",
+    "test:client:uds": "OMEGA_EDIT_TEST_TRANSPORT=uds mocha --timeout 100000 --slow 50000 --require ts-node/register --require tests/fixtures.ts --exclude ./tests/specs/server.spec.ts ./tests/specs/*.spec.ts --exit",
+    "test:lifecycle:uds": "OMEGA_EDIT_TEST_TRANSPORT=uds mocha --timeout 50000 --slow 35000 --require ts-node/register ./tests/specs/server.spec.ts --exit",
+    "test:uds": "(yarn test:lifecycle:uds && yarn test:client:uds) || (exit 1)",
     "test": "(yarn test:lifecycle && yarn test:client) || (exit 1)",
     "lint": "prettier --check package.json webpack.config.js src tests && eslint .",
     "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."

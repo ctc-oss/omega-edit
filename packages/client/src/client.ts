@@ -92,49 +92,78 @@ export async function getClient(
       state: 'initializing',
     })
 
-    const uri = process.env.OMEGA_EDIT_SERVER_URI || `${host}:${port}`
-    clientInstance_ = new EditorClient(uri, grpc.credentials.createInsecure())
+    const serverUri = process.env.OMEGA_EDIT_SERVER_URI
+    const serverSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
 
-    try {
-      await waitForReady(clientInstance_) // awaiting the Promise instead of providing a callback
-
-      log.debug({
-        fn: 'getClient',
-        port: port,
-        host: host,
-        state: 'ready',
-      })
-
-      return clientInstance_
-    } catch (err) {
-      if (err instanceof Error) {
-        // Ensure that we caught an Error object
-        log.error({
-          fn: 'getClient',
-          host: host,
-          port: port,
-          state: 'not ready',
-          err: {
-            name: err.name,
-            msg: err.message,
-            stack: err.stack,
-          },
-        })
-      } else {
-        // handle non-Error type, and log the error as a string.
-        log.error({
-          fn: 'getClient',
-          host: host,
-          port: port,
-          state: 'not ready',
-          err: {
-            msg: String(err),
-          },
-        })
-      }
-      resetClient()
-      throw err // Rethrow the caught error after logging it and resetting the client
+    const normalizeUnixSocketTarget = (socket: string): string => {
+      if (socket.startsWith('unix:')) return socket
+      if (socket.startsWith('/')) return `unix:///${socket.slice(1)}`
+      return `unix:${socket}`
     }
+
+    const tcpUri = `${host}:${port}`
+    const candidates = serverUri
+      ? [serverUri]
+      : serverSocket
+        ? [normalizeUnixSocketTarget(serverSocket), tcpUri]
+        : [tcpUri]
+
+    let lastError: unknown
+
+    for (const uri of candidates) {
+      const client = new EditorClient(uri, grpc.credentials.createInsecure())
+
+      try {
+        await waitForReady(client)
+
+        clientInstance_ = client
+        log.debug({
+          fn: 'getClient',
+          port: port,
+          host: host,
+          uri: uri,
+          state: 'ready',
+        })
+
+        return clientInstance_
+      } catch (err) {
+        lastError = err
+        try {
+          client.close()
+        } catch {
+          // ignore close errors
+        }
+
+        if (err instanceof Error) {
+          log.error({
+            fn: 'getClient',
+            host: host,
+            port: port,
+            uri: uri,
+            state: 'not ready',
+            err: {
+              name: err.name,
+              msg: err.message,
+              stack: err.stack,
+            },
+          })
+        } else {
+          log.error({
+            fn: 'getClient',
+            host: host,
+            port: port,
+            uri: uri,
+            state: 'not ready',
+            err: {
+              msg: String(err),
+            },
+          })
+        }
+      }
+    }
+
+    resetClient()
+    throw lastError
   }
 
   return clientInstance_

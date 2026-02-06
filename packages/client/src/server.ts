@@ -20,10 +20,9 @@
 import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
-import * as path from 'path'
 import { portToPid } from 'pid-port'
 import { createServer, Server } from 'net'
-import { runServer } from '@omega-edit/server'
+import { runServer, runServerWithArgs } from '@omega-edit/server'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
   HeartbeatRequest,
@@ -101,7 +100,7 @@ export async function findFirstAvailablePort(
  * @param timeout timeout in milliseconds
  * @returns true if the file exists, otherwise an error
  */
-async function waitForFileToExist(
+export async function waitForFileToExist(
   filePath: string,
   timeout: number = 1000
 ): Promise<boolean> {
@@ -111,61 +110,39 @@ async function waitForFileToExist(
     file: filePath,
   })
 
-  let watcher: fs.FSWatcher | null = null
   let timer: NodeJS.Timeout | null = null
 
-  return new Promise(async (resolve, reject) => {
-    const cleanup = () => {
-      if (watcher) watcher.close()
-      if (timer) clearTimeout(timer)
-    }
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
 
-    // Check if the file already exists
-    try {
-      await fs.promises.access(filePath, fs.constants.R_OK)
-      log.debug({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        exists: true,
-      })
-      cleanup()
-      return resolve(true)
-    } catch (err) {
-      // File doesn't exist, continue with setting up the watcher
-    }
-
-    watcher = fs.watch(path.dirname(filePath), (eventType, filename) => {
-      if (eventType === 'rename' && filename === path.basename(filePath)) {
+    const check = async () => {
+      try {
+        await fs.promises.stat(filePath)
         log.debug({
           fn: 'waitForFileToExist',
           file: filePath,
           exists: true,
         })
-        cleanup()
-        resolve(true)
+        if (timer) clearTimeout(timer)
+        return resolve(true)
+      } catch {
+        // keep waiting
       }
-    })
 
-    watcher.on('error', (err) => {
-      log.error({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        err: { msg: err.message },
-      })
-      cleanup()
-      reject(err)
-    })
+      if (Date.now() - start >= timeout) {
+        const errMsg = `File does not exist after ${timeout} milliseconds`
+        log.error({
+          fn: 'waitForFileToExist',
+          file: filePath,
+          err: { msg: errMsg },
+        })
+        return reject(new Error(errMsg))
+      }
 
-    setTimeout(() => {
-      const errMsg = `File does not exist after ${timeout} milliseconds`
-      log.error({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        err: { msg: errMsg },
-      })
-      cleanup()
-      reject(new Error(errMsg))
-    }, timeout)
+      timer = setTimeout(check, 100)
+    }
+
+    check()
   })
 }
 
@@ -510,6 +487,171 @@ export async function startServer(
       pid: pid,
     })
     await getClient(port, host)
+    return pid
+  } else {
+    const errMsg = 'Error getting server pid'
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
+  }
+}
+
+/**
+ * Start the server with a unix domain socket, optionally in UDS-only mode
+ * @param socketPath unix socket path to bind
+ * @param pidFile optional resolved path to the pidFile
+ * @param logConf optional resolved path to a logback configuration file
+ * @param udsOnly when true, starts the server in unix-socket-only mode (defaults to true)
+ * @param port server port to bind when UDS-only mode is disabled
+ * @param host server interface to bind when UDS-only mode is disabled
+ * @returns pid of the server process or undefined if the server failed to start
+ */
+export async function startServerUnixSocket(
+  socketPath: string,
+  pidFile?: string,
+  logConf?: string,
+  udsOnly: boolean = true,
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST
+): Promise<number | undefined> {
+  const logMetadata = {
+    fn: 'startServerUnixSocket',
+    socketPath,
+    host,
+    port,
+    pidFile,
+    logConf,
+  }
+  const log = getLogger()
+  log.debug(logMetadata)
+
+  async function handleExistingPidFile(pidFilePath: string): Promise<void> {
+    if (fs.existsSync(pidFilePath)) {
+      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: 'pidFile already exists',
+          pid: pidFromFile,
+        },
+      })
+
+      if (!(await stopProcessUsingPID(pidFromFile))) {
+        const errMsg = `server pidFile ${pidFilePath} already exists and server shutdown using PID ${pidFromFile} failed`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+            pid: pidFromFile,
+          },
+        })
+        throw new Error(errMsg)
+      }
+
+      fs.unlinkSync(pidFilePath)
+    }
+  }
+
+  async function checkLogConf(
+    logConfPath?: string
+  ): Promise<string | undefined> {
+    if (logConfPath && !fs.existsSync(logConfPath)) {
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: 'logback configuration file does not exist',
+          logConf: logConfPath,
+        },
+      })
+      return undefined
+    }
+    return logConfPath
+  }
+
+  async function getServerPid(pidFilePath: string): Promise<number> {
+    await waitForFileToExist(pidFilePath)
+    return Number(fs.readFileSync(pidFilePath).toString())
+  }
+
+  if (pidFile) {
+    await handleExistingPidFile(pidFile)
+  }
+
+  logConf = await checkLogConf(logConf)
+
+  if (!udsOnly) {
+    if (!(await isPortAvailable(port, host))) {
+      if (!(await stopServiceOnPort(port))) {
+        const errMsg = `port ${port} on host ${host} is not currently available`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+          },
+        })
+        throw new Error(errMsg)
+      }
+    }
+  }
+
+  const args: string[] = [`--unix-socket=${socketPath}`]
+
+  if (udsOnly) {
+    args.push('--unix-socket-only')
+  } else {
+    args.push(`--interface=${host}`, `--port=${port}`)
+  }
+
+  if (pidFile) {
+    args.push(`--pidfile=${pidFile}`)
+  }
+
+  if (logConf && fs.existsSync(logConf)) {
+    args.push(`-Dlogback.configurationFile=${logConf}`)
+  }
+
+  const { pid } = await runServerWithArgs(args)
+
+  log.debug({
+    ...logMetadata,
+    state: 'waiting',
+  })
+  const socketWaitMs = Number(
+    process.env.OMEGA_EDIT_SERVER_SOCKET_WAIT_MS || '20000'
+  )
+  await waitForFileToExist(socketPath, socketWaitMs)
+  log.debug({
+    ...logMetadata,
+    state: 'online',
+  })
+
+  if (pidFile) {
+    const pidFromFile = await getServerPid(pidFile)
+
+    if (pidFromFile !== pid && process.platform !== 'win32') {
+      const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: errMsg,
+          pid: pid,
+          pidFromFile: pidFromFile,
+        },
+      })
+      throw new Error(errMsg)
+    }
+  }
+
+  if (pid !== undefined && pid) {
+    log.debug({
+      ...logMetadata,
+      pid: pid,
+    })
+    await getClient()
     return pid
   } else {
     const errMsg = 'Error getting server pid'

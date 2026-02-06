@@ -17,15 +17,6 @@
  * limitations under the License.
  */
 
-let chaiInitialized = false
-
-export let expect!: Chai.ExpectStatic
-
-export async function initChai(): Promise<void> {
-  if (chaiInitialized) return
-  ;({ expect } = await import('chai'))
-  chaiInitialized = true
-}
 import {
   createSession,
   destroySession,
@@ -36,8 +27,22 @@ import {
   ViewportEventKind,
 } from '@omega-edit/client'
 
+let chaiInitialized = false
+
+export let expect!: Chai.ExpectStatic
+
+export async function initChai(): Promise<void> {
+  if (chaiInitialized) return
+  const { expect: importedExpect } = await import('chai')
+  expect = importedExpect
+  chaiInitialized = true
+}
+
 export let session_callbacks = new Map()
 export let viewport_callbacks = new Map()
+export const testTransport = process.env.OMEGA_EDIT_TEST_TRANSPORT || 'tcp'
+export const testSocketPath =
+  process.env.OMEGA_EDIT_TEST_SOCKET || `${process.cwd()}/.omega-edit-test.sock`
 export const testHost = process.env.OMEGA_EDIT_TEST_HOST || '127.0.0.1'
 export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
 

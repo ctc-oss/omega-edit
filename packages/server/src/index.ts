@@ -133,3 +133,12 @@ export async function runServer(
 
   return await executeServer(args)
 }
+
+/**
+ * Run the server with custom CLI args (e.g., UDS-only mode).
+ * @param args arguments to pass to the server
+ * @returns {Promise<ChildProcess>} server process
+ */
+export async function runServerWithArgs(args: string[]): Promise<ChildProcess> {
+  return await executeServer(args)
+}
