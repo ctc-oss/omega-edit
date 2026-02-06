@@ -48,7 +48,7 @@ lazy val pekkoVersion = "1.1.1" // this needs updated in tandem with the pekko-g
 lazy val tikaVersion = "2.9.4"
 lazy val scalaTestVersion = "3.2.18"
 lazy val logbackVersion = "1.3.15" // latest version that supports Java 8
-lazy val jnrFfiVersion = "2.2.17"
+lazy val jnrFfiVersion = "2.2.18"
 lazy val declineVersion = "2.5.0" // latest version that supports Scala 2.13
 lazy val enumeratumVersion = "1.7.6"
 
