@@ -45,7 +45,7 @@ lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
 lazy val pekkoVersion = "1.1.1" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
-lazy val tikaVersion = "2.9.4"
+lazy val tikaVersion = "3.2.3"
 lazy val scalaTestVersion = "3.2.18"
 lazy val logbackVersion = "1.3.15" // latest version that supports Java 8
 lazy val jnrFfiVersion = "2.2.17"
