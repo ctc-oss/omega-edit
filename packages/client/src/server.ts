@@ -345,14 +345,30 @@ async function getPidByPort(port: number): Promise<number | undefined> {
 async function getPidBySocket(socketPath: string): Promise<number | undefined> {
   const log = getLogger()
   try {
-    // Use lsof to find the process listening on the socket
-    const { stdout } = await execFilePromise('lsof', [socketPath])
-    const lines = stdout.trim().split('\n')
-    if (lines.length > 1) {
-      // Parse the second line (first data line)
-      // lsof output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-      const [, pid] = lines[1].trim().split(/\s+/)
-      return parseInt(pid, 10)
+    // Use lsof in PID-only mode to find processes associated with the socket
+    // `-t` outputs only PIDs, one per line
+    const { stdout } = await execFilePromise('lsof', ['-t', '--', socketPath])
+    const pids = stdout
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => parseInt(line, 10))
+      .filter(pid => !Number.isNaN(pid))
+
+    const uniquePids = Array.from(new Set(pids))
+
+    if (uniquePids.length === 1) {
+      return uniquePids[0]
+    }
+
+    if (uniquePids.length > 1) {
+      // Multiple processes reported for this socket; avoid arbitrarily choosing one
+      log.debug({
+        fn: 'getPidBySocket',
+        socketPath,
+        msg: 'Multiple PIDs found for socket; refusing to choose arbitrarily',
+        pids: uniquePids,
+      })
     }
     return undefined
   } catch (error) {
