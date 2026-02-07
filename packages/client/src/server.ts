@@ -537,8 +537,21 @@ export async function startServerUnixSocket(
 
   try {
     fs.unlinkSync(socketPath)
-  } catch {
-    // ignore missing or non-removable socket file
+  } catch (err) {
+    const unlinkErr = err as NodeJS.ErrnoException
+    if (unlinkErr.code !== 'ENOENT') {
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: 'failed to remove existing unix socket',
+          code: unlinkErr.code,
+          errno: unlinkErr.errno,
+          syscall: unlinkErr.syscall,
+          path: unlinkErr.path,
+        },
+      })
+      throw err
+    }
   }
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
