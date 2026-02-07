@@ -343,6 +343,7 @@ async function getPidByPort(port: number): Promise<number | undefined> {
  * @returns process id or undefined if the socket is not bound to a process
  */
 async function getPidBySocket(socketPath: string): Promise<number | undefined> {
+  const log = getLogger()
   try {
     // Use lsof to find the process listening on the socket
     const { stdout } = await execFilePromise('lsof', [socketPath])
@@ -355,7 +356,13 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     }
     return undefined
   } catch (error) {
-    // Socket is not in use or lsof failed
+    // Socket is not in use, lsof failed, or lsof is not available
+    log.debug({
+      fn: 'getPidBySocket',
+      socketPath,
+      msg: 'Failed to get PID from socket',
+      err: error instanceof Error ? error.message : String(error),
+    })
     return undefined
   }
 }
@@ -680,7 +687,7 @@ export async function startServerUnixSocket(
         msg: 'Active server detected on socket path, attempting to stop it',
       })
       if (!(await stopServiceOnSocket(socketPath))) {
-        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. Check if the process has sufficient permissions or if the server is hung.`
+        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. This may be due to insufficient permissions, a hung server process, or unavailable system utilities (e.g., lsof).`
         log.error({
           ...logMetadata,
           err: {
