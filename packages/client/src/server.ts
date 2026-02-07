@@ -382,17 +382,6 @@ export async function startServer(
   const log = getLogger()
   log.debug(logMetadata)
 
-  const socketDir = path.dirname(socketPath)
-  if (socketDir && socketDir !== '.') {
-    fs.mkdirSync(socketDir, { recursive: true })
-  }
-
-  try {
-    fs.unlinkSync(socketPath)
-  } catch {
-    // ignore missing or non-removable socket file
-  }
-
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
       const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
@@ -540,6 +529,17 @@ export async function startServerUnixSocket(
   }
   const log = getLogger()
   log.debug(logMetadata)
+
+  const socketDir = path.dirname(socketPath)
+  if (socketDir && socketDir !== '.') {
+    fs.mkdirSync(socketDir, { recursive: true })
+  }
+
+  try {
+    fs.unlinkSync(socketPath)
+  } catch {
+    // ignore missing or non-removable socket file
+  }
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
