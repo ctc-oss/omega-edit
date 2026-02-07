@@ -811,7 +811,14 @@ object EditorService {
       )
 
     val parent = socketPath.getParent
-    if (parent != null) Files.createDirectories(parent)
+    if (parent != null)
+      try Files.createDirectories(parent)
+      catch {
+        case NonFatal(e) =>
+          return Future.failed(
+            new IOException(s"Unable to create parent directory for unix socket at $socketPath", e)
+          )
+      }
 
     try Files.deleteIfExists(socketPath)
     catch {
