@@ -102,7 +102,8 @@ object boot
         (interface_opt, port_opt, pidfile_opt, unix_socket_opt, unix_socket_only_opt)
           .mapN { (interface, portOpt, pidfile, unixSocketOpt, unixSocketOnly) =>
             val unixSocket = unixSocketOpt
-            val effectiveInterface = interface
+            val effectiveInterface =
+              if (unixSocket.isDefined && !unixSocketOnly) "127.0.0.1" else interface
             val effectivePort = portOpt.getOrElse(
               if (unixSocket.isDefined) 0 else default_port.toInt
             )
