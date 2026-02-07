@@ -22,8 +22,7 @@ import { getClient } from './client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { portToPid } from 'pid-port'
-import { createServer, Server } from 'net'
-import * as net from 'net'
+import { createServer, Server, createConnection } from 'net'
 import { runServer, runServerWithArgs } from '@omega-edit/server'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
@@ -230,7 +229,7 @@ function isSocketActive(socketPath: string): Promise<boolean> {
     }
 
     // Try to connect to the socket
-    const client = net.createConnection({ path: socketPath }, () => {
+    const client = createConnection({ path: socketPath }, () => {
       // Successfully connected - socket is active
       log.debug({
         fn: 'isSocketActive',
@@ -350,7 +349,8 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     const lines = stdout.trim().split('\n')
     if (lines.length > 1) {
       // Parse the second line (first data line)
-      const [_, pid] = lines[1].trim().split(/\s+/)
+      // lsof output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
+      const [_command, pid] = lines[1].trim().split(/\s+/)
       return parseInt(pid, 10)
     }
     return undefined
