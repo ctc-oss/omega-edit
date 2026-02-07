@@ -29,6 +29,10 @@ class UnixDomainSocketProxySpec extends AnyWordSpec with Matchers {
 
   "UnixDomainSocketProxy" should {
     "proxy bytes between unix socket and TCP" in {
+      val os = Option(System.getProperty("os.name")).getOrElse("")
+      if (os.toLowerCase.contains("win")) {
+        cancel("Unix domain sockets not supported on Windows")
+      }
       if (!UnixDomainSocketProxy.isSupportedByRuntime) {
         cancel("Unix domain sockets not supported by this runtime")
       }

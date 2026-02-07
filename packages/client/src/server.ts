@@ -20,6 +20,7 @@
 import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
+import * as path from 'path'
 import { portToPid } from 'pid-port'
 import { createServer, Server } from 'net'
 import { runServer, runServerWithArgs } from '@omega-edit/server'
@@ -380,6 +381,17 @@ export async function startServer(
   }
   const log = getLogger()
   log.debug(logMetadata)
+
+  const socketDir = path.dirname(socketPath)
+  if (socketDir && socketDir !== '.') {
+    fs.mkdirSync(socketDir, { recursive: true })
+  }
+
+  try {
+    fs.unlinkSync(socketPath)
+  } catch {
+    // ignore missing or non-removable socket file
+  }
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {

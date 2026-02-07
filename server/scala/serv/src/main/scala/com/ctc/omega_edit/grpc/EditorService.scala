@@ -33,13 +33,15 @@ import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
 
+import java.io.IOException
 import java.lang.management.ManagementFactory
 import java.net.SocketAddress
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 import scala.jdk.CollectionConverters._
@@ -795,12 +797,29 @@ object EditorService {
   ): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
 
+    val os = Option(System.getProperty("os.name")).getOrElse("")
+    if (os.toLowerCase.contains("win"))
+      return Future.failed(
+        new IllegalStateException("Unix domain sockets are not supported on Windows")
+      )
+
     if (!UnixDomainSocketProxy.isSupportedByRuntime)
       return Future.failed(
         new IllegalStateException(
           "Unix domain sockets are not supported by this runtime (requires Java 16+ and a Unix-like OS)."
         )
       )
+
+    val parent = socketPath.getParent
+    if (parent != null) Files.createDirectories(parent)
+
+    try Files.deleteIfExists(socketPath)
+    catch {
+      case NonFatal(e) =>
+        return Future.failed(
+          new IOException(s"Unable to remove existing unix socket at $socketPath", e)
+        )
+    }
 
     val address = UnixDomainSocketProxy.addressOf(socketPath)
     val http = Http()

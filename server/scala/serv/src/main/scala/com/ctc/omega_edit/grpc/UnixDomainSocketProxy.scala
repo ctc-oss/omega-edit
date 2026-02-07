@@ -52,7 +52,13 @@ final class UnixDomainSocketProxy private (
 }
 
 object UnixDomainSocketProxy {
-  def isSupportedByRuntime: Boolean = UnixDomainSockets.supported
+  private def isWindows: Boolean =
+    Option(System.getProperty("os.name"))
+      .getOrElse("")
+      .toLowerCase(java.util.Locale.ROOT)
+      .contains("win")
+
+  def isSupportedByRuntime: Boolean = UnixDomainSockets.supported && !isWindows
 
   def addressOf(path: Path): SocketAddress = UnixDomainSockets.addressOf(path)
 
@@ -98,10 +104,11 @@ object UnixDomainSocketProxy {
       () =>
         while (running.get()) {
           var client: SocketChannel = null
+          var upstream: SocketChannel = null
           try {
             client = server.accept()
             if (client != null) {
-              val upstream = SocketChannel.open()
+              upstream = SocketChannel.open()
               upstream.connect(
                 new InetSocketAddress(InetAddress.getByName(targetHost), targetPort)
               )
@@ -131,6 +138,8 @@ object UnixDomainSocketProxy {
             case NonFatal(_) =>
               // best-effort: close client if we failed mid-accept/handshake
               try if (client != null) client.close()
+              catch { case NonFatal(_) => () }
+              try if (upstream != null) upstream.close()
               catch { case NonFatal(_) => () }
               // avoid hot loop on repeated failure
               try Thread.sleep(25)

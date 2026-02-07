@@ -28,6 +28,7 @@ import java.io.FileOutputStream
 import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
+import scala.util.control.NonFatal
 
 object boot
     extends CommandApp(
@@ -101,8 +102,7 @@ object boot
         (interface_opt, port_opt, pidfile_opt, unix_socket_opt, unix_socket_only_opt)
           .mapN { (interface, portOpt, pidfile, unixSocketOpt, unixSocketOnly) =>
             val unixSocket = unixSocketOpt
-            val effectiveInterface =
-              if (unixSocket.isDefined) "127.0.0.1" else interface
+            val effectiveInterface = interface
             val effectivePort = portOpt.getOrElse(
               if (unixSocket.isDefined) 0 else default_port.toInt
             )
@@ -169,16 +169,24 @@ class boot(
           proxy = unixSocketPath.map { p =>
             val sockPath = Paths.get(p)
             val targetPort = binding.localAddress.getPort
-            val proxy = UnixDomainSocketProxy.start(
-              sockPath,
-              targetHost = "127.0.0.1",
-              targetPort = targetPort
-            )
-            sys.registerOnTermination(() => proxy.close())
-            println(
-              s"${servInfo} additionally exposed via unix:${sockPath.toAbsolutePath.toString} -> 127.0.0.1:${targetPort}"
-            )
-            proxy
+            try {
+              val proxy = UnixDomainSocketProxy.start(
+                sockPath,
+                targetHost = "127.0.0.1",
+                targetPort = targetPort
+              )
+              sys.registerOnTermination(() => proxy.close())
+              println(
+                s"${servInfo} additionally exposed via unix:${sockPath.toAbsolutePath.toString} -> 127.0.0.1:${targetPort}"
+              )
+              proxy
+            } catch {
+              case NonFatal(e) =>
+                try binding.unbind()
+                catch { case NonFatal(_) => () }
+                sys.terminate()
+                throw e
+            }
           }
           _ = println(s"${servInfo} bound to ${binding.localAddress}: ready...")
           done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
