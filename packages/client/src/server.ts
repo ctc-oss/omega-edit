@@ -216,56 +216,55 @@ function isSocketActive(socketPath: string): Promise<boolean> {
   })
 
   return new Promise((resolve) => {
+    let resolved = false
+    let client: import('net').Socket | undefined
+    let timeout: NodeJS.Timeout | undefined
+
+    const finish = (active: boolean, reason?: string) => {
+      if (resolved) return
+      resolved = true
+      if (timeout) clearTimeout(timeout)
+      client?.removeAllListeners()
+      client?.destroy()
+
+      if (reason) {
+        log.debug({
+          fn: 'isSocketActive',
+          socketPath,
+          active,
+          reason,
+        })
+      } else {
+        log.debug({
+          fn: 'isSocketActive',
+          socketPath,
+          active,
+        })
+      }
+
+      resolve(active)
+    }
+
     // If socket doesn't exist, it's not active
     if (!fs.existsSync(socketPath)) {
-      log.debug({
-        fn: 'isSocketActive',
-        socketPath,
-        active: false,
-        reason: 'does not exist',
-      })
       resolve(false)
       return
     }
 
     // Try to connect to the socket
-    const client = createConnection({ path: socketPath })
+    client = createConnection({ path: socketPath })
 
     // Set a timeout to avoid hanging indefinitely
-    const timeout = setTimeout(() => {
-      log.debug({
-        fn: 'isSocketActive',
-        socketPath,
-        active: false,
-        reason: 'connection timeout',
-      })
-      client.destroy()
-      resolve(false)
+    timeout = setTimeout(() => {
+      finish(false, 'connection timeout')
     }, 5000) // 5 second timeout
 
     client.once('connect', () => {
-      // Successfully connected - socket is active
-      clearTimeout(timeout)
-      log.debug({
-        fn: 'isSocketActive',
-        socketPath,
-        active: true,
-      })
-      client.destroy()
-      resolve(true)
+      finish(true)
     })
 
     client.once('error', (err: NodeJS.ErrnoException) => {
-      // Connection failed - socket is stale or has issues
-      clearTimeout(timeout)
-      log.debug({
-        fn: 'isSocketActive',
-        socketPath,
-        active: false,
-        reason: err.code || 'connection error',
-      })
-      client.destroy()
-      resolve(false)
+      finish(false, err.code || 'connection error')
     })
   })
 }
@@ -379,24 +378,26 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     }
 
     if (uniquePids.length > 1) {
-      // Multiple processes reported for this socket; avoid arbitrarily choosing one
+      const msg =
+        'Multiple PIDs found for socket; refusing to choose arbitrarily'
       log.debug({
         fn: 'getPidBySocket',
         socketPath,
-        msg: 'Multiple PIDs found for socket; refusing to choose arbitrarily',
+        msg,
         pids: uniquePids,
       })
+      throw new Error(msg)
     }
     return undefined
   } catch (error) {
-    // Socket is not in use, lsof failed, or lsof is not available
-    log.debug({
+    log.error({
       fn: 'getPidBySocket',
       socketPath,
-      msg: 'Failed to get PID from socket',
-      err: error instanceof Error ? error.message : String(error),
+      err: {
+        msg: error instanceof Error ? error.message : String(error),
+      },
     })
-    return undefined
+    throw error
   }
 }
 
@@ -505,12 +506,12 @@ async function stopServiceOnSocket(
       })
       return result
     } else {
-      log.debug({
+      log.warn({
         ...logMetadata,
-        stopped: true,
-        msg: 'No process found bound to socket',
+        stopped: false,
+        msg: 'Unable to determine PID for socket; refusing to treat as stopped',
       })
-      return true // No process was using the socket, so consider it as stopped
+      return false
     }
   } catch (err) {
     if (err instanceof Error) {
