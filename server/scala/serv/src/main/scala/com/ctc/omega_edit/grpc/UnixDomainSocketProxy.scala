@@ -56,7 +56,7 @@ object UnixDomainSocketProxy {
     Option(System.getProperty("os.name"))
       .getOrElse("")
       .toLowerCase(java.util.Locale.ROOT)
-      .contains("win")
+      .contains("windows")
 
   def isSupportedByRuntime: Boolean = UnixDomainSockets.supported && !isWindows
 

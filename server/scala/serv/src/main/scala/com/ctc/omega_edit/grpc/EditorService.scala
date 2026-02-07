@@ -797,8 +797,7 @@ object EditorService {
   ): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
 
-    val os = Option(System.getProperty("os.name")).getOrElse("")
-    if (os.toLowerCase.contains("win"))
+    if (isWindows)
       return Future.failed(
         new IllegalStateException("Unix domain sockets are not supported on Windows")
       )
