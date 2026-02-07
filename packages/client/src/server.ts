@@ -350,10 +350,10 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     const { stdout } = await execFilePromise('lsof', ['-t', '--', socketPath])
     const pids = stdout
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => parseInt(line, 10))
-      .filter(pid => !Number.isNaN(pid))
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => parseInt(line, 10))
+      .filter((pid) => !Number.isNaN(pid))
 
     const uniquePids = Array.from(new Set(pids))
 
