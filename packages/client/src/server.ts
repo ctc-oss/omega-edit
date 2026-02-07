@@ -229,25 +229,42 @@ function isSocketActive(socketPath: string): Promise<boolean> {
     }
 
     // Try to connect to the socket
-    const client = createConnection({ path: socketPath }, () => {
+    const client = createConnection({ path: socketPath })
+
+    // Set a timeout to avoid hanging indefinitely
+    const timeout = setTimeout(() => {
+      log.debug({
+        fn: 'isSocketActive',
+        socketPath,
+        active: false,
+        reason: 'connection timeout',
+      })
+      client.destroy()
+      resolve(false)
+    }, 5000) // 5 second timeout
+
+    client.once('connect', () => {
       // Successfully connected - socket is active
+      clearTimeout(timeout)
       log.debug({
         fn: 'isSocketActive',
         socketPath,
         active: true,
       })
-      client.end()
+      client.destroy()
       resolve(true)
     })
 
-    client.on('error', (err: NodeJS.ErrnoException) => {
+    client.once('error', (err: NodeJS.ErrnoException) => {
       // Connection failed - socket is stale or has issues
+      clearTimeout(timeout)
       log.debug({
         fn: 'isSocketActive',
         socketPath,
         active: false,
         reason: err.code || 'connection error',
       })
+      client.destroy()
       resolve(false)
     })
   })
@@ -350,10 +367,10 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     const { stdout } = await execFilePromise('lsof', ['-t', '--', socketPath])
     const pids = stdout
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => parseInt(line, 10))
-      .filter(pid => !Number.isNaN(pid))
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => parseInt(line, 10))
+      .filter((pid) => !Number.isNaN(pid))
 
     const uniquePids = Array.from(new Set(pids))
 
