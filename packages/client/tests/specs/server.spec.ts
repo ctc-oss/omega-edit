@@ -30,12 +30,15 @@ import {
   resetClient,
   setLogger,
   startServer,
+  startServerUnixSocket,
   stopProcessUsingPID,
   stopServerGraceful,
   stopServerImmediate,
   stopServiceOnPort,
 } from '@omega-edit/client'
-import { expect, initChai, testPort } from './common'
+import { expect, initChai, testHost, testPort, testTransport } from './common'
+import * as fs from 'fs'
+import * as os from 'os'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '../..')
@@ -44,6 +47,11 @@ describe('Server', () => {
   let pid: number | undefined
   let session_id: string
   const serverTestPort = testPort + 1
+  const isUds = testTransport === 'uds'
+  const socketPath = path.join(
+    rootPath,
+    `.server-lifecycle-${serverTestPort}.sock`
+  )
   const logFile = path.join(rootPath, 'server-lifecycle-tests.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
@@ -56,8 +64,32 @@ describe('Server', () => {
     `create on port ${serverTestPort} with a single session`,
     async () => {
       setLogger(logger)
-      expect(await stopServiceOnPort(serverTestPort)).to.be.true
-      pid = await startServer(serverTestPort)
+      if (isUds) {
+        const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+        if (udsJavaHome) {
+          process.env.JAVA_HOME = udsJavaHome
+          const currentPath = process.env.PATH || ''
+          if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+            process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+          }
+        }
+
+        process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+        delete process.env.OMEGA_EDIT_SERVER_URI
+        pid = await startServerUnixSocket(
+          socketPath,
+          undefined,
+          undefined,
+          false,
+          serverTestPort,
+          testHost
+        )
+      } else {
+        delete process.env.OMEGA_EDIT_SERVER_SOCKET
+        delete process.env.OMEGA_EDIT_SERVER_URI
+        expect(await stopServiceOnPort(serverTestPort)).to.be.true
+        pid = await startServer(serverTestPort)
+      }
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
       resetClient()
@@ -71,14 +103,27 @@ describe('Server', () => {
 
   afterEach(`on port ${serverTestPort} should no longer exist`, async () => {
     // after each test, the server should be stopped
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number)).to.be.true
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    } else {
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    }
     expect(pidIsRunning(pid as number)).to.be.false
   })
 
   it(`on port ${serverTestPort} should stop immediately via stopServiceOnPort using 'SIGTERM'`, async () => {
     expect(pid).to.be.a('number').greaterThan(0)
     // stop the server using its PID should stop the server immediately using the operating system
-    expect(await stopServiceOnPort(serverTestPort, 'SIGTERM')).to.be.true
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number, 'SIGTERM')).to.be.true
+    } else {
+      expect(await stopServiceOnPort(serverTestPort, 'SIGTERM')).to.be.true
+    }
     expect(pidIsRunning(pid as number)).to.be.false
   })
 
@@ -92,7 +137,11 @@ describe('Server', () => {
   it(`on port ${serverTestPort} should stop immediately via stopServiceOnPort using 'SIGKILL'`, async () => {
     expect(pid).to.be.a('number').greaterThan(0)
     // stop the server using its PID should stop the server immediately using the operating system
-    expect(await stopServiceOnPort(serverTestPort, 'SIGKILL')).to.be.true
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number, 'SIGKILL')).to.be.true
+    } else {
+      expect(await stopServiceOnPort(serverTestPort, 'SIGKILL')).to.be.true
+    }
     expect(pidIsRunning(pid as number)).to.be.false
   })
 
@@ -144,6 +193,11 @@ describe('Server', () => {
 describe('Server Heartbeat Timeout', () => {
   let pid: number | undefined
   const serverTestPort = testPort + 1
+  const isUds = testTransport === 'uds'
+  const socketPath = path.join(
+    rootPath,
+    `.server-heartbeat-${serverTestPort}.sock`
+  )
 
   const originalJavaOpts = process.env.JAVA_OPTS
   const heartbeatJavaOpts = [
@@ -170,8 +224,32 @@ describe('Server Heartbeat Timeout', () => {
       ? `${originalJavaOpts} ${heartbeatJavaOpts}`
       : heartbeatJavaOpts
 
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
-    pid = await startServer(serverTestPort)
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        undefined,
+        false,
+        serverTestPort,
+        testHost
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort)
+    }
     expect(pid).to.be.a('number').greaterThan(0)
     expect(pidIsRunning(pid as number)).to.be.true
     resetClient()
@@ -185,7 +263,16 @@ describe('Server Heartbeat Timeout', () => {
     } else {
       process.env.JAVA_OPTS = originalJavaOpts
     }
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number)).to.be.true
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    } else {
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    }
     expect(pidIsRunning(pid as number)).to.be.false
   })
 
@@ -225,21 +312,38 @@ describe('Server Heartbeat Timeout', () => {
 // Tests involving running the server
 // Created for investigating https://github.com/apache/daffodil-vscode/pull/1277 and https://github.com/apache/daffodil-vscode/issues/1075
 
-const fs = require('fs').promises
+const fsPromises = require('fs').promises
 
 describe('Directory with Spaces Test', () => {
   const originalDir = process.cwd()
   const newDir = path.join(__dirname, 'space test')
   const serverTestPort = testPort + 1
+  const isUds = testTransport === 'uds'
+  const socketPath = isUds
+    ? path.join(os.tmpdir(), `.server-space-${serverTestPort}.sock`)
+    : path.join(newDir, `.server-space-${serverTestPort}.sock`)
 
   let pid: number | undefined
 
   before(async () => {
-    await fs.mkdir(newDir, { recursive: true })
+    await fsPromises.mkdir(newDir, { recursive: true })
   })
 
   beforeEach(async () => {
     process.chdir(newDir)
+
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+    }
 
     const logFile = path.join(
       newDir,
@@ -251,8 +355,19 @@ describe('Directory with Spaces Test', () => {
     setLogger(logger)
     expect(process.cwd()).to.equal(newDir)
 
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
-    pid = await startServer(serverTestPort)
+    if (isUds) {
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        undefined,
+        false,
+        serverTestPort,
+        testHost
+      )
+    } else {
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort)
+    }
     expect(pid).to.be.a('number').greaterThan(0)
     expect(pidIsRunning(pid as number)).to.be.true
 
@@ -262,7 +377,16 @@ describe('Directory with Spaces Test', () => {
   })
 
   afterEach(async () => {
-    expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number)).to.be.true
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    } else {
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    }
     if (pid !== undefined) {
       expect(pidIsRunning(pid)).to.be.false
     }

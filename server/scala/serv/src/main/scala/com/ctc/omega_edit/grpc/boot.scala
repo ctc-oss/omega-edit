@@ -18,13 +18,14 @@ package com.ctc.omega_edit.grpc
 
 import org.apache.pekko
 import pekko.actor.ActorSystem
-import cats.implicits.catsSyntaxTuple3Semigroupal
+import cats.syntax.all._
 import com.ctc.omega_edit.api.OmegaEdit
 import com.ctc.omega_edit.grpc.EditorService.getServerPID
 import com.monovore.decline._
 
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Paths
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
@@ -57,7 +58,34 @@ object boot
             metavar = "port_num",
             help = s"Set the gRPC port to listen on. Default: $default_port"
           )
-          .withDefault(default_port.toInt)
+          .orNone
+
+        val default_unix_socket =
+          scala.util.Properties.envOrNone("OMEGA_EDIT_SERVER_UNIX_SOCKET")
+        val unix_socket_opt = Opts
+          .option[String](
+            "unix-socket",
+            short = "u",
+            metavar = "path",
+            help =
+              "Also expose the gRPC server via a Unix domain socket at the given path (opt-in; requires a runtime that supports Unix domain sockets)."
+          )
+          .orNone
+          .map(_.filter(_.nonEmpty).orElse(default_unix_socket))
+
+        val default_unix_socket_only =
+          scala.util.Properties
+            .envOrElse("OMEGA_EDIT_SERVER_UNIX_SOCKET_ONLY", "false")
+            .toBooleanOption
+            .getOrElse(false)
+        val unix_socket_only_opt = Opts
+          .flag(
+            "unix-socket-only",
+            help =
+              "Bind only to the Unix domain socket (no TCP listener). Requires a runtime and Pekko HTTP version that support UDS binding."
+          )
+          .orFalse
+          .map(flag => flag || default_unix_socket_only)
 
         val default_pidfile =
           scala.util.Properties.envOrElse("OMEGA_EDIT_SERVER_PIDFILE", null)
@@ -70,13 +98,33 @@ object boot
           )
           .withDefault(default_pidfile)
 
-        (interface_opt, port_opt, pidfile_opt).mapN { (interface, port, pidfile) =>
-          new boot(interface, port, pidfile).run()
-        }
+        (interface_opt, port_opt, pidfile_opt, unix_socket_opt, unix_socket_only_opt)
+          .mapN { (interface, portOpt, pidfile, unixSocketOpt, unixSocketOnly) =>
+            val unixSocket = unixSocketOpt
+            val effectiveInterface =
+              if (unixSocket.isDefined) "127.0.0.1" else interface
+            val effectivePort = portOpt.getOrElse(
+              if (unixSocket.isDefined) 0 else default_port.toInt
+            )
+
+            new boot(
+              iface = effectiveInterface,
+              port = effectivePort,
+              pidfile = pidfile,
+              unixSocketPath = unixSocket,
+              unixSocketOnly = unixSocketOnly
+            ).run()
+          }
       }
     )
 
-class boot(iface: String, port: Int, pidfile: String) {
+class boot(
+    iface: String,
+    port: Int,
+    pidfile: String,
+    unixSocketPath: Option[String],
+    unixSocketOnly: Boolean
+) {
   implicit val sys: ActorSystem = ActorSystem("omega-edit-grpc-server")
   implicit val ec: ExecutionContext = sys.dispatcher
 
@@ -96,12 +144,48 @@ class boot(iface: String, port: Int, pidfile: String) {
     }
 
     val done =
-      for {
-        binding <- EditorService.bind(iface = iface, port = port)
-        _ = println(s"${servInfo} bound to ${binding.localAddress}: ready...")
-        done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
-        _ = println(s"${servInfo} bound to ${binding.localAddress}: exiting...")
-      } yield done
+      if (unixSocketOnly) {
+        val sockPath = unixSocketPath match {
+          case Some(p) => Paths.get(p)
+          case None =>
+            throw new IllegalArgumentException(
+              "--unix-socket-only requires --unix-socket (or OMEGA_EDIT_SERVER_UNIX_SOCKET)."
+            )
+        }
+
+        for {
+          binding <- EditorService.bindUnixSocket(sockPath)
+          _ = println(
+            s"${servInfo} bound to unix:${sockPath.toAbsolutePath.toString}: ready..."
+          )
+          done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
+          _ = println(
+            s"${servInfo} bound to unix:${sockPath.toAbsolutePath.toString}: exiting..."
+          )
+        } yield done
+      } else {
+        for {
+          binding <- EditorService.bind(iface = iface, port = port)
+          proxy = unixSocketPath.map { p =>
+            val sockPath = Paths.get(p)
+            val targetPort = binding.localAddress.getPort
+            val proxy = UnixDomainSocketProxy.start(
+              sockPath,
+              targetHost = "127.0.0.1",
+              targetPort = targetPort
+            )
+            sys.registerOnTermination(() => proxy.close())
+            println(
+              s"${servInfo} additionally exposed via unix:${sockPath.toAbsolutePath.toString} -> 127.0.0.1:${targetPort}"
+            )
+            proxy
+          }
+          _ = println(s"${servInfo} bound to ${binding.localAddress}: ready...")
+          done <- binding.addToCoordinatedShutdown(1.second).whenTerminated
+          _ = proxy.foreach(_.close())
+          _ = println(s"${servInfo} bound to ${binding.localAddress}: exiting...")
+        } yield done
+      }
 
     Await.result(done, atMost = Duration.Inf)
     ()

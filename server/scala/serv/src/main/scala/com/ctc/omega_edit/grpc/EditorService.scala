@@ -16,6 +16,13 @@
 
 package com.ctc.omega_edit.grpc
 
+import org.apache.pekko.NotUsed
+import org.apache.pekko.actor.{ActorSystem, Cancellable}
+import org.apache.pekko.grpc.GrpcServiceException
+import org.apache.pekko.http.scaladsl.Http
+import org.apache.pekko.pattern.ask
+import org.apache.pekko.stream.scaladsl.Source
+import org.apache.pekko.util.Timeout
 import com.ctc.omega_edit.api
 import com.ctc.omega_edit.api.{OmegaEdit, Version}
 import com.ctc.omega_edit.grpc.EditorService._
@@ -25,21 +32,15 @@ import com.google.protobuf.ByteString
 import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
-import org.apache.pekko.NotUsed
-import org.apache.pekko.actor.{ActorSystem, Cancellable}
-import org.apache.pekko.grpc.GrpcServiceException
-import org.apache.pekko.http.scaladsl.Http
-import org.apache.pekko.pattern.ask
-import org.apache.pekko.stream.scaladsl.Source
-import org.apache.pekko.util.Timeout
 
 import java.lang.management.ManagementFactory
+import java.net.SocketAddress
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success}
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import scala.jdk.CollectionConverters._
 
@@ -779,9 +780,7 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
-  def bind(iface: String, port: Int)(implicit
-      system: ActorSystem
-  ): Future[Http.ServerBinding] = {
+  def bind(iface: String, port: Int)(implicit system: ActorSystem): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
     Http()
       .newServerAt(iface, port)
@@ -789,6 +788,58 @@ object EditorService {
       .andThen { case Failure(_) =>
         system.terminate()
       }
+  }
+
+  def bindUnixSocket(socketPath: java.nio.file.Path)(implicit
+      system: ActorSystem
+  ): Future[Http.ServerBinding] = {
+    implicit val ec: ExecutionContext = system.dispatcher
+
+    if (!UnixDomainSocketProxy.isSupportedByRuntime)
+      return Future.failed(
+        new IllegalStateException(
+          "Unix domain sockets are not supported by this runtime (requires Java 16+ and a Unix-like OS)."
+        )
+      )
+
+    val address = UnixDomainSocketProxy.addressOf(socketPath)
+    val http = Http()
+    val handler = EditorHandler(new EditorService)
+
+    val newServerAtMethod = http.getClass.getMethods
+      .find(m => m.getName == "newServerAt" && m.getParameterCount == 1)
+      .filter { m =>
+        classOf[SocketAddress].isAssignableFrom(m.getParameterTypes.apply(0))
+      }
+
+    val builder = newServerAtMethod match {
+      case Some(m) => m.invoke(http, address)
+      case None =>
+        return Future.failed(
+          new IllegalStateException(
+            "This Pekko HTTP version does not support binding to Unix domain sockets."
+          )
+        )
+    }
+
+    val bindMethod = builder.getClass.getMethods.find { m =>
+      m.getName == "bind" && m.getParameterCount == 1
+    }
+
+    bindMethod match {
+      case Some(m) =>
+        m.invoke(builder, handler)
+          .asInstanceOf[Future[Http.ServerBinding]]
+          .andThen { case Failure(_) =>
+            system.terminate()
+          }
+      case None =>
+        Future.failed(
+          new IllegalStateException(
+            "Unable to locate server binding method for Unix domain socket binding."
+          )
+        )
+    }
   }
 
   def getServerPID(): Int =

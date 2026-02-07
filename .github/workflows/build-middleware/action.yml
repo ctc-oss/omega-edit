@@ -125,3 +125,18 @@ runs:
     - name: Yarn Test - Client 🧑‍💼
       shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/client test
+
+    - name: Setup Java 17 for UDS tests ☕
+      uses: actions/setup-java@v5.2.0
+      with:
+        distribution: temurin
+        java-version: 17
+        cache: sbt
+      if: ${{ inputs.runner-os != 'Windows' }}
+
+    - name: Yarn Test - Client (UDS) 🧪
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/client test:uds
+      env:
+        OMEGA_EDIT_TEST_JAVA_HOME: ${{ env.JAVA_HOME }}
+      if: ${{ inputs.runner-os != 'Windows' }}
