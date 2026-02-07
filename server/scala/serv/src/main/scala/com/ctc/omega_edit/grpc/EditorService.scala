@@ -823,7 +823,16 @@ object EditorService {
     }
 
     val bindMethod = builder.getClass.getMethods.find { m =>
-      m.getName == "bind" && m.getParameterCount == 1
+      m.getName == "bind" && m.getParameterCount == 1 && {
+        // Disambiguate by checking that the parameter is a function type (HttpRequest => Future[HttpResponse])
+        // to avoid binding to the wrong overload (e.g., Route-based bind)
+        val paramTypes = m.getGenericParameterTypes
+        paramTypes.nonEmpty && {
+          val firstParam = paramTypes(0)
+          firstParam.getTypeName.contains("Function1") || classOf[scala.Function1[_, _]]
+            .isAssignableFrom(m.getParameterTypes()(0))
+        }
+      }
     }
 
     bindMethod match {
