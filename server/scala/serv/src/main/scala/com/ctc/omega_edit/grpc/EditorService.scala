@@ -782,6 +782,9 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
+  private def isWindows: Boolean =
+    System.getProperty("os.name").toLowerCase.contains("windows")
+
   def bind(iface: String, port: Int)(implicit system: ActorSystem): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
     Http()
