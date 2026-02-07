@@ -77,10 +77,7 @@ object UnixDomainSocketProxy {
         "Unix domain sockets are not supported by this runtime (requires Java 16+ and a Unix-like OS)."
       )
 
-    val os = Option(System.getProperty("os.name"))
-      .getOrElse("")
-      .toLowerCase(java.util.Locale.ROOT)
-    if (os.contains("win"))
+    if (isWindows)
       throw new IllegalStateException("Unix domain sockets are not supported on Windows")
 
     // Ensure parent directories exist.

@@ -183,8 +183,9 @@ class boot(
               proxy
             } catch {
               case NonFatal(e) =>
-                try binding.unbind()
-                catch { case NonFatal(_) => () }
+                try {
+                  Await.result(binding.unbind(), 3.seconds)
+                } catch { case NonFatal(_) => () }
                 sys.terminate()
                 throw e
             }
