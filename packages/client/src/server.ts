@@ -350,7 +350,7 @@ async function getPidBySocket(socketPath: string): Promise<number | undefined> {
     if (lines.length > 1) {
       // Parse the second line (first data line)
       // lsof output format: COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME
-      const [_command, pid] = lines[1].trim().split(/\s+/)
+      const [, pid] = lines[1].trim().split(/\s+/)
       return parseInt(pid, 10)
     }
     return undefined
@@ -680,7 +680,7 @@ export async function startServerUnixSocket(
         msg: 'Active server detected on socket path, attempting to stop it',
       })
       if (!(await stopServiceOnSocket(socketPath))) {
-        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped`
+        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. Check if the process has sufficient permissions or if the server is hung.`
         log.error({
           ...logMetadata,
           err: {
