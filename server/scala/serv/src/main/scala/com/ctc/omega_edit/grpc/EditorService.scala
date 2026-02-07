@@ -824,13 +824,16 @@ object EditorService {
 
     val bindMethod = builder.getClass.getMethods.find { m =>
       m.getName == "bind" && m.getParameterCount == 1 && {
-        // Disambiguate by checking that the parameter is a function type (HttpRequest => Future[HttpResponse])
-        // to avoid binding to the wrong overload (e.g., Route-based bind)
+        // Disambiguate by checking that the parameter is a handler function type.
+        // Pekko HTTP ServerBuilder has multiple bind overloads (e.g., handler vs Route),
+        // both of which erase to Function1. We check the generic type parameter to ensure
+        // we're binding to the correct overload: Function1 with HttpRequest as first type arg.
         val paramTypes = m.getGenericParameterTypes
-        paramTypes.nonEmpty && {
-          val firstParam = paramTypes(0)
-          firstParam.getTypeName.contains("Function1") || classOf[scala.Function1[_, _]]
-            .isAssignableFrom(m.getParameterTypes()(0))
+        if (paramTypes.isEmpty) false
+        else {
+          val firstParam = paramTypes(0).getTypeName
+          // Check if it's a Function1 with HttpRequest as the input type
+          firstParam.contains("Function1") && firstParam.contains("HttpRequest")
         }
       }
     }
