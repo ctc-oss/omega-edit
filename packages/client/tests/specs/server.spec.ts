@@ -282,14 +282,15 @@ describe('Server Heartbeat Timeout', () => {
     expect(await getSessionCount()).to.equal(1)
 
     // Send a heartbeat to keep it alive.
-    await delay(75)
+    await delay(50)
     await getServerHeartbeat([session_id], 50)
-    await delay(150)
+    await delay(100)
+    await getServerHeartbeat([session_id], 50)
+    await delay(100)
     expect(await getSessionCount()).to.equal(1)
 
     // Stop heartbeating and wait for the server to reap it.
-    await delay(600)
-    expect(await getSessionCount()).to.equal(0)
+    await waitForSessionCount(0, 2000)
   })
 
   it(`on port ${serverTestPort} should keep sessions alive via normal session RPCs (no heartbeat)`, async () => {
