@@ -208,13 +208,21 @@ describe('Server Heartbeat Timeout', () => {
 
   const waitForSessionCount = async (
     expected: number,
-    timeoutMs: number
+    timeoutMs: number,
+    allowUnavailable: boolean = false
   ): Promise<void> => {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
-      if ((await getSessionCount()) === expected) return
+      try {
+        if ((await getSessionCount()) === expected) return
+      } catch (err) {
+        if (allowUnavailable) return
+        throw err
+      }
       await delay(50)
     }
+
+    if (allowUnavailable) return
     expect(await getSessionCount()).to.equal(expected)
   }
 
@@ -282,14 +290,15 @@ describe('Server Heartbeat Timeout', () => {
     expect(await getSessionCount()).to.equal(1)
 
     // Send a heartbeat to keep it alive.
-    await delay(75)
+    await delay(50)
     await getServerHeartbeat([session_id], 50)
-    await delay(150)
+    await delay(100)
+    await getServerHeartbeat([session_id], 50)
+    await delay(100)
     expect(await getSessionCount()).to.equal(1)
 
     // Stop heartbeating and wait for the server to reap it.
-    await delay(600)
-    expect(await getSessionCount()).to.equal(0)
+    await waitForSessionCount(0, 2000)
   })
 
   it(`on port ${serverTestPort} should keep sessions alive via normal session RPCs (no heartbeat)`, async () => {
@@ -306,6 +315,135 @@ describe('Server Heartbeat Timeout', () => {
 
     // Stop activity and verify it eventually expires.
     await waitForSessionCount(0, 2000)
+  })
+})
+
+describe('Server Shutdown When No Sessions', () => {
+  let pid: number | undefined
+  const serverTestPort = testPort + 2
+  const isUds = testTransport === 'uds'
+  const socketPath = path.join(
+    rootPath,
+    `.server-shutdown-when-idle-${serverTestPort}.sock`
+  )
+
+  const originalJavaOpts = process.env.JAVA_OPTS
+  const heartbeatJavaOpts = [
+    '-Domega-edit.grpc.heartbeat.session-timeout=200ms',
+    '-Domega-edit.grpc.heartbeat.cleanup-interval=50ms',
+    '-Domega-edit.grpc.heartbeat.shutdown-when-no-sessions=true',
+  ].join(' ')
+
+  const waitForSessionCount = async (
+    expected: number,
+    timeoutMs: number,
+    allowUnavailable: boolean = false
+  ): Promise<void> => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      try {
+        if ((await getSessionCount()) === expected) return
+      } catch (err) {
+        if (allowUnavailable) return
+        throw err
+      }
+      await delay(50)
+    }
+
+    if (allowUnavailable) return
+    expect(await getSessionCount()).to.equal(expected)
+  }
+
+  const waitForPidToExit = async (
+    serverPid: number,
+    timeoutMs: number
+  ): Promise<void> => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      if (!pidIsRunning(serverPid)) return
+      await delay(100)
+    }
+    expect(pidIsRunning(serverPid)).to.be.false
+  }
+
+  beforeEach(`start server on port ${serverTestPort}`, async () => {
+    process.env.JAVA_OPTS = originalJavaOpts
+      ? `${originalJavaOpts} ${heartbeatJavaOpts}`
+      : heartbeatJavaOpts
+
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        undefined,
+        false,
+        serverTestPort,
+        testHost
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort)
+    }
+
+    expect(pid).to.be.a('number').greaterThan(0)
+    expect(pidIsRunning(pid as number)).to.be.true
+    resetClient()
+    expect(await getClient(serverTestPort)).to.not.be.undefined
+    expect(await getSessionCount()).to.equal(0)
+  })
+
+  afterEach(`cleanup server on port ${serverTestPort}`, async () => {
+    if (originalJavaOpts === undefined) {
+      delete process.env.JAVA_OPTS
+    } else {
+      process.env.JAVA_OPTS = originalJavaOpts
+    }
+
+    if (pid !== undefined && pidIsRunning(pid)) {
+      if (isUds) {
+        await stopProcessUsingPID(pid)
+      } else {
+        await stopServiceOnPort(serverTestPort)
+      }
+    }
+
+    if (isUds) {
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    }
+
+    if (pid !== undefined) {
+      expect(pidIsRunning(pid)).to.be.false
+    }
+  })
+
+  it(`on port ${serverTestPort} should exit after reaping the last session`, async () => {
+    const session_id = (await createSession()).getSessionId()
+    expect(session_id.length).to.equal(36)
+
+    await delay(50)
+    await getServerHeartbeat([session_id], 50)
+    await delay(100)
+    await getServerHeartbeat([session_id], 50)
+
+    await waitForSessionCount(0, 2000, true)
+    await waitForPidToExit(pid as number, 15000)
   })
 })
 

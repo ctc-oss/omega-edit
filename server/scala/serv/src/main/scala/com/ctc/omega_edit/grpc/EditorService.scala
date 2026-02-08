@@ -33,13 +33,15 @@ import com.google.protobuf.empty.Empty
 import io.grpc.Status
 import omega_edit._
 
+import java.io.IOException
 import java.lang.management.ManagementFactory
 import java.net.SocketAddress
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 import scala.jdk.CollectionConverters._
@@ -780,6 +782,12 @@ class EditorService(implicit val system: ActorSystem) extends Editor {
 }
 
 object EditorService {
+  private def isWindows: Boolean =
+    Option(System.getProperty("os.name"))
+      .getOrElse("")
+      .toLowerCase(java.util.Locale.ROOT)
+      .contains("windows")
+
   def bind(iface: String, port: Int)(implicit system: ActorSystem): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
     Http()
@@ -795,12 +803,35 @@ object EditorService {
   ): Future[Http.ServerBinding] = {
     implicit val ec: ExecutionContext = system.dispatcher
 
+    if (isWindows)
+      return Future.failed(
+        new IllegalStateException("Unix domain sockets are not supported on Windows")
+      )
+
     if (!UnixDomainSocketProxy.isSupportedByRuntime)
       return Future.failed(
         new IllegalStateException(
           "Unix domain sockets are not supported by this runtime (requires Java 16+ and a Unix-like OS)."
         )
       )
+
+    val parent = socketPath.getParent
+    if (parent != null)
+      try Files.createDirectories(parent)
+      catch {
+        case NonFatal(e) =>
+          return Future.failed(
+            new IOException(s"Unable to create parent directory for unix socket at $socketPath", e)
+          )
+      }
+
+    try Files.deleteIfExists(socketPath)
+    catch {
+      case NonFatal(e) =>
+        return Future.failed(
+          new IOException(s"Unable to remove existing unix socket at $socketPath", e)
+        )
+    }
 
     val address = UnixDomainSocketProxy.addressOf(socketPath)
     val http = Http()
