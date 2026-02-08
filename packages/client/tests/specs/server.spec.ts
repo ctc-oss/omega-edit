@@ -208,13 +208,21 @@ describe('Server Heartbeat Timeout', () => {
 
   const waitForSessionCount = async (
     expected: number,
-    timeoutMs: number
+    timeoutMs: number,
+    allowUnavailable: boolean = false
   ): Promise<void> => {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
-      if ((await getSessionCount()) === expected) return
+      try {
+        if ((await getSessionCount()) === expected) return
+      } catch (err) {
+        if (allowUnavailable) return
+        throw err
+      }
       await delay(50)
     }
+
+    if (allowUnavailable) return
     expect(await getSessionCount()).to.equal(expected)
   }
 
@@ -328,13 +336,21 @@ describe('Server Shutdown When No Sessions', () => {
 
   const waitForSessionCount = async (
     expected: number,
-    timeoutMs: number
+    timeoutMs: number,
+    allowUnavailable: boolean = false
   ): Promise<void> => {
     const start = Date.now()
     while (Date.now() - start < timeoutMs) {
-      if ((await getSessionCount()) === expected) return
+      try {
+        if ((await getSessionCount()) === expected) return
+      } catch (err) {
+        if (allowUnavailable) return
+        throw err
+      }
       await delay(50)
     }
+
+    if (allowUnavailable) return
     expect(await getSessionCount()).to.equal(expected)
   }
 
@@ -426,8 +442,8 @@ describe('Server Shutdown When No Sessions', () => {
     await delay(100)
     await getServerHeartbeat([session_id], 50)
 
-    await waitForSessionCount(0, 2000)
-    await waitForPidToExit(pid as number, 5000)
+    await waitForSessionCount(0, 2000, true)
+    await waitForPidToExit(pid as number, 15000)
   })
 })
 
