@@ -36,7 +36,7 @@
     "prettier": "^3.8.1",
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.4",
-    "typedoc": "^0.28.16",
+    "typedoc": "^0.28.17",
     "typescript": "^5.9.3",
     "unzip-stream": "^0.3.4",
     "webpack": "^5.105.0",
