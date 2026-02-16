@@ -22,8 +22,8 @@ import { getClient } from './client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { portToPid } from 'pid-port'
-import { createServer, Server } from 'net'
-import { runServer } from '@omega-edit/server'
+import { createServer, Server, createConnection } from 'net'
+import { runServer, runServerWithArgs } from '@omega-edit/server'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
   HeartbeatRequest,
@@ -101,7 +101,7 @@ export async function findFirstAvailablePort(
  * @param timeout timeout in milliseconds
  * @returns true if the file exists, otherwise an error
  */
-async function waitForFileToExist(
+export async function waitForFileToExist(
   filePath: string,
   timeout: number = 1000
 ): Promise<boolean> {
@@ -111,61 +111,39 @@ async function waitForFileToExist(
     file: filePath,
   })
 
-  let watcher: fs.FSWatcher | null = null
   let timer: NodeJS.Timeout | null = null
 
-  return new Promise(async (resolve, reject) => {
-    const cleanup = () => {
-      if (watcher) watcher.close()
-      if (timer) clearTimeout(timer)
-    }
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
 
-    // Check if the file already exists
-    try {
-      await fs.promises.access(filePath, fs.constants.R_OK)
-      log.debug({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        exists: true,
-      })
-      cleanup()
-      return resolve(true)
-    } catch (err) {
-      // File doesn't exist, continue with setting up the watcher
-    }
-
-    watcher = fs.watch(path.dirname(filePath), (eventType, filename) => {
-      if (eventType === 'rename' && filename === path.basename(filePath)) {
+    const check = async () => {
+      try {
+        await fs.promises.stat(filePath)
         log.debug({
           fn: 'waitForFileToExist',
           file: filePath,
           exists: true,
         })
-        cleanup()
-        resolve(true)
+        if (timer) clearTimeout(timer)
+        return resolve(true)
+      } catch {
+        // keep waiting
       }
-    })
 
-    watcher.on('error', (err) => {
-      log.error({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        err: { msg: err.message },
-      })
-      cleanup()
-      reject(err)
-    })
+      if (Date.now() - start >= timeout) {
+        const errMsg = `File does not exist after ${timeout} milliseconds`
+        log.error({
+          fn: 'waitForFileToExist',
+          file: filePath,
+          err: { msg: errMsg },
+        })
+        return reject(new Error(errMsg))
+      }
 
-    setTimeout(() => {
-      const errMsg = `File does not exist after ${timeout} milliseconds`
-      log.error({
-        fn: 'waitForFileToExist',
-        file: filePath,
-        err: { msg: errMsg },
-      })
-      cleanup()
-      reject(new Error(errMsg))
-    }, timeout)
+      timer = setTimeout(check, 100)
+    }
+
+    check()
   })
 }
 
@@ -222,6 +200,72 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
     })
     // Start listening to determine if port is available
     server.listen(port, host)
+  })
+}
+
+/**
+ * Checks if a Unix socket path has an active server bound to it
+ * @param socketPath unix socket path to check
+ * @returns true if the socket exists and has an active server, false otherwise
+ */
+function isSocketActive(socketPath: string): Promise<boolean> {
+  const log = getLogger()
+  log.debug({
+    fn: 'isSocketActive',
+    socketPath,
+  })
+
+  return new Promise((resolve) => {
+    let resolved = false
+    let client: import('net').Socket | undefined
+    let timeout: NodeJS.Timeout | undefined
+
+    const finish = (active: boolean, reason?: string) => {
+      if (resolved) return
+      resolved = true
+      if (timeout) clearTimeout(timeout)
+      client?.removeAllListeners()
+      client?.destroy()
+
+      if (reason) {
+        log.debug({
+          fn: 'isSocketActive',
+          socketPath,
+          active,
+          reason,
+        })
+      } else {
+        log.debug({
+          fn: 'isSocketActive',
+          socketPath,
+          active,
+        })
+      }
+
+      resolve(active)
+    }
+
+    // If socket doesn't exist, it's not active
+    if (!fs.existsSync(socketPath)) {
+      resolve(false)
+      return
+    }
+
+    // Try to connect to the socket
+    client = createConnection({ path: socketPath })
+
+    // Set a timeout to avoid hanging indefinitely
+    timeout = setTimeout(() => {
+      finish(false, 'connection timeout')
+    }, 5000) // 5 second timeout
+
+    client.once('connect', () => {
+      finish(true)
+    })
+
+    client.once('error', (err: NodeJS.ErrnoException) => {
+      finish(false, err.code || 'connection error')
+    })
   })
 }
 
@@ -310,6 +354,54 @@ async function getPidByPort(port: number): Promise<number | undefined> {
 }
 
 /**
+ * Get the process id using a Unix socket path
+ * @param socketPath Unix socket path to check
+ * @returns process id or undefined if the socket is not bound to a process
+ */
+async function getPidBySocket(socketPath: string): Promise<number | undefined> {
+  const log = getLogger()
+  try {
+    // Use lsof in PID-only mode to find processes associated with the socket
+    // `-t` outputs only PIDs, one per line
+    const { stdout } = await execFilePromise('lsof', ['-t', '--', socketPath])
+    const pids = stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => parseInt(line, 10))
+      .filter((pid) => !Number.isNaN(pid))
+
+    const uniquePids = Array.from(new Set(pids))
+
+    if (uniquePids.length === 1) {
+      return uniquePids[0]
+    }
+
+    if (uniquePids.length > 1) {
+      const msg =
+        'Multiple PIDs found for socket; refusing to choose arbitrarily'
+      log.debug({
+        fn: 'getPidBySocket',
+        socketPath,
+        msg,
+        pids: uniquePids,
+      })
+      throw new Error(msg)
+    }
+    return undefined
+  } catch (error) {
+    log.error({
+      fn: 'getPidBySocket',
+      socketPath,
+      err: {
+        msg: error instanceof Error ? error.message : String(error),
+      },
+    })
+    throw error
+  }
+}
+
+/**
  * Stop the service running on a port
  * @param port port
  * @param signal signal to send to the service (default: SIGTERM)
@@ -361,6 +453,68 @@ export async function stopServiceOnPort(
         return true // No process using the port, so we consider it stopped
       }
       // Log other types of errors that occur
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        err: {
+          msg: err.message,
+          stack: err.stack,
+        },
+      })
+    } else {
+      log.error({
+        ...logMetadata,
+        stopped: false,
+        err: { msg: String(err) },
+      })
+    }
+    return false // Return false for any errors that occur
+  }
+}
+
+/**
+ * Stop the service bound to a Unix socket
+ * @param socketPath Unix socket path
+ * @param signal signal to send to the service (default: SIGTERM)
+ * @returns true if the service was stopped or no service was bound to the socket, false otherwise
+ */
+async function stopServiceOnSocket(
+  socketPath: string,
+  signal: string = 'SIGTERM'
+): Promise<boolean> {
+  const log = getLogger()
+  const logMetadata = {
+    fn: 'stopServiceOnSocket',
+    socketPath,
+    signal,
+  }
+  log.debug(logMetadata)
+
+  try {
+    const pid = await getPidBySocket(socketPath)
+    if (pid) {
+      log.debug({
+        ...logMetadata,
+        pid,
+        msg: 'Process found bound to socket',
+      })
+      // Attempt to stop the process using the PID
+      const result = await stopProcessUsingPID(pid, signal)
+      log.debug({
+        ...logMetadata,
+        msg: `stopProcessUsingPID result: ${result}`,
+      })
+      return result
+    } else {
+      log.warn({
+        ...logMetadata,
+        stopped: false,
+        msg: 'Unable to determine PID for socket; refusing to treat as stopped',
+      })
+      return false
+    }
+  } catch (err) {
+    if (err instanceof Error) {
       log.error({
         ...logMetadata,
         stopped: false,
@@ -510,6 +664,220 @@ export async function startServer(
       pid: pid,
     })
     await getClient(port, host)
+    return pid
+  } else {
+    const errMsg = 'Error getting server pid'
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
+  }
+}
+
+/**
+ * Start the server with a unix domain socket, optionally in UDS-only mode
+ * @param socketPath unix socket path to bind
+ * @param pidFile optional resolved path to the pidFile
+ * @param logConf optional resolved path to a logback configuration file
+ * @param udsOnly when true, starts the server in unix-socket-only mode (defaults to true)
+ * @param port server port to bind when UDS-only mode is disabled
+ * @param host server interface to bind when UDS-only mode is disabled
+ * @returns pid of the server process or undefined if the server failed to start
+ */
+export async function startServerUnixSocket(
+  socketPath: string,
+  pidFile?: string,
+  logConf?: string,
+  udsOnly: boolean = true,
+  port: number = DEFAULT_PORT,
+  host: string = DEFAULT_HOST
+): Promise<number | undefined> {
+  const logMetadata = {
+    fn: 'startServerUnixSocket',
+    socketPath,
+    host,
+    port,
+    pidFile,
+    logConf,
+  }
+  const log = getLogger()
+  log.debug(logMetadata)
+
+  const socketDir = path.dirname(socketPath)
+  if (socketDir && socketDir !== '.') {
+    fs.mkdirSync(socketDir, { recursive: true })
+  }
+
+  // Check if socket exists and if it has an active server bound to it
+  if (fs.existsSync(socketPath)) {
+    const socketActive = await isSocketActive(socketPath)
+    if (socketActive) {
+      // Socket has an active server - attempt to stop it first
+      log.warn({
+        ...logMetadata,
+        msg: 'Active server detected on socket path, attempting to stop it',
+      })
+      if (!(await stopServiceOnSocket(socketPath))) {
+        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. This may be due to insufficient permissions, a hung server process, or unavailable system utilities (e.g., lsof).`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+          },
+        })
+        throw new Error(errMsg)
+      }
+    }
+
+    // Socket is stale or server was stopped - safe to remove
+    try {
+      fs.unlinkSync(socketPath)
+      log.debug({
+        ...logMetadata,
+        msg: 'Removed stale unix socket',
+      })
+    } catch (err) {
+      const unlinkErr = err as NodeJS.ErrnoException
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: 'failed to remove existing unix socket',
+          code: unlinkErr.code,
+          errno: unlinkErr.errno,
+          syscall: unlinkErr.syscall,
+          path: unlinkErr.path,
+        },
+      })
+      throw err
+    }
+  }
+
+  async function handleExistingPidFile(pidFilePath: string): Promise<void> {
+    if (fs.existsSync(pidFilePath)) {
+      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: 'pidFile already exists',
+          pid: pidFromFile,
+        },
+      })
+
+      if (!(await stopProcessUsingPID(pidFromFile))) {
+        const errMsg = `server pidFile ${pidFilePath} already exists and server shutdown using PID ${pidFromFile} failed`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+            pid: pidFromFile,
+          },
+        })
+        throw new Error(errMsg)
+      }
+
+      fs.unlinkSync(pidFilePath)
+    }
+  }
+
+  async function checkLogConf(
+    logConfPath?: string
+  ): Promise<string | undefined> {
+    if (logConfPath && !fs.existsSync(logConfPath)) {
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: 'logback configuration file does not exist',
+          logConf: logConfPath,
+        },
+      })
+      return undefined
+    }
+    return logConfPath
+  }
+
+  async function getServerPid(pidFilePath: string): Promise<number> {
+    await waitForFileToExist(pidFilePath)
+    return Number(fs.readFileSync(pidFilePath).toString())
+  }
+
+  if (pidFile) {
+    await handleExistingPidFile(pidFile)
+  }
+
+  logConf = await checkLogConf(logConf)
+
+  if (!udsOnly) {
+    if (!(await isPortAvailable(port, host))) {
+      if (!(await stopServiceOnPort(port))) {
+        const errMsg = `port ${port} on host ${host} is not currently available`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+          },
+        })
+        throw new Error(errMsg)
+      }
+    }
+  }
+
+  const args: string[] = [`--unix-socket=${socketPath}`]
+
+  if (udsOnly) {
+    args.push('--unix-socket-only')
+  } else {
+    args.push(`--interface=${host}`, `--port=${port}`)
+  }
+
+  if (pidFile) {
+    args.push(`--pidfile=${pidFile}`)
+  }
+
+  if (logConf && fs.existsSync(logConf)) {
+    args.push(`-Dlogback.configurationFile=${logConf}`)
+  }
+
+  const { pid } = await runServerWithArgs(args)
+
+  log.debug({
+    ...logMetadata,
+    state: 'waiting',
+  })
+  const socketWaitMs = Number(
+    process.env.OMEGA_EDIT_SERVER_SOCKET_WAIT_MS || '20000'
+  )
+  await waitForFileToExist(socketPath, socketWaitMs)
+  log.debug({
+    ...logMetadata,
+    state: 'online',
+  })
+
+  if (pidFile) {
+    const pidFromFile = await getServerPid(pidFile)
+
+    if (pidFromFile !== pid && process.platform !== 'win32') {
+      const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: errMsg,
+          pid: pid,
+          pidFromFile: pidFromFile,
+        },
+      })
+      throw new Error(errMsg)
+    }
+  }
+
+  if (pid !== undefined && pid) {
+    log.debug({
+      ...logMetadata,
+      pid: pid,
+    })
+    await getClient()
     return pid
   } else {
     const errMsg = 'Error getting server pid'

@@ -66,6 +66,22 @@ OR
 sbt runServer
 ```
 
+### Unix domain sockets (opt-in)
+
+The Scala server can optionally expose a Unix domain socket for local IPC (helpful to avoid port collisions).
+
+- CLI: `--unix-socket /tmp/omega-edit.sock`
+- CLI (UDS-only): `--unix-socket /tmp/omega-edit.sock --unix-socket-only`
+- Env: `OMEGA_EDIT_SERVER_UNIX_SOCKET=/tmp/omega-edit.sock`
+- Env (UDS-only): `OMEGA_EDIT_SERVER_UNIX_SOCKET=/tmp/omega-edit.sock OMEGA_EDIT_SERVER_UNIX_SOCKET_ONLY=true`
+
+This feature is runtime-detected and requires a JVM with Unix-domain-socket support (Java 16+). UDS-only mode also requires Pekko HTTP support for binding to Unix domain sockets; if unsupported, the server will fail fast with a clear error.
+
+For the Node client, set either:
+
+- `OMEGA_EDIT_SERVER_URI=unix:///tmp/omega-edit.sock`, or
+- `OMEGA_EDIT_SERVER_SOCKET=/tmp/omega-edit.sock` (preferred; falls back to TCP if the socket is unavailable)
+
 
 ## Packaging the server
 

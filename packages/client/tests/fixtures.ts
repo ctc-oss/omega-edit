@@ -23,11 +23,13 @@ import {
   pidIsRunning,
   setLogger,
   startServer,
+  startServerUnixSocket,
   stopProcessUsingPID,
   stopServiceOnPort,
+  waitForFileToExist,
 } from '@omega-edit/client'
 import * as fs from 'fs'
-import { initChai, testHost, testPort } from './specs/common'
+import { initChai, testHost, testPort, testTransport } from './specs/common'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '..')
@@ -42,6 +44,13 @@ function getPidFile(rootPath: string, port: number): string {
   return path.join(rootPath, `.test-server-${port}.pid`)
 }
 
+function getSocketPath(rootPath: string): string {
+  return (
+    process.env.OMEGA_EDIT_TEST_SOCKET ||
+    path.join(rootPath, `.test-server.sock`)
+  )
+}
+
 /**
  * Mocha test fixture to set up the logger and start the server
  * @remarks used by mocha
@@ -49,6 +58,7 @@ function getPidFile(rootPath: string, port: number): string {
 export async function mochaGlobalSetup(): Promise<number | undefined> {
   await initChai()
   const pidFile = getPidFile(rootPath, testPort)
+  const socketPath = getSocketPath(rootPath)
   const logFile = path.join(rootPath, 'client-tests.log')
   const level = process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL || 'info'
   const logger = createSimpleFileLogger(logFile, level)
@@ -69,12 +79,39 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
 
   await mochaGlobalTeardown()
 
-  const pid = await startServer(
-    testPort,
-    testHost,
-    pidFile,
-    path.join(rootPath, 'logconf.xml')
-  )
+  let pid: number | undefined
+  if (testTransport === 'uds') {
+    const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+    if (udsJavaHome) {
+      process.env.JAVA_HOME = udsJavaHome
+      const currentPath = process.env.PATH || ''
+      if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+        process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+      }
+    }
+
+    process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+    delete process.env.OMEGA_EDIT_SERVER_URI
+
+    pid = await startServerUnixSocket(
+      socketPath,
+      pidFile,
+      path.join(rootPath, 'logconf.xml'),
+      false,
+      testPort,
+      testHost
+    )
+  } else {
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    delete process.env.OMEGA_EDIT_SERVER_URI
+
+    pid = await startServer(
+      testPort,
+      testHost,
+      pidFile,
+      path.join(rootPath, 'logconf.xml')
+    )
+  }
 
   if (pid) {
     getLogger().debug({
@@ -101,6 +138,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
  */
 export async function mochaGlobalTeardown(): Promise<boolean> {
   const pidFile = getPidFile(rootPath, testPort)
+  const socketPath = getSocketPath(rootPath)
   const logMetadata = {
     fn: 'mochaGlobalTeardown',
     port: testPort,
@@ -193,8 +231,23 @@ export async function mochaGlobalTeardown(): Promise<boolean> {
       port: testPort,
       pidfile: pidFile,
     })
-    // PID file doesn't exist, but make sure the port is clear
-    await stopServiceOnPort(testPort)
+    if (testTransport !== 'uds') {
+      // PID file doesn't exist, but make sure the port is clear
+      await stopServiceOnPort(testPort)
+    }
+  }
+
+  if (testTransport === 'uds') {
+    try {
+      await waitForFileToExist(socketPath, 50)
+    } catch {
+      // ignore
+    }
+    try {
+      fs.unlinkSync(socketPath)
+    } catch {
+      // ignore
+    }
   }
 
   // if the pid file doesn't exist, return true

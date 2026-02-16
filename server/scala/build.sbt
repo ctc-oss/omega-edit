@@ -37,14 +37,14 @@ lazy val ghb_resolver = (
   * in serv/src/templates
   */
 lazy val bashExtras = s"""declare omegaEditVersion="${omegaEditVersion}""""
-lazy val batchExtras = s"""set "OMEGAEditVERSION=${omegaEditVersion}""""
+lazy val batchExtras = s"""set "OMEGAEDITVERSION=${omegaEditVersion}""""
 
 lazy val isRelease =
   Try(sys.env.get("IS_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 lazy val serverRelease =
   Try(sys.env.get("SERVER_RELEASE").getOrElse("").toBoolean).getOrElse(false)
 
-lazy val pekkoVersion = "1.1.1" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
+lazy val pekkoVersion = "1.4.0" // this needs updated in tandem with the pekko-grpc-sbt-plugin plugin
 lazy val tikaVersion = "3.2.3"
 lazy val scalaTestVersion = "3.2.18"
 lazy val logbackVersion = "1.3.15" // latest version that supports Java 8
@@ -55,7 +55,7 @@ lazy val enumeratumVersion = "1.7.6"
 lazy val commonSettings =
   Seq(
     organization := "com.ctc",
-    scalaVersion := "2.13.16",
+    scalaVersion := "2.13.18",
     version := omegaEditVersion,
     organizationName := "Concurrent Technologies Corporation",
     maintainer := "oss@ctc.com",
