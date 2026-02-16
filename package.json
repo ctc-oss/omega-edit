@@ -44,8 +44,8 @@
     "webpack-cli": "^6.0.1"
   },
   "resolutions": {
-    "@types/eslint-scope": "^8.4.0",
-    "@types/glob": "^9.0.0"
+    "@types/eslint-scope": "8.4.0",
+    "@types/glob": "9.0.0"
   },
   "prettier": {
     "semi": false,
