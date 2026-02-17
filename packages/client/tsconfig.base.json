@@ -35,7 +35,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "inlineSources": true
+    "inlineSources": true,
+    "skipLibCheck": true
   },
   "exclude": ["node_modules", "tests", "**/*.d.ts", "scripts", "dist", "out"]
 }
