@@ -180,7 +180,7 @@ jobs:
         shell: bash
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: upload_url
 
@@ -344,7 +344,7 @@ jobs:
         run: ${{ env.export_cmd }}
 
       - name: Download upload_url 🔻
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: upload_url
 
@@ -364,7 +364,7 @@ jobs:
           cache: 'yarn'
 
       - name: Download scala release file 🔻
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
           path: omega-edit-grpc-server-${{ env.PKG_VERSION }}.zip
