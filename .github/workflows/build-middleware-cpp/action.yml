@@ -1,0 +1,115 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
+
+---
+name: Build C++ Middleware
+description: Reusable action to build omega-edit C++ gRPC middleware server
+inputs:
+  runner-os:
+    description: 'OS Name of Runner (macOS, Linux, Windows)'
+    required: true
+  os-name:
+    description: 'OS Name (runs-on value)'
+    required: true
+  github-token:
+    description: 'GitHub token retrieved from secrets'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout 🛎️
+      uses: actions/checkout@v6
+
+    - name: Setup Node.js 🟢
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+        cache: yarn
+        cache-dependency-path: yarn.lock
+
+    - name: Enable Developer Command Prompt 💻
+      if: inputs.runner-os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Setup cmake 🔧
+      uses: lukka/get-cmake@latest
+
+    - name: Build omega_edit core library (static) 🦙
+      shell: bash
+      run: |
+        cmake -G Ninja -S . -B _build_core \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_DOCS=OFF \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_TESTS=OFF
+        cmake --build _build_core --config Release
+        cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
+        echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
+        echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
+
+    - name: Install gRPC dependencies (Ubuntu) 🔧
+      if: inputs.runner-os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgrpc++-dev protobuf-compiler-grpc libprotobuf-dev uuid-dev
+
+    - name: Install gRPC dependencies (macOS) 🔧
+      if: inputs.runner-os == 'macOS'
+      shell: bash
+      run: |
+        brew install grpc protobuf
+
+    - name: Install gRPC dependencies (Windows) 🔧
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: |
+        vcpkg install grpc:x64-windows-static protobuf:x64-windows-static
+        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+
+    - name: Build C++ gRPC Server 🔨
+      shell: bash
+      run: |
+        cmake_extra_args=""
+        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+          cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE -DVCPKG_TARGET_TRIPLET=x64-windows-static"
+        fi
+        cmake -G Ninja -S server/cpp -B server/cpp/build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DOE_LIB_DIR="$OE_LIB_DIR" \
+          -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+          $cmake_extra_args
+        cmake --build server/cpp/build --config Release
+        echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
+
+    - name: Yarn Install 🏗️
+      shell: bash
+      run: yarn
+
+    - name: Yarn Package - Server 📦
+      shell: bash
+      run: yarn workspace @omega-edit/server package
+      env:
+        CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
+
+    - name: Yarn Prepare - Client
+      shell: bash
+      run: yarn workspace @omega-edit/client prepare
+
+    - name: Yarn Test - Client 🧑‍💼
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/client test
+
+    - name: Yarn Test - Client (UDS) 🧪
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/client test:uds
+      if: ${{ inputs.runner-os != 'Windows' }}

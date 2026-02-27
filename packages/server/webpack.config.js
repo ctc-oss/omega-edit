@@ -18,17 +18,52 @@
  */
 
 const path = require('path')
-const unzip = require('unzip-stream')
 const CopyPlugin = require('copy-webpack-plugin')
 const fs = require('fs')
 
-const pkg_version = JSON.parse(
-  fs.readFileSync(path.resolve(path.join(__dirname, 'package.json'))).toString()
-)['version']
-const serverPackage = `omega-edit-grpc-server-${pkg_version}`
-const zipFilePath = path.resolve(
-  `../../server/scala/serv/target/universal/${serverPackage}.zip`
-)
+// Determine the C++ server binary name based on platform
+const isWin = process.platform === 'win32'
+const serverBinaryName = isWin
+  ? 'omega-edit-grpc-server.exe'
+  : 'omega-edit-grpc-server'
+
+// Look for the C++ server binary in several possible locations
+function findServerBinary() {
+  const searchPaths = [
+    path.resolve('../../server/cpp/build', serverBinaryName),
+    path.resolve('../../server/cpp/build/Release', serverBinaryName),
+    path.resolve('../../server/cpp/build/Debug', serverBinaryName),
+    path.resolve('../../_build/server/cpp', serverBinaryName),
+    path.resolve('../../build/server/cpp', serverBinaryName),
+    path.resolve('../../build/server/cpp/Release', serverBinaryName),
+    // Environment variable override
+    process.env.CPP_SERVER_BINARY || '',
+  ].filter(Boolean)
+
+  for (const p of searchPaths) {
+    if (fs.existsSync(p)) return p
+  }
+  return null
+}
+
+// Find the omega_edit shared library
+function findSharedLibrary() {
+  const oeLibDir = process.env.OE_LIB_DIR || path.resolve('../../_install')
+  const libPatterns = isWin
+    ? ['omega_edit.dll']
+    : process.platform === 'darwin'
+      ? ['libomega_edit.dylib']
+      : ['libomega_edit.so']
+
+  for (const pattern of libPatterns) {
+    const libPath = path.join(oeLibDir, pattern)
+    if (fs.existsSync(libPath)) return libPath
+    // Also check lib subdirectory
+    const libSubPath = path.join(oeLibDir, 'lib', pattern)
+    if (fs.existsSync(libSubPath)) return libSubPath
+  }
+  return null
+}
 
 module.exports = {
   entry: './src/index.ts',
@@ -59,31 +94,34 @@ module.exports = {
       patterns: ['README.md'],
     }),
     {
-      // unzip server package file
+      // Copy C++ server binary and shared library into out/bin
       apply: (compiler) => {
-        compiler.hooks.done.tap('unzipServerPackageFile', async () => {
-          await new Promise(async (resolve, reject) => {
-            fs.createReadStream(zipFilePath)
-              .pipe(unzip.Extract({ path: 'out' }))
-              .on('close', async () => {
-                try {
-                  resolve(zipFilePath)
-                } catch (err) {
-                  reject(err)
-                }
-              })
-          })
+        compiler.hooks.done.tap('copyCppServerBinary', async () => {
+          const binDir = path.resolve('out/bin')
+          fs.mkdirSync(binDir, { recursive: true })
 
-          // Move bin and lib folders out of omega-edit-grpc-server-${version} folder
-          ;['bin', 'lib'].forEach((dir) => {
-            fs.renameSync(`out/${serverPackage}/${dir}`, `out/${dir}`)
-          })
+          const serverBinary = findServerBinary()
+          if (serverBinary) {
+            const destBinary = path.join(binDir, serverBinaryName)
+            fs.copyFileSync(serverBinary, destBinary)
+            if (!isWin) {
+              fs.chmodSync(destBinary, '755')
+            }
+            console.log(`Copied C++ server binary: ${serverBinary} -> ${destBinary}`)
+          } else {
+            console.warn(
+              'WARNING: C++ server binary not found. Set CPP_SERVER_BINARY env var or build the server first.'
+            )
+          }
 
-          // Remove omega-edit-grpc-server-${version} folder
-          fs.rmSync(`out/${serverPackage}`, {
-            recursive: true,
-            force: true,
-          })
+          const sharedLib = findSharedLibrary()
+          if (sharedLib) {
+            const destLib = path.join(binDir, path.basename(sharedLib))
+            fs.copyFileSync(sharedLib, destLib)
+            console.log(`Copied shared library: ${sharedLib} -> ${destLib}`)
+          }
+          // NOTE: shared library is optional; when the C++ server is statically
+          // linked against the core library, no shared lib is needed at runtime.
         })
       },
     },

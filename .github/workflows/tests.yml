@@ -70,7 +70,6 @@ jobs:
           library-filename: libomega_edit.so
 
   build-middleware:
-    needs: [build-native, build-native-macos-x64]
     strategy:
       matrix:
         os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
@@ -87,7 +86,7 @@ jobs:
           echo "artifact_arch=$(echo $RUNNER_ARCH | awk '{print tolower($0)}')" >> $GITHUB_ENV
 
       - name: Build Middleware ${{ matrix.os }}
-        uses: ./.github/workflows/build-middleware
+        uses: ./.github/workflows/build-middleware-cpp
         with:
           runner-os: ${{ runner.os }}
           os-name: ${{ matrix.os }}-${{ env.artifact_arch }}

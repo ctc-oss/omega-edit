@@ -74,24 +74,64 @@ const getBinFolderPath = (baseDir: string): string => {
 }
 
 /**
+ * Find the C++ server binary path.
+ * Looks for a native binary named omega-edit-grpc-server (or .exe on Windows).
+ * Falls back to the legacy Scala script if the C++ binary is not found.
+ * @param binDir the bin directory to search in
+ * @returns the resolved path to the server executable
+ */
+function findServerBinary(binDir: string): string {
+  const isWin = os.platform() === 'win32'
+  const cppBinaryName = isWin
+    ? 'omega-edit-grpc-server.exe'
+    : 'omega-edit-grpc-server'
+
+  // Check for C++ binary
+  const cppBinary = path.join(binDir, cppBinaryName)
+  if (fs.existsSync(cppBinary)) {
+    return cppBinary
+  }
+
+  // Fallback: legacy Scala script (for backward compatibility during transition)
+  const legacyScript = path.join(
+    binDir,
+    isWin && !process.env.SHELL?.includes('bash')
+      ? 'omega-edit-grpc-server.bat'
+      : 'omega-edit-grpc-server'
+  )
+  return legacyScript
+}
+
+/**
  * Execute the server
  * @param args arguments to pass to the server
  * @returns {Promise<ChildProcess>} server process
  */
 async function executeServer(args: string[]): Promise<ChildProcess> {
-  const serverScript = path.join(
-    getBinFolderPath(path.resolve(__dirname)),
-    os.platform() === 'win32' && !process.env.SHELL?.includes('bash')
-      ? 'omega-edit-grpc-server.bat'
-      : 'omega-edit-grpc-server'
-  )
+  const binDir = getBinFolderPath(path.resolve(__dirname))
+  const serverBinary = findServerBinary(binDir)
 
-  fs.chmodSync(serverScript, '755')
+  // Filter out JVM-specific arguments (e.g., -Dlogback.configurationFile=...)
+  // that are not applicable to the C++ server
+  const isNativeBinary =
+    serverBinary.endsWith('.exe') ||
+    (!serverBinary.endsWith('.bat') &&
+      !serverBinary.includes('scala') &&
+      fs.statSync(serverBinary).isFile())
 
-  const serverProcess: ChildProcess = spawn(serverScript, args, {
-    cwd: path.dirname(serverScript),
+  const filteredArgs = isNativeBinary
+    ? args.filter((arg) => !arg.startsWith('-D'))
+    : args
+
+  if (!serverBinary.endsWith('.exe')) {
+    fs.chmodSync(serverBinary, '755')
+  }
+
+  const serverProcess: ChildProcess = spawn(serverBinary, filteredArgs, {
+    cwd: path.dirname(serverBinary),
     detached: true,
-    shell: os.platform().startsWith('win'), // use shell on Windows because it can't execute scripts directly
+    shell:
+      os.platform().startsWith('win') && serverBinary.endsWith('.bat'),
     stdio: ['ignore', 'ignore', 'ignore'],
     windowsHide: true, // avoid showing a console window
   })
