@@ -19,9 +19,6 @@ inputs:
   os-name:
     description: 'OS Name (runs-on value)'
     required: true
-  github-token:
-    description: 'GitHub token retrieved from secrets'
-    required: true
 runs:
   using: "composite"
   steps:
@@ -56,42 +53,35 @@ runs:
         echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
         echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
 
-    - name: Set vcpkg triplet 🔧
-      shell: bash
-      run: |
-        arch=$(uname -m)
-        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
-          echo "VCPKG_TRIPLET=x64-windows" >> $GITHUB_ENV
-        elif [ "${{ inputs.runner-os }}" == "macOS" ]; then
-          if [ "$arch" == "arm64" ]; then
-            echo "VCPKG_TRIPLET=arm64-osx" >> $GITHUB_ENV
-          else
-            echo "VCPKG_TRIPLET=x64-osx" >> $GITHUB_ENV
-          fi
-        else
-          if [ "$arch" == "aarch64" ]; then
-            echo "VCPKG_TRIPLET=arm64-linux" >> $GITHUB_ENV
-          else
-            echo "VCPKG_TRIPLET=x64-linux" >> $GITHUB_ENV
-          fi
-        fi
+    - name: Setup Python 🐍
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
 
-    - name: Cache vcpkg packages 📦
+    - name: Install Conan 📦
+      shell: bash
+      run: pip install conan
+
+    - name: Detect Conan profile 🔧
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Cache Conan packages 📦
       uses: actions/cache@v4
       with:
-        path: ${{ github.workspace }}/vcpkg_installed
-        key: vcpkg-grpc-${{ inputs.os-name }}-${{ hashFiles('proto/omega_edit.proto') }}
+        path: ~/.conan2
+        key: conan-${{ inputs.os-name }}-${{ hashFiles('server/cpp/conanfile.py') }}
         restore-keys: |
-          vcpkg-grpc-${{ inputs.os-name }}-
+          conan-${{ inputs.os-name }}-
 
-    - name: Install gRPC dependencies via vcpkg 🔧
+    - name: Install dependencies via Conan 🔧
       shell: bash
       run: |
-        vcpkg install "grpc:$VCPKG_TRIPLET" "protobuf:$VCPKG_TRIPLET" \
-          "cld3:$VCPKG_TRIPLET" "libmagic:$VCPKG_TRIPLET" \
-          --x-install-root="${{ github.workspace }}/vcpkg_installed"
-        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
-        echo "VCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed" >> $GITHUB_ENV
+        cd server/cpp
+        conan install . --output-folder=build \
+          --build=missing \
+          -s build_type=Release \
+          -s compiler.cppstd=17
 
     - name: Install uuid-dev (Linux) 🔧
       if: inputs.runner-os == 'Linux'
@@ -103,14 +93,17 @@ runs:
     - name: Build C++ gRPC Server 🔨
       shell: bash
       run: |
-        cmake -G Ninja -S server/cpp -B server/cpp/build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
-          -DVCPKG_TARGET_TRIPLET="$VCPKG_TRIPLET" \
-          -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
+        cd server/cpp
+        cmake --preset conan-release \
           -DOE_LIB_DIR="$OE_LIB_DIR" \
-          -DCMAKE_PREFIX_PATH="$OE_PREFIX"
-        cmake --build server/cpp/build --config Release
+          -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+          || cmake -G Ninja -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="build/conan_toolchain.cmake" \
+            -DOE_LIB_DIR="$OE_LIB_DIR" \
+            -DCMAKE_PREFIX_PATH="$OE_PREFIX"
+        cmake --build build --config Release
+        cd ../..
         echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
 
     - name: Yarn Install 🏗️

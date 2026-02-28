@@ -36,8 +36,8 @@
 namespace omega_edit {
 namespace grpc_server {
 
-// ── Base64 encoding ──────────────────────────────────────────────────────────
-static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+// ── Base64 encoding (URL-safe, no padding — matches Java Base64.getUrlEncoder().withoutPadding()) ──
+static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 static std::string base64_encode(const std::string &input) {
     std::string output;
@@ -50,8 +50,8 @@ static std::string base64_encode(const std::string &input) {
 
         output.push_back(base64_chars[(n >> 18) & 0x3F]);
         output.push_back(base64_chars[(n >> 12) & 0x3F]);
-        output.push_back((i + 1 < input.size()) ? base64_chars[(n >> 6) & 0x3F] : '=');
-        output.push_back((i + 2 < input.size()) ? base64_chars[n & 0x3F] : '=');
+        if (i + 1 < input.size()) output.push_back(base64_chars[(n >> 6) & 0x3F]);
+        if (i + 2 < input.size()) output.push_back(base64_chars[n & 0x3F]);
     }
     return output;
 }

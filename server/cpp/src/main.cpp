@@ -21,6 +21,8 @@
 #include <grpcpp/health_check_service_interface.h>
 
 #include <csignal>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <regex>

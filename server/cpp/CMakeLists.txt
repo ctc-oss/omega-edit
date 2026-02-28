@@ -26,11 +26,33 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # ── Find dependencies ─────────────────────────────────────────────────────────
+# These find_package calls work with both Conan (CMakeDeps generator) and
+# vcpkg (CMAKE_TOOLCHAIN_FILE).  Target names are normalised below.
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
-find_package(unofficial-cld3 CONFIG REQUIRED)
-find_package(unofficial-libmagic CONFIG REQUIRED)
+
+# CLD3: try vcpkg-style package first, fall back to FetchContent build
+find_package(unofficial-cld3 CONFIG QUIET)
+if(unofficial-cld3_FOUND)
+    message(STATUS "Found CLD3 via vcpkg (unofficial-cld3)")
+    set(CLD3_TARGET unofficial::cld3::cld3)
+else()
+    message(STATUS "CLD3 not found via vcpkg; building from source via FetchContent")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FetchCLD3.cmake)
+    set(CLD3_TARGET cld3::cld3)
+endif()
+
+# libmagic: try vcpkg-style package first, fall back to Conan-style
+find_package(unofficial-libmagic CONFIG QUIET)
+if(unofficial-libmagic_FOUND)
+    message(STATUS "Found libmagic via vcpkg (unofficial-libmagic)")
+    set(LIBMAGIC_TARGET unofficial::libmagic::libmagic)
+else()
+    find_package(libmagic CONFIG REQUIRED)
+    message(STATUS "Found libmagic via Conan")
+    set(LIBMAGIC_TARGET libmagic::libmagic)
+endif()
 
 # On Windows with static CRT (vcpkg x64-windows-static), ensure we use /MT
 if(VCPKG_TARGET_TRIPLET MATCHES "static$" AND MSVC)
@@ -159,8 +181,8 @@ if(omega_edit_FOUND)
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
-        unofficial::cld3::cld3
-        unofficial::libmagic::libmagic
+        ${CLD3_TARGET}
+        ${LIBMAGIC_TARGET}
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
@@ -170,8 +192,8 @@ else()
         ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
-        unofficial::cld3::cld3
-        unofficial::libmagic::libmagic
+        ${CLD3_TARGET}
+        ${LIBMAGIC_TARGET}
     )
 endif()
 

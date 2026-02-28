@@ -111,14 +111,14 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
   const binDir = getBinFolderPath(path.resolve(__dirname))
   const serverBinary = findServerBinary(binDir)
 
-  // Filter out JVM-specific arguments (e.g., -Dlogback.configurationFile=...)
-  // that are not applicable to the C++ server
+  // Detect whether this is the native C++ binary by checking the filename
+  const binaryBasename = path.basename(serverBinary)
   const isNativeBinary =
-    serverBinary.endsWith('.exe') ||
-    (!serverBinary.endsWith('.bat') &&
-      !serverBinary.includes('scala') &&
-      fs.statSync(serverBinary).isFile())
+    binaryBasename === 'omega-edit-grpc-server' ||
+    binaryBasename === 'omega-edit-grpc-server.exe'
 
+  // Filter out JVM-specific arguments (e.g., -Dlogback.configurationFile=...)
+  // that are not applicable to the native C++ server
   const filteredArgs = isNativeBinary
     ? args.filter((arg) => !arg.startsWith('-D'))
     : args

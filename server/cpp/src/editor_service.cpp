@@ -186,9 +186,12 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
     }
 
     // Validate file path exists if provided (match Scala server behavior)
-    if (!file_path.empty() && !std::filesystem::exists(file_path)) {
-        return grpc::Status(grpc::StatusCode::INTERNAL,
-                            std::string("Failed to create session: file does not exist: ") + file_path);
+    if (!file_path.empty()) {
+        std::error_code ec;
+        if (!std::filesystem::exists(file_path, ec) || ec) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                std::string("Failed to create session: file does not exist: ") + file_path);
+        }
     }
 
     std::string desired_id;
@@ -231,6 +234,7 @@ grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     char saved_file_path[FILENAME_MAX] = {};
     int64_t offset = request->has_offset() ? request->offset() : 0;
     int64_t length = request->has_length() ? request->length() : 0;
@@ -575,6 +579,7 @@ grpc::Status EditorServiceImpl::GetChangeDetails(grpc::ServerContext * /*context
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     const auto *change = omega_session_get_change(session, request->serial());
     if (!change) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "change not found");
@@ -592,6 +597,7 @@ grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
 
+    session_manager_.touch_session(request->id());
     const auto *change = omega_session_get_last_change(session);
     if (!change) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "no changes available");
@@ -609,6 +615,7 @@ grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
 
+    session_manager_.touch_session(request->id());
     const auto *change = omega_session_get_last_undo(session);
     if (!change) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "no undone changes available");
@@ -644,6 +651,7 @@ grpc::Status EditorServiceImpl::GetByteOrderMark(grpc::ServerContext * /*context
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     omega_bom_t bom = omega_session_detect_BOM(session, request->offset());
     const char *bom_str = omega_util_BOM_to_cstring(bom);
     auto bom_size = static_cast<int64_t>(omega_util_BOM_size(bom));
@@ -663,6 +671,7 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
@@ -671,10 +680,11 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
 
     int result = omega_session_get_segment(session, segment, request->offset());
     std::string content_type;
+    int64_t actual_length = 0;
     if (result == 0) {
         auto *data = omega_segment_get_data(segment);
-        auto length = omega_segment_get_length(segment);
-        content_type = content_type_detector_->detect(data, length);
+        actual_length = omega_segment_get_length(segment);
+        content_type = content_type_detector_->detect(data, actual_length);
     } else {
         omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
@@ -683,7 +693,7 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
 
     response->set_session_id(request->session_id());
     response->set_offset(request->offset());
-    response->set_length(request->length());
+    response->set_length(actual_length);
     response->set_content_type(content_type);
     return grpc::Status::OK;
 }
@@ -696,6 +706,7 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
@@ -704,11 +715,12 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
 
     int result = omega_session_get_segment(session, segment, request->offset());
     std::string language;
+    int64_t actual_length = 0;
     if (result == 0) {
         auto *data = omega_segment_get_data(segment);
-        auto length = omega_segment_get_length(segment);
+        actual_length = omega_segment_get_length(segment);
         std::string bom_str = request->byte_order_mark();
-        language = language_detector_->detect(data, length, bom_str);
+        language = language_detector_->detect(data, actual_length, bom_str);
     } else {
         omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
@@ -717,7 +729,7 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
 
     response->set_session_id(request->session_id());
     response->set_offset(request->offset());
-    response->set_length(request->length());
+    response->set_length(actual_length);
     response->set_language(language);
     return grpc::Status::OK;
 }
@@ -732,6 +744,7 @@ grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     response->set_session_id(request->session_id());
 
     for (int i = 0; i < request->kind_size(); ++i) {
@@ -790,6 +803,7 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
@@ -824,6 +838,7 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
     bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
     int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -865,6 +880,7 @@ grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     omega_byte_frequency_profile_t profile;
     std::memset(profile, 0, sizeof(profile));
 
@@ -895,6 +911,7 @@ grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*conte
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
 
+    session_manager_.touch_session(request->session_id());
     omega_bom_t bom = omega_util_cstring_to_BOM(request->byte_order_mark().c_str());
     auto *counts = omega_character_counts_create();
     omega_character_counts_set_BOM(counts, bom);

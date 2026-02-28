@@ -90,7 +90,6 @@ jobs:
         with:
           runner-os: ${{ runner.os }}
           os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   # TODO: Currently this action fails on sbt installM2 due to a timeout on sbt test 'should listen to session event'
   # build-middleware-linux-arm64:
