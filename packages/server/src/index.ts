@@ -137,8 +137,7 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
   const serverProcess: ChildProcess = spawn(serverBinary, filteredArgs, {
     cwd: path.dirname(serverBinary),
     detached: true,
-    shell:
-      os.platform().startsWith('win') && serverBinary.endsWith('.bat'),
+    shell: os.platform().startsWith('win') && serverBinary.endsWith('.bat'),
     stdio: ['ignore', 'ignore', 'ignore'],
     windowsHide: true, // avoid showing a console window
   })

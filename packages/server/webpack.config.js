@@ -72,7 +72,13 @@ function findMagicDatabase() {
     path.resolve('../../server/cpp/build/magic.mgc'),
     // vcpkg installed locations
     process.env.VCPKG_INSTALLED_DIR
-      ? path.join(process.env.VCPKG_INSTALLED_DIR, 'share', 'libmagic', 'misc', 'magic.mgc')
+      ? path.join(
+          process.env.VCPKG_INSTALLED_DIR,
+          'share',
+          'libmagic',
+          'misc',
+          'magic.mgc'
+        )
       : '',
     // Common system locations
     '/usr/share/misc/magic.mgc',
@@ -127,7 +133,9 @@ module.exports = {
             if (!isWin) {
               fs.chmodSync(destBinary, '755')
             }
-            console.log(`Copied C++ server binary: ${serverBinary} -> ${destBinary}`)
+            console.log(
+              `Copied C++ server binary: ${serverBinary} -> ${destBinary}`
+            )
           } else if (process.env.CI) {
             throw new Error(
               'C++ server binary not found. Set CPP_SERVER_BINARY env var or build the server first.'
