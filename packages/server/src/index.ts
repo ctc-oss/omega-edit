@@ -99,7 +99,14 @@ function findServerBinary(binDir: string): string {
       ? 'omega-edit-grpc-server.bat'
       : 'omega-edit-grpc-server'
   )
-  return legacyScript
+  if (fs.existsSync(legacyScript)) {
+    return legacyScript
+  }
+
+  throw new Error(
+    `Server binary not found in ${binDir}. ` +
+      'Build the C++ server or set CPP_SERVER_BINARY env var.'
+  )
 }
 
 /**

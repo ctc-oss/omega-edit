@@ -116,7 +116,7 @@ module.exports = {
     {
       // Copy C++ server binary and shared library into out/bin
       apply: (compiler) => {
-        compiler.hooks.done.tap('copyCppServerBinary', async () => {
+        compiler.hooks.done.tap('copyCppServerBinary', () => {
           const binDir = path.resolve('out/bin')
           fs.mkdirSync(binDir, { recursive: true })
 

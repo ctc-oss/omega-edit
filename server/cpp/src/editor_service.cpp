@@ -335,6 +335,7 @@ grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/
         return grpc::Status(grpc::StatusCode::UNKNOWN, "undo failed or nothing to undo");
     }
 
+    session_manager_.touch_session(request->id());
     response->set_session_id(request->id());
     response->set_serial(serial);
     return grpc::Status::OK;
@@ -353,6 +354,7 @@ grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::UNKNOWN, "redo failed or nothing to redo");
     }
 
+    session_manager_.touch_session(request->id());
     response->set_session_id(request->id());
     response->set_serial(serial);
     return grpc::Status::OK;
@@ -517,6 +519,7 @@ grpc::Status EditorServiceImpl::ModifyViewport(grpc::ServerContext * /*context*/
         return grpc::Status(grpc::StatusCode::UNKNOWN, "modify viewport failed");
     }
 
+    session_manager_.touch_session(sid);
     return fill_viewport_data(sid, vid, request->viewport_id(), response);
 }
 
@@ -1047,6 +1050,9 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
         if (queue->is_closed()) break;
     }
 
+    // Unsubscribe so the event queue stops accumulating events after the
+    // client disconnects (prevents unbounded memory growth).
+    session_manager_.unsubscribe_session_events(request->id());
     return grpc::Status::OK;
 }
 
@@ -1092,6 +1098,9 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
         if (queue->is_closed()) break;
     }
 
+    // Unsubscribe so the event queue stops accumulating events after the
+    // client disconnects (prevents unbounded memory growth).
+    session_manager_.unsubscribe_viewport_events(sid, vid);
     return grpc::Status::OK;
 }
 

@@ -23,6 +23,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <atomic>
 #include <fstream>
 #include <iostream>
 #include <regex>
@@ -37,13 +38,11 @@
 #endif
 
 static std::unique_ptr<grpc::Server> g_server;
+static std::atomic<bool> g_shutdown_requested{false};
 
-static void signal_handler(int signum) {
-    if (g_server) {
-        std::cerr << "Received signal " << signum << ", shutting down..." << std::endl;
-        g_server->Shutdown();
-    }
-}
+// Signal handler — only sets an atomic flag (async-signal-safe).
+// The main thread polls this flag and performs the actual shutdown.
+static void signal_handler(int /*signum*/) { g_shutdown_requested.store(true, std::memory_order_relaxed); }
 
 static void print_usage(const char *progname) {
     std::cerr << "Ωedit gRPC server (C++ middleware)\n"
@@ -219,7 +218,21 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Monitor shutdown flag in a background thread so the main thread can
+    // block on Wait().  When the signal handler sets the flag, this thread
+    // triggers a graceful shutdown.
+    std::thread shutdown_monitor([&]() {
+        while (!g_shutdown_requested.load(std::memory_order_relaxed)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        std::cerr << "Received shutdown signal, shutting down..." << std::endl;
+        if (g_server) {
+            g_server->Shutdown();
+        }
+    });
+
     g_server->Wait();
+    shutdown_monitor.join();
 
     std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << ": exiting..." << std::endl;
 

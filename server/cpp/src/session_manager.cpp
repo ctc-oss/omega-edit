@@ -145,6 +145,10 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     // Session ID priority: desired_id > base64(file_path) > UUID
     std::string session_id;
     if (!desired_id.empty()) {
+        // The ':' character is reserved as the session:viewport FQID separator
+        if (desired_id.find(':') != std::string::npos) {
+            return ""; // Invalid: contains reserved character
+        }
         session_id = desired_id;
     } else if (!file_path.empty()) {
         session_id = base64_encode(file_path);
@@ -235,6 +239,11 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
 
     auto &session_info = sit->second;
     std::string viewport_id = desired_viewport_id.empty() ? generate_uuid() : desired_viewport_id;
+
+    // The ':' character is reserved as the session:viewport FQID separator
+    if (!desired_viewport_id.empty() && desired_viewport_id.find(':') != std::string::npos) {
+        return ""; // Invalid: contains reserved character
+    }
 
     // Check for duplicate viewport
     if (session_info->viewports.count(viewport_id)) return "";

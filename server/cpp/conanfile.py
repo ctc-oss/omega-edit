@@ -29,7 +29,10 @@ class OmegaEditGrpcServerConan(ConanFile):
 
     def requirements(self):
         self.requires("grpc/1.72.0")
-        self.requires("libmagic/5.45")
+        # libmagic is not available on Windows via Conan Center, so only
+        # require it on Linux and macOS where pre-built binaries exist.
+        if self.settings.os != "Windows":
+            self.requires("libmagic/5.45")
         # protobuf is a transitive dependency of grpc and will be pulled in
         # automatically.  CLD3 is handled via FetchContent in CMakeLists.txt.
 

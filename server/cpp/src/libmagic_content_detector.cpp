@@ -25,6 +25,9 @@
 #else
 #include <unistd.h>
 #include <climits>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 #endif
 
 namespace omega_edit {
@@ -41,6 +44,18 @@ static std::string get_executable_dir() {
         std::string path(buf, len);
         auto pos = path.find_last_of("\\/");
         if (pos != std::string::npos) return path.substr(0, pos);
+    }
+#elif defined(__APPLE__)
+    char buf[PATH_MAX] = {0};
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        // _NSGetExecutablePath may return a relative or symlinked path; resolve it
+        char resolved[PATH_MAX] = {0};
+        if (realpath(buf, resolved)) {
+            std::string path(resolved);
+            auto pos = path.find_last_of('/');
+            if (pos != std::string::npos) return path.substr(0, pos);
+        }
     }
 #else
     char buf[PATH_MAX] = {0};
