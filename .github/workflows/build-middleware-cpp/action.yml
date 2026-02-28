@@ -56,38 +56,59 @@ runs:
         echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
         echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
 
-    - name: Install gRPC dependencies (Ubuntu) 🔧
+    - name: Set vcpkg triplet 🔧
+      shell: bash
+      run: |
+        arch=$(uname -m)
+        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+          echo "VCPKG_TRIPLET=x64-windows" >> $GITHUB_ENV
+        elif [ "${{ inputs.runner-os }}" == "macOS" ]; then
+          if [ "$arch" == "arm64" ]; then
+            echo "VCPKG_TRIPLET=arm64-osx" >> $GITHUB_ENV
+          else
+            echo "VCPKG_TRIPLET=x64-osx" >> $GITHUB_ENV
+          fi
+        else
+          if [ "$arch" == "aarch64" ]; then
+            echo "VCPKG_TRIPLET=arm64-linux" >> $GITHUB_ENV
+          else
+            echo "VCPKG_TRIPLET=x64-linux" >> $GITHUB_ENV
+          fi
+        fi
+
+    - name: Cache vcpkg packages 📦
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/vcpkg_installed
+        key: vcpkg-grpc-${{ inputs.os-name }}-${{ hashFiles('proto/omega_edit.proto') }}
+        restore-keys: |
+          vcpkg-grpc-${{ inputs.os-name }}-
+
+    - name: Install gRPC dependencies via vcpkg 🔧
+      shell: bash
+      run: |
+        vcpkg install "grpc:$VCPKG_TRIPLET" "protobuf:$VCPKG_TRIPLET" \
+          --x-install-root="${{ github.workspace }}/vcpkg_installed"
+        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+        echo "VCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed" >> $GITHUB_ENV
+
+    - name: Install uuid-dev (Linux) 🔧
       if: inputs.runner-os == 'Linux'
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y libgrpc++-dev protobuf-compiler-grpc libprotobuf-dev uuid-dev
-
-    - name: Install gRPC dependencies (macOS) 🔧
-      if: inputs.runner-os == 'macOS'
-      shell: bash
-      run: |
-        brew install grpc protobuf
-
-    - name: Install gRPC dependencies (Windows) 🔧
-      if: inputs.runner-os == 'Windows'
-      shell: bash
-      run: |
-        vcpkg install grpc:x64-windows-static protobuf:x64-windows-static
-        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+        sudo apt-get install -y uuid-dev
 
     - name: Build C++ gRPC Server 🔨
       shell: bash
       run: |
-        cmake_extra_args=""
-        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
-          cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=$CMAKE_TOOLCHAIN_FILE -DVCPKG_TARGET_TRIPLET=x64-windows-static"
-        fi
         cmake -G Ninja -S server/cpp -B server/cpp/build \
           -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE" \
+          -DVCPKG_TARGET_TRIPLET="$VCPKG_TRIPLET" \
+          -DVCPKG_INSTALLED_DIR="$VCPKG_INSTALLED_DIR" \
           -DOE_LIB_DIR="$OE_LIB_DIR" \
-          -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
-          $cmake_extra_args
+          -DCMAKE_PREFIX_PATH="$OE_PREFIX"
         cmake --build server/cpp/build --config Release
         echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
 
