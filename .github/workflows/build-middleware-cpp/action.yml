@@ -88,6 +88,7 @@ runs:
       shell: bash
       run: |
         vcpkg install "grpc:$VCPKG_TRIPLET" "protobuf:$VCPKG_TRIPLET" \
+          "cld3:$VCPKG_TRIPLET" "libmagic:$VCPKG_TRIPLET" \
           --x-install-root="${{ github.workspace }}/vcpkg_installed"
         echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
         echo "VCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg_installed" >> $GITHUB_ENV

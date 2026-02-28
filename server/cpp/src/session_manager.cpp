@@ -36,6 +36,26 @@
 namespace omega_edit {
 namespace grpc_server {
 
+// ── Base64 encoding ──────────────────────────────────────────────────────────
+static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+static std::string base64_encode(const std::string &input) {
+    std::string output;
+    output.reserve(((input.size() + 2) / 3) * 4);
+
+    for (size_t i = 0; i < input.size(); i += 3) {
+        unsigned int n = static_cast<unsigned char>(input[i]) << 16;
+        if (i + 1 < input.size()) n |= static_cast<unsigned char>(input[i + 1]) << 8;
+        if (i + 2 < input.size()) n |= static_cast<unsigned char>(input[i + 2]);
+
+        output.push_back(base64_chars[(n >> 18) & 0x3F]);
+        output.push_back(base64_chars[(n >> 12) & 0x3F]);
+        output.push_back((i + 1 < input.size()) ? base64_chars[(n >> 6) & 0x3F] : '=');
+        output.push_back((i + 2 < input.size()) ? base64_chars[n & 0x3F] : '=');
+    }
+    return output;
+}
+
 // ── UUID generation ──────────────────────────────────────────────────────────
 std::string SessionManager::generate_uuid() {
 #ifdef _WIN32
@@ -90,7 +110,7 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
 
     ViewportEventData evt;
     evt.session_id = info->session_id;
-    evt.viewport_id = make_viewport_fqid(info->session_id, info->viewport_id);
+    evt.viewport_id = info->viewport_id;
     evt.viewport_event_kind = static_cast<int32_t>(event);
 
     if (ptr) {
@@ -122,7 +142,15 @@ std::string SessionManager::create_session(const std::string &file_path, const s
                                            std::string &checkpoint_dir_out) {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::string session_id = desired_id.empty() ? generate_uuid() : desired_id;
+    // Session ID priority: desired_id > base64(file_path) > UUID
+    std::string session_id;
+    if (!desired_id.empty()) {
+        session_id = desired_id;
+    } else if (!file_path.empty()) {
+        session_id = base64_encode(file_path);
+    } else {
+        session_id = generate_uuid();
+    }
 
     // Check for duplicate
     if (sessions_.count(session_id)) {

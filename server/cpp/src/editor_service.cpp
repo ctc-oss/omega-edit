@@ -13,7 +13,6 @@
  **********************************************************************************************************************/
 
 #include "editor_service.h"
-#include "content_detection.h"
 
 #include <omega_edit.h>
 #include <omega_edit/character_counts.h>
@@ -22,6 +21,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <sstream>
 #include <thread>
 
@@ -60,7 +60,9 @@ static int get_cpu_count() {
 
 EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, std::function<void()> shutdown_callback)
     : start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
-      shutdown_callback_(std::move(shutdown_callback)) {
+      shutdown_callback_(std::move(shutdown_callback)),
+      content_type_detector_(create_default_content_type_detector()),
+      language_detector_(create_default_language_detector()) {
     if (heartbeat_config_.session_timeout.count() > 0 && heartbeat_config_.cleanup_interval.count() > 0) {
         reaper_thread_ = std::thread(&EditorServiceImpl::reaper_loop, this);
     }
@@ -183,6 +185,12 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
         file_path = request->file_path();
     }
 
+    // Validate file path exists if provided (match Scala server behavior)
+    if (!file_path.empty() && !std::filesystem::exists(file_path)) {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            std::string("Failed to create session: file does not exist: ") + file_path);
+    }
+
     std::string desired_id;
     if (request->has_session_id_desired()) {
         desired_id = request->session_id_desired();
@@ -236,10 +244,12 @@ grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
     }
 
     response->set_session_id(request->session_id());
-    // If saved_file_path is populated (i.e., a new name was generated), use it; otherwise use the request file path
-    std::string actual_path = (saved_file_path[0] != '\0') ? std::string(saved_file_path) : request->file_path();
-    response->set_file_path(actual_path);
     response->set_save_status(result);
+    if (result == 0) {
+        // Only set file_path on success
+        std::string actual_path = (saved_file_path[0] != '\0') ? std::string(saved_file_path) : request->file_path();
+        response->set_file_path(actual_path);
+    }
     return grpc::Status::OK;
 }
 
@@ -423,10 +433,11 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
 
-    int result = omega_session_begin_transaction(session);
-    if (result != 0) {
-        return grpc::Status(grpc::StatusCode::UNKNOWN, "begin transaction failed");
-    }
+    // Tolerate nested begin-transaction calls (no-op if already in a transaction)
+    // to match the Scala server behaviour used by the TypeScript client's
+    // replace helper which wraps delete+insert in a transaction even when an
+    // outer transaction is already open.
+    omega_session_begin_transaction(session);
 
     response->set_id(request->id());
     return grpc::Status::OK;
@@ -440,10 +451,8 @@ grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*co
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
 
-    int result = omega_session_end_transaction(session);
-    if (result != 0) {
-        return grpc::Status(grpc::StatusCode::UNKNOWN, "end transaction failed");
-    }
+    // Tolerate end-transaction when no transaction is open (no-op).
+    omega_session_end_transaction(session);
 
     response->set_id(request->id());
     return grpc::Status::OK;
@@ -665,7 +674,7 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
     if (result == 0) {
         auto *data = omega_segment_get_data(segment);
         auto length = omega_segment_get_length(segment);
-        content_type = detect_content_type(data, static_cast<size_t>(length));
+        content_type = content_type_detector_->detect(data, length);
     } else {
         omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
@@ -699,7 +708,7 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
         auto *data = omega_segment_get_data(segment);
         auto length = omega_segment_get_length(segment);
         std::string bom_str = request->byte_order_mark();
-        language = detect_language(data, static_cast<size_t>(length), bom_str);
+        language = language_detector_->detect(data, length, bom_str);
     } else {
         omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
@@ -996,7 +1005,7 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
     grpc::ServerWriter<::omega_edit::SessionEvent> *writer) {
 
     auto queue = session_manager_.subscribe_session_events(request->id(),
-                                                           request->has_interest() ? request->interest() : 0);
+                                                           request->has_interest() ? request->interest() : -1);
     if (!queue) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
@@ -1034,7 +1043,7 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
     }
 
     auto queue = session_manager_.subscribe_viewport_events(sid, vid,
-                                                             request->has_interest() ? request->interest() : 0);
+                                                             request->has_interest() ? request->interest() : -1);
     if (!queue) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id());
     }

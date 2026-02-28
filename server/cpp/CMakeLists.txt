@@ -29,6 +29,8 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(Threads REQUIRED)
+find_package(unofficial-cld3 CONFIG REQUIRED)
+find_package(unofficial-libmagic CONFIG REQUIRED)
 
 # On Windows with static CRT (vcpkg x64-windows-static), ensure we use /MT
 if(VCPKG_TARGET_TRIPLET MATCHES "static$" AND MSVC)
@@ -41,8 +43,31 @@ set(PROTO_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto_gen")
 file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
 
 # Get the protoc and grpc_cpp_plugin executables
+# Try target property first, fall back to find_program
+# Note: With vcpkg static triplets, tools may be in the non-static triplet directory
+# (e.g., x64-windows/tools/ instead of x64-windows-static/tools/)
+string(REGEX REPLACE "-static$" "" _VCPKG_TOOL_TRIPLET "${VCPKG_TARGET_TRIPLET}")
+
 get_target_property(_PROTOBUF_PROTOC protobuf::protoc IMPORTED_LOCATION)
-get_target_property(_GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin IMPORTED_LOCATION)
+if(NOT _PROTOBUF_PROTOC OR _PROTOBUF_PROTOC STREQUAL "_PROTOBUF_PROTOC-NOTFOUND")
+    find_program(_PROTOBUF_PROTOC protoc
+        HINTS "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/protobuf"
+              "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/protobuf"
+        REQUIRED)
+endif()
+
+if(TARGET gRPC::grpc_cpp_plugin)
+    get_target_property(_GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin IMPORTED_LOCATION)
+endif()
+if(NOT _GRPC_CPP_PLUGIN OR _GRPC_CPP_PLUGIN STREQUAL "_GRPC_CPP_PLUGIN-NOTFOUND")
+    find_program(_GRPC_CPP_PLUGIN grpc_cpp_plugin
+        HINTS "${_VCPKG_INSTALLED_DIR}/${_VCPKG_TOOL_TRIPLET}/tools/grpc"
+              "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/grpc"
+        REQUIRED)
+endif()
+
+message(STATUS "Using protoc: ${_PROTOBUF_PROTOC}")
+message(STATUS "Using grpc_cpp_plugin: ${_GRPC_CPP_PLUGIN}")
 
 # Generate protobuf and gRPC sources
 set(PROTO_SRCS "${PROTO_GEN_DIR}/omega_edit.pb.cc")
@@ -80,12 +105,14 @@ if(NOT omega_edit_FOUND)
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install/bin"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install-win-static/lib"
+              "${CMAKE_CURRENT_SOURCE_DIR}/../../_install-win-static-mt/lib"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install_core/lib"
     )
     find_path(OMEGA_EDIT_INCLUDE
         NAMES omega_edit.h
         HINTS "${CMAKE_CURRENT_SOURCE_DIR}/../../_install-static-Debug/include"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install-win-static/include"
+              "${CMAKE_CURRENT_SOURCE_DIR}/../../_install-win-static-mt/include"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../_install_core/include"
               "${CMAKE_CURRENT_SOURCE_DIR}/../../core/src/include"
     )
@@ -103,8 +130,9 @@ set(SERVER_SOURCES
     src/editor_service.h
     src/session_manager.cpp
     src/session_manager.h
-    src/content_detection.cpp
     src/content_detection.h
+    src/cld3_language_detector.cpp
+    src/libmagic_content_detector.cpp
     ${PROTO_SRCS}
     ${GRPC_SRCS}
 )
@@ -116,22 +144,34 @@ target_include_directories(omega-edit-grpc-server PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# Check if gRPC reflection is available (not always present in vcpkg builds)
+if(TARGET gRPC::grpc++_reflection)
+    target_compile_definitions(omega-edit-grpc-server PRIVATE HAS_GRPC_REFLECTION)
+    set(_GRPC_REFLECTION_LIB gRPC::grpc++_reflection)
+else()
+    set(_GRPC_REFLECTION_LIB "")
+endif()
+
 if(omega_edit_FOUND)
     target_link_libraries(omega-edit-grpc-server PRIVATE
         omega_edit::omega_edit
         gRPC::grpc++
-        gRPC::grpc++_reflection
+        ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
+        unofficial::cld3::cld3
+        unofficial::libmagic::libmagic
     )
 else()
     target_include_directories(omega-edit-grpc-server PRIVATE ${OMEGA_EDIT_INCLUDE})
     target_link_libraries(omega-edit-grpc-server PRIVATE
         ${OMEGA_EDIT_LIB}
         gRPC::grpc++
-        gRPC::grpc++_reflection
+        ${_GRPC_REFLECTION_LIB}
         protobuf::libprotobuf
         Threads::Threads
+        unofficial::cld3::cld3
+        unofficial::libmagic::libmagic
     )
 endif()
 
@@ -139,6 +179,13 @@ endif()
 target_compile_definitions(omega-edit-grpc-server PRIVATE
     "SERVER_VERSION=\"${PROJECT_VERSION}\""
 )
+
+# Provide the path to the magic database file for content type detection
+if(DEFINED unofficial-libmagic_DICTIONARY)
+    target_compile_definitions(omega-edit-grpc-server PRIVATE
+        "MAGIC_MGC_PATH=\"${unofficial-libmagic_DICTIONARY}\""
+    )
+endif()
 
 # Platform-specific link libraries
 if(WIN32)

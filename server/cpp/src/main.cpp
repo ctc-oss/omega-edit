@@ -14,7 +14,9 @@
 
 #include "editor_service.h"
 
+#ifdef HAS_GRPC_REFLECTION
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
+#endif
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
 
@@ -172,7 +174,9 @@ int main(int argc, char **argv) {
     omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, shutdown_callback);
 
     grpc::EnableDefaultHealthCheckService(true);
+#ifdef HAS_GRPC_REFLECTION
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+#endif
 
     grpc::ServerBuilder builder;
 

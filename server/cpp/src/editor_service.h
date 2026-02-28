@@ -15,6 +15,7 @@
 #ifndef OMEGA_EDIT_EDITOR_SERVICE_H
 #define OMEGA_EDIT_EDITOR_SERVICE_H
 
+#include "content_detection.h"
 #include "session_manager.h"
 
 #include <grpcpp/grpcpp.h>
@@ -24,6 +25,7 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <thread>
 
 namespace omega_edit {
@@ -171,6 +173,8 @@ private:
                              ::omega_edit::ChangeDetailsResponse *response);
 
     SessionManager session_manager_;
+    std::unique_ptr<IContentTypeDetector> content_type_detector_;
+    std::unique_ptr<ILanguageDetector> language_detector_;
     std::chrono::steady_clock::time_point start_time_;
     std::atomic<bool> graceful_shutdown_{false};
 
