@@ -86,16 +86,6 @@ function findServerBinary(binDir: string): string {
     ? 'omega-edit-grpc-server.exe'
     : 'omega-edit-grpc-server'
 
-  // Check for CPP_SERVER_BINARY env var override
-  if (process.env.CPP_SERVER_BINARY) {
-    if (fs.existsSync(process.env.CPP_SERVER_BINARY)) {
-      return process.env.CPP_SERVER_BINARY
-    }
-    throw new Error(
-      `CPP_SERVER_BINARY is set to ${process.env.CPP_SERVER_BINARY} but the file does not exist.`
-    )
-  }
-
   // Check for C++ binary
   const cppBinary = path.join(binDir, cppBinaryName)
   if (fs.existsSync(cppBinary)) {
@@ -115,7 +105,7 @@ function findServerBinary(binDir: string): string {
 
   throw new Error(
     `Server binary not found in ${binDir}. ` +
-      'Build the C++ server or set CPP_SERVER_BINARY env var.'
+      'Build the C++ server first.'
   )
 }
 
