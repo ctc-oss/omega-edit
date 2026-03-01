@@ -10,7 +10,6 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
 from conan import ConanFile
-from conan.tools.cmake import cmake_layout
 
 
 class OmegaEditGrpcServerConan(ConanFile):
@@ -37,4 +36,9 @@ class OmegaEditGrpcServerConan(ConanFile):
         # automatically.  CLD3 is handled via FetchContent in CMakeLists.txt.
 
     def layout(self):
-        cmake_layout(self)
+        # Use a flat layout so that --output-folder=build places all
+        # generated files (CMakePresets.json, conan_toolchain.cmake, etc.)
+        # directly in the output folder without extra nesting.
+        self.folders.source = "."
+        self.folders.build = "."
+        self.folders.generators = "."
