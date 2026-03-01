@@ -1,0 +1,131 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
+
+---
+name: Build C++ Middleware
+description: Reusable action to build omega-edit C++ gRPC middleware server
+inputs:
+  runner-os:
+    description: 'OS Name of Runner (macOS, Linux, Windows)'
+    required: true
+  os-name:
+    description: 'OS Name (runs-on value)'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout 🛎️
+      uses: actions/checkout@v6
+
+    - name: Setup Node.js 🟢
+      uses: actions/setup-node@v6
+      with:
+        node-version: 20
+        cache: yarn
+        cache-dependency-path: yarn.lock
+
+    - name: Enable Developer Command Prompt 💻
+      if: inputs.runner-os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Setup cmake 🔧
+      uses: lukka/get-cmake@latest
+
+    - name: Build omega_edit core library (static) 🦙
+      shell: bash
+      run: |
+        cmake -G Ninja -S . -B _build_core \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DBUILD_DOCS=OFF \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_TESTS=OFF
+        cmake --build _build_core --config Release
+        cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
+        echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
+        echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
+
+    - name: Setup Python 🐍
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Conan 📦
+      shell: bash
+      run: pip install conan
+
+    - name: Detect Conan profile 🔧
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Cache Conan packages 📦
+      uses: actions/cache@v4
+      with:
+        path: ~/.conan2
+        key: conan-${{ inputs.os-name }}-${{ hashFiles('server/cpp/conanfile.py') }}
+        restore-keys: |
+          conan-${{ inputs.os-name }}-
+
+    - name: Install dependencies via Conan 🔧
+      shell: bash
+      run: |
+        cd server/cpp
+        conan install . --output-folder=build \
+          --build=missing \
+          -s build_type=Release \
+          -s compiler.cppstd=17 \
+          -c tools.cmake.cmaketoolchain:generator=Ninja
+
+    - name: Install uuid-dev (Linux) 🔧
+      if: inputs.runner-os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y uuid-dev
+
+    - name: Build C++ gRPC Server 🔨
+      shell: bash
+      run: |
+        cd server/cpp
+        cmake --preset conan-release \
+          -DOE_LIB_DIR="$OE_LIB_DIR" \
+          -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+          || cmake -G Ninja -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="build/conan_toolchain.cmake" \
+            -DOE_LIB_DIR="$OE_LIB_DIR" \
+            -DCMAKE_PREFIX_PATH="$OE_PREFIX"
+        cmake --build build --config Release
+        cd ../..
+        echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server$([ '${{ inputs.runner-os }}' == 'Windows' ] && echo '.exe' || echo '')" >> $GITHUB_ENV
+
+    - name: Yarn Install 🏗️
+      shell: bash
+      run: yarn
+
+    - name: Yarn Package - Server 📦
+      shell: bash
+      run: yarn workspace @omega-edit/server package
+      env:
+        CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
+
+    - name: Yarn Prepare - Client
+      shell: bash
+      run: yarn workspace @omega-edit/client prepare
+
+    - name: Yarn Test - Client 🧑‍💼
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/client test
+
+    - name: Yarn Test - Client (UDS) 🧪
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/client test:uds
+      if: ${{ inputs.runner-os != 'Windows' }}

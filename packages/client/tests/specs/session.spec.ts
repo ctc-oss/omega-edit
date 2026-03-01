@@ -42,7 +42,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 function base64Encode(str: string): string {
-  return Buffer.from(str, 'utf-8').toString('base64')
+  return Buffer.from(str, 'utf-8').toString('base64url')
 }
 
 function countMatchingFilesInDir(

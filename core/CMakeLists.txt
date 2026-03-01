@@ -72,20 +72,28 @@ endif ()
 # Tests
 if (BUILD_TESTS)
     enable_testing()
-    include(FetchContent)
-    # Save the current BUILD_SHARED_LIBS value before forcing it OFF for Catch2
-    set(OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DDL when running tests
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    FetchContent_Declare(
-            Catch2
-            GIT_SHALLOW TRUE
-            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-            GIT_TAG v3.12.0
-    )
-    FetchContent_MakeAvailable(Catch2)
-    # Restore the original BUILD_SHARED_LIBS value for the main project
-    set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    # Prefer Catch2 from a package manager (Conan, vcpkg, system) when available.
+    # Fall back to building from source via FetchContent.
+    find_package(Catch2 3 CONFIG QUIET)
+    if (Catch2_FOUND)
+        message(STATUS "Found Catch2 ${Catch2_VERSION} via package manager")
+    else ()
+        message(STATUS "Catch2 not found via package manager; building from source via FetchContent")
+        include(FetchContent)
+        # Save the current BUILD_SHARED_LIBS value before forcing it OFF for Catch2
+        set(OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+        # Force Catch2 to build statically so we don't have to worry about the path to the Catch2 DLL when running tests
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+                Catch2
+                GIT_SHALLOW TRUE
+                GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+                GIT_TAG v3.12.0
+        )
+        FetchContent_MakeAvailable(Catch2)
+        # Restore the original BUILD_SHARED_LIBS value for the main project
+        set(BUILD_SHARED_LIBS ${OMEGA_EDIT_ORIGINAL_BUILD_SHARED_LIBS} CACHE BOOL "" FORCE)
+    endif ()
     add_subdirectory(src/tests)
 endif ()
 
