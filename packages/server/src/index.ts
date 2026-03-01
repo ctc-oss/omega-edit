@@ -104,8 +104,7 @@ function findServerBinary(binDir: string): string {
   }
 
   throw new Error(
-    `Server binary not found in ${binDir}. ` +
-      'Build the C++ server first.'
+    `Server binary not found in ${binDir}. ` + 'Build the C++ server first.'
   )
 }
 
