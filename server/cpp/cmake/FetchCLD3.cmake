@@ -118,8 +118,7 @@ target_include_directories(cld3_lib
     PUBLIC
         "${cld3_SOURCE_DIR}/src"            # bare includes used inside CLD3 itself
         "${_CLD3_INCLUDE_WRAPPER}"          # allows #include <cld3/xxx.h>
-    PRIVATE
-        "${_CLD3_PROTO_GEN}"
+        "${_CLD3_PROTO_GEN}"               # CLD3 public headers transitively include generated protos
 )
 
 # Link against protobuf-lite (prefer lite variant for smaller binary)
