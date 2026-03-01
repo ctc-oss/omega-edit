@@ -445,6 +445,7 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
     // outer transaction is already open.
     omega_session_begin_transaction(session);
 
+    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -460,6 +461,7 @@ grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*co
     // Tolerate end-transaction when no transaction is open (no-op).
     omega_session_end_transaction(session);
 
+    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -498,6 +500,7 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
         return grpc::Status(grpc::StatusCode::INTERNAL, "malformed viewport id: " + fqid);
     }
 
+    session_manager_.touch_session(request->session_id());
     return fill_viewport_data(sid, vid, fqid, response);
 }
 

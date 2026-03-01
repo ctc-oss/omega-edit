@@ -110,12 +110,28 @@ int main(int argc, char **argv) {
             }
 
             if (key == "-i" || key == "--interface") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
                 interface_addr = value;
             } else if (key == "-p" || key == "--port") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
                 port = std::atoi(value.c_str());
             } else if (key == "-f" || key == "--pidfile") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
                 pidfile = value;
             } else if (key == "-u" || key == "--unix-socket") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
                 unix_socket = value;
             }
             // Silently ignore unknown options (e.g., -Dlogback.configurationFile= from Scala compat)
