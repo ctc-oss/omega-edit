@@ -107,9 +107,17 @@ add_library(cld3_lib STATIC ${_CLD3_SOURCES})
 set_target_properties(cld3_lib PROPERTIES OUTPUT_NAME cld3)
 target_compile_features(cld3_lib PUBLIC cxx_std_11)
 
+# Create a wrapper include directory so consumers can use #include <cld3/xxx.h>
+# (mirrors the layout installed by vcpkg's unofficial-cld3 port).
+set(_CLD3_INCLUDE_WRAPPER "${CMAKE_CURRENT_BINARY_DIR}/_cld3_include")
+file(MAKE_DIRECTORY "${_CLD3_INCLUDE_WRAPPER}")
+file(COPY "${cld3_SOURCE_DIR}/src/" DESTINATION "${_CLD3_INCLUDE_WRAPPER}/cld3"
+     FILES_MATCHING PATTERN "*.h")
+
 target_include_directories(cld3_lib
     PUBLIC
-        "${cld3_SOURCE_DIR}/src"
+        "${cld3_SOURCE_DIR}/src"            # bare includes used inside CLD3 itself
+        "${_CLD3_INCLUDE_WRAPPER}"          # allows #include <cld3/xxx.h>
     PRIVATE
         "${_CLD3_PROTO_GEN}"
 )
