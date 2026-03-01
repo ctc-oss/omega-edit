@@ -30,6 +30,19 @@ import * as os from 'os'
 import * as path from 'path'
 
 /**
+ * Heartbeat / session-reaping options passed as native CLI flags to the
+ * C++ gRPC server. These replace the legacy JAVA_OPTS `-D` properties.
+ */
+export interface HeartbeatOptions {
+  /** Idle session timeout in milliseconds (0 = disabled). */
+  sessionTimeoutMs?: number
+  /** Reaper sweep interval in milliseconds (0 = disabled). */
+  cleanupIntervalMs?: number
+  /** When true, the server exits after reaping the last session. */
+  shutdownWhenNoSessions?: boolean
+}
+
+/**
  * Checks to see if either path to the server bin directory exists
  * @param baseDir the base path to the directory to check against
  * @returns
@@ -109,11 +122,33 @@ function findServerBinary(binDir: string): string {
 }
 
 /**
+ * Convert HeartbeatOptions to native CLI flags understood by the C++ server.
+ */
+function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
+  if (!opts) return []
+  const args: string[] = []
+  if (opts.sessionTimeoutMs !== undefined) {
+    args.push(`--session-timeout=${opts.sessionTimeoutMs}`)
+  }
+  if (opts.cleanupIntervalMs !== undefined) {
+    args.push(`--cleanup-interval=${opts.cleanupIntervalMs}`)
+  }
+  if (opts.shutdownWhenNoSessions) {
+    args.push('--shutdown-when-no-sessions')
+  }
+  return args
+}
+
+/**
  * Execute the server
  * @param args arguments to pass to the server
+ * @param heartbeat optional heartbeat / session-reaping options
  * @returns {Promise<ChildProcess>} server process
  */
-async function executeServer(args: string[]): Promise<ChildProcess> {
+async function executeServer(
+  args: string[],
+  heartbeat?: HeartbeatOptions
+): Promise<ChildProcess> {
   const binDir = getBinFolderPath(path.resolve(__dirname))
   const serverBinary = findServerBinary(binDir)
 
@@ -123,10 +158,13 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
     binaryBasename === 'omega-edit-grpc-server' ||
     binaryBasename === 'omega-edit-grpc-server.exe'
 
-  // Filter out JVM-specific arguments (e.g., -Dlogback.configurationFile=...)
-  // that are not applicable to the native C++ server
+  // For the native C++ binary, filter out JVM -D args and append heartbeat flags.
+  // For the legacy Scala script, pass args through unchanged.
   const filteredArgs = isNativeBinary
-    ? args.filter((arg) => !arg.startsWith('-D'))
+    ? [
+        ...args.filter((arg) => !arg.startsWith('-D')),
+        ...heartbeatToArgs(heartbeat),
+      ]
     : args
 
   if (!serverBinary.endsWith('.exe')) {
@@ -155,13 +193,15 @@ async function executeServer(args: string[]): Promise<ChildProcess> {
  * @param host hostname or IP address (default: 127.0.0.1)
  * @param pidfile resolved path to the PID file
  * @param logConf resolved path to a logback configuration file
+ * @param heartbeat optional heartbeat / session-reaping options
  * @returns {Promise<ChildProcess>} server process
  */
 export async function runServer(
   port: number,
   host: string = '127.0.0.1',
   pidfile?: string,
-  logConf?: string
+  logConf?: string,
+  heartbeat?: HeartbeatOptions
 ): Promise<ChildProcess> {
   // NOTE: Do not wrap args with double quotes, this causes issues when being
   // passed to the script
@@ -176,14 +216,18 @@ export async function runServer(
     args.push(`-Dlogback.configurationFile=${logConf}`)
   }
 
-  return await executeServer(args)
+  return await executeServer(args, heartbeat)
 }
 
 /**
  * Run the server with custom CLI args (e.g., UDS-only mode).
  * @param args arguments to pass to the server
+ * @param heartbeat optional heartbeat / session-reaping options
  * @returns {Promise<ChildProcess>} server process
  */
-export async function runServerWithArgs(args: string[]): Promise<ChildProcess> {
-  return await executeServer(args)
+export async function runServerWithArgs(
+  args: string[],
+  heartbeat?: HeartbeatOptions
+): Promise<ChildProcess> {
+  return await executeServer(args, heartbeat)
 }

@@ -26,6 +26,7 @@ import {
   getClient,
   getServerHeartbeat,
   getSessionCount,
+  HeartbeatOptions,
   pidIsRunning,
   resetClient,
   setLogger,
@@ -199,12 +200,11 @@ describe('Server Heartbeat Timeout', () => {
     `.server-heartbeat-${serverTestPort}.sock`
   )
 
-  const originalJavaOpts = process.env.JAVA_OPTS
-  const heartbeatJavaOpts = [
-    '-Domega-edit.grpc.heartbeat.session-timeout=200ms',
-    '-Domega-edit.grpc.heartbeat.cleanup-interval=50ms',
-    '-Domega-edit.grpc.heartbeat.shutdown-when-no-sessions=false',
-  ].join(' ')
+  const heartbeat: HeartbeatOptions = {
+    sessionTimeoutMs: 200,
+    cleanupIntervalMs: 50,
+    shutdownWhenNoSessions: false,
+  }
 
   const waitForSessionCount = async (
     expected: number,
@@ -227,11 +227,6 @@ describe('Server Heartbeat Timeout', () => {
   }
 
   beforeEach(`start server on port ${serverTestPort}`, async () => {
-    // Override JAVA_OPTS so this server instance uses a short heartbeat timeout.
-    process.env.JAVA_OPTS = originalJavaOpts
-      ? `${originalJavaOpts} ${heartbeatJavaOpts}`
-      : heartbeatJavaOpts
-
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
       if (udsJavaHome) {
@@ -250,13 +245,20 @@ describe('Server Heartbeat Timeout', () => {
         undefined,
         false,
         serverTestPort,
-        testHost
+        testHost,
+        heartbeat
       )
     } else {
       delete process.env.OMEGA_EDIT_SERVER_SOCKET
       delete process.env.OMEGA_EDIT_SERVER_URI
       expect(await stopServiceOnPort(serverTestPort)).to.be.true
-      pid = await startServer(serverTestPort)
+      pid = await startServer(
+        serverTestPort,
+        undefined,
+        undefined,
+        undefined,
+        heartbeat
+      )
     }
     expect(pid).to.be.a('number').greaterThan(0)
     expect(pidIsRunning(pid as number)).to.be.true
@@ -266,11 +268,6 @@ describe('Server Heartbeat Timeout', () => {
   })
 
   afterEach(`stop server on port ${serverTestPort}`, async () => {
-    if (originalJavaOpts === undefined) {
-      delete process.env.JAVA_OPTS
-    } else {
-      process.env.JAVA_OPTS = originalJavaOpts
-    }
     if (isUds) {
       expect(await stopProcessUsingPID(pid as number)).to.be.true
       try {
@@ -327,12 +324,11 @@ describe('Server Shutdown When No Sessions', () => {
     `.server-shutdown-when-idle-${serverTestPort}.sock`
   )
 
-  const originalJavaOpts = process.env.JAVA_OPTS
-  const heartbeatJavaOpts = [
-    '-Domega-edit.grpc.heartbeat.session-timeout=200ms',
-    '-Domega-edit.grpc.heartbeat.cleanup-interval=50ms',
-    '-Domega-edit.grpc.heartbeat.shutdown-when-no-sessions=true',
-  ].join(' ')
+  const heartbeat: HeartbeatOptions = {
+    sessionTimeoutMs: 200,
+    cleanupIntervalMs: 50,
+    shutdownWhenNoSessions: true,
+  }
 
   const waitForSessionCount = async (
     expected: number,
@@ -367,10 +363,6 @@ describe('Server Shutdown When No Sessions', () => {
   }
 
   beforeEach(`start server on port ${serverTestPort}`, async () => {
-    process.env.JAVA_OPTS = originalJavaOpts
-      ? `${originalJavaOpts} ${heartbeatJavaOpts}`
-      : heartbeatJavaOpts
-
     if (isUds) {
       const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
       if (udsJavaHome) {
@@ -389,13 +381,20 @@ describe('Server Shutdown When No Sessions', () => {
         undefined,
         false,
         serverTestPort,
-        testHost
+        testHost,
+        heartbeat
       )
     } else {
       delete process.env.OMEGA_EDIT_SERVER_SOCKET
       delete process.env.OMEGA_EDIT_SERVER_URI
       expect(await stopServiceOnPort(serverTestPort)).to.be.true
-      pid = await startServer(serverTestPort)
+      pid = await startServer(
+        serverTestPort,
+        undefined,
+        undefined,
+        undefined,
+        heartbeat
+      )
     }
 
     expect(pid).to.be.a('number').greaterThan(0)
@@ -406,12 +405,6 @@ describe('Server Shutdown When No Sessions', () => {
   })
 
   afterEach(`cleanup server on port ${serverTestPort}`, async () => {
-    if (originalJavaOpts === undefined) {
-      delete process.env.JAVA_OPTS
-    } else {
-      process.env.JAVA_OPTS = originalJavaOpts
-    }
-
     if (pid !== undefined && pidIsRunning(pid)) {
       if (isUds) {
         await stopProcessUsingPID(pid)

@@ -47,11 +47,17 @@ static void signal_handler(int /*signum*/) { g_shutdown_requested.store(true, st
 static void print_usage(const char *progname) {
     std::cerr << "Ωedit gRPC server (C++ middleware)\n"
               << "Usage: " << progname << " [OPTIONS]\n"
-              << "  -i, --interface <addr>   Bind address (default: 127.0.0.1)\n"
-              << "  -p, --port <port>        Listen port (default: 9000)\n"
-              << "  -f, --pidfile <path>     Write PID to file\n"
-              << "  -u, --unix-socket <path> Unix domain socket path (Linux/macOS only)\n"
-              << "      --unix-socket-only   Bind only to Unix domain socket\n"
+              << "\nConnection options:\n"
+              << "  -i, --interface <addr>           Bind address (default: 127.0.0.1)\n"
+              << "  -p, --port <port>                Listen port (default: 9000)\n"
+              << "  -f, --pidfile <path>             Write PID to file\n"
+              << "  -u, --unix-socket <path>         Unix domain socket path (Linux/macOS only)\n"
+              << "      --unix-socket-only           Bind only to Unix domain socket\n"
+              << "\nHeartbeat / session-reaping options:\n"
+              << "      --session-timeout <ms>       Idle session timeout in milliseconds (0 = disabled)\n"
+              << "      --cleanup-interval <ms>      Reaper sweep interval in milliseconds (0 = disabled)\n"
+              << "      --shutdown-when-no-sessions   Exit after the last session is reaped\n"
+              << "\nGeneral:\n"
               << "  -h, --help               Show this help\n"
               << "  -v, --version            Show version\n";
 }
@@ -62,6 +68,15 @@ int main(int argc, char **argv) {
     std::string pidfile;
     std::string unix_socket;
     bool unix_socket_only = false;
+
+    // Heartbeat / session-reaping defaults (0 = disabled)
+    int session_timeout_ms = 0;
+    int cleanup_interval_ms = 0;
+    bool shutdown_when_no_sessions = false;
+    // Track which settings came from CLI so they can override env/JAVA_OPTS
+    bool cli_session_timeout = false;
+    bool cli_cleanup_interval = false;
+    bool cli_shutdown_when_no_sessions = false;
 
     // Environment variable defaults
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) {
@@ -83,6 +98,24 @@ int main(int argc, char **argv) {
         pidfile = env;
     }
 
+    // Native heartbeat environment variables
+    bool env_session_timeout = false;
+    bool env_cleanup_interval = false;
+    bool env_shutdown_when_no_sessions = false;
+    if (const char *env = std::getenv("OMEGA_EDIT_SESSION_TIMEOUT_MS")) {
+        session_timeout_ms = std::atoi(env);
+        env_session_timeout = true;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_CLEANUP_INTERVAL_MS")) {
+        cleanup_interval_ms = std::atoi(env);
+        env_cleanup_interval = true;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SHUTDOWN_WHEN_NO_SESSIONS")) {
+        std::string val(env);
+        shutdown_when_no_sessions = (val == "true" || val == "1");
+        env_shutdown_when_no_sessions = true;
+    }
+
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -95,6 +128,9 @@ int main(int argc, char **argv) {
             return 0;
         } else if (arg == "--unix-socket-only") {
             unix_socket_only = true;
+        } else if (arg == "--shutdown-when-no-sessions") {
+            shutdown_when_no_sessions = true;
+            cli_shutdown_when_no_sessions = true;
         } else {
             // Handle --key=value and --key value forms
             std::string key, value;
@@ -133,6 +169,20 @@ int main(int argc, char **argv) {
                     return 1;
                 }
                 unix_socket = value;
+            } else if (key == "--session-timeout") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                session_timeout_ms = std::atoi(value.c_str());
+                cli_session_timeout = true;
+            } else if (key == "--cleanup-interval") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                cleanup_interval_ms = std::atoi(value.c_str());
+                cli_cleanup_interval = true;
             }
             // Silently ignore unknown options (e.g., -Dlogback.configurationFile= from Scala compat)
         }
@@ -154,28 +204,38 @@ int main(int argc, char **argv) {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
-    // Parse heartbeat configuration from JAVA_OPTS (backward compat with Scala server)
+    // Build heartbeat config.  Priority: CLI flags > OMEGA_EDIT_* env > JAVA_OPTS (deprecated).
     omega_edit::grpc_server::HeartbeatConfig heartbeat_config;
+    heartbeat_config.session_timeout = std::chrono::milliseconds(session_timeout_ms);
+    heartbeat_config.cleanup_interval = std::chrono::milliseconds(cleanup_interval_ms);
+    heartbeat_config.shutdown_when_no_sessions = shutdown_when_no_sessions;
+
+    // DEPRECATED: Parse JAVA_OPTS for backward compatibility with the old Scala server.
+    // Native CLI flags (--session-timeout, --cleanup-interval, --shutdown-when-no-sessions)
+    // or OMEGA_EDIT_* environment variables should be used instead.
     if (const char *java_opts_env = std::getenv("JAVA_OPTS")) {
         std::string java_opts(java_opts_env);
 
-        // Parse -Domega-edit.grpc.heartbeat.session-timeout=NNNms
         std::regex timeout_re(R"(-Domega-edit\.grpc\.heartbeat\.session-timeout=(\d+)ms)");
         std::smatch m;
-        if (std::regex_search(java_opts, m, timeout_re)) {
+        if (!cli_session_timeout && !env_session_timeout && std::regex_search(java_opts, m, timeout_re)) {
             heartbeat_config.session_timeout = std::chrono::milliseconds(std::stoi(m[1].str()));
+            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --session-timeout instead"
+                      << std::endl;
         }
 
-        // Parse -Domega-edit.grpc.heartbeat.cleanup-interval=NNNms
         std::regex interval_re(R"(-Domega-edit\.grpc\.heartbeat\.cleanup-interval=(\d+)ms)");
-        if (std::regex_search(java_opts, m, interval_re)) {
+        if (!cli_cleanup_interval && !env_cleanup_interval && std::regex_search(java_opts, m, interval_re)) {
             heartbeat_config.cleanup_interval = std::chrono::milliseconds(std::stoi(m[1].str()));
+            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --cleanup-interval instead"
+                      << std::endl;
         }
 
-        // Parse -Domega-edit.grpc.heartbeat.shutdown-when-no-sessions=true/false
         std::regex shutdown_re(R"(-Domega-edit\.grpc\.heartbeat\.shutdown-when-no-sessions=(true|false))");
-        if (std::regex_search(java_opts, m, shutdown_re)) {
+        if (!cli_shutdown_when_no_sessions && !env_shutdown_when_no_sessions && std::regex_search(java_opts, m, shutdown_re)) {
             heartbeat_config.shutdown_when_no_sessions = (m[1].str() == "true");
+            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; "
+                      << "use --shutdown-when-no-sessions instead" << std::endl;
         }
     }
 
