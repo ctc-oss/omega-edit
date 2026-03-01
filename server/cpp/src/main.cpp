@@ -165,6 +165,8 @@ int main(int argc, char **argv) {
 
     // Create service with shutdown callback that stops the gRPC server
     auto shutdown_callback = []() {
+        // Set the shutdown flag so the monitor thread exits cleanly
+        g_shutdown_requested.store(true, std::memory_order_relaxed);
         if (g_server) {
             std::thread([]() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
