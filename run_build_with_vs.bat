@@ -14,7 +14,7 @@ if "%VSCMD%"=="" (
 )
 
 echo Using %VSCMD%
-call %VSCMD% -arch=amd64
+call "%VSCMD%" -arch=amd64
 
 rem Run the PowerShell build script from the repository root
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0build.ps1"
