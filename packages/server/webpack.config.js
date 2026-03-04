@@ -153,15 +153,17 @@ module.exports = {
             console.log(`Copied shared library: ${sharedLib} -> ${destLib}`)
           }
 
-          const magicDb = findMagicDatabase()
-          if (magicDb) {
-            const destMagic = path.join(binDir, 'magic.mgc')
-            fs.copyFileSync(magicDb, destMagic)
-            console.log(`Copied magic database: ${magicDb} -> ${destMagic}`)
-          } else {
-            console.warn(
-              'WARNING: magic.mgc database not found. Content type detection may not work at runtime.'
-            )
+          if (!isWin) {
+            const magicDb = findMagicDatabase()
+            if (magicDb) {
+              const destMagic = path.join(binDir, 'magic.mgc')
+              fs.copyFileSync(magicDb, destMagic)
+              console.log(`Copied magic database: ${magicDb} -> ${destMagic}`)
+            } else {
+              console.warn(
+                'WARNING: magic.mgc database not found. Content type detection may not work at runtime.'
+              )
+            }
           }
           // NOTE: shared library is optional; when the C++ server is statically
           // linked against the core library, no shared lib is needed at runtime.
