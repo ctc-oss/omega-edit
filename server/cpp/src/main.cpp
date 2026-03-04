@@ -239,16 +239,10 @@ int main(int argc, char **argv) {
         }
     }
 
-    // Create service with shutdown callback that stops the gRPC server
+    // Create service with shutdown callback that requests shutdown via the monitor thread
     auto shutdown_callback = []() {
-        // Set the shutdown flag so the monitor thread exits cleanly
+        // Set the shutdown flag so the monitor thread exits cleanly and shuts down the server
         g_shutdown_requested.store(true, std::memory_order_relaxed);
-        if (g_server) {
-            std::thread([]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                g_server->Shutdown();
-            }).detach();
-        }
     };
     omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, shutdown_callback);
 
