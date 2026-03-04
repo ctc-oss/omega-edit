@@ -88,12 +88,25 @@ const getBinFolderPath = (baseDir: string): string => {
 
 /**
  * Find the C++ server binary path.
- * Looks for a native binary named omega-edit-grpc-server (or .exe on Windows).
+ * First checks the CPP_SERVER_BINARY environment variable for a local dev override.
+ * Then looks for a native binary named omega-edit-grpc-server (or .exe on Windows).
  * Falls back to the legacy Scala script if the C++ binary is not found.
  * @param binDir the bin directory to search in
  * @returns the resolved path to the server executable
  */
 function findServerBinary(binDir: string): string {
+  // Allow local dev override via environment variable
+  const envOverride = process.env.CPP_SERVER_BINARY
+  if (envOverride) {
+    const resolved = path.resolve(envOverride)
+    if (fs.existsSync(resolved)) {
+      return resolved
+    }
+    throw new Error(
+      `CPP_SERVER_BINARY is set to '${envOverride}' but the file does not exist.`
+    )
+  }
+
   const isWin = os.platform() === 'win32'
   const cppBinaryName = isWin
     ? 'omega-edit-grpc-server.exe'
@@ -117,7 +130,8 @@ function findServerBinary(binDir: string): string {
   }
 
   throw new Error(
-    `Server binary not found in ${binDir}. ` + 'Build the C++ server first.'
+    `Server binary not found in ${binDir}. ` +
+      'Build the C++ server first, or set CPP_SERVER_BINARY to its path.'
   )
 }
 
