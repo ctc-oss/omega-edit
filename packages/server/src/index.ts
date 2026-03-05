@@ -182,7 +182,7 @@ async function executeServer(
     : args
 
   if (!serverBinary.endsWith('.exe')) {
-    fs.chmodSync(serverBinary, '755')
+    fs.chmodSync(serverBinary, 0o755)
   }
 
   const serverProcess: ChildProcess = spawn(serverBinary, filteredArgs, {

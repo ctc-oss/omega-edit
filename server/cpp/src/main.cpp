@@ -140,7 +140,8 @@ int main(int argc, char **argv) {
                 value = arg.substr(eq_pos + 1);
             } else {
                 key = arg;
-                if (i + 1 < argc) {
+                // Only consume the next argument as a value if it exists and doesn't look like a flag
+                if (i + 1 < argc && argv[i + 1][0] != '-') {
                     value = argv[++i];
                 }
             }
