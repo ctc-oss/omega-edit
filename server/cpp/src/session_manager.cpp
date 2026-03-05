@@ -92,14 +92,13 @@ void SessionManager::session_event_callback(const omega_session_t *session, omeg
     evt.change_count = omega_session_get_num_changes(session);
     evt.undo_count = omega_session_get_num_undone_changes(session);
 
-    // Only EDIT, UNDO, CLEAR, and TRANSFORM events provide an omega_change_t* payload.
-    // Other events pass different pointer types (e.g., viewport or file path).
+    // Only EDIT and UNDO events provide an omega_change_t* payload.
+    // CLEAR and TRANSFORM are notified with nullptr; other events pass different types
+    // (e.g., viewport pointer for CREATE_VIEWPORT/DESTROY_VIEWPORT, char* for SAVE).
     evt.serial = 0;
     switch (event) {
     case SESSION_EVT_EDIT:
     case SESSION_EVT_UNDO:
-    case SESSION_EVT_CLEAR:
-    case SESSION_EVT_TRANSFORM:
         if (ptr) {
             auto *change = static_cast<const omega_change_t *>(ptr);
             evt.serial = omega_change_get_serial(change);
@@ -123,13 +122,11 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
     evt.viewport_event_kind = static_cast<int32_t>(event);
 
     // Only EDIT and UNDO events provide an omega_change_t* payload.
-    // Other events (e.g., CREATE, MODIFY, CHANGES) pass different pointer types.
+    // CLEAR and TRANSFORM are notified with nullptr; CREATE passes a viewport pointer.
     evt.serial = 0;
     switch (event) {
     case VIEWPORT_EVT_EDIT:
     case VIEWPORT_EVT_UNDO:
-    case VIEWPORT_EVT_CLEAR:
-    case VIEWPORT_EVT_TRANSFORM:
         if (ptr) {
             auto *change = static_cast<const omega_change_t *>(ptr);
             evt.serial = omega_change_get_serial(change);
