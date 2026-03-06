@@ -865,12 +865,12 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
     }
 
     auto *data = omega_segment_get_data(segment);
-    auto length = omega_segment_get_length(segment);
+    auto segment_length = omega_segment_get_length(segment);
 
     response->set_session_id(request->session_id());
     response->set_offset(omega_segment_get_offset(segment));
-    if (data && length > 0) {
-        response->set_data(data, static_cast<size_t>(length));
+    if (data && segment_length > 0) {
+        response->set_data(data, static_cast<size_t>(segment_length));
     }
 
     omega_segment_destroy(segment);
