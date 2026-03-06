@@ -746,6 +746,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 }
 
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
     int64_t result = 0;
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
@@ -782,10 +783,15 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 }
 
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
     int64_t rc = 0;
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes_undone.back();
         rc = update_(session_ptr, change_ptr);
+        if (rc < 0) {
+            // On failure, leave the change in changes_undone and return the error code to the caller
+            return rc;
+        }
         session_ptr->models_.back()->changes_undone.pop_back();
         // If the redone change is part of a transaction, continue redoing the entire transaction
         if (!session_ptr->models_.back()->changes_undone.empty() &&

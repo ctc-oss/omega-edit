@@ -229,9 +229,13 @@ char *omega_util_available_filename(char const *path, char *buffer) {
         return buffer;
     }
     int i = 0;
-    const std::string dirname(omega_util_dirname(path, nullptr));
-    const std::string extension(omega_util_file_extension(path, nullptr));
-    const std::string basename(omega_util_basename(path, nullptr, 1));
+    const char *dirname_cstr = omega_util_dirname(path, nullptr);
+    const char *extension_cstr = omega_util_file_extension(path, nullptr);
+    const char *basename_cstr = omega_util_basename(path, nullptr, 1);
+    if (!dirname_cstr || !extension_cstr || !basename_cstr) { return nullptr; }
+    const std::string dirname(dirname_cstr);
+    const std::string extension(extension_cstr);
+    const std::string basename(basename_cstr);
     do {
         if (++i >= 1000) {
             // stop after 999 filenames exist

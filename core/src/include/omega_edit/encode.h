@@ -45,7 +45,7 @@ size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_lengt
 /**
  * Given a pointer to hex characters, write the binary representation to dst
  * @param src pointer to hex characters
- * @param dst destination, must be memory sufficient to hold (src_length / 2) bytes
+ * @param dst destination, must be memory sufficient to hold (src_length / 2) + 1 bytes (will be null-terminated)
  * @param src_length src_length of the hex characters
  * @return number of bytes written to the destination, or 0 if unsuccessful
  */
