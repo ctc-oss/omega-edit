@@ -24,8 +24,10 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 namespace omega_edit {
@@ -183,6 +185,8 @@ private:
     std::function<void()> shutdown_callback_;
     std::thread reaper_thread_;
     std::atomic<bool> reaper_stop_{false};
+    std::mutex reaper_cv_mutex_;
+    std::condition_variable reaper_cv_;
     void reaper_loop();
 };
 

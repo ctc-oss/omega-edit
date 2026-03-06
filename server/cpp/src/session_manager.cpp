@@ -22,7 +22,9 @@
 #include <omega_edit/viewport.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
+#include <cinttypes>
 #include <random>
 #include <sstream>
 
@@ -57,12 +59,40 @@ static std::string base64_encode(const std::string &input) {
 }
 
 // ── UUID generation ──────────────────────────────────────────────────────────
+#ifdef _WIN32
+static std::string generate_random_uuid_fallback() {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    uint64_t hi = dis(gen);
+    uint64_t lo = dis(gen);
+    // Set version 4 and variant bits per RFC 4122
+    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
+    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+    char buf[37];
+    std::snprintf(buf, sizeof(buf),
+                  "%08" PRIx32 "-%04" PRIx16 "-%04" PRIx16 "-%04" PRIx16 "-%012" PRIx64,
+                  static_cast<uint32_t>(hi >> 32), static_cast<uint16_t>(hi >> 16),
+                  static_cast<uint16_t>(hi), static_cast<uint16_t>(lo >> 48),
+                  static_cast<uint64_t>(lo & 0x0000FFFFFFFFFFFFULL));
+    return std::string(buf);
+}
+#endif
+
 std::string SessionManager::generate_uuid() {
 #ifdef _WIN32
     UUID uuid;
-    UuidCreate(&uuid);
-    RPC_CSTR str;
-    UuidToStringA(&uuid, &str);
+    if (UuidCreate(&uuid) != RPC_S_OK) {
+        return generate_random_uuid_fallback();
+    }
+    RPC_CSTR str = nullptr;
+    if (UuidToStringA(&uuid, &str) != RPC_S_OK) {
+        if (str != nullptr) RpcStringFreeA(&str);
+        return generate_random_uuid_fallback();
+    }
+    if (str == nullptr) {
+        return generate_random_uuid_fallback();
+    }
     std::string result(reinterpret_cast<char *>(str));
     RpcStringFreeA(&str);
     return result;
@@ -247,22 +277,30 @@ int64_t SessionManager::session_count() const {
 
 // ── Viewport lifecycle ───────────────────────────────────────────────────────
 std::string SessionManager::create_viewport(const std::string &session_id, int64_t offset, int64_t capacity,
-                                            bool is_floating, const std::string &desired_viewport_id) {
+                                            bool is_floating, const std::string &desired_viewport_id,
+                                            ViewportCreateError *error_out) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto sit = sessions_.find(session_id);
-    if (sit == sessions_.end()) return "";
+    if (sit == sessions_.end()) {
+        if (error_out) *error_out = ViewportCreateError::SESSION_NOT_FOUND;
+        return "";
+    }
+
+    // The ':' character is reserved as the session:viewport FQID separator
+    if (!desired_viewport_id.empty() && desired_viewport_id.find(':') != std::string::npos) {
+        if (error_out) *error_out = ViewportCreateError::INVALID_VIEWPORT_ID;
+        return ""; // Invalid: contains reserved character
+    }
 
     auto &session_info = sit->second;
     std::string viewport_id = desired_viewport_id.empty() ? generate_uuid() : desired_viewport_id;
 
-    // The ':' character is reserved as the session:viewport FQID separator
-    if (!desired_viewport_id.empty() && desired_viewport_id.find(':') != std::string::npos) {
-        return ""; // Invalid: contains reserved character
-    }
-
     // Check for duplicate viewport
-    if (session_info->viewports.count(viewport_id)) return "";
+    if (session_info->viewports.count(viewport_id)) {
+        if (error_out) *error_out = ViewportCreateError::DUPLICATE_VIEWPORT_ID;
+        return "";
+    }
 
     auto vp_info = std::make_shared<ViewportInfo>();
     vp_info->session_id = session_id;
@@ -279,10 +317,12 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
 
     if (!viewport) {
         session_info->viewports.erase(viewport_id);
+        if (error_out) *error_out = ViewportCreateError::CORE_ERROR;
         return "";
     }
 
     vp_info->viewport = viewport;
+    if (error_out) *error_out = ViewportCreateError::SUCCESS;
     return make_viewport_fqid(session_id, viewport_id);
 }
 

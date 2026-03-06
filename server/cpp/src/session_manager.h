@@ -109,6 +109,15 @@ struct SessionInfo {
     std::chrono::steady_clock::time_point last_activity;
 };
 
+/// Error codes returned by SessionManager::create_viewport
+enum class ViewportCreateError {
+    SUCCESS,
+    SESSION_NOT_FOUND,
+    INVALID_VIEWPORT_ID,   ///< desired_viewport_id contains the reserved ':' character
+    DUPLICATE_VIEWPORT_ID, ///< a viewport with the given id already exists
+    CORE_ERROR,            ///< the underlying omega_edit API failed to create the viewport
+};
+
 /// Manages all omega_edit sessions and viewports
 class SessionManager {
 public:
@@ -125,7 +134,8 @@ public:
 
     // Viewport lifecycle
     std::string create_viewport(const std::string &session_id, int64_t offset, int64_t capacity, bool is_floating,
-                                const std::string &desired_viewport_id);
+                                const std::string &desired_viewport_id,
+                                ViewportCreateError *error_out = nullptr);
     bool destroy_viewport(const std::string &session_id, const std::string &viewport_id);
     omega_viewport_t *get_viewport(const std::string &session_id, const std::string &viewport_id);
 
