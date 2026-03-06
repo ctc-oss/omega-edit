@@ -998,3 +998,33 @@ TEST_CASE("Viewports", "[ViewportTests]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Segment Small Data Optimization", "[SegmentTests]") {
+    // Small segments (capacity <= 7) use inline storage
+    auto *small_seg = omega_segment_create(5);
+    REQUIRE(small_seg);
+    REQUIRE(5 == omega_segment_get_capacity(small_seg));
+    REQUIRE(0 == omega_segment_get_length(small_seg));
+    omega_segment_destroy(small_seg);
+
+    // Boundary: capacity exactly at threshold (7 = sizeof(omega_data_t) - 1)
+    auto *boundary_seg = omega_segment_create(7);
+    REQUIRE(boundary_seg);
+    REQUIRE(7 == omega_segment_get_capacity(boundary_seg));
+    omega_segment_destroy(boundary_seg);
+
+    // Large segments (capacity > 7) use heap allocation
+    auto *large_seg = omega_segment_create(8);
+    REQUIRE(large_seg);
+    REQUIRE(8 == omega_segment_get_capacity(large_seg));
+    omega_segment_destroy(large_seg);
+
+    // Zero capacity
+    auto *zero_seg = omega_segment_create(0);
+    REQUIRE(zero_seg);
+    REQUIRE(0 == omega_segment_get_capacity(zero_seg));
+    omega_segment_destroy(zero_seg);
+
+    // Negative capacity returns nullptr
+    REQUIRE(nullptr == omega_segment_create(-1));
+    REQUIRE(nullptr == omega_segment_create(-100));
+}

@@ -22,19 +22,19 @@
 #include <cstdlib>
 
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return nullptr; }
     return viewport_ptr->session_ptr;
 }
 
 int64_t omega_viewport_get_capacity(const omega_viewport_t *viewport_ptr) {
     // Negative capacities are only used internally for tracking dirty reads.  The capacity is always positive to the
     // public.
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     return std::abs(viewport_ptr->data_segment.capacity);
 }
 
 int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     if (0 == omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
     auto const remaining_file_size =
@@ -45,44 +45,44 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
 }
 
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return -1; }
     return viewport_ptr->data_segment.offset + viewport_ptr->data_segment.offset_adjustment;
 }
 
 void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return nullptr; }
     return viewport_ptr->user_data_ptr;
 }
 
 omega_viewport_event_cbk_t omega_viewport_get_event_cbk(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return nullptr; }
     return viewport_ptr->event_handler;
 }
 
 int32_t omega_viewport_get_event_interest(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     return viewport_ptr->event_interest_;
 }
 
 int32_t omega_viewport_set_event_interest(omega_viewport_t *viewport_ptr, int32_t event_interest) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     viewport_ptr->event_interest_ = event_interest;
     return omega_viewport_get_event_interest(viewport_ptr);
 }
 
 int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     return viewport_ptr->data_segment.is_floating ? 1 : 0;
 }
 
 int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     return omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
            (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_length(viewport_ptr));
 }
 
 int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return -1; }
     if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity ||
@@ -101,7 +101,7 @@ int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_
 }
 
 const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return nullptr; }
     const auto mut_viewport_ptr = const_cast<omega_viewport_t *>(viewport_ptr);
     if (0 != omega_viewport_has_changes(viewport_ptr)) {
         // Clean the dirty read with a fresh data segment population
@@ -113,7 +113,7 @@ const omega_byte_t *omega_viewport_get_data(const omega_viewport_t *viewport_ptr
 }
 
 int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
-    assert(viewport_ptr);
+    if (!viewport_ptr) { return 0; }
     // If the data segment capacity is negative, the viewport has changes.  When the data gets fetched from this
     // viewport, the capacity becomes positive and the viewport will no longer indicate that it has changes.
     return viewport_ptr->data_segment.capacity < 0 ? 1 : 0;

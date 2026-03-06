@@ -17,9 +17,10 @@
 #include <cassert>
 
 omega_segment_t *omega_segment_create(int64_t capacity) {
-    assert(0 <= capacity);
+    if (capacity < 0) { return nullptr; }
     auto *segment_ptr = new omega_segment_t();
-    segment_ptr->data.bytes_ptr = 7 < capacity ? new omega_byte_t[capacity + 1] : nullptr;
+    segment_ptr->data.bytes_ptr =
+            static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity ? new omega_byte_t[capacity + 1] : nullptr;
     segment_ptr->capacity = capacity;
     segment_ptr->length = 0;
     segment_ptr->offset = -1;
@@ -29,34 +30,36 @@ omega_segment_t *omega_segment_create(int64_t capacity) {
 }
 
 int64_t omega_segment_get_capacity(const omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
+    if (!segment_ptr) { return 0; }
     return segment_ptr->capacity;
 }
 
 int64_t omega_segment_get_length(const omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
+    if (!segment_ptr) { return 0; }
     return segment_ptr->length;
 }
 
 int64_t omega_segment_get_offset(const omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
+    if (!segment_ptr) { return -1; }
     return segment_ptr->offset;
 }
 
 int64_t omega_segment_get_offset_adjustment(const omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
+    if (!segment_ptr) { return 0; }
     return segment_ptr->offset_adjustment;
 }
 
 omega_byte_t *omega_segment_get_data(omega_segment_t *segment_ptr) {
-    assert(segment_ptr);
+    if (!segment_ptr) { return nullptr; }
     return 0 <= segment_ptr->length ? omega_data_get_data(&segment_ptr->data, std::abs(segment_ptr->capacity))
                                     : nullptr;
 }
 
 void omega_segment_destroy(omega_segment_t *segment_ptr) {
     if (segment_ptr) {
-        if (7 < omega_segment_get_capacity(segment_ptr)) { delete[] segment_ptr->data.bytes_ptr; }
+        if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < omega_segment_get_capacity(segment_ptr)) {
+            delete[] segment_ptr->data.bytes_ptr;
+        }
         delete segment_ptr;
     }
 }

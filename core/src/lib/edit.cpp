@@ -573,7 +573,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
                                      << ", computed_file_size: " << computed_file_size);
         return -1;
     }
-    char temp_filename[FILENAME_MAX];
+    char temp_filename[FILENAME_MAX + 1];
     const auto force_overwrite = io_flags & omega_io_flags_t::IO_FLG_FORCE_OVERWRITE;
     const auto overwrite = force_overwrite || io_flags & omega_io_flags_t::IO_FLG_OVERWRITE;
     const auto *const session_file_path = omega_session_get_file_path(session_ptr);
@@ -746,7 +746,8 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 }
 
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
-    if ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
+    int64_t result = 0;
+    while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
         session_ptr->models_.back()->changes.pop_back();
         int64_t length = 0;
@@ -767,30 +768,32 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
         update_viewports_(session_ptr, undone_change_ptr);
         omega_session_notify(session_ptr, SESSION_EVT_UNDO, undone_change_ptr);
 
-        // If the undone change is part of a transaction, then undo the entire transaction
+        result = undone_change_ptr->serial;
+
+        // If the undone change is part of a transaction, continue undoing the entire transaction
         if (!session_ptr->models_.back()->changes.empty() &&
             omega_change_get_transaction_bit_(undone_change_ptr) ==
             omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get())) {
-            return omega_edit_undo_last_change(session_ptr);
+            continue;
         }
-
-        return undone_change_ptr->serial;
+        break;
     }
-    return 0;
+    return result;
 }
 
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     int64_t rc = 0;
-    if ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty()) {
+    while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes_undone.back();
         rc = update_(session_ptr, change_ptr);
         session_ptr->models_.back()->changes_undone.pop_back();
-        // If the redone change is part of a transaction, then redo the entire transaction
+        // If the redone change is part of a transaction, continue redoing the entire transaction
         if (!session_ptr->models_.back()->changes_undone.empty() &&
             omega_change_get_transaction_bit_(change_ptr.get()) ==
             omega_change_get_transaction_bit_(session_ptr->models_.back()->changes_undone.back().get())) {
-            rc = omega_edit_redo_last_undo(session_ptr);
+            continue;
         }
+        break;
     }
     return rc;
 }
@@ -801,7 +804,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr) {
     if (omega_util_directory_exists(checkpoint_directory) == 0) {
         LOG_ERROR("checkpoint directory '" << checkpoint_directory << "' does not exist");
     }
-    char checkpoint_filename[FILENAME_MAX];
+    char checkpoint_filename[FILENAME_MAX + 1];
     if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
                                  checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size())) {
         LOG_ERROR("failed to create checkpoint filename template");

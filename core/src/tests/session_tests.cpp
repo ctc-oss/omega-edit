@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "omega_edit.h"
+#include "omega_edit/check.h"
 #include "omega_edit/stl_string_adaptor.hpp"
 
 #include <test_util.hpp>
@@ -387,4 +388,110 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(0 != omega_session_begin_transaction(session_ptr));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+}
+
+TEST_CASE("Large Transaction Undo/Redo", "[TransactionTests]") {
+    // Tests iterative (non-recursive) undo/redo of a large transaction
+    auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    // Create a transaction with many changes to exercise the iterative loop
+    const int num_changes_in_transaction = 100;
+    REQUIRE(0 == omega_session_begin_transaction(session_ptr));
+    for (int i = 0; i < num_changes_in_transaction; ++i) {
+        REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, "x"));
+    }
+    REQUIRE(0 == omega_session_end_transaction(session_ptr));
+    REQUIRE(num_changes_in_transaction == omega_session_get_num_changes(session_ptr));
+    REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(num_changes_in_transaction == omega_session_get_computed_file_size(session_ptr));
+
+    // Undo the entire transaction in one call (iteratively, not recursively)
+    const auto undo_result = omega_edit_undo_last_change(session_ptr);
+    REQUIRE(undo_result < 0);// negative serial indicates undone
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(num_changes_in_transaction == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+
+    // Redo the entire transaction in one call
+    const auto redo_result = omega_edit_redo_last_undo(session_ptr);
+    REQUIRE(redo_result > 0);
+    REQUIRE(num_changes_in_transaction == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(num_changes_in_transaction == omega_session_get_computed_file_size(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Null Pointer Safety", "[NullSafety]") {
+    // Session API null safety
+    REQUIRE(nullptr == omega_session_get_user_data_ptr(nullptr));
+    REQUIRE(-1 == omega_session_get_segment(nullptr, nullptr, 0));
+    REQUIRE(0 == omega_session_get_num_viewports(nullptr));
+    REQUIRE(0 == omega_session_get_num_search_contexts(nullptr));
+    REQUIRE(0 == omega_session_get_computed_file_size(nullptr));
+    REQUIRE(0 == omega_session_get_num_changes(nullptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(nullptr));
+    REQUIRE(nullptr == omega_session_get_last_change(nullptr));
+    REQUIRE(nullptr == omega_session_get_last_undo(nullptr));
+    REQUIRE(nullptr == omega_session_get_file_path(nullptr));
+    REQUIRE(nullptr == omega_session_get_event_cbk(nullptr));
+    REQUIRE(0 == omega_session_get_event_interest(nullptr));
+    REQUIRE(0 == omega_session_set_event_interest(nullptr, 0));
+    REQUIRE(nullptr == omega_session_get_change(nullptr, 1));
+    REQUIRE(0 == omega_session_viewport_event_callbacks_paused(nullptr));
+    REQUIRE(0 == omega_session_changes_paused(nullptr));
+    REQUIRE(-1 == omega_session_begin_transaction(nullptr));
+    REQUIRE(-1 == omega_session_end_transaction(nullptr));
+    REQUIRE(0 == omega_session_get_transaction_state(nullptr));
+    REQUIRE(0 == omega_session_get_num_change_transactions(nullptr));
+
+    // These should not crash (void returns)
+    omega_session_pause_viewport_event_callbacks(nullptr);
+    omega_session_resume_viewport_event_callbacks(nullptr);
+    omega_session_pause_changes(nullptr);
+    omega_session_resume_changes(nullptr);
+
+    // Viewport API null safety
+    REQUIRE(nullptr == omega_viewport_get_session(nullptr));
+    REQUIRE(0 == omega_viewport_get_capacity(nullptr));
+    REQUIRE(0 == omega_viewport_get_length(nullptr));
+    REQUIRE(-1 == omega_viewport_get_offset(nullptr));
+    REQUIRE(nullptr == omega_viewport_get_user_data_ptr(nullptr));
+    REQUIRE(nullptr == omega_viewport_get_event_cbk(nullptr));
+    REQUIRE(0 == omega_viewport_get_event_interest(nullptr));
+    REQUIRE(0 == omega_viewport_set_event_interest(nullptr, 0));
+    REQUIRE(0 == omega_viewport_is_floating(nullptr));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(nullptr));
+    REQUIRE(-1 == omega_viewport_modify(nullptr, 0, 10, 0));
+    REQUIRE(nullptr == omega_viewport_get_data(nullptr));
+    REQUIRE(0 == omega_viewport_has_changes(nullptr));
+
+    // Change API null safety
+    REQUIRE(-1 == omega_change_get_offset(nullptr));
+    REQUIRE(0 == omega_change_get_length(nullptr));
+    REQUIRE(0 == omega_change_get_serial(nullptr));
+    REQUIRE(nullptr == omega_change_get_bytes(nullptr));
+    REQUIRE('\0' == omega_change_get_kind_as_char(nullptr));
+    REQUIRE(0 == omega_change_get_transaction_bit(nullptr));
+    REQUIRE(0 == omega_change_is_undone(nullptr));
+
+    // Search API null safety
+    REQUIRE(nullptr == omega_search_create_context_bytes(nullptr, nullptr, 0, 0, 0, 0, 0));
+    REQUIRE(0 == omega_search_context_is_reverse_search(nullptr));
+    REQUIRE(0 == omega_search_context_get_session_length(nullptr));
+    REQUIRE(-1 == omega_search_context_get_session_offset(nullptr));
+    REQUIRE(-1 == omega_search_context_get_match_offset(nullptr));
+    REQUIRE(0 == omega_search_context_get_pattern_length(nullptr));
+
+    // Segment API null safety
+    REQUIRE(nullptr == omega_segment_create(-1));
+    REQUIRE(0 == omega_segment_get_capacity(nullptr));
+    REQUIRE(0 == omega_segment_get_length(nullptr));
+    REQUIRE(-1 == omega_segment_get_offset(nullptr));
+    REQUIRE(0 == omega_segment_get_offset_adjustment(nullptr));
+    REQUIRE(nullptr == omega_segment_get_data(nullptr));
+
+    // Check API null safety
+    REQUIRE(-1 == omega_check_model(nullptr));
 }

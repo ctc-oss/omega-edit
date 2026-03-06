@@ -51,6 +51,7 @@ add_library(omega_edit::omega_edit ALIAS omega_edit)
 set_target_properties(omega_edit PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 target_include_directories(omega_edit PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>")
 target_compile_definitions(omega_edit PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OMEGA_EDIT_STATIC_DEFINE>")
+target_compile_definitions(omega_edit PRIVATE "$<$<CONFIG:Debug>:DEBUG>")
 target_link_libraries(omega_edit PRIVATE ${FILESYSTEM_LIB})
 
 # Version definitions

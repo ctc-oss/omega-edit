@@ -40,7 +40,9 @@
  **********************************************************************************************************************/
 
 /** Define to enable debugging */
-#define DEBUG
+#ifndef DEBUG
+/* DEBUG should be set by the build system (e.g., -DDEBUG in CMake Debug builds) */
+#endif
 
 #ifndef OMEGA_VIEWPORT_CAPACITY_LIMIT
 /** Default maximum viewport capacity */

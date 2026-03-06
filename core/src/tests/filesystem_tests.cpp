@@ -309,3 +309,30 @@ TEST_CASE("Emoji Filename Handling", "[FilesystemTests]") {
         REQUIRE(!omega_util_file_exists(copy_path.c_str()));
     }
 }
+
+TEST_CASE("Null Pointer Safety - Filesystem", "[NullSafety]") {
+    // dirname null safety
+    REQUIRE(nullptr == omega_util_dirname(nullptr, nullptr));
+    REQUIRE(nullptr == omega_util_dirname("", nullptr));
+
+    // basename null safety
+    REQUIRE(nullptr == omega_util_basename(nullptr, nullptr, 0));
+    REQUIRE(nullptr == omega_util_basename("", nullptr, 0));
+
+    // file_extension null safety
+    REQUIRE(nullptr == omega_util_file_extension(nullptr, nullptr));
+
+    // normalize_path null safety
+    REQUIRE(nullptr == omega_util_normalize_path(nullptr, nullptr));
+
+    // available_filename null safety
+    REQUIRE(nullptr == omega_util_available_filename(nullptr, nullptr));
+
+    // file_copy null safety
+    REQUIRE(-1 == omega_util_file_copy(nullptr, nullptr, 0));
+    REQUIRE(-1 == omega_util_file_copy("", "dst.dat", 0));
+    REQUIRE(-1 == omega_util_file_copy("src.dat", "", 0));
+
+    // touch null safety
+    REQUIRE(-1 == omega_util_touch(nullptr, 0));
+}

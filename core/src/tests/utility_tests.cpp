@@ -129,3 +129,30 @@ TEST_CASE("File Transformer", "[TransformerTest]") {
         37, 100));
     REQUIRE(0 == omega_util_file_exists(MAKE_PATH("test1.actual.transformed.3.dat")));
 }
+
+TEST_CASE("Null Pointer Safety - Utility", "[NullSafety]") {
+    // Buffer shift null safety
+    REQUIRE(-1 == omega_util_right_shift_buffer(nullptr, 10, 3, 0));
+    REQUIRE(-1 == omega_util_left_shift_buffer(nullptr, 10, 3, 0));
+
+    // Apply transform null safety (should not crash)
+    omega_util_apply_byte_transform(nullptr, 10, to_upper, nullptr);
+
+    // Write segment null safety
+    REQUIRE(-1 == omega_util_write_segment_to_file(nullptr, 0, 10, nullptr));
+
+    // File transform null safety
+    REQUIRE(-1 == omega_util_apply_byte_transform_to_file(nullptr, nullptr, nullptr, nullptr, 0, 0));
+    REQUIRE(-1 == omega_util_apply_byte_transform_to_file("test.dat", nullptr, to_upper, nullptr, 0, 0));
+    REQUIRE(-1 == omega_util_apply_byte_transform_to_file("test.dat", "out.dat", nullptr, nullptr, 0, 0));
+    REQUIRE(-1 == omega_util_apply_byte_transform_to_file("test.dat", "out.dat", to_upper, nullptr, -1, 0));
+    REQUIRE(-1 == omega_util_apply_byte_transform_to_file("test.dat", "out.dat", to_upper, nullptr, 0, -1));
+
+    // String comparison null safety
+    REQUIRE(0 == omega_util_strncmp(nullptr, nullptr, 5));
+    REQUIRE(-1 == omega_util_strncmp(nullptr, "hello", 5));
+    REQUIRE(1 == omega_util_strncmp("hello", nullptr, 5));
+    REQUIRE(0 == omega_util_strnicmp(nullptr, nullptr, 5));
+    REQUIRE(-1 == omega_util_strnicmp(nullptr, "hello", 5));
+    REQUIRE(1 == omega_util_strnicmp("hello", nullptr, 5));
+}

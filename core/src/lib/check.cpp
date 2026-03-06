@@ -20,7 +20,7 @@
 #include <cassert>
 
 int omega_check_model(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return -1; }
     int64_t expected_offset = 0;
     if (!session_ptr->models_.empty()) {
         for (auto &&model_ptr: session_ptr->models_) {
