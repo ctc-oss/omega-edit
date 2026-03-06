@@ -270,10 +270,10 @@ bool SessionManager::destroy_session(const std::string &session_id) {
     return true;
 }
 
-omega_session_t *SessionManager::get_session(const std::string &session_id) {
+std::shared_ptr<SessionInfo> SessionManager::get_session(const std::string &session_id) {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = sessions_.find(session_id);
-    return (it != sessions_.end()) ? it->second->session : nullptr;
+    return (it != sessions_.end()) ? it->second : nullptr;
 }
 
 int64_t SessionManager::session_count() const {
