@@ -21,12 +21,14 @@
 #include <grpcpp/health_check_service_interface.h>
 
 #include <csignal>
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -43,6 +45,29 @@ static std::atomic<bool> g_shutdown_requested{false};
 // Signal handler — only sets an atomic flag (async-signal-safe).
 // The main thread polls this flag and performs the actual shutdown.
 static void signal_handler(int /*signum*/) { g_shutdown_requested.store(true, std::memory_order_relaxed); }
+
+/// Parse a string as an integer in [min_val, max_val], writing the result to out.
+/// Returns true on success; on failure prints a message to stderr and returns false.
+static bool parse_int(const std::string &str, const std::string &name, long min_val, long max_val, int &out) {
+    try {
+        size_t pos = 0;
+        long v = std::stol(str, &pos);
+        if (pos != str.size()) {
+            std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+            return false;
+        }
+        if (v < min_val || v > max_val) {
+            std::cerr << "Error: " << name << " must be between " << min_val << " and " << max_val
+                      << ", got: " << v << "\n";
+            return false;
+        }
+        out = static_cast<int>(v);
+        return true;
+    } catch (const std::exception &) {
+        std::cerr << "Error: " << name << " must be a valid integer, got: " << str << "\n";
+        return false;
+    }
+}
 
 static void print_usage(const char *progname) {
     std::cerr << "Ωedit gRPC server (C++ middleware)\n"
@@ -83,7 +108,7 @@ int main(int argc, char **argv) {
         interface_addr = env;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PORT")) {
-        port = std::atoi(env);
+        if (!parse_int(env, "OMEGA_EDIT_SERVER_PORT", 1, 65535, port)) return 1;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_UNIX_SOCKET")) {
         unix_socket = env;
@@ -103,11 +128,11 @@ int main(int argc, char **argv) {
     bool env_cleanup_interval = false;
     bool env_shutdown_when_no_sessions = false;
     if (const char *env = std::getenv("OMEGA_EDIT_SESSION_TIMEOUT_MS")) {
-        session_timeout_ms = std::atoi(env);
+        if (!parse_int(env, "OMEGA_EDIT_SESSION_TIMEOUT_MS", 0, INT_MAX, session_timeout_ms)) return 1;
         env_session_timeout = true;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_CLEANUP_INTERVAL_MS")) {
-        cleanup_interval_ms = std::atoi(env);
+        if (!parse_int(env, "OMEGA_EDIT_CLEANUP_INTERVAL_MS", 0, INT_MAX, cleanup_interval_ms)) return 1;
         env_cleanup_interval = true;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SHUTDOWN_WHEN_NO_SESSIONS")) {
@@ -157,7 +182,7 @@ int main(int argc, char **argv) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
-                port = std::atoi(value.c_str());
+                if (!parse_int(value, "--port", 1, 65535, port)) return 1;
             } else if (key == "-f" || key == "--pidfile") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
@@ -175,14 +200,14 @@ int main(int argc, char **argv) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
-                session_timeout_ms = std::atoi(value.c_str());
+                if (!parse_int(value, "--session-timeout", 0, INT_MAX, session_timeout_ms)) return 1;
                 cli_session_timeout = true;
             } else if (key == "--cleanup-interval") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
-                cleanup_interval_ms = std::atoi(value.c_str());
+                if (!parse_int(value, "--cleanup-interval", 0, INT_MAX, cleanup_interval_ms)) return 1;
                 cli_cleanup_interval = true;
             }
             // Silently ignore unknown options (e.g., -Dlogback.configurationFile= from Scala compat)
@@ -220,14 +245,22 @@ int main(int argc, char **argv) {
         std::regex timeout_re(R"(-Domega-edit\.grpc\.heartbeat\.session-timeout=(\d+)ms)");
         std::smatch m;
         if (!cli_session_timeout && !env_session_timeout && std::regex_search(java_opts, m, timeout_re)) {
-            heartbeat_config.session_timeout = std::chrono::milliseconds(std::stoi(m[1].str()));
+            try {
+                heartbeat_config.session_timeout = std::chrono::milliseconds(std::stoi(m[1].str()));
+            } catch (const std::exception &) {
+                std::cerr << "Warning: JAVA_OPTS session-timeout value out of range, using default\n";
+            }
             std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --session-timeout instead"
                       << std::endl;
         }
 
         std::regex interval_re(R"(-Domega-edit\.grpc\.heartbeat\.cleanup-interval=(\d+)ms)");
         if (!cli_cleanup_interval && !env_cleanup_interval && std::regex_search(java_opts, m, interval_re)) {
-            heartbeat_config.cleanup_interval = std::chrono::milliseconds(std::stoi(m[1].str()));
+            try {
+                heartbeat_config.cleanup_interval = std::chrono::milliseconds(std::stoi(m[1].str()));
+            } catch (const std::exception &) {
+                std::cerr << "Warning: JAVA_OPTS cleanup-interval value out of range, using default\n";
+            }
             std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --cleanup-interval instead"
                       << std::endl;
         }
