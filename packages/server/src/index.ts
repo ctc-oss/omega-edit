@@ -87,6 +87,59 @@ const getBinFolderPath = (baseDir: string): string => {
 }
 
 /**
+ * Detects whether a file is a native executable (ELF, Mach-O, or PE binary)
+ * by inspecting its magic bytes, rather than relying on the filename alone.
+ * This reliably distinguishes the C++ native binary from a legacy Scala shell
+ * script launcher that may share the same filename on non-Windows platforms.
+ * Falls back to a filename-based check (.exe) if the file cannot be read.
+ * @param filePath absolute path to the file to inspect
+ * @returns true if the file is a native executable, false if it is a script
+ */
+function isNativeExecutable(filePath: string): boolean {
+  let fd: number | undefined
+  try {
+    const buf = Buffer.alloc(4)
+    fd = fs.openSync(filePath, 'r')
+    try {
+      fs.readSync(fd, buf, 0, 4, 0)
+    } finally {
+      fs.closeSync(fd)
+      fd = undefined
+    }
+    // ELF magic: \x7fELF (Linux/Unix native binary)
+    if (
+      buf[0] === 0x7f &&
+      buf[1] === 0x45 &&
+      buf[2] === 0x4c &&
+      buf[3] === 0x46
+    )
+      return true
+    // Mach-O magic (macOS native binary, all byte-order variants)
+    if (
+      // 32-bit big-endian: 0xfeedface
+      (buf[0] === 0xfe &&
+        buf[1] === 0xed &&
+        buf[2] === 0xfa &&
+        buf[3] === 0xce) ||
+      // 32-bit little-endian: 0xcefaedfe
+      (buf[0] === 0xce &&
+        buf[1] === 0xfa &&
+        buf[2] === 0xed &&
+        buf[3] === 0xfe) ||
+      // 64-bit little-endian: 0xcffaedfe
+      (buf[0] === 0xcf && buf[1] === 0xfa && buf[2] === 0xed && buf[3] === 0xfe)
+    )
+      return true
+    // PE magic: MZ (Windows native binary)
+    if (buf[0] === 0x4d && buf[1] === 0x5a) return true
+    return false
+  } catch {
+    // If we can't read the file, fall back to filename extension check
+    return filePath.endsWith('.exe')
+  }
+}
+
+/**
  * Find the C++ server binary path.
  * First checks the CPP_SERVER_BINARY environment variable for a local dev override.
  * Then looks for a native binary named omega-edit-grpc-server (or .exe on Windows).
@@ -166,11 +219,10 @@ async function executeServer(
   const binDir = getBinFolderPath(path.resolve(__dirname))
   const serverBinary = findServerBinary(binDir)
 
-  // Detect whether this is the native C++ binary by checking the filename
-  const binaryBasename = path.basename(serverBinary)
-  const isNativeBinary =
-    binaryBasename === 'omega-edit-grpc-server' ||
-    binaryBasename === 'omega-edit-grpc-server.exe'
+  // Detect whether this is the native C++ binary by inspecting file magic bytes.
+  // On non-Windows, both the C++ binary and the legacy Scala launcher share the
+  // same filename, so a filename check alone is not reliable.
+  const isNativeBinary = isNativeExecutable(serverBinary)
 
   // For the native C++ binary, filter out JVM -D args and append heartbeat flags.
   // For the legacy Scala script, pass args through unchanged.
