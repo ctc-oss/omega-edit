@@ -541,6 +541,7 @@ grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*conte
     }
 
     response->set_response(omega_viewport_has_changes(vp) != 0);
+    session_manager_.touch_session(sid);
     return grpc::Status::OK;
 }
 
