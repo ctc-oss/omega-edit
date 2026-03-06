@@ -35,10 +35,15 @@ int omega_check_model(const omega_session_t *session_ptr) {
                 expected_offset += segment->computed_length;
             }
         }
-        if (1 != session_ptr->models_.front()->model_segments.front()->change_ptr->serial ||
-            0 != (session_ptr->models_.front()->model_segments.front()->change_ptr->kind &
-                  OMEGA_CHANGE_TRANSACTION_BIT)) {
-            return -1;
+        if (!session_ptr->models_.front()->model_segments.empty()) {
+            const auto first_serial =
+                    session_ptr->models_.front()->model_segments.front()->change_ptr->serial;
+            // First segment should be either the initial READ (serial 0) or the first user change (serial 1)
+            if ((first_serial != 0 && first_serial != 1) ||
+                0 != (session_ptr->models_.front()->model_segments.front()->change_ptr->kind &
+                      OMEGA_CHANGE_TRANSACTION_BIT)) {
+                return -1;
+            }
         }
     }
     return 0;

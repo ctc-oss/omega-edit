@@ -66,6 +66,10 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
         // create a skip table for patterns with lengths greater than 1 byte
         match_context_ptr->skip_table_ptr =
                 omega_find_create_skip_table(pattern_data_ptr, pattern_length, is_reverse_search);
+        if (!match_context_ptr->skip_table_ptr) {
+            omega_data_destroy(&match_context_ptr->pattern, pattern_length);
+            return nullptr;
+        }
         session_ptr->search_contexts_.push_back(match_context_ptr);
         return match_context_ptr.get();
     }

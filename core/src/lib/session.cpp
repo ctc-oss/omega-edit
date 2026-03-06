@@ -115,9 +115,10 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
     if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     if (0 < change_serial) {
-        // Positive serials are active changes
-        if (change_serial <= omega_session_get_num_changes(session_ptr)) {
-            return session_ptr->models_.back()->changes[change_serial - 1].get();
+        // Positive serials are active changes (adjusted for checkpointed changes)
+        const auto index = change_serial - 1 - session_ptr->num_changes_adjustment_;
+        if (index >= 0 && static_cast<size_t>(index) < session_ptr->models_.back()->changes.size()) {
+            return session_ptr->models_.back()->changes[index].get();
         }
     } else if (change_serial < 0) {
         // Negative serials are undone changes
@@ -232,7 +233,7 @@ int64_t omega_session_get_num_change_transactions(const omega_session_t *session
 }
 
 int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     int64_t result = 0;
     // Count the number of transactions in each model
     for (const auto &model : session_ptr->models_) {
@@ -257,20 +258,20 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                           const void *event_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     if (session_ptr->event_handler && (session_event & session_ptr->event_interest_)) {
         (*session_ptr->event_handler)(session_ptr, session_event, event_ptr);
     }
 }
 
 omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t offset) {
-    assert(session_ptr);
+    if (!session_ptr) { return BOM_UNKNOWN; }
     // get the first 4 bytes at the given offset
     const auto segment_ptr = omega_segment_create(4);
     omega_session_get_segment(session_ptr, segment_ptr, offset);
@@ -284,12 +285,9 @@ omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t
 
 int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                                          omega_byte_frequency_profile_t *profile_ptr, int64_t offset, int64_t length) {
-    assert(session_ptr);
-    assert(profile_ptr);
-    assert(0 <= offset);
+    if (!session_ptr || !profile_ptr || offset < 0) { return -1; }
     length = 0 == length ? omega_session_get_computed_file_size(session_ptr) - offset : length;
-    assert(0 <= length);
-    assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
+    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     if (0 < length) {
         const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
@@ -314,12 +312,9 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
 
 int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
                                    int64_t offset, int64_t length, omega_bom_t bom) {
-    assert(session_ptr);
-    assert(counts_ptr);
-    assert(0 <= offset);
+    if (!session_ptr || !counts_ptr || offset < 0) { return -1; }
     length = length ? length : omega_session_get_computed_file_size(session_ptr) - offset;
-    assert(0 <= length);
-    assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
+    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
@@ -335,12 +330,12 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
 }
 
 const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     return session_ptr->checkpoint_directory_.c_str();
 }
 
 int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return session_ptr->checkpoint_directory_.length();
 }
 

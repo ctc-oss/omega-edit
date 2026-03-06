@@ -79,6 +79,7 @@ namespace {
 
     inline auto ins_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
                      bool transaction_bit) -> const_omega_change_ptr_t {
+        if (!bytes) { return nullptr; }
         auto change_ptr = std::make_shared<omega_change_t>();
         change_ptr->serial = serial;
         change_ptr->kind =
@@ -95,11 +96,12 @@ namespace {
             memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
             change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
         }
-        return std::move(change_ptr);
+        return change_ptr;
     }
 
     inline auto ovr_(int64_t serial, int64_t offset, const omega_byte_t *bytes, int64_t length,
                      bool transaction_bit) -> const_omega_change_ptr_t {
+        if (!bytes) { return nullptr; }
         auto change_ptr = std::make_shared<omega_change_t>();
         change_ptr->serial = serial;
         change_ptr->kind =
@@ -116,7 +118,7 @@ namespace {
             memcpy(change_ptr->data.bytes_ptr, bytes, change_ptr->length);
             change_ptr->data.bytes_ptr[change_ptr->length] = '\0';
         }
-        return std::move(change_ptr);
+        return change_ptr;
     }
 
     inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
@@ -431,7 +433,7 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     // Close all open files in the models
     for (const auto &model_ptr: session_ptr->models_) {
         if (model_ptr->file_ptr) { FCLOSE(model_ptr->file_ptr); }
@@ -485,6 +487,7 @@ omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64
 }
 
 void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
+    if (!viewport_ptr) { return; }
     for (auto iter = viewport_ptr->session_ptr->viewports_.rbegin();
          iter != viewport_ptr->session_ptr->viewports_.rend(); ++iter) {
         if (viewport_ptr == iter->get()) {
@@ -498,6 +501,7 @@ void omega_edit_destroy_viewport(omega_viewport_t *viewport_ptr) {
 }
 
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length) {
+    if (!session_ptr) { return -1; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     return (omega_session_changes_paused(session_ptr) == 0) && 0 < length && offset < computed_file_size
            ? update_(session_ptr, del_(1 + omega_session_get_num_changes(session_ptr), offset,
@@ -508,6 +512,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
+    if (!session_ptr || !bytes) { return -1; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
@@ -521,6 +526,7 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
+    if (!session_ptr || !bytes) { return -1; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
@@ -563,9 +569,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
 
 int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
                             int64_t offset, int64_t length) {
-    assert(session_ptr);
-    assert(file_path);
-    assert(0 <= offset);
+    if (!session_ptr || !file_path || offset < 0) { return -1; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto adjusted_length = length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
     if (adjusted_length < 0) {
@@ -623,7 +627,6 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     const auto temp_fptr = FOPEN(temp_filename, "wb");
     if (!temp_fptr) {
         LOG_ERRNO();
-        close(temp_fd);
         omega_util_remove_file(temp_filename);
         return -5;
     }
@@ -729,6 +732,7 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
 }
 
 int omega_edit_clear_changes(omega_session_t *session_ptr) {
+    if (!session_ptr) { return -1; }
     int64_t length = 0;
     if (session_ptr->models_.front()->file_ptr != nullptr) {
         if (0 != FSEEK(session_ptr->models_.front()->file_ptr, 0L, SEEK_END)) { return -1; }

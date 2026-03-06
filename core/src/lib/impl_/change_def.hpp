@@ -27,10 +27,10 @@ enum class change_kind_t {
 
 struct omega_change_struct {
     int64_t serial{};   ///< Serial number of the change (increasing)
-    uint8_t kind{};     ///< Change kind
     int64_t offset{};   ///< Offset at the time of the change
     int64_t length{};   ///< Number of bytes at the time of the change
     omega_data_t data{};///< Bytes to insert or overwrite
+    uint8_t kind{};     ///< Change kind
 };
 
 /**

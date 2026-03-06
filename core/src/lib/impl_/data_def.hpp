@@ -44,7 +44,6 @@ inline void omega_data_create(omega_data_t *data_ptr, int64_t capacity) {
     if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
         // allocate space for the data segment
         data_ptr->bytes_ptr = new omega_byte_t[capacity + 1];
-        omega_data_get_data(data_ptr, capacity)[capacity] = '\0';
     } else {
         // data segment is small enough to fit in the 8 byte union
         data_ptr->bytes_ptr = nullptr;
