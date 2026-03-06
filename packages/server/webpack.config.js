@@ -131,7 +131,7 @@ module.exports = {
             const destBinary = path.join(binDir, serverBinaryName)
             fs.copyFileSync(serverBinary, destBinary)
             if (!isWin) {
-              fs.chmodSync(destBinary, '755')
+              fs.chmodSync(destBinary, 0o755)
             }
             console.log(
               `Copied C++ server binary: ${serverBinary} -> ${destBinary}`

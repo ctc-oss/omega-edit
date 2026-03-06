@@ -124,8 +124,12 @@ runs:
     - name: Yarn Test - Client 🧑‍💼
       shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/client test
+      env:
+        CPP_SERVER_BINARY: ''
 
     - name: Yarn Test - Client (UDS) 🧪
       shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/client test:uds
       if: ${{ inputs.runner-os != 'Windows' }}
+      env:
+        CPP_SERVER_BINARY: ''
