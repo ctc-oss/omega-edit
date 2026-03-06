@@ -603,6 +603,7 @@ export async function getByteOrderMark(
           },
         })
         reject('getByteOrderMark error: ' + err.message)
+        return
       }
       log.debug({ fn: 'getByteOrderMark', resp: r.toObject() })
       resolve(r)
@@ -636,6 +637,7 @@ export async function getContentType(
           },
         })
         reject('getContentType error: ' + err.message)
+        return
       }
       log.debug({ fn: 'getContentType', resp: r.toObject() })
       resolve(r)
@@ -671,6 +673,7 @@ export async function getLanguage(
           },
         })
         reject('getLanguage error: ' + err.message)
+        return
       }
       log.debug({ fn: 'getLanguage', resp: r.toObject() })
       resolve(r)
