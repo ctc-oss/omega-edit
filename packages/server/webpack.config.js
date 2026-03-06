@@ -123,7 +123,7 @@ module.exports = {
       // Copy C++ server binary and shared library into out/bin
       apply: (compiler) => {
         compiler.hooks.done.tap('copyCppServerBinary', () => {
-          const binDir = path.resolve('out/bin')
+          const binDir = path.resolve(compiler.options.output.path, 'bin')
           fs.mkdirSync(binDir, { recursive: true })
 
           const serverBinary = findServerBinary()
@@ -131,7 +131,7 @@ module.exports = {
             const destBinary = path.join(binDir, serverBinaryName)
             fs.copyFileSync(serverBinary, destBinary)
             if (!isWin) {
-              fs.chmodSync(destBinary, '755')
+              fs.chmodSync(destBinary, 0o755)
             }
             console.log(
               `Copied C++ server binary: ${serverBinary} -> ${destBinary}`

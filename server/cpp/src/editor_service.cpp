@@ -69,7 +69,11 @@ EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, std::func
 }
 
 EditorServiceImpl::~EditorServiceImpl() {
-    reaper_stop_ = true;
+    {
+        std::lock_guard<std::mutex> lock(reaper_cv_mutex_);
+        reaper_stop_ = true;
+    }
+    reaper_cv_.notify_all();
     if (reaper_thread_.joinable()) {
         reaper_thread_.join();
     }
@@ -78,7 +82,10 @@ EditorServiceImpl::~EditorServiceImpl() {
 
 void EditorServiceImpl::reaper_loop() {
     while (!reaper_stop_) {
-        std::this_thread::sleep_for(heartbeat_config_.cleanup_interval);
+        {
+            std::unique_lock<std::mutex> lock(reaper_cv_mutex_);
+            reaper_cv_.wait_for(lock, heartbeat_config_.cleanup_interval, [this] { return reaper_stop_.load(); });
+        }
         if (reaper_stop_) break;
 
         auto idle_ids = session_manager_.get_idle_session_ids(heartbeat_config_.session_timeout);
@@ -373,6 +380,7 @@ grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::UNKNOWN, "clear changes failed");
     }
 
+    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -489,10 +497,22 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
         desired_vp_id = request->viewport_id_desired();
     }
 
+    ViewportCreateError vp_error = ViewportCreateError::SUCCESS;
     std::string fqid = session_manager_.create_viewport(request->session_id(), request->offset(), request->capacity(),
-                                                         request->is_floating(), desired_vp_id);
+                                                         request->is_floating(), desired_vp_id, &vp_error);
     if (fqid.empty()) {
-        return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create viewport");
+        switch (vp_error) {
+            case ViewportCreateError::SESSION_NOT_FOUND:
+                return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+            case ViewportCreateError::INVALID_VIEWPORT_ID:
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "viewport id contains reserved character ':': " + desired_vp_id);
+            case ViewportCreateError::DUPLICATE_VIEWPORT_ID:
+                return grpc::Status(grpc::StatusCode::ALREADY_EXISTS,
+                                    "viewport already exists: " + desired_vp_id);
+            default:
+                return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create viewport");
+        }
     }
 
     std::string sid, vid;
@@ -540,6 +560,7 @@ grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*conte
     }
 
     response->set_response(omega_viewport_has_changes(vp) != 0);
+    session_manager_.touch_session(sid);
     return grpc::Status::OK;
 }
 
