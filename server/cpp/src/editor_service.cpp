@@ -373,6 +373,7 @@ grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
         return grpc::Status(grpc::StatusCode::UNKNOWN, "clear changes failed");
     }
 
+    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
