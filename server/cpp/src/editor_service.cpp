@@ -84,7 +84,7 @@ void EditorServiceImpl::reaper_loop() {
     while (!reaper_stop_) {
         {
             std::unique_lock<std::mutex> lock(reaper_cv_mutex_);
-            reaper_cv_.wait_for(lock, heartbeat_config_.cleanup_interval, [this] { return reaper_stop_; });
+            reaper_cv_.wait_for(lock, heartbeat_config_.cleanup_interval, [this] { return reaper_stop_.load(); });
         }
         if (reaper_stop_) break;
 
