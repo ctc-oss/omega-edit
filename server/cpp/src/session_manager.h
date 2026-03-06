@@ -60,6 +60,7 @@ class EventQueue {
 public:
     void push(const T &event) {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (closed_) { return; }
         queue_.push(event);
         cv_.notify_one();
     }
@@ -109,6 +110,14 @@ struct SessionInfo {
     std::chrono::steady_clock::time_point last_activity;
 };
 
+/// Error codes returned by SessionManager::create_session
+enum class SessionCreateError {
+    SUCCESS,
+    INVALID_ID,    ///< desired_id contains the reserved ':' character
+    ALREADY_EXISTS, ///< a session with the given id already exists
+    CORE_ERROR,    ///< the underlying omega_edit API failed to create the session
+};
+
 /// Error codes returned by SessionManager::create_viewport
 enum class ViewportCreateError {
     SUCCESS,
@@ -127,7 +136,8 @@ public:
     // Session lifecycle
     std::string create_session(const std::string &file_path, const std::string &desired_id,
                                const std::string &checkpoint_directory, int64_t &file_size_out,
-                               std::string &checkpoint_dir_out);
+                               std::string &checkpoint_dir_out,
+                               SessionCreateError *error_out = nullptr);
     bool destroy_session(const std::string &session_id);
     omega_session_t *get_session(const std::string &session_id);
     int64_t session_count() const;

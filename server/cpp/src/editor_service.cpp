@@ -214,15 +214,25 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
     int64_t file_size = 0;
     std::string checkpoint_dir_out;
     std::string session_id;
+    SessionCreateError create_error = SessionCreateError::SUCCESS;
     try {
-        session_id =
-            session_manager_.create_session(file_path, desired_id, checkpoint_dir, file_size, checkpoint_dir_out);
+        session_id = session_manager_.create_session(file_path, desired_id, checkpoint_dir, file_size,
+                                                     checkpoint_dir_out, &create_error);
     } catch (const std::exception &e) {
         return grpc::Status(grpc::StatusCode::INTERNAL, std::string("Failed to create session: ") + e.what());
     }
 
     if (session_id.empty()) {
-        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to create session");
+        switch (create_error) {
+            case SessionCreateError::INVALID_ID:
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "session id contains reserved character ':'");
+            case SessionCreateError::ALREADY_EXISTS:
+                return grpc::Status(grpc::StatusCode::ALREADY_EXISTS,
+                                    "session already exists: " + desired_id);
+            default:
+                return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to create session");
+        }
     }
 
     response->set_session_id(session_id);
@@ -699,7 +709,6 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
     }
 
     session_manager_.touch_session(request->session_id());
-    // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
@@ -734,7 +743,6 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
     }
 
     session_manager_.touch_session(request->session_id());
-    // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
@@ -843,12 +851,12 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
     }
 
     auto *data = omega_segment_get_data(segment);
-    auto length = omega_segment_get_length(segment);
+    auto segment_length = omega_segment_get_length(segment);
 
     response->set_session_id(request->session_id());
     response->set_offset(omega_segment_get_offset(segment));
-    if (data && length > 0) {
-        response->set_data(data, static_cast<size_t>(length));
+    if (data && segment_length > 0) {
+        response->set_data(data, static_cast<size_t>(segment_length));
     }
 
     omega_segment_destroy(segment);
