@@ -709,11 +709,6 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
     }
 
     session_manager_.touch_session(request->session_id());
-    // Validate length before allocating segment
-    if (request->length() <= 0) {
-        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "length must be greater than 0");
-    }
-    // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
@@ -748,11 +743,6 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
     }
 
     session_manager_.touch_session(request->session_id());
-    // Validate length before allocating segment
-    if (request->length() <= 0) {
-        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "length must be greater than 0");
-    }
-    // Get segment data
     auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
@@ -849,11 +839,7 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
     }
 
     session_manager_.touch_session(request->session_id());
-    const auto length = request->length();
-    if (length <= 0) {
-        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "length must be greater than 0");
-    }
-    auto *segment = omega_segment_create(length);
+    auto *segment = omega_segment_create(request->length());
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
     }
