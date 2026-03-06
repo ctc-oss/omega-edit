@@ -130,6 +130,17 @@ function isNativeExecutable(filePath: string): boolean {
       (buf[0] === 0xcf && buf[1] === 0xfa && buf[2] === 0xed && buf[3] === 0xfe)
     )
       return true
+    // Fat/universal Mach-O magic (macOS universal binary, big-endian and little-endian)
+    if (
+      // big-endian: 0xcafebabe
+      (buf[0] === 0xca &&
+        buf[1] === 0xfe &&
+        buf[2] === 0xba &&
+        buf[3] === 0xbe) ||
+      // little-endian: 0xbebafeca
+      (buf[0] === 0xbe && buf[1] === 0xba && buf[2] === 0xfe && buf[3] === 0xca)
+    )
+      return true
     // PE magic: MZ (Windows native binary)
     if (buf[0] === 0x4d && buf[1] === 0x5a) return true
     return false

@@ -185,14 +185,18 @@ SessionManager::~SessionManager() { destroy_all(); }
 // ── Session lifecycle ────────────────────────────────────────────────────────
 std::string SessionManager::create_session(const std::string &file_path, const std::string &desired_id,
                                            const std::string &checkpoint_directory, int64_t &file_size_out,
-                                           std::string &checkpoint_dir_out) {
+                                           std::string &checkpoint_dir_out,
+                                           SessionCreateError *error_out) {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
     // Session ID priority: desired_id > base64(file_path) > UUID
     std::string session_id;
     if (!desired_id.empty()) {
         // The ':' character is reserved as the session:viewport FQID separator
         if (desired_id.find(':') != std::string::npos) {
+            if (error_out) { *error_out = SessionCreateError::INVALID_ID; }
             return ""; // Invalid: contains reserved character
         }
         session_id = desired_id;
@@ -204,6 +208,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     // Check for duplicate
     if (sessions_.count(session_id)) {
+        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
         return ""; // Already exists
     }
 
@@ -224,6 +229,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     if (!session) {
         sessions_.erase(session_id);
+        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
         return ""; // Failed to create
     }
 
