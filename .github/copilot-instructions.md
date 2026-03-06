@@ -140,13 +140,15 @@ sbt scalafmtAll
 ```
 omega-edit/
 ├── core/                  # C/C++ core library
+│   ├── src/include/      # Public header files
 │   ├── src/lib/          # Core library implementation
 │   ├── src/examples/     # Example programs
 │   └── src/tests/        # C/C++ tests
-├── packages/             # Node.js packages
+├── packages/             # Node.js packages (packages/core is a CMake package)
 │   ├── client/           # TypeScript client package
 │   │   ├── src/         # Client source code
 │   │   └── tests/       # Client tests (Mocha + Chai)
+│   ├── core/            # CMake package configuration for the C/C++ library
 │   └── server/          # TypeScript server wrapper
 │       └── src/         # Server wrapper source
 ├── server/scala/        # Scala gRPC server
