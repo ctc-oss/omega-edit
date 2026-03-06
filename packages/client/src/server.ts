@@ -23,7 +23,14 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { portToPid } from 'pid-port'
 import { createServer, Server, createConnection } from 'net'
-import { runServer, runServerWithArgs } from '@omega-edit/server'
+import {
+  runServer,
+  runServerWithArgs,
+  HeartbeatOptions,
+} from '@omega-edit/server'
+
+// Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
+export type { HeartbeatOptions }
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
   HeartbeatRequest,
@@ -540,13 +547,15 @@ async function stopServiceOnSocket(
  * @param host interface to listen on (default 127.0.0.1)
  * @param pidFile optional resolved path to the pidFile
  * @param logConf optional resolved path to a logback configuration file (e.g., path.resolve('.', 'logconf.xml'))
+ * @param heartbeat optional heartbeat / session-reaping options
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServer(
   port: number = DEFAULT_PORT,
   host: string = DEFAULT_HOST,
   pidFile?: string,
-  logConf?: string
+  logConf?: string,
+  heartbeat?: HeartbeatOptions
 ): Promise<number | undefined> {
   const logMetadata = {
     fn: 'startServer',
@@ -625,7 +634,7 @@ export async function startServer(
     }
   }
 
-  const { pid } = await runServer(port, host, pidFile, logConf)
+  const { pid } = await runServer(port, host, pidFile, logConf, heartbeat)
 
   log.debug({
     ...logMetadata,
@@ -685,6 +694,7 @@ export async function startServer(
  * @param udsOnly when true, starts the server in unix-socket-only mode (defaults to true)
  * @param port server port to bind when UDS-only mode is disabled
  * @param host server interface to bind when UDS-only mode is disabled
+ * @param heartbeat optional heartbeat / session-reaping options
  * @returns pid of the server process or undefined if the server failed to start
  */
 export async function startServerUnixSocket(
@@ -693,7 +703,8 @@ export async function startServerUnixSocket(
   logConf?: string,
   udsOnly: boolean = true,
   port: number = DEFAULT_PORT,
-  host: string = DEFAULT_HOST
+  host: string = DEFAULT_HOST,
+  heartbeat?: HeartbeatOptions
 ): Promise<number | undefined> {
   const logMetadata = {
     fn: 'startServerUnixSocket',
@@ -840,7 +851,7 @@ export async function startServerUnixSocket(
     args.push(`-Dlogback.configurationFile=${logConf}`)
   }
 
-  const { pid } = await runServerWithArgs(args)
+  const { pid } = await runServerWithArgs(args, heartbeat)
 
   log.debug({
     ...logMetadata,
