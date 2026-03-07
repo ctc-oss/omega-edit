@@ -198,11 +198,13 @@ char *omega_util_normalize_path(char const *path, char *buffer) {
     if (!path) { return nullptr; }
     static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
-    auto const absolute_path_str = fs::absolute(fs::canonical(path)).string();
-    if (absolute_path_str.empty() || absolute_path_str.length() >= FILENAME_MAX) { return nullptr; }
-    auto const len = absolute_path_str.copy(buffer, absolute_path_str.length());
-    buffer[len] = '\0';
-    return buffer;
+    try {
+        auto const absolute_path_str = fs::absolute(fs::canonical(path)).string();
+        if (absolute_path_str.empty() || absolute_path_str.length() >= FILENAME_MAX) { return nullptr; }
+        auto const len = absolute_path_str.copy(buffer, absolute_path_str.length());
+        buffer[len] = '\0';
+        return buffer;
+    } catch (const fs::filesystem_error &) { return nullptr; }
 }
 
 char *omega_util_available_filename(char const *path, char *buffer) {

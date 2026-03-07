@@ -206,11 +206,12 @@ describe('Coverage Gaps', () => {
   describe('Concurrent sessions', () => {
     it('Should isolate edits between two sessions', async () => {
       // Create two sessions
+      const initialCount = await getSessionCount()
       const session1 = await createSession()
       const session1_id = session1.getSessionId()
       const session2 = await createSession()
       const session2_id = session2.getSessionId()
-      expect(await getSessionCount()).to.equal(2)
+      expect(await getSessionCount()).to.equal(initialCount + 2)
 
       // Insert different data in each
       await insert(session1_id, 0, Buffer.from('Session ONE'))

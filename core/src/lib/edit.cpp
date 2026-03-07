@@ -709,12 +709,19 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
         return -1;
     }
     char checkpoint_filename[FILENAME_MAX + 1];
-    if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
-                                 checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size())) {
+    const auto snprintf_result_transform =
+            snprintf(checkpoint_filename, sizeof(checkpoint_filename), "%s%c.OmegaEdit-chk.%zu.XXXXXX",
+                     checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size());
+    if (snprintf_result_transform < 0 ||
+        static_cast<size_t>(snprintf_result_transform) >= sizeof(checkpoint_filename)) {
         LOG_ERROR("failed to create checkpoint filename template");
         return -1;
     }
     const auto checkpoint_fd = omega_util_mkstemp(checkpoint_filename, 0600);// S_IRUSR | S_IWUSR
+    if (checkpoint_fd < 0) {
+        LOG_ERROR("omega_util_mkstemp failed for checkpoint file '" << checkpoint_filename << "'");
+        return -1;
+    }
     close(checkpoint_fd);
 
     // Single-pass: walk the segment model and write the transformed content directly to the checkpoint file
@@ -751,7 +758,7 @@ int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_tra
 
 int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
                             int64_t offset, int64_t length) {
-    if (!session_ptr || !file_path || offset < 0) { return -1; }
+    if (!session_ptr || !file_path || !*file_path || offset < 0) { return -1; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto adjusted_length = length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
     if (adjusted_length < 0) {
@@ -1020,14 +1027,22 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr) {
     // make sure the checkpoint directory exists
     if (omega_util_directory_exists(checkpoint_directory) == 0) {
         LOG_ERROR("checkpoint directory '" << checkpoint_directory << "' does not exist");
+        return -1;
     }
     char checkpoint_filename[FILENAME_MAX + 1];
-    if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
-                                 checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size())) {
+    const auto snprintf_result_checkpoint =
+            snprintf(checkpoint_filename, sizeof(checkpoint_filename), "%s%c.OmegaEdit-chk.%zu.XXXXXX",
+                     checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size());
+    if (snprintf_result_checkpoint < 0 ||
+        static_cast<size_t>(snprintf_result_checkpoint) >= sizeof(checkpoint_filename)) {
         LOG_ERROR("failed to create checkpoint filename template");
         return -1;
     }
     const auto checkpoint_fd = omega_util_mkstemp(checkpoint_filename, 0600);// S_IRUSR | S_IWUSR
+    if (checkpoint_fd < 0) {
+        LOG_ERROR("omega_util_mkstemp failed for checkpoint file '" << checkpoint_filename << "'");
+        return -1;
+    }
     close(checkpoint_fd);
     if (0 != omega_edit_save(session_ptr, checkpoint_filename, IO_FLG_OVERWRITE, nullptr)) {
         LOG_ERROR("failed to save checkpoint to '" << checkpoint_filename << "'");

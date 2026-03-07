@@ -18,7 +18,7 @@
 #include <cassert>
 
 int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
-    if (!session_ptr) { return -1; }
+    if (!session_ptr || !cbk) { return -1; }
     int rc = 0;
     for (const auto &iter: session_ptr->models_.back()->changes) {
         if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
@@ -28,7 +28,7 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
 
 int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                 void *user_data) {
-    if (!session_ptr) { return -1; }
+    if (!session_ptr || !cbk) { return -1; }
     int rc = 0;
     for (auto iter = session_ptr->models_.back()->changes.rbegin(); iter != session_ptr->models_.back()->changes.rend();
          ++iter) {
