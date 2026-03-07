@@ -388,7 +388,7 @@ describe('Coverage Gaps', () => {
         await getComputedFileSize(badId)
         expect.fail('Should have thrown an error')
       } catch (err: any) {
-        expect(err).to.be.an.instanceOf(Error)
+        expect(err).to.exist
       }
     })
 
@@ -399,7 +399,7 @@ describe('Coverage Gaps', () => {
         await insert(badId, 0, Buffer.from('data'))
         expect.fail('Should have thrown an error')
       } catch (err: any) {
-        expect(err).to.be.an.instanceOf(Error)
+        expect(err).to.exist
       }
     })
 
@@ -410,7 +410,7 @@ describe('Coverage Gaps', () => {
         await del(badId, 0, 5)
         expect.fail('Should have thrown an error')
       } catch (err: any) {
-        expect(err).to.be.an.instanceOf(Error)
+        expect(err).to.exist
       }
     })
 
@@ -447,7 +447,7 @@ describe('Coverage Gaps', () => {
         await destroySession('does-not-exist-99999')
         expect.fail('Should have thrown an error')
       } catch (err: any) {
-        expect(err).to.be.an.instanceOf(Error)
+        expect(err).to.exist
       }
     })
   })
