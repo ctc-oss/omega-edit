@@ -23,6 +23,10 @@
 #include <fcntl.h>
 #include <omega_edit/features.h>// this header is generated at build time
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 #ifdef __cplusplus
 
 #include <cstdint>
