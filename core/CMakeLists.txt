@@ -13,13 +13,25 @@ option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
 option(BUILD_TESTS "build tests" ON)
 option(BUILD_DOCS "build documentation" ON)
 option(BUILD_EXAMPLES "build examples" ON)
+option(BUILD_COVERAGE "build with code coverage instrumentation (GCC/Clang)" OFF)
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
 if (DEFINED omega_edit_SHARED_LIBS)
     set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
 endif ()
 
-message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared: ${BUILD_SHARED_LIBS}, tests: ${BUILD_TESTS}, docs: ${BUILD_DOCS}, examples: ${BUILD_EXAMPLES})")
+message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared: ${BUILD_SHARED_LIBS}, tests: ${BUILD_TESTS}, docs: ${BUILD_DOCS}, examples: ${BUILD_EXAMPLES}, coverage: ${BUILD_COVERAGE})")
+
+# Code coverage instrumentation (GCC/Clang only)
+if (BUILD_COVERAGE)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "Enabling code coverage instrumentation")
+        add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+        add_link_options(--coverage)
+    else ()
+        message(WARNING "BUILD_COVERAGE is only supported with GCC or Clang, ignoring")
+    endif ()
+endif ()
 
 # Common configurations
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)

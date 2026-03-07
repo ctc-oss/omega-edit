@@ -106,3 +106,126 @@ jobs:
   #         os-name: ubuntu-22.04-arm64
   #         docker-image: ghcr.io/ctc-oss/omega-edit-build-arm64:ubuntu-22.04
   #         library-filename: libomega_edit.so
+
+  coverage:
+    name: Code Coverage 📊
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+
+      - name: Setup cmake 🔧
+        uses: lukka/get-cmake@latest
+
+      - name: Install lcov 📦
+        run: sudo apt-get update && sudo apt-get install -y lcov
+
+      # ── C/C++ coverage ──────────────────────────────────────────────────
+      - name: Build with coverage instrumentation 🔨
+        run: |
+          cmake --preset ci-coverage
+          cmake --build --preset ci-coverage --config Debug
+
+      - name: Run C/C++ tests 🧪
+        run: ctest -C Debug --test-dir build-coverage/core --output-on-failure
+
+      - name: Collect C/C++ coverage with lcov 📈
+        run: |
+          lcov --capture --directory build-coverage --output-file coverage-native.info \
+            --rc branch_coverage=1 --ignore-errors mismatch,gcov,source
+          lcov --remove coverage-native.info \
+            '*/src/tests/*' '*/src/examples/*' '*/_deps/*' '/usr/*' '*/catch2/*' \
+            --output-file coverage-native.info --rc branch_coverage=1 --ignore-errors unused
+          lcov --list coverage-native.info
+
+      - name: Upload C/C++ coverage to Codecov 🔺
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-native.info
+          flags: native
+          name: omega-edit-native
+          fail_ci_if_error: false
+
+      # ── TypeScript client coverage ──────────────────────────────────────
+      - name: Setup Node.js 🟢
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Setup Python 🐍
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Conan 📦
+        run: pip install conan
+
+      - name: Install uuid-dev 🔧
+        run: sudo apt-get install -y uuid-dev
+
+      - name: Detect Conan profile 🔧
+        run: conan profile detect --force
+
+      - name: Cache Conan packages 📦
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-coverage-${{ hashFiles('server/cpp/conanfile.py') }}
+          restore-keys: |
+            conan-coverage-
+
+      - name: Build C++ gRPC server for client tests 🔨
+        run: |
+          cmake -G Ninja -S . -B _build_core \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DBUILD_DOCS=OFF \
+            -DBUILD_EXAMPLES=OFF \
+            -DBUILD_TESTS=OFF
+          cmake --build _build_core --config Release
+          cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
+          export OE_LIB_DIR="$(pwd)/_install_core/lib"
+          export OE_PREFIX="$(pwd)/_install_core"
+          cd server/cpp
+          conan install . --output-folder=build \
+            --build=missing \
+            -s build_type=Release \
+            -s compiler.cppstd=17 \
+            -c tools.cmake.cmaketoolchain:generator=Ninja
+          cmake --preset conan-release \
+            -DOE_LIB_DIR="$OE_LIB_DIR" \
+            -DCMAKE_PREFIX_PATH="$OE_PREFIX" \
+            || cmake -G Ninja -S . -B build \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_TOOLCHAIN_FILE="build/conan_toolchain.cmake" \
+              -DOE_LIB_DIR="$OE_LIB_DIR" \
+              -DCMAKE_PREFIX_PATH="$OE_PREFIX"
+          cmake --build build --config Release
+          cd ../..
+          echo "CPP_SERVER_BINARY=$(pwd)/server/cpp/build/omega-edit-grpc-server" >> $GITHUB_ENV
+
+      - name: Yarn Install 🏗️
+        run: yarn
+
+      - name: Yarn Package - Server 📦
+        run: yarn workspace @omega-edit/server package
+        env:
+          CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
+
+      - name: Yarn Prepare - Client
+        run: yarn workspace @omega-edit/client prepare
+
+      - name: Run client tests with coverage 🧪
+        run: yarn workspace @omega-edit/client test:coverage
+        env:
+          CPP_SERVER_BINARY: ''
+
+      - name: Upload TypeScript coverage to Codecov 🔺
+        uses: codecov/codecov-action@v5
+        with:
+          files: packages/client/coverage/lcov.info
+          flags: client
+          name: omega-edit-client
+          fail_ci_if_error: false
