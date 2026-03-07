@@ -32,29 +32,28 @@ int omega_session_byte_frequency_profile_size() { return OMEGA_EDIT_BYTE_FREQUEN
 int omega_session_byte_frequency_profile_dos_eol_index() { return OMEGA_EDIT_PROFILE_DOS_EOL; }
 
 void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     return session_ptr->user_data_ptr;
 }
 
 int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset) {
-    assert(session_ptr);
-    assert(data_segment_ptr);
+    if (!session_ptr || !data_segment_ptr) { return -1; }
     data_segment_ptr->offset = offset;
     return populate_data_segment_(session_ptr, data_segment_ptr);
 }
 
 int64_t omega_session_get_num_viewports(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return (int64_t) session_ptr->viewports_.size();
 }
 
 int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return (int64_t) session_ptr->search_contexts_.size();
 }
 
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
     const auto computed_file_size =
             session_ptr->models_.back()->model_segments.empty()
@@ -66,25 +65,25 @@ int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr)
 }
 
 int64_t omega_session_get_num_changes(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
     return (int64_t) session_ptr->models_.back()->changes.size() + session_ptr->num_changes_adjustment_;
 }
 
 int64_t omega_session_get_num_undone_changes(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
     return (int64_t) session_ptr->models_.back()->changes_undone.size();
 }
 
 const omega_change_t *omega_session_get_last_change(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     return session_ptr->models_.back()->changes.empty() ? nullptr : session_ptr->models_.back()->changes.back().get();
 }
 
 const omega_change_t *omega_session_get_last_undo(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     return session_ptr->models_.back()->changes_undone.empty()
                ? nullptr
@@ -92,33 +91,34 @@ const omega_change_t *omega_session_get_last_undo(const omega_session_t *session
 }
 
 const char *omega_session_get_file_path(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     return session_ptr->models_.back()->file_path.empty() ? nullptr : session_ptr->models_.back()->file_path.c_str();
 }
 
 omega_session_event_cbk_t omega_session_get_event_cbk(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     return session_ptr->event_handler;
 }
 
 int32_t omega_session_get_event_interest(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return session_ptr->event_interest_;
 }
 
 int32_t omega_session_set_event_interest(omega_session_t *session_ptr, int32_t event_interest) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     session_ptr->event_interest_ = event_interest;
     return omega_session_get_event_interest(session_ptr);
 }
 
 const omega_change_t *omega_session_get_change(const omega_session_t *session_ptr, int64_t change_serial) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     assert(session_ptr->models_.back());
     if (0 < change_serial) {
-        // Positive serials are active changes
-        if (change_serial <= omega_session_get_num_changes(session_ptr)) {
-            return session_ptr->models_.back()->changes[change_serial - 1].get();
+        // Positive serials are active changes (adjusted for checkpointed changes)
+        const auto index = change_serial - 1 - session_ptr->num_changes_adjustment_;
+        if (index >= 0 && static_cast<size_t>(index) < session_ptr->models_.back()->changes.size()) {
+            return session_ptr->models_.back()->changes[index].get();
         }
     } else if (change_serial < 0) {
         // Negative serials are undone changes
@@ -131,22 +131,22 @@ const omega_change_t *omega_session_get_change(const omega_session_t *session_pt
 }
 
 int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return (session_ptr->session_flags_ & SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS) ? 1 : 0;
 }
 
 void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     session_ptr->session_flags_ |= SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS;
 }
 
 void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     session_ptr->session_flags_ &= ~SESSION_FLAGS_PAUSE_VIEWPORT_CALLBACKS;
 }
 
 int omega_session_notify_changed_viewports(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     int result = 0;
     for (const auto &viewport : session_ptr->viewports_) {
         if (omega_viewport_has_changes(viewport.get()) &&
@@ -157,12 +157,12 @@ int omega_session_notify_changed_viewports(const omega_session_t *session_ptr) {
 }
 
 int omega_session_changes_paused(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return session_ptr->session_flags_ & SESSION_FLAGS_SESSION_CHANGES_PAUSED ? 1 : 0;
 }
 
 void omega_session_pause_changes(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     if (!omega_session_changes_paused(session_ptr)) {
         session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_CHANGES_PAUSED;
         omega_session_notify(session_ptr, SESSION_EVT_CHANGES_PAUSED, nullptr);
@@ -170,7 +170,7 @@ void omega_session_pause_changes(omega_session_t *session_ptr) {
 }
 
 void omega_session_resume_changes(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     if (omega_session_changes_paused(session_ptr)) {
         session_ptr->session_flags_ &= ~SESSION_FLAGS_SESSION_CHANGES_PAUSED;
         omega_session_notify(session_ptr, SESSION_EVT_CHANGES_RESUMED, nullptr);
@@ -178,7 +178,7 @@ void omega_session_resume_changes(omega_session_t *session_ptr) {
 }
 
 int omega_session_begin_transaction(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return -1; }
     // If a transaction is already open or in progress, then indicate failure
     if (omega_session_get_transaction_state(session_ptr)) { return -1; }
     session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_TRANSACTION_OPENED;
@@ -186,7 +186,7 @@ int omega_session_begin_transaction(omega_session_t *session_ptr) {
 }
 
 int omega_session_end_transaction(omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return -1; }
     // If a transaction is not open or in progress, then indicate failure
     if (!omega_session_get_transaction_state(session_ptr)) { return -1; }
     session_ptr->session_flags_ &=
@@ -195,7 +195,7 @@ int omega_session_end_transaction(omega_session_t *session_ptr) {
 }
 
 int omega_session_get_transaction_state(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     if (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_OPENED) {
         if (session_ptr->session_flags_ & SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS) {
             return 2;// Transaction in progress
@@ -208,7 +208,7 @@ int omega_session_get_transaction_state(const omega_session_t *session_ptr) {
 }
 
 int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     int64_t result = 0;
     // Count the number of transactions in each model
     for (const auto &model : session_ptr->models_) {
@@ -233,7 +233,7 @@ int64_t omega_session_get_num_change_transactions(const omega_session_t *session
 }
 
 int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     int64_t result = 0;
     // Count the number of transactions in each model
     for (const auto &model : session_ptr->models_) {
@@ -258,20 +258,20 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 }
 
 int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                           const void *event_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return; }
     if (session_ptr->event_handler && (session_event & session_ptr->event_interest_)) {
         (*session_ptr->event_handler)(session_ptr, session_event, event_ptr);
     }
 }
 
 omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t offset) {
-    assert(session_ptr);
+    if (!session_ptr) { return BOM_UNKNOWN; }
     // get the first 4 bytes at the given offset
     const auto segment_ptr = omega_segment_create(4);
     omega_session_get_segment(session_ptr, segment_ptr, offset);
@@ -285,19 +285,17 @@ omega_bom_t omega_session_detect_BOM(const omega_session_t *session_ptr, int64_t
 
 int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                                          omega_byte_frequency_profile_t *profile_ptr, int64_t offset, int64_t length) {
-    assert(session_ptr);
-    assert(profile_ptr);
-    assert(0 <= offset);
+    if (!session_ptr || !profile_ptr || offset < 0) { return -1; }
     length = 0 == length ? omega_session_get_computed_file_size(session_ptr) - offset : length;
-    assert(0 <= length);
-    assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
+    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     if (0 < length) {
         const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
         omega_byte_t last_profiled_byte = 0;
         int64_t dos_eol_count = 0;
         while (length) {
-            if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
+            const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
+            if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
             const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
             const auto segment_data = omega_segment_get_data(segment_ptr);
             for (auto i = 0; i < profile_length; ++i) {
@@ -315,16 +313,14 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
 
 int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
                                    int64_t offset, int64_t length, omega_bom_t bom) {
-    assert(session_ptr);
-    assert(counts_ptr);
-    assert(0 <= offset);
+    if (!session_ptr || !counts_ptr || offset < 0) { return -1; }
     length = length ? length : omega_session_get_computed_file_size(session_ptr) - offset;
-    assert(0 <= length);
-    assert(offset + length <= omega_session_get_computed_file_size(session_ptr));
+    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
-        if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
+        const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
+        if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
         const auto segment_data = omega_segment_get_data(segment_ptr);
         const auto count_length = std::min(length, omega_segment_get_length(segment_ptr));
         omega_util_count_characters(segment_data, count_length, counts_ptr);
@@ -336,13 +332,24 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
 }
 
 const char *omega_session_get_checkpoint_directory(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     return session_ptr->checkpoint_directory_.c_str();
 }
 
 int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *session_ptr) {
-    assert(session_ptr);
+    if (!session_ptr) { return 0; }
     return session_ptr->checkpoint_directory_.length();
+}
+
+int64_t omega_session_get_undo_snapshot_interval(const omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
+    return session_ptr->undo_snapshot_interval_;
+}
+
+int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, int64_t interval) {
+    if (!session_ptr || interval < 0) { return 0; }
+    session_ptr->undo_snapshot_interval_ = interval;
+    return session_ptr->undo_snapshot_interval_;
 }
 
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {

@@ -66,8 +66,7 @@ int omega_util_compute_mode(int mode) {
 }
 
 int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr) {
-    assert(from_file_ptr);
-    assert(to_file_ptr);
+    if (!from_file_ptr || !to_file_ptr) { return -1; }
     if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
     int64_t remaining = byte_count;
     omega_byte_t buff[BUFSIZ];
@@ -81,7 +80,7 @@ int64_t omega_util_write_segment_to_file(FILE *from_file_ptr, int64_t offset, in
 }
 
 int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_right, int fill_bit) {
-    assert(buffer != NULL);
+    if (!buffer) { return -1; }
     if (shift_right <= 0 || shift_right >= 8) {
         return -1;// Invalid shift amount
     }
@@ -103,7 +102,7 @@ int omega_util_right_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_
 }
 
 int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t shift_left, int fill_bit) {
-    assert(buffer != NULL);
+    if (!buffer) { return -1; }
     if (shift_left <= 0 || shift_left >= 8) {
         return -1;// Invalid shift amount
     }
@@ -127,20 +126,16 @@ int omega_util_left_shift_buffer(omega_byte_t *buffer, int64_t len, omega_byte_t
 
 void omega_util_apply_byte_transform(omega_byte_t *buffer, int64_t len, omega_util_byte_transform_t transform,
                                      void *user_data_ptr) {
-    assert(buffer);
+    if (!buffer || !transform) { return; }
     for (int64_t i = 0; i < len; ++i) { buffer[i] = transform(buffer[i], user_data_ptr); }
 }
 
 int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out_path,
                                             omega_util_byte_transform_t transform, void *user_data_ptr, int64_t offset,
                                             int64_t length) {
-    assert(in_path);
-    assert(out_path);
-    assert(transform);
-    assert(0 <= offset);
-    assert(0 <= length);
+    if (!in_path || !out_path || !transform || offset < 0 || length < 0) { return -1; }
     FILE *in_fp = FOPEN(in_path, "rb");
-    assert(in_fp);
+    if (!in_fp) { return -1; }
     FSEEK(in_fp, 0, SEEK_END);
     int64_t in_file_length = FTELL(in_fp);
     if (0 == length) { length = in_file_length - offset; }
@@ -150,7 +145,10 @@ int omega_util_apply_byte_transform_to_file(char const *in_path, char const *out
             break;
         }
         FILE *out_fp = FOPEN(out_path, "wb");
-        assert(out_fp);
+        if (!out_fp) {
+            FCLOSE(in_fp);
+            return -1;
+        }
         if (omega_util_write_segment_to_file(in_fp, 0, offset, out_fp) != offset ||
             0 != FSEEK(in_fp, offset, SEEK_SET)) {
             LOG_ERROR("failed to write first segment bytes to file");
@@ -212,14 +210,19 @@ omega_byte_t omega_util_mask_byte(omega_byte_t byte, omega_byte_t mask, omega_ma
 }
 
 int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
+    if (!s1 || !s2) { return s1 == s2 ? 0 : (s1 ? 1 : -1); }
     int rc = 0;
     for (uint64_t i = 0; i < sz; ++i) { if (0 != (rc = s1[i] - s2[i])) break; }
     return rc;
 }
 
 int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
+    if (!s1 || !s2) { return s1 == s2 ? 0 : (s1 ? 1 : -1); }
     int rc = 0;
-    for (uint64_t i = 0; i < sz; ++i) { if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break; }
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 !=
+            (rc = tolower((unsigned char) s1[i]) - tolower((unsigned char) s2[i]))) { break; }
+    }
     return rc;
 }
 

@@ -99,13 +99,20 @@ function main() {
   const expectedVersion = readText(versionFile).trim()
 
   const serverOutDir = path.join(repoRoot, 'packages', 'server', 'out')
+  const serverOutExe = path.join(
+    serverOutDir,
+    'bin',
+    'omega-edit-grpc-server.exe'
+  )
   const serverOutBin = path.join(serverOutDir, 'bin', 'omega-edit-grpc-server')
   const serverOutBat = path.join(
     serverOutDir,
     'bin',
     'omega-edit-grpc-server.bat'
   )
-  const serverOutEntry = tryStat(serverOutBin) ? serverOutBin : serverOutBat
+  const serverOutEntry = [serverOutExe, serverOutBin, serverOutBat].find(
+    (candidate) => !!tryStat(candidate)
+  )
 
   const markerFile = path.join(serverOutDir, '.prepackage-stamp.json')
   const marker = loadJson(markerFile)
@@ -113,12 +120,12 @@ function main() {
   const inputs = [
     versionFile,
     path.join(repoRoot, 'proto', 'omega_edit.proto'),
-    path.join(repoRoot, 'server', 'scala', 'build.sbt'),
-    path.join(repoRoot, 'server', 'scala', 'project'),
-    path.join(repoRoot, 'server', 'scala', 'api', 'src', 'main'),
-    path.join(repoRoot, 'server', 'scala', 'spi', 'src', 'main'),
-    path.join(repoRoot, 'server', 'scala', 'native', 'src', 'main'),
-    path.join(repoRoot, 'server', 'scala', 'serv', 'src', 'main'),
+    path.join(repoRoot, 'server', 'cpp', 'CMakeLists.txt'),
+    path.join(repoRoot, 'server', 'cpp', 'cmake'),
+    path.join(repoRoot, 'server', 'cpp', 'src'),
+    path.join(repoRoot, 'packages', 'server', 'package.json'),
+    path.join(repoRoot, 'packages', 'server', 'src'),
+    path.join(repoRoot, 'packages', 'server', 'webpack.config.js'),
   ]
 
   const latestInputMtime = inputs.reduce(
@@ -148,7 +155,10 @@ function main() {
 
   runYarn(['workspace', '@omega-edit/server', 'prepackage'], { cwd: repoRoot })
 
-  const refreshedOutStat = serverOutEntry ? tryStat(serverOutEntry) : null
+  const refreshedOutEntry = [serverOutExe, serverOutBin, serverOutBat].find(
+    (candidate) => !!tryStat(candidate)
+  )
+  const refreshedOutStat = refreshedOutEntry ? tryStat(refreshedOutEntry) : null
   ensureDir(serverOutDir)
   fs.writeFileSync(
     markerFile,

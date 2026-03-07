@@ -92,7 +92,7 @@ uint64_t omega_util_remove_all(char const *path);
 /**
  * Given a file path, return the file size
  * @param path path to get the file size of
- * @return file size
+ * @return file size, or -1 on error
  */
 int64_t omega_util_file_size(char const *path);
 
@@ -100,7 +100,7 @@ int64_t omega_util_file_size(char const *path);
  * Given two file paths, determine if they are equivalent
  * @param path1 first path
  * @param path2 second path
- * @return non-zero if the paths are equivalent and zero otherwise
+ * @return non-zero if the paths are equivalent and zero otherwise, including on invalid or missing paths
  */
 int omega_util_paths_equivalent(char const *path1, char const *path2);
 
@@ -149,7 +149,7 @@ char *omega_util_available_filename(char const *path, char *buffer);
  * Given a path, which must exist, returns an absolute path that has no symbolic link, dot, or dot-dot elements
  * @param path path to get the absolute path of
  * @param buffer pointer to memory to hold the file extension (allocated to at least FILENAME_MAX) or could be NULL, in which case an internal static buffer will be used
- * @return absolute path that has no symbolic link, dot, or dot-dot path elements
+ * @return absolute path that has no symbolic link, dot, or dot-dot path elements, or NULL on error
  */
 char *omega_util_normalize_path(char const *path, char *buffer);
 

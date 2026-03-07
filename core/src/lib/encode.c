@@ -16,8 +16,7 @@
 #include <assert.h>
 
 size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
+    if (!src || !dst) { return 0; }
     static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
     size_t j = 0;
 
@@ -30,8 +29,11 @@ size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_lengt
 }
 
 size_t omega_encode_hex2bin(const char *src, omega_byte_t *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
+    if (!src || !dst) { return 0; }
+    if (src_length & 1) {
+        /* Odd-length hex string is invalid */
+        return 0;
+    }
     const size_t dst_length = src_length >> 1;
     size_t i = 0;
     size_t j = 0;

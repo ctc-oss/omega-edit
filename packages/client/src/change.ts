@@ -299,15 +299,29 @@ export function replace(
   else if (replacement.length === remove_bytes_count) {
     return overwrite(session_id, offset, replacement, stats)
   }
-  // otherwise, this is a replace (delete and insert)
-  return new Promise<number>(async (resolve) => {
-    // wrap the delete and insert in a transaction
-    await beginSessionTransaction(session_id)
+  return replaceWithTransaction(
+    session_id,
+    offset,
+    remove_bytes_count,
+    replacement,
+    stats
+  )
+}
+
+async function replaceWithTransaction(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replacement: Uint8Array,
+  stats?: IEditStats
+): Promise<number> {
+  await beginSessionTransaction(session_id)
+  try {
     await del(session_id, offset, remove_bytes_count, stats)
-    const result = await insert(session_id, offset, replacement, stats)
+    return await insert(session_id, offset, replacement, stats)
+  } finally {
     await endSessionTransaction(session_id)
-    resolve(result)
-  })
+  }
 }
 
 /**
@@ -397,25 +411,27 @@ export async function editSimple(
   )
   let result = 0
   if (optimized_replacements) {
-    // if there are multiple optimized replacements, begin a transaction
-    if (1 < optimized_replacements.length) {
+    const useTransaction = 1 < optimized_replacements.length
+    if (useTransaction) {
       await beginSessionTransaction(session_id)
     }
-    for (let i = 0; i < optimized_replacements.length; ++i) {
-      result = await replace(
-        session_id,
-        optimized_replacements[i].offset,
-        optimized_replacements[i].remove_bytes_count,
-        optimized_replacements[i].replacement,
-        stats
-      )
-    }
-    // if there were multiple optimized replacements, end the transaction
-    if (1 < optimized_replacements.length) {
-      await endSessionTransaction(session_id)
+    try {
+      for (let i = 0; i < optimized_replacements.length; ++i) {
+        result = await replace(
+          session_id,
+          optimized_replacements[i].offset,
+          optimized_replacements[i].remove_bytes_count,
+          optimized_replacements[i].replacement,
+          stats
+        )
+      }
+    } finally {
+      if (useTransaction) {
+        await endSessionTransaction(session_id)
+      }
     }
   }
-  return Promise.resolve(result)
+  return result
 }
 
 /**
@@ -1015,47 +1031,52 @@ export async function edit(
   )
   let result = 0
   if (optimized_edits) {
-    // if there are multiple optimized replacements, begin a transaction
-    if (1 < optimized_edits.length) {
+    const useTransaction = 1 < optimized_edits.length
+    if (useTransaction) {
       await beginSessionTransaction(session_id)
       await pauseViewportEvents(session_id)
     }
-    for (let i = 0; i < optimized_edits.length; ++i) {
-      switch (optimized_edits[i].type) {
-        case EditOperationType.Insert:
-          result = await insert(
-            session_id,
-            optimized_edits[i].start,
-            optimized_edits[i].data!,
-            stats
-          )
-          break
-        case EditOperationType.Delete:
-          result = await del(
-            session_id,
-            optimized_edits[i].start,
-            optimized_edits[i].length!,
-            stats
-          )
-          break
-        case EditOperationType.Overwrite:
-          result = await overwrite(
-            session_id,
-            optimized_edits[i].start,
-            optimized_edits[i].data!,
-            stats
-          )
-          break
-        default:
-          throw new Error('Unknown edit operation type')
+
+    try {
+      for (let i = 0; i < optimized_edits.length; ++i) {
+        switch (optimized_edits[i].type) {
+          case EditOperationType.Insert:
+            result = await insert(
+              session_id,
+              optimized_edits[i].start,
+              optimized_edits[i].data!,
+              stats
+            )
+            break
+          case EditOperationType.Delete:
+            result = await del(
+              session_id,
+              optimized_edits[i].start,
+              optimized_edits[i].length!,
+              stats
+            )
+            break
+          case EditOperationType.Overwrite:
+            result = await overwrite(
+              session_id,
+              optimized_edits[i].start,
+              optimized_edits[i].data!,
+              stats
+            )
+            break
+          default:
+            throw new Error('Unknown edit operation type')
+        }
+      }
+    } finally {
+      if (useTransaction) {
+        await resumeViewportEvents(session_id)
+        await endSessionTransaction(session_id)
       }
     }
-    // if there were multiple optimized replacements, end the transaction
-    if (1 < optimized_edits.length) {
-      await resumeViewportEvents(session_id)
-      await endSessionTransaction(session_id)
+    if (useTransaction) {
       await notifyChangedViewports(session_id)
     }
   }
-  return Promise.resolve(result)
+  return result
 }

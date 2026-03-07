@@ -29,14 +29,14 @@
 
 ## Goal
 
-This package contains the Ωedit Scala gRPC server and TypeScript types and code needed to interact with the server.
+This package contains the Ωedit native C++ gRPC server launcher plus the TypeScript entry points used to start and package that server from Node.js.
 
 ## Build
 
-### Build gRPC server
+### Build native gRPC server
 
 ```bash
-yarn sbt
+cmake --build server/cpp/build --target omega-edit-grpc-server
 ```
 
 ### Build node code
@@ -45,9 +45,11 @@ yarn sbt
 yarn build
 ```
 
+`yarn build` validates that the native server executable under `server/cpp/build` is up to date before copying it into `packages/server/out/bin`.
+
 ## Package
 
-This builds the server and node, then packages everything into a tarball with a similar name to `omega-edit-node-server-v${version}.tgz`
+This refreshes the native server executable, builds the Node.js wrapper, and then packages everything into a tarball with a similar name to `omega-edit-node-server-v${version}.tgz`.
 
 ```bash
 yarn package
@@ -55,7 +57,7 @@ yarn package
 
 ## User documentation
 
-User documentation is published to https://ctc-oss.github.io/omega-edit/.
+User documentation is published to <https://ctc-oss.github.io/omega-edit/>.
 
 ## Versioning
 

@@ -46,8 +46,15 @@ update-version:
 	@echo "  git push origin v$(version)"
 	@echo "------------------------------------------------------------------------"
 
+coverage:
+	cmake -G $(GENERATOR) -S . -B _build-coverage -DBUILD_SHARED_LIBS=NO -DBUILD_DOCS=NO -DBUILD_EXAMPLES=NO -DBUILD_COVERAGE=YES -DCMAKE_BUILD_TYPE=Debug
+	cmake --build _build-coverage --config Debug
+	ctest -C Debug --test-dir _build-coverage/core --output-on-failure
+	@echo "Coverage data generated in _build-coverage/"
+	@echo "Run 'lcov --capture --directory _build-coverage --output-file coverage.info' to generate a report"
+
 clean:
-	rm -rf _build _install lib/$(LIBNAME)
+	rm -rf _build _build-coverage _install lib/$(LIBNAME) coverage.info
 
 all: lib/$(LIBNAME)
 	@echo $<

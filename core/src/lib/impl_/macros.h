@@ -39,7 +39,7 @@
 
 #ifdef DEBUG
 #define DBG(x)                                                                                                         \
-    do { x } while (0)
+    do { (x); } while (0)
 #else//DEBUG
 #define DBG(x)
 #endif//DEBUG

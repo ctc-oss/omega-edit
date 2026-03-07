@@ -18,7 +18,7 @@
 #include <cassert>
 
 int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk, void *user_data) {
-    assert(session_ptr);
+    if (!session_ptr || !cbk) { return -1; }
     int rc = 0;
     for (const auto &iter: session_ptr->models_.back()->changes) {
         if ((rc = cbk(iter.get(), user_data)) != 0) { break; }
@@ -28,7 +28,7 @@ int omega_visit_changes(const omega_session_t *session_ptr, omega_session_change
 
 int omega_visit_changes_reverse(const omega_session_t *session_ptr, omega_session_change_visitor_cbk_t cbk,
                                 void *user_data) {
-    assert(session_ptr);
+    if (!session_ptr || !cbk) { return -1; }
     int rc = 0;
     for (auto iter = session_ptr->models_.back()->changes.rbegin(); iter != session_ptr->models_.back()->changes.rend();
          ++iter) {
@@ -51,7 +51,7 @@ struct omega_visit_change_context_struct {
 };
 
 omega_visit_change_context_t *omega_visit_change_create_context(const omega_session_t *session_ptr, int reverse) {
-    assert(session_ptr);
+    if (!session_ptr) { return nullptr; }
     auto *change_context_ptr = new omega_visit_change_context_t;
     assert(change_context_ptr);
     change_context_ptr->session_ptr = session_ptr;
@@ -131,8 +131,7 @@ const omega_change_t *omega_visit_change_context_get_change(const omega_visit_ch
 
 void omega_visit_change_destroy_context(omega_visit_change_context_t *change_context_ptr) {
     if (change_context_ptr) {
-        assert(change_context_ptr->change_iter.iter_ptr);
-        delete change_context_ptr->change_iter.iter_ptr;// NOTE: deleting a nullptr is safe as it has no effect
+        delete change_context_ptr->change_iter.iter_ptr;// deleting a nullptr is safe as it has no effect
         delete change_context_ptr;
     }
 }

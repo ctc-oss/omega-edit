@@ -37,16 +37,15 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
                                                           int64_t pattern_length, int64_t session_offset,
                                                           int64_t session_length, int case_insensitive,
                                                           int is_reverse_search) {
-    assert(session_ptr);
-    assert(pattern);
-    assert(0 <= session_offset);
+    if (!session_ptr || !pattern || session_offset < 0) { return nullptr; }
     pattern_length =
             pattern_length ? pattern_length : static_cast<int64_t>(strlen(reinterpret_cast<const char *>(pattern)));
-    assert(0 < pattern_length);
+    if (pattern_length <= 0) { return nullptr; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto session_length_computed = session_length ? session_length : computed_file_size - session_offset;
-    assert(0 <= session_length_computed);
-    assert(session_offset + session_length_computed <= computed_file_size);
+    if (session_length_computed < 0 || session_offset + session_length_computed > computed_file_size) {
+        return nullptr;
+    }
     if (pattern_length < OMEGA_SEARCH_PATTERN_LENGTH_LIMIT && pattern_length <= session_length_computed) {
         const auto match_context_ptr = std::make_shared<omega_search_context_t>();
         assert(match_context_ptr);
@@ -67,6 +66,10 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
         // create a skip table for patterns with lengths greater than 1 byte
         match_context_ptr->skip_table_ptr =
                 omega_find_create_skip_table(pattern_data_ptr, pattern_length, is_reverse_search);
+        if (!match_context_ptr->skip_table_ptr) {
+            omega_data_destroy(&match_context_ptr->pattern, pattern_length);
+            return nullptr;
+        }
         session_ptr->search_contexts_.push_back(match_context_ptr);
         return match_context_ptr.get();
     }
@@ -82,27 +85,27 @@ omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr
 }
 
 int omega_search_context_is_reverse_search(const omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
+    if (!search_context_ptr) { return 0; }
     return omega_find_is_reversed(search_context_ptr->skip_table_ptr);
 }
 
 int64_t omega_search_context_get_session_length(const omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
+    if (!search_context_ptr) { return 0; }
     return search_context_ptr->session_length;
 }
 
 int64_t omega_search_context_get_session_offset(const omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
+    if (!search_context_ptr) { return -1; }
     return search_context_ptr->session_offset;
 }
 
 int64_t omega_search_context_get_match_offset(const omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
+    if (!search_context_ptr) { return -1; }
     return search_context_ptr->match_offset;
 }
 
 int64_t omega_search_context_get_pattern_length(const omega_search_context_t *search_context_ptr) {
-    assert(search_context_ptr);
+    if (!search_context_ptr) { return 0; }
     return search_context_ptr->pattern_length;
 }
 
@@ -117,9 +120,7 @@ int64_t omega_search_context_get_pattern_length(const omega_search_context_t *se
  */
 int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t advance_context) {
     // Sanity checks for the arguments.
-    assert(search_context_ptr);
-    assert(search_context_ptr->session_ptr);
-    assert(0 <= advance_context);
+    if (!search_context_ptr || !search_context_ptr->session_ptr || advance_context < 0) { return 0; }
 
     // Calculate the last offset in the session. If we have no match, then this will be the match offset.
     const auto last_offset = search_context_ptr->session_offset + search_context_ptr->session_length;

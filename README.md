@@ -179,6 +179,8 @@ More information about the node packages can be found in the [packages](packages
 [Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS (Apple Silicon and x86), Windows (x86), and
 Linux (ARM, and x86; glibc 2.31 or greater required) are built and published via GitHub CI workflows.
 
+Known limitation: Windows client integration tests do not currently cover emoji filenames end-to-end, even though native filesystem coverage exists for those paths.
+
 ## Versioning
 
 Ωedit™ follows [Semantic Versioning](http://semver.org/). Version information is managed through a single source of truth in the `VERSION` file at the repository root. See [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) for details on updating versions across all components.

@@ -17,6 +17,25 @@ coverage:
   precision: 2
   round: down
   range: "85...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: 80%
+
+flags:
+  native:
+    paths:
+      - core/src/lib/
+      - core/src/include/
+    carryforward: true
+  client:
+    paths:
+      - packages/client/src/
+    carryforward: true
 
 parsers:
   gcov:
@@ -33,4 +52,9 @@ comment:
 
 ignore:
   - core/src/examples
-  - core/src/tests/integration/generate_file.cpp
+  - core/src/tests
+  - packages/client/tests
+  - server/
+  - "**/node_modules"
+  - "**/*.test.*"
+  - "**/*.spec.*"

@@ -292,6 +292,31 @@ describe('Editing', () => {
         await getSegment(session_id, 0, await getComputedFileSize(session_id))
       ).deep.equals(editedSegment)
     })
+
+    it('should reject failed multi-step edits without leaving a transaction open', async () => {
+      await overwrite(session_id, 0, Buffer.from('abc'))
+      const initialTransactionCount =
+        await getChangeTransactionCount(session_id)
+
+      let thrownError: Error | undefined
+      try {
+        await edit(session_id, 999, Buffer.from('ab'), Buffer.from('xyz'))
+      } catch (err) {
+        thrownError = err as Error
+      }
+
+      expect(thrownError).to.exist
+      expect(await getChangeTransactionCount(session_id)).to.equal(
+        initialTransactionCount
+      )
+
+      const changeSerial = await insert(session_id, 3, Buffer.from('d'))
+      expect(changeSerial).to.be.greaterThan(0)
+      expect(await getComputedFileSize(session_id)).to.equal(4)
+      expect(await getSegment(session_id, 0, 4)).to.deep.equal(
+        Buffer.from('abcd')
+      )
+    })
   })
 })
 

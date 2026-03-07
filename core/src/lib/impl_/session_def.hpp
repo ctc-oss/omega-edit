@@ -42,6 +42,7 @@ struct omega_session_struct {
     omega_search_contexts_t search_contexts_{};///< Collection of active search contexts
     omega_models_t models_{};                  ///< Edit models (internal)
     int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
+    int64_t undo_snapshot_interval_{100};      ///< Undo model snapshot interval (0 = disabled, default 100)
     int8_t session_flags_{};                   ///< Internal state flags
     std::string checkpoint_directory_{};       ///< Path to checkpoint directory
     std::string checkpoint_file_name_{};       ///< Name of session checkpoint file

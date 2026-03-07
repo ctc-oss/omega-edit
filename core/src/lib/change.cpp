@@ -21,34 +21,34 @@ static_assert(sizeof(omega_change_t) == sizeof(omega_change_struct), "omega_chan
 static_assert(sizeof(omega_change_t) == 40);
 
 int64_t omega_change_get_offset(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return -1; }
     return change_ptr->offset;
 }
 
 int64_t omega_change_get_length(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return 0; }
     return change_ptr->length;
 }
 
 int64_t omega_change_get_serial(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return 0; }
     return change_ptr->serial;
 }
 
 static inline const omega_byte_t *change_bytes_(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return nullptr; }
     return (omega_change_get_kind(change_ptr) != change_kind_t::CHANGE_DELETE)
            ? omega_data_get_data_const(&change_ptr->data, change_ptr->length)
            : nullptr;
 }
 
 const omega_byte_t *omega_change_get_bytes(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return nullptr; }
     return change_bytes_(change_ptr);
 }
 
 char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return '\0'; }
     switch (omega_change_get_kind(change_ptr)) {
         case change_kind_t::CHANGE_DELETE:
             return 'D';
@@ -62,11 +62,11 @@ char omega_change_get_kind_as_char(const omega_change_t *change_ptr) {
 }
 
 int omega_change_get_transaction_bit(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return 0; }
     return omega_change_get_transaction_bit_(change_ptr) ? 1 : 0;
 }
 
 int omega_change_is_undone(const omega_change_t *change_ptr) {
-    assert(change_ptr);
+    if (!change_ptr) { return 0; }
     return (0 < omega_change_get_serial(change_ptr)) ? 0 : 1;
 }

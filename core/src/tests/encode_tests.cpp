@@ -52,3 +52,18 @@ TEST_CASE("Encoding", "[EncodingTest]") {
     omega_encode_hex2bin("48656C6C6F20576F726C6421", decoded_buffer, strlen(encoded_buffer));
     REQUIRE_THAT(reinterpret_cast<const char *>(decoded_buffer), Equals(in_string));
 }
+
+TEST_CASE("Hex2Bin Odd Length", "[EncodingTest]") {
+    omega_byte_t decoded_buffer[1024];
+    // Odd-length hex string should return 0 (invalid)
+    REQUIRE(0 == omega_encode_hex2bin("48656", decoded_buffer, 5));
+    REQUIRE(0 == omega_encode_hex2bin("A", decoded_buffer, 1));
+    REQUIRE(0 == omega_encode_hex2bin("ABC", decoded_buffer, 3));
+    // Even-length should still work
+    REQUIRE(1 == omega_encode_hex2bin("48", decoded_buffer, 2));
+    REQUIRE(decoded_buffer[0] == 0x48);
+    // Zero length is even (0 & 1 == 0), should return 0 bytes decoded
+    REQUIRE(0 == omega_encode_hex2bin("", decoded_buffer, 0));
+    // Invalid hex characters should still return 0
+    REQUIRE(0 == omega_encode_hex2bin("GH", decoded_buffer, 2));
+}

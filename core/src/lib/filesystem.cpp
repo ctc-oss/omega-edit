@@ -26,7 +26,10 @@
 namespace fs = std::filesystem;
 
 int omega_util_mkstemp(char *tmpl, int mode) {
-    assert(tmpl);
+    if (!tmpl) {
+        errno = EINVAL;
+        return -1;
+    }
 
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     const size_t len = strlen(tmpl);
@@ -44,7 +47,6 @@ int omega_util_mkstemp(char *tmpl, int mode) {
 
     for (int count = 0; count < TMP_MAX; ++count) {
         for (size_t i = 0; i < 6; ++i) {
-            assert(template_end[i] == 'X');
             template_end[i] = letters[dist(gen)];
         }
 
@@ -62,44 +64,59 @@ int omega_util_mkstemp(char *tmpl, int mode) {
 }
 
 int omega_util_file_exists(const char *path) {
-    assert(path);
-    return (fs::is_regular_file(path)) ? 1 : 0;
+    if (!path || !*path) { return 0; }
+    try {
+        return (fs::is_regular_file(path)) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_directory_exists(const char *path) {
-    assert(path);
-    return (fs::is_directory(path)) ? 1 : 0;
+    if (!path || !*path) { return 0; }
+    try {
+        return (fs::is_directory(path)) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_create_directory(char const *path) {
-    assert(path);
-    return (fs::create_directories(path)) ? 0 : 1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::create_directories(path)) ? 0 : 1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_remove_file(char const *path) {
-    assert(path);
-    return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_remove_directory(char const *path) {
-    assert(path);
-    return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 uint64_t omega_util_remove_all(char const *path) {
-    assert(path);
-    return fs::remove_all(path);
+    if (!path || !*path) { return 0; }
+    try {
+        return fs::remove_all(path);
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int64_t omega_util_file_size(char const *path) {
-    assert(omega_util_file_exists(path));
-    return static_cast<int64_t>(fs::file_size(path));
+    if (!path || !*path) { return -1; }
+    try {
+        return fs::is_regular_file(path) ? static_cast<int64_t>(fs::file_size(path)) : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_paths_equivalent(char const *path1, char const *path2) {
-    assert(path1);
-    assert(path2);
-    return fs::equivalent(path1, path2) ? 1 : 0;
+    if (!path1 || !*path1 || !path2 || !*path2) { return 0; }
+    try {
+        return fs::equivalent(path1, path2) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_compare_files(const char *path1, const char *path2) {
@@ -132,8 +149,7 @@ int omega_util_compare_files(const char *path1, const char *path2) {
 }
 
 int omega_util_compare_modification_times(const char *path1, const char *path2) {
-    assert(path1);
-    assert(path2);
+    if (!path1 || !*path1 || !path2 || !*path2) { return -2; }
     const fs::path file1_path(path1);
     const fs::path file2_path(path2);
 
@@ -152,72 +168,65 @@ int omega_util_compare_modification_times(const char *path1, const char *path2) 
 }
 
 const char *omega_util_get_current_dir(char *buffer) {
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
     auto const path_str = fs::current_path().string();
-    assert(0 < path_str.length());
-    assert(FILENAME_MAX > path_str.length());
+    if (path_str.empty() || path_str.length() >= FILENAME_MAX) { return nullptr; }
     auto const len = path_str.copy(buffer, path_str.length());
-    assert(len == path_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_dirname(char const *path, char *buffer) {
-    assert(path);
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    if (!path || !*path) { return nullptr; }
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
     auto const dirname_str = fs::path(path).parent_path().string();
-    assert(0 <= dirname_str.length());
-    assert(FILENAME_MAX > dirname_str.length());
+    if (dirname_str.length() >= FILENAME_MAX) { return nullptr; }
     auto const len = dirname_str.copy(buffer, dirname_str.length());
-    assert(len == dirname_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_basename(char const *path, char *buffer, int drop_suffix) {
-    assert(path);
-    assert(0 < strlen(path));
-    assert(FILENAME_MAX > strlen(path));
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    if (!path || !*path) { return nullptr; }
+    if (strlen(path) >= FILENAME_MAX) { return nullptr; }
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
     auto const basename_str = (drop_suffix == 0) ? fs::path(path).filename().string() : fs::path(path).stem().string();
+    if (basename_str.length() >= FILENAME_MAX) { return nullptr; }
     auto const len = basename_str.copy(buffer, basename_str.length());
-    assert(len == basename_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_file_extension(char const *path, char *buffer) {
-    assert(path);
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    if (!path) { return nullptr; }
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
     auto const path_str = fs::path(path).extension().string();
-    assert(0 <= path_str.length());
-    assert(FILENAME_MAX > path_str.length());
+    if (path_str.length() >= FILENAME_MAX) { return nullptr; }
     auto const len = path_str.copy(buffer, path_str.length());
-    assert(len == path_str.length());
     buffer[len] = '\0';
     return buffer;
 }
 
 char *omega_util_normalize_path(char const *path, char *buffer) {
-    assert(path);
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    if (!path) { return nullptr; }
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
-    auto const absolute_path_str = fs::absolute(fs::canonical(path)).string();
-    assert(0 < absolute_path_str.length());
-    assert(FILENAME_MAX > absolute_path_str.length());
-    auto const len = absolute_path_str.copy(buffer, absolute_path_str.length());
-    assert(len == absolute_path_str.length());
-    buffer[len] = '\0';
-    return buffer;
+    try {
+        auto const absolute_path_str = fs::absolute(fs::canonical(path)).string();
+        if (absolute_path_str.empty() || absolute_path_str.length() >= FILENAME_MAX) { return nullptr; }
+        auto const len = absolute_path_str.copy(buffer, absolute_path_str.length());
+        buffer[len] = '\0';
+        return buffer;
+    } catch (const fs::filesystem_error &) { return nullptr; }
 }
 
 char *omega_util_available_filename(char const *path, char *buffer) {
-    assert(path);
-    static char buff[FILENAME_MAX]{};//create string buffer to hold path
+    if (!path) { return nullptr; }
+    static thread_local char buff[FILENAME_MAX]{};
     if (!buffer) { buffer = buff; }
     if (!omega_util_file_exists(path)) {
         // Use std::string instead of direct memcpy to properly handle multi-byte characters
@@ -239,9 +248,13 @@ char *omega_util_available_filename(char const *path, char *buffer) {
         return buffer;
     }
     int i = 0;
-    const std::string dirname(omega_util_dirname(path, nullptr));
-    const std::string extension(omega_util_file_extension(path, nullptr));
-    const std::string basename(omega_util_basename(path, nullptr, 1));
+    const char *dirname_cstr = omega_util_dirname(path, nullptr);
+    const char *extension_cstr = omega_util_file_extension(path, nullptr);
+    const char *basename_cstr = omega_util_basename(path, nullptr, 1);
+    if (!dirname_cstr || !extension_cstr || !basename_cstr) { return nullptr; }
+    const std::string dirname(dirname_cstr);
+    const std::string extension(extension_cstr);
+    const std::string basename(basename_cstr);
     do {
         if (++i >= 1000) {
             // stop after 999 filenames exist
@@ -258,8 +271,7 @@ char *omega_util_available_filename(char const *path, char *buffer) {
 }
 
 int omega_util_file_copy(const char *src_path, const char *dst_path, int mode) {
-    assert(src_path && strlen(src_path) > 0);
-    assert(dst_path && strlen(dst_path) > 0);
+    if (!src_path || !*src_path || !dst_path || !*dst_path) { return -1; }
 
     // Convert paths to fs::path objects
     fs::path src_fs_path(src_path);
@@ -306,7 +318,7 @@ char *omega_util_get_temp_directory() {
 }
 
 int omega_util_touch(const char *file_name, int create) {
-    assert(file_name);
+    if (!file_name) { return -1; }
 
     if (!omega_util_file_exists(file_name)) {
         if (create) {
