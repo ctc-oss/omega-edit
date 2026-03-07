@@ -16,8 +16,7 @@
 #include <assert.h>
 
 size_t omega_encode_bin2hex(const omega_byte_t *src, char *dst, size_t src_length) {
-    assert(src);
-    assert(dst);
+    if (!src || !dst) { return 0; }
     static const char HEX_CONVERSION_TABLE[] = "0123456789abcdef";
     size_t j = 0;
 

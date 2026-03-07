@@ -294,7 +294,8 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
         omega_byte_t last_profiled_byte = 0;
         int64_t dos_eol_count = 0;
         while (length) {
-            if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
+            const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
+            if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
             const auto profile_length = std::min(length, omega_segment_get_length(segment_ptr));
             const auto segment_data = omega_segment_get_data(segment_ptr);
             for (auto i = 0; i < profile_length; ++i) {
@@ -318,7 +319,8 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
-        if (const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset) != 0) { return rc; }
+        const auto rc = omega_session_get_segment(session_ptr, segment_ptr, offset);
+        if (rc != 0) { omega_segment_destroy(segment_ptr); return rc; }
         const auto segment_data = omega_segment_get_data(segment_ptr);
         const auto count_length = std::min(length, omega_segment_get_length(segment_ptr));
         omega_util_count_characters(segment_data, count_length, counts_ptr);

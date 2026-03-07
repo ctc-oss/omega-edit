@@ -540,6 +540,7 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
                                int64_t offset, int64_t length) {
+    if (!session_ptr || !transform) { return -1; }
     if ((omega_session_changes_paused(session_ptr) == 0) && 0 == omega_edit_create_checkpoint(session_ptr)) {
         const auto in_file = session_ptr->models_.back()->file_path;
         const auto out_file = in_file + "_";
@@ -809,6 +810,7 @@ int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
 }
 
 int omega_edit_create_checkpoint(omega_session_t *session_ptr) {
+    if (!session_ptr) { return -1; }
     const auto *const checkpoint_directory = omega_session_get_checkpoint_directory(session_ptr);
     // make sure the checkpoint directory exists
     if (omega_util_directory_exists(checkpoint_directory) == 0) {
