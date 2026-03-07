@@ -21,6 +21,7 @@
 #include "model_segment_def.hpp"
 #include "session_def.hpp"
 #include "viewport_def.hpp"
+#include <algorithm>
 #include <cassert>
 
 /**********************************************************************************************************************
@@ -31,20 +32,10 @@ static inline int64_t read_segment_from_file_(FILE *from_file_ptr, int64_t offse
                                               int64_t capacity) noexcept {
     assert(from_file_ptr);
     assert(buffer);
-    int64_t rc = -1;
-    if (0 == FSEEK(from_file_ptr, 0, SEEK_END)) {
-        const auto len = FTELL(from_file_ptr) - offset;
-        // make sure the offset does not exceed the file size
-        if (len > 0) {
-            // the length is going to be equal to what's left of the file, or the buffer capacity, whichever is less
-            const auto count = (len < capacity) ? len : capacity;
-            if (0 == FSEEK(from_file_ptr, offset, SEEK_SET) &&
-                count == static_cast<int64_t>(fread(buffer, sizeof(omega_byte_t), count, from_file_ptr))) {
-                rc = count;
-            }
-        }
-    }
-    return rc;
+    // The model guarantees read ranges are within the file, so skip the SEEK_END file-size check.
+    // If the file was externally truncated, fread returns fewer bytes which the caller detects.
+    if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
+    return static_cast<int64_t>(fread(buffer, sizeof(omega_byte_t), capacity, from_file_ptr));
 }
 
 int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr) noexcept {
@@ -57,59 +48,54 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
     const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
-    int64_t read_offset = 0;
+    // Binary search for the first segment that could contain data_segment_offset.
+    // Segments are contiguous and sorted by computed_offset, so upper_bound finds the first segment
+    // with computed_offset > data_segment_offset, and we step back one to get the containing segment.
+    auto iter = std::upper_bound(
+            model_ptr->model_segments.cbegin(), model_ptr->model_segments.cend(), data_segment_offset,
+            [](int64_t offset, const omega_model_segment_ptr_t &seg) { return offset < seg->computed_offset; });
+    if (iter != model_ptr->model_segments.cbegin()) { --iter; }
 
-    for (auto iter = model_ptr->model_segments.cbegin(); iter != model_ptr->model_segments.cend(); ++iter) {
-        if (read_offset != (*iter)->computed_offset) {
-            ABORT(print_model_segments_(session_ptr->models_.back().get(), CLOG);
-                          LOG_ERROR("break in model continuity, expected: " << read_offset
-                                                                            << ", got: " << (*iter)->computed_offset););
-        }
-        if (read_offset <= data_segment_offset && data_segment_offset <= read_offset + (*iter)->computed_length) {
-            // We're at the first model segment that intersects with the data segment, but the model segment and the
-            // data segment offsets are likely not aligned, so we need to compute how much of the segment to move past
-            // (the delta).
-            auto delta = data_segment_offset - (*iter)->computed_offset;
-            const auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
-            do {
-                // This is how much data remains to be filled
-                const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
-                auto amount = (*iter)->computed_length - delta;
-                amount = (amount > remaining_capacity) ? remaining_capacity : amount;
-                switch (omega_model_segment_get_kind(iter->get())) {
-                    case model_segment_kind_t::SEGMENT_READ:
-                        // For read segments, we're reading a segment, or portion thereof, from the input file and
-                        // writing it into the data segment
-                        if (read_segment_from_file_(session_ptr->models_.back()->file_ptr,
-                                                    (*iter)->change_offset + delta,
-                                                    data_segment_buffer + data_segment_ptr->length, amount) != amount) {
-                            return -1;
-                        }
-                        break;
-                    case model_segment_kind_t::SEGMENT_INSERT:
-                        // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
-                        // segment
-                        memcpy(data_segment_buffer + data_segment_ptr->length,
-                               omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
-                               amount);
-                        break;
-                    default:
-                        ABORT(LOG_ERROR("Unhandled model segment kind"););
+    // Verify the found segment contains the target offset
+    if (data_segment_offset > (*iter)->computed_offset + (*iter)->computed_length) { return -1; }
+
+    auto delta = data_segment_offset - (*iter)->computed_offset;
+    const auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
+    do {
+        // This is how much data remains to be filled
+        const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
+        auto amount = (*iter)->computed_length - delta;
+        amount = (amount > remaining_capacity) ? remaining_capacity : amount;
+        switch (omega_model_segment_get_kind(iter->get())) {
+            case model_segment_kind_t::SEGMENT_READ:
+                // For read segments, we're reading a segment, or portion thereof, from the input file and
+                // writing it into the data segment
+                if (read_segment_from_file_(session_ptr->models_.back()->file_ptr,
+                                            (*iter)->change_offset + delta,
+                                            data_segment_buffer + data_segment_ptr->length, amount) != amount) {
+                    return -1;
                 }
-                // Add the amount written to the data segment length
-                data_segment_ptr->length += amount;
-                // After the first segment is written, the dela should be zero from that point on
-                delta = 0;
-                // Keep writing segments until we run out of viewport capacity or run out of segments
-            } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
-            assert(data_segment_ptr->length <= data_segment_capacity);
-            // data segment buffer allocation is its capacity plus one, so we can null-terminate it
-            data_segment_buffer[data_segment_ptr->length] = '\0';
-            return 0;
+                break;
+            case model_segment_kind_t::SEGMENT_INSERT:
+                // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
+                // segment
+                memcpy(data_segment_buffer + data_segment_ptr->length,
+                       omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
+                       amount);
+                break;
+            default:
+                ABORT(LOG_ERROR("Unhandled model segment kind"););
         }
-        read_offset += (*iter)->computed_length;
-    }
-    return -1;
+        // Add the amount written to the data segment length
+        data_segment_ptr->length += amount;
+        // After the first segment is written, the delta should be zero from that point on
+        delta = 0;
+        // Keep writing segments until we run out of viewport capacity or run out of segments
+    } while (data_segment_ptr->length < data_segment_capacity && ++iter != model_ptr->model_segments.end());
+    assert(data_segment_ptr->length <= data_segment_capacity);
+    // data segment buffer allocation is its capacity plus one, so we can null-terminate it
+    data_segment_buffer[data_segment_ptr->length] = '\0';
+    return 0;
 }
 
 /**********************************************************************************************************************
