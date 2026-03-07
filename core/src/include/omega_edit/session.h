@@ -299,6 +299,23 @@ const char *omega_session_get_checkpoint_directory(const omega_session_t *sessio
  */
 int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *session_ptr);
 
+/**
+ * Given a session, return the undo model snapshot interval. When greater than zero, the session takes periodic
+ * snapshots of the model segments to accelerate undo operations. A value of 0 disables snapshots.
+ * @param session_ptr session to get the undo snapshot interval for
+ * @return undo snapshot interval (number of changes between snapshots), or 0 if disabled/null
+ */
+int64_t omega_session_get_undo_snapshot_interval(const omega_session_t *session_ptr);
+
+/**
+ * Set the undo model snapshot interval for a session. When greater than zero, the session takes periodic snapshots
+ * of the model segments to accelerate undo operations. A value of 0 disables snapshots.
+ * @param session_ptr session to set the undo snapshot interval for
+ * @param interval number of changes between snapshots (0 to disable)
+ * @return the new interval, or 0 on error
+ */
+int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, int64_t interval);
+
 #ifdef __cplusplus
 }
 #endif

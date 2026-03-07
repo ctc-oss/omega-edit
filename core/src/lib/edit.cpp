@@ -180,7 +180,15 @@ namespace {
         return result;
     }
 
+    inline auto clone_model_segments_(const omega_model_segments_t &segments) -> omega_model_segments_t {
+        omega_model_segments_t result;
+        result.reserve(segments.size());
+        for (const auto &seg: segments) { result.push_back(clone_model_segment_(seg)); }
+        return result;
+    }
+
     inline void free_model_changes_(omega_model_struct *model_ptr) {
+        model_ptr->model_snapshots.clear();
         for (const auto &change_ptr: model_ptr->changes) {
             if (omega_change_get_kind(change_ptr.get()) != change_kind_t::CHANGE_DELETE) {
                 omega_data_destroy(&const_cast<omega_change_t *>(change_ptr.get())->data, change_ptr->length);
@@ -325,6 +333,14 @@ namespace {
             }
             session_ptr->models_.back()->changes.push_back(change_ptr);
             if (0 != update_model_(session_ptr, change_ptr)) { return -1; }
+            // Take a periodic snapshot of model segments to accelerate future undo operations
+            if (session_ptr->undo_snapshot_interval_ > 0) {
+                const auto count = static_cast<int64_t>(session_ptr->models_.back()->changes.size());
+                if (count % session_ptr->undo_snapshot_interval_ == 0) {
+                    session_ptr->models_.back()->model_snapshots[count] =
+                            clone_model_segments_(session_ptr->models_.back()->model_segments);
+                }
+            }
             update_viewports_(session_ptr, change_ptr.get());
             omega_session_notify(session_ptr, SESSION_EVT_EDIT, change_ptr.get());
             return omega_change_get_serial(change_ptr.get());
@@ -756,14 +772,39 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
         session_ptr->models_.back()->changes.pop_back();
-        int64_t length = 0;
-        if (session_ptr->models_.back()->file_ptr != nullptr) {
-            if (0 != FSEEK(session_ptr->models_.back()->file_ptr, 0L, SEEK_END)) { return -1; }
-            length = FTELL(session_ptr->models_.back()->file_ptr);
+        const auto remaining_count = static_cast<int64_t>(session_ptr->models_.back()->changes.size());
+
+        // Invalidate any snapshots beyond the current change count
+        auto &snapshots = session_ptr->models_.back()->model_snapshots;
+        auto cleanup_it = snapshots.upper_bound(remaining_count);
+        snapshots.erase(cleanup_it, snapshots.end());
+
+        // Find the nearest snapshot at or before the remaining change count to minimize replay
+        int64_t replay_from = 0;
+        if (!snapshots.empty()) {
+            auto snap_it = snapshots.upper_bound(remaining_count);
+            if (snap_it != snapshots.begin()) {
+                --snap_it;
+                session_ptr->models_.back()->model_segments = clone_model_segments_(snap_it->second);
+                replay_from = snap_it->first;
+            } else {
+                int64_t length = 0;
+                if (session_ptr->models_.back()->file_ptr != nullptr) {
+                    if (0 != FSEEK(session_ptr->models_.back()->file_ptr, 0L, SEEK_END)) { return -1; }
+                    length = FTELL(session_ptr->models_.back()->file_ptr);
+                }
+                initialize_model_segments_(session_ptr->models_.back()->model_segments, length);
+            }
+        } else {
+            int64_t length = 0;
+            if (session_ptr->models_.back()->file_ptr != nullptr) {
+                if (0 != FSEEK(session_ptr->models_.back()->file_ptr, 0L, SEEK_END)) { return -1; }
+                length = FTELL(session_ptr->models_.back()->file_ptr);
+            }
+            initialize_model_segments_(session_ptr->models_.back()->model_segments, length);
         }
-        initialize_model_segments_(session_ptr->models_.back()->model_segments, length);
-        for (const auto &change: session_ptr->models_.back()->changes) {
-            if (0 > update_model_(session_ptr, change)) { return -1; }
+        for (auto i = replay_from; i < remaining_count; ++i) {
+            if (0 > update_model_(session_ptr, session_ptr->models_.back()->changes[i])) { return -1; }
         }
 
         // Negate the undone change's serial number to indicate that the change has been undone

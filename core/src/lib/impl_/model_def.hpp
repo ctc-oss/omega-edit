@@ -18,6 +18,7 @@
 #include "internal_fwd_defs.hpp"
 #include "model_segment_def.hpp"
 #include <cstdio>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ struct omega_model_struct {
     omega_changes_t changes{};              ///< Collection of changes for this session, ordered by time
     omega_changes_t changes_undone{};       ///< Undone changes that are eligible for being redone
     omega_model_segments_t model_segments{};///< Model segment vector
+    std::map<int64_t, omega_model_segments_t> model_snapshots{};///< Periodic model snapshots for fast undo
 };
 
 #endif//OMEGA_EDIT_MODEL_DEF_HPP

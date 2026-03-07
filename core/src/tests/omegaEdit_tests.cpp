@@ -1028,3 +1028,57 @@ TEST_CASE("Segment Small Data Optimization", "[SegmentTests]") {
     REQUIRE(nullptr == omega_segment_create(-1));
     REQUIRE(nullptr == omega_segment_create(-100));
 }
+
+TEST_CASE("Undo Snapshot Optimization", "[UndoTests]") {
+    // Create a session with a small snapshot interval to exercise snapshot-accelerated undo
+    auto *session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    // Default interval should be 100
+    REQUIRE(100 == omega_session_get_undo_snapshot_interval(session_ptr));
+
+    // Set a small interval for testing
+    REQUIRE(3 == omega_session_set_undo_snapshot_interval(session_ptr, 3));
+    REQUIRE(3 == omega_session_get_undo_snapshot_interval(session_ptr));
+
+    // Insert 10 changes (snapshots taken at changes 3, 6, 9)
+    for (int i = 0; i < 10; ++i) {
+        char buf[4];
+        snprintf(buf, sizeof(buf), "%c", 'A' + i);
+        REQUIRE(0 < omega_edit_insert(session_ptr, omega_session_get_computed_file_size(session_ptr), buf, 1));
+    }
+    REQUIRE(10 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(10 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    // Undo all changes one at a time, verifying model integrity at each step
+    for (int i = 10; i > 0; --i) {
+        REQUIRE(i * -1 == omega_edit_undo_last_change(session_ptr));
+        REQUIRE(i - 1 == omega_session_get_num_changes(session_ptr));
+        REQUIRE(i - 1 == omega_session_get_computed_file_size(session_ptr));
+        REQUIRE(0 == omega_check_model(session_ptr));
+    }
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+
+    // Redo all changes
+    for (int i = 0; i < 10; ++i) {
+        REQUIRE(0 < omega_edit_redo_last_undo(session_ptr));
+        REQUIRE(0 == omega_check_model(session_ptr));
+    }
+    REQUIRE(10 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(10 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    // Disable snapshots and verify undo still works (falls back to full replay)
+    REQUIRE(0 == omega_session_set_undo_snapshot_interval(session_ptr, 0));
+    REQUIRE(0 == omega_session_get_undo_snapshot_interval(session_ptr));
+    REQUIRE(-10 == omega_edit_undo_last_change(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    // Invalid interval should be rejected
+    REQUIRE(0 == omega_session_set_undo_snapshot_interval(nullptr, 100));
+    REQUIRE(0 == omega_session_set_undo_snapshot_interval(session_ptr, -1));
+
+    omega_edit_destroy_session(session_ptr);
+}

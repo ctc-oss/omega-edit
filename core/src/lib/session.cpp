@@ -341,6 +341,17 @@ int64_t omega_session_get_checkpoint_directory_length(const omega_session_t *ses
     return session_ptr->checkpoint_directory_.length();
 }
 
+int64_t omega_session_get_undo_snapshot_interval(const omega_session_t *session_ptr) {
+    if (!session_ptr) { return 0; }
+    return session_ptr->undo_snapshot_interval_;
+}
+
+int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, int64_t interval) {
+    if (!session_ptr || interval < 0) { return 0; }
+    session_ptr->undo_snapshot_interval_ = interval;
+    return session_ptr->undo_snapshot_interval_;
+}
+
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->changes.empty()) ||
            omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());
