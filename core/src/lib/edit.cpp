@@ -48,6 +48,9 @@
 #endif
 
 namespace {
+    // 64KB I/O buffer for save and transform operations — reduces system-call overhead vs BUFSIZ (~8KB)
+    constexpr int64_t OMEGA_IO_BUFFER_SIZE = 65536;
+
     void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) {
         model_segments.clear();
         if (0 < length) {
@@ -368,22 +371,35 @@ namespace {
         }
     }
 
-    // Write a segment from a source file to a destination file, optionally applying a byte transform to bytes that
-    // fall within the transform range [transform_file_begin, transform_file_end). file_write_pos tracks the current
-    // position in the output file for range calculations. When transform is null, behaves identically to
-    // omega_util_write_segment_to_file.
-    int64_t write_segment_to_file_transformed_(FILE *from_file_ptr, int64_t offset, int64_t byte_count,
-                                               FILE *to_file_ptr, int64_t file_write_pos,
-                                               omega_util_byte_transform_t transform, void *user_data_ptr,
-                                               int64_t transform_file_begin, int64_t transform_file_end) {
+    // Write a file segment to the output file using the larger I/O buffer
+    int64_t write_file_segment_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr,
+                                omega_byte_t *io_buf) {
         if (!from_file_ptr || !to_file_ptr) { return -1; }
         if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
         int64_t remaining = byte_count;
-        omega_byte_t buff[BUFSIZ];
         while (remaining) {
-            const int64_t count = static_cast<int64_t>(sizeof(buff)) > remaining ? remaining
-                                                                                 : static_cast<int64_t>(sizeof(buff));
-            if (count != static_cast<int64_t>(fread(buff, sizeof(omega_byte_t), count, from_file_ptr))) { break; }
+            const auto count = std::min(remaining, OMEGA_IO_BUFFER_SIZE);
+            if (count != static_cast<int64_t>(fread(io_buf, sizeof(omega_byte_t), count, from_file_ptr)) ||
+                count != static_cast<int64_t>(fwrite(io_buf, sizeof(omega_byte_t), count, to_file_ptr))) { break; }
+            remaining -= count;
+        }
+        return byte_count - remaining;
+    }
+
+    // Write a segment from a source file to a destination file, applying a byte transform to bytes that
+    // fall within the transform range [transform_file_begin, transform_file_end). file_write_pos tracks the current
+    // position in the output file for range calculations.
+    int64_t write_segment_to_file_transformed_(FILE *from_file_ptr, int64_t offset, int64_t byte_count,
+                                               FILE *to_file_ptr, int64_t file_write_pos,
+                                               omega_util_byte_transform_t transform, void *user_data_ptr,
+                                               int64_t transform_file_begin, int64_t transform_file_end,
+                                               omega_byte_t *io_buf) {
+        if (!from_file_ptr || !to_file_ptr) { return -1; }
+        if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
+        int64_t remaining = byte_count;
+        while (remaining) {
+            const auto count = std::min(remaining, OMEGA_IO_BUFFER_SIZE);
+            if (count != static_cast<int64_t>(fread(io_buf, sizeof(omega_byte_t), count, from_file_ptr))) { break; }
             if (transform) {
                 // Determine which portion of this buffer overlaps the transform range
                 const auto buf_begin = file_write_pos;
@@ -391,10 +407,10 @@ namespace {
                 if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
                     const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
                     const auto t_end = std::min(transform_file_end - buf_begin, count);
-                    omega_util_apply_byte_transform(buff + t_start, t_end - t_start, transform, user_data_ptr);
+                    omega_util_apply_byte_transform(io_buf + t_start, t_end - t_start, transform, user_data_ptr);
                 }
             }
-            if (count != static_cast<int64_t>(fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr))) { break; }
+            if (count != static_cast<int64_t>(fwrite(io_buf, sizeof(omega_byte_t), count, to_file_ptr))) { break; }
             remaining -= count;
             file_write_pos += count;
         }
@@ -420,6 +436,7 @@ namespace {
             LOG_ERRNO();
             return -1;
         }
+        const auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
         int64_t write_offset = 0;
         int64_t file_write_pos = 0;
         for (const auto &segment: session_ptr->models_.back()->model_segments) {
@@ -435,7 +452,8 @@ namespace {
                     if (write_segment_to_file_transformed_(
                                 session_ptr->models_.back()->file_ptr,
                                 segment->change_offset, segment->computed_length, temp_fptr, file_write_pos, transform,
-                                user_data_ptr, transform_file_begin, transform_file_end) != segment->computed_length) {
+                                user_data_ptr, transform_file_begin, transform_file_end,
+                                io_buf.get()) != segment->computed_length) {
                         FCLOSE(temp_fptr);
                         LOG_ERROR("write_segment_to_file_transformed_ failed");
                         return -1;
@@ -448,22 +466,20 @@ namespace {
                     // Check if any part of this segment overlaps the transform range
                     if (file_write_pos < transform_file_end && file_write_pos + len > transform_file_begin) {
                         // Need a mutable copy so we can apply the transform in-place
-                        omega_byte_t buf[BUFSIZ];
                         int64_t seg_remaining = len;
                         int64_t seg_offset = 0;
                         while (seg_remaining > 0) {
-                            const auto chunk =
-                                    std::min(seg_remaining, static_cast<int64_t>(sizeof(buf)));
-                            memcpy(buf, src + seg_offset, chunk);
+                            const auto chunk = std::min(seg_remaining, OMEGA_IO_BUFFER_SIZE);
+                            memcpy(io_buf.get(), src + seg_offset, chunk);
                             const auto buf_begin = file_write_pos + seg_offset;
                             const auto buf_end = buf_begin + chunk;
                             if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
                                 const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
                                 const auto t_end = std::min(transform_file_end - buf_begin, chunk);
-                                omega_util_apply_byte_transform(buf + t_start, t_end - t_start, transform,
+                                omega_util_apply_byte_transform(io_buf.get() + t_start, t_end - t_start, transform,
                                                                 user_data_ptr);
                             }
-                            if (static_cast<int64_t>(fwrite(buf, 1, chunk, temp_fptr)) != chunk) {
+                            if (static_cast<int64_t>(fwrite(io_buf.get(), 1, chunk, temp_fptr)) != chunk) {
                                 FCLOSE(temp_fptr);
                                 LOG_ERROR("fwrite failed");
                                 return -1;
@@ -796,37 +812,37 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         omega_util_remove_file(temp_filename);
         return -5;
     }
-    int64_t write_offset = 0;
+    const auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     int64_t bytes_written = 0;
-    for (const auto &segment: session_ptr->models_.back()->model_segments) {
-        if (write_offset != segment->computed_offset) {
-            ABORT(LOG_ERROR("break in model continuity, expected: " << write_offset
-                                                                    << ", got: " << segment->computed_offset););
-        }
-        // Skip this iteration if the segment is entirely before the start offset
-        if (write_offset + segment->computed_length <= offset) {
-            write_offset += segment->computed_length;
-            continue;
-        }
 
-        // Break the loop if we've written all the data that needs to be written
-        if (bytes_written >= adjusted_length) { break; }
+    // Binary search for the first segment that could contain data at 'offset'.
+    // Segments are contiguous and sorted by computed_offset.
+    const auto &segments = session_ptr->models_.back()->model_segments;
+    auto seg_iter = std::upper_bound(
+            segments.cbegin(), segments.cend(), offset,
+            [](int64_t off, const omega_model_segment_ptr_t &seg) { return off < seg->computed_offset; });
+    if (seg_iter != segments.cbegin()) { --seg_iter; }
+
+    for (; seg_iter != segments.cend() && bytes_written < adjusted_length; ++seg_iter) {
+        const auto &segment = *seg_iter;
+        // Skip this iteration if the segment is entirely before the start offset
+        if (segment->computed_offset + segment->computed_length <= offset) { continue; }
 
         // Calculate how much to write from this segment
-        auto segment_start = std::max(offset - write_offset, int64_t(0));
-        auto segment_length = std::min(adjusted_length - bytes_written, segment->computed_length - segment_start);
+        const auto segment_start = std::max(offset - segment->computed_offset, int64_t(0));
+        const auto segment_length = std::min(adjusted_length - bytes_written, segment->computed_length - segment_start);
 
         switch (omega_model_segment_get_kind(segment.get())) {
             case model_segment_kind_t::SEGMENT_READ: {
                 if (session_ptr->models_.back()->file_ptr == nullptr) {
                     ABORT(LOG_ERROR("attempt to read segment from null file pointer"););
                 }
-                if (omega_util_write_segment_to_file(session_ptr->models_.back()->file_ptr,
-                                                     segment->change_offset + segment_start, segment_length,
-                                                     temp_fptr) != segment_length) {
+                if (write_file_segment_(session_ptr->models_.back()->file_ptr,
+                                        segment->change_offset + segment_start, segment_length,
+                                        temp_fptr, io_buf.get()) != segment_length) {
                     FCLOSE(temp_fptr);
                     omega_util_remove_file(temp_filename);
-                    LOG_ERROR("omega_util_write_segment_to_file failed");
+                    LOG_ERROR("write_file_segment_ failed");
                     return -6;
                 }
                 break;
@@ -845,7 +861,6 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
             default:
                 ABORT(LOG_ERROR("Unhandled segment kind"););
         }
-        write_offset += segment->computed_length;
         bytes_written += segment_length;
     }
     FCLOSE(temp_fptr);

@@ -67,15 +67,34 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
         auto amount = (*iter)->computed_length - delta;
         amount = (amount > remaining_capacity) ? remaining_capacity : amount;
         switch (omega_model_segment_get_kind(iter->get())) {
-            case model_segment_kind_t::SEGMENT_READ:
+            case model_segment_kind_t::SEGMENT_READ: {
                 // For read segments, we're reading a segment, or portion thereof, from the input file and
-                // writing it into the data segment
+                // writing it into the data segment.
+                // Coalesce with consecutive READ segments that are contiguous in the source file to reduce
+                // the number of fread system calls.
+                auto file_offset = (*iter)->change_offset + delta;
+                auto coalesced = amount;
+                auto peek = iter;
+                while (coalesced < remaining_capacity && ++peek != model_ptr->model_segments.end() &&
+                       omega_model_segment_get_kind(peek->get()) == model_segment_kind_t::SEGMENT_READ &&
+                       (*peek)->change_offset == file_offset + coalesced) {
+                    const auto peek_amount = (std::min)(remaining_capacity - coalesced, (*peek)->computed_length);
+                    coalesced += peek_amount;
+                    // Only advance iter if we consumed the entire peek segment
+                    if (peek_amount == (*peek)->computed_length) {
+                        iter = peek;
+                    } else {
+                        break;
+                    }
+                }
                 if (read_segment_from_file_(session_ptr->models_.back()->file_ptr,
-                                            (*iter)->change_offset + delta,
-                                            data_segment_buffer + data_segment_ptr->length, amount) != amount) {
+                                            file_offset,
+                                            data_segment_buffer + data_segment_ptr->length, coalesced) != coalesced) {
                     return -1;
                 }
+                amount = coalesced;
                 break;
+            }
             case model_segment_kind_t::SEGMENT_INSERT:
                 // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
                 // segment
