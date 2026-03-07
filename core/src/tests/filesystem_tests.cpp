@@ -324,9 +324,18 @@ TEST_CASE("Null Pointer Safety - Filesystem", "[NullSafety]") {
 
     // normalize_path null safety
     REQUIRE(nullptr == omega_util_normalize_path(nullptr, nullptr));
+    REQUIRE(nullptr == omega_util_normalize_path("IDonTExist.DaT", nullptr));
 
     // available_filename null safety
     REQUIRE(nullptr == omega_util_available_filename(nullptr, nullptr));
+
+    // file_size invalid path handling
+    REQUIRE(-1 == omega_util_file_size(nullptr));
+    REQUIRE(-1 == omega_util_file_size("IDonTExist.DaT"));
+
+    // paths_equivalent invalid path handling
+    REQUIRE(0 == omega_util_paths_equivalent(nullptr, nullptr));
+    REQUIRE(0 == omega_util_paths_equivalent(MAKE_PATH("test1.dat"), "IDonTExist.DaT"));
 
     // file_copy null safety
     REQUIRE(-1 == omega_util_file_copy(nullptr, nullptr, 0));

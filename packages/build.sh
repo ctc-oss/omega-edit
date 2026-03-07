@@ -22,7 +22,7 @@ yarn_link_client_dir=$yarn_link_dir/client
 yarn_link_server_dir=$yarn_link_dir/server
 
 client_src=$link_script_dir/client
-client_out=$client_src/out
+client_out=$client_src/dist
 
 server_src=$link_script_dir/server
 server_out=$server_src/out

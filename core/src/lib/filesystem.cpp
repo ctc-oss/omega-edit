@@ -26,7 +26,10 @@
 namespace fs = std::filesystem;
 
 int omega_util_mkstemp(char *tmpl, int mode) {
-    assert(tmpl);
+    if (!tmpl) {
+        errno = EINVAL;
+        return -1;
+    }
 
     static const char letters[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     const size_t len = strlen(tmpl);
@@ -61,44 +64,59 @@ int omega_util_mkstemp(char *tmpl, int mode) {
 }
 
 int omega_util_file_exists(const char *path) {
-    assert(path);
-    return (fs::is_regular_file(path)) ? 1 : 0;
+    if (!path || !*path) { return 0; }
+    try {
+        return (fs::is_regular_file(path)) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_directory_exists(const char *path) {
-    assert(path);
-    return (fs::is_directory(path)) ? 1 : 0;
+    if (!path || !*path) { return 0; }
+    try {
+        return (fs::is_directory(path)) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_create_directory(char const *path) {
-    assert(path);
-    return (fs::create_directories(path)) ? 0 : 1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::create_directories(path)) ? 0 : 1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_remove_file(char const *path) {
-    assert(path);
-    return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::is_regular_file(path) && fs::remove(path)) ? 0 : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_remove_directory(char const *path) {
-    assert(path);
-    return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1;
+    if (!path || !*path) { return -1; }
+    try {
+        return (fs::is_directory(path) && fs::remove(path)) ? 0 : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 uint64_t omega_util_remove_all(char const *path) {
-    assert(path);
-    return fs::remove_all(path);
+    if (!path || !*path) { return 0; }
+    try {
+        return fs::remove_all(path);
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int64_t omega_util_file_size(char const *path) {
-    assert(omega_util_file_exists(path));
-    return static_cast<int64_t>(fs::file_size(path));
+    if (!path || !*path) { return -1; }
+    try {
+        return fs::is_regular_file(path) ? static_cast<int64_t>(fs::file_size(path)) : -1;
+    } catch (const fs::filesystem_error &) { return -1; }
 }
 
 int omega_util_paths_equivalent(char const *path1, char const *path2) {
-    assert(path1);
-    assert(path2);
-    return fs::equivalent(path1, path2) ? 1 : 0;
+    if (!path1 || !*path1 || !path2 || !*path2) { return 0; }
+    try {
+        return fs::equivalent(path1, path2) ? 1 : 0;
+    } catch (const fs::filesystem_error &) { return 0; }
 }
 
 int omega_util_compare_files(const char *path1, const char *path2) {
@@ -131,8 +149,7 @@ int omega_util_compare_files(const char *path1, const char *path2) {
 }
 
 int omega_util_compare_modification_times(const char *path1, const char *path2) {
-    assert(path1);
-    assert(path2);
+    if (!path1 || !*path1 || !path2 || !*path2) { return -2; }
     const fs::path file1_path(path1);
     const fs::path file2_path(path2);
 

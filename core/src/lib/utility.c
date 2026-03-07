@@ -219,7 +219,10 @@ int omega_util_strncmp(const char *s1, const char *s2, uint64_t sz) {
 int omega_util_strnicmp(const char *s1, const char *s2, uint64_t sz) {
     if (!s1 || !s2) { return s1 == s2 ? 0 : (s1 ? 1 : -1); }
     int rc = 0;
-    for (uint64_t i = 0; i < sz; ++i) { if (0 != (rc = tolower(s1[i]) - tolower(s2[i]))) break; }
+    for (uint64_t i = 0; i < sz; ++i) {
+        if (0 !=
+            (rc = tolower((unsigned char) s1[i]) - tolower((unsigned char) s2[i]))) { break; }
+    }
     return rc;
 }
 

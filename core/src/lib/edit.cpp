@@ -51,6 +51,67 @@ namespace {
     // 64KB I/O buffer for save and transform operations — reduces system-call overhead vs BUFSIZ (~8KB)
     constexpr int64_t OMEGA_IO_BUFFER_SIZE = 65536;
 
+    auto reserve_output_path_(const char *requested_path, int mode, char *reserved_path, size_t reserved_path_size)
+            -> FILE * {
+        if (!requested_path || !*requested_path || !reserved_path || reserved_path_size == 0) {
+            errno = EINVAL;
+            return nullptr;
+        }
+
+        auto open_reserved_path = [mode](const char *candidate) -> FILE * {
+            const auto fd = OPEN(candidate, O_CREAT | O_EXCL | O_WRONLY | O_BINARY, mode);
+            if (fd < 0) { return nullptr; }
+            CLOSE(fd);
+            const auto file_ptr = FOPEN(candidate, "wb");
+            if (!file_ptr) {
+                omega_util_remove_file(candidate);
+                return nullptr;
+            }
+            return file_ptr;
+        };
+
+        auto copy_reserved_path = [reserved_path, reserved_path_size](const char *candidate) {
+            const auto path_len = strlen(candidate);
+            if (path_len >= reserved_path_size) {
+                errno = ENAMETOOLONG;
+                return false;
+            }
+            memcpy(reserved_path, candidate, path_len + 1);
+            return true;
+        };
+
+        if (copy_reserved_path(requested_path)) {
+            if (const auto file_ptr = open_reserved_path(reserved_path)) { return file_ptr; }
+            if (errno != EEXIST) { return nullptr; }
+        }
+
+        const auto *const dirname = omega_util_dirname(requested_path, nullptr);
+        const auto *const extension = omega_util_file_extension(requested_path, nullptr);
+        const auto *const basename = omega_util_basename(requested_path, nullptr, 1);
+        if (!dirname || !extension || !basename) {
+            errno = EINVAL;
+            return nullptr;
+        }
+
+        for (int suffix = 1; suffix < 1000; ++suffix) {
+            const auto count = dirname[0] != '\0'
+                               ? snprintf(reserved_path, reserved_path_size, "%s%c%s-%d%s",
+                                          dirname, omega_util_directory_separator(), basename, suffix, extension)
+                               : snprintf(reserved_path, reserved_path_size, "%s-%d%s",
+                                          basename, suffix, extension);
+            if (count < 0 || static_cast<size_t>(count) >= reserved_path_size) {
+                errno = ENAMETOOLONG;
+                return nullptr;
+            }
+
+            if (const auto file_ptr = open_reserved_path(reserved_path)) { return file_ptr; }
+            if (errno != EEXIST) { return nullptr; }
+        }
+
+        errno = EEXIST;
+        return nullptr;
+    }
+
     void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length) {
         model_segments.clear();
         if (0 < length) {
@@ -556,6 +617,11 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
         }
         const auto mode = 0600;// S_IRUSR | S_IWUSR
         const auto checkpoint_fd = omega_util_mkstemp(static_cast<char *>(checkpoint_filename), mode);
+        if (checkpoint_fd < 0) {
+            LOG_ERROR("omega_util_mkstemp failed for original checkpoint file '"
+                      << static_cast<char *>(checkpoint_filename) << "'");
+            return nullptr;
+        }
         close(checkpoint_fd);
         if (0 != omega_util_file_copy(file_path, static_cast<char *>(checkpoint_filename), mode)) {
             LOG_ERROR("failed to copy original file '" << file_path << "' to checkpoint file '"
@@ -767,10 +833,12 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         return -1;
     }
     char temp_filename[FILENAME_MAX + 1];
+    char reserved_output_path[FILENAME_MAX + 1];
     const auto force_overwrite = io_flags & omega_io_flags_t::IO_FLG_FORCE_OVERWRITE;
     const auto overwrite = force_overwrite || io_flags & omega_io_flags_t::IO_FLG_OVERWRITE;
     const auto *const session_file_path = omega_session_get_file_path(session_ptr);
     const auto *const checkpoint_file = session_ptr->checkpoint_file_name_.c_str();
+    const auto mode = omega_util_compute_mode(0666);// S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
     if (saved_file_path != nullptr) { saved_file_path[0] = '\0'; }
 
     // If overwrite is requested and the file path is the same as the original session file, then overwrite_original
@@ -792,32 +860,47 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     omega_util_dirname(file_path, temp_filename);
     if (!temp_filename[0]) { omega_util_get_current_dir(temp_filename); }
     if ((omega_util_directory_exists(temp_filename) == 0) && 0 != omega_util_create_directory(temp_filename)) {
-        LOG_ERROR("failed to create directory: " << omega_util_normalize_path(temp_filename, nullptr));
+        LOG_ERROR("failed to create directory: " << temp_filename);
         return -2;
     }
-    errno = 0;// reset errno
-    const auto temp_filename_str = std::string(temp_filename);
-    const auto count = temp_filename_str.empty()
-                       ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
-                       : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
-                                  temp_filename_str.c_str(), omega_util_directory_separator());
-    if (count < 0 || FILENAME_MAX <= count) {
-        LOG_ERRNO();
-        return -3;
-    }
-    const auto mode = omega_util_compute_mode(0666);// S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
-    const auto temp_fd = omega_util_mkstemp(temp_filename, mode);
-    if (temp_fd < 0) {
-        LOG_ERROR("mkstemp failed, temp filename: " << temp_filename);
-        LOG_ERRNO();
-        return -4;
-    }
-    CLOSE(temp_fd);
-    const auto temp_fptr = FOPEN(temp_filename, "wb");
-    if (!temp_fptr) {
-        LOG_ERRNO();
-        omega_util_remove_file(temp_filename);
-        return -5;
+    const auto *output_path = file_path;
+    auto cleanup_output = false;
+    FILE *temp_fptr = nullptr;
+    if (overwrite) {
+        errno = 0;// reset errno
+        const auto temp_filename_str = std::string(temp_filename);
+        const auto count = temp_filename_str.empty()
+                           ? snprintf(temp_filename, FILENAME_MAX, ".OmegaEdit_XXXXXX")
+                           : snprintf(temp_filename, FILENAME_MAX, "%s%c.OmegaEdit_XXXXXX",
+                                      temp_filename_str.c_str(), omega_util_directory_separator());
+        if (count < 0 || FILENAME_MAX <= count) {
+            LOG_ERRNO();
+            return -3;
+        }
+        const auto temp_fd = omega_util_mkstemp(temp_filename, mode);
+        if (temp_fd < 0) {
+            LOG_ERROR("mkstemp failed, temp filename: " << temp_filename);
+            LOG_ERRNO();
+            return -4;
+        }
+        CLOSE(temp_fd);
+        temp_fptr = FOPEN(temp_filename, "wb");
+        if (!temp_fptr) {
+            LOG_ERRNO();
+            omega_util_remove_file(temp_filename);
+            return -5;
+        }
+        output_path = temp_filename;
+        cleanup_output = true;
+    } else {
+        temp_fptr = reserve_output_path_(file_path, mode, reserved_output_path, sizeof(reserved_output_path));
+        if (!temp_fptr) {
+            LOG_ERROR("failed to reserve unique output file for '" << file_path << "'");
+            LOG_ERRNO();
+            return -4;
+        }
+        output_path = reserved_output_path;
+        cleanup_output = true;
     }
     const auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
     int64_t bytes_written = 0;
@@ -848,7 +931,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
                                         segment->change_offset + segment_start, segment_length,
                                         temp_fptr, io_buf.get()) != segment_length) {
                     FCLOSE(temp_fptr);
-                    omega_util_remove_file(temp_filename);
+                    if (cleanup_output) { omega_util_remove_file(output_path); }
                     LOG_ERROR("write_file_segment_ failed");
                     return -6;
                 }
@@ -859,7 +942,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
                                                 segment->change_offset + segment_start,
                                                 1, segment_length, temp_fptr)) != segment_length) {
                     FCLOSE(temp_fptr);
-                    omega_util_remove_file(temp_filename);
+                    if (cleanup_output) { omega_util_remove_file(output_path); }
                     LOG_ERROR("fwrite failed");
                     return -7;
                 }
@@ -873,30 +956,31 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
     FCLOSE(temp_fptr);
     if (bytes_written != adjusted_length) {
         LOG_ERROR("failed to write all requested bytes, expected: " << adjusted_length << ", got: " << bytes_written);
-        omega_util_remove_file(temp_filename);
+        if (cleanup_output) { omega_util_remove_file(output_path); }
         return -8;
     }
-    if (bytes_written != omega_util_file_size(temp_filename)) {
-        LOG_ERROR("failed to write all requested bytes to '" << temp_filename << "', expected: " << bytes_written
-                                                             << ", got: " << omega_util_file_size(temp_filename));
-        //omega_util_remove_file(temp_filename);
+    if (bytes_written != omega_util_file_size(output_path)) {
+        LOG_ERROR("failed to write all requested bytes to '" << output_path << "', expected: " << bytes_written
+                                                             << ", got: " << omega_util_file_size(output_path));
+        if (cleanup_output) { omega_util_remove_file(output_path); }
         return -9;
     }
-    if (omega_util_file_exists(file_path)) {
+    if (overwrite && omega_util_file_exists(file_path)) {
         if (overwrite) {
             if (0 != omega_util_remove_file(file_path)) {
                 LOG_ERRNO();
+                omega_util_remove_file(temp_filename);
                 return -10;
             }
-        } else if ((file_path = omega_util_available_filename(file_path, nullptr)) == nullptr) {
-            LOG_ERROR("cannot find an available filename");
-            return -11;
         }
     }
-    if (rename(temp_filename, file_path) != 0) {
+    if (overwrite && rename(temp_filename, file_path) != 0) {
         LOG_ERRNO();
+        omega_util_remove_file(temp_filename);
         return -12;
     }
+    cleanup_output = false;
+    output_path = overwrite ? file_path : output_path;
     // If required, touch the checkpoint file after the original file has been overwritten, so that the checkpoint file
     // appears to be newer than the original file, otherwise the original file will be considered newer than the
     // checkpoint and a force overwrite will be required to save the session next time.
@@ -910,7 +994,7 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
         assert(0 <= omega_util_compare_modification_times(checkpoint_file, file_path));
     }
 
-    if (saved_file_path != nullptr) { omega_util_normalize_path(file_path, saved_file_path); }
+    if (saved_file_path != nullptr) { omega_util_normalize_path(output_path, saved_file_path); }
     omega_session_notify(session_ptr, SESSION_EVT_SAVE, saved_file_path);
     return 0;
 }

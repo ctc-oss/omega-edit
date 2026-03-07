@@ -50,23 +50,27 @@ This allows downstream consumers (like VS Code extensions and webviews) to:
 
 ### Testing the client
 
-#### Compile the client
+Build and test commands for this package rely on generated protobuf stubs and a prepackaged server artifact.
+
+#### Prepare the client
 
 ```shell
-yarn compile-src
+yarn prepare
 ```
 
 #### Test the client
 
-Now test the client with:
+This runs the package pretest hook, rebuilds the client, and verifies the required server prepackage before executing the test suite:
 
 ```shell
 yarn test
 ```
 
+Windows note: end-to-end client tests do not currently validate emoji filenames on Windows. That path remains covered in the native filesystem tests, but not in the Windows client integration suite.
+
 ## User documentation
 
-User documentation is published to https://ctc-oss.github.io/omega-edit/.
+User documentation is published to <https://ctc-oss.github.io/omega-edit/>.
 
 ## Versioning
 

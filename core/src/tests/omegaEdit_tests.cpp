@@ -629,6 +629,10 @@ TEST_CASE("Compare", "[CompareTests]") {
     REQUIRE(0 == omega_util_strnicmp("needle", "needlE", 5));
     REQUIRE(0 == omega_util_strnicmp("Needle", "nEedlE", 5));
     REQUIRE(0 != omega_util_strnicmp("foo", "bar", 3));
+
+    const char high_byte_lhs[] = {static_cast<char>(0xFF), '\0'};
+    const char high_byte_rhs[] = {static_cast<char>(0xFF), '\0'};
+    REQUIRE(0 == omega_util_strnicmp(high_byte_lhs, high_byte_rhs, 1));
 }
 
 TEST_CASE("Search-Forward", "[SearchTests]") {
