@@ -367,6 +367,133 @@ namespace {
                 return false;
         }
     }
+
+    // Write a segment from a source file to a destination file, optionally applying a byte transform to bytes that
+    // fall within the transform range [transform_file_begin, transform_file_end). file_write_pos tracks the current
+    // position in the output file for range calculations. When transform is null, behaves identically to
+    // omega_util_write_segment_to_file.
+    int64_t write_segment_to_file_transformed_(FILE *from_file_ptr, int64_t offset, int64_t byte_count,
+                                               FILE *to_file_ptr, int64_t file_write_pos,
+                                               omega_util_byte_transform_t transform, void *user_data_ptr,
+                                               int64_t transform_file_begin, int64_t transform_file_end) {
+        if (!from_file_ptr || !to_file_ptr) { return -1; }
+        if (0 != FSEEK(from_file_ptr, offset, SEEK_SET)) { return -1; }
+        int64_t remaining = byte_count;
+        omega_byte_t buff[BUFSIZ];
+        while (remaining) {
+            const int64_t count = static_cast<int64_t>(sizeof(buff)) > remaining ? remaining
+                                                                                 : static_cast<int64_t>(sizeof(buff));
+            if (count != static_cast<int64_t>(fread(buff, sizeof(omega_byte_t), count, from_file_ptr))) { break; }
+            if (transform) {
+                // Determine which portion of this buffer overlaps the transform range
+                const auto buf_begin = file_write_pos;
+                const auto buf_end = file_write_pos + count;
+                if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
+                    const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
+                    const auto t_end = std::min(transform_file_end - buf_begin, count);
+                    omega_util_apply_byte_transform(buff + t_start, t_end - t_start, transform, user_data_ptr);
+                }
+            }
+            if (count != static_cast<int64_t>(fwrite(buff, sizeof(omega_byte_t), count, to_file_ptr))) { break; }
+            remaining -= count;
+            file_write_pos += count;
+        }
+        return byte_count - remaining;
+    }
+
+    // Save the current session model to a file, applying a byte transform to bytes in [transform_offset,
+    // transform_offset + transform_length). Returns 0 on success.
+    int save_segment_transformed_(omega_session_t *session_ptr, const char *file_path,
+                                  omega_util_byte_transform_t transform, void *user_data_ptr, int64_t transform_offset,
+                                  int64_t transform_length) {
+        if (!session_ptr || !file_path || !transform) { return -1; }
+        const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+        const auto adjusted_transform_length =
+                transform_length <= 0 ? computed_file_size - transform_offset
+                                      : std::min(transform_length, computed_file_size - transform_offset);
+        if (transform_offset < 0 || adjusted_transform_length < 0) { return -1; }
+        const auto transform_file_begin = transform_offset;
+        const auto transform_file_end = transform_offset + adjusted_transform_length;
+
+        const auto temp_fptr = FOPEN(file_path, "wb");
+        if (!temp_fptr) {
+            LOG_ERRNO();
+            return -1;
+        }
+        int64_t write_offset = 0;
+        int64_t file_write_pos = 0;
+        for (const auto &segment: session_ptr->models_.back()->model_segments) {
+            if (write_offset != segment->computed_offset) {
+                ABORT(LOG_ERROR("break in model continuity, expected: " << write_offset
+                                                                        << ", got: " << segment->computed_offset););
+            }
+            switch (omega_model_segment_get_kind(segment.get())) {
+                case model_segment_kind_t::SEGMENT_READ: {
+                    if (session_ptr->models_.back()->file_ptr == nullptr) {
+                        ABORT(LOG_ERROR("attempt to read segment from null file pointer"););
+                    }
+                    if (write_segment_to_file_transformed_(
+                                session_ptr->models_.back()->file_ptr,
+                                segment->change_offset, segment->computed_length, temp_fptr, file_write_pos, transform,
+                                user_data_ptr, transform_file_begin, transform_file_end) != segment->computed_length) {
+                        FCLOSE(temp_fptr);
+                        LOG_ERROR("write_segment_to_file_transformed_ failed");
+                        return -1;
+                    }
+                    break;
+                }
+                case model_segment_kind_t::SEGMENT_INSERT: {
+                    const auto *src = omega_change_get_bytes(segment->change_ptr.get()) + segment->change_offset;
+                    const auto len = segment->computed_length;
+                    // Check if any part of this segment overlaps the transform range
+                    if (file_write_pos < transform_file_end && file_write_pos + len > transform_file_begin) {
+                        // Need a mutable copy so we can apply the transform in-place
+                        omega_byte_t buf[BUFSIZ];
+                        int64_t seg_remaining = len;
+                        int64_t seg_offset = 0;
+                        while (seg_remaining > 0) {
+                            const auto chunk =
+                                    std::min(seg_remaining, static_cast<int64_t>(sizeof(buf)));
+                            memcpy(buf, src + seg_offset, chunk);
+                            const auto buf_begin = file_write_pos + seg_offset;
+                            const auto buf_end = buf_begin + chunk;
+                            if (buf_begin < transform_file_end && buf_end > transform_file_begin) {
+                                const auto t_start = std::max(transform_file_begin - buf_begin, int64_t(0));
+                                const auto t_end = std::min(transform_file_end - buf_begin, chunk);
+                                omega_util_apply_byte_transform(buf + t_start, t_end - t_start, transform,
+                                                                user_data_ptr);
+                            }
+                            if (static_cast<int64_t>(fwrite(buf, 1, chunk, temp_fptr)) != chunk) {
+                                FCLOSE(temp_fptr);
+                                LOG_ERROR("fwrite failed");
+                                return -1;
+                            }
+                            seg_remaining -= chunk;
+                            seg_offset += chunk;
+                        }
+                    } else {
+                        // Entirely outside the transform range — write verbatim
+                        if (static_cast<int64_t>(fwrite(src, 1, len, temp_fptr)) != len) {
+                            FCLOSE(temp_fptr);
+                            LOG_ERROR("fwrite failed");
+                            return -1;
+                        }
+                    }
+                    break;
+                }
+                default:
+                    ABORT(LOG_ERROR("Unhandled segment kind"););
+            }
+            file_write_pos += segment->computed_length;
+            write_offset += segment->computed_length;
+        }
+        FCLOSE(temp_fptr);
+        if (file_write_pos != computed_file_size) {
+            LOG_ERROR("failed to write all bytes, expected: " << computed_file_size << ", got: " << file_write_pos);
+            return -1;
+        }
+        return 0;
+    }
 }
 
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
@@ -557,31 +684,53 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
                                int64_t offset, int64_t length) {
     if (!session_ptr || !transform) { return -1; }
-    if ((omega_session_changes_paused(session_ptr) == 0) && 0 == omega_edit_create_checkpoint(session_ptr)) {
-        const auto in_file = session_ptr->models_.back()->file_path;
-        const auto out_file = in_file + "_";
-        if (0 == omega_util_apply_byte_transform_to_file(in_file.c_str(), out_file.c_str(), transform, user_data_ptr,
-                                                         offset, length)) {
-            errno = 0;// reset errno
-            if (0 == FCLOSE(session_ptr->models_.back()->file_ptr) && 0 == omega_util_remove_file(in_file.c_str()) &&
-                0 == rename(out_file.c_str(), in_file.c_str()) &&
-                ((session_ptr->models_.back()->file_ptr = FOPEN(in_file.c_str(), "rb")) != nullptr)) {
-                for (const auto &viewport_ptr: session_ptr->viewports_) {
-                    viewport_ptr->data_segment.capacity =
-                            -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
-                    omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
-                }
-                omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
-                return 0;
-            }
+    if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
 
-            // In a bad state (I/O failure), so abort
-            ABORT(LOG_ERRNO(););
-        }
-        // The transform failed, but we can recover from this
-        if (omega_util_file_exists(out_file.c_str()) != 0) { omega_util_remove_file(out_file.c_str()); }
+    // Create the checkpoint file path
+    const auto *const checkpoint_directory = omega_session_get_checkpoint_directory(session_ptr);
+    if (omega_util_directory_exists(checkpoint_directory) == 0) {
+        LOG_ERROR("checkpoint directory '" << checkpoint_directory << "' does not exist");
+        return -1;
     }
-    return -1;
+    char checkpoint_filename[FILENAME_MAX + 1];
+    if (FILENAME_MAX <= snprintf(checkpoint_filename, FILENAME_MAX, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
+                                 checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size())) {
+        LOG_ERROR("failed to create checkpoint filename template");
+        return -1;
+    }
+    const auto checkpoint_fd = omega_util_mkstemp(checkpoint_filename, 0600);// S_IRUSR | S_IWUSR
+    close(checkpoint_fd);
+
+    // Single-pass: walk the segment model and write the transformed content directly to the checkpoint file
+    if (0 != save_segment_transformed_(session_ptr, checkpoint_filename, transform, user_data_ptr, offset, length)) {
+        LOG_ERROR("save_segment_transformed_ failed");
+        omega_util_remove_file(checkpoint_filename);
+        return -1;
+    }
+
+    // Push the new checkpoint model (same as omega_edit_create_checkpoint does after saving)
+    const auto file_size = omega_session_get_computed_file_size(session_ptr);
+    session_ptr->num_changes_adjustment_ = omega_session_get_num_changes(session_ptr);
+    session_ptr->models_.push_back(std::make_unique<omega_model_t>());
+    session_ptr->models_.back()->file_ptr = FOPEN(checkpoint_filename, "rb");
+    session_ptr->models_.back()->file_path = checkpoint_filename;
+    if (session_ptr->models_.back()->file_ptr == nullptr) {
+        LOG_ERROR("failed to open checkpoint file '" << checkpoint_filename << "'");
+        session_ptr->models_.pop_back();
+        omega_util_remove_file(checkpoint_filename);
+        return -1;
+    }
+    initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+    omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
+
+    // Notify viewports and session of the transform
+    for (const auto &viewport_ptr: session_ptr->viewports_) {
+        viewport_ptr->data_segment.capacity =
+                -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+        omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
+    }
+    omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
+    return 0;
 }
 
 int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path,
