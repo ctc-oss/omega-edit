@@ -1,0 +1,364 @@
+/*
+ * Copyright (c) 2021 Concurrent Technologies Corporation.
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { expect } from './common'
+import { makeObjectIdResponse, overrideProperty } from './mockHelpers'
+
+const clientModule =
+  require('../../dist/cjs/client.js') as typeof import('../../src/client')
+const sessionModule =
+  require('../../dist/cjs/session.js') as typeof import('../../src/session')
+
+describe('Session Edge Cases', () => {
+  it('should reject session pause, transaction, and resume failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        pauseSessionChanges(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('pause session failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        sessionBeginTransaction(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('begin transaction failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        sessionEndTransaction(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('end transaction failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        resumeSessionChanges(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('resume session failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await sessionModule.pauseSessionChanges('session-id')
+      expect.fail('pauseSessionChanges should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('pauseSessionChanges error: pause session failed')
+    }
+
+    try {
+      await sessionModule.beginSessionTransaction('session-id')
+      expect.fail('beginSessionTransaction should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal(
+        'beginSessionTransaction error: begin transaction failed'
+      )
+    }
+
+    try {
+      await sessionModule.endSessionTransaction('session-id')
+      expect.fail('endSessionTransaction should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal(
+        'endSessionTransaction error: end transaction failed'
+      )
+    }
+
+    try {
+      await sessionModule.resumeSessionChanges('session-id')
+      expect.fail('resumeSessionChanges should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('resumeSessionChanges error: resume session failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should handle unsubscribe session callback and stream errors', async () => {
+    let mode: 'callback-error' | 'cancelled' | 'critical' = 'callback-error'
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        unsubscribeToSessionEvents(
+          _request: unknown,
+          callback: (
+            err: Error | null,
+            response?: { getId(): string; toObject(): { id: string } }
+          ) => void
+        ) {
+          if (mode === 'callback-error') {
+            callback(
+              Object.assign(new Error('unsubscribe session failed'), {
+                code: 13,
+                details: 'rpc failed',
+              })
+            )
+          }
+
+          return {
+            on(_eventName: string, handler: (err: Error) => void) {
+              if (mode === 'cancelled') {
+                callback(null, makeObjectIdResponse('session-id'))
+                handler(new Error('Call cancelled'))
+              }
+              if (mode === 'critical') {
+                handler(new Error('session stream exploded'))
+              }
+              return this
+            },
+          }
+        },
+      })
+    )
+
+    try {
+      await sessionModule.unsubscribeSession('session-id')
+      expect.fail(
+        'unsubscribeSession should reject when the callback returns an error'
+      )
+    } catch (err) {
+      expect(err).to.equal(
+        'unsubscribeSession error: unsubscribe session failed'
+      )
+    }
+
+    mode = 'cancelled'
+    expect(await sessionModule.unsubscribeSession('session-id')).to.equal(
+      'session-id'
+    )
+
+    mode = 'critical'
+    try {
+      await sessionModule.unsubscribeSession('session-id')
+      expect.fail('unsubscribeSession should reject critical stream failures')
+    } catch (err) {
+      expect((err as Error).message).to.equal('session stream exploded')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should reject session metadata wrapper failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getByteOrderMark(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('bom failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getContentType(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('content type failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getLanguage(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('language failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getCharacterCounts(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('character count failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await sessionModule.getByteOrderMark('session-id')
+      expect.fail('getByteOrderMark should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getByteOrderMark error: bom failed')
+    }
+
+    try {
+      await sessionModule.getContentType('session-id', 0, 1)
+      expect.fail('getContentType should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getContentType error: content type failed')
+    }
+
+    try {
+      await sessionModule.getLanguage('session-id', 0, 1, 'none')
+      expect.fail('getLanguage should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getLanguage error: language failed')
+    }
+
+    try {
+      await sessionModule.countCharacters('session-id')
+      expect.fail('countCharacters should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('countCharacters error: character count failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should reject session segment, count, notify, and profile wrapper failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        searchSession(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('search failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getSegment(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('segment failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getSessionCount(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('session count failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        notifyChangedViewports(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('notify failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getByteFrequencyProfile(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('profile failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await sessionModule.searchSession('session-id', 'needle')
+      expect.fail('searchSession should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('searchSession error: search failed')
+    }
+
+    try {
+      await sessionModule.getSegment('session-id', 0, 1)
+      expect.fail('getSegment should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getSegment error: segment failed')
+    }
+
+    try {
+      await sessionModule.getSessionCount()
+      expect.fail('getSessionCount should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getSessionCount error: session count failed')
+    }
+
+    try {
+      await sessionModule.notifyChangedViewports('session-id')
+      expect.fail('notifyChangedViewports should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('notifyChangedViewports error: notify failed')
+    }
+
+    try {
+      await sessionModule.profileSession('session-id')
+      expect.fail('profileSession should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('profileSession error: profile failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+})

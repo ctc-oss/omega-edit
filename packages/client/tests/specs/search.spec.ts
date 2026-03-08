@@ -981,4 +981,9 @@ describe('Searching', () => {
     expect(segment.length).to.equal(file_size)
     expect(segment).deep.equals(Buffer.from('Hey there are needles in my hay'))
   })
+
+  it('Should return no results for empty search patterns', async () => {
+    expect(await searchSession(session_id, '')).to.deep.equal([])
+    expect(await searchSession(session_id, new Uint8Array())).to.deep.equal([])
+  })
 })

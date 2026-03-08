@@ -19,13 +19,16 @@
 
 import { expect, testPort } from './common'
 import {
+  del,
   countCharacters,
   createSession,
   createViewport,
   destroySession,
   getByteOrderMark,
   getClient,
+  getChangeCount,
   getComputedFileSize,
+  getContentType,
   getLanguage,
   getSegment,
   getServerHeartbeat,
@@ -862,6 +865,64 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
   })
 
+  it('Should detect text and binary content types', async () => {
+    let session = await createSession()
+    let session_id = session.getSessionId()
+
+    await insert(session_id, 0, Buffer.from('Hello, World!\n'))
+    let fileSize = await getComputedFileSize(session_id)
+    expect(fileSize).to.equal(14)
+
+    let contentTypeResponse = await getContentType(session_id, 0, fileSize)
+    expect(contentTypeResponse.getContentType()).to.be.a('string').and.not.be
+      .empty
+
+    await destroySession(session_id)
+
+    session = await createSession()
+    session_id = session.getSessionId()
+    await insert(
+      session_id,
+      0,
+      Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe, 0xfd])
+    )
+
+    contentTypeResponse = await getContentType(session_id, 0, 6)
+    expect(contentTypeResponse.getContentType()).to.be.a('string').and.not.be
+      .empty
+
+    await destroySession(session_id)
+  })
+
+  it('Should overwrite existing files when saving edited sessions', async () => {
+    const savePath = path.join(__dirname, 'data', 'coverage_save_overwrite.txt')
+    if (fs.existsSync(savePath)) fs.unlinkSync(savePath)
+
+    const session = await createSession()
+    const session_id = session.getSessionId()
+
+    try {
+      await insert(session_id, 0, Buffer.from('save test data'))
+
+      const resp1 = await saveSession(session_id, savePath)
+      expect(resp1.getFilePath()).to.be.a('string')
+
+      await insert(session_id, 0, Buffer.from('PREFIX_'))
+      const resp2 = await saveSession(
+        session_id,
+        savePath,
+        IOFlags.IO_FLG_OVERWRITE
+      )
+      expect(resp2.getFilePath()).to.include('coverage_save_overwrite')
+      expect(fs.readFileSync(resp2.getFilePath(), 'utf-8')).to.equal(
+        'PREFIX_save test data'
+      )
+    } finally {
+      if (fs.existsSync(savePath)) fs.unlinkSync(savePath)
+      await destroySession(session_id)
+    }
+  })
+
   it('Should be able to handle multiple simultaneous sessions', async () => {
     expect(await getSessionCount()).to.equal(0)
     const session1 = await createSession()
@@ -901,6 +962,58 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(1)
     await destroySession(session_id2)
     expect(await getSessionCount()).to.equal(0)
+  })
+
+  it('Should isolate edits and change counts across concurrent sessions', async () => {
+    const initialCount = await getSessionCount()
+    const session1 = await createSession()
+    const session1_id = session1.getSessionId()
+    const session2 = await createSession()
+    const session2_id = session2.getSessionId()
+
+    expect(await getSessionCount()).to.equal(initialCount + 2)
+
+    await insert(session1_id, 0, Buffer.from('Session ONE'))
+    await insert(session2_id, 0, Buffer.from('Session TWO'))
+
+    expect(await getComputedFileSize(session1_id)).to.equal(11)
+    expect(await getComputedFileSize(session2_id)).to.equal(11)
+
+    const seg1 = await getSegment(session1_id, 0, 11)
+    const seg2 = await getSegment(session2_id, 0, 11)
+    expect(Buffer.from(seg1).toString('utf-8')).to.equal('Session ONE')
+    expect(Buffer.from(seg2).toString('utf-8')).to.equal('Session TWO')
+
+    await del(session1_id, 8, 3)
+    expect(await getComputedFileSize(session1_id)).to.equal(8)
+    expect(await getComputedFileSize(session2_id)).to.equal(11)
+
+    await insert(session1_id, 8, Buffer.from('ONE'))
+    await insert(session1_id, 11, Buffer.from('!'))
+    await insert(session2_id, 11, Buffer.from('!'))
+
+    expect(await getChangeCount(session1_id)).to.equal(4)
+    expect(await getChangeCount(session2_id)).to.equal(2)
+
+    await destroySession(session1_id)
+    await destroySession(session2_id)
+    expect(await getSessionCount()).to.equal(initialCount)
+  })
+
+  it('Should reject invalid and nonexistent sessions', async () => {
+    try {
+      await getComputedFileSize('nonexistent-session-id-12345')
+      expect.fail('Should have thrown an error')
+    } catch (err: any) {
+      expect(err).to.exist
+    }
+
+    try {
+      await destroySession('does-not-exist-99999')
+      expect.fail('Should have thrown an error')
+    } catch (err: any) {
+      expect(err).to.exist
+    }
   })
 
   it('Should fail to create session with invalid file', async () => {

@@ -23,6 +23,7 @@ import {
   clear,
   del,
   edit,
+  editSimple,
   EditOperation,
   editOperations,
   EditOperationType,
@@ -316,6 +317,98 @@ describe('Editing', () => {
       expect(await getSegment(session_id, 0, 4)).to.deep.equal(
         Buffer.from('abcd')
       )
+    })
+
+    it('should optimize and apply simple edits', async () => {
+      const stats = new EditStats()
+
+      await insert(session_id, 0, Buffer.from('Hello, World!'), stats)
+      expect(await getComputedFileSize(session_id)).to.equal(13)
+
+      const original = Buffer.from('World')
+      const edited = Buffer.from('Omega')
+      const result = await editSimple(session_id, 7, original, edited, stats)
+      expect(result).to.be.a('number').and.to.be.greaterThan(0)
+
+      const segment = await getSegment(session_id, 0, 13)
+      const content = Buffer.from(segment).toString('utf-8')
+      expect(content).to.equal('Hello, Omega!')
+    })
+
+    it('should handle simple edits with different-length replacements', async () => {
+      const stats = new EditStats()
+
+      await insert(session_id, 0, Buffer.from('AABBCC'), stats)
+
+      await editSimple(session_id, 2, Buffer.from('BB'), Buffer.from('XXXX'))
+
+      const fileSize = await getComputedFileSize(session_id)
+      expect(fileSize).to.equal(8)
+
+      const segment = await getSegment(session_id, 0, fileSize)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('AAXXXXCC')
+    })
+
+    it('should handle simple edits that delete content', async () => {
+      const stats = new EditStats()
+
+      await insert(session_id, 0, Buffer.from('AABBCC'), stats)
+
+      await editSimple(session_id, 2, Buffer.from('BB'), Buffer.from(''))
+
+      expect(await getComputedFileSize(session_id)).to.equal(4)
+      const segment = await getSegment(session_id, 0, 4)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('AACC')
+    })
+
+    it('should handle unicode insert and overwrite flows', async () => {
+      const cafeData = Buffer.from('cafe', 'utf-8')
+      await insert(session_id, 0, Buffer.from('cafe', 'utf-8'))
+
+      let fileSize = await getComputedFileSize(session_id)
+      expect(fileSize).to.equal(cafeData.length)
+
+      let segment = await getSegment(session_id, 0, fileSize)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('cafe')
+
+      const emojiData = Buffer.from('😀', 'utf-8')
+      expect(emojiData.length).to.equal(4)
+      await overwrite(session_id, 0, emojiData)
+      expect(await getComputedFileSize(session_id)).to.equal(4)
+      segment = await getSegment(session_id, 0, 4)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('😀')
+
+      const mixedData = Buffer.from('Hello, 世界!', 'utf-8')
+      await overwrite(session_id, 0, mixedData)
+      fileSize = await getComputedFileSize(session_id)
+      expect(fileSize).to.equal(mixedData.length)
+
+      segment = await getSegment(session_id, 0, fileSize)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('Hello, 世界!')
+
+      await overwrite(session_id, 0, Buffer.from('Grüße'))
+      const newSize = await getComputedFileSize(session_id)
+      const newSegment = await getSegment(session_id, 0, newSize)
+      expect(Buffer.from(newSegment).toString('utf-8').startsWith('Grüße')).to
+        .be.true
+    })
+
+    it('should reject insert operations on invalid session IDs', async () => {
+      try {
+        await insert('nonexistent-session-id-12345', 0, Buffer.from('data'))
+        expect.fail('Should have thrown an error')
+      } catch (err: any) {
+        expect(err).to.exist
+      }
+    })
+
+    it('should reject delete operations on invalid session IDs', async () => {
+      try {
+        await del('nonexistent-session-id-12345', 0, 5)
+        expect.fail('Should have thrown an error')
+      } catch (err: any) {
+        expect(err).to.exist
+      }
     })
   })
 })

@@ -426,4 +426,51 @@ describe('Viewports', () => {
     await destroyViewport(viewport_id)
     expect(await getViewportCount(session_id)).to.equal(0)
   }).timeout(8000)
+
+  it('Should keep viewport data aligned with the matching session segment', async () => {
+    await insert(session_id, 0, Buffer.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))
+
+    const viewportResponse = await createViewport(
+      undefined,
+      session_id,
+      5,
+      10,
+      false
+    )
+    const viewportId = viewportResponse.getViewportId()
+
+    const viewportData = await getViewportData(viewportId)
+    const viewportBytes = viewportData.getData_asU8()
+    const segmentBytes = await getSegment(session_id, 5, 10)
+
+    expect(Buffer.from(viewportBytes)).to.deep.equal(Buffer.from(segmentBytes))
+    expect(Buffer.from(viewportBytes).toString('utf-8')).to.equal('FGHIJKLMNO')
+
+    await destroyViewport(viewportId)
+  })
+
+  it('Should keep viewport data aligned after session edits', async () => {
+    await insert(session_id, 0, Buffer.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ'))
+
+    const viewportResponse = await createViewport(
+      undefined,
+      session_id,
+      0,
+      26,
+      false
+    )
+    const viewportId = viewportResponse.getViewportId()
+
+    await del(session_id, 5, 3)
+    expect(await getComputedFileSize(session_id)).to.equal(23)
+
+    const viewportData = await getViewportData(viewportId)
+    const viewportBytes = viewportData.getData_asU8()
+    const segmentBytes = await getSegment(session_id, 0, 23)
+    expect(Buffer.from(viewportBytes).slice(0, 23)).to.deep.equal(
+      Buffer.from(segmentBytes)
+    )
+
+    await destroyViewport(viewportId)
+  })
 })

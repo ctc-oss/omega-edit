@@ -43,6 +43,10 @@ describe('Profiling', () => {
   })
 
   describe('Profiler', () => {
+    it('Should count ASCII bytes in profile data', () => {
+      expect(numAscii([1, 2, 3])).to.equal(6)
+    })
+
     it('Should profile an empty session', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
       profileSession(session_id, 0, 0).then((profile) => {

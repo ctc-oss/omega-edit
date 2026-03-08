@@ -53,7 +53,11 @@ comment:
 ignore:
   - core/src/examples
   - core/src/tests
+  - packages/client/dist
+  - packages/client/scripts
   - packages/client/tests
+  - packages/client/src/*_pb.js
+  - packages/client/src/client_version.ts
   - server/
   - "**/node_modules"
   - "**/*.test.*"

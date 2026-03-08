@@ -64,6 +64,7 @@ project
 !server/scala/project
 
 ## typescript
+packages/client/coverage/
 **/*.js.map
 **/out/
 **/dist/

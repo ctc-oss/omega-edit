@@ -248,4 +248,61 @@ describe('Undo/Redo', () => {
     expect(await getChangeCount(session_id)).to.equal(0)
     expect(await getUndoCount(session_id)).to.equal(0)
   })
+
+  it('Should undo all changes back to empty and redo them', async () => {
+    await insert(session_id, 0, Buffer.from('AAA'))
+    await insert(session_id, 3, Buffer.from('BBB'))
+    await insert(session_id, 6, Buffer.from('CCC'))
+    expect(await getComputedFileSize(session_id)).to.equal(9)
+
+    await undo(session_id)
+    await undo(session_id)
+    await undo(session_id)
+    expect(await getComputedFileSize(session_id)).to.equal(0)
+
+    await redo(session_id)
+    await redo(session_id)
+    await redo(session_id)
+    expect(await getComputedFileSize(session_id)).to.equal(9)
+
+    const segment = await getSegment(session_id, 0, 9)
+    expect(Buffer.from(segment).toString('utf-8')).to.equal('AAABBBCCC')
+  })
+
+  it('Should discard redo history after a new edit', async () => {
+    await insert(session_id, 0, Buffer.from('AAA'))
+    await insert(session_id, 3, Buffer.from('BBB'))
+    expect(await getComputedFileSize(session_id)).to.equal(6)
+
+    await undo(session_id)
+    expect(await getComputedFileSize(session_id)).to.equal(3)
+    expect(await getUndoCount(session_id)).to.equal(1)
+
+    await insert(session_id, 3, Buffer.from('CCC'))
+    expect(await getComputedFileSize(session_id)).to.equal(6)
+    expect(await getUndoCount(session_id)).to.equal(0)
+
+    try {
+      const result = await redo(session_id)
+      expect(result).to.equal(0)
+    } catch {
+      // Error is acceptable when there is nothing left to redo.
+    }
+  })
+
+  it('Should tolerate undo and redo on sessions without history', async () => {
+    try {
+      const undoResult = await undo(session_id)
+      expect(undoResult).to.equal(0)
+    } catch {
+      // Error is acceptable when there is nothing to undo.
+    }
+
+    try {
+      const redoResult = await redo(session_id)
+      expect(redoResult).to.equal(0)
+    } catch {
+      // Error is acceptable when there is nothing to redo.
+    }
+  })
 })

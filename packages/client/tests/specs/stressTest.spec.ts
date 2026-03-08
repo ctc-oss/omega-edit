@@ -50,7 +50,7 @@ import {
 } from './common'
 
 describe('StressTest', () => {
-  const full_rotations = 12
+  const full_rotations = 50
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
