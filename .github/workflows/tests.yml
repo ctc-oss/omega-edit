@@ -110,6 +110,9 @@ jobs:
   coverage:
     name: Code Coverage 📊
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@v6
@@ -142,9 +145,11 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: coverage-native.info
+          disable_search: true
           flags: native
           name: omega-edit-native
-          fail_ci_if_error: false
+          use_oidc: true
+          fail_ci_if_error: true
 
       # ── TypeScript client coverage ──────────────────────────────────────
       - name: Setup Node.js 🟢
@@ -226,6 +231,8 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           files: packages/client/coverage/lcov.info
+          disable_search: true
           flags: client
           name: omega-edit-client
-          fail_ci_if_error: false
+          use_oidc: true
+          fail_ci_if_error: true
