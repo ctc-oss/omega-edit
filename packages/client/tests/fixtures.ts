@@ -96,7 +96,6 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     pid = await startServerUnixSocket(
       socketPath,
       pidFile,
-      path.join(rootPath, 'logconf.xml'),
       false,
       testPort,
       testHost
@@ -105,12 +104,7 @@ export async function mochaGlobalSetup(): Promise<number | undefined> {
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
     delete process.env.OMEGA_EDIT_SERVER_URI
 
-    pid = await startServer(
-      testPort,
-      testHost,
-      pidFile,
-      path.join(rootPath, 'logconf.xml')
-    )
+    pid = await startServer(testPort, testHost, pidFile)
   }
 
   if (pid) {

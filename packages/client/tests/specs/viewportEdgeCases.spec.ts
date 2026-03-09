@@ -26,6 +26,118 @@ const viewportModule =
   require('../../dist/cjs/viewport.js') as typeof import('../../src/viewport')
 
 describe('Viewport Edge Cases', () => {
+  it('should reject createViewport, modifyViewport, and destroyViewport failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        createViewport(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('create failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+        modifyViewport(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('modify failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+        destroyViewport(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('destroy failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await viewportModule.createViewport(undefined, 'sid', 0, 100)
+      expect.fail('createViewport should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('createViewport error: create failed')
+    }
+
+    try {
+      await viewportModule.modifyViewport('vid', 0, 100)
+      expect.fail('modifyViewport should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('modifyViewport error: modify failed')
+    }
+
+    try {
+      await viewportModule.destroyViewport('vid')
+      expect.fail('destroyViewport should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('destroyViewport error: destroy failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should reject getViewportCount, getViewportData, and viewportHasChanges failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getCount(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('count failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+        getViewportData(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('data failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+        viewportHasChanges(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('changes failed'), {
+              details: 'rpc failed',
+              code: 13,
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await viewportModule.getViewportCount('sid')
+      expect.fail('getViewportCount should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getViewportCount error: count failed')
+    }
+
+    try {
+      await viewportModule.getViewportData('vid')
+      expect.fail('getViewportData should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getViewportData error: data failed')
+    }
+
+    try {
+      await viewportModule.viewportHasChanges('vid')
+      expect.fail('viewportHasChanges should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('viewportHasChanges error: changes failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should reject viewport pause and resume failures', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,

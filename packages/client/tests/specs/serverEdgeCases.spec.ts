@@ -58,7 +58,6 @@ describe('Server Edge Cases', () => {
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-src-'))
     const pidFile = path.join(tempDir, 'omega-edit.pid')
-    const missingLogConf = path.join(tempDir, 'missing-logconf.xml')
     fs.writeFileSync(pidFile, '999999')
 
     let pid: number | undefined
@@ -66,12 +65,7 @@ describe('Server Edge Cases', () => {
     let serverInfoPid: number | undefined
     try {
       resetClient()
-      pid = await startServer(
-        port as number,
-        '127.0.0.1',
-        pidFile,
-        missingLogConf
-      )
+      pid = await startServer(port as number, '127.0.0.1', pidFile)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
       expect(fs.existsSync(pidFile)).to.be.true
@@ -142,7 +136,7 @@ describe('Server Edge Cases', () => {
       delete process.env.OMEGA_EDIT_SERVER_URI
 
       resetClient()
-      pid = await startServerUnixSocket(socketPath, pidFile, undefined, true)
+      pid = await startServerUnixSocket(socketPath, pidFile, true)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
       expect(fs.existsSync(socketPath)).to.be.true

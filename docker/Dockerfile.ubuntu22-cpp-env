@@ -16,7 +16,7 @@ FROM ubuntu:22.04
 
 LABEL maintainer="oss@ctc.com" \
       version="1.1" \
-      description="Ubuntu 22.04 with tools for C/C++, Scala, and Node.js development"
+      description="Ubuntu 22.04 with tools for C/C++, and Node.js development"
 
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="America/New_York"
@@ -48,23 +48,11 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
   python3-dev \
   python3-pip \
   python3-sphinx \
-  rsync \
-  scala \
-  tar \
+  rsync \  tar \
   valgrind \
   wget \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# install sbt
-RUN echo "deb https://repo.scala-sbt.org/scalasbt/debian all main" | tee /etc/apt/sources.list.d/sbt.list \
-  && echo "deb https://repo.scala-sbt.org/scalasbt/debian /" | tee /etc/apt/sources.list.d/sbt_old.list \
-  && curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" \
-    | gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/scalasbt-release.gpg --import \
-  && chmod 644 /etc/apt/trusted.gpg.d/scalasbt-release.gpg \
-  && apt-get update \
-  && apt-get install -y sbt \
-  && apt-get clean && rm -rf /var/lib/apt/lists/*
-
+`n
 RUN pip3 install \
   sphinx_rtd_theme \
   sphinx-sitemap
@@ -86,3 +74,4 @@ RUN useradd -ms /bin/bash developer \
     && install -d -m 0755 -o developer -g developer /home/developer/project
 USER developer
 WORKDIR /home/developer/project
+

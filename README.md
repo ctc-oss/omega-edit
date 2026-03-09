@@ -53,7 +53,6 @@ User documentation is published to https://ctc-oss.github.io/omega-edit/.
 - **sphinx** to generate user documentation (https://www.sphinx-doc.org)
   - **sphinx RTD theme** (https://github.com/readthedocs/sphinx_rtd_theme)
   - **breathe** ReStructuredText and Sphinx bridge to Doxygen (https://github.com/michaeljones/breathe)
-- **scala/sbt/java** for building and running the gRPC server (https://www.scala-lang.org)
 - **yarn** for building, testing, and packaging the node artifacts (https://yarnpkg.com)
 
 ### IDE
@@ -91,7 +90,7 @@ pip install conan
 
 Depending on your linking needs, Ωedit™ can be built _either_ as a static (e.g., libomega_edit.a) or shared
 (e.g., libomega_edit.so) library.  `Release` or `Debug` versions can be created.  Example programs and documentation can
-also be built if desired.  The Scala server _requires_ a shared library.
+also be built if desired.
 
 #### Using CMake Presets (Recommended):
 
@@ -142,9 +141,9 @@ ctest --build-config Debug --test-dir _build/core --output-on-failure
 
 ### Install the core library:
 
-We're installing in a directory named `_install` in the root of the repository.  This is is where the Scala server will
-look for the shared library by default or it can use the OE_LIB_DIR environment variable if different than the default
-location.  If you just want to use the library itself, you can install it anywhere you like (e.g., `/usr/local`).
+We're installing in a directory named `_install` in the root of the repository. This directory can be used as the default
+shared-library location, or you can set OE_LIB_DIR to a custom path. If you just want to use the library itself, you can
+install it anywhere you like (e.g., `/usr/local`).
 
 ```bash
 cmake --install _build --config Debug --prefix _install
@@ -155,9 +154,8 @@ cmake --install _build --config Debug --prefix _install
 :exclamation: These commands should be executed at the root level of the repository after building/installing the core
 library :exclamation:
 
-Build, test, and package the server and client node packages.  The server package will include the shared library built
-in the previous step and packages a gRPC server that runs in a Java Virtual Machine (JVM).  The client package will
-include the node client.
+Build, test, and package the server and client node packages. The server package will include the shared library built
+in the previous step and package a native C++ gRPC server binary. The client package will include the node client.
 
 ```bash
 yarn install

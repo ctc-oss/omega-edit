@@ -43,10 +43,11 @@ Copy-Item -Path "${install_dir}-$type" -Destination "_install" -Recurse -Force
 yarn install
 yarn lint
 
-# Build, test, and package Scala server node module
+# Build, test, and package server node module
 yarn workspace @omega-edit/server package
 
 # Build, test, and package the TypeScript client node module
 yarn workspace @omega-edit/client test
 
 echo "Done!"
+

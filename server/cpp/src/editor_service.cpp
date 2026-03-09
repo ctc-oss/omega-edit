@@ -181,7 +181,7 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::CreateSessionRequest *request,
                                                ::omega_edit::CreateSessionResponse *response) {
     if (graceful_shutdown_.load()) {
-        // During graceful shutdown, refuse new sessions (return empty like Scala)
+        // During graceful shutdown, refuse new sessions (return empty like previous server behavior)
         response->set_session_id("");
         response->set_checkpoint_directory("");
         return grpc::Status::OK;
@@ -192,7 +192,7 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
         file_path = request->file_path();
     }
 
-    // Validate file path exists if provided (match Scala server behavior)
+    // Validate file path exists if provided (match previous server behavior)
     if (!file_path.empty()) {
         std::error_code ec;
         if (!std::filesystem::exists(file_path, ec) || ec) {
@@ -458,7 +458,7 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
     }
 
     // Tolerate nested begin-transaction calls (no-op if already in a transaction)
-    // to match the Scala server behaviour used by the TypeScript client's
+    // to match the server behaviour used by the TypeScript client's
     // replace helper which wraps delete+insert in a transaction even when an
     // outer transaction is already open.
     omega_session_begin_transaction(session);
@@ -1178,3 +1178,4 @@ grpc::Status EditorServiceImpl::UnsubscribeToViewportEvents(grpc::ServerContext 
 
 } // namespace grpc_server
 } // namespace omega_edit
+

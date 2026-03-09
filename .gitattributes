@@ -26,7 +26,6 @@
 *.json text
 *.md text
 *.proto text
-*.scala text
 *.sh text
 *.ts text
 *.yml text
@@ -39,3 +38,4 @@
 # Test data files should not be modified.
 core/src/tests/data/* binary
 packages/client/tests/specs/data/* binary
+

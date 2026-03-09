@@ -34,9 +34,6 @@ The CMake build system reads the version from the `VERSION` file automatically:
 - Configures `OMEGA_EDIT_VERSION_MAJOR`, `OMEGA_EDIT_VERSION_MINOR`, `OMEGA_EDIT_VERSION_PATCH` defines
 - Sets project version for shared library versioning
 
-### Scala (gRPC Server)
-The Scala build (`server/scala/build.sbt`) reads directly from the `VERSION` file.
-
 ### Node.js (Client and Server Packages)
 The Node.js packages use the `sync-version.js` script to maintain version consistency across:
 - Workspace packages

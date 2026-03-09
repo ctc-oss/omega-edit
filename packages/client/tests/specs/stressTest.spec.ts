@@ -50,7 +50,7 @@ import {
 } from './common'
 
 describe('StressTest', () => {
-  const full_rotations = 50
+  const full_rotations = 64
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
@@ -313,5 +313,5 @@ describe('StressTest', () => {
       log_info('\x1b[32m%s\x1b[0m', session_callbacks)
       log_info('\x1b[32m%s\x1b[0m', viewport_callbacks)
     }
-  ).timeout(10000 * full_rotations)
+  ).timeout(2000 * full_rotations)
 })

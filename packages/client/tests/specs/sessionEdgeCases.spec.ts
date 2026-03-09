@@ -26,6 +26,92 @@ const sessionModule =
   require('../../dist/cjs/session.js') as typeof import('../../src/session')
 
 describe('Session Edge Cases', () => {
+  it('should reject createSession and saveSession failures', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        createSession(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('create session failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        saveSession(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('save session failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        destroySession(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('destroy session failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getComputedFileSize(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('file size failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+        getCount(_request: unknown, callback: (err: Error) => void) {
+          callback(
+            Object.assign(new Error('count failed'), {
+              code: 13,
+              details: 'rpc failed',
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      await sessionModule.createSession()
+      expect.fail('createSession should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('createSession error: create session failed')
+    }
+
+    try {
+      await sessionModule.saveSession('sid', '/tmp/test.txt')
+      expect.fail('saveSession should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('saveSession error: save session failed')
+    }
+
+    try {
+      await sessionModule.destroySession('sid')
+      expect.fail('destroySession should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('destroySession error: destroy session failed')
+    }
+
+    try {
+      await sessionModule.getComputedFileSize('sid')
+      expect.fail('getComputedFileSize should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getComputedFileSize error: file size failed')
+    }
+
+    try {
+      await sessionModule.getCounts('sid', [])
+      expect.fail('getCounts should reject when the RPC fails')
+    } catch (err) {
+      expect(err).to.equal('getCounts error: count failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should reject session pause, transaction, and resume failures', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
