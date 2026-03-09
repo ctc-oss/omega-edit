@@ -1,4 +1,4 @@
-![omega-edit logo](https://user-images.githubusercontent.com/2205472/176587848-b0ea0f29-030c-4b1b-b9e6-77342bf1d10d.png)
+![omega-edit logo](images/omega-edit-logo.png)
 
 ## Introduction to Ωedit™
 
@@ -12,13 +12,13 @@
 
 While the model is not publicly exposed, it is useful for context.
 
-![omega-edit-object-model](https://user-images.githubusercontent.com/2205472/176591122-1a1c1965-8628-4851-a8bf-6980c41a9763.png)
+![omega-edit-object-model](images/omega-edit-object-model.png)
 
 Changes are tracked in the changes stack (Last In, First Out (LIFO)) where new changes are pushed onto the top/front of the stack. The model has another stack that holds changes that are undone. More details on how the stacks work are provided in the Additional Editing Capabilities section. As changes are processed, the model segments are updated. The model segments represent the edited state of the file mathematically (model segments don't actually hold any of the data in memory). Details for how the model segments are computed are provided in the Basic Editing section. The model has read access to the underlying file being edited, which is required for materializing the data (populating a data segment with data) needed for saving and updating viewports.
 
 ## Sessions
 
-![omega-edit-session](https://user-images.githubusercontent.com/2205472/176588511-71ef444a-7c64-4ba9-b7b0-b6af02888cd4.png)
+![omega-edit-session](images/omega-edit-session.png)
 
 All editing is done using an Ωedit™ session. Sessions represent the editing session and manage all the objects used in Ωedit™. When a session is destroyed, so are all of its associated objects (e.g., models, viewports, and search contexts) and checkpoint files. Sessions control the model stack and the associated viewports. Other miscellaneous objects include items needed for event handling and event interest, session flags (e.g., transaction state, state of various pauses, etc.), num change adjustments needed for change ID bookkeeping when checkpoints are used (more than one model is in the model stack), and search contexts for search context lifecycle management.
 
@@ -34,13 +34,13 @@ When a session is created, it can be populated with the contents of an existing 
 
 ### Initial Read
 
-![omega-edit-initial-read](https://user-images.githubusercontent.com/2205472/176591535-f306eec8-9df2-465b-a62c-d1c867930720.png)
+![omega-edit-initial-read](images/omega-edit-initial-read.png)
 
-![omega-edit-change](https://user-images.githubusercontent.com/2205472/176591667-9fe8820c-c6c4-4059-84b6-8704995de94f.png)
+![omega-edit-change](images/omega-edit-change.png)
 
 ### Delete
 
-![omega-edit-delete](https://user-images.githubusercontent.com/2205472/176591892-f2ac9900-4a35-4837-b2ab-7a41dc5df433.png)
+![omega-edit-delete](images/omega-edit-delete.png)
 
 ```c
 // declared in edit.h
@@ -51,7 +51,7 @@ To delete some number of bytes from a session, call `omega_edit_delete` with a s
 
 ### Insert
 
-![omega-edit-insert](https://user-images.githubusercontent.com/2205472/176592073-18d5d17e-a46e-4ad3-93d4-95443cf7f963.png)
+![omega-edit-insert](images/omega-edit-insert.png)
 
 ```c
 // declared in edit.h
@@ -62,7 +62,7 @@ To insert byte data into a session, call `omega_edit_insert_bytes` with a sessio
 
 ### Overwrite
 
-![omega-edit-overwrite](https://user-images.githubusercontent.com/2205472/176592225-8144e6cb-0e90-4497-b845-ddfb6791a85c.png)
+![omega-edit-overwrite](images/omega-edit-overwrite.png)
 
 ```c
 // declared in edit.h
@@ -86,7 +86,7 @@ Call `omega_session_pause_changes` with the desired session to pause changes bei
 
 ## Saving
 
-![omega-edit-saving](https://user-images.githubusercontent.com/2205472/176592490-c08f27ab-f095-4696-b284-b62c2ce99128.png)
+![omega-edit-saving](images/omega-edit-saving.png)
 
 ```c
 // declared in edit.h
@@ -97,11 +97,11 @@ To save the edited data in a session to a file, call `omega_edit_save` with the 
 
 ## Viewports
 
-![omega-edit-viewport](https://user-images.githubusercontent.com/2205472/176588932-0248f38b-14a8-455e-b3cf-175ef947f817.png)
+![omega-edit-viewport](images/omega-edit-viewport.png)
 
 Viewports are used to view data in an associated editing session. A viewport object contains a data segment, which contains information about the capacity and location of the segment, and if it's floating, the offset adjustment. The data in the data segment is materialized on demand, such as when a change affects the data in the viewport, a segment is requested, or the session is being saved to a file. Miscellaneous objects include a pointer to the controlling session, and items for handling viewport events and event interest. This depiction below shows how the data segment is materialized from the model segments in the associated session.
 
-![omega-edit-viewport-population](https://user-images.githubusercontent.com/2205472/176592733-3e1ee1dd-8808-4f1b-8add-be1bb7d604f0.png)
+![omega-edit-viewport-population](images/omega-edit-viewport-population.png)
 
 ```c
 // declared in edit.h
@@ -251,7 +251,7 @@ int main() {
 
 ## Additional Editing Capabilities
 
-![omega-edit-undo-redo-transform](https://user-images.githubusercontent.com/2205472/176590411-c1adbb4f-94ee-4117-8088-56d908224f0f.png)
+![omega-edit-undo-redo-transform](images/omega-edit-undo-redo-transform.png)
 
 ### Undo
 
@@ -307,7 +307,7 @@ To bundle a series of edit operations together so that they can be undone / redo
 
 ## Checkpoints
 
-![omega-edit-checkpoints](https://user-images.githubusercontent.com/2205472/176589310-64d5c96d-e8f3-4ee6-9e99-a173eafb2cc9.png)
+![omega-edit-checkpoints](images/omega-edit-checkpoints.png)
 
 ```c
 // declared in edit.h
