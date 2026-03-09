@@ -156,7 +156,7 @@ jobs:
         run: conan profile detect --force
 
       - name: Cache Conan packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.conan2
           key: conan-coverage-${{ hashFiles('server/cpp/conanfile.py') }}
