@@ -146,7 +146,7 @@ public:
         std::string lang = normalize_language_code(result.language);
 
         // CLD3 detects Japanese aggressively due to its distinctive script
-        // mixture (kanji + kana).  For parity with the Scala server's
+        // mixture (kanji + kana).  For parity with the previous server's
         // Tika/Optimaize backend (which needed more text for Japanese),
         // require a minimum UTF-8 byte count for Japanese detection only.
         static constexpr size_t MIN_JA_DETECT_BYTES = 100;
@@ -167,3 +167,4 @@ std::unique_ptr<ILanguageDetector> create_default_language_detector() {
 
 } // namespace grpc_server
 } // namespace omega_edit
+

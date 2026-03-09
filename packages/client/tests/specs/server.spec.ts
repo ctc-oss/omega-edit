@@ -80,7 +80,6 @@ describe('Server', () => {
         pid = await startServerUnixSocket(
           socketPath,
           undefined,
-          undefined,
           false,
           serverTestPort,
           testHost
@@ -242,7 +241,6 @@ describe('Server Heartbeat Timeout', () => {
       pid = await startServerUnixSocket(
         socketPath,
         undefined,
-        undefined,
         false,
         serverTestPort,
         testHost,
@@ -252,13 +250,7 @@ describe('Server Heartbeat Timeout', () => {
       delete process.env.OMEGA_EDIT_SERVER_SOCKET
       delete process.env.OMEGA_EDIT_SERVER_URI
       expect(await stopServiceOnPort(serverTestPort)).to.be.true
-      pid = await startServer(
-        serverTestPort,
-        undefined,
-        undefined,
-        undefined,
-        heartbeat
-      )
+      pid = await startServer(serverTestPort, undefined, undefined, heartbeat)
     }
     expect(pid).to.be.a('number').greaterThan(0)
     expect(pidIsRunning(pid as number)).to.be.true
@@ -378,7 +370,6 @@ describe('Server Shutdown When No Sessions', () => {
       pid = await startServerUnixSocket(
         socketPath,
         undefined,
-        undefined,
         false,
         serverTestPort,
         testHost,
@@ -388,13 +379,7 @@ describe('Server Shutdown When No Sessions', () => {
       delete process.env.OMEGA_EDIT_SERVER_SOCKET
       delete process.env.OMEGA_EDIT_SERVER_URI
       expect(await stopServiceOnPort(serverTestPort)).to.be.true
-      pid = await startServer(
-        serverTestPort,
-        undefined,
-        undefined,
-        undefined,
-        heartbeat
-      )
+      pid = await startServer(serverTestPort, undefined, undefined, heartbeat)
     }
 
     expect(pid).to.be.a('number').greaterThan(0)
@@ -489,7 +474,6 @@ describe('Directory with Spaces Test', () => {
     if (isUds) {
       pid = await startServerUnixSocket(
         socketPath,
-        undefined,
         undefined,
         false,
         serverTestPort,

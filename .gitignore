@@ -49,7 +49,6 @@ package-lock.json
 **/*.o
 **/*.so
 
-# sbt
 **/*jar
 **/target/*
 .bsp
@@ -58,10 +57,7 @@ package-lock.json
 
 .metals
 .bloop
-metals.sbt
-.scala-build
 project
-!server/scala/project
 
 ## typescript
 packages/client/coverage/
@@ -78,3 +74,4 @@ src/*.js
 packages/client/src/client_version.ts
 packages/client/tests/specs/data/.OmegaEdit-orig.*
 omega-edit-grpc-server.*
+

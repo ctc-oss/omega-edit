@@ -50,7 +50,7 @@ for objtype in shared static; do
   cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
 done
 
-# OE_LIB_DIR is used by scala native code to bundle the proper library file
+# OE_LIB_DIR is used by native code to bundle the proper library file
 # NOTE: Windows uses bin for shared libraries, and non-Windows uses lib
 if [[ -d "${install_dir}-shared-${type}/bin" ]]; then
   export OE_LIB_DIR="$(readlink -f "${install_dir}-shared-${type}/bin")"
@@ -76,3 +76,4 @@ yarn lint
 yarn workspace @omega-edit/client test
 
 echo "✔ Done! ✨"
+

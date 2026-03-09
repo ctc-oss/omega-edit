@@ -27,7 +27,6 @@
 #include <atomic>
 #include <fstream>
 #include <iostream>
-#include <regex>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -81,10 +80,10 @@ static void print_usage(const char *progname) {
               << "\nHeartbeat / session-reaping options:\n"
               << "      --session-timeout <ms>       Idle session timeout in milliseconds (0 = disabled)\n"
               << "      --cleanup-interval <ms>      Reaper sweep interval in milliseconds (0 = disabled)\n"
-              << "      --shutdown-when-no-sessions   Exit after the last session is reaped\n"
+              << "      --shutdown-when-no-sessions  Exit after the last session is reaped\n"
               << "\nGeneral:\n"
-              << "  -h, --help               Show this help\n"
-              << "  -v, --version            Show version\n";
+              << "  -h, --help                       Show this help\n"
+              << "  -v, --version                    Show version\n";
 }
 
 int main(int argc, char **argv) {
@@ -98,11 +97,6 @@ int main(int argc, char **argv) {
     int session_timeout_ms = 0;
     int cleanup_interval_ms = 0;
     bool shutdown_when_no_sessions = false;
-    // Track which settings came from CLI so they can override env/JAVA_OPTS
-    bool cli_session_timeout = false;
-    bool cli_cleanup_interval = false;
-    bool cli_shutdown_when_no_sessions = false;
-
     // Environment variable defaults
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) {
         interface_addr = env;
@@ -124,21 +118,15 @@ int main(int argc, char **argv) {
     }
 
     // Native heartbeat environment variables
-    bool env_session_timeout = false;
-    bool env_cleanup_interval = false;
-    bool env_shutdown_when_no_sessions = false;
     if (const char *env = std::getenv("OMEGA_EDIT_SESSION_TIMEOUT_MS")) {
         if (!parse_int(env, "OMEGA_EDIT_SESSION_TIMEOUT_MS", 0, INT_MAX, session_timeout_ms)) return 1;
-        env_session_timeout = true;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_CLEANUP_INTERVAL_MS")) {
         if (!parse_int(env, "OMEGA_EDIT_CLEANUP_INTERVAL_MS", 0, INT_MAX, cleanup_interval_ms)) return 1;
-        env_cleanup_interval = true;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SHUTDOWN_WHEN_NO_SESSIONS")) {
         std::string val(env);
         shutdown_when_no_sessions = (val == "true" || val == "1");
-        env_shutdown_when_no_sessions = true;
     }
 
     // Parse command line arguments
@@ -155,7 +143,6 @@ int main(int argc, char **argv) {
             unix_socket_only = true;
         } else if (arg == "--shutdown-when-no-sessions") {
             shutdown_when_no_sessions = true;
-            cli_shutdown_when_no_sessions = true;
         } else {
             // Handle --key=value and --key value forms
             std::string key, value;
@@ -201,16 +188,14 @@ int main(int argc, char **argv) {
                     return 1;
                 }
                 if (!parse_int(value, "--session-timeout", 0, INT_MAX, session_timeout_ms)) return 1;
-                cli_session_timeout = true;
             } else if (key == "--cleanup-interval") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
                     return 1;
                 }
                 if (!parse_int(value, "--cleanup-interval", 0, INT_MAX, cleanup_interval_ms)) return 1;
-                cli_cleanup_interval = true;
             }
-            // Silently ignore unknown options (e.g., -Dlogback.configurationFile= from Scala compat)
+            // Silently ignore unknown options.
         }
     }
 
@@ -230,48 +215,11 @@ int main(int argc, char **argv) {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
-    // Build heartbeat config.  Priority: CLI flags > OMEGA_EDIT_* env > JAVA_OPTS (deprecated).
+    // Build heartbeat config from CLI flags and OMEGA_EDIT_* environment variables.
     omega_edit::grpc_server::HeartbeatConfig heartbeat_config;
     heartbeat_config.session_timeout = std::chrono::milliseconds(session_timeout_ms);
     heartbeat_config.cleanup_interval = std::chrono::milliseconds(cleanup_interval_ms);
     heartbeat_config.shutdown_when_no_sessions = shutdown_when_no_sessions;
-
-    // DEPRECATED: Parse JAVA_OPTS for backward compatibility with the old Scala server.
-    // Native CLI flags (--session-timeout, --cleanup-interval, --shutdown-when-no-sessions)
-    // or OMEGA_EDIT_* environment variables should be used instead.
-    if (const char *java_opts_env = std::getenv("JAVA_OPTS")) {
-        std::string java_opts(java_opts_env);
-
-        std::regex timeout_re(R"(-Domega-edit\.grpc\.heartbeat\.session-timeout=(\d+)ms)");
-        std::smatch m;
-        if (!cli_session_timeout && !env_session_timeout && std::regex_search(java_opts, m, timeout_re)) {
-            try {
-                heartbeat_config.session_timeout = std::chrono::milliseconds(std::stoi(m[1].str()));
-            } catch (const std::exception &) {
-                std::cerr << "Warning: JAVA_OPTS session-timeout value out of range, using default\n";
-            }
-            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --session-timeout instead"
-                      << std::endl;
-        }
-
-        std::regex interval_re(R"(-Domega-edit\.grpc\.heartbeat\.cleanup-interval=(\d+)ms)");
-        if (!cli_cleanup_interval && !env_cleanup_interval && std::regex_search(java_opts, m, interval_re)) {
-            try {
-                heartbeat_config.cleanup_interval = std::chrono::milliseconds(std::stoi(m[1].str()));
-            } catch (const std::exception &) {
-                std::cerr << "Warning: JAVA_OPTS cleanup-interval value out of range, using default\n";
-            }
-            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; use --cleanup-interval instead"
-                      << std::endl;
-        }
-
-        std::regex shutdown_re(R"(-Domega-edit\.grpc\.heartbeat\.shutdown-when-no-sessions=(true|false))");
-        if (!cli_shutdown_when_no_sessions && !env_shutdown_when_no_sessions && std::regex_search(java_opts, m, shutdown_re)) {
-            heartbeat_config.shutdown_when_no_sessions = (m[1].str() == "true");
-            std::cerr << "Warning: JAVA_OPTS heartbeat config is deprecated; "
-                      << "use --shutdown-when-no-sessions instead" << std::endl;
-        }
-    }
 
     // Create service with shutdown callback that requests shutdown via the monitor thread
     auto shutdown_callback = []() {

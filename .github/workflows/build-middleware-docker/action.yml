@@ -1,13 +1,13 @@
 # Copyright (c) 2021 Concurrent Technologies Corporation.
-#                                                                                                               
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at                                                    
-#                                                                                                               
-#     http://www.apache.org/licenses/LICENSE-2.0                                                                
-#                                                                                                               
-# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-# implied.  See the License for the specific language governing permissions and limitations under the License.  
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 
 ---
 name: Build Middleware
@@ -25,18 +25,18 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up QEMU 🔧
+    - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
       with:
         platforms: arm64
 
-    - name: Download Library File (${{ inputs.os-name }}-${{ inputs.library-filename }}) 🔻
+    - name: Download Library File (${{ inputs.os-name }}-${{ inputs.library-filename }})
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.os-name }}-${{ inputs.library-filename }}
         path: _artifacts/
 
-    - name: Install Library File (${{ inputs.library-filename }}) 🛻
+    - name: Install Library File (${{ inputs.library-filename }})
       shell: bash
       run: |
         mkdir -p _install/
@@ -44,7 +44,7 @@ runs:
         ls -Rl _install/
         echo "OE_LIB_DIR=$(pwd)/_install" >> $GITHUB_ENV
 
-    - name: Start container 🐳
+    - name: Start container
       shell: bash
       run: |
         docker run \
@@ -57,27 +57,19 @@ runs:
           ${{ inputs.docker-image }} \
           bash -c "tail -f /dev/null"
 
-    - name: Package Scala Native 🎁
-      shell: bash
-      run: docker exec -w /omega-edit/server/scala omega-edit-${{ inputs.os-name }}-cont bash -c "sbt installM2"
-  
-    - name: Test Scala RPC server 📋
-      shell: bash
-      run: docker exec -w /omega-edit/server/scala omega-edit-${{ inputs.os-name }}-cont bash -c "sbt serv/test"
-
-    - name: Yarn Install 🏗️
+    - name: Yarn Install
       run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn install"
       shell: bash
 
-    - name: Yarn Package - Server 📦
+    - name: Yarn Package - Server
       run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/server package"
       shell: bash
 
-    - name: Yarn Test - Client 🧑‍💼
+    - name: Yarn Test - Client
       run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/client test"
       shell: bash
 
-    - name: Remove container and image 🧹
+    - name: Remove container and image
       shell: bash
       if: success() || failure()
       run: |
