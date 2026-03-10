@@ -25,7 +25,8 @@ All editing is done using an Ωedit™ session. Sessions represent the editing s
 ```c
 // declared in edit.h
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
-                                           void *user_data_ptr, int32_t event_interest);
+                                           void *user_data_ptr, int32_t event_interest,
+                                           const char *checkpoint_directory);
 ```
 
 When a session is created, it can be populated with the contents of an existing file, or it can be created empty. A callback function and a pointer to user data can be registered at creation time, which will be called when desired events take place in the session. What is returned is an opaque session pointer to the session object that will be needed for many of the other functions in Ωedit™.
@@ -90,10 +91,10 @@ Call `omega_session_pause_changes` with the desired session to pause changes bei
 
 ```c
 // declared in edit.h
-int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int overwrite, char *saved_file_path);
+int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
 ```
 
-To save the edited data in a session to a file, call `omega_edit_save` with the session to save, and a file path. If the file exists, and overwrite is non-zero, then the file will be overwritten. If the overwritten file is the same as the file being edited by the session, then the session is reset (changes and redos are cleared and the session is now using the new file content for editing). If the file exists and overwrite is zero, then save will create a new _incremented_ filename stored in `saved_file_path` (must be able to accommodate FILENAME_MAX bytes). Zero is returned on success and non-zero otherwise.
+To save the edited data in a session to a file, call `omega_edit_save` with the session to save, a file path, and `io_flags` (an `omega_io_flags_t` bitmask, e.g., `IO_FLG_OVERWRITE` to overwrite an existing file or `IO_FLG_NONE` to leave the original file intact). If the file exists and `IO_FLG_OVERWRITE` is set, the file will be overwritten. If the overwritten file is the same as the file being edited by the session, then the session is reset (changes and redos are cleared and the session is now using the new file content for editing). If the file exists and `IO_FLG_OVERWRITE` is not set, then save will create a new _incremented_ filename stored in `saved_file_path` (must be able to accommodate FILENAME_MAX bytes). Zero is returned on success and non-zero otherwise.
 
 ## Viewports
 
@@ -162,17 +163,17 @@ void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr)
 int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr);
 ```
 
-To pause viewport events from being generated, call `omega_session_pause_viewport_event_callbacks` with the desired session, and then to resume the callbacks, call `omega_session_resume_viewport_event_callbacks` with the same session. Call `omega_session_viewport_event_callbacks_paused` to determine if the session's viewport callbacks are paused or not. For example when doing search and replace, as implemented in `src/examples/replace.cpp`, viewport events are paused when the original search pattern is deleted, then events are resumed before the replacement string is inserted. Viewport events are paused for the delete, then resumed before the insert, causing viewport refreshes to occur just once for each replacement, showing the pattern being immediately replaced with the replacement string, rather than showing the delete of the pattern followed by the insert of the replacement. It is recommended that bulk operations like replacing all patterns with another pattern that viewport events be paused before the bulk operation, then resumed after the bulk operation. During the bulk operation viewport data might have been changed, so after resuming viewport events, call `omega_session_notify_viewports_of_changes` so that the updated data can be read from the changed viewports.
+To pause viewport events from being generated, call `omega_session_pause_viewport_event_callbacks` with the desired session, and then to resume the callbacks, call `omega_session_resume_viewport_event_callbacks` with the same session. Call `omega_session_viewport_event_callbacks_paused` to determine if the session's viewport callbacks are paused or not. For example when doing search and replace, as implemented in `core/src/examples/replace.cpp`, viewport events are paused when the original search pattern is deleted, then events are resumed before the replacement string is inserted. Viewport events are paused for the delete, then resumed before the insert, causing viewport refreshes to occur just once for each replacement, showing the pattern being immediately replaced with the replacement string, rather than showing the delete of the pattern followed by the insert of the replacement. It is recommended that bulk operations like replacing all patterns with another pattern that viewport events be paused before the bulk operation, then resumed after the bulk operation. During the bulk operation viewport data might have been changed, so after resuming viewport events, call `omega_session_notify_viewports_of_changes` so that the updated data can be read from the changed viewports.
 
 ## Putting The Basics Together
 
-There are several example programs in `src/examples` that demonstrate many of the capabilities of Ωedit™. Included are 2 simple examples of doing basic editing, one is a C program using the Ωedit™ C API and the other is a C++ program using the Ωedit™ `stl_string_adapter.hpp`. The 2 simple examples are included below for reference.
+There are several example programs in `core/src/examples` that demonstrate many of the capabilities of Ωedit™. Included are 2 simple examples of doing basic editing, one is a C program using the Ωedit™ C API and the other is a C++ program using the Ωedit™ `stl_string_adaptor.hpp`. The 2 simple examples are included below for reference.
 
 ### C
 
 ```c
 //
-// See src/examples/simple_c.c
+// See core/src/examples/simple_c.c
 //
 
 #include <omega_edit.h>
@@ -187,7 +188,8 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
             char change_kind = viewport_event_ptr
                                        ? omega_change_get_kind_as_char((const omega_change_t *) (viewport_event_ptr))
                                        : 'R';
-            fprintf(stdout, "%c: [%s]\n", change_kind, omega_viewport_get_data(viewport_ptr));
+            fprintf((FILE *) (omega_viewport_get_user_data_ptr(viewport_ptr)), "%c: [%s]\n", change_kind,
+                    omega_viewport_get_data(viewport_ptr));
             break;
         }
         default:
@@ -197,12 +199,12 @@ void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t
 }
 
 int main() {
-    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL, NO_EVENTS);
-    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, NULL, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
+    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL, NO_EVENTS, NULL);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, stdout, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
     omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
     omega_edit_overwrite(session_ptr, 7, "orl", 0);
     omega_edit_delete(session_ptr, 11, 3);
-    omega_edit_save(session_ptr, "hello.txt", 1, NULL);
+    omega_edit_save(session_ptr, "hello.txt", IO_FLG_OVERWRITE, NULL);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }
@@ -212,7 +214,7 @@ int main() {
 
 ```cpp
 //
-// See src/examples/simple.cpp
+// See core/src/examples/simple.cpp
 //
 
 #include <iostream>
@@ -238,12 +240,12 @@ inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_
 }
 
 int main() {
-    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS);
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, nullptr, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
     omega_edit_insert_string(session_ptr, 0, "Hello Weird!!!!");
     omega_edit_overwrite_string(session_ptr, 7, "orl");
     omega_edit_delete(session_ptr, 11, 3);
-    omega_edit_save(session_ptr, "hello.txt", 0, nullptr);
+    omega_edit_save(session_ptr, "hello.txt", omega_io_flags_t::IO_FLG_NONE, nullptr);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }
@@ -290,7 +292,7 @@ omega_search_create_context_bytes(const omega_session_t *session_ptr, const omeg
                                   int case_insensitive);
 ```
 
-To search a segment of data in a session for a byte pattern, first create a search context using the `omega_search_create_context_bytes` function. The function takes the session to search, the byte pattern to search for, the byte pattern length, the session offset to start the search, then the number of bytes out from the given session offset to search, and finally if the search should be case insensitive or not (zero for case sensitive searching and non-zero otherwise). What is returned is an opaque search context pointer that can be iterated over to find matches. For a simple example, see `src/examples/search.cpp`, and to see how search and replace can be implemented, see `src/examples/replace.cpp`. When the search context is no longer required, destroy it with `omega_search_destroy_context`. Search context memory is managed by the associated session, so if the session is destroyed, so are all of the associated search contexts.
+To search a segment of data in a session for a byte pattern, first create a search context using the `omega_search_create_context_bytes` function. The function takes the session to search, the byte pattern to search for, the byte pattern length, the session offset to start the search, then the number of bytes out from the given session offset to search, and finally if the search should be case insensitive or not (zero for case sensitive searching and non-zero otherwise). What is returned is an opaque search context pointer that can be iterated over to find matches. For a simple example, see `core/src/examples/search.cpp`, and to see how search and replace can be implemented, see `core/src/examples/replace.cpp`. When the search context is no longer required, destroy it with `omega_search_destroy_context`. Search context memory is managed by the associated session, so if the session is destroyed, so are all of the associated search contexts.
 
 ## Transactions
 
@@ -315,7 +317,7 @@ int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *check
 int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
 ```
 
-In Ωedit™, checkpoints create a file on disk with all the current changes made, and the change and redo stacks are pushed into a checkpoint stack. After the checkpoint, changes and undos made to these changes are put into new stacks. Checkpoints can be used in circumstances where changes would take up a large amount of memory, so we make those large changes to a checkpoint file, then continue making changes from that new baseline (see Byte Transforms). This allows keeping the change history and the ability to do undos in tact, trading storage space for memory efficiency. Checkpoints can be created using `omega_edit_create_checkpoint` and destroyed using `omega_edit_destroy_last_checkpoint` explicitly by the user, or they may be required by the library (as is the case with applying byte transforms). If a checkpoint is destroyed, session state returns to where it was just prior to the checkpoint creation (this is also known as "rollback"). Transactional editing systems could potentially be built using Ωedit™'s checkpointing capabilities.
+In Ωedit™, checkpoints create a file on disk with all the current changes made, and the change and redo stacks are pushed into a checkpoint stack. After the checkpoint, changes and undos made to these changes are put into new stacks. Checkpoints can be used in circumstances where changes would take up a large amount of memory, so we make those large changes to a checkpoint file, then continue making changes from that new baseline (see Byte Transforms). This allows keeping the change history and the ability to do undos intact, trading storage space for memory efficiency. Checkpoints can be created using `omega_edit_create_checkpoint` and destroyed using `omega_edit_destroy_last_checkpoint` explicitly by the user, or they may be required by the library (as is the case with applying byte transforms). If a checkpoint is destroyed, session state returns to where it was just prior to the checkpoint creation (this is also known as "rollback"). Transactional editing systems could potentially be built using Ωedit™'s checkpointing capabilities.
 
 ## Byte Transforms
 
@@ -365,7 +367,7 @@ mask_info.mask = 0xFF;
 omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./checkpoints")
 ```
 
-A full, but simple, example of applying uppercase and lowercase transforms in an editing session can be found in `src/examples/transform.c`.
+A full, but simple, example of applying uppercase and lowercase transforms in an editing session can be found in `core/src/examples/transform.c`.
 
 ## Metrics
 
