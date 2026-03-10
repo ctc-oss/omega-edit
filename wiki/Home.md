@@ -1,0 +1,549 @@
+![omega-edit logo](images/omega-edit-logo.png)
+
+## Introduction to Ωedit™
+
+Ωedit™ is a back-end system for building editor front-ends.
+
+Ωedit™ has a native library (written in C/C++), a native C++ gRPC server, and a TypeScript RPC client that uses HTTP/2 over TCP. Ωedit™ handles the editing bookkeeping and file I/O allowing the front-end to focus on presentation details. The front-end application creates one or more viewports that are subscribed to. Desired changes are then sent to the local Ωedit™ client, which communicates changes to the server, which then sends them into the library. Changes that affect the subscribed viewport(s) are communicated to the server, then to the client, and finally to the front-end which renders the data in the affected viewports. These round trips are fast and efficient (thousands of changes per second). This architecture allows for efficient (in both time and space) editing of very large files. Ωedit™ does not load the file being edited in memory, instead it keeps track of the changes, and can compute the changes for any given data segment or viewport on demand. This allows paging through the data with the edits applied, or have several viewports into the data all being kept up to date with all affecting changes being made.
+
+## The Basics
+
+## Ωedit™ Model
+
+While the model is not publicly exposed, it is useful for context.
+
+![omega-edit-object-model](images/omega-edit-object-model.png)
+
+Changes are tracked in the changes stack (Last In, First Out (LIFO)) where new changes are pushed onto the top/front of the stack. The model has another stack that holds changes that are undone. More details on how the stacks work are provided in the Additional Editing Capabilities section. As changes are processed, the model segments are updated. The model segments represent the edited state of the file mathematically (model segments don't actually hold any of the data in memory). Details for how the model segments are computed are provided in the Basic Editing section. The model has read access to the underlying file being edited, which is required for materializing the data (populating a data segment with data) needed for saving and updating viewports.
+
+## Sessions
+
+![omega-edit-session](images/omega-edit-session.png)
+
+All editing is done using an Ωedit™ session. Sessions represent the editing session and manage all the objects used in Ωedit™. When a session is destroyed, so are all of its associated objects (e.g., models, viewports, and search contexts) and checkpoint files. Sessions control the model stack and the associated viewports. Other miscellaneous objects include items needed for event handling and event interest, session flags (e.g., transaction state, state of various pauses, etc.), num change adjustments needed for change ID bookkeeping when checkpoints are used (more than one model is in the model stack), and search contexts for search context lifecycle management.
+
+```c
+// declared in edit.h
+omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk,
+                                           void *user_data_ptr, int32_t event_interest,
+                                           const char *checkpoint_directory);
+```
+
+When a session is created, it can be populated with the contents of an existing file, or it can be created empty. A callback function and a pointer to user data can be registered at creation time, which will be called when desired events take place in the session. What is returned is an opaque session pointer to the session object that will be needed for many of the other functions in Ωedit™.
+
+## Basic Editing
+
+### Initial Read
+
+![omega-edit-initial-read](images/omega-edit-initial-read.png)
+
+![omega-edit-change](images/omega-edit-change.png)
+
+### Delete
+
+![omega-edit-delete](images/omega-edit-delete.png)
+
+```c
+// declared in edit.h
+int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
+```
+
+To delete some number of bytes from a session, call `omega_edit_delete` with a session pointer, the offset to begin deleting bytes from, and a number of bytes to delete. What is returned is a positive change serial number, or zero if the delete failed.
+
+### Insert
+
+![omega-edit-insert](images/omega-edit-insert.png)
+
+```c
+// declared in edit.h
+int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length);
+```
+
+To insert byte data into a session, call `omega_edit_insert_bytes` with a session pointer, the offset to insert the bytes at, then a pointer to the bytes, and the number of bytes being pointed to. What is returned is a positive change serial number, or zero if the insert failed.
+
+### Overwrite
+
+![omega-edit-overwrite](images/omega-edit-overwrite.png)
+
+```c
+// declared in edit.h
+int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes, int64_t length);
+```
+
+To overwrite byte data in a session, call `omega_edit_overwrite_bytes` with a session pointer, the offset to overwrite bytes at, then a pointer to the bytes, and the number of bytes being pointed to. What is returned is a positive change serial number, or zero if the overwrite failed.
+
+### Pause And Resume Session Data Changes
+
+There are certain times when an application may need to explicitly suspend session data changes for a period of time. For example, if the application needs to process the entire file, segment at a time. In this scenario, data changes while such processing is taking place, would cause serious performance problems.
+
+```c
+// declared in session.h
+int omega_session_changes_paused(const omega_session_t *session_ptr);
+void omega_session_pause_changes(omega_session_t *session_ptr);
+void omega_session_resume_changes(omega_session_t *session_ptr);
+```
+
+Call `omega_session_pause_changes` with the desired session to pause changes being made to the session data (e.g., inserts, deletes, overwrites, undo, redo, and transforms). When session changes are paused, the session is essentially "read only", the change ID returned from insert, delete, overwrite, undo, and redo will be 0, and for transform, -1 will be returned. Call `omega_session_resume_changes` on the paused session to allow session data changes to resume. Call `omega_session_changes_paused` to determine if session data changes are paused or not.
+
+## Saving
+
+![omega-edit-saving](images/omega-edit-saving.png)
+
+```c
+// declared in edit.h
+int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
+```
+
+To save the edited data in a session to a file, call `omega_edit_save` with the session to save, a file path, and `io_flags` (an `omega_io_flags_t` bitmask, e.g., `IO_FLG_OVERWRITE` to overwrite an existing file or `IO_FLG_NONE` to leave the original file intact). If the file exists and `IO_FLG_OVERWRITE` is set, the file will be overwritten. If the overwritten file is the same as the file being edited by the session, then the session is reset (changes and redos are cleared and the session is now using the new file content for editing). If the file exists and `IO_FLG_OVERWRITE` is not set, then save will create a new _incremented_ filename stored in `saved_file_path` (must be able to accommodate FILENAME_MAX bytes). Zero is returned on success and non-zero otherwise.
+
+## Viewports
+
+![omega-edit-viewport](images/omega-edit-viewport.png)
+
+Viewports are used to view data in an associated editing session. A viewport object contains a data segment, which contains information about the capacity and location of the segment, and if it's floating, the offset adjustment. The data in the data segment is materialized on demand, such as when a change affects the data in the viewport, a segment is requested, or the session is being saved to a file. Miscellaneous objects include a pointer to the controlling session, and items for handling viewport events and event interest. This depiction below shows how the data segment is materialized from the model segments in the associated session.
+
+![omega-edit-viewport-population](images/omega-edit-viewport-population.png)
+
+```c
+// declared in edit.h
+omega_viewport_t *omega_edit_create_viewport(omega_session_t *session_ptr, int64_t offset,
+                                             int64_t capacity, int is_floating,
+                                             omega_viewport_event_cbk_t cbk, void *user_data_ptr,
+                                             int32_t event_interest);
+```
+
+Viewports are created and managed in the session. Viewports begin a given offset in the session data and viewports have an associated capacity defined at creation time. If the viewport is floating, that means that inserts and deletes that occur before this viewport's offset will change its offset. For example, if the viewport starts at offset 10, and a single-byte delete happens at offset 5, then the viewport's offset will be adjusted to offset 9, and similarly if say 3 bytes are inserted at offset 7, then the viewport's offset will be adjusted to 3 plus its current offset. If the viewport is not floating, then its offset is fixed and will therefore not be affected by inserts and deletes that occur before this viewport's offset, but instead the viewport data itself will move. For example, if 3 bytes are deleted before the viewport offset, then the data in the viewport will shift to the left by 3 bytes, and if 4 bytes are inserted before the viewport offset, then the data in the viewport will shift to the right by 4 bytes. Changes that happen to data in the viewport or after the viewport do not affect the viewport offset. Like with sessions, viewports also take callback functions, a pointer to user data, which will be called when desired viewport events take place. When data is retrieved from a viewport, that data is the most current state of that data (e.g., all editing changes have been applied) at the time of the retrieval. If a modification is made to a viewport's configuration, a VIEWPORT_EVT_MODIFY event is generated and interested viewport callbacks are called, allowing the application to refresh modified viewports to keep them up to date. Unaffected viewports have not changed, and therefore do not need to be refreshed. What is returned is an opaque viewport pointer which is used by many other functions in Ωedit™, most of which reside in viewport.h. The viewport is managed by the associated session, so if the session is destroyed, so are all of the associated viewports. If a session is still needed, but an associated viewport is no longer needed, the viewport can, and should be, destroyed explicitly.
+
+## Event Callbacks
+
+The Ωedit™ library uses callbacks to inform the application of events of interest. Events that trigger callbacks are listed below. The event void pointer can be cast to point to an object associated with the event. For example, a SESSION_EVT_EDIT event callback can have its session_event_ptr cast as a const omega_change_t * so the callback can get details on the change that caused the SESSION_EVT_EDIT. If the event pointer is not used, it will be set to NULL when sent to the callback function. If there is interest in only certain events, the desired events are or'ed together. If all events are desired, the macro ALL_EVENTS can be used, and conversely if no events are desired, use NULL (in C) or nullptr (in C++) for the callback, and set the event interest to NO_EVENTS.
+
+### Sessions
+
+The table below are the session-level events that will generate a callback if the session creator has expressed interest in the event taking place.
+
+| Event | Description | session_event_ptr |
+|---|---|---|
+| SESSION_EVT_CREATE | Occurs when the session is successfully created | _not used_ |
+| SESSION_EVT_EDIT | Occurs when the session has successfully processed an edit | omega_change_t |
+| SESSION_EVT_UNDO | Occurs when the session has successfully processed an undo | omega_change_t |
+| SESSION_EVT_CLEAR | Occurs when the session has successfully processed a clear | _not used_ |
+| SESSION_EVT_TRANSFORM | Occurs when the session has successfully processed a transform | _not used_ |
+| SESSION_EVT_CREATE_CHECKPOINT | Occurs when the session has successfully created a checkpoint | _not used_ |
+| SESSION_EVT_DESTROY_CHECKPOINT | Occurs when the session has successfully destroyed a checkpoint | _not used_ |
+| SESSION_EVT_SAVE | Occurs when the session has been successfully saved to file | const char * |
+| SESSION_EVT_CHANGES_PAUSED | Occurs when the session changes have been paused | _not used_ |
+| SESSION_EVT_CHANGES_RESUMED | Occurs when the session changes have been resumed | _not used_ |
+| SESSION_EVT_CREATE_VIEWPORT | Occurs when the session has successfully created a viewport | omega_viewport_t |
+| SESSION_EVT_DESTROY_VIEWPORT | Occurs when the session has successfully destroyed a viewport | omega_viewport_t |
+
+### Viewports
+
+The table below are the viewport-level events that will generate a callback if the viewport creator has expressed interest in the event taking place.
+
+| Event | Description | viewport_event_ptr |
+|---|---|---|
+| VIEWPORT_EVT_CREATE | Occurs when the viewport is successfully created | _not used_ |
+| VIEWPORT_EVT_EDIT | Occurs when an edit affects the viewport | omega_change_t |
+| VIEWPORT_EVT_UNDO | Occurs when an undo affects the viewport | omega_change_t |
+| VIEWPORT_EVT_CLEAR | Occurs when a clear affects the viewport | _not used_ |
+| VIEWPORT_EVT_TRANSFORM | Occurs when a transform affects the viewport | _not used_ |
+| VIEWPORT_EVT_MODIFY | Occurs when the viewport itself has been modified | _not used_ |
+| VIEWPORT_EVT_CHANGES | Occurs when the viewport has changes to its data from some other activity | _not used_ |
+
+#### Pausing Viewport Events
+
+There may be times when viewport events need to be paused for some amount of time or activity.
+
+```c
+// declared in session.h
+int omega_session_viewport_event_callbacks_paused(const omega_session_t *session_ptr);
+void omega_session_pause_viewport_event_callbacks(omega_session_t *session_ptr);
+void omega_session_resume_viewport_event_callbacks(omega_session_t *session_ptr);
+int omega_session_notify_viewports_of_changes(const omega_session_t *session_ptr);
+```
+
+To pause viewport events from being generated, call `omega_session_pause_viewport_event_callbacks` with the desired session, and then to resume the callbacks, call `omega_session_resume_viewport_event_callbacks` with the same session. Call `omega_session_viewport_event_callbacks_paused` to determine if the session's viewport callbacks are paused or not. For example when doing search and replace, as implemented in `core/src/examples/replace.cpp`, viewport events are paused when the original search pattern is deleted, then events are resumed before the replacement string is inserted. Viewport events are paused for the delete, then resumed before the insert, causing viewport refreshes to occur just once for each replacement, showing the pattern being immediately replaced with the replacement string, rather than showing the delete of the pattern followed by the insert of the replacement. It is recommended that bulk operations like replacing all patterns with another pattern that viewport events be paused before the bulk operation, then resumed after the bulk operation. During the bulk operation viewport data might have been changed, so after resuming viewport events, call `omega_session_notify_viewports_of_changes` so that the updated data can be read from the changed viewports.
+
+## Putting The Basics Together
+
+There are several example programs in `core/src/examples` that demonstrate many of the capabilities of Ωedit™. Included are 2 simple examples of doing basic editing, one is a C program using the Ωedit™ C API and the other is a C++ program using the Ωedit™ `stl_string_adaptor.hpp`. The 2 simple examples are included below for reference.
+
+### C
+
+```c
+//
+// See core/src/examples/simple_c.c
+//
+
+#include <omega_edit.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                    const void *viewport_event_ptr) {
+    switch (viewport_event) {
+        case VIEWPORT_EVT_CREATE:
+        case VIEWPORT_EVT_EDIT: {
+            char change_kind = viewport_event_ptr
+                                       ? omega_change_get_kind_as_char((const omega_change_t *) (viewport_event_ptr))
+                                       : 'R';
+            fprintf((FILE *) (omega_viewport_get_user_data_ptr(viewport_ptr)), "%c: [%s]\n", change_kind,
+                    omega_viewport_get_data(viewport_ptr));
+            break;
+        }
+        default:
+            abort();
+            break;
+    }
+}
+
+int main() {
+    omega_session_t *session_ptr = omega_edit_create_session(NULL, NULL, NULL, NO_EVENTS, NULL);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, stdout, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
+    omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
+    omega_edit_overwrite(session_ptr, 7, "orl", 0);
+    omega_edit_delete(session_ptr, 11, 3);
+    omega_edit_save(session_ptr, "hello.txt", IO_FLG_OVERWRITE, NULL);
+    omega_edit_destroy_session(session_ptr);
+    return 0;
+}
+```
+
+### C++
+
+```cpp
+//
+// See core/src/examples/simple.cpp
+//
+
+#include <iostream>
+#include <omega_edit/stl_string_adaptor.hpp>
+
+using namespace std;
+
+inline void vpt_change_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
+                           const void *viewport_event_ptr) {
+    switch (viewport_event) {
+        case VIEWPORT_EVT_CREATE:
+        case VIEWPORT_EVT_EDIT: {
+            char change_kind = (viewport_event_ptr)
+                                       ? omega_change_get_kind_as_char(
+                                                 reinterpret_cast<const omega_change_t *>(viewport_event_ptr))
+                                       : 'R';
+            clog << change_kind << ": [" << omega_viewport_get_string(viewport_ptr) << "]" << endl;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+int main() {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    omega_edit_create_viewport(session_ptr, 0, 100, 0, vpt_change_cbk, nullptr, VIEWPORT_EVT_CREATE | VIEWPORT_EVT_EDIT);
+    omega_edit_insert_string(session_ptr, 0, "Hello Weird!!!!");
+    omega_edit_overwrite_string(session_ptr, 7, "orl");
+    omega_edit_delete(session_ptr, 11, 3);
+    omega_edit_save(session_ptr, "hello.txt", omega_io_flags_t::IO_FLG_NONE, nullptr);
+    omega_edit_destroy_session(session_ptr);
+    return 0;
+}
+```
+
+## Additional Editing Capabilities
+
+![omega-edit-undo-redo-transform](images/omega-edit-undo-redo-transform.png)
+
+### Undo
+
+```c
+// declared in edit.h
+int64_t omega_edit_undo_last_change(omega_session_t *session_ptr);
+```
+
+To undo the last change to a session, call `omega_edit_undo_last_change` with the session to undo the last change from. What is returned is a _negative_ serial number of the undone change if successful, and zero otherwise.
+
+### Redo
+
+```c
+// declared in edit.h
+int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr);
+```
+
+To redo the last undone change to a session, call `omega_edit_redo_last_undo` with a session to redo the last undo. What is returned is the positive serial number of the redone change if successful, and zero otherwise.
+
+### Clear
+
+```c
+// declared in edit.h
+int omega_edit_clear_changes(omega_session_t *session_ptr);
+```
+
+To clear all changes made to a session, call `omega_edit_clear_changes` with the session to clear all changes and changes undone from. Zero is returned on success or non-zero on failure.
+
+## Search
+
+```c
+// declared in search.h
+omega_search_context_t *
+omega_search_create_context_bytes(const omega_session_t *session_ptr, const omega_byte_t *pattern,
+                                  int64_t pattern_length, int64_t session_offset, int64_t session_length,
+                                  int case_insensitive);
+```
+
+To search a segment of data in a session for a byte pattern, first create a search context using the `omega_search_create_context_bytes` function. The function takes the session to search, the byte pattern to search for, the byte pattern length, the session offset to start the search, then the number of bytes out from the given session offset to search, and finally if the search should be case insensitive or not (zero for case sensitive searching and non-zero otherwise). What is returned is an opaque search context pointer that can be iterated over to find matches. For a simple example, see `core/src/examples/search.cpp`, and to see how search and replace can be implemented, see `core/src/examples/replace.cpp`. When the search context is no longer required, destroy it with `omega_search_destroy_context`. Search context memory is managed by the associated session, so if the session is destroyed, so are all of the associated search contexts.
+
+## Transactions
+
+```c
+// declared in session.h
+int omega_session_begin_transaction(omega_session_t *session_ptr);
+int omega_session_end_transaction(omega_session_t *session_ptr);
+int omega_session_get_transaction_state(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_change_transactions(const omega_session_t *session_ptr);
+int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *session_ptr);
+```
+
+To bundle a series of edit operations together so that they can be undone / redone in a single undo or redo operation, call `omega_session_begin_transaction` before issuing the series of edit operations, then call `omega_session_end_transaction` to complete the transaction. The single edits will still behave the same way as they do outside of a transaction, with the data being updated, events being generated and so on. The number of transactions define the number of undos and redos available. Individual changes outside of declared transactions are implicit transactions containing the single change. If no transactions were used, the numbers returned from `omega_session_get_num_change_transactions` and `omega_session_get_num_undone_change_transactions` will be the number of changes in their respective stacks. If there are transactions that bundle two or more changes, then `omega_session_get_num_change_transactions` and `omega_session_get_num_undone_change_transactions` will have counts that will be less than the change counts for their respective stacks. Use transactions when a series of changes need to be undone and redone atomically (e.g., replace operations where the length of the data being replaced is different than the length of the replacement, so use a transaction containing a delete of the data being replaced, followed by an insert of the replacement data so that an undo undoes those 2 operations with a single undo call).
+
+## Checkpoints
+
+![omega-edit-checkpoints](images/omega-edit-checkpoints.png)
+
+```c
+// declared in edit.h
+int omega_edit_create_checkpoint(omega_session_t *session_ptr, char const *checkpoint_directory);
+int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr);
+```
+
+In Ωedit™, checkpoints create a file on disk with all the current changes made, and the change and redo stacks are pushed into a checkpoint stack. After the checkpoint, changes and undos made to these changes are put into new stacks. Checkpoints can be used in circumstances where changes would take up a large amount of memory, so we make those large changes to a checkpoint file, then continue making changes from that new baseline (see Byte Transforms). This allows keeping the change history and the ability to do undos intact, trading storage space for memory efficiency. Checkpoints can be created using `omega_edit_create_checkpoint` and destroyed using `omega_edit_destroy_last_checkpoint` explicitly by the user, or they may be required by the library (as is the case with applying byte transforms). If a checkpoint is destroyed, session state returns to where it was just prior to the checkpoint creation (this is also known as "rollback"). Transactional editing systems could potentially be built using Ωedit™'s checkpointing capabilities.
+
+## Byte Transforms
+
+```c
+// declared in utility.h
+typedef omega_byte_t (*omega_util_byte_transform_t)(omega_byte_t, void *user_data);
+
+// declared in edit.h
+int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
+                               int64_t offset, int64_t length, char const *checkpoint_directory);
+```
+
+The Ωedit™ library has support for pluggable byte transforms with the capability of changing every byte in a session or large segments thereof. To handle possibly very large changes, checkpoints are used for memory efficiency. For example, if all the ascii alphabetic characters in a session should be upper case, we can write that code in C++ as follows:
+
+```cpp
+// define to_upper transform
+omega_byte_t to_upper(omega_byte_t byte, void *) { return toupper(byte); }
+
+...
+// apply the transform to bytes in a session (0 length means all bytes after the given offset), with a checkpoint file written in the ./checkpoints directory
+omega_edit_apply_transform(session_ptr, to_upper, nullptr, 0, 0, "./checkpoints"));
+```
+
+For another more involved example, suppose a configurable bit mask is to be applied to a specific segment of bytes in a session:
+
+```cpp
+// define a mask info struct
+typedef struct mask_info_struct {
+    omega_byte_t mask;
+    omega_mask_kind_t mask_kind;
+} mask_info_t;
+
+// define a byte mask transform
+omega_byte_t byte_mask_transform(omega_byte_t byte, void *user_data_ptr) {
+    const auto mask_info_ptr = reinterpret_cast<mask_info_t *>(user_data_ptr);
+    // see omega_util_mask_byte in utility.h
+    return omega_util_mask_byte(byte, mask_info_ptr->mask, mask_info_ptr->mask_kind);
+}
+
+...
+// create and configure mask info
+mask_info_t mask_info;
+mask_info.mask_kind = MASK_XOR;
+mask_info.mask = 0xFF;
+
+// apply the transform to 26 bytes, starting at offset 10, with a checkpoint file written in the ./checkpoints directory
+omega_edit_apply_transform(session_ptr, byte_mask_transform, &mask_info, 10, 26, "./checkpoints")
+```
+
+A full, but simple, example of applying uppercase and lowercase transforms in an editing session can be found in `core/src/examples/transform.c`.
+
+## Metrics
+
+During the course of editing and testing, there are several helpful metrics that are available in the library and in the RPC services. The available metrics are listed in the table below.
+
+| RPC CountKind | C/C++ Library Function | Description |
+|---|---|---|
+| COUNT_FILE_SIZE | omega_session_get_computed_file_size | computed file size (with changes applied) in bytes |
+| COUNT_CHANGES | omega_session_get_num_changes | number of active changes |
+| COUNT_UNDOS | omega_session_get_num_undone_changes | number of undone changes eligible for being redone |
+| COUNT_VIEWPORTS | omega_session_get_num_viewports | number of active viewports |
+| COUNT_CHECKPOINTS | omega_session_get_num_checkpoints | number of session checkpoints |
+| COUNT_SEARCH_CONTEXTS | omega_session_get_num_search_contexts | number of active search contexts |
+
+### Multi-byte Characters
+
+Another set of metrics provides information on Multi-byte characters. Multi-byte characters are detected based on a Byte Order Mark (BOM) detected at the beginning of a file. If no BOM is detected, UTF-8 is assumed. The following table describes the various BOMs detected in Ωedit™:
+
+| BOM Enum | BOM Bytes | BOM Length | BOM as string | Bytes Per Character | Description |
+|---|---|---|---|---|---|
+| BOM_NONE | | 0 | "none" | 1 | No BOM detected |
+| BOM_UTF8 | EF BB BF | 3 | "UTF-8" | 1, 2, 3, or 4 | UTF-8 BOM detected |
+| BOM_UTF16LE | FF FE | 2 | "UTF-16LE" | 2 or 4 | UTF-16 Little Endian BOM detected |
+| BOM_UTF16BE | FE FF | 2 | "UTF-16BE" | 2 or 4 | UTF-16 Big Endian BOM detected |
+| BOM_UTF32LE | FF FE 00 00 | 4 | "UTF-32LE" | 4 | UTF-32 Little Endian BOM detected |
+| BOM_UTF32BE | 00 00 FE FF | 4 | "UTF-32BE" | 4 | UTF-32 Big Endian BOM detected |
+
+Given a segment in a session, the following function is provided for the purpose of profiling the character counts:
+
+```c
+/**
+ * Given a session, offset and length, populate character counts
+ * @param session_ptr session to count characters in
+ * @param counts_ptr pointer to the character counts to populate
+ * @param offset where in the session to begin counting characters
+ * @param length number of bytes from the offset to stop counting characters (if 0, it will count to the end of the session)
+ * @return zero on success and non-zero otherwise
+ */
+int omega_session_character_counts(const omega_session_t *session_ptr, omega_character_counts_t *counts_ptr,
+                                   int64_t offset, int64_t length);
+```
+
+The `omega_character_counts_t` object is created, destroyed, queried, and mutated using the following functions:
+
+```c
+// defined in character_counts.h
+
+/**
+ * Create a new omega_character_counts_t object
+ * @return new omega_character_counts_t object
+ */
+omega_character_counts_t *omega_character_counts_create();
+
+/**
+ * Destroy an omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to destroy
+ */
+void omega_character_counts_destroy(omega_character_counts_t *counts_ptr);
+
+/**
+ * Reset an omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to reset
+ */
+void omega_character_counts_reset(omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the byte order mark (BOM) for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the BOM from
+ * @return BOM for the given omega_character_counts_t object
+ */
+omega_bom_t omega_character_counts_get_BOM(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Set the byte order mark (BOM) for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to set the BOM for
+ * @param bom BOM to set for the given omega_character_counts_t object
+ */
+void omega_character_counts_set_BOM(omega_character_counts_t *counts_ptr, omega_bom_t bom);
+
+/**
+ * Get the number of BOM bytes found for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of BOM bytes from
+ * @return number of BOM bytes found for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_bom_bytes(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the number of single byte characters for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of single byte characters from
+ * @return number of single byte characters for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_single_byte_chars(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the number of double byte characters for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of double byte characters from
+ * @return number of double byte characters for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_double_byte_chars(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the number of triple byte characters for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of triple byte characters from
+ * @return number of triple byte characters for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_triple_byte_chars(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the number of quad byte characters for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of quad byte characters from
+ * @return number of quad byte characters for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_quad_byte_chars(const omega_character_counts_t *counts_ptr);
+
+/**
+ * Get the number of invalid sequences for the given omega_character_counts_t object
+ * @param counts_ptr omega_character_counts_t object to get the number of invalid sequences from
+ * @return number of invalid sequences for the given omega_character_counts_t object
+ */
+int64_t omega_character_counts_invalid_bytes(const omega_character_counts_t *counts_ptr);
+```
+
+Given a BOM enum, the following function provides the string version of the BOM and the size of the BOM in bytes:
+
+```c
+// declared in utility.h
+
+/**
+ * Convert the given byte order mark (BOM) to a string
+ * @param bom byte order mark (BOM) to convert
+ * @return string representation of the given BOM ("none", "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE")
+ */
+char const *omega_util_BOM_to_string(omega_bom_t bom);
+
+/**
+ * Given a byte order mark (BOM), return the size of the byte order mark (BOM) in bytes
+ * @param bom byte order mark (BOM) to get the size of
+ * @return size of the byte order mark (BOM) in bytes
+ */
+size_t omega_util_BOM_size(omega_bom_t bom);
+```
+
+## Integration Beyond C/C++
+
+The choice to implement the Ωedit™ library using a C API was made to maximize integration possibilities across programming languages, operating systems, and hardware platforms.
+
+## Remote Procedure Call (RPC)
+
+### Server
+
+For maximum deployment flexibility and loosely coupled integrations, Ωedit™ ships with an RPC server implemented natively in C++ as a standalone binary.
+
+### Client
+
+Ωedit™ includes a TypeScript RPC client to make it easy to extend JavaScript or TypeScript backed editors (like Visual Studio Code). The extension can start up the Ωedit™ RPC server, and interact with the server using the Ωedit™ TypeScript client.
+
+### Services
+
+The Ωedit™ RPC services are efficiently implemented using gRPC ([https://grpc.io](https://grpc.io)). The RPC services and messages are defined using Google protocol buffers, in `proto/omega_edit.proto`, from which stub code for the server and client are generated. Server stubs are generated and implemented in C++ (in `server/cpp/src`) and client stubs are generated and implemented in TypeScript (in `packages/client/src`).
+
+#### Event Streams
+
+gRPC uses HTTP/2, which among other benefits, provides single and bidirectional streaming. Ωedit™ uses two single directional streams to stream session, and viewport event information, from the server to the client.
+
+## Testing
+
+Ωedit™ is implemented in layers. First there is the library, written in C/C++. Layered on top of that is the native C++ gRPC server. Finally, there is the TypeScript RPC client, that uses the C++ gRPC server, that uses the C/C++ library. These layers provide several opportunities for testing.
+
+## Library Testing
+
+The Ωedit™ C/C++ library is tested using Catch2. The test code is in `core/src/tests/`. This test suite is run in myriad static and shared configurations using cmake's `ctest` tool and test configurations found in `core/src/tests/CMakeLists.txt`.
+
+## C++ gRPC Server Testing
+
+The C++ gRPC server is built and validated as part of the TypeScript client test suite, which starts the server and exercises the full RPC stack end-to-end.
+
+## TypeScript RPC Client Testing
+
+The Ωedit™ TypeScript RPC client is tested using `yarn test`, which executes mocha tests defined in `packages/client/tests/specs/`. The client interacts with the C++ gRPC server.

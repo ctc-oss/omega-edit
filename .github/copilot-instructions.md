@@ -90,3 +90,14 @@ omega-edit/
 - Build artifacts go to `_build/`
 - Install artifacts go to `_install/`
 - Use `OE_LIB_DIR` to specify a custom library location
+
+## Wiki Documentation
+
+The `wiki/Home.md` file documents the C/C++ public API and must be kept in sync with the source code:
+
+- **`omega_edit_create_session`** has 5 parameters: `file_path`, `cbk`, `user_data_ptr`, `event_interest`, `checkpoint_directory` — declared in `core/src/include/omega_edit/edit.h`.
+- **`omega_edit_save`** uses `int io_flags` (an `omega_io_flags_t` bitmask such as `IO_FLG_OVERWRITE` or `IO_FLG_NONE`) as its third parameter, **not** a boolean overwrite flag — declared in `core/src/include/omega_edit/edit.h`.
+- The C++ STL string adapter header is `omega_edit/stl_string_adaptor.hpp` (with **"or"**, not "er") — located at `core/src/include/omega_edit/stl_string_adaptor.hpp`.
+- Example source files are under `core/src/examples/` (not `src/examples/`).
+- Images for the wiki are stored in `wiki/images/` and referenced with relative paths in `wiki/Home.md`.
+- The wiki is automatically deployed to GitHub Wiki on every push to `main` via `.github/workflows/deploy-wiki.yml`.
