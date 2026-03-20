@@ -1,7 +1,7 @@
 version: v2
-name: buf.build/ctc-oss/omega-edit
 modules:
   - path: proto
+    name: buf.build/ctc-oss/omega-edit
 deps:
   - buf.build/googleapis/googleapis
 lint:
