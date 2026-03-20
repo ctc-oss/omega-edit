@@ -159,6 +159,12 @@ jobs:
           - os: ubuntu-22.04
             runner-os: Linux
             platform: linux-x64
+          - os: ubuntu-24.04-arm
+            runner-os: Linux
+            platform: linux-arm64
+          - os: macos-13
+            runner-os: macOS
+            platform: macos-x64
           - os: macos-14
             runner-os: macOS
             platform: macos-arm64
@@ -237,6 +243,18 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: cpp-server-macos-arm64
+          path: _server_binaries
+
+      - name: Download Linux arm64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-linux-arm64
+          path: _server_binaries
+
+      - name: Download macOS x64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-macos-x64
           path: _server_binaries
 
       - name: Download Windows x64 binary

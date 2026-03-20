@@ -4,5 +4,9 @@
   "name": "Ωedit TypeScript Client Documentation",
   "readme": "README.md",
   "out": "doc/",
-  "tsconfig": "./tsconfig.json"
+  "tsconfig": "./tsconfig.json",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "exclude": ["src/*_pb.js", "src/*_pb.d.ts", "src/client_version.ts"]
 }

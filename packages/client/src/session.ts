@@ -611,6 +611,13 @@ export async function getByteOrderMark(
   })
 }
 
+/**
+ * Detect the content/MIME type of a segment of session data
+ * @param session_id session to detect the content type from
+ * @param offset byte offset within the session to begin detection
+ * @param length number of bytes from the offset to examine
+ * @return content type response containing the detected MIME type
+ */
 export async function getContentType(
   session_id: string,
   offset: number,
@@ -645,6 +652,14 @@ export async function getContentType(
   })
 }
 
+/**
+ * Detect the natural language of a UTF-encoded text segment
+ * @param session_id session to detect the language from
+ * @param offset byte offset within the session to begin detection
+ * @param length number of bytes from the offset to examine
+ * @param bom byte order mark hint for decoding (e.g., "UTF-8", "UTF-16LE", or "none")
+ * @return language response containing an ISO 639-1 two-letter language code
+ */
 export async function getLanguage(
   session_id: string,
   offset: number,
@@ -681,6 +696,15 @@ export async function getLanguage(
   })
 }
 
+/**
+ * Count characters by byte-width in a UTF-encoded text segment.  Returns counts of single-byte,
+ * double-byte, triple-byte, and quad-byte characters, as well as invalid bytes.
+ * @param session_id session to count characters in
+ * @param offset byte offset within the session to begin counting (default: 0)
+ * @param length number of bytes from the offset to examine (default: 0 means entire session)
+ * @param bom byte order mark hint for decoding (default: "none")
+ * @return character count response with per-width counts and invalid byte count
+ */
 export async function countCharacters(
   session_id: string,
   offset: number = 0,

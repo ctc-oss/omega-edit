@@ -1000,16 +1000,30 @@ export function pidIsRunning(pid) {
   }
 }
 
+/**
+ * Server metadata returned by {@link getServerInfo}.
+ */
 export interface IServerInfo {
-  serverHostname: string // hostname
-  serverProcessId: number // process id
-  serverVersion: string // server version
-  jvmVersion: string // jvm version
-  jvmVendor: string // jvm vendor
-  jvmPath: string // jvm path
-  availableProcessors: number // available processors
+  /** Server hostname. */
+  serverHostname: string
+  /** Server OS process ID. */
+  serverProcessId: number
+  /** Ωedit server version string. */
+  serverVersion: string
+  /** JVM version (empty for native builds). */
+  jvmVersion: string
+  /** JVM vendor (empty for native builds). */
+  jvmVendor: string
+  /** Path to the JVM (empty for native builds). */
+  jvmPath: string
+  /** Number of logical CPU cores. */
+  availableProcessors: number
 }
 
+/**
+ * Retrieve server metadata: version, hostname, process ID, and resource info.
+ * @return server information object
+ */
 export async function getServerInfo(): Promise<IServerInfo> {
   const log = getLogger()
   const logMetadata = { fn: 'getServerInfo' }

@@ -156,13 +156,13 @@ export async function destroyViewport(viewport_id: string): Promise<string> {
 
 /**
  * Given a session, return the number of viewports in that session
- * @param sesssion_id session to get the number of viewports in
+ * @param session_id session to get the number of viewports in
  * @return number of viewports in the given session, on success
  */
-export async function getViewportCount(sesssion_id: string): Promise<number> {
+export async function getViewportCount(session_id: string): Promise<number> {
   const log = getLogger()
   const request = new CountRequest()
-    .setSessionId(sesssion_id)
+    .setSessionId(session_id)
     .setKindList([CountKind.COUNT_VIEWPORTS])
   log.debug({ fn: 'getViewportCount', rqst: request.toObject() })
   const client = await getClient()
