@@ -152,3 +152,5 @@ runs:
       if: inputs.skip-tests != 'true'
       shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
       run: yarn workspace @omega-edit/ai test
+      env:
+        CPP_SERVER_BINARY: ''
