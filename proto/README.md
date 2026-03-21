@@ -57,7 +57,7 @@ import "omega_edit/v1/omega_edit.proto";
 
 ```bash
 buf lint
-buf breaking --against '.git#branch=main'
+buf breaking --against '.git#branch=main,subdir=proto'
 ```
 
 ## Generating stubs manually (without Buf)

@@ -43,7 +43,4 @@ export const ServerControlKind = {
   ...ProtoServerControlKind,
 }
 
-export {
-  EditorClient,
-  EditorServiceService,
-} from './omega_edit_grpc_pb'
+export { EditorClient, EditorServiceService } from './omega_edit_grpc_pb'
