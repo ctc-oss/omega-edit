@@ -60,7 +60,7 @@ async function printViewport(label: string, viewportId: string) {
   const text = Buffer.from(bytes).toString()
   const hex = Buffer.from(bytes).toString('hex')
   console.log(
-    `  [${label}] offset=${vpt.getOffset()}, capacity=${vpt.getCapacity()}, ` +
+    `  [${label}] offset=${vpt.getOffset()}, ` +
       `length=${bytes.length}, following=${vpt.getFollowingByteCount()}`
   )
   console.log(`    text: "${text}"`)

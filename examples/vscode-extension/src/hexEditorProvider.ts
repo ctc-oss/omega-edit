@@ -59,7 +59,10 @@ interface EditorSession {
   fileSize: number
   offset: number
   capacity: number
+  filePath: string
   panel: vscode.WebviewPanel
+  viewportStream?: { cancel(): void }
+  sessionStream?: { cancel(): void }
 }
 
 export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
@@ -106,7 +109,13 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const capacity = bytesPerRow * 64 // 1 KiB at 16 bytes/row
 
     // --- Create a viewport starting at offset 0 ---
-    const vpResp = await createViewport(undefined, sessionId, 0, capacity, false)
+    const vpResp = await createViewport(
+      undefined,
+      sessionId,
+      0,
+      capacity,
+      false
+    )
     const viewportId = vpResp.getViewportId()
 
     const session: EditorSession = {
@@ -115,6 +124,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       fileSize,
       offset: 0,
       capacity,
+      filePath,
       panel: webviewPanel,
     }
     this.sessions.set(uri.toString(), session)
@@ -151,12 +161,18 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       if (this.activeSession === session) {
         this.activeSession = undefined
       }
+      session.viewportStream?.cancel()
+      session.sessionStream?.cancel()
       try {
         await destroyViewport(viewportId)
-      } catch { /* already destroyed */ }
+      } catch {
+        /* already destroyed */
+      }
       try {
         await destroySession(sessionId)
-      } catch { /* already destroyed */ }
+      } catch {
+        /* already destroyed */
+      }
     })
   }
 
@@ -187,13 +203,15 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
    * the viewport, the server streams an event and we push fresh data to the
    * webview. This is the reactive data flow at the heart of Ωedit™.
    */
-  private async subscribeToViewportEvents(session: EditorSession): Promise<void> {
+  private async subscribeToViewportEvents(
+    session: EditorSession
+  ): Promise<void> {
     const client = await getClient(this.port)
     const request = new EventSubscriptionRequest()
       .setId(session.viewportId)
       .setInterest(ALL_EVENTS)
 
-    client
+    const vpStream = client
       .subscribeToViewportEvents(request)
       .on('data', async (event) => {
         const kind = event.getViewportEventKind()
@@ -210,18 +228,21 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       .on('error', () => {
         // Stream closed — expected during shutdown
       })
+    session.viewportStream = vpStream
   }
 
   /**
    * Subscribe to session events to track file size changes and edit state.
    */
-  private async subscribeToSessionEvents(session: EditorSession): Promise<void> {
+  private async subscribeToSessionEvents(
+    session: EditorSession
+  ): Promise<void> {
     const client = await getClient(this.port)
     const request = new EventSubscriptionRequest()
       .setId(session.sessionId)
       .setInterest(ALL_EVENTS)
 
-    client
+    const sesStream = client
       .subscribeToSessionEvents(request)
       .on('data', async (event) => {
         const kind = event.getSessionEventKind()
@@ -238,6 +259,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         }
       })
       .on('error', () => {})
+    session.sessionStream = sesStream
   }
 
   // ── Viewport Data ───────────────────────────────────────────────────
@@ -257,8 +279,14 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   /** Scroll the viewport to a given offset, clamped to file bounds */
-  private async scrollTo(session: EditorSession, offset: number): Promise<void> {
-    const clamped = Math.max(0, Math.min(offset, Math.max(0, session.fileSize - 1)))
+  private async scrollTo(
+    session: EditorSession,
+    offset: number
+  ): Promise<void> {
+    const clamped = Math.max(
+      0,
+      Math.min(offset, Math.max(0, session.fileSize - 1))
+    )
     session.offset = clamped
     await modifyViewport(session.viewportId, clamped, session.capacity)
     // Viewport event subscription will trigger sendViewportData
@@ -276,7 +304,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         case 'scroll': {
           const config = vscode.workspace.getConfiguration('omegaEdit')
           const bytesPerRow = config.get<number>('bytesPerRow', 16)
-          const delta = msg.direction === 'up' ? -bytesPerRow * 4 : bytesPerRow * 4
+          const delta =
+            msg.direction === 'up' ? -bytesPerRow * 4 : bytesPerRow * 4
           await this.scrollTo(session, session.offset + delta)
           break
         }
@@ -325,7 +354,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         case 'save': {
           await saveSession(
             session.sessionId,
-            session.panel.title, // original file path
+            session.filePath, // original file path
             IOFlags.IO_FLG_OVERWRITE
           )
           vscode.window.showInformationMessage('File saved')
@@ -334,9 +363,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
         // --- Search ---
         case 'search': {
-          const pattern = msg.isHex
-            ? Buffer.from(msg.query, 'hex')
-            : msg.query
+          const pattern = msg.isHex ? Buffer.from(msg.query, 'hex') : msg.query
           const matches = await searchSession(
             session.sessionId,
             pattern,

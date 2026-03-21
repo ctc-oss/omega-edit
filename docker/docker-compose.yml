@@ -30,7 +30,7 @@ services:
       dockerfile: docker/Dockerfile.server
     image: ghcr.io/ctc-oss/omega-edit-server:latest
     ports:
-      - "9000:9000"
+      - '9000:9000'
     environment:
       - OMEGA_EDIT_SERVER_HOST=0.0.0.0
       - OMEGA_EDIT_SERVER_PORT=9000
@@ -39,7 +39,7 @@ services:
       - omega-edit-data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo OK || exit 1"]
+      test: ['CMD', 'nc', '-z', '127.0.0.1', '9000']
       interval: 10s
       timeout: 3s
       start_period: 5s

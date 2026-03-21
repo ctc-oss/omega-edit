@@ -58,7 +58,8 @@ const pid = await startServer(9000)
 const client = await getClient(9000)
 
 // 3. Create a session (optionally backed by an existing file)
-const { sessionId } = await createSession()
+const sessionResp = await createSession()
+const sessionId = sessionResp.getSessionId()
 
 // 4. Make edits
 await insert(sessionId, 0, Buffer.from('Hello, Ωedit!'))
@@ -75,59 +76,59 @@ await stopServerGraceful()
 
 ### Server Lifecycle
 
-| Function | Description |
-| --- | --- |
-| `startServer(port?, host?, pidFile?, heartbeat?)` | Start the bundled native gRPC server |
-| `startServerUnixSocket(socketPath, ...)` | Start using a Unix domain socket |
-| `stopServerGraceful()` | Graceful shutdown |
-| `stopServerImmediate()` | Immediate shutdown |
-| `getServerInfo()` | Server version, uptime, and session count |
-| `getServerHeartbeat(sessions, interval?)` | Heartbeat and session health |
+| Function                                          | Description                               |
+| ------------------------------------------------- | ----------------------------------------- |
+| `startServer(port?, host?, pidFile?, heartbeat?)` | Start the bundled native gRPC server      |
+| `startServerUnixSocket(socketPath, ...)`          | Start using a Unix domain socket          |
+| `stopServerGraceful()`                            | Graceful shutdown                         |
+| `stopServerImmediate()`                           | Immediate shutdown                        |
+| `getServerInfo()`                                 | Server version, uptime, and session count |
+| `getServerHeartbeat(sessions, interval?)`         | Heartbeat and session health              |
 
 ### Client Connection
 
-| Function | Description |
-| --- | --- |
-| `getClient(port?, host?)` | Get or create a gRPC client connection |
+| Function                          | Description                                     |
+| --------------------------------- | ----------------------------------------------- |
+| `getClient(port?, host?)`         | Get or create a gRPC client connection          |
 | `waitForReady(client, deadline?)` | Block until the server is accepting connections |
-| `resetClient()` | Tear down the current client connection |
+| `resetClient()`                   | Tear down the current client connection         |
 
 ### Sessions
 
-| Function | Description |
-| --- | --- |
-| `createSession(filePath?, sessionId?, checkpointDir?)` | Open an editing session |
-| `destroySession(sessionId)` | Close and discard a session |
-| `saveSession(sessionId, path, flags?, offset?, length?)` | Save session content to a file |
-| `getComputedFileSize(sessionId)` | Logical file size after edits |
-| `getSegment(sessionId, offset, length)` | Read a byte range |
-| `getSessionCount()` | Number of active sessions |
-| `pauseSessionChanges(sessionId)` / `resumeSessionChanges(sessionId)` | Pause/resume change tracking |
-| `beginSessionTransaction(sessionId)` / `endSessionTransaction(sessionId)` | Group edits atomically |
+| Function                                                                  | Description                    |
+| ------------------------------------------------------------------------- | ------------------------------ |
+| `createSession(filePath?, sessionId?, checkpointDir?)`                    | Open an editing session        |
+| `destroySession(sessionId)`                                               | Close and discard a session    |
+| `saveSession(sessionId, path, flags?, offset?, length?)`                  | Save session content to a file |
+| `getComputedFileSize(sessionId)`                                          | Logical file size after edits  |
+| `getSegment(sessionId, offset, length)`                                   | Read a byte range              |
+| `getSessionCount()`                                                       | Number of active sessions      |
+| `pauseSessionChanges(sessionId)` / `resumeSessionChanges(sessionId)`      | Pause/resume change tracking   |
+| `beginSessionTransaction(sessionId)` / `endSessionTransaction(sessionId)` | Group edits atomically         |
 
 ### Editing
 
-| Function | Description |
-| --- | --- |
-| `insert(sessionId, offset, data)` | Insert bytes at an offset |
-| `del(sessionId, offset, length)` | Delete a byte range |
-| `overwrite(sessionId, offset, data)` | Overwrite bytes at an offset |
-| `replace(sessionId, offset, removeLen, replacement)` | Remove + insert in one operation |
-| `undo(sessionId)` / `redo(sessionId)` | Unlimited undo/redo |
-| `clear(sessionId)` | Undo all changes |
-| `getLastChange(sessionId)` | Details of the most recent change |
-| `getChangeCount(sessionId)` / `getUndoCount(sessionId)` | Change and undo stack depth |
+| Function                                                | Description                       |
+| ------------------------------------------------------- | --------------------------------- |
+| `insert(sessionId, offset, data)`                       | Insert bytes at an offset         |
+| `del(sessionId, offset, length)`                        | Delete a byte range               |
+| `overwrite(sessionId, offset, data)`                    | Overwrite bytes at an offset      |
+| `replace(sessionId, offset, removeLen, replacement)`    | Remove + insert in one operation  |
+| `undo(sessionId)` / `redo(sessionId)`                   | Unlimited undo/redo               |
+| `clear(sessionId)`                                      | Undo all changes                  |
+| `getLastChange(sessionId)`                              | Details of the most recent change |
+| `getChangeCount(sessionId)` / `getUndoCount(sessionId)` | Change and undo stack depth       |
 
 ### Viewports
 
-| Function | Description |
-| --- | --- |
-| `createViewport(viewportId?, sessionId, offset, capacity, isFloating?)` | Create a window into the data |
-| `modifyViewport(viewportId, offset, capacity, isFloating?)` | Move or resize a viewport |
-| `destroyViewport(viewportId)` | Remove a viewport |
-| `getViewportData(viewportId)` | Read the current viewport content |
-| `viewportHasChanges(viewportId)` | Check if content has changed since last read |
-| `getViewportCount(sessionId)` | Number of active viewports |
+| Function                                                                | Description                                  |
+| ----------------------------------------------------------------------- | -------------------------------------------- |
+| `createViewport(viewportId?, sessionId, offset, capacity, isFloating?)` | Create a window into the data                |
+| `modifyViewport(viewportId, offset, capacity, isFloating?)`             | Move or resize a viewport                    |
+| `destroyViewport(viewportId)`                                           | Remove a viewport                            |
+| `getViewportData(viewportId)`                                           | Read the current viewport content            |
+| `viewportHasChanges(viewportId)`                                        | Check if content has changed since last read |
+| `getViewportCount(sessionId)`                                           | Number of active viewports                   |
 
 ### Search & Profile
 
@@ -149,20 +150,20 @@ setLogger(createSimpleFileLogger('/tmp/omega-edit.log', 'debug'))
 
 Distributed as both **ESM** and **CommonJS** with full TypeScript source maps and declaration files:
 
-| Output | Path | Format |
-| --- | --- | --- |
-| ESM | `dist/esm/` | ES2020 modules |
-| CJS | `dist/cjs/` | CommonJS |
-| Types | `dist/esm/*.d.ts` | TypeScript declarations |
-| Source Maps | `dist/**/*.map` | Embedded TypeScript sources |
+| Output      | Path              | Format                      |
+| ----------- | ----------------- | --------------------------- |
+| ESM         | `dist/esm/`       | ES2020 modules              |
+| CJS         | `dist/cjs/`       | CommonJS                    |
+| Types       | `dist/esm/*.d.ts` | TypeScript declarations     |
+| Source Maps | `dist/**/*.map`   | Embedded TypeScript sources |
 
 ## Environment Variables
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `OMEGA_EDIT_SERVER_HOST` | `127.0.0.1` | Server bind address |
-| `OMEGA_EDIT_SERVER_PORT` | `9000` | Server port |
-| `OMEGA_EDIT_CLIENT_LOG_LEVEL` | — | Client-side log level |
+| Variable                      | Default     | Description           |
+| ----------------------------- | ----------- | --------------------- |
+| `OMEGA_EDIT_SERVER_HOST`      | `127.0.0.1` | Server bind address   |
+| `OMEGA_EDIT_SERVER_PORT`      | `9000`      | Server port           |
+| `OMEGA_EDIT_CLIENT_LOG_LEVEL` | —           | Client-side log level |
 
 ## Examples
 

@@ -50,7 +50,7 @@ deps:
 Then import directly in your `.proto` files:
 
 ```protobuf
-import "omega_edit/omega_edit.proto";
+import "omega_edit.proto";
 ```
 
 ### Lint and breaking-change detection

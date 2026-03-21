@@ -63,7 +63,7 @@ npx ts-node hello.ts
 
 ### Path 2 — C/C++ (native library)
 
-Pre-built binaries for macOS (Apple Silicon + x86), Windows (x86), and Linux (ARM + x86) are [available on GitHub Releases](https://github.com/ctc-oss/omega-edit/releases).
+Pre-built binaries for macOS (Apple Silicon + x64), Windows (x64), and Linux (ARM + x64) are [available on GitHub Releases](https://github.com/ctc-oss/omega-edit/releases).
 
 To build from source with CMake:
 
@@ -790,7 +790,7 @@ Every commit is built and tested across a wide matrix of platforms and configura
 
 | Platform | Versions | Architecture |
 |---|---|---|
-| Windows | Server 2022, 2025 | x86_64, ARM64 |
+| Windows | Server 2022, 2025 | x86_64 |
 | Linux | Ubuntu 22.04, 24.04 | x86_64, ARM64 |
 | macOS | 14, 15 | Universal (x86_64 + arm64) |
 

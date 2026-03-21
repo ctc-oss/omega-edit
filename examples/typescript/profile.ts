@@ -71,20 +71,29 @@ async function main() {
 
     console.log('=== Byte Frequency Profile ===')
     console.log(`Total bytes profiled: ${totalBytes}`)
-    console.log(`ASCII bytes (0x00-0x7F): ${totalAscii} (${((totalAscii / totalBytes) * 100).toFixed(1)}%)`)
-    console.log(`Non-ASCII bytes (0x80-0xFF): ${totalBytes - totalAscii} (${(((totalBytes - totalAscii) / totalBytes) * 100).toFixed(1)}%)`)
+    console.log(
+      `ASCII bytes (0x00-0x7F): ${totalAscii} (${((totalAscii / totalBytes) * 100).toFixed(1)}%)`
+    )
+    console.log(
+      `Non-ASCII bytes (0x80-0xFF): ${totalBytes - totalAscii} (${(((totalBytes - totalAscii) / totalBytes) * 100).toFixed(1)}%)`
+    )
     console.log(`DOS line endings (CR+LF): ${profile[PROFILE_DOS_EOL]}`)
 
     // Print the top 10 most frequent byte values
-    const indexed = profile.slice(0, 256).map((count, byte) => ({ byte, count }))
+    const indexed = profile
+      .slice(0, 256)
+      .map((count, byte) => ({ byte, count }))
     indexed.sort((a, b) => b.count - a.count)
 
     console.log('\nTop 10 most frequent bytes:')
     for (const { byte, count } of indexed.slice(0, 10)) {
       if (count === 0) break
-      const char = byte >= 32 && byte < 127 ? `'${String.fromCharCode(byte)}'` : '   '
+      const char =
+        byte >= 32 && byte < 127 ? `'${String.fromCharCode(byte)}'` : '   '
       const pct = ((count / totalBytes) * 100).toFixed(1)
-      console.log(`  0x${byte.toString(16).padStart(2, '0')} ${char}  ${count.toString().padStart(8)} (${pct}%)`)
+      console.log(
+        `  0x${byte.toString(16).padStart(2, '0')} ${char}  ${count.toString().padStart(8)} (${pct}%)`
+      )
     }
 
     // --- Profile a segment (first 100 bytes only) ---
@@ -100,10 +109,12 @@ async function main() {
     console.log('\n=== Byte Order Mark Detection ===')
     const bom = await getByteOrderMark(sessionId)
     const bomKind = bom.getByteOrderMark()
-    if (bomKind === 0) {
+    if (bomKind === 'none') {
       console.log('No BOM detected')
     } else {
-      console.log(`BOM detected: ${bomKind} (offset ${bom.getOffset()}, length ${bom.getByteOrderMarkSize()})`)
+      console.log(
+        `BOM detected: ${bomKind} (offset ${bom.getOffset()}, length ${bom.getLength()})`
+      )
     }
 
     await destroySession(sessionId)

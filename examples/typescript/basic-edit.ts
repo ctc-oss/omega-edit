@@ -76,7 +76,9 @@ async function main() {
     const sessionResp = await createSession(inputFile)
     const sessionId = sessionResp.getSessionId()
     const initialSize = await getComputedFileSize(sessionId)
-    console.log(`Session "${sessionId}" created (initial size: ${initialSize} bytes)`)
+    console.log(
+      `Session "${sessionId}" created (initial size: ${initialSize} bytes)`
+    )
 
     // 4. Track edit statistics
     const stats = new EditStats()
@@ -86,12 +88,20 @@ async function main() {
     await insert(sessionId, 0, greeting, stats)
     console.log(`After insert: ${await getComputedFileSize(sessionId)} bytes`)
 
-    // Overwrite bytes 7-12 with "World"
-    await overwrite(sessionId, 7, Buffer.from('World'), stats)
-    console.log(`After overwrite: ${await getComputedFileSize(sessionId)} bytes`)
+    // Overwrite "Ωedit" with "World" (use Buffer.byteLength for correct UTF-8 offsets)
+    const overwriteOffset = Buffer.byteLength('Hello, ')
+    await overwrite(sessionId, overwriteOffset, Buffer.from('World'), stats)
+    console.log(
+      `After overwrite: ${await getComputedFileSize(sessionId)} bytes`
+    )
 
-    // Delete 2 bytes at offset 12 (removes "™!")
-    await del(sessionId, 12, 2, stats)
+    // Delete the leftover byte + "™" to get "Hello, World! "
+    const deleteOffset = overwriteOffset + Buffer.byteLength('World')
+    const deleteLength =
+      Buffer.byteLength('Ωedit') -
+      Buffer.byteLength('World') +
+      Buffer.byteLength('™')
+    await del(sessionId, deleteOffset, deleteLength, stats)
     console.log(`After delete: ${await getComputedFileSize(sessionId)} bytes`)
 
     // Read the current content
