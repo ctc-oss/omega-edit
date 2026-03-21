@@ -44,6 +44,21 @@ jobs:
           cmake --preset ci-docs
           cmake --build --preset ci-docs --target sphinx --config Release
           touch build/core/docs/sphinx/.nojekyll
+      - name: Setup Node.js 📦
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - name: Generate TypeDoc API Reference 📖
+        run: |
+          yarn install --frozen-lockfile
+          cd packages/client
+          yarn compile-src
+          yarn build
+          npx typedoc
+      - name: Merge Documentation 📂
+        run: |
+          cp -r packages/client/doc build/core/docs/sphinx/ts-api
       - name: Deploy User Documentation 🚀
         uses: JamesIves/github-pages-deploy-action@v4
         with:

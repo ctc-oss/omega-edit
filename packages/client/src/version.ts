@@ -20,7 +20,7 @@
 import { getLogger } from './logger'
 import { OMEGA_EDIT_CLIENT_VERSION } from './client_version'
 
-// Discover the client version both installed and in the repository source tree
+/** The current version of the Ωedit TypeScript client (read from the build-time constant). */
 export const ClientVersion: string = OMEGA_EDIT_CLIENT_VERSION
 
 /**

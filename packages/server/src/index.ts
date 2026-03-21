@@ -140,9 +140,17 @@ function findServerBinary(binDir: string): string {
     return plainBinary
   }
 
+  const normalizedPlatform =
+    os.platform() === 'darwin'
+      ? 'macos'
+      : os.platform() === 'win32'
+        ? 'windows'
+        : os.platform()
   throw new Error(
-    `Server binary not found in ${binDir}. ` +
-      'Build the C++ server first, or set CPP_SERVER_BINARY to its path.'
+    `No pre-built server binary for ${normalizedPlatform}-${os.arch()} in ${binDir}.\n` +
+      'Supported platforms: linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64.\n' +
+      'To use a custom build, set CPP_SERVER_BINARY=/path/to/omega-edit-grpc-server\n' +
+      'Build from source: https://github.com/ctc-oss/omega-edit/blob/main/CONTRIBUTING.md'
   )
 }
 

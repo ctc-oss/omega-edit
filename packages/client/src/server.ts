@@ -31,14 +31,14 @@ import {
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
-  HeartbeatRequest,
-  HeartbeatResponse,
+  GetHeartbeatRequest as HeartbeatRequest,
+  GetHeartbeatResponse as HeartbeatResponse,
+  GetServerInfoRequest,
+  GetServerInfoResponse as ServerInfoResponse,
   ServerControlKind,
   ServerControlRequest,
   ServerControlResponse,
-  ServerInfoResponse,
 } from './omega_edit_pb'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -863,7 +863,7 @@ export async function startServerUnixSocket(
 export function stopServerGraceful(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
     return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN)
+      stopServer(ServerControlKind.SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN)
     )
   })
 }
@@ -875,7 +875,7 @@ export function stopServerGraceful(): Promise<number> {
 export function stopServerImmediate(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
     return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN)
+      stopServer(ServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN)
     )
   })
 }
@@ -1000,16 +1000,30 @@ export function pidIsRunning(pid) {
   }
 }
 
+/**
+ * Server metadata returned by {@link getServerInfo}.
+ */
 export interface IServerInfo {
-  serverHostname: string // hostname
-  serverProcessId: number // process id
-  serverVersion: string // server version
-  jvmVersion: string // jvm version
-  jvmVendor: string // jvm vendor
-  jvmPath: string // jvm path
-  availableProcessors: number // available processors
+  /** Server hostname. */
+  serverHostname: string
+  /** Server OS process ID. */
+  serverProcessId: number
+  /** Ωedit server version string. */
+  serverVersion: string
+  /** JVM version (empty for native builds). */
+  jvmVersion: string
+  /** JVM vendor (empty for native builds). */
+  jvmVendor: string
+  /** Path to the JVM (empty for native builds). */
+  jvmPath: string
+  /** Number of logical CPU cores. */
+  availableProcessors: number
 }
 
+/**
+ * Retrieve server metadata: version, hostname, process ID, and resource info.
+ * @return server information object
+ */
 export async function getServerInfo(): Promise<IServerInfo> {
   const log = getLogger()
   const logMetadata = { fn: 'getServerInfo' }
@@ -1017,7 +1031,7 @@ export async function getServerInfo(): Promise<IServerInfo> {
   const client = await getClient()
   return new Promise<IServerInfo>((resolve, reject) => {
     client.getServerInfo(
-      new Empty(),
+      new GetServerInfoRequest(),
       (err, serverInfoResponse: ServerInfoResponse) => {
         if (err) {
           log.error({

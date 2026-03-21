@@ -97,15 +97,17 @@ if(VCPKG_TARGET_TRIPLET MATCHES "static$" AND MSVC)
 endif()
 
 # ── Generated proto sources ───────────────────────────────────────────────────
-set(PROTO_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../proto/omega_edit.proto")
+
+# Updated for v1 proto path and generated files
+set(PROTO_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../proto/omega_edit/v1/omega_edit.proto")
 set(PROTO_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto_gen")
 file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
 
-# Generate protobuf and gRPC sources
-set(PROTO_SRCS "${PROTO_GEN_DIR}/omega_edit.pb.cc")
-set(PROTO_HDRS "${PROTO_GEN_DIR}/omega_edit.pb.h")
-set(GRPC_SRCS "${PROTO_GEN_DIR}/omega_edit.grpc.pb.cc")
-set(GRPC_HDRS "${PROTO_GEN_DIR}/omega_edit.grpc.pb.h")
+# Generate protobuf and gRPC sources for v1
+set(PROTO_SRCS "${PROTO_GEN_DIR}/omega_edit/v1/omega_edit.pb.cc")
+set(PROTO_HDRS "${PROTO_GEN_DIR}/omega_edit/v1/omega_edit.pb.h")
+set(GRPC_SRCS "${PROTO_GEN_DIR}/omega_edit/v1/omega_edit.grpc.pb.cc")
+set(GRPC_HDRS "${PROTO_GEN_DIR}/omega_edit/v1/omega_edit.grpc.pb.h")
 
 add_custom_command(
     OUTPUT ${PROTO_SRCS} ${PROTO_HDRS} ${GRPC_SRCS} ${GRPC_HDRS}
@@ -116,7 +118,7 @@ add_custom_command(
          --plugin=protoc-gen-grpc=${_GRPC_CPP_PLUGIN}
          "${PROTO_FILE}"
     DEPENDS "${PROTO_FILE}"
-    COMMENT "Generating gRPC/Protobuf sources from omega_edit.proto"
+    COMMENT "Generating gRPC/Protobuf sources from omega_edit/v1/omega_edit.proto"
 )
 
 # ── omega_edit core library ───────────────────────────────────────────────────

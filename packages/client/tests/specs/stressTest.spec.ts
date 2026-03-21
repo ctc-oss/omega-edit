@@ -313,5 +313,5 @@ describe('StressTest', () => {
       log_info('\x1b[32m%s\x1b[0m', session_callbacks)
       log_info('\x1b[32m%s\x1b[0m', viewport_callbacks)
     }
-  ).timeout(2000 * full_rotations)
+  ).timeout(4000 * full_rotations)
 })

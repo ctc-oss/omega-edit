@@ -1,0 +1,48 @@
+# Publish proto definitions to buf.build on tagged releases and run lint/breaking
+# checks on every push and PR.
+name: Proto (buf.build)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'proto/**'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Buf lint & breaking
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: bufbuild/buf-setup-action@v1
+      - name: Lint
+        run: buf lint
+      - name: Breaking change detection
+        if: github.event_name == 'pull_request'
+        # Compare against origin/main's proto subdirectory because main predates
+        # the repository-level buf.yaml and Actions checks out a detached merge
+        # ref without a local main branch.
+        run: buf breaking --against '.git#ref=origin/main,subdir=proto'
+
+  publish:
+    name: Publish to buf.build
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+      - name: Push to BSR
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
+        run: buf push

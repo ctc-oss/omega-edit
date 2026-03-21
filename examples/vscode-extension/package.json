@@ -1,0 +1,85 @@
+{
+  "name": "omega-edit-hex-editor",
+  "displayName": "Ωedit™ Hex Editor",
+  "description": "A minimal reference hex/data editor VS Code extension powered by Ωedit™",
+  "version": "0.1.0",
+  "publisher": "omega-edit-example",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCustomEditor:omegaEdit.hexEditor",
+    "onCommand:omegaEdit.goToOffset"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "omegaEdit.hexEditor",
+        "displayName": "Ωedit™ Hex Editor",
+        "selector": [
+          {
+            "filenamePattern": "*"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "configuration": {
+      "title": "Ωedit™ Hex Editor",
+      "properties": {
+        "omegaEdit.serverPort": {
+          "type": "number",
+          "default": 9000,
+          "description": "Port for the Ωedit™ gRPC server"
+        },
+        "omegaEdit.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "trace",
+            "debug",
+            "info",
+            "warn",
+            "error",
+            "fatal"
+          ],
+          "description": "Log level for the Ωedit™ client"
+        },
+        "omegaEdit.bytesPerRow": {
+          "type": "number",
+          "default": 16,
+          "enum": [
+            8,
+            16,
+            32
+          ],
+          "description": "Number of bytes displayed per row in the hex view"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "omegaEdit.goToOffset",
+        "title": "Ωedit™: Go to Offset"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "@omega-edit/client": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "typescript": "^5.0.0"
+  }
+}

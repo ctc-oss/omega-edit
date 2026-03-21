@@ -95,7 +95,7 @@ function main() {
     path.join(repoRoot, 'server', 'cpp', 'CMakeLists.txt'),
     path.join(repoRoot, 'server', 'cpp', 'cmake'),
     path.join(repoRoot, 'server', 'cpp', 'src'),
-    path.join(repoRoot, 'proto', 'omega_edit.proto'),
+    path.join(repoRoot, 'proto', 'omega_edit', 'v1', 'omega_edit.proto'),
   ]
   const latestInputMtime = inputPaths.reduce(
     (latest, inputPath) => Math.max(latest, latestMtimeUnder(inputPath)),

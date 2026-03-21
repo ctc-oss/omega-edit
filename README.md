@@ -33,6 +33,35 @@
 The goal of this project is to provide an open source library for building editors that can handle massive files, and
 multiple viewports.
 
+## Quick Start
+
+| I want to… | Install | Time |
+|---|---|---|
+| **Use Ωedit™ from TypeScript / Node.js** | `npm install @omega-edit/client` | 2 min |
+| **Build a VS Code extension** | See [`examples/vscode-extension/`](examples/vscode-extension/) | 5 min |
+| **Use the C/C++ library** | [Pre-built binaries](https://github.com/ctc-oss/omega-edit/releases) or build from source (see below) | 5 min |
+
+**TypeScript — first edit in 15 lines:**
+
+```typescript
+import { startServer, getClient, createSession, destroySession,
+         saveSession, insert, stopServerGraceful, IOFlags } from '@omega-edit/client'
+
+const main = async () => {
+  await startServer(9000)              // start bundled native server
+  await getClient(9000)                // connect
+  const s = await createSession()      // empty session
+  const id = s.getSessionId()
+  await insert(id, 0, Buffer.from('Hello, Ωedit™!'))
+  await saveSession(id, 'output.dat', IOFlags.IO_FLAGS_OVERWRITE)
+  await destroySession(id)
+  await stopServerGraceful()
+}
+main().catch(console.error)
+```
+
+See the [Quick Start guide in the wiki](https://github.com/ctc-oss/omega-edit/wiki#quick-start) for C/C++ and VS Code extension paths, plus links to all examples.
+
 ## User documentation
 
 User documentation is published to https://ctc-oss.github.io/omega-edit/.

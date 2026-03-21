@@ -16,17 +16,26 @@
  */
 
 import {
-  BooleanResponse,
   CountKind,
-  CountRequest,
-  CountResponse,
+  GetCountRequest as CountRequest,
+  GetCountResponse as CountResponse,
   CreateViewportRequest,
+  CreateViewportResponse,
+  DestroyViewportRequest,
+  GetViewportDataRequest as ViewportDataRequest,
+  GetViewportDataResponse as ViewportDataResponse,
   ModifyViewportRequest,
-  ObjectId,
-  ViewportDataRequest,
-  ViewportDataResponse,
+  ModifyViewportResponse,
+  PauseViewportEventsRequest,
+  PauseViewportEventsResponse,
+  ResumeViewportEventsRequest,
+  ResumeViewportEventsResponse,
+  UnsubscribeToViewportEventsRequest,
+  UnsubscribeToViewportEventsResponse,
+  ViewportHasChangesRequest,
+  ViewportHasChangesResponse,
 } from './omega_edit_pb'
-import { getLogger } from './logger'
+import { debugLog, getLogger } from './logger'
 import { getClient } from './client'
 
 /**
@@ -56,10 +65,10 @@ export async function createViewport(
   if (desired_viewport_id !== undefined && desired_viewport_id.length > 0) {
     request.setViewportIdDesired(desired_viewport_id)
   }
-  log.debug({ fn: 'createViewport', rqst: request.toObject() })
+  debugLog(log, () => ({ fn: 'createViewport', rqst: request.toObject() }))
   const client = await getClient()
   return new Promise<ViewportDataResponse>((resolve, reject) => {
-    client.createViewport(request, (err, r: ViewportDataResponse) => {
+    client.createViewport(request, (err, r: CreateViewportResponse) => {
       if (err) {
         log.error({
           fn: 'createViewport',
@@ -73,7 +82,7 @@ export async function createViewport(
         })
         return reject(`createViewport error: ${err.message}`)
       }
-      log.debug({ fn: 'createViewport', resp: r.toObject() })
+      debugLog(log, () => ({ fn: 'createViewport', resp: r.toObject() }))
       return resolve(r)
     })
   })
@@ -100,10 +109,10 @@ export async function modifyViewport(
     .setOffset(offset)
     .setCapacity(capacity)
     .setIsFloating(is_floating)
-  log.debug({ fn: 'modifyViewport', rqst: request.toObject() })
+  debugLog(log, () => ({ fn: 'modifyViewport', rqst: request.toObject() }))
   const client = await getClient()
   return new Promise<ViewportDataResponse>((resolve, reject) => {
-    client.modifyViewport(request, (err, r: ViewportDataResponse) => {
+    client.modifyViewport(request, (err, r: ModifyViewportResponse) => {
       if (err) {
         log.error({
           fn: 'modifyViewport',
@@ -117,7 +126,7 @@ export async function modifyViewport(
         })
         return reject(`modifyViewport error: ${err.message}`)
       }
-      log.debug({ fn: 'modifyViewport', resp: r.toObject() })
+      debugLog(log, () => ({ fn: 'modifyViewport', resp: r.toObject() }))
       return resolve(r)
     })
   })
@@ -130,8 +139,8 @@ export async function modifyViewport(
  */
 export async function destroyViewport(viewport_id: string): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(viewport_id)
-  log.debug({ fn: 'destroyViewport', rqst: request.toObject() })
+  const request = new DestroyViewportRequest().setId(viewport_id)
+  debugLog(log, () => ({ fn: 'destroyViewport', rqst: request.toObject() }))
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
     client.destroyViewport(request, (err, r) => {
@@ -148,7 +157,7 @@ export async function destroyViewport(viewport_id: string): Promise<string> {
         })
         return reject(`destroyViewport error: ${err.message}`)
       }
-      log.debug({ fn: 'destroyViewport', resp: r.toObject() })
+      debugLog(log, () => ({ fn: 'destroyViewport', resp: r.toObject() }))
       return resolve(r.getId())
     })
   })
@@ -156,15 +165,15 @@ export async function destroyViewport(viewport_id: string): Promise<string> {
 
 /**
  * Given a session, return the number of viewports in that session
- * @param sesssion_id session to get the number of viewports in
+ * @param session_id session to get the number of viewports in
  * @return number of viewports in the given session, on success
  */
-export async function getViewportCount(sesssion_id: string): Promise<number> {
+export async function getViewportCount(session_id: string): Promise<number> {
   const log = getLogger()
   const request = new CountRequest()
-    .setSessionId(sesssion_id)
-    .setKindList([CountKind.COUNT_VIEWPORTS])
-  log.debug({ fn: 'getViewportCount', rqst: request.toObject() })
+    .setSessionId(session_id)
+    .setKindList([CountKind.COUNT_KIND_VIEWPORTS])
+  debugLog(log, () => ({ fn: 'getViewportCount', rqst: request.toObject() }))
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
     client.getCount(request, (err, r: CountResponse) => {
@@ -181,7 +190,7 @@ export async function getViewportCount(sesssion_id: string): Promise<number> {
         })
         return reject(`getViewportCount error: ${err.message}`)
       }
-      log.debug({ fn: 'getViewportCount', resp: r.toObject() })
+      debugLog(log, () => ({ fn: 'getViewportCount', resp: r.toObject() }))
       return resolve(r.getCountsList()[0].getCount())
     })
   })
@@ -198,7 +207,7 @@ export async function getViewportData(
 ): Promise<ViewportDataResponse> {
   const log = getLogger()
   const request = new ViewportDataRequest().setViewportId(viewport_id)
-  log.debug({ fn: 'getViewportData', rqst: request.toObject() })
+  debugLog(log, () => ({ fn: 'getViewportData', rqst: request.toObject() }))
   const client = await getClient()
   return new Promise<ViewportDataResponse>((resolve, reject) => {
     client.getViewportData(request, (err, r: ViewportDataResponse) => {
@@ -215,7 +224,7 @@ export async function getViewportData(
         })
         return reject(`getViewportData error: ${err.message}`)
       }
-      log.debug({ fn: 'getViewportData', resp: r.toObject() })
+      debugLog(log, () => ({ fn: 'getViewportData', resp: r.toObject() }))
       return resolve(r)
     })
   })
@@ -230,11 +239,14 @@ export async function viewportHasChanges(
   viewport_id: string
 ): Promise<boolean> {
   const log = getLogger()
-  const request = new ObjectId().setId(viewport_id)
-  log.debug({ fn: 'viewportHasChanges', rqst: request.toObject() })
+  const request = new ViewportHasChangesRequest().setId(viewport_id)
+  debugLog(log, () => ({
+    fn: 'viewportHasChanges',
+    rqst: request.toObject(),
+  }))
   const client = await getClient()
   return new Promise<boolean>((resolve, reject) => {
-    client.viewportHasChanges(request, (err, r: BooleanResponse) => {
+    client.viewportHasChanges(request, (err, r: ViewportHasChangesResponse) => {
       if (err) {
         log.error({
           fn: 'viewportHasChanges',
@@ -248,8 +260,8 @@ export async function viewportHasChanges(
         })
         return reject(`viewportHasChanges error: ${err.message}`)
       }
-      log.debug({ fn: 'viewportHasChanges', resp: r.toObject() })
-      return resolve(r.getResponse())
+      debugLog(log, () => ({ fn: 'viewportHasChanges', resp: r.toObject() }))
+      return resolve(r.getResult())
     })
   })
 }
@@ -261,27 +273,36 @@ export async function viewportHasChanges(
  */
 export async function pauseViewportEvents(session_id: string): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
-  log.debug({ fn: 'pauseViewportEvents', rqst: request.toObject() })
+  const request = new PauseViewportEventsRequest().setId(session_id)
+  debugLog(log, () => ({
+    fn: 'pauseViewportEvents',
+    rqst: request.toObject(),
+  }))
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.pauseViewportEvents(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
+    client.pauseViewportEvents(
+      request,
+      (err, r: PauseViewportEventsResponse) => {
+        if (err) {
+          log.error({
+            fn: 'pauseViewportEvents',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(`pauseViewportEvents error: ${err.message}`)
+        }
+        debugLog(log, () => ({
           fn: 'pauseViewportEvents',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(`pauseViewportEvents error: ${err.message}`)
+          resp: r.toObject(),
+        }))
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'pauseViewportEvents', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -294,27 +315,36 @@ export async function resumeViewportEvents(
   session_id: string
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
-  log.debug({ fn: 'resumeViewportEvents', rqst: request.toObject() })
+  const request = new ResumeViewportEventsRequest().setId(session_id)
+  debugLog(log, () => ({
+    fn: 'resumeViewportEvents',
+    rqst: request.toObject(),
+  }))
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.resumeViewportEvents(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
+    client.resumeViewportEvents(
+      request,
+      (err, r: ResumeViewportEventsResponse) => {
+        if (err) {
+          log.error({
+            fn: 'resumeViewportEvents',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject(`resumeViewportEvents error: ${err.message}`)
+        }
+        debugLog(log, () => ({
           fn: 'resumeViewportEvents',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject(`resumeViewportEvents error: ${err.message}`)
+          resp: r.toObject(),
+        }))
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'resumeViewportEvents', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -327,28 +357,37 @@ export async function unsubscribeViewport(
   viewport_id: string
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(viewport_id)
-  log.debug({ fn: 'unsubscribeViewport', rqst: request.toObject() })
+  const request = new UnsubscribeToViewportEventsRequest().setId(viewport_id)
+  debugLog(log, () => ({
+    fn: 'unsubscribeViewport',
+    rqst: request.toObject(),
+  }))
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
     client
-      .unsubscribeToViewportEvents(request, (err, r: ObjectId) => {
-        if (err) {
-          log.error({
+      .unsubscribeToViewportEvents(
+        request,
+        (err, r: UnsubscribeToViewportEventsResponse) => {
+          if (err) {
+            log.error({
+              fn: 'unsubscribeViewport',
+              rqst: request.toObject(),
+              err: {
+                msg: err.message,
+                details: err.details,
+                code: err.code,
+                stack: err.stack,
+              },
+            })
+            return reject(`unsubscribeViewport error: ${err.message}`)
+          }
+          debugLog(log, () => ({
             fn: 'unsubscribeViewport',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject(`unsubscribeViewport error: ${err.message}`)
+            resp: r.toObject(),
+          }))
+          return resolve(r.getId())
         }
-        log.debug({ fn: 'unsubscribeViewport', resp: r.toObject() })
-        return resolve(r.getId())
-      })
+      )
       .on('error', (err) => {
         // Call cancelled thrown when server is shutdown
         if (!err.message.includes('Call cancelled')) {

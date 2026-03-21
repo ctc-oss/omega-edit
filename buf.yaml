@@ -1,0 +1,16 @@
+version: v2
+modules:
+  - path: proto
+    name: buf.build/ctc-oss/omega-edit
+deps:
+  - buf.build/googleapis/googleapis
+lint:
+  use:
+    - STANDARD
+  ignore:
+    # Keep the legacy root proto around for backward compatibility while the
+    # canonical published API lives under omega_edit/v1.
+    - proto/omega_edit.proto
+breaking:
+  use:
+    - FILE

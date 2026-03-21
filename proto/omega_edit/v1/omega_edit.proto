@@ -1,0 +1,905 @@
+/**********************************************************************************************************************
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+ *                                                                                                                    *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
+ * with the License.  You may obtain a copy of the License at                                                         *
+ *                                                                                                                    *
+ *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
+ *                                                                                                                    *
+ * Unless required by applicable law or agreed to in writing, software is distributed under the License is            *
+ * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or                   *
+ * implied.  See the License for the specific language governing permissions and limitations under the License.       *
+ *                                                                                                                    *
+ **********************************************************************************************************************/
+
+syntax = "proto3";
+
+package omega_edit.v1;
+
+option cc_enable_arenas = true;
+
+// EditorService is the primary gRPC service for the Ωedit library.  It provides
+// byte-level editing of arbitrarily large files through a session/viewport
+// model with unlimited, serialised undo/redo.
+//
+// ## Core concepts
+//
+// - **Session** – An editing context backed by an optional file.  All edits
+//   (insert, delete, overwrite) are applied to a session.  Sessions support
+//   checkpointing, transactions, and save-to-disk.
+//
+// - **Viewport** – A sliding window into a session's computed content.
+//   Viewports can be *floating* (automatically follow edits) or *fixed*
+//   (pinned to a byte offset).  Multiple viewports may observe the same
+//   session.
+//
+// - **Change** – A single atomic edit (insert, delete, or overwrite).
+//   Every change receives a monotonically increasing serial number and can
+//   be undone or redone.
+//
+// - **Event stream** – Server-push notifications for session and viewport
+//   state changes, delivered via gRPC server-streaming RPCs.
+service EditorService {
+  // Return server metadata: version, hostname, process ID, and resource info.
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
+
+  // ---------------------------------------------------------------------------
+  // Session lifecycle
+  // ---------------------------------------------------------------------------
+
+  // Create a new editing session, optionally backed by an existing file.
+  // Returns the assigned session ID, checkpoint directory, and (if a file was
+  // provided) the original file size.
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+
+  // Persist the session's computed content to disk.  The caller specifies the
+  // target path and IO flags (overwrite behaviour).  An optional byte range
+  // can limit the save to a sub-section of the data.
+  rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
+
+  // Destroy a session and release all associated resources (viewports,
+  // checkpoints, and change history).
+  rpc DestroySession(DestroySessionRequest) returns (DestroySessionResponse);
+
+  // ---------------------------------------------------------------------------
+  // Editing operations
+  // ---------------------------------------------------------------------------
+
+  // Submit a single change (insert, delete, or overwrite) to a session.
+  // Returns the serial number assigned to the new change.
+  rpc SubmitChange(SubmitChangeRequest) returns (SubmitChangeResponse);
+
+  // Undo the most recent change in the session.  Returns the serial number of
+  // the change that was undone.
+  rpc UndoLastChange(UndoLastChangeRequest) returns (UndoLastChangeResponse);
+
+  // Redo the most recently undone change.  Returns the serial number of the
+  // change that was re-applied.
+  rpc RedoLastUndo(RedoLastUndoRequest) returns (RedoLastUndoResponse);
+
+  // Undo *all* changes in the session, returning it to its original state.
+  rpc ClearChanges(ClearChangesRequest) returns (ClearChangesResponse);
+
+  // Pause acceptance of new changes on the session.  Any SubmitChange calls
+  // while paused will be rejected.
+  rpc PauseSessionChanges(PauseSessionChangesRequest) returns (PauseSessionChangesResponse);
+
+  // Resume acceptance of changes after a pause.
+  rpc ResumeSessionChanges(ResumeSessionChangesRequest) returns (ResumeSessionChangesResponse);
+
+  // ---------------------------------------------------------------------------
+  // Transactions (atomic change groups)
+  // ---------------------------------------------------------------------------
+
+  // Begin an atomic transaction.  All changes submitted between
+  // SessionBeginTransaction and SessionEndTransaction are treated as a single
+  // undoable unit.
+  rpc SessionBeginTransaction(SessionBeginTransactionRequest) returns (SessionBeginTransactionResponse);
+
+  // End the current transaction, committing the grouped changes.
+  rpc SessionEndTransaction(SessionEndTransactionRequest) returns (SessionEndTransactionResponse);
+
+  // ---------------------------------------------------------------------------
+  // Viewport lifecycle
+  // ---------------------------------------------------------------------------
+
+  // Create a viewport – a window of `capacity` bytes starting at `offset`
+  // into the session's computed content.  Returns the initial data.
+  rpc CreateViewport(CreateViewportRequest) returns (CreateViewportResponse);
+
+  // Move and/or resize an existing viewport.  Returns the updated data.
+  rpc ModifyViewport(ModifyViewportRequest) returns (ModifyViewportResponse);
+
+  // Check whether a viewport's content has been invalidated by edits since it
+  // was last read.
+  rpc ViewportHasChanges(ViewportHasChangesRequest) returns (ViewportHasChangesResponse);
+
+  // Read the current content of a viewport.
+  rpc GetViewportData(GetViewportDataRequest) returns (GetViewportDataResponse);
+
+  // Destroy a viewport and release its resources.
+  rpc DestroyViewport(DestroyViewportRequest) returns (DestroyViewportResponse);
+
+  // Pause delivery of viewport-change events for the given session.
+  rpc PauseViewportEvents(PauseViewportEventsRequest) returns (PauseViewportEventsResponse);
+
+  // Resume delivery of viewport-change events.
+  rpc ResumeViewportEvents(ResumeViewportEventsRequest) returns (ResumeViewportEventsResponse);
+
+  // Force-notify all viewports attached to a session whose content has
+  // changed.  Returns the number of viewports notified.
+  rpc NotifyChangedViewports(NotifyChangedViewportsRequest) returns (NotifyChangedViewportsResponse);
+
+  // ---------------------------------------------------------------------------
+  // Change inspection
+  // ---------------------------------------------------------------------------
+
+  // Retrieve full details of a specific change identified by its serial
+  // number (carried inside the SessionEvent).
+  rpc GetChangeDetails(GetChangeDetailsRequest) returns (GetChangeDetailsResponse);
+
+  // Retrieve details of the most recent change in a session.
+  rpc GetLastChange(GetLastChangeRequest) returns (GetLastChangeResponse);
+
+  // Retrieve details of the most recent undone change in a session.
+  rpc GetLastUndo(GetLastUndoRequest) returns (GetLastUndoResponse);
+
+  // ---------------------------------------------------------------------------
+  // Data inspection
+  // ---------------------------------------------------------------------------
+
+  // Return the logical (computed) file size of a session after all edits.
+  rpc GetComputedFileSize(GetComputedFileSizeRequest) returns (GetComputedFileSizeResponse);
+
+  // Detect the byte-order mark (BOM) at the beginning of the session data.
+  rpc GetByteOrderMark(GetByteOrderMarkRequest) returns (GetByteOrderMarkResponse);
+
+  // Detect the content/MIME type of a segment of session data.
+  rpc GetContentType(GetContentTypeRequest) returns (GetContentTypeResponse);
+
+  // Detect the natural language of a UTF-encoded text segment, returned as an
+  // ISO 639-1 two-letter code.
+  rpc GetLanguage(GetLanguageRequest) returns (GetLanguageResponse);
+
+  // Return one or more counts for a session (file size, changes, undos,
+  // viewports, checkpoints, etc.) in a single round-trip.
+  rpc GetCount(GetCountRequest) returns (GetCountResponse);
+
+  // Return the total number of active sessions on the server.
+  rpc GetSessionCount(GetSessionCountRequest) returns (GetSessionCountResponse);
+
+  // Read a raw byte segment from the session's computed content.
+  rpc GetSegment(GetSegmentRequest) returns (GetSegmentResponse);
+
+  // ---------------------------------------------------------------------------
+  // Search and profiling
+  // ---------------------------------------------------------------------------
+
+  // Search for a byte pattern in a session.  Supports case-insensitive and
+  // reverse search, with optional offset/length bounds and a match limit.
+  rpc SearchSession(SearchSessionRequest) returns (SearchSessionResponse);
+
+  // Compute a byte-frequency histogram (256 buckets, one per byte value) over
+  // a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.
+  rpc GetByteFrequencyProfile(GetByteFrequencyProfileRequest) returns (GetByteFrequencyProfileResponse);
+
+  // Count characters by byte-width (single, double, triple, quad) in a
+  // UTF-encoded text segment.  Also reports invalid bytes.
+  rpc GetCharacterCounts(GetCharacterCountsRequest) returns (GetCharacterCountsResponse);
+
+  // ---------------------------------------------------------------------------
+  // Server management
+  // ---------------------------------------------------------------------------
+
+  // Send a control command to the server (graceful or immediate shutdown).
+  rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
+
+  // Exchange a heartbeat with the server.  The client sends its hostname,
+  // PID, and active session IDs; the server responds with resource metrics.
+  rpc GetHeartbeat(GetHeartbeatRequest) returns (GetHeartbeatResponse);
+
+  // ---------------------------------------------------------------------------
+  // Event streams
+  // ---------------------------------------------------------------------------
+
+  // Subscribe to a server-streaming feed of session-level events (edits,
+  // undos, saves, viewport creation/destruction, etc.).  The interest bitmask
+  // controls which event kinds are delivered.
+  rpc SubscribeToSessionEvents(SubscribeToSessionEventsRequest) returns (stream SubscribeToSessionEventsResponse);
+
+  // Subscribe to a server-streaming feed of viewport-level events (content
+  // changes, modifications, etc.).
+  rpc SubscribeToViewportEvents(SubscribeToViewportEventsRequest) returns (stream SubscribeToViewportEventsResponse);
+
+  // Cancel an active session-event subscription.
+  rpc UnsubscribeToSessionEvents(UnsubscribeToSessionEventsRequest) returns (UnsubscribeToSessionEventsResponse);
+
+  // Cancel an active viewport-event subscription.
+  rpc UnsubscribeToViewportEvents(UnsubscribeToViewportEventsRequest) returns (UnsubscribeToViewportEventsResponse);
+}
+
+// ===========================================================================
+// Enums
+// ===========================================================================
+
+// Flags controlling file I/O behaviour for SaveSession.
+enum IOFlags {
+  // No special flags — fail if the target file already exists.
+  IO_FLAGS_UNSPECIFIED = 0;
+  // Overwrite the target file if it already exists.
+  IO_FLAGS_OVERWRITE = 1;
+  // Overwrite the target file even if it is the session's source file.
+  IO_FLAGS_FORCE_OVERWRITE = 2;
+}
+
+// The kind of atomic edit applied to a session.
+enum ChangeKind {
+  CHANGE_KIND_UNSPECIFIED = 0;
+  // Delete `length` bytes starting at `offset`.
+  CHANGE_KIND_DELETE = 1;
+  // Insert `data` at `offset` without removing existing bytes.
+  CHANGE_KIND_INSERT = 2;
+  // Overwrite bytes at `offset` with `data`.
+  CHANGE_KIND_OVERWRITE = 3;
+}
+
+// Session-level event kinds.  Values are powers of two so they can be OR'd
+// into an interest bitmask for event subscription requests.
+// Make sure these match the session events defined in fwd_defs.h
+enum SessionEventKind {
+  SESSION_EVENT_KIND_UNSPECIFIED = 0;
+  // A new session was created.
+  SESSION_EVENT_KIND_CREATE = 1;
+  // A change (insert/delete/overwrite) was applied.
+  SESSION_EVENT_KIND_EDIT = 2;
+  // A change was undone.
+  SESSION_EVENT_KIND_UNDO = 4;
+  // All changes were cleared.
+  SESSION_EVENT_KIND_CLEAR = 8;
+  // A transform was applied.
+  SESSION_EVENT_KIND_TRANSFORM = 16;
+  // A checkpoint was created.
+  SESSION_EVENT_KIND_CREATE_CHECKPOINT = 32;
+  // A checkpoint was destroyed.
+  SESSION_EVENT_KIND_DESTROY_CHECKPOINT = 64;
+  // The session was saved to disk.
+  SESSION_EVENT_KIND_SAVE = 128;
+  // Change acceptance was paused.
+  SESSION_EVENT_KIND_CHANGES_PAUSED = 256;
+  // Change acceptance was resumed.
+  SESSION_EVENT_KIND_CHANGES_RESUMED = 512;
+  // A viewport was created on this session.
+  SESSION_EVENT_KIND_CREATE_VIEWPORT = 1024;
+  // A viewport was destroyed on this session.
+  SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
+}
+
+// Viewport-level event kinds.  Values are powers of two so they can be OR'd
+// into an interest bitmask for event subscription requests.
+// Make sure these match the viewport events defined in fwd_defs.h
+enum ViewportEventKind {
+  VIEWPORT_EVENT_KIND_UNSPECIFIED = 0;
+  // The viewport was created.
+  VIEWPORT_EVENT_KIND_CREATE = 1;
+  // An edit in the underlying session affected this viewport's range.
+  VIEWPORT_EVENT_KIND_EDIT = 2;
+  // An undo in the underlying session affected this viewport's range.
+  VIEWPORT_EVENT_KIND_UNDO = 4;
+  // All changes were cleared in the underlying session.
+  VIEWPORT_EVENT_KIND_CLEAR = 8;
+  // A transform affected this viewport's range.
+  VIEWPORT_EVENT_KIND_TRANSFORM = 16;
+  // The viewport was moved or resized via ModifyViewport.
+  VIEWPORT_EVENT_KIND_MODIFY = 32;
+  // The viewport's content bytes have changed (general notification).
+  VIEWPORT_EVENT_KIND_CHANGES = 64;
+}
+
+// Categories of counts that can be requested via GetCount.
+enum CountKind {
+  COUNT_KIND_UNSPECIFIED = 0;
+  // Logical (computed) file size in bytes after all edits.
+  COUNT_KIND_COMPUTED_FILE_SIZE = 1;
+  // Number of changes applied (undo stack depth).
+  COUNT_KIND_CHANGES = 2;
+  // Number of undone changes (redo stack depth).
+  COUNT_KIND_UNDOS = 3;
+  // Number of active viewports on the session.
+  COUNT_KIND_VIEWPORTS = 4;
+  // Number of checkpoints.
+  COUNT_KIND_CHECKPOINTS = 5;
+  // Number of active search contexts.
+  COUNT_KIND_SEARCH_CONTEXTS = 6;
+  // Number of change transactions.
+  COUNT_KIND_CHANGE_TRANSACTIONS = 7;
+  // Number of undo transactions.
+  COUNT_KIND_UNDO_TRANSACTIONS = 8;
+}
+
+// Server control command types.
+enum ServerControlKind {
+  SERVER_CONTROL_KIND_UNSPECIFIED = 0;
+  // Graceful shutdown: stop accepting new sessions, exit when all existing
+  // sessions are destroyed.
+  SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN = 1;
+  // Immediate shutdown: stop accepting new sessions and exit right away.
+  SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN = 2;
+}
+
+// ===========================================================================
+// Request / Response messages — Server info & management
+// ===========================================================================
+
+// Request server metadata.
+message GetServerInfoRequest {}
+
+// Server metadata returned by GetServerInfo.
+message GetServerInfoResponse {
+  string hostname = 1;            // Server hostname.
+  int32 process_id = 2;           // Server OS process ID.
+  string server_version = 3;      // Ωedit server version string.
+  string jvm_version = 4;         // JVM version (empty for native builds).
+  string jvm_vendor = 5;          // JVM vendor (empty for native builds).
+  string jvm_path = 6;            // Path to the JVM (empty for native builds).
+  int32 available_processors = 7; // Number of logical CPU cores.
+}
+
+// Request to send a control command to the server.
+message ServerControlRequest {
+  ServerControlKind kind = 1; // The command to execute.
+}
+
+// Response acknowledging a server control command.
+message ServerControlResponse {
+  ServerControlKind kind = 1; // The command that was executed.
+  int32 pid = 2;              // Server process ID.
+  int32 response_code = 3;    // 0 for success, non-zero for failure.
+}
+
+// Client heartbeat request.  The client identifies itself and lists its
+// active sessions so the server can track liveness.
+message GetHeartbeatRequest {
+  string hostname = 1;            // Client hostname.
+  int32 process_id = 2;           // Client OS process ID.
+  int32 heartbeat_interval = 3;   // Interval in milliseconds between heartbeats.
+  repeated string session_ids = 4; // Session IDs the client currently holds.
+}
+
+// Server heartbeat response with resource metrics.
+message GetHeartbeatResponse {
+  int32 session_count = 1;       // Total active sessions on the server.
+  int64 timestamp = 2;           // Server wall-clock time in milliseconds since epoch.
+  int64 uptime = 3;              // Server uptime in milliseconds.
+  int32 cpu_count = 4;           // Number of logical CPU cores.
+  double cpu_load_average = 5;   // CPU load average as a percentage.
+  int64 max_memory = 6;          // Maximum memory available in bytes.
+  int64 committed_memory = 7;    // Committed (allocated) memory in bytes.
+  int64 used_memory = 8;         // Currently used memory in bytes.
+}
+
+// ===========================================================================
+// Request / Response messages — Session lifecycle
+// ===========================================================================
+
+// Request to create a new editing session.
+message CreateSessionRequest {
+  // Path to the file to load.  Omit to create an empty session.
+  optional string file_path = 1;
+  // Caller-chosen session ID.  The server may assign a different ID if this
+  // one is already in use.
+  optional string session_id_desired = 2;
+  // Directory for checkpoint files.  Defaults to a system temp directory.
+  optional string checkpoint_directory = 3;
+}
+
+// Response after a session is successfully created.
+message CreateSessionResponse {
+  string session_id = 1;          // Assigned session ID.
+  string checkpoint_directory = 2; // Resolved checkpoint directory path.
+  optional int64 file_size = 3;   // Original file size in bytes (absent for empty sessions).
+}
+
+// Request to save a session's computed content to disk.
+message SaveSessionRequest {
+  string session_id = 1;   // Session to save.
+  string file_path = 2;    // Target file path.
+  int32 io_flags = 3;      // Bitmask of IOFlags values.
+  optional int64 offset = 4; // Start of the byte range to save (default: 0).
+  optional int64 length = 5; // Length of the byte range to save (default: entire file).
+}
+
+// Response after a save operation.
+message SaveSessionResponse {
+  string session_id = 1;  // Session that was saved.
+  string file_path = 2;   // Path the data was written to.
+  int32 save_status = 3;  // 0 on success, non-zero on failure.
+}
+
+// Request to destroy a session.
+message DestroySessionRequest {
+  string id = 1; // Session ID to destroy.
+}
+
+// Response after a session is destroyed.
+message DestroySessionResponse {
+  string id = 1; // Session ID that was destroyed.
+}
+
+// ===========================================================================
+// Request / Response messages — Editing operations
+// ===========================================================================
+
+// Request to submit a single edit to a session.
+message SubmitChangeRequest {
+  string session_id = 1;   // Target session.
+  ChangeKind kind = 2;     // Type of edit (insert, delete, overwrite).
+  int64 offset = 3;        // Byte offset where the edit is applied.
+  int64 length = 4;        // Number of bytes to delete (CHANGE_KIND_DELETE/CHANGE_KIND_OVERWRITE).
+  optional bytes data = 5; // Payload bytes (CHANGE_KIND_INSERT/CHANGE_KIND_OVERWRITE).
+}
+
+// Response after a change is successfully applied.
+message SubmitChangeResponse {
+  string session_id = 1; // Session that was modified.
+  int64 serial = 2;      // Monotonically increasing serial number of the change.
+}
+
+// Request to undo the most recent change.
+message UndoLastChangeRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after undoing a change.
+message UndoLastChangeResponse {
+  string session_id = 1; // Session that was modified.
+  int64 serial = 2;      // Serial number of the undone change.
+}
+
+// Request to redo the most recently undone change.
+message RedoLastUndoRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after redoing a change.
+message RedoLastUndoResponse {
+  string session_id = 1; // Session that was modified.
+  int64 serial = 2;      // Serial number of the re-applied change.
+}
+
+// Request to undo all changes in a session.
+message ClearChangesRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after clearing all changes.
+message ClearChangesResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to pause change acceptance on a session.
+message PauseSessionChangesRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after pausing change acceptance.
+message PauseSessionChangesResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to resume change acceptance on a session.
+message ResumeSessionChangesRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after resuming change acceptance.
+message ResumeSessionChangesResponse {
+  string id = 1; // Session ID.
+}
+
+// ===========================================================================
+// Request / Response messages — Transactions
+// ===========================================================================
+
+// Request to begin an atomic transaction.
+message SessionBeginTransactionRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after beginning a transaction.
+message SessionBeginTransactionResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to end (commit) the current transaction.
+message SessionEndTransactionRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after ending a transaction.
+message SessionEndTransactionResponse {
+  string id = 1; // Session ID.
+}
+
+// ===========================================================================
+// Request / Response messages — Viewport lifecycle
+// ===========================================================================
+
+// Request to create a viewport on a session.
+message CreateViewportRequest {
+  string session_id = 1;                // Session to observe.
+  int64 capacity = 2;                   // Maximum number of bytes the viewport holds.
+  int64 offset = 3;                     // Starting byte offset in the session.
+  bool is_floating = 4;                 // When true, the viewport follows edits automatically.
+  optional string viewport_id_desired = 5; // Optional caller-chosen viewport ID.
+}
+
+// Response carrying a viewport's content.
+message CreateViewportResponse {
+  string viewport_id = 1;         // Viewport ID.
+  int64 offset = 2;               // Current byte offset in the session.
+  int64 length = 3;               // Number of bytes actually returned (may be < capacity).
+  bytes data = 4;                 // The viewport content.
+  int64 following_byte_count = 5; // Number of bytes remaining after the viewport's range.
+}
+
+// Request to move or resize an existing viewport.
+message ModifyViewportRequest {
+  string viewport_id = 1; // Viewport to modify.
+  int64 offset = 2;       // New byte offset.
+  int64 capacity = 3;     // New capacity.
+  bool is_floating = 4;   // New floating flag.
+}
+
+// Response after modifying a viewport.
+message ModifyViewportResponse {
+  string viewport_id = 1;         // Viewport ID.
+  int64 offset = 2;               // Updated byte offset.
+  int64 length = 3;               // Number of bytes returned.
+  bytes data = 4;                 // Updated viewport content.
+  int64 following_byte_count = 5; // Bytes remaining after viewport range.
+}
+
+// Request to check whether a viewport has pending changes.
+message ViewportHasChangesRequest {
+  string id = 1; // Viewport ID.
+}
+
+// Response indicating whether a viewport has pending changes.
+message ViewportHasChangesResponse {
+  bool result = 1;
+}
+
+// Request to read a viewport's current data.
+message GetViewportDataRequest {
+  string viewport_id = 1;
+}
+
+// Response carrying a viewport's current content.
+message GetViewportDataResponse {
+  string viewport_id = 1;         // Viewport ID.
+  int64 offset = 2;               // Current byte offset in the session.
+  int64 length = 3;               // Number of bytes actually returned (may be < capacity).
+  bytes data = 4;                 // The viewport content.
+  int64 following_byte_count = 5; // Number of bytes remaining after the viewport's range.
+}
+
+// Request to destroy a viewport.
+message DestroyViewportRequest {
+  string id = 1; // Viewport ID.
+}
+
+// Response after a viewport is destroyed.
+message DestroyViewportResponse {
+  string id = 1; // Viewport ID.
+}
+
+// Request to pause viewport-change events for a session.
+message PauseViewportEventsRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after pausing viewport events.
+message PauseViewportEventsResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to resume viewport-change events.
+message ResumeViewportEventsRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after resuming viewport events.
+message ResumeViewportEventsResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to force-notify changed viewports.
+message NotifyChangedViewportsRequest {
+  string id = 1; // Session ID.
+}
+
+// Response with the number of viewports that were notified.
+message NotifyChangedViewportsResponse {
+  int64 count = 1;
+}
+
+// ===========================================================================
+// Request / Response messages — Change inspection
+// ===========================================================================
+
+// Request to retrieve details of a specific change by serial number.
+message GetChangeDetailsRequest {
+  string session_id = 1;                       // Session ID.
+  SessionEventKind session_event_kind = 2;     // Event kind.
+  int64 computed_file_size = 3;                // Computed file size after the event.
+  int64 change_count = 4;                      // Change count after the event.
+  int64 undo_count = 5;                        // Undo count after the event.
+  optional int64 serial = 6;                   // Serial number of the change.
+}
+
+// Response with full details of a single change.
+message GetChangeDetailsResponse {
+  string session_id = 1;   // Session the change belongs to.
+  int64 serial = 2;        // Unique serial number.
+  ChangeKind kind = 3;     // Type of edit.
+  int64 offset = 4;        // Byte offset.
+  int64 length = 5;        // Number of bytes affected.
+  optional bytes data = 6; // Payload bytes (for insert/overwrite).
+}
+
+// Request to retrieve the most recent change in a session.
+message GetLastChangeRequest {
+  string id = 1; // Session ID.
+}
+
+// Response with details of the most recent change.
+message GetLastChangeResponse {
+  string session_id = 1;   // Session the change belongs to.
+  int64 serial = 2;        // Unique serial number.
+  ChangeKind kind = 3;     // Type of edit.
+  int64 offset = 4;        // Byte offset.
+  int64 length = 5;        // Number of bytes affected.
+  optional bytes data = 6; // Payload bytes (for insert/overwrite).
+}
+
+// Request to retrieve the most recent undone change in a session.
+message GetLastUndoRequest {
+  string id = 1; // Session ID.
+}
+
+// Response with details of the most recent undone change.
+message GetLastUndoResponse {
+  string session_id = 1;   // Session the change belongs to.
+  int64 serial = 2;        // Unique serial number.
+  ChangeKind kind = 3;     // Type of edit.
+  int64 offset = 4;        // Byte offset.
+  int64 length = 5;        // Number of bytes affected.
+  optional bytes data = 6; // Payload bytes (for insert/overwrite).
+}
+
+// ===========================================================================
+// Request / Response messages — Data inspection
+// ===========================================================================
+
+// Request to get the computed file size of a session.
+message GetComputedFileSizeRequest {
+  string id = 1; // Session ID.
+}
+
+// Computed file size after all edits.
+message GetComputedFileSizeResponse {
+  string session_id = 1;        // Session ID.
+  int64 computed_file_size = 2; // Size in bytes.
+}
+
+// Request to detect the byte-order mark of a session.
+message GetByteOrderMarkRequest {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Starting byte offset.
+  int64 length = 3;      // Number of bytes to examine.
+}
+
+// Byte-order mark detection result.
+message GetByteOrderMarkResponse {
+  string session_id = 1;      // Session ID.
+  int64 offset = 2;           // Byte offset of the BOM.
+  int64 length = 3;           // BOM length in bytes (0, 2, 3, or 4).
+  string byte_order_mark = 4; // Human-readable BOM name: "UTF-8", "UTF-16LE", "UTF-16BE", "UTF-32LE", "UTF-32BE", or "none".
+}
+
+// Request to detect the content/MIME type of a segment.
+message GetContentTypeRequest {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Starting byte offset.
+  int64 length = 3;      // Number of bytes to examine.
+}
+
+// Content/MIME type detection result.
+message GetContentTypeResponse {
+  string session_id = 1;   // Session ID.
+  int64 offset = 2;        // Byte offset where detection started.
+  int64 length = 3;        // Number of bytes examined.
+  string content_type = 4; // Detected MIME type.
+}
+
+// Request to detect the natural language of a text segment.
+message GetLanguageRequest {
+  string session_id = 1;      // Session ID.
+  int64 offset = 2;           // Starting byte offset.
+  int64 length = 3;           // Number of bytes to read.
+  string byte_order_mark = 4; // Encoding hint.
+}
+
+// Natural language detection result.
+message GetLanguageResponse {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Byte offset where detection started.
+  int64 length = 3;      // Number of bytes examined.
+  string language = 4;   // ISO 639-1 two-letter language code.
+}
+
+// Request one or more counts for a session.
+message GetCountRequest {
+  string session_id = 1;
+  // The set of count kinds to retrieve.
+  repeated CountKind kind = 2;
+}
+
+// A single (kind, value) count pair.
+message SingleCount {
+  CountKind kind = 1;
+  int64 count = 2;
+}
+
+// Response carrying the requested counts.
+message GetCountResponse {
+  string session_id = 1;
+  repeated SingleCount counts = 2;
+}
+
+// Request the total number of active sessions.
+message GetSessionCountRequest {}
+
+// Response with the session count.
+message GetSessionCountResponse {
+  int64 count = 1;
+}
+
+// Request to read a raw byte segment from a session.
+message GetSegmentRequest {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Starting byte offset.
+  int64 length = 3;      // Number of bytes to read.
+}
+
+// Response carrying a raw byte segment.
+message GetSegmentResponse {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Starting byte offset of the returned data.
+  bytes data = 3;        // Raw bytes.
+}
+
+// ===========================================================================
+// Request / Response messages — Search and profiling
+// ===========================================================================
+
+// Request to search for a byte pattern in a session.
+message SearchSessionRequest {
+  string session_id = 1;                 // Session to search.
+  bytes pattern = 2;                     // Byte pattern to find.
+  optional bool is_case_insensitive = 3; // When true, perform case-insensitive matching.
+  optional bool is_reverse = 4;          // When true, search backward from the end of the range.
+  optional int64 offset = 5;            // Starting byte offset (default: 0 or end if reverse).
+  optional int64 length = 6;             // Number of bytes to search within.
+  optional int64 limit = 7;             // Maximum number of matches to return (0 = unlimited).
+}
+
+// Search results.
+message SearchSessionResponse {
+  string session_id = 1;           // Session that was searched.
+  bytes pattern = 2;               // The pattern that was searched for.
+  bool is_case_insensitive = 3;    // Whether the search was case-insensitive.
+  bool is_reverse = 4;             // Whether the search was reversed.
+  int64 offset = 5;                // Starting offset of the search range.
+  int64 length = 6;                // Length of the search range.
+  repeated int64 match_offset = 7; // Byte offsets of each match.
+}
+
+// Request to compute a byte-frequency histogram.
+message GetByteFrequencyProfileRequest {
+  string session_id = 1; // Session ID.
+  int64 offset = 2;      // Range start.
+  int64 length = 3;      // Range length.
+}
+
+// Byte-frequency histogram over a range of session data.
+message GetByteFrequencyProfileResponse {
+  string session_id = 1;        // Session ID.
+  int64 offset = 2;             // Range start.
+  int64 length = 3;             // Range length.
+  repeated int64 frequency = 4; // 257 entries: frequency[0..255] = count of each byte value; frequency[256] = count of DOS-style CR+LF line endings.
+}
+
+// Request to count characters by byte-width.
+message GetCharacterCountsRequest {
+  string session_id = 1;      // Session ID.
+  int64 offset = 2;           // Starting byte offset.
+  int64 length = 3;           // Number of bytes to read.
+  string byte_order_mark = 4; // Encoding hint.
+}
+
+// Character-width breakdown for a UTF-encoded text segment.
+message GetCharacterCountsResponse {
+  string session_id = 1;          // Session ID.
+  int64 offset = 2;               // Range start.
+  int64 length = 3;               // Range length.
+  string byte_order_mark = 4;     // Encoding used for decoding.
+  int64 byte_order_mark_bytes = 5; // BOM length in bytes (0, 2, 3, or 4).
+  int64 single_byte_chars = 6;    // Count of 1-byte characters.
+  int64 double_byte_chars = 7;    // Count of 2-byte characters.
+  int64 triple_byte_chars = 8;    // Count of 3-byte characters.
+  int64 quad_byte_chars = 9;      // Count of 4-byte characters.
+  int64 invalid_bytes = 10;       // Count of bytes that don't form valid characters.
+}
+
+// ===========================================================================
+// Event subscription messages
+// ===========================================================================
+
+// Request to subscribe to session or viewport events.
+message SubscribeToSessionEventsRequest {
+  // The session ID to subscribe to.
+  string id = 1;
+  // Bitmask of event kinds to receive.  When omitted, all events are
+  // delivered.  Use the SessionEventKind enum values OR'd together.
+  optional int32 interest = 2;
+}
+
+// A session-level event delivered via SubscribeToSessionEvents.
+message SubscribeToSessionEventsResponse {
+  string session_id = 1;                       // Originating session.
+  SessionEventKind session_event_kind = 2;     // What happened.
+  int64 computed_file_size = 3;                // Computed file size after this event.
+  int64 change_count = 4;                      // Number of applied changes after this event.
+  int64 undo_count = 5;                        // Number of undone changes after this event.
+  optional int64 serial = 6;                   // Serial number of the change (if applicable).
+}
+
+// Request to subscribe to viewport events.
+message SubscribeToViewportEventsRequest {
+  // The viewport ID to subscribe to.
+  string id = 1;
+  // Bitmask of event kinds to receive.
+  optional int32 interest = 2;
+}
+
+// A viewport-level event delivered via SubscribeToViewportEvents.
+message SubscribeToViewportEventsResponse {
+  string session_id = 1;                        // Session the viewport belongs to.
+  string viewport_id = 2;                       // Viewport that changed.
+  ViewportEventKind viewport_event_kind = 3;    // What happened.
+  optional int64 serial = 4;                    // Change serial (if triggered by an edit).
+  optional int64 offset = 5;                    // Updated viewport offset.
+  optional int64 length = 6;                    // Updated data length.
+  optional bytes data = 7;                      // Updated viewport content.
+}
+
+// Request to cancel a session-event subscription.
+message UnsubscribeToSessionEventsRequest {
+  string id = 1; // Session ID.
+}
+
+// Response after cancelling a session-event subscription.
+message UnsubscribeToSessionEventsResponse {
+  string id = 1; // Session ID.
+}
+
+// Request to cancel a viewport-event subscription.
+message UnsubscribeToViewportEventsRequest {
+  string id = 1; // Viewport ID.
+}
+
+// Response after cancelling a viewport-event subscription.
+message UnsubscribeToViewportEventsResponse {
+  string id = 1; // Viewport ID.
+}

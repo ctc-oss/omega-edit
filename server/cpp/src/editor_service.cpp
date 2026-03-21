@@ -113,17 +113,18 @@ bool EditorServiceImpl::parse_viewport_id(const std::string &fqid, std::string &
     return !session_id.empty() && !viewport_id.empty();
 }
 
+template <typename T>
 void EditorServiceImpl::fill_change_details(const omega_change_t *change, const std::string &session_id,
-                                             ::omega_edit::ChangeDetailsResponse *response) {
+                                             T *response) {
     response->set_session_id(session_id);
     response->set_serial(omega_change_get_serial(change));
 
     char kind_char = omega_change_get_kind_as_char(change);
     switch (kind_char) {
-        case 'D': response->set_kind(::omega_edit::CHANGE_DELETE); break;
-        case 'I': response->set_kind(::omega_edit::CHANGE_INSERT); break;
-        case 'O': response->set_kind(::omega_edit::CHANGE_OVERWRITE); break;
-        default: response->set_kind(::omega_edit::UNDEFINED_CHANGE); break;
+        case 'D': response->set_kind(::omega_edit::v1::CHANGE_KIND_DELETE); break;
+        case 'I': response->set_kind(::omega_edit::v1::CHANGE_KIND_INSERT); break;
+        case 'O': response->set_kind(::omega_edit::v1::CHANGE_KIND_OVERWRITE); break;
+        default: response->set_kind(::omega_edit::v1::CHANGE_KIND_UNSPECIFIED); break;
     }
 
     response->set_offset(omega_change_get_offset(change));
@@ -135,9 +136,10 @@ void EditorServiceImpl::fill_change_details(const omega_change_t *change, const 
     }
 }
 
+template <typename T>
 grpc::Status EditorServiceImpl::fill_viewport_data(const std::string &session_id, const std::string &viewport_id,
                                                     const std::string &fqid,
-                                                    ::omega_edit::ViewportDataResponse *response) {
+                                                    T *response) {
     auto *vp = session_manager_.get_viewport(session_id, viewport_id);
     if (!vp) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + fqid);
@@ -158,8 +160,8 @@ grpc::Status EditorServiceImpl::fill_viewport_data(const std::string &session_id
 // ---------- Server Info ----------
 
 grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
-                                               const ::google::protobuf::Empty * /*request*/,
-                                               ::omega_edit::ServerInfoResponse *response) {
+                                               const ::omega_edit::v1::GetServerInfoRequest * /*request*/,
+                                               ::omega_edit::v1::GetServerInfoResponse *response) {
     response->set_hostname(get_hostname());
     response->set_process_id(get_pid());
 
@@ -178,8 +180,8 @@ grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
 // ---------- Session Lifecycle ----------
 
 grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
-                                               const ::omega_edit::CreateSessionRequest *request,
-                                               ::omega_edit::CreateSessionResponse *response) {
+                                               const ::omega_edit::v1::CreateSessionRequest *request,
+                                               ::omega_edit::v1::CreateSessionResponse *response) {
     if (graceful_shutdown_.load()) {
         // During graceful shutdown, refuse new sessions (return empty like previous server behavior)
         response->set_session_id("");
@@ -244,8 +246,8 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
-                                             const ::omega_edit::SaveSessionRequest *request,
-                                             ::omega_edit::SaveSessionResponse *response) {
+                                             const ::omega_edit::v1::SaveSessionRequest *request,
+                                             ::omega_edit::v1::SaveSessionResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -275,8 +277,8 @@ grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/,
-                                                const ::omega_edit::ObjectId *request,
-                                                ::omega_edit::ObjectId *response) {
+                                                const ::omega_edit::v1::DestroySessionRequest *request,
+                                                ::omega_edit::v1::DestroySessionResponse *response) {
     if (!session_manager_.destroy_session(request->id())) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
@@ -295,8 +297,8 @@ grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/
 // ---------- Edit Operations ----------
 
 grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
-                                              const ::omega_edit::ChangeRequest *request,
-                                              ::omega_edit::ChangeResponse *response) {
+                                              const ::omega_edit::v1::SubmitChangeRequest *request,
+                                              ::omega_edit::v1::SubmitChangeResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -305,10 +307,10 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
     session_manager_.touch_session(request->session_id());
     int64_t serial = 0;
     switch (request->kind()) {
-        case ::omega_edit::CHANGE_DELETE:
+        case ::omega_edit::v1::CHANGE_KIND_DELETE:
             serial = omega_edit_delete(session, request->offset(), request->length());
             break;
-        case ::omega_edit::CHANGE_INSERT:
+        case ::omega_edit::v1::CHANGE_KIND_INSERT:
             if (request->has_data()) {
                 serial = omega_edit_insert_bytes(session, request->offset(),
                                                  reinterpret_cast<const omega_byte_t *>(request->data().data()),
@@ -317,7 +319,7 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
                 serial = omega_edit_insert_bytes(session, request->offset(), nullptr, 0);
             }
             break;
-        case ::omega_edit::CHANGE_OVERWRITE:
+        case ::omega_edit::v1::CHANGE_KIND_OVERWRITE:
             if (request->has_data()) {
                 serial = omega_edit_overwrite_bytes(session, request->offset(),
                                                     reinterpret_cast<const omega_byte_t *>(request->data().data()),
@@ -340,8 +342,8 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/,
-                                                const ::omega_edit::ObjectId *request,
-                                                ::omega_edit::ChangeResponse *response) {
+                                                const ::omega_edit::v1::UndoLastChangeRequest *request,
+                                                ::omega_edit::v1::UndoLastChangeResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -359,8 +361,8 @@ grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/
 }
 
 grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
-                                              const ::omega_edit::ObjectId *request,
-                                              ::omega_edit::ChangeResponse *response) {
+                                              const ::omega_edit::v1::RedoLastUndoRequest *request,
+                                              ::omega_edit::v1::RedoLastUndoResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -378,8 +380,8 @@ grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
-                                              const ::omega_edit::ObjectId *request,
-                                              ::omega_edit::ObjectId *response) {
+                                              const ::omega_edit::v1::ClearChangesRequest *request,
+                                              ::omega_edit::v1::ClearChangesResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -398,8 +400,8 @@ grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
 // ---------- Session Control ----------
 
 grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*context*/,
-                                                     const ::omega_edit::ObjectId *request,
-                                                     ::omega_edit::ObjectId *response) {
+                                                     const ::omega_edit::v1::PauseSessionChangesRequest *request,
+                                                     ::omega_edit::v1::PauseSessionChangesResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -411,8 +413,8 @@ grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*cont
 }
 
 grpc::Status EditorServiceImpl::ResumeSessionChanges(grpc::ServerContext * /*context*/,
-                                                      const ::omega_edit::ObjectId *request,
-                                                      ::omega_edit::ObjectId *response) {
+                                                      const ::omega_edit::v1::ResumeSessionChangesRequest *request,
+                                                      ::omega_edit::v1::ResumeSessionChangesResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -424,8 +426,8 @@ grpc::Status EditorServiceImpl::ResumeSessionChanges(grpc::ServerContext * /*con
 }
 
 grpc::Status EditorServiceImpl::PauseViewportEvents(grpc::ServerContext * /*context*/,
-                                                     const ::omega_edit::ObjectId *request,
-                                                     ::omega_edit::ObjectId *response) {
+                                                     const ::omega_edit::v1::PauseViewportEventsRequest *request,
+                                                     ::omega_edit::v1::PauseViewportEventsResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -437,8 +439,8 @@ grpc::Status EditorServiceImpl::PauseViewportEvents(grpc::ServerContext * /*cont
 }
 
 grpc::Status EditorServiceImpl::ResumeViewportEvents(grpc::ServerContext * /*context*/,
-                                                      const ::omega_edit::ObjectId *request,
-                                                      ::omega_edit::ObjectId *response) {
+                                                      const ::omega_edit::v1::ResumeViewportEventsRequest *request,
+                                                      ::omega_edit::v1::ResumeViewportEventsResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -450,8 +452,8 @@ grpc::Status EditorServiceImpl::ResumeViewportEvents(grpc::ServerContext * /*con
 }
 
 grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*context*/,
-                                                         const ::omega_edit::ObjectId *request,
-                                                         ::omega_edit::ObjectId *response) {
+                                                         const ::omega_edit::v1::SessionBeginTransactionRequest *request,
+                                                         ::omega_edit::v1::SessionBeginTransactionResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -469,8 +471,8 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
 }
 
 grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*context*/,
-                                                       const ::omega_edit::ObjectId *request,
-                                                       ::omega_edit::ObjectId *response) {
+                                                       const ::omega_edit::v1::SessionEndTransactionRequest *request,
+                                                       ::omega_edit::v1::SessionEndTransactionResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -485,23 +487,23 @@ grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*co
 }
 
 grpc::Status EditorServiceImpl::NotifyChangedViewports(grpc::ServerContext * /*context*/,
-                                                        const ::omega_edit::ObjectId *request,
-                                                        ::omega_edit::IntResponse *response) {
+                                                        const ::omega_edit::v1::NotifyChangedViewportsRequest *request,
+                                                        ::omega_edit::v1::NotifyChangedViewportsResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
 
     int count = omega_session_notify_changed_viewports(session);
-    response->set_response(count);
+    response->set_count(count);
     return grpc::Status::OK;
 }
 
 // ---------- Viewport Operations ----------
 
 grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/,
-                                                const ::omega_edit::CreateViewportRequest *request,
-                                                ::omega_edit::ViewportDataResponse *response) {
+                                                const ::omega_edit::v1::CreateViewportRequest *request,
+                                                ::omega_edit::v1::CreateViewportResponse *response) {
     std::string desired_vp_id;
     if (request->has_viewport_id_desired()) {
         desired_vp_id = request->viewport_id_desired();
@@ -535,8 +537,8 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
 }
 
 grpc::Status EditorServiceImpl::ModifyViewport(grpc::ServerContext * /*context*/,
-                                                const ::omega_edit::ModifyViewportRequest *request,
-                                                ::omega_edit::ViewportDataResponse *response) {
+                                                const ::omega_edit::v1::ModifyViewportRequest *request,
+                                                ::omega_edit::v1::ModifyViewportResponse *response) {
     std::string sid, vid;
     if (!parse_viewport_id(request->viewport_id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->viewport_id());
@@ -557,8 +559,8 @@ grpc::Status EditorServiceImpl::ModifyViewport(grpc::ServerContext * /*context*/
 }
 
 grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*context*/,
-                                                    const ::omega_edit::ObjectId *request,
-                                                    ::omega_edit::BooleanResponse *response) {
+                                                    const ::omega_edit::v1::ViewportHasChangesRequest *request,
+                                                    ::omega_edit::v1::ViewportHasChangesResponse *response) {
     std::string sid, vid;
     if (!parse_viewport_id(request->id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
@@ -569,14 +571,14 @@ grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*conte
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id());
     }
 
-    response->set_response(omega_viewport_has_changes(vp) != 0);
+    response->set_result(omega_viewport_has_changes(vp) != 0);
     session_manager_.touch_session(sid);
     return grpc::Status::OK;
 }
 
 grpc::Status EditorServiceImpl::GetViewportData(grpc::ServerContext * /*context*/,
-                                                 const ::omega_edit::ViewportDataRequest *request,
-                                                 ::omega_edit::ViewportDataResponse *response) {
+                                                 const ::omega_edit::v1::GetViewportDataRequest *request,
+                                                 ::omega_edit::v1::GetViewportDataResponse *response) {
     std::string sid, vid;
     if (!parse_viewport_id(request->viewport_id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -587,8 +589,8 @@ grpc::Status EditorServiceImpl::GetViewportData(grpc::ServerContext * /*context*
 }
 
 grpc::Status EditorServiceImpl::DestroyViewport(grpc::ServerContext * /*context*/,
-                                                 const ::omega_edit::ObjectId *request,
-                                                 ::omega_edit::ObjectId *response) {
+                                                 const ::omega_edit::v1::DestroyViewportRequest *request,
+                                                 ::omega_edit::v1::DestroyViewportResponse *response) {
     std::string sid, vid;
     if (!parse_viewport_id(request->id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
@@ -605,8 +607,8 @@ grpc::Status EditorServiceImpl::DestroyViewport(grpc::ServerContext * /*context*
 // ---------- Change Details ----------
 
 grpc::Status EditorServiceImpl::GetChangeDetails(grpc::ServerContext * /*context*/,
-                                                  const ::omega_edit::SessionEvent *request,
-                                                  ::omega_edit::ChangeDetailsResponse *response) {
+                                                  const ::omega_edit::v1::GetChangeDetailsRequest *request,
+                                                  ::omega_edit::v1::GetChangeDetailsResponse *response) {
     if (!request->has_serial()) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "change serial id required");
     }
@@ -627,8 +629,8 @@ grpc::Status EditorServiceImpl::GetChangeDetails(grpc::ServerContext * /*context
 }
 
 grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
-                                               const ::omega_edit::ObjectId *request,
-                                               ::omega_edit::ChangeDetailsResponse *response) {
+                                               const ::omega_edit::v1::GetLastChangeRequest *request,
+                                               ::omega_edit::v1::GetLastChangeResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -645,8 +647,8 @@ grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
-                                             const ::omega_edit::ObjectId *request,
-                                             ::omega_edit::ChangeDetailsResponse *response) {
+                                             const ::omega_edit::v1::GetLastUndoRequest *request,
+                                             ::omega_edit::v1::GetLastUndoResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -665,8 +667,8 @@ grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
 // ---------- Computed File Size ----------
 
 grpc::Status EditorServiceImpl::GetComputedFileSize(grpc::ServerContext * /*context*/,
-                                                     const ::omega_edit::ObjectId *request,
-                                                     ::omega_edit::ComputedFileSizeResponse *response) {
+                                                     const ::omega_edit::v1::GetComputedFileSizeRequest *request,
+                                                     ::omega_edit::v1::GetComputedFileSizeResponse *response) {
     auto *session = session_manager_.get_session(request->id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
@@ -681,8 +683,8 @@ grpc::Status EditorServiceImpl::GetComputedFileSize(grpc::ServerContext * /*cont
 // ---------- BOM / Content Type / Language ----------
 
 grpc::Status EditorServiceImpl::GetByteOrderMark(grpc::ServerContext * /*context*/,
-                                                  const ::omega_edit::SegmentRequest *request,
-                                                  ::omega_edit::ByteOrderMarkResponse *response) {
+                                                  const ::omega_edit::v1::GetByteOrderMarkRequest *request,
+                                                  ::omega_edit::v1::GetByteOrderMarkResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -701,8 +703,8 @@ grpc::Status EditorServiceImpl::GetByteOrderMark(grpc::ServerContext * /*context
 }
 
 grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/,
-                                                const ::omega_edit::SegmentRequest *request,
-                                                ::omega_edit::ContentTypeResponse *response) {
+                                                const ::omega_edit::v1::GetContentTypeRequest *request,
+                                                ::omega_edit::v1::GetContentTypeResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -742,8 +744,8 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
 }
 
 grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
-                                             const ::omega_edit::TextRequest *request,
-                                             ::omega_edit::LanguageResponse *response) {
+                                             const ::omega_edit::v1::GetLanguageRequest *request,
+                                             ::omega_edit::v1::GetLanguageResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -786,8 +788,8 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
 // ---------- Counts ----------
 
 grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
-                                          const ::omega_edit::CountRequest *request,
-                                          ::omega_edit::CountResponse *response) {
+                                          const ::omega_edit::v1::GetCountRequest *request,
+                                          ::omega_edit::v1::GetCountResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -800,28 +802,28 @@ grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
         auto kind = request->kind(i);
         int64_t count_value = 0;
         switch (kind) {
-            case ::omega_edit::COUNT_COMPUTED_FILE_SIZE:
+            case ::omega_edit::v1::COUNT_KIND_COMPUTED_FILE_SIZE:
                 count_value = omega_session_get_computed_file_size(session);
                 break;
-            case ::omega_edit::COUNT_CHANGES:
+            case ::omega_edit::v1::COUNT_KIND_CHANGES:
                 count_value = omega_session_get_num_changes(session);
                 break;
-            case ::omega_edit::COUNT_UNDOS:
+            case ::omega_edit::v1::COUNT_KIND_UNDOS:
                 count_value = omega_session_get_num_undone_changes(session);
                 break;
-            case ::omega_edit::COUNT_VIEWPORTS:
+            case ::omega_edit::v1::COUNT_KIND_VIEWPORTS:
                 count_value = omega_session_get_num_viewports(session);
                 break;
-            case ::omega_edit::COUNT_CHECKPOINTS:
+            case ::omega_edit::v1::COUNT_KIND_CHECKPOINTS:
                 count_value = omega_session_get_num_checkpoints(session);
                 break;
-            case ::omega_edit::COUNT_SEARCH_CONTEXTS:
+            case ::omega_edit::v1::COUNT_KIND_SEARCH_CONTEXTS:
                 count_value = omega_session_get_num_search_contexts(session);
                 break;
-            case ::omega_edit::COUNT_CHANGE_TRANSACTIONS:
+            case ::omega_edit::v1::COUNT_KIND_CHANGE_TRANSACTIONS:
                 count_value = omega_session_get_num_change_transactions(session);
                 break;
-            case ::omega_edit::COUNT_UNDO_TRANSACTIONS:
+            case ::omega_edit::v1::COUNT_KIND_UNDO_TRANSACTIONS:
                 count_value = omega_session_get_num_undone_change_transactions(session);
                 break;
             default:
@@ -836,8 +838,8 @@ grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
 }
 
 grpc::Status EditorServiceImpl::GetSessionCount(grpc::ServerContext * /*context*/,
-                                                 const ::google::protobuf::Empty * /*request*/,
-                                                 ::omega_edit::SessionCountResponse *response) {
+                                                 const ::omega_edit::v1::GetSessionCountRequest * /*request*/,
+                                                 ::omega_edit::v1::GetSessionCountResponse *response) {
     response->set_count(session_manager_.session_count());
     return grpc::Status::OK;
 }
@@ -845,8 +847,8 @@ grpc::Status EditorServiceImpl::GetSessionCount(grpc::ServerContext * /*context*
 // ---------- Segment ----------
 
 grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
-                                            const ::omega_edit::SegmentRequest *request,
-                                            ::omega_edit::SegmentResponse *response) {
+                                            const ::omega_edit::v1::GetSegmentRequest *request,
+                                            ::omega_edit::v1::GetSegmentResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -885,8 +887,8 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
 // ---------- Search ----------
 
 grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
-                                               const ::omega_edit::SearchRequest *request,
-                                               ::omega_edit::SearchResponse *response) {
+                                               const ::omega_edit::v1::SearchSessionRequest *request,
+                                               ::omega_edit::v1::SearchSessionResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -927,8 +929,8 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
 // ---------- Byte Frequency Profile ----------
 
 grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*context*/,
-                                                         const ::omega_edit::SegmentRequest *request,
-                                                         ::omega_edit::ByteFrequencyProfileResponse *response) {
+                                                         const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
+                                                         ::omega_edit::v1::GetByteFrequencyProfileResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -958,8 +960,8 @@ grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*
 // ---------- Character Counts ----------
 
 grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*context*/,
-                                                    const ::omega_edit::TextRequest *request,
-                                                    ::omega_edit::CharacterCountResponse *response) {
+                                                    const ::omega_edit::v1::GetCharacterCountsRequest *request,
+                                                    ::omega_edit::v1::GetCharacterCountsResponse *response) {
     auto *session = session_manager_.get_session(request->session_id());
     if (!session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
@@ -995,13 +997,13 @@ grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*conte
 // ---------- Server Control ----------
 
 grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
-                                               const ::omega_edit::ServerControlRequest *request,
-                                               ::omega_edit::ServerControlResponse *response) {
+                                               const ::omega_edit::v1::ServerControlRequest *request,
+                                               ::omega_edit::v1::ServerControlResponse *response) {
     response->set_kind(request->kind());
     response->set_pid(get_pid());
 
     switch (request->kind()) {
-        case ::omega_edit::SERVER_CONTROL_GRACEFUL_SHUTDOWN:
+        case ::omega_edit::v1::SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN:
             graceful_shutdown_.store(true);
             // Check if no sessions remain - if so, we can stop immediately
             if (session_manager_.session_count() == 0) {
@@ -1014,7 +1016,7 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             }
             break;
 
-        case ::omega_edit::SERVER_CONTROL_IMMEDIATE_SHUTDOWN:
+        case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
             session_manager_.destroy_all();
             response->set_response_code(0);
             if (shutdown_callback_) {
@@ -1032,8 +1034,8 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
 // ---------- Heartbeat ----------
 
 grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
-                                              const ::omega_edit::HeartbeatRequest *request,
-                                              ::omega_edit::HeartbeatResponse *response) {
+                                              const ::omega_edit::v1::GetHeartbeatRequest *request,
+                                              ::omega_edit::v1::GetHeartbeatResponse *response) {
     // Touch sessions referenced in the heartbeat to keep them alive
     if (request->session_ids_size() > 0) {
         std::vector<std::string> ids(request->session_ids().begin(), request->session_ids().end());
@@ -1072,8 +1074,8 @@ grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
 // ---------- Event Streams ----------
 
 grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
-    grpc::ServerContext *context, const ::omega_edit::EventSubscriptionRequest *request,
-    grpc::ServerWriter<::omega_edit::SessionEvent> *writer) {
+    grpc::ServerContext *context, const ::omega_edit::v1::SubscribeToSessionEventsRequest *request,
+    grpc::ServerWriter<::omega_edit::v1::SubscribeToSessionEventsResponse> *writer) {
 
     auto queue = session_manager_.subscribe_session_events(request->id(),
                                                            request->has_interest() ? request->interest() : -1);
@@ -1084,10 +1086,10 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
     SessionEventData event_data;
     while (!context->IsCancelled()) {
         if (queue->pop(event_data, std::chrono::milliseconds(500))) {
-            ::omega_edit::SessionEvent event;
+            ::omega_edit::v1::SubscribeToSessionEventsResponse event;
             event.set_session_id(event_data.session_id);
             event.set_session_event_kind(
-                static_cast<::omega_edit::SessionEventKind>(event_data.session_event_kind));
+                static_cast<::omega_edit::v1::SessionEventKind>(event_data.session_event_kind));
             event.set_computed_file_size(event_data.computed_file_size);
             event.set_change_count(event_data.change_count);
             event.set_undo_count(event_data.undo_count);
@@ -1108,8 +1110,8 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
 }
 
 grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
-    grpc::ServerContext *context, const ::omega_edit::EventSubscriptionRequest *request,
-    grpc::ServerWriter<::omega_edit::ViewportEvent> *writer) {
+    grpc::ServerContext *context, const ::omega_edit::v1::SubscribeToViewportEventsRequest *request,
+    grpc::ServerWriter<::omega_edit::v1::SubscribeToViewportEventsResponse> *writer) {
 
     std::string sid, vid;
     if (!parse_viewport_id(request->id(), sid, vid)) {
@@ -1125,11 +1127,11 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
     ViewportEventData event_data;
     while (!context->IsCancelled()) {
         if (queue->pop(event_data, std::chrono::milliseconds(500))) {
-            ::omega_edit::ViewportEvent event;
+            ::omega_edit::v1::SubscribeToViewportEventsResponse event;
             event.set_session_id(event_data.session_id);
             event.set_viewport_id(event_data.session_id + ":" + event_data.viewport_id);
             event.set_viewport_event_kind(
-                static_cast<::omega_edit::ViewportEventKind>(event_data.viewport_event_kind));
+                static_cast<::omega_edit::v1::ViewportEventKind>(event_data.viewport_event_kind));
             if (event_data.serial != 0) {
                 event.set_serial(event_data.serial);
             }
@@ -1156,16 +1158,16 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
 }
 
 grpc::Status EditorServiceImpl::UnsubscribeToSessionEvents(grpc::ServerContext * /*context*/,
-                                                            const ::omega_edit::ObjectId *request,
-                                                            ::omega_edit::ObjectId *response) {
+                                                            const ::omega_edit::v1::UnsubscribeToSessionEventsRequest *request,
+                                                            ::omega_edit::v1::UnsubscribeToSessionEventsResponse *response) {
     session_manager_.unsubscribe_session_events(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
 
 grpc::Status EditorServiceImpl::UnsubscribeToViewportEvents(grpc::ServerContext * /*context*/,
-                                                             const ::omega_edit::ObjectId *request,
-                                                             ::omega_edit::ObjectId *response) {
+                                                             const ::omega_edit::v1::UnsubscribeToViewportEventsRequest *request,
+                                                             ::omega_edit::v1::UnsubscribeToViewportEventsResponse *response) {
     std::string sid, vid;
     if (!parse_viewport_id(request->id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
@@ -1178,4 +1180,3 @@ grpc::Status EditorServiceImpl::UnsubscribeToViewportEvents(grpc::ServerContext 
 
 } // namespace grpc_server
 } // namespace omega_edit
-

@@ -1,0 +1,105 @@
+# @omega-edit/client — Development Guide
+
+This document covers building, testing, and contributing to the `@omega-edit/client` package.
+
+## Prerequisites
+
+- Node.js 16+
+- Yarn (v1 or compatible)
+- The `@omega-edit/server` package must be built and packaged first (it provides the native gRPC server binary)
+
+## Setup
+
+From the repository root:
+
+```bash
+yarn install
+```
+
+## Building
+
+### Prepare (generate protobuf stubs)
+
+Before building for the first time, generate the TypeScript protobuf stubs from `proto/omega_edit.proto`:
+
+```bash
+yarn prepare
+```
+
+This runs `grpc_tools_node_protoc` to produce `omega_edit_pb.js`, `omega_edit_grpc_pb.js`, and their `.d.ts` type definitions under `src/`.
+
+### Build the client
+
+```bash
+yarn build
+```
+
+This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files.
+
+## Testing
+
+Build and test commands rely on generated protobuf stubs and a prepackaged server artifact.
+
+### Prepare (if not already done)
+
+```bash
+yarn prepare
+```
+
+### Run tests
+
+```bash
+yarn test
+```
+
+This runs the `pretest` hook (rebuilds the client and verifies the server is prepackaged) before executing the test suite.
+
+> **Windows note:** End-to-end client tests do not currently validate emoji filenames on Windows. That path is covered in the native filesystem tests, but not in the Windows client integration suite.
+
+## Linting
+
+```bash
+yarn lint        # check
+yarn lint:fix    # auto-fix
+```
+
+## Generating API docs
+
+```bash
+yarn docgen
+```
+
+## Package Distribution Details
+
+The package ships both ESM and CommonJS formats with full TypeScript source maps for debugging:
+
+| Output | Path | Description |
+| --- | --- | --- |
+| ESM | `dist/esm/` | ES2020 modules |
+| CommonJS | `dist/cjs/` | CommonJS modules |
+| Source Maps | `dist/**/*.map` | Embedded TypeScript sources (`sourcesContent`) |
+| Type Definitions | `dist/**/*.d.ts` | Declarations with `.d.ts.map` maps |
+
+This allows downstream consumers (VS Code extensions, webviews, etc.) to set breakpoints in original TypeScript source, see readable names in stack traces, and step through the package code seamlessly.
+
+## Project Structure
+
+```
+packages/client/
+├── src/
+│   ├── index.ts          # Barrel export
+│   ├── change.ts         # Insert, delete, overwrite, undo/redo
+│   ├── client.ts         # gRPC client connection management
+│   ├── logger.ts         # File-based logger
+│   ├── server.ts         # Server lifecycle (start, stop, heartbeat)
+│   ├── session.ts        # Session CRUD, save, transactions
+│   ├── version.ts        # Client version constant
+│   ├── viewport.ts       # Viewport CRUD and data access
+│   ├── omega_edit_pb.*   # Generated protobuf stubs
+│   └── omega_edit_grpc_pb.*
+├── tests/                # Test suite
+├── dist/                 # Build output (gitignored)
+├── package.json
+├── tsconfig.json
+└── DEVELOPMENT.md        # This file
+```
