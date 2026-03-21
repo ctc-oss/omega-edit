@@ -1,6 +1,6 @@
-# Ωedit Protocol Buffer Definitions
+# Ωedit™ Protocol Buffer Definitions
 
-This directory contains the gRPC service definition for OmegaEdit.
+This directory contains the gRPC service definition for Ωedit™.
 
 ## `omega_edit/v1/omega_edit.proto`
 

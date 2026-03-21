@@ -13,14 +13,14 @@
 
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
 <h1>@omega-edit/ai</h1>
 
 </div>
 
-AI-facing tooling for [OmegaEdit](https://github.com/ctc-oss/omega-edit): a scriptable `oe` CLI plus a stdio MCP server for bounded reads, reversible edits, and large-file-safe binary workflows.
+AI-facing tooling for [Ωedit™](https://github.com/ctc-oss/omega-edit): a scriptable `oe` CLI plus a stdio MCP server for bounded reads, reversible edits, and large-file-safe binary workflows.
 
 ## Install
 
@@ -94,7 +94,7 @@ The AI surface is intentionally bounded:
 - patch payloads are capped by `OMEGA_EDIT_AI_MAX_EDIT_BYTES` (default `262144`)
 - search result counts are capped by `OMEGA_EDIT_AI_MAX_SEARCH_RESULTS` (default `1000`)
 - preview context is capped by `OMEGA_EDIT_AI_PREVIEW_CONTEXT_BYTES` (default `64`)
-- auto-start refuses to launch OmegaEdit if the target port is already occupied by a non-OmegaEdit service
+- auto-start refuses to launch Ωedit™ if the target port is already occupied by a non-Ωedit™ service
 
 ## Notes
 

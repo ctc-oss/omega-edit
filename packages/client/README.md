@@ -13,7 +13,7 @@
 
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
 <h1>@omega-edit/client</h1>
@@ -25,7 +25,7 @@
 
 </div>
 
-TypeScript/Node.js client for [Ωedit](https://github.com/ctc-oss/omega-edit) — a library for building editors that can handle massive files with multiple viewports, full undo/redo, and byte-level precision.
+TypeScript/Node.js client for [Ωedit™](https://github.com/ctc-oss/omega-edit) — a library for building editors that can handle massive files with multiple viewports, full undo/redo, and byte-level precision.
 
 > **Batteries included** — this package bundles the native gRPC server via its dependency on `@omega-edit/server`. No separate server install is needed.
 
@@ -62,7 +62,7 @@ const sessionResp = await createSession()
 const sessionId = sessionResp.getSessionId()
 
 // 4. Make edits
-await insert(sessionId, 0, Buffer.from('Hello, Ωedit!'))
+await insert(sessionId, 0, Buffer.from('Hello, Ωedit™!'))
 
 // 5. Save to disk
 await saveSession(sessionId, '/tmp/hello.txt', IOFlags.IO_FLAGS_OVERWRITE)
@@ -179,7 +179,7 @@ Full documentation is published at <https://ctc-oss.github.io/omega-edit/>.
 
 ## Versioning
 
-Ωedit follows [Semantic Versioning](http://semver.org/).
+Ωedit™ follows [Semantic Versioning](http://semver.org/).
 
 ## License
 

@@ -13,7 +13,7 @@
 
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
 <h1>Ωedit™ Library</h1>
@@ -75,9 +75,9 @@ npx oe create-session --file ./sample.bin
 npx oe view --session <session-id> --offset 0 --length 64
 ```
 
-### Why Use OmegaEdit for AI Tooling
+### Why Use Ωedit™ for AI Tooling
 
-OmegaEdit gives AI agents a safer editing contract than whole-file rewrites or ad hoc scripts:
+Ωedit™ gives AI agents a safer editing contract than whole-file rewrites or ad hoc scripts:
 
 - bounded reads let an agent inspect only the region it needs instead of loading an entire large file
 - binary-safe edits make it practical to work with headers, metadata blocks, mixed-format files, and other offset-sensitive artifacts
