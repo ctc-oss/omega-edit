@@ -109,6 +109,20 @@ export function getLogger(): Logger {
 }
 
 /**
+ * Evaluate debug log payloads only when debug logging is enabled.
+ * @param logger logger instance
+ * @param payloadFactory creates the debug payload
+ */
+export function debugLog(
+  logger: Logger,
+  payloadFactory: () => Record<string, unknown>
+) {
+  if (logger.isLevelEnabled('debug')) {
+    logger.debug(payloadFactory())
+  }
+}
+
+/**
  * Sets the logger
  * @param logger new logger instance
  */
