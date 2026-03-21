@@ -6,11 +6,17 @@ deps:
   - buf.build/googleapis/googleapis
 lint:
   use:
-    # BASIC covers correctness (naming, imports, enums, packages).
-    # STANDARD is not used because DIRECTORY_SAME_PACKAGE cannot be suppressed
-    # and the existing proto layout (proto/omega_edit.proto) doesn't match the
-    # directory-equals-package convention that STANDARD enforces.
-    - BASIC
+    # Individual rules from BASIC, excluding DIRECTORY_SAME_PACKAGE which
+    # cannot be suppressed via except in buf v2 and conflicts with the
+    # existing proto/ layout (package is omega_edit but directory is not).
+    - PACKAGE_DEFINED
+    - PACKAGE_SAME_DIRECTORY
+    - ENUM_FIRST_VALUE_ZERO
+    - ENUM_NO_ALLOW_ALIAS
+    - FIELD_NO_DUPLICATE_JSON_NAME
+    - IMPORT_NO_PUBLIC
+    - IMPORT_NO_WEAK
+    - PACKAGE_NO_IMPORT_CYCLE
     - IMPORT_USED
     - FIELD_NOT_REQUIRED
 breaking:
