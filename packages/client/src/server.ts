@@ -21,13 +21,8 @@ import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
 import * as path from 'path'
-import { portToPid } from 'pid-port'
 import { createServer, Server, createConnection } from 'net'
-import {
-  runServer,
-  runServerWithArgs,
-  HeartbeatOptions,
-} from '@omega-edit/server'
+import type { HeartbeatOptions } from '@omega-edit/server'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
@@ -45,10 +40,39 @@ import { promisify } from 'util'
 
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
+const importModule = new Function(
+  'specifier',
+  'return import(specifier)'
+) as <T = unknown>(specifier: string) => Promise<T>
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
+
+async function getPortToPid(): Promise<
+  (port: number) => Promise<number | undefined>
+> {
+  const module = await importModule<{
+    portToPid: (port: number) => Promise<number | undefined>
+  }>('pid-port')
+  return module.portToPid
+}
+
+async function getServerModule(): Promise<typeof import('@omega-edit/server')> {
+  const module = await importModule<Record<string, unknown>>(
+    '@omega-edit/server'
+  )
+  const defaultExport = module.default
+
+  if (defaultExport && typeof defaultExport === 'object') {
+    return {
+      ...(defaultExport as object),
+      ...module,
+    } as typeof import('@omega-edit/server')
+  }
+
+  return module as typeof import('@omega-edit/server')
+}
 
 /**
  * Wait for a given number of milliseconds
@@ -353,6 +377,7 @@ async function getPidByPort(port: number): Promise<number | undefined> {
   } catch (error) {
     // Fallback to `portToPid` if `lsof` fails
     try {
+      const portToPid = await getPortToPid()
       return await portToPid(port)
     } catch (portToPidError) {
       return undefined
@@ -613,6 +638,7 @@ export async function startServer(
     }
   }
 
+  const { runServer } = await getServerModule()
   const { pid } = await runServer(port, host, pidFile, heartbeat)
 
   log.debug({
@@ -805,6 +831,7 @@ export async function startServerUnixSocket(
     args.push(`--pidfile=${pidFile}`)
   }
 
+  const { runServerWithArgs } = await getServerModule()
   const { pid } = await runServerWithArgs(args, heartbeat)
 
   log.debug({

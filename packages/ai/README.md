@@ -1,5 +1,5 @@
 <!--
-  Copyright (c) 2026 Concurrent Technologies Corporation.
+  Copyright (c) 2021 Concurrent Technologies Corporation.
 
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
   with the License.  You may obtain a copy of the License at
@@ -63,6 +63,24 @@ All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
 omega-edit-mcp
 ```
 
+## Codex Quick Start
+
+If you are working from this repository, Codex can use the checked-out MCP server with the project-scoped config in `.codex/config.toml`:
+
+```toml
+[mcp_servers.omega-edit]
+command = "node"
+args = ["./packages/ai/dist/cjs/mcp.js"]
+```
+
+If you want a machine-wide Codex config instead, use:
+
+```toml
+[mcp_servers.omega-edit]
+command = "npx"
+args = ["-y", "-p", "@omega-edit/ai", "omega-edit-mcp"]
+```
+
 The server speaks newline-delimited JSON-RPC over stdio, following the MCP lifecycle documented by the Model Context Protocol:
 
 - `initialize`
@@ -100,4 +118,5 @@ The AI surface is intentionally bounded:
 
 - The CLI and MCP server are both thin adapters over `@omega-edit/client`.
 - `diff-session` currently reports session counters plus last-change metadata rather than a full multi-change diff stream.
+- Codex MCP configuration follows the current OpenAI Codex MCP docs: <https://developers.openai.com/codex/mcp>.
 - The protobuf performance audit mentioned in issue `#1332` should still be completed before wider rollout.
