@@ -1,0 +1,3 @@
+[mcp_servers.omega-edit]
+command = "node"
+args = ["./packages/ai/dist/cjs/mcp.js"]
