@@ -42,7 +42,7 @@ async function main() {
   console.log(`Session size: ${size} bytes`)
 
   // 4. Save to disk
-  await saveSession(sessionId, 'hello-output.dat', IOFlags.IO_FLG_OVERWRITE)
+  await saveSession(sessionId, 'hello-output.dat', IOFlags.IO_FLAGS_OVERWRITE)
   console.log('Saved to hello-output.dat')
 
   // 5. Clean up
@@ -96,7 +96,7 @@ Minimal C example — open a file, insert bytes, save:
 int main() {
     omega_session_t *session = omega_edit_create_session("input.dat", NULL, NULL, NO_EVENTS, NULL);
     omega_edit_insert(session, 0, "Hello", 5);
-    omega_edit_save(session, "output.dat", IO_FLG_OVERWRITE, NULL);
+    omega_edit_save(session, "output.dat", IO_FLAGS_OVERWRITE, NULL);
     omega_edit_destroy_session(session);
     return 0;
 }
@@ -299,7 +299,7 @@ Call `omega_session_pause_changes` with the desired session to pause changes bei
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
 ```
 
-To save the edited data in a session to a file, call `omega_edit_save` with the session to save, a file path, and `io_flags` (an `omega_io_flags_t` bitmask, e.g., `IO_FLG_OVERWRITE` to overwrite an existing file or `IO_FLG_NONE` to leave the original file intact). If the file exists and `IO_FLG_OVERWRITE` is set, the file will be overwritten. If the overwritten file is the same as the file being edited by the session, then the session is reset (changes and redos are cleared and the session is now using the new file content for editing). If the file exists and `IO_FLG_OVERWRITE` is not set, then save will create a new _incremented_ filename stored in `saved_file_path` (must be able to accommodate FILENAME_MAX bytes). There is also `IO_FLG_FORCE_OVERWRITE`, which forces overwriting the original file even if it has been modified outside the session. Zero is returned on success and non-zero otherwise.
+To save the edited data in a session to a file, call `omega_edit_save` with the session to save, a file path, and `io_flags` (an `omega_io_flags_t` bitmask, e.g., `IO_FLAGS_OVERWRITE` to overwrite an existing file or `IO_FLAGS_NONE` to leave the original file intact). If the file exists and `IO_FLAGS_OVERWRITE` is set, the file will be overwritten. If the overwritten file is the same as the file being edited by the session, then the session is reset (changes and redos are cleared and the session is now using the new file content for editing). If the file exists and `IO_FLAGS_OVERWRITE` is not set, then save will create a new _incremented_ filename stored in `saved_file_path` (must be able to accommodate FILENAME_MAX bytes). There is also `IO_FLAGS_FORCE_OVERWRITE`, which forces overwriting the original file even if it has been modified outside the session. Zero is returned on success and non-zero otherwise.
 
 ### Save Segment
 
@@ -419,7 +419,7 @@ int main() {
     omega_edit_insert(session_ptr, 0, "Hello Weird!!!!", 0);
     omega_edit_overwrite(session_ptr, 7, "orl", 0);
     omega_edit_delete(session_ptr, 11, 3);
-    omega_edit_save(session_ptr, "hello.txt", IO_FLG_OVERWRITE, NULL);
+    omega_edit_save(session_ptr, "hello.txt", IO_FLAGS_OVERWRITE, NULL);
     omega_edit_destroy_session(session_ptr);
     return 0;
 }
@@ -758,7 +758,7 @@ For maximum deployment flexibility and loosely coupled integrations, Ωedit™ s
 
 ### Services
 
-The Ωedit™ RPC services are efficiently implemented using gRPC ([https://grpc.io](https://grpc.io)). The RPC services and messages are defined using Google protocol buffers, in `proto/omega_edit.proto`, from which stub code for the server and client are generated. Server stubs are generated and implemented in C++ (in `server/cpp/src`) and client stubs are generated and implemented in TypeScript (in `packages/client/src`).
+The Ωedit™ RPC services are efficiently implemented using gRPC ([https://grpc.io](https://grpc.io)). The RPC services and messages are defined using Google protocol buffers, in `proto/omega_edit/v1/omega_edit.proto`, from which stub code for the server and client are generated. Server stubs are generated and implemented in C++ (in `server/cpp/src`) and client stubs are generated and implemented in TypeScript (in `packages/client/src`).
 
 #### Event Streams
 

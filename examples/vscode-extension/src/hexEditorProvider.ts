@@ -37,28 +37,28 @@ import {
   insert,
   del,
   overwrite,
-  undo,
-  redo,
-  createViewport,
-  modifyViewport,
-  destroyViewport,
-  getViewportData,
-  searchSession,
-  IOFlags,
-  EventSubscriptionRequest,
-  ALL_EVENTS,
-  ViewportEventKind,
-  SessionEventKind,
-} from '@omega-edit/client'
-import { getWebviewContent } from './webview'
-
-/** Tracks state for one open editor tab */
-interface EditorSession {
-  sessionId: string
-  viewportId: string
-  fileSize: number
-  offset: number
-  capacity: number
+  import {
+    getClient,
+    createSession,
+    destroySession,
+    saveSession,
+    getComputedFileSize,
+    insert,
+    del,
+    overwrite,
+    undo,
+    redo,
+    createViewport,
+    modifyViewport,
+    destroyViewport,
+    getViewportData,
+    searchSession,
+    IOFlags,
+    EventSubscriptionRequest,
+    ALL_EVENTS,
+    ViewportEventKind,
+    SessionEventKind,
+  } from '@omega-edit/client'
   filePath: string
   panel: vscode.WebviewPanel
   viewportStream?: { cancel(): void }
@@ -216,11 +216,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       .on('data', async (event) => {
         const kind = event.getViewportEventKind()
         if (
-          kind === ViewportEventKind.VIEWPORT_EVT_EDIT ||
-          kind === ViewportEventKind.VIEWPORT_EVT_UNDO ||
-          kind === ViewportEventKind.VIEWPORT_EVT_CLEAR ||
-          kind === ViewportEventKind.VIEWPORT_EVT_TRANSFORM ||
-          kind === ViewportEventKind.VIEWPORT_EVT_MODIFY
+          kind === ViewportEventKind.VIEWPORT_EVENT_KIND_EDIT ||
+          kind === ViewportEventKind.VIEWPORT_EVENT_KIND_UNDO ||
+          kind === ViewportEventKind.VIEWPORT_EVENT_KIND_CLEAR ||
+          kind === ViewportEventKind.VIEWPORT_EVENT_KIND_TRANSFORM ||
+          kind === ViewportEventKind.VIEWPORT_EVENT_KIND_MODIFY
         ) {
           await this.sendViewportData(session)
         }
@@ -247,9 +247,9 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       .on('data', async (event) => {
         const kind = event.getSessionEventKind()
         if (
-          kind === SessionEventKind.SESSION_EVT_EDIT ||
-          kind === SessionEventKind.SESSION_EVT_UNDO ||
-          kind === SessionEventKind.SESSION_EVT_CLEAR
+          kind === SessionEventKind.SESSION_EVENT_KIND_EDIT ||
+          kind === SessionEventKind.SESSION_EVENT_KIND_UNDO ||
+          kind === SessionEventKind.SESSION_EVENT_KIND_CLEAR
         ) {
           session.fileSize = await getComputedFileSize(session.sessionId)
           session.panel.webview.postMessage({

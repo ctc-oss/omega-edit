@@ -28,10 +28,6 @@ import {
   CountResponse,
   CreateSessionRequest,
   CreateSessionResponse,
-  IntResponse,
-  IOFlags,
-  LanguageResponse,
-  ObjectId,
   SaveSessionRequest,
   SaveSessionResponse,
   SearchRequest,
@@ -41,6 +37,11 @@ import {
   SessionCountResponse,
   SingleCount,
   TextRequest,
+  IOFlags as ProtoIOFlags,
+  SessionEventKind as ProtoSessionEventKind,
+  ViewportEventKind as ProtoViewportEventKind,
+  ObjectId,
+  LanguageResponse,
 } from './omega_edit_pb'
 import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
@@ -50,6 +51,43 @@ import { editSimple, IEditStats, overwrite } from './change'
 export enum SaveStatus {
   SUCCESS = 0, // session saved successfully
   MODIFIED = -100, // target file was modified since the session was created
+}
+
+// Backward-compatible enum aliases for public API
+export const IOFlags = {
+  IO_FLG_NONE: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
+  IO_FLG_OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
+  IO_FLG_FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
+  ...ProtoIOFlags,
+}
+
+export const SessionEventKind = {
+  SESSION_EVT_UNDEFINED: ProtoSessionEventKind.SESSION_EVENT_KIND_UNSPECIFIED,
+  SESSION_EVT_CREATE: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE,
+  SESSION_EVT_EDIT: ProtoSessionEventKind.SESSION_EVENT_KIND_EDIT,
+  SESSION_EVT_UNDO: ProtoSessionEventKind.SESSION_EVENT_KIND_UNDO,
+  SESSION_EVT_CLEAR: ProtoSessionEventKind.SESSION_EVENT_KIND_CLEAR,
+  SESSION_EVT_TRANSFORM: ProtoSessionEventKind.SESSION_EVENT_KIND_TRANSFORM,
+  SESSION_EVT_CREATE_CHECKPOINT: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_CHECKPOINT,
+  SESSION_EVT_DESTROY_CHECKPOINT: ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_CHECKPOINT,
+  SESSION_EVT_SAVE: ProtoSessionEventKind.SESSION_EVENT_KIND_SAVE,
+  SESSION_EVT_CHANGES_PAUSED: ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_PAUSED,
+  SESSION_EVT_CHANGES_RESUMED: ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_RESUMED,
+  SESSION_EVT_CREATE_VIEWPORT: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_VIEWPORT,
+  SESSION_EVT_DESTROY_VIEWPORT: ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_VIEWPORT,
+  ...ProtoSessionEventKind,
+}
+
+export const ViewportEventKind = {
+  VIEWPORT_EVT_UNDEFINED: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNSPECIFIED,
+  VIEWPORT_EVT_CREATE: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CREATE,
+  VIEWPORT_EVT_EDIT: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_EDIT,
+  VIEWPORT_EVT_UNDO: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNDO,
+  VIEWPORT_EVT_CLEAR: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CLEAR,
+  VIEWPORT_EVT_TRANSFORM: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_TRANSFORM,
+  VIEWPORT_EVT_MODIFY: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_MODIFY,
+  VIEWPORT_EVT_CHANGES: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CHANGES,
+  ...ProtoViewportEventKind,
 }
 
 // index in the byte frequency profile array for the DOS end of line '\r\n' pair
@@ -145,7 +183,7 @@ export async function destroySession(session_id: string): Promise<string> {
 export async function saveSession(
   session_id: string,
   file_path: string,
-  flags: number = IOFlags.IO_FLG_NONE,
+  flags: number = IOFlags.IO_FLAGS_UNSPECIFIED,
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {

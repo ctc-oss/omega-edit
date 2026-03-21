@@ -65,7 +65,7 @@ const sessionId = sessionResp.getSessionId()
 await insert(sessionId, 0, Buffer.from('Hello, Ωedit!'))
 
 // 5. Save to disk
-await saveSession(sessionId, '/tmp/hello.txt', IOFlags.IO_FLG_OVERWRITE)
+await saveSession(sessionId, '/tmp/hello.txt', IOFlags.IO_FLAGS_OVERWRITE)
 
 // 6. Clean up
 await destroySession(sessionId)

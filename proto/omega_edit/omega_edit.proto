@@ -41,7 +41,7 @@ option cc_enable_arenas = true;
 //
 // - **Event stream** – Server-push notifications for session and viewport
 //   state changes, delivered via gRPC server-streaming RPCs.
-service Editor {
+service EditorService {
   // Return server metadata: version, hostname, process ID, and resource info.
   rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfoResponse);
 
@@ -233,95 +233,95 @@ message EventSubscriptionRequest {
 // Flags controlling file I/O behaviour for SaveSession.
 enum IOFlags {
   // No special flags — fail if the target file already exists.
-  IO_FLG_NONE = 0;
+  IO_FLAGS_UNSPECIFIED = 0;
   // Overwrite the target file if it already exists.
-  IO_FLG_OVERWRITE = 1;
+  IO_FLAGS_OVERWRITE = 1;
   // Overwrite the target file even if it is the session's source file.
-  IO_FLG_FORCE_OVERWRITE = 2;
+  IO_FLAGS_FORCE_OVERWRITE = 2;
 }
 
 // The kind of atomic edit applied to a session.
 enum ChangeKind {
-  UNDEFINED_CHANGE = 0;
+  CHANGE_KIND_UNSPECIFIED = 0;
   // Delete `length` bytes starting at `offset`.
-  CHANGE_DELETE = 1;
+  CHANGE_KIND_DELETE = 1;
   // Insert `data` at `offset` without removing existing bytes.
-  CHANGE_INSERT = 2;
+  CHANGE_KIND_INSERT = 2;
   // Overwrite bytes at `offset` with `data`.
-  CHANGE_OVERWRITE = 3;
+  CHANGE_KIND_OVERWRITE = 3;
 }
 
 // Session-level event kinds.  Values are powers of two so they can be OR'd
 // into an interest bitmask for EventSubscriptionRequest.
 // Make sure these match the session events defined in fwd_defs.h
 enum SessionEventKind {
-  SESSION_EVT_UNDEFINED = 0;
+  SESSION_EVENT_KIND_UNSPECIFIED = 0;
   // A new session was created.
-  SESSION_EVT_CREATE = 1;
+  SESSION_EVENT_KIND_CREATE = 1;
   // A change (insert/delete/overwrite) was applied.
-  SESSION_EVT_EDIT = 2;
+  SESSION_EVENT_KIND_EDIT = 2;
   // A change was undone.
-  SESSION_EVT_UNDO = 4;
+  SESSION_EVENT_KIND_UNDO = 4;
   // All changes were cleared.
-  SESSION_EVT_CLEAR = 8;
+  SESSION_EVENT_KIND_CLEAR = 8;
   // A transform was applied.
-  SESSION_EVT_TRANSFORM = 16;
+  SESSION_EVENT_KIND_TRANSFORM = 16;
   // A checkpoint was created.
-  SESSION_EVT_CREATE_CHECKPOINT = 32;
+  SESSION_EVENT_KIND_CREATE_CHECKPOINT = 32;
   // A checkpoint was destroyed.
-  SESSION_EVT_DESTROY_CHECKPOINT = 64;
+  SESSION_EVENT_KIND_DESTROY_CHECKPOINT = 64;
   // The session was saved to disk.
-  SESSION_EVT_SAVE = 128;
+  SESSION_EVENT_KIND_SAVE = 128;
   // Change acceptance was paused.
-  SESSION_EVT_CHANGES_PAUSED = 256;
+  SESSION_EVENT_KIND_CHANGES_PAUSED = 256;
   // Change acceptance was resumed.
-  SESSION_EVT_CHANGES_RESUMED = 512;
+  SESSION_EVENT_KIND_CHANGES_RESUMED = 512;
   // A viewport was created on this session.
-  SESSION_EVT_CREATE_VIEWPORT = 1024;
+  SESSION_EVENT_KIND_CREATE_VIEWPORT = 1024;
   // A viewport was destroyed on this session.
-  SESSION_EVT_DESTROY_VIEWPORT = 2048;
+  SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
 }
 
 // Viewport-level event kinds.  Values are powers of two so they can be OR'd
 // into an interest bitmask for EventSubscriptionRequest.
 // Make sure these match the viewport events defined in fwd_defs.h
 enum ViewportEventKind {
-  VIEWPORT_EVT_UNDEFINED = 0;
+  VIEWPORT_EVENT_KIND_UNSPECIFIED = 0;
   // The viewport was created.
-  VIEWPORT_EVT_CREATE = 1;
+  VIEWPORT_EVENT_KIND_CREATE = 1;
   // An edit in the underlying session affected this viewport's range.
-  VIEWPORT_EVT_EDIT = 2;
+  VIEWPORT_EVENT_KIND_EDIT = 2;
   // An undo in the underlying session affected this viewport's range.
-  VIEWPORT_EVT_UNDO = 4;
+  VIEWPORT_EVENT_KIND_UNDO = 4;
   // All changes were cleared in the underlying session.
-  VIEWPORT_EVT_CLEAR = 8;
+  VIEWPORT_EVENT_KIND_CLEAR = 8;
   // A transform affected this viewport's range.
-  VIEWPORT_EVT_TRANSFORM = 16;
+  VIEWPORT_EVENT_KIND_TRANSFORM = 16;
   // The viewport was moved or resized via ModifyViewport.
-  VIEWPORT_EVT_MODIFY = 32;
+  VIEWPORT_EVENT_KIND_MODIFY = 32;
   // The viewport's content bytes have changed (general notification).
-  VIEWPORT_EVT_CHANGES = 64;
+  VIEWPORT_EVENT_KIND_CHANGES = 64;
 }
 
 // Categories of counts that can be requested via GetCount.
 enum CountKind {
-  UNDEFINED_COUNT_KIND = 0;
+  COUNT_KIND_UNSPECIFIED = 0;
   // Logical (computed) file size in bytes after all edits.
-  COUNT_COMPUTED_FILE_SIZE = 1;
+  COUNT_KIND_COMPUTED_FILE_SIZE = 1;
   // Number of changes applied (undo stack depth).
-  COUNT_CHANGES = 2;
+  COUNT_KIND_CHANGES = 2;
   // Number of undone changes (redo stack depth).
-  COUNT_UNDOS = 3;
+  COUNT_KIND_UNDOS = 3;
   // Number of active viewports on the session.
-  COUNT_VIEWPORTS = 4;
+  COUNT_KIND_VIEWPORTS = 4;
   // Number of checkpoints.
-  COUNT_CHECKPOINTS = 5;
+  COUNT_KIND_CHECKPOINTS = 5;
   // Number of active search contexts.
-  COUNT_SEARCH_CONTEXTS = 6;
+  COUNT_KIND_SEARCH_CONTEXTS = 6;
   // Number of change transactions.
-  COUNT_CHANGE_TRANSACTIONS = 7;
+  COUNT_KIND_CHANGE_TRANSACTIONS = 7;
   // Number of undo transactions.
-  COUNT_UNDO_TRANSACTIONS = 8;
+  COUNT_KIND_UNDO_TRANSACTIONS = 8;
 }
 
 // Request one or more counts for a session in a single round-trip.
@@ -584,12 +584,12 @@ message IntResponse {
 
 // Server control command types.
 enum ServerControlKind {
-  SERVER_CONTROL_UNDEFINED = 0;
+  SERVER_CONTROL_KIND_UNSPECIFIED = 0;
   // Graceful shutdown: stop accepting new sessions, exit when all existing
   // sessions are destroyed.
-  SERVER_CONTROL_GRACEFUL_SHUTDOWN = 1;
+  SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN = 1;
   // Immediate shutdown: stop accepting new sessions and exit right away.
-  SERVER_CONTROL_IMMEDIATE_SHUTDOWN = 2;
+  SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN = 2;
 }
 
 // Request to send a control command to the server.

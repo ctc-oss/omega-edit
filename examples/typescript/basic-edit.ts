@@ -125,7 +125,7 @@ async function main() {
     )
 
     // 6. Save the session to a file
-    await saveSession(sessionId, outputFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(sessionId, outputFile, IOFlags.IO_FLAGS_OVERWRITE)
     console.log(`Session saved to "${outputFile}"`)
 
     // 7. Destroy the session

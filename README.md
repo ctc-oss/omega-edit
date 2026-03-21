@@ -53,7 +53,7 @@ const main = async () => {
   const s = await createSession()      // empty session
   const id = s.getSessionId()
   await insert(id, 0, Buffer.from('Hello, Ωedit™!'))
-  await saveSession(id, 'output.dat', IOFlags.IO_FLG_OVERWRITE)
+  await saveSession(id, 'output.dat', IOFlags.IO_FLAGS_OVERWRITE)
   await destroySession(id)
   await stopServerGraceful()
 }

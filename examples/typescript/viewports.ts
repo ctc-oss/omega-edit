@@ -40,22 +40,22 @@ import {
   createSession,
   destroySession,
   getComputedFileSize,
-  insert,
-  del,
-  createViewport,
-  modifyViewport,
-  getViewportData,
-  destroyViewport,
-  getViewportCount,
-  stopServerGraceful,
-  resetClient,
-} from '@omega-edit/client'
-
-const PORT = 9000
-
-/** Helper: print viewport content as text and hex */
-async function printViewport(label: string, viewportId: string) {
-  const vpt = await getViewportData(viewportId)
+  import {
+    startServer,
+    getClient,
+    createSession,
+    destroySession,
+    getComputedFileSize,
+    insert,
+    del,
+    createViewport,
+    modifyViewport,
+    getViewportData,
+    destroyViewport,
+    getViewportCount,
+    stopServerGraceful,
+    resetClient,
+  } from '@omega-edit/client'
   const bytes = vpt.getData_asU8()
   const text = Buffer.from(bytes).toString()
   const hex = Buffer.from(bytes).toString('hex')

@@ -150,7 +150,7 @@ async function main() {
     console.log(`Applied ${await getChangeCount(session1Id)} changes (new size: ${editedSize} bytes)`)
 
     // Save the edited file
-    await saveSession(session1Id, editedFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(session1Id, editedFile, IOFlags.IO_FLAGS_OVERWRITE)
     console.log(`Saved edited file to "${editedFile}"`)
 
     // Write the change log to disk
@@ -179,7 +179,7 @@ async function main() {
     console.log(`Replayed ${loadedChanges.length} changes (new size: ${replayedSize} bytes)`)
 
     // Save the replayed result
-    await saveSession(session2Id, replayedFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(session2Id, replayedFile, IOFlags.IO_FLAGS_OVERWRITE)
     console.log(`Saved replayed file to "${replayedFile}"`)
 
     await destroySession(session2Id)

@@ -6,18 +6,7 @@ deps:
   - buf.build/googleapis/googleapis
 lint:
   use:
-    # Individual rules from BASIC, excluding DIRECTORY_SAME_PACKAGE which
-    # cannot be suppressed via except in buf v2 and conflicts with the
-    # existing proto/ layout (package is omega_edit but directory is not).
-    - PACKAGE_DEFINED
-    - PACKAGE_SAME_DIRECTORY
-    - ENUM_FIRST_VALUE_ZERO
-    - ENUM_NO_ALLOW_ALIAS
-    - IMPORT_NO_PUBLIC
-    - IMPORT_NO_WEAK
-    - PACKAGE_NO_IMPORT_CYCLE
-    - IMPORT_USED
-    - FIELD_NOT_REQUIRED
+    - STANDARD
 breaking:
   use:
     - FILE

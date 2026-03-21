@@ -63,22 +63,22 @@ async function main() {
   const pid = await startServer(PORT)
   console.log(`Server started (PID: ${pid})`)
 
-  try {
-    await getClient(PORT)
-
-    // Create a session from the input file
-    const sessionResp = await createSession(inputFile)
-    const sessionId = sessionResp.getSessionId()
-    const initialSize = await getComputedFileSize(sessionId)
-    console.log(`Opened "${inputFile}" (${initialSize} bytes)`)
-
-    // --- Forward search: find all occurrences ---
-    const forwardMatches = await searchSession(sessionId, searchPattern)
-    console.log(`Forward search for "${searchPattern}": ${forwardMatches.length} match(es)`)
-    if (forwardMatches.length > 0) {
-      console.log(`  Offsets: ${forwardMatches.join(', ')}`)
-    }
-
+  import {
+    startServer,
+    getClient,
+    createSession,
+    destroySession,
+    saveSession,
+    getComputedFileSize,
+    searchSession,
+    replaceSession,
+    pauseViewportEvents,
+    resumeViewportEvents,
+    stopServerGraceful,
+    resetClient,
+    IOFlags,
+    EditStats,
+  } from '@omega-edit/client'
     // --- Reverse search: same pattern, searched backward ---
     const reverseMatches = await searchSession(sessionId, searchPattern, false, true)
     console.log(`Reverse search for "${searchPattern}": ${reverseMatches.length} match(es)`)
@@ -120,7 +120,7 @@ async function main() {
     console.log(`New file size: ${await getComputedFileSize(sessionId)} bytes`)
 
     // Save the result
-    await saveSession(sessionId, outputFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(sessionId, outputFile, IOFlags.IO_FLAGS_OVERWRITE)
     console.log(`Saved to "${outputFile}"`)
 
     await destroySession(sessionId)

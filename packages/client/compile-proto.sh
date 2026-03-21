@@ -29,5 +29,5 @@ $PROTOC \
     --js_out=import_style=commonjs:"${OUT_DIR}" \
     --grpc_out=grpc_js:"${OUT_DIR}" \
     --ts_out=grpc_js:"${TS_OUT_DIR}" \
-    omega_edit.proto
+    omega_edit/v1/omega_edit.proto
 popd >/dev/null
