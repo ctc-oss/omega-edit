@@ -359,6 +359,9 @@ jobs:
       - name: Install dependencies
         run: yarn
 
+      - name: Build client
+        run: yarn workspace @omega-edit/client prepare
+
       - name: Build and package AI tooling
         run: yarn workspace @omega-edit/ai package
 

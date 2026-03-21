@@ -121,14 +121,13 @@ runs:
       env:
         CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
 
+    - name: Yarn Prepare - Client
+      shell: bash
+      run: yarn workspace @omega-edit/client prepare
+
     - name: Yarn Package - AI 📦
       shell: bash
       run: yarn workspace @omega-edit/ai package
-
-    - name: Yarn Prepare - Client
-      if: inputs.skip-tests != 'true'
-      shell: bash
-      run: yarn workspace @omega-edit/client prepare
 
     - name: Yarn Lint - AI
       if: inputs.skip-tests != 'true'
