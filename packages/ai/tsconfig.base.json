@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "target": "es2020",
+    "lib": ["es2020"],
+    "rootDir": "src",
+    "moduleResolution": "node",
+    "strict": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": false,
+    "removeComments": false,
+    "noUnusedLocals": true,
+    "noImplicitThis": true,
+    "preserveConstEnums": true,
+    "strictNullChecks": true,
+    "noUnusedParameters": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "skipLibCheck": true
+  },
+  "exclude": ["node_modules", "tests", "**/*.d.ts", "dist"]
+}

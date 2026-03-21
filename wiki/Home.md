@@ -8,7 +8,7 @@
 
 ## Quick Start
 
-Choose the path that matches your use case. All three get you to a working edit in under five minutes.
+Choose the path that matches your use case. All five get you to a working edit in under five minutes.
 
 ### Path 1 — TypeScript / Node.js (recommended for IDE and tool authors)
 
@@ -161,29 +161,66 @@ docker compose down     # stop
 
 The image is built and published automatically on every tagged release via GitHub Actions.
 
+### Path 5 — AI Tooling (CLI + MCP)
+
+Install the AI-facing tooling package:
+
+```bash
+npm install @omega-edit/ai
+```
+
+Start the stdio MCP server for an agent host:
+
+```bash
+npx omega-edit-mcp
+```
+
+Or use the JSON-first CLI directly:
+
+```bash
+# create a session against a file
+npx oe create-session --file ./sample.bin
+
+# inspect only a bounded region
+npx oe view --session <session-id> --offset 0 --length 64
+
+# search text or bytes
+npx oe search --session <session-id> --text PNG --limit 10
+npx oe search --session <session-id> --hex 89504E47 --limit 10
+
+# preview then apply a reversible patch
+npx oe patch --session <session-id> --offset 8 --hex 0000000d --dry-run
+npx oe patch --session <session-id> --offset 8 --hex 0000000d
+```
+
+This AI tooling is a distinguishing feature of Ωedit™: it exposes the editing engine as stable, machine-readable tools instead of forcing agents to rely on terminal scraping, ad hoc Python, or whole-file rewrites. The implementation lives in `packages/ai/`, and the end-to-end tests are in `packages/ai/tests/specs/toolkit.spec.ts` and `packages/ai/tests/specs/mcp.spec.ts`.
+
 ## Comparison with Other Editing Engines
 
-Most text and binary editors use one of a small number of well-known buffer data structures. The table below compares the most common approaches with Ωedit™'s segment-based change-tracking model.
+Most text and binary editors use one of a small number of well-known buffer data structures. The table below compares the most common approaches with Ωedit™'s segment-based change-tracking model. `vi` / Vim is included as a familiar reference point, though it is primarily an end-user editor rather than an embeddable editing engine.
 
-| Feature | Gap Buffer | Piece Table | Rope | Ωedit™ |
-|---|---|---|---|---|
-| **Used by** | Emacs, Scintilla | VS Code (Monaco), AbiWord | Xi Editor, Atom (TreeSitter) | Apache Daffodil™ VS Code Extension |
-| **File loaded into memory** | Entirely | Entirely (original + adds buffer) | Entirely (leaf chunks) | **No** — file stays on disk |
-| **Insert / Delete** | O(1) near gap; O(n) elsewhere | O(log n) | O(log n) | O(1) — appended to change stack |
-| **Memory use for edits** | Proportional to file size | Original file + additions buffer | Proportional to file size | Proportional to **edit size**, not file size |
-| **Undo / Redo** | Must be implemented externally | Must be implemented externally | Must be implemented externally | **Built-in** change and undo stacks |
-| **Multiple viewports** | Not natively supported | Not natively supported | Not natively supported | **Native** — any number of viewports per session |
-| **Transactional editing** | No | No | No | **Yes** — atomic multi-change transactions |
-| **Checkpointing** | No | No | No | **Yes** — disk-backed checkpoints for memory-efficient large transforms |
-| **Byte transforms** | No | No | No | **Yes** — pluggable per-byte transforms over arbitrary ranges |
-| **Maximum practical file size** | Limited by available memory | Limited by available memory | Limited by available memory | **Limited only by disk** |
-| **Client / Server architecture** | No | No | No | **Yes** — gRPC server with streaming events over HTTP/2 |
-| **TypeScript / Node.js client** | No | No | No | **Yes** — idiomatic TypeScript RPC client for integrating into Node-based IDE/editor front-ends (e.g., VS Code extensions) |
-| **Multiple simultaneous authors** | No | No | No | **Yes** — multiple clients edit the same session; all viewports update automatically |
-| **Remote editing** | No | No | No | **Yes** — server maintains edit state on a remote host, replays edits on save |
-| **Built-in forward & reverse search** | No | No | No | **Yes** — byte-pattern search with case-insensitive and reverse modes |
-| **Data profiling** | No | No | No | **Yes** — byte-frequency profiles, character counts, and BOM detection over any segment |
-| **Record / replay / patching** | No | No | No | **Yes** — changes can be serialized, transmitted, and replayed against other sessions for fleet-wide patching |
+| Feature | Gap Buffer | Piece Table | Rope | vi / Vim | Ωedit™ |
+|---|---|---|---|---|---|
+| **Used by** | Emacs, Scintilla | VS Code (Monaco), AbiWord | Xi Editor, Atom (TreeSitter) | vi, Vim, Neovim | Apache Daffodil™ VS Code Extension |
+| **File loaded into memory** | Entirely | Entirely (original + adds buffer) | Entirely (leaf chunks) | Typically entirely | **No** — file stays on disk |
+| **Insert / Delete** | O(1) near gap; O(n) elsewhere | O(log n) | O(log n) | Optimized for interactive text editing; not exposed as a reusable engine contract | O(1) — appended to change stack |
+| **Memory use for edits** | Proportional to file size | Original file + additions buffer | Proportional to file size | Proportional to working buffer size | Proportional to **edit size**, not file size |
+| **Undo / Redo** | Must be implemented externally | Must be implemented externally | Must be implemented externally | Yes, for the interactive editor | **Built-in** change and undo stacks |
+| **Multiple viewports** | Not natively supported | Not natively supported | Not natively supported | Split windows, but not first-class synchronized viewports over a shared editing session API | **Native** — any number of viewports per session |
+| **Transactional editing** | No | No | No | Macro / command oriented, but not atomic multi-change transactions as an engine primitive | **Yes** — atomic multi-change transactions |
+| **Checkpointing** | No | No | No | Swap / backup files, but not session checkpoints for edit-model rollback | **Yes** — disk-backed checkpoints for memory-efficient large transforms |
+| **Byte transforms** | No | No | No | Possible through external commands / plugins, not as a built-in byte-range engine operation | **Yes** — pluggable per-byte transforms over arbitrary ranges |
+| **Maximum practical file size** | Limited by available memory | Limited by available memory | Limited by available memory | Usually constrained by in-memory editing and interactive editor assumptions | **Limited only by disk** |
+| **Client / Server architecture** | No | No | No | No | **Yes** — gRPC server with streaming events over HTTP/2 |
+| **TypeScript / Node.js client** | No | No | No | No | **Yes** — idiomatic TypeScript RPC client for integrating into Node-based IDE/editor front-ends (e.g., VS Code extensions) |
+| **AI-facing CLI / MCP tooling** | No | No | No | No | **Yes** — bounded, machine-readable CLI and MCP surfaces for AI agents and automation |
+| **Multiple simultaneous authors** | No | No | No | No | **Yes** — multiple clients edit the same session; all viewports update automatically |
+| **Remote editing** | No | No | No | SSH-driven terminal workflows, but not a remote editing stateful server model | **Yes** — server maintains edit state on a remote host, replays edits on save |
+| **Built-in forward & reverse search** | No | No | No | Yes, text-oriented | **Yes** — byte-pattern search with case-insensitive and reverse modes |
+| **Data profiling** | No | No | No | No | **Yes** — byte-frequency profiles, character counts, and BOM detection over any segment |
+| **Record / replay / patching** | No | No | No | Macros and ex scripts, but not serialized byte-accurate patch replay across sessions | **Yes** — changes can be serialized, transmitted, and replayed against other sessions for fleet-wide patching |
+
+In other words, Ωedit™ is not trying to replace `vi` or Vim as an interactive editor. `vi` is excellent for direct, text-first editing by a human at a terminal. Ωedit™ is aimed at a different layer: a reusable editing engine for applications, services, extensions, and AI tools that need bounded reads, byte-accurate edits, reversible transactions, and large-file-safe workflows that do not depend on loading the whole file into memory.
 
 ### Where Ωedit™ is Novel
 
@@ -199,17 +236,19 @@ Traditional editing engines are designed as in-process data structures that sit 
 
 5. **Decoupled client–server architecture with multi-author support.** The native C/C++ library is wrapped by a gRPC server that streams session and viewport events to remote clients over HTTP/2. This allows the editing engine to run in a different process — or on a different machine — from the UI, enabling integrations with VS Code extensions, web-based editors, or collaborative workflows without embedding the engine in every front-end. A ready-made TypeScript RPC client (`@omega-edit/client`) is provided so that Node.js-based IDE front-ends — such as VS Code extensions — can integrate Ωedit™ with minimal glue code; the Apache Daffodil™ VS Code Extension is a production example of this pattern. Because the server manages sessions centrally, multiple clients can connect to the same session simultaneously — each with its own viewports. When any author makes a change, every viewport in the session is evaluated and, if affected, its callback is fired so that all connected authors see the update automatically. The server maintains the full edit state (the change stack) in memory and replays the accumulated edits against the original on-disk file only at save time, keeping the architecture efficient for both single-author and simulteneous multi-author scenarios.
 
-6. **Programmatic editing, record / replay, and large-file patching.** Because the API is headless, all editing is inherently programmatic — scripts, test harnesses, and automated pipelines can drive insert, delete, overwrite, search, and transform operations without any UI. Every change is recorded in the session's change stack, so a sequence of operations can be undone, redone, or examined after the fact, providing a built-in audit trail of edits.
+6. **AI-facing tooling on top of the core engine.** Ωedit™ now exposes a dedicated AI tooling layer through the `@omega-edit/ai` package, which provides both a scriptable `oe` CLI and a stdio MCP server. That means the same bounded-read, byte-accurate editing primitives used by front-ends can also be consumed directly by LLM agents and automation systems through stable, machine-readable interfaces. Instead of scraping terminal output or rewriting entire files, an agent can inspect a narrow range, preview a patch, apply a reversible edit, undo it if needed, and export only the affected range. This makes Ωedit™ distinct not just as an editing engine, but as an AI-ready editing primitive for large text and binary artifacts.
+
+7. **Programmatic editing, record / replay, and large-file patching.** Because the API is headless, all editing is inherently programmatic — scripts, test harnesses, and automated pipelines can drive insert, delete, overwrite, search, and transform operations without any UI. Every change is recorded in the session's change stack, so a sequence of operations can be undone, redone, or examined after the fact, providing a built-in audit trail of edits.
 
    The change stack is also serializable. The included examples demonstrate a complete record/replay workflow: [play.cpp](core/src/examples/play.cpp) uses `omega_visit_changes` to serialize a session's change history to a compact file (kind, offset, length, hex-encoded bytes), while [replay.cpp](core/src/examples/replay.cpp) reads that file and replays each change against a fresh session opened on the same — or a different — file. This makes Ωedit™ a natural fit for **patching large files of any kind**: instead of a line-oriented `diff`, the change file captures exact byte-level operations that can be applied without context matching or fuzz factors. For scenarios where many large files must stay synchronized — configuration fleets, mirrored datasets, replicated binary artifacts — the same change sequence can be replayed across every target file. Because Ωedit™ never loads files into memory, this works efficiently even at multi-gigabyte scale. Transactions group multi-step patches atomically, `omega_check_model` verifies model integrity after each applied change, and undo provides a fallback if a replay step fails.
 
-7. **Efficient forward and reverse searching.** Search is a first-class operation in Ωedit™, not an add-on. A search context can scan for a byte pattern (or C string) forward or backward through the session data, with optional case-insensitive matching. Because the engine materializes data on demand from the change stack, searches run against the current edited state without needing to reconstruct or buffer the entire file in memory.
+8. **Efficient forward and reverse searching.** Search is a first-class operation in Ωedit™, not an add-on. A search context can scan for a byte pattern (or C string) forward or backward through the session data, with optional case-insensitive matching. Because the engine materializes data on demand from the change stack, searches run against the current edited state without needing to reconstruct or buffer the entire file in memory.
 
-8. **Data profiling.** Ωedit™ can profile session data without loading the file into memory. The byte frequency profile (`omega_session_byte_frequency_profile`) counts the occurrence of every byte value (0–255) plus DOS line endings (CR+LF) over any segment of the session. Character counts (`omega_session_character_counts`) break down single-, double-, triple-, and quad-byte characters given a byte order mark, while `omega_session_detect_BOM` auto-detects the encoding. Together these provide a statistical fingerprint of the data — useful for encoding detection, format validation, and content analysis — all computed against the current edited state. The byte frequency profile and character counts are also available through the gRPC `GetByteFrequencyProfile` and `GetCount` RPCs.
+9. **Data profiling.** Ωedit™ can profile session data without loading the file into memory. The byte frequency profile (`omega_session_byte_frequency_profile`) counts the occurrence of every byte value (0–255) plus DOS line endings (CR+LF) over any segment of the session. Character counts (`omega_session_character_counts`) break down single-, double-, triple-, and quad-byte characters given a byte order mark, while `omega_session_detect_BOM` auto-detects the encoding. Together these provide a statistical fingerprint of the data — useful for encoding detection, format validation, and content analysis — all computed against the current edited state. The byte frequency profile and character counts are also available through the gRPC `GetByteFrequencyProfile` and `GetCount` RPCs.
 
-9. **C API for maximum portability.** The public API is pure C, making it callable from virtually any programming language via direct linking or FFI, and compilable on any platform with a C99 toolchain. The C++ STL adaptor (`omega_edit/stl_string_adaptor.hpp`) provides idiomatic C++ convenience, and the TypeScript RPC client (`@omega-edit/client`) provides a full-featured integration path for Node.js and Electron-based editors, making it straightforward to embed Ωedit™ in VS Code extensions and similar front-ends.
+10. **C API for maximum portability.** The public API is pure C, making it callable from virtually any programming language via direct linking or FFI, and compilable on any platform with a C99 toolchain. The C++ STL adaptor (`omega_edit/stl_string_adaptor.hpp`) provides idiomatic C++ convenience, and the TypeScript RPC client (`@omega-edit/client`) provides a full-featured integration path for Node.js and Electron-based editors, making it straightforward to embed Ωedit™ in VS Code extensions and similar front-ends.
 
-Together, these properties make Ωedit™ suited for scenarios that traditional engines cannot handle or handle poorly: editing files that exceed available RAM, driving multiple synchronized views of the same data, supporting multiple simultaneous authors on the same file, remote editing where the file lives on a server, programmatic and scripted editing workflows, record/replay patching of large files across many targets, efficient searching across large edited data, profiling data content and encoding, and performing large-scale byte-level transforms efficiently and with easy rollback.
+Together, these properties make Ωedit™ suited for scenarios that traditional engines cannot handle or handle poorly: editing files that exceed available RAM, driving multiple synchronized views of the same data, supporting multiple simultaneous authors on the same file, remote editing where the file lives on a server, programmatic and scripted editing workflows, AI-agent-friendly bounded editing and patch preview, record/replay patching of large files across many targets, efficient searching across large edited data, profiling data content and encoding, and performing large-scale byte-level transforms efficiently and with easy rollback.
 
 ## The Basics
 

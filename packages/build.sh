@@ -20,12 +20,16 @@ oe_lib_install="${OE_LIB_DIR:=$project_root_dir/_install/lib}"
 yarn_link_dir=$HOME/.config/yarn/link/@omega-edit
 yarn_link_client_dir=$yarn_link_dir/client
 yarn_link_server_dir=$yarn_link_dir/server
+yarn_link_ai_dir=$yarn_link_dir/ai
 
 client_src=$link_script_dir/client
 client_out=$client_src/dist
 
 server_src=$link_script_dir/server
 server_out=$server_src/out
+
+ai_src=$link_script_dir/ai
+ai_out=$ai_src/dist
 
 log_msg() {
     echo -e "[=] $@\n"
@@ -38,14 +42,14 @@ log_err() {
 usage() {
   echo -e "Usage: build.sh <OPT> [ARG]
 OPTIONS:
-  -p | Only packages the @omega-edit/client and @omega-edit/server modules.
+  -p | Only packages the @omega-edit/client, @omega-edit/server, and @omega-edit/ai modules.
 
-  -c | Create @omega-edit/client and @omega-edit/server yarn links.
+  -c | Create @omega-edit/client, @omega-edit/server, and @omega-edit/ai yarn links.
        If the packages do not exists then this script will execute this.
        If the packages do exist, the script will exit.
         -f | Destroy and repackage & link the modules.
 
-  -d | Destroy the @omega-edit/client and @omega-edit/server yarn links.
+  -d | Destroy the @omega-edit/client, @omega-edit/server, and @omega-edit/ai yarn links.
 
   -l | Execute yarn to link the @omega-edit packages to the <ARG> directory.
        This option calls back to the '-c' option execution.
@@ -76,6 +80,14 @@ destroy_oe_links() {
     echo -e "\n[ ] Removing package link to =>  $yarn_link_server_dir"
     yarn workspace @omega-edit/server unlink
     rm -rf $yarn_link_server_dir
+  fi
+
+  if [[ ! -d $yarn_link_ai_dir ]]; then
+    log_err "@omega-edit/ai package link does not exist"
+  else
+    echo -e "\n[ ] Removing package link to =>  $yarn_link_ai_dir"
+    yarn workspace @omega-edit/ai unlink
+    rm -rf $yarn_link_ai_dir
   fi
 }
 
@@ -113,6 +125,18 @@ create_oe_links() {
     yarn workspace @omega-edit/client link
   fi 
 
+  log_msg "Creating package link to => $yarn_link_ai_dir"
+  if [[ -e $yarn_link_ai_dir ]]; then
+    log_err "@omega-edit/ai package is already linked"
+  else
+    [[ ! -e $ai_out ]] && {
+        log_msg "AI package not built... building"
+        yarn workspace @omega-edit/ai package
+        [[ $? -ne 0 ]] && { log_err "Failed to package @omega-edit/ai" ; exit 1 ; }
+    }
+    yarn workspace @omega-edit/ai link
+  fi
+
 }
 
 
@@ -127,12 +151,12 @@ link_to_project() {
 
   create_oe_links
   
-  (cd "$destination_dir"; yarn link @omega-edit/client; yarn link @omega-edit/server)
+  (cd "$destination_dir"; yarn link @omega-edit/client; yarn link @omega-edit/server; yarn link @omega-edit/ai)
 }
 
 # Prepares and packages both client & server modules.
 package_oe_modules() {
-  yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package
+  yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package
 }
 
 opt_force=0
