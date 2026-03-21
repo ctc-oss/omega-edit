@@ -20,6 +20,8 @@ build.sh -l <project-path>
 
 This compiles and packages the *client*, *server*, and *ai* directories, then creates yarn links to the package workspaces. The client build output lives under `packages/client/dist`, the server prepackage output lives under `packages/server/out`, and the AI tooling build output lives under `packages/ai/dist`.
 
+For the TypeScript packages, the build also runs [`scripts/write-dist-package-jsons.js`](../scripts/write-dist-package-jsons.js) to finish the published package layout. That helper writes nested `package.json` files for `dist/esm` and `dist/cjs`, fixes ESM-relative import specifiers for Node, and generates the client's ESM protobuf bridge files. We need it because `tsc` alone does not emit a Node-ready dual CJS/ESM package structure.
+
 > **NOTE**: `yarn link` works by taking the linkable package and caching that package, on Unix systems the `yarn` cache path default is `$HOME/.config/yarn/links/<package-name>`.
 > Then, when linking a cached package to another project, `yarn link <package-name>`, a symlink is created in the depedency modules folder. This symlink forces dependency
 > installations of linked packages to utilize the cached package instead.
