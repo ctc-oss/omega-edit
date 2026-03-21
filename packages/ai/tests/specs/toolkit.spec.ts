@@ -78,7 +78,10 @@ describe('@omega-edit/ai toolkit', function () {
         outputPath,
         true
       )
-      assert.equal(saveResult.filePath, outputPath)
+      assert.equal(
+        fs.realpathSync.native(saveResult.filePath),
+        fs.realpathSync.native(outputPath)
+      )
       assert.equal(fs.readFileSync(outputPath, 'utf8'), 'aZcdef')
     } finally {
       if (createdSessionId) {
