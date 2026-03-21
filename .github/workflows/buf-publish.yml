@@ -29,9 +29,10 @@ jobs:
         run: buf lint
       - name: Breaking change detection
         if: github.event_name == 'pull_request'
-        # Compare against main's proto subdirectory because main predates the
-        # repository-level buf.yaml and doesn't define the module root.
-        run: buf breaking --against '.git#branch=main,subdir=proto'
+        # Compare against origin/main's proto subdirectory because main predates
+        # the repository-level buf.yaml and Actions checks out a detached merge
+        # ref without a local main branch.
+        run: buf breaking --against '.git#ref=origin/main,subdir=proto'
 
   publish:
     name: Publish to buf.build
