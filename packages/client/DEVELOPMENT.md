@@ -36,6 +36,8 @@ yarn build
 
 This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files.
 
+As the last build step, the repo also runs [`scripts/write-dist-package-jsons.js`](../../scripts/write-dist-package-jsons.js). That helper writes nested `package.json` files into `dist/esm` and `dist/cjs`, rewrites ESM-relative imports to include `.js`, and generates the client's protobuf ESM bridge files. We need that extra step because `tsc` alone does not produce a Node-ready dual-package layout for the published artifacts.
+
 ## Testing
 
 Build and test commands rely on generated protobuf stubs and a prepackaged server artifact.
@@ -81,6 +83,17 @@ The package ships both ESM and CommonJS formats with full TypeScript source maps
 | Type Definitions | `dist/**/*.d.ts` | Declarations with `.d.ts.map` maps |
 
 This allows downstream consumers (VS Code extensions, webviews, etc.) to set breakpoints in original TypeScript source, see readable names in stack traces, and step through the package code seamlessly.
+
+### Why the postbuild packaging script exists
+
+[`write-dist-package-jsons.js`](../../scripts/write-dist-package-jsons.js) exists to close the gap between "TypeScript compiled successfully" and "the published package actually works in Node".
+
+- `dist/esm/package.json` marks the ESM output as `"type": "module"`.
+- `dist/cjs/package.json` marks the CommonJS output as `"type": "commonjs"`.
+- ESM-relative imports are rewritten from `./foo` to `./foo.js` because Node's ESM loader requires explicit extensions.
+- The client package also generates ESM wrapper files for the protobuf surface so ESM consumers can import `@omega-edit/client` even though the generated protobuf runtime is still CommonJS-shaped underneath.
+
+Without that script, consumer installs can pass type-checking but fail at runtime with module-resolution or module-format errors.
 
 ## Project Structure
 

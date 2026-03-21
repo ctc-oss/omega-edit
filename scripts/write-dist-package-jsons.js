@@ -15,6 +15,33 @@
 const fs = require('fs')
 const path = require('path')
 
+/*
+ * This helper finishes the TypeScript packaging step for workspaces that publish
+ * both CommonJS and ESM output directories.
+ *
+ * What it does:
+ * 1. Writes `dist/esm/package.json` with `"type": "module"` so Node treats the
+ *    ESM build as actual ESM.
+ * 2. Writes `dist/cjs/package.json` with `"type": "commonjs"` so Node treats the
+ *    CommonJS build correctly even when the package root also exposes ESM.
+ * 3. Rewrites extensionless relative imports in `dist/esm` to include `.js`
+ *    because Node's ESM loader does not resolve `./foo` the same way bundlers do.
+ * 4. For `@omega-edit/client`, generates thin ESM bridge files for the protobuf
+ *    wrappers so the published ESM surface can safely re-use the generated CJS
+ *    protobuf artifacts under `dist/cjs`.
+ *
+ * Why we need it:
+ * TypeScript can emit dual builds for us, but it does not by itself produce a
+ * Node-ready package layout for mixed CJS/ESM publishing. Without these postbuild
+ * fixes, consumer installs hit runtime problems such as:
+ * - Node treating `dist/esm/*.js` as CommonJS
+ * - ESM imports failing on extensionless relative specifiers
+ * - `@omega-edit/client`'s protobuf wrapper layer breaking when imported as ESM
+ *
+ * In short: `tsc` gets us most of the way there; this script makes the emitted
+ * files consumable by real downstream Node projects.
+ */
+
 const packageRoot = process.cwd()
 const esmDir = path.join(packageRoot, 'dist', 'esm')
 const cjsDir = path.join(packageRoot, 'dist', 'cjs')
