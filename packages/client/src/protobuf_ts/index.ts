@@ -18,7 +18,9 @@
  */
 
 export * from './client'
+export * from './change'
 export * from './session'
+export * from './viewport'
 
 export {
   CountKind,
