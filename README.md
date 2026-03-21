@@ -75,6 +75,16 @@ npx oe create-session --file ./sample.bin
 npx oe view --session <session-id> --offset 0 --length 64
 ```
 
+To use the MCP server from Codex in this checkout, the repo now includes a project-scoped `.codex/config.toml`:
+
+```toml
+[mcp_servers.omega-edit]
+command = "node"
+args = ["./packages/ai/dist/cjs/mcp.js"]
+```
+
+For an installed package instead of a source checkout, use the Codex MCP format documented by OpenAI and point it at `npx -y -p @omega-edit/ai omega-edit-mcp`.
+
 ### Why Use Ωedit™ for AI Tooling
 
 Ωedit™ gives AI agents a safer editing contract than whole-file rewrites or ad hoc scripts:
