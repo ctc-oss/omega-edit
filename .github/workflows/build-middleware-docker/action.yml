@@ -65,8 +65,24 @@ runs:
       run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/server package"
       shell: bash
 
+    - name: Yarn Prepare - Client
+      run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/client prepare"
+      shell: bash
+
+    - name: Yarn Package - AI
+      run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/ai package"
+      shell: bash
+
+    - name: Yarn Lint - AI
+      run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/ai lint"
+      shell: bash
+
     - name: Yarn Test - Client
       run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/client test"
+      shell: bash
+
+    - name: Yarn Test - AI
+      run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "yarn workspace @omega-edit/ai test"
       shell: bash
 
     - name: Remove container and image

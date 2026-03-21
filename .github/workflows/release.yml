@@ -327,3 +327,50 @@ jobs:
           asset_path: ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_name: omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_content_type: application/tar+gzip
+
+  node-ai-release:
+    name: Node AI Tooling Release
+    needs: [create-release]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Export git tag and package.json version
+        run: ${{ env.export_cmd }}
+
+      - name: Download upload_url
+        uses: actions/download-artifact@v8
+        with:
+          name: upload_url
+
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          registry-url: "https://registry.npmjs.org"
+          node-version: ${{ env.node_version }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn
+
+      - name: Build client
+        run: yarn workspace @omega-edit/client prepare
+
+      - name: Build and package AI tooling
+        run: yarn workspace @omega-edit/ai package
+
+      - name: Upload node AI tooling release tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: ./packages/ai/omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
+          asset_name: omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
+          asset_content_type: application/tar+gzip

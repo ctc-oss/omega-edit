@@ -13,7 +13,7 @@
 
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
 <h1>@omega-edit/server</h1>
@@ -25,7 +25,7 @@
 
 </div>
 
-Native C++ gRPC server for [Ωedit](https://github.com/ctc-oss/omega-edit), bundled as a Node.js package with a TypeScript launcher. This package provides the server binary that powers `@omega-edit/client`.
+Native C++ gRPC server for [Ωedit™](https://github.com/ctc-oss/omega-edit), bundled as a Node.js package with a TypeScript launcher. This package provides the server binary that powers `@omega-edit/client`.
 
 > **Most users should install `@omega-edit/client` instead** — it depends on this package and re-exports server lifecycle functions (`startServer`, `stopServerGraceful`, etc.). Install `@omega-edit/server` directly only if you need standalone server management.
 
@@ -150,7 +150,7 @@ Full documentation is published at <https://ctc-oss.github.io/omega-edit/>.
 
 ## Versioning
 
-Ωedit follows [Semantic Versioning](http://semver.org/).
+Ωedit™ follows [Semantic Versioning](http://semver.org/).
 
 ## License
 

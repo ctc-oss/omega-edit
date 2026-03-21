@@ -13,7 +13,7 @@
 
 <div align="center">
 <p>
-    <img alt="Omega Edit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 
 <h1>Ωedit™ Library</h1>
@@ -61,6 +61,30 @@ main().catch(console.error)
 ```
 
 See the [Quick Start guide in the wiki](https://github.com/ctc-oss/omega-edit/wiki#quick-start) for C/C++ and VS Code extension paths, plus links to all examples.
+
+## AI Tooling
+
+Use `@omega-edit/ai` for a JSON-first `oe` CLI and a stdio MCP server that expose bounded reads, reversible edits, and binary-safe large-file operations.
+
+```bash
+npm install @omega-edit/ai
+npx omega-edit-mcp
+
+# or use the CLI directly
+npx oe create-session --file ./sample.bin
+npx oe view --session <session-id> --offset 0 --length 64
+```
+
+### Why Use Ωedit™ for AI Tooling
+
+Ωedit™ gives AI agents a safer editing contract than whole-file rewrites or ad hoc scripts:
+
+- bounded reads let an agent inspect only the region it needs instead of loading an entire large file
+- binary-safe edits make it practical to work with headers, metadata blocks, mixed-format files, and other offset-sensitive artifacts
+- transactional changes plus undo/redo make agent actions reversible
+- preview-first patching helps an agent inspect the exact byte range before applying a change
+- machine-readable CLI and MCP responses are easier for agents to consume than terminal scraping
+- the same primitives work for both human-operated scripts and agent-hosted tool calls
 
 ## User documentation
 
@@ -183,13 +207,15 @@ cmake --install _build --config Debug --prefix _install
 :exclamation: These commands should be executed at the root level of the repository after building/installing the core
 library :exclamation:
 
-Build, test, and package the server and client node packages. The server package will include the shared library built
-in the previous step and package a native C++ gRPC server binary. The client package will include the node client.
+Build, test, and package the server, client, and AI tooling node packages. The server package will include the shared
+library built in the previous step and package a native C++ gRPC server binary. The client package will include the
+node client, and the AI tooling package will include the `oe` CLI and stdio MCP server.
 
 ```bash
 yarn install
 yarn workspace @omega-edit/server package
 yarn workspace @omega-edit/client test
+yarn workspace @omega-edit/ai test
 ```
 
 Node packages will be in `.tgz` files located at:
@@ -197,6 +223,7 @@ Node packages will be in `.tgz` files located at:
 ```
 /packages/server/omega-edit-node-server-${VERSION}.tgz
 /packages/client/omega-edit-node-client-${VERSION}.tgz
+/packages/ai/omega-edit-node-ai-${VERSION}.tgz
 ```
 
 More information about the node packages can be found in the [packages](packages/README.md) folder.

@@ -1,6 +1,6 @@
-# Contributing to Ωedit
+# Contributing to Ωedit™
 
-Thank you for your interest in contributing to Ωedit! This guide will help you
+Thank you for your interest in contributing to Ωedit™! This guide will help you
 get up and running.
 
 ## Code of Conduct
