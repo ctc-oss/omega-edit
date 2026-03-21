@@ -31,14 +31,14 @@ import {
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import {
-  HeartbeatRequest,
-  HeartbeatResponse,
+  GetHeartbeatRequest as HeartbeatRequest,
+  GetHeartbeatResponse as HeartbeatResponse,
+  GetServerInfoRequest,
+  GetServerInfoResponse as ServerInfoResponse,
   ServerControlKind,
   ServerControlRequest,
   ServerControlResponse,
-  ServerInfoResponse,
 } from './omega_edit_pb'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -863,7 +863,7 @@ export async function startServerUnixSocket(
 export function stopServerGraceful(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
     return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN)
+      stopServer(ServerControlKind.SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN)
     )
   })
 }
@@ -875,7 +875,7 @@ export function stopServerGraceful(): Promise<number> {
 export function stopServerImmediate(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
     return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_IMMEDIATE_SHUTDOWN)
+      stopServer(ServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN)
     )
   })
 }
@@ -1031,7 +1031,7 @@ export async function getServerInfo(): Promise<IServerInfo> {
   const client = await getClient()
   return new Promise<IServerInfo>((resolve, reject) => {
     client.getServerInfo(
-      new Empty(),
+      new GetServerInfoRequest(),
       (err, serverInfoResponse: ServerInfoResponse) => {
         if (err) {
           log.error({

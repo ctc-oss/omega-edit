@@ -18,14 +18,23 @@
  */
 
 import {
-  ChangeDetailsResponse,
-  ChangeKind,
-  ChangeRequest,
-  ChangeResponse,
+  ChangeKind as ProtoChangeKind,
+  ClearChangesRequest,
+  ClearChangesResponse,
   CountKind,
-  CountRequest,
-  CountResponse,
-  ObjectId,
+  GetChangeDetailsResponse as ChangeDetailsResponse,
+  GetCountRequest as CountRequest,
+  GetCountResponse as CountResponse,
+  GetLastChangeRequest,
+  GetLastChangeResponse,
+  GetLastUndoRequest,
+  GetLastUndoResponse,
+  RedoLastUndoRequest,
+  RedoLastUndoResponse,
+  SubmitChangeRequest as ChangeRequest,
+  SubmitChangeResponse as ChangeResponse,
+  UndoLastChangeRequest,
+  UndoLastChangeResponse,
 } from './omega_edit_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
@@ -36,7 +45,12 @@ import {
 } from './session'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
-export { ChangeKind } from './omega_edit_pb'
+export const ChangeKind = {
+  CHANGE_DELETE: ProtoChangeKind.CHANGE_KIND_DELETE,
+  CHANGE_INSERT: ProtoChangeKind.CHANGE_KIND_INSERT,
+  CHANGE_OVERWRITE: ProtoChangeKind.CHANGE_KIND_OVERWRITE,
+  ...ProtoChangeKind,
+}
 
 /**
  * IEditStats is an interface to keep track of the number of different kinds of edits
@@ -445,11 +459,11 @@ export async function undo(
   stats?: IEditStats
 ): Promise<number> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new UndoLastChangeRequest().setId(session_id)
   log.debug({ fn: 'undo', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    client.undoLastChange(request, (err, r: ChangeResponse) => {
+    client.undoLastChange(request, (err, r: UndoLastChangeResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -496,11 +510,11 @@ export async function redo(
   stats?: IEditStats
 ): Promise<number> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new RedoLastUndoRequest().setId(session_id)
   log.debug({ fn: 'redo', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    client.redoLastUndo(request, (err, r: ChangeResponse) => {
+    client.redoLastUndo(request, (err, r: RedoLastUndoResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -547,11 +561,11 @@ export async function clear(
   stats?: IEditStats
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new ClearChangesRequest().setId(session_id)
   log.debug({ fn: 'clear', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.clearChanges(request, (err, r: ObjectId) => {
+    client.clearChanges(request, (err, r: ClearChangesResponse) => {
       if (err) {
         if (stats) {
           ++stats.error_count
@@ -586,11 +600,11 @@ export async function getLastChange(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new GetLastChangeRequest().setId(session_id)
   log.debug({ fn: 'getLastChange', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    client.getLastChange(request, (err, r: ChangeDetailsResponse) => {
+    client.getLastChange(request, (err, r: GetLastChangeResponse) => {
       if (err) {
         log.error({
           fn: 'getLastChange',
@@ -618,11 +632,11 @@ export async function getLastUndo(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new GetLastUndoRequest().setId(session_id)
   log.debug({ fn: 'getLastUndo', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<ChangeDetailsResponse>((resolve, reject) => {
-    client.getLastUndo(request, (err, r: ChangeDetailsResponse) => {
+    client.getLastUndo(request, (err, r: GetLastUndoResponse) => {
       if (err) {
         log.error({
           fn: 'getLastUndo',
@@ -650,7 +664,7 @@ export async function getChangeCount(session_id: string): Promise<number> {
   const log = getLogger()
   const request: CountRequest = new CountRequest()
     .setSessionId(session_id)
-    .setKindList([CountKind.COUNT_CHANGES])
+    .setKindList([CountKind.COUNT_KIND_CHANGES])
   log.debug({ fn: 'getChangeCount', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
@@ -682,7 +696,7 @@ export async function getUndoCount(session_id: string): Promise<number> {
   const log = getLogger()
   const request = new CountRequest()
     .setSessionId(session_id)
-    .setKindList([CountKind.COUNT_UNDOS])
+    .setKindList([CountKind.COUNT_KIND_UNDOS])
   log.debug({ fn: 'getUndoCount', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
@@ -716,7 +730,7 @@ export async function getChangeTransactionCount(
   const log = getLogger()
   const request = new CountRequest()
     .setSessionId(session_id)
-    .setKindList([CountKind.COUNT_CHANGE_TRANSACTIONS])
+    .setKindList([CountKind.COUNT_KIND_CHANGE_TRANSACTIONS])
   log.debug({
     fn: 'getChangeTransactionCount',
     rqst: request.toObject(),
@@ -753,7 +767,7 @@ export async function getUndoTransactionCount(
   const log = getLogger()
   const request = new CountRequest()
     .setSessionId(session_id)
-    .setKindList([CountKind.COUNT_UNDO_TRANSACTIONS])
+    .setKindList([CountKind.COUNT_KIND_UNDO_TRANSACTIONS])
   log.debug({
     fn: 'getUndoTransactionCount',
     rqst: request.toObject(),

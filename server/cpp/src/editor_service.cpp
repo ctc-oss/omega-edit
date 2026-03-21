@@ -1016,7 +1016,7 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             }
             break;
 
-        case ::omega_edit::SERVER_CONTROL_IMMEDIATE_SHUTDOWN:
+        case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
             session_manager_.destroy_all();
             response->set_response_code(0);
             if (shutdown_callback_) {
@@ -1180,4 +1180,3 @@ grpc::Status EditorServiceImpl::UnsubscribeToViewportEvents(grpc::ServerContext 
 
 } // namespace grpc_server
 } // namespace omega_edit
-

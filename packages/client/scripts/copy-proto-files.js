@@ -27,28 +27,32 @@ const distDirs = [
   path.join(__dirname, '..', 'dist', 'cjs'),
 ]
 
-// Proto-generated files to copy
-const protoFiles = [
-  'omega_edit_pb.js',
-  'omega_edit_pb.d.ts',
-  'omega_edit_grpc_pb.js',
-  'omega_edit_grpc_pb.d.ts',
-]
+// Proto-generated files/directories to copy
+const protoEntries = ['omega_edit']
 
 distDirs.forEach((distDir) => {
   if (!fs.existsSync(distDir)) {
     fs.mkdirSync(distDir, { recursive: true })
   }
 
-  protoFiles.forEach((file) => {
-    const srcPath = path.join(srcDir, file)
-    const destPath = path.join(distDir, file)
+  protoEntries.forEach((entry) => {
+    const srcPath = path.join(srcDir, entry)
+    const destPath = path.join(distDir, entry)
 
     if (fs.existsSync(srcPath)) {
-      fs.copyFileSync(srcPath, destPath)
-      console.log(`Copied ${file} to ${path.relative(process.cwd(), destPath)}`)
+      const stats = fs.statSync(srcPath)
+
+      if (stats.isDirectory()) {
+        fs.cpSync(srcPath, destPath, { recursive: true })
+      } else {
+        fs.copyFileSync(srcPath, destPath)
+      }
+
+      console.log(
+        `Copied ${entry} to ${path.relative(process.cwd(), destPath)}`
+      )
     } else {
-      console.warn(`Warning: ${file} not found in src directory`)
+      console.warn(`Warning: ${entry} not found in src directory`)
     }
   })
 })

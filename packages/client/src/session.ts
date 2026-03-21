@@ -18,32 +18,50 @@
  */
 
 import {
-  ByteFrequencyProfileResponse,
-  ByteOrderMarkResponse,
-  CharacterCountResponse,
-  ComputedFileSizeResponse,
-  ContentTypeResponse,
+  DestroySessionRequest,
+  DestroySessionResponse,
+  GetByteFrequencyProfileRequest,
+  GetByteFrequencyProfileResponse as ByteFrequencyProfileResponse,
+  GetByteOrderMarkRequest,
+  GetByteOrderMarkResponse as ByteOrderMarkResponse,
+  GetCharacterCountsRequest,
+  GetCharacterCountsResponse as CharacterCountResponse,
+  GetComputedFileSizeRequest,
+  GetComputedFileSizeResponse as ComputedFileSizeResponse,
+  GetContentTypeRequest,
+  GetContentTypeResponse as ContentTypeResponse,
   CountKind,
-  CountRequest,
-  CountResponse,
+  GetCountRequest as CountRequest,
+  GetCountResponse as CountResponse,
   CreateSessionRequest,
   CreateSessionResponse,
+  GetLanguageRequest,
+  GetLanguageResponse as LanguageResponse,
+  GetSegmentRequest as SegmentRequest,
+  GetSegmentResponse as SegmentResponse,
+  GetSessionCountRequest,
+  NotifyChangedViewportsRequest,
+  NotifyChangedViewportsResponse,
+  PauseSessionChangesRequest,
+  PauseSessionChangesResponse,
+  ResumeSessionChangesRequest,
+  ResumeSessionChangesResponse,
   SaveSessionRequest,
   SaveSessionResponse,
-  SearchRequest,
-  SearchResponse,
-  SegmentRequest,
-  SegmentResponse,
-  SessionCountResponse,
+  SearchSessionRequest as SearchRequest,
+  SearchSessionResponse as SearchResponse,
+  SessionBeginTransactionRequest,
+  SessionBeginTransactionResponse,
+  SessionEndTransactionRequest,
+  SessionEndTransactionResponse,
+  GetSessionCountResponse as SessionCountResponse,
   SingleCount,
-  TextRequest,
+  UnsubscribeToSessionEventsRequest,
+  UnsubscribeToSessionEventsResponse,
   IOFlags as ProtoIOFlags,
   SessionEventKind as ProtoSessionEventKind,
   ViewportEventKind as ProtoViewportEventKind,
-  ObjectId,
-  LanguageResponse,
 } from './omega_edit_pb'
-import { Empty } from 'google-protobuf/google/protobuf/empty_pb'
 import { getClient } from './client'
 import { getLogger } from './logger'
 import { editSimple, IEditStats, overwrite } from './change'
@@ -68,18 +86,25 @@ export const SessionEventKind = {
   SESSION_EVT_UNDO: ProtoSessionEventKind.SESSION_EVENT_KIND_UNDO,
   SESSION_EVT_CLEAR: ProtoSessionEventKind.SESSION_EVENT_KIND_CLEAR,
   SESSION_EVT_TRANSFORM: ProtoSessionEventKind.SESSION_EVENT_KIND_TRANSFORM,
-  SESSION_EVT_CREATE_CHECKPOINT: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_CHECKPOINT,
-  SESSION_EVT_DESTROY_CHECKPOINT: ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_CHECKPOINT,
+  SESSION_EVT_CREATE_CHECKPOINT:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_CHECKPOINT,
+  SESSION_EVT_DESTROY_CHECKPOINT:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_CHECKPOINT,
   SESSION_EVT_SAVE: ProtoSessionEventKind.SESSION_EVENT_KIND_SAVE,
-  SESSION_EVT_CHANGES_PAUSED: ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_PAUSED,
-  SESSION_EVT_CHANGES_RESUMED: ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_RESUMED,
-  SESSION_EVT_CREATE_VIEWPORT: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_VIEWPORT,
-  SESSION_EVT_DESTROY_VIEWPORT: ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_VIEWPORT,
+  SESSION_EVT_CHANGES_PAUSED:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_PAUSED,
+  SESSION_EVT_CHANGES_RESUMED:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_RESUMED,
+  SESSION_EVT_CREATE_VIEWPORT:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_VIEWPORT,
+  SESSION_EVT_DESTROY_VIEWPORT:
+    ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_VIEWPORT,
   ...ProtoSessionEventKind,
 }
 
 export const ViewportEventKind = {
-  VIEWPORT_EVT_UNDEFINED: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNSPECIFIED,
+  VIEWPORT_EVT_UNDEFINED:
+    ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNSPECIFIED,
   VIEWPORT_EVT_CREATE: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CREATE,
   VIEWPORT_EVT_EDIT: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_EDIT,
   VIEWPORT_EVT_UNDO: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNDO,
@@ -145,11 +170,11 @@ export async function createSession(
  */
 export async function destroySession(session_id: string): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new DestroySessionRequest().setId(session_id)
   log.debug({ fn: 'destroySession', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.destroySession(request, (err, r: ObjectId) => {
+    client.destroySession(request, (err, r: DestroySessionResponse) => {
       if (err) {
         log.error({
           fn: 'destroySession',
@@ -183,7 +208,7 @@ export async function destroySession(session_id: string): Promise<string> {
 export async function saveSession(
   session_id: string,
   file_path: string,
-  flags: number = IOFlags.IO_FLAGS_UNSPECIFIED,
+  flags: number = IOFlags.IO_FLG_NONE,
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {
@@ -224,7 +249,7 @@ export async function saveSession(
  */
 export async function getComputedFileSize(session_id: string): Promise<number> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new GetComputedFileSizeRequest().setId(session_id)
   log.debug({ fn: 'getComputedFileSize', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
@@ -290,27 +315,30 @@ export async function getCounts(
  */
 export async function pauseSessionChanges(session_id: string): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new PauseSessionChangesRequest().setId(session_id)
   log.debug({ fn: 'pauseSessionChanges', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.pauseSessionChanges(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
-          fn: 'pauseSessionChanges',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('pauseSessionChanges error: ' + err.message)
+    client.pauseSessionChanges(
+      request,
+      (err, r: PauseSessionChangesResponse) => {
+        if (err) {
+          log.error({
+            fn: 'pauseSessionChanges',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('pauseSessionChanges error: ' + err.message)
+        }
+        log.debug({ fn: 'pauseSessionChanges', resp: r.toObject() })
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'pauseSessionChanges', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -323,27 +351,30 @@ export async function beginSessionTransaction(
   session_id: string
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new SessionBeginTransactionRequest().setId(session_id)
   log.debug({ fn: 'beginSessionTransaction', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.sessionBeginTransaction(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
-          fn: 'beginSessionTransaction',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('beginSessionTransaction error: ' + err.message)
+    client.sessionBeginTransaction(
+      request,
+      (err, r: SessionBeginTransactionResponse) => {
+        if (err) {
+          log.error({
+            fn: 'beginSessionTransaction',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('beginSessionTransaction error: ' + err.message)
+        }
+        log.debug({ fn: 'beginSessionTransaction', resp: r.toObject() })
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'beginSessionTransaction', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -356,27 +387,30 @@ export async function endSessionTransaction(
   session_id: string
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new SessionEndTransactionRequest().setId(session_id)
   log.debug({ fn: 'endSessionTransaction', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.sessionEndTransaction(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
-          fn: 'endSessionTransaction',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('endSessionTransaction error: ' + err.message)
+    client.sessionEndTransaction(
+      request,
+      (err, r: SessionEndTransactionResponse) => {
+        if (err) {
+          log.error({
+            fn: 'endSessionTransaction',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('endSessionTransaction error: ' + err.message)
+        }
+        log.debug({ fn: 'endSessionTransaction', resp: r.toObject() })
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'endSessionTransaction', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -389,27 +423,30 @@ export async function resumeSessionChanges(
   session_id: string
 ): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new ResumeSessionChangesRequest().setId(session_id)
   log.debug({ fn: 'resumeSessionChanges', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
-    client.resumeSessionChanges(request, (err, r: ObjectId) => {
-      if (err) {
-        log.error({
-          fn: 'resumeSessionChanges',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('resumeSessionChanges error: ' + err.message)
+    client.resumeSessionChanges(
+      request,
+      (err, r: ResumeSessionChangesResponse) => {
+        if (err) {
+          log.error({
+            fn: 'resumeSessionChanges',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('resumeSessionChanges error: ' + err.message)
+        }
+        log.debug({ fn: 'resumeSessionChanges', resp: r.toObject() })
+        return resolve(r.getId())
       }
-      log.debug({ fn: 'resumeSessionChanges', resp: r.toObject() })
-      return resolve(r.getId())
-    })
+    )
   })
 }
 
@@ -420,28 +457,31 @@ export async function resumeSessionChanges(
  */
 export async function unsubscribeSession(session_id: string): Promise<string> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new UnsubscribeToSessionEventsRequest().setId(session_id)
   log.debug({ fn: 'unsubscribeSession', rqst: request.toObject() })
   const client = await getClient()
   return new Promise<string>((resolve, reject) => {
     client
-      .unsubscribeToSessionEvents(request, (err, r: ObjectId) => {
-        if (err) {
-          log.error({
-            fn: 'unsubscribeSession',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('unsubscribeSession error: ' + err.message)
+      .unsubscribeToSessionEvents(
+        request,
+        (err, r: UnsubscribeToSessionEventsResponse) => {
+          if (err) {
+            log.error({
+              fn: 'unsubscribeSession',
+              rqst: request.toObject(),
+              err: {
+                msg: err.message,
+                details: err.details,
+                code: err.code,
+                stack: err.stack,
+              },
+            })
+            return reject('unsubscribeSession error: ' + err.message)
+          }
+          log.debug({ fn: 'unsubscribeSession', resp: r.toObject() })
+          return resolve(r.getId())
         }
-        log.debug({ fn: 'unsubscribeSession', resp: r.toObject() })
-        return resolve(r.getId())
-      })
+      )
       .on('error', (err) => {
         // Call cancelled thrown when server is shutdown
         if (!err.message.includes('Call cancelled')) {
@@ -500,22 +540,25 @@ export async function getSessionCount(): Promise<number> {
   log.debug({ fn: 'getSessionCount' })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    client.getSessionCount(new Empty(), (err, r: SessionCountResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getSessionCount',
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('getSessionCount error: ' + err.message)
+    client.getSessionCount(
+      new GetSessionCountRequest(),
+      (err, r: SessionCountResponse) => {
+        if (err) {
+          log.error({
+            fn: 'getSessionCount',
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('getSessionCount error: ' + err.message)
+        }
+        log.debug({ fn: 'getSessionCount', resp: r.toObject() })
+        return resolve(r.getCount())
       }
-      log.debug({ fn: 'getSessionCount', resp: r.toObject() })
-      return resolve(r.getCount())
-    })
+    )
   })
 }
 
@@ -528,30 +571,33 @@ export async function notifyChangedViewports(
   session_id: string
 ): Promise<number> {
   const log = getLogger()
-  const request = new ObjectId().setId(session_id)
+  const request = new NotifyChangedViewportsRequest().setId(session_id)
   log.debug({
     fn: 'notifyChangedViewports',
     rqst: request.toObject(),
   })
   const client = await getClient()
   return new Promise<number>((resolve, reject) => {
-    client.notifyChangedViewports(request, (err, r: IntResponse) => {
-      if (err) {
-        log.error({
-          fn: 'notifyChangedViewports',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('notifyChangedViewports error: ' + err.message)
+    client.notifyChangedViewports(
+      request,
+      (err, r: NotifyChangedViewportsResponse) => {
+        if (err) {
+          log.error({
+            fn: 'notifyChangedViewports',
+            rqst: request.toObject(),
+            err: {
+              msg: err.message,
+              details: err.details,
+              code: err.code,
+              stack: err.stack,
+            },
+          })
+          return reject('notifyChangedViewports error: ' + err.message)
+        }
+        log.debug({ fn: 'notifyChangedViewports', resp: r.toObject() })
+        return resolve(r.getCount())
       }
-      log.debug({ fn: 'notifyChangedViewports', resp: r.toObject() })
-      return resolve(r.getResponse())
-    })
+    )
   })
 }
 
@@ -569,7 +615,7 @@ export async function profileSession(
   length: number = 0
 ): Promise<number[]> {
   const log = getLogger()
-  const request = new SegmentRequest()
+  const request = new GetByteFrequencyProfileRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(length)
@@ -621,7 +667,7 @@ export async function getByteOrderMark(
   offset: number = 0
 ): Promise<ByteOrderMarkResponse> {
   const log = getLogger()
-  const request = new SegmentRequest()
+  const request = new GetByteOrderMarkRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(4)
@@ -662,7 +708,7 @@ export async function getContentType(
   length: number
 ): Promise<ContentTypeResponse> {
   const log = getLogger()
-  const request = new SegmentRequest()
+  const request = new GetContentTypeRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(length)
@@ -705,7 +751,7 @@ export async function getLanguage(
   bom: string
 ): Promise<LanguageResponse> {
   const log = getLogger()
-  const request = new TextRequest()
+  const request = new GetLanguageRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(length)
@@ -750,7 +796,7 @@ export async function countCharacters(
   bom: string = 'none'
 ): Promise<CharacterCountResponse> {
   const log = getLogger()
-  const request = new TextRequest()
+  const request = new GetCharacterCountsRequest()
     .setSessionId(session_id)
     .setOffset(offset)
     .setLength(length)
