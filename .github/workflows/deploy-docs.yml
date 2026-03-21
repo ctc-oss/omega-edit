@@ -52,10 +52,11 @@ jobs:
       - name: Generate TypeDoc API Reference 📖
         run: |
           yarn install --frozen-lockfile
+          npx tsc -p packages/server/tsconfig.json --skipLibCheck
           cd packages/client
           yarn compile-src
           yarn build
-          npx typedoc
+          npx typedoc --skipErrorChecking
       - name: Merge Documentation 📂
         run: |
           cp -r packages/client/doc build/core/docs/sphinx/ts-api
