@@ -201,13 +201,22 @@ jobs:
         env:
           CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
 
+      - name: Yarn Package - AI
+        run: yarn workspace @omega-edit/ai package
+
       - name: Yarn Prepare - Client
         run: yarn workspace @omega-edit/client prepare
+
+      - name: Yarn Lint - AI
+        run: yarn workspace @omega-edit/ai lint
 
       - name: Run client tests with coverage
         run: yarn workspace @omega-edit/client test:coverage
         env:
           CPP_SERVER_BINARY: ''
+
+      - name: Run AI tests
+        run: yarn workspace @omega-edit/ai test
 
       - name: Upload TypeScript coverage to Codecov
         uses: codecov/codecov-action@v5

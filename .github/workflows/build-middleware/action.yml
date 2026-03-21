@@ -121,10 +121,19 @@ runs:
       env:
         CPP_SERVER_BINARY: ${{ env.CPP_SERVER_BINARY }}
 
+    - name: Yarn Package - AI 📦
+      shell: bash
+      run: yarn workspace @omega-edit/ai package
+
     - name: Yarn Prepare - Client
       if: inputs.skip-tests != 'true'
       shell: bash
       run: yarn workspace @omega-edit/client prepare
+
+    - name: Yarn Lint - AI
+      if: inputs.skip-tests != 'true'
+      shell: bash
+      run: yarn workspace @omega-edit/ai lint
 
     - name: Yarn Test - Client 🧑‍💼
       if: inputs.skip-tests != 'true'
@@ -139,3 +148,8 @@ runs:
       run: yarn workspace @omega-edit/client test:uds
       env:
         CPP_SERVER_BINARY: ''
+
+    - name: Yarn Test - AI 🤖
+      if: inputs.skip-tests != 'true'
+      shell: ${{ (inputs.runner-os == 'Windows') && 'pwsh' || 'bash' }}
+      run: yarn workspace @omega-edit/ai test
