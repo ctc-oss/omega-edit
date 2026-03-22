@@ -27,7 +27,7 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
-import { getSingleId, getUnsubscribeTimeoutMs } from './utils'
+import { getSingleId, getUnsubscribeTimeoutMs, makeWrappedError } from './utils'
 
 function getFirstCount(response: GetCountResponse, fn: string): number {
   const count = response.counts[0]?.count
@@ -72,11 +72,11 @@ export async function createViewport(
             stack: err.stack,
           },
         })
-        return reject(`createViewport error: ${err.message}`)
+        return reject(makeWrappedError('createViewport', err))
       }
 
       if (!response) {
-        return reject('createViewport error: empty response')
+        return reject(makeWrappedError('createViewport', 'empty response'))
       }
 
       debugLog(log, () => ({ fn: 'protobufTs.createViewport', resp: response }))
@@ -115,11 +115,11 @@ export async function modifyViewport(
             stack: err.stack,
           },
         })
-        return reject(`modifyViewport error: ${err.message}`)
+        return reject(makeWrappedError('modifyViewport', err))
       }
 
       if (!response) {
-        return reject('modifyViewport error: empty response')
+        return reject(makeWrappedError('modifyViewport', 'empty response'))
       }
 
       debugLog(log, () => ({ fn: 'protobufTs.modifyViewport', resp: response }))
@@ -147,11 +147,11 @@ export async function destroyViewport(viewportId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject(`destroyViewport error: ${err.message}`)
+        return reject(makeWrappedError('destroyViewport', err))
       }
 
       if (!response) {
-        return reject('destroyViewport error: empty response')
+        return reject(makeWrappedError('destroyViewport', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -185,11 +185,11 @@ export async function getViewportCount(sessionId: string): Promise<number> {
             stack: err.stack,
           },
         })
-        return reject(`getViewportCount error: ${err.message}`)
+        return reject(makeWrappedError('getViewportCount', err))
       }
 
       if (!response) {
-        return reject('getViewportCount error: empty response')
+        return reject(makeWrappedError('getViewportCount', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -222,11 +222,11 @@ export async function getViewportData(
             stack: err.stack,
           },
         })
-        return reject(`getViewportData error: ${err.message}`)
+        return reject(makeWrappedError('getViewportData', err))
       }
 
       if (!response) {
-        return reject('getViewportData error: empty response')
+        return reject(makeWrappedError('getViewportData', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -260,11 +260,11 @@ export async function viewportHasChanges(viewportId: string): Promise<boolean> {
             stack: err.stack,
           },
         })
-        return reject(`viewportHasChanges error: ${err.message}`)
+        return reject(makeWrappedError('viewportHasChanges', err))
       }
 
       if (!response) {
-        return reject('viewportHasChanges error: empty response')
+        return reject(makeWrappedError('viewportHasChanges', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -298,11 +298,11 @@ export async function pauseViewportEvents(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject(`pauseViewportEvents error: ${err.message}`)
+        return reject(makeWrappedError('pauseViewportEvents', err))
       }
 
       if (!response) {
-        return reject('pauseViewportEvents error: empty response')
+        return reject(makeWrappedError('pauseViewportEvents', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -336,11 +336,11 @@ export async function resumeViewportEvents(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject(`resumeViewportEvents error: ${err.message}`)
+        return reject(makeWrappedError('resumeViewportEvents', err))
       }
 
       if (!response) {
-        return reject('resumeViewportEvents error: empty response')
+        return reject(makeWrappedError('resumeViewportEvents', 'empty response'))
       }
 
       debugLog(log, () => ({
@@ -365,7 +365,7 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
     const timeoutMs = getUnsubscribeTimeoutMs()
     let settled = false
     const timeout = setTimeout(() => {
-      settleReject(`unsubscribeViewport error: timed out after ${timeoutMs}ms`)
+      settleReject(makeWrappedError('unsubscribeViewport', `timed out after ${timeoutMs}ms`))
     }, timeoutMs)
     const settleResolve = (value: string) => {
       if (settled) return
@@ -394,11 +394,11 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
               stack: err.stack,
             },
           })
-          return settleReject(`unsubscribeViewport error: ${err.message}`)
+          return settleReject(makeWrappedError('unsubscribeViewport', err))
         }
 
         if (!response) {
-          return settleReject('unsubscribeViewport error: empty response')
+          return settleReject(makeWrappedError('unsubscribeViewport', 'empty response'))
         }
 
         debugLog(log, () => ({
