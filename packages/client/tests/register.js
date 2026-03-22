@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2021 Concurrent Technologies Corporation.
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -15,11 +17,10 @@
  * limitations under the License.
  */
 
-{
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "module": "ES2020",
-    "outDir": "out/protobuf-ts-spike"
-  },
-  "include": ["src/protobuf_ts/**/*.ts"]
-}
+const path = require('path')
+
+process.env.TS_NODE_PROJECT =
+  process.env.TS_NODE_PROJECT ||
+  path.join(__dirname, '..', 'tsconfig.tests.json')
+
+require('ts-node/register')

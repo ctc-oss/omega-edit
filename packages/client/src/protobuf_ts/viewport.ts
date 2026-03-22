@@ -26,7 +26,7 @@ import {
   type ModifyViewportRequest,
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
-import { getClient } from './client'
+import { getClient } from '../client'
 
 function getFirstCount(response: GetCountResponse, fn: string): number {
   const count = response.counts[0]?.count
@@ -34,6 +34,19 @@ function getFirstCount(response: GetCountResponse, fn: string): number {
     throw new Error(`${fn} failed: empty count response`)
   }
   return count
+}
+
+function getSingleId(
+  response: { id: string } | { getId(): string } | undefined,
+  fn: string
+): string {
+  if (!response) {
+    throw new Error(`${fn} error: empty response`)
+  }
+  if ('id' in response && typeof response.id === 'string') {
+    return response.id
+  }
+  return (response as { getId(): string }).getId()
 }
 
 export async function createViewport(
@@ -157,7 +170,7 @@ export async function destroyViewport(viewportId: string): Promise<string> {
         fn: 'protobufTs.destroyViewport',
         resp: response,
       }))
-      return resolve(response.id)
+      return resolve(getSingleId(response, 'destroyViewport'))
     })
   })
 }
@@ -228,7 +241,10 @@ export async function getViewportData(
         return reject('getViewportData error: empty response')
       }
 
-      debugLog(log, () => ({ fn: 'protobufTs.getViewportData', resp: response }))
+      debugLog(log, () => ({
+        fn: 'protobufTs.getViewportData',
+        resp: response,
+      }))
       return resolve(response)
     })
   })
@@ -305,7 +321,7 @@ export async function pauseViewportEvents(sessionId: string): Promise<string> {
         fn: 'protobufTs.pauseViewportEvents',
         resp: response,
       }))
-      return resolve(response.id)
+      return resolve(getSingleId(response, 'pauseViewportEvents'))
     })
   })
 }
@@ -343,7 +359,7 @@ export async function resumeViewportEvents(sessionId: string): Promise<string> {
         fn: 'protobufTs.resumeViewportEvents',
         resp: response,
       }))
-      return resolve(response.id)
+      return resolve(getSingleId(response, 'resumeViewportEvents'))
     })
   })
 }
@@ -358,8 +374,21 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
-    client
-      .unsubscribeToViewportEvents(request, (err, response) => {
+    let settled = false
+    const settleResolve = (value: string) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    const settleReject = (reason: unknown) => {
+      if (settled) return
+      settled = true
+      reject(reason)
+    }
+
+    const call = client.unsubscribeToViewportEvents(
+      request,
+      (err, response) => {
         if (err) {
           log.error({
             fn: 'protobufTs.unsubscribeViewport',
@@ -371,25 +400,30 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
               stack: err.stack,
             },
           })
-          return reject(`unsubscribeViewport error: ${err.message}`)
+          return settleReject(`unsubscribeViewport error: ${err.message}`)
         }
 
         if (!response) {
-          return reject('unsubscribeViewport error: empty response')
+          return settleReject('unsubscribeViewport error: empty response')
         }
 
         debugLog(log, () => ({
           fn: 'protobufTs.unsubscribeViewport',
           resp: response,
         }))
-        return resolve(response.id)
-      })
-      .on('error', (err) => {
-        if (!err.message.includes('Call cancelled')) {
-          log.error('protobufTs.unsubscribeViewport critical error: ' + err.message)
-          throw err
-        }
-        log.info('protobufTs.unsubscribeViewport error: ' + err.message)
-      })
+        return settleResolve(getSingleId(response, 'unsubscribeViewport'))
+      }
+    )
+
+    call.on('error', (err) => {
+      if (!err.message.includes('Call cancelled')) {
+        log.error(
+          'protobufTs.unsubscribeViewport critical error: ' + err.message
+        )
+        settleReject(err)
+        return
+      }
+      log.info('protobufTs.unsubscribeViewport error: ' + err.message)
+    })
   })
 }

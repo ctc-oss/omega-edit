@@ -18,10 +18,10 @@
  */
 
 import * as grpc from '@grpc/grpc-js'
-import { EditorServiceClient } from './generated/omega_edit/v1/omega_edit.grpc-client'
+import { EditorClient } from '../omega_edit_grpc_pb'
 import { getLogger } from '../logger'
 
-let clientInstance_: EditorServiceClient | undefined = undefined
+let clientInstance_: EditorClient | undefined = undefined
 
 const DEFAULT_PORT = 9000
 const DEFAULT_HOST = '127.0.0.1'
@@ -62,7 +62,7 @@ export function waitForReady(
 export async function getClient(
   port: number = DEFAULT_PORT,
   host: string = DEFAULT_HOST
-): Promise<EditorServiceClient> {
+): Promise<EditorClient> {
   const log = getLogger()
 
   if (!clientInstance_) {
@@ -92,10 +92,7 @@ export async function getClient(
     let lastError: unknown
 
     for (const uri of candidates) {
-      const client = new EditorServiceClient(
-        uri,
-        grpc.credentials.createInsecure()
-      )
+      const client = new EditorClient(uri, grpc.credentials.createInsecure())
 
       try {
         await waitForReady(client)

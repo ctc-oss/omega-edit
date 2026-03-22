@@ -1,4 +1,4 @@
-# @omega-edit/client — Development Guide
+# @omega-edit/client - Development Guide
 
 This document covers building, testing, and contributing to the `@omega-edit/client` package.
 
@@ -6,7 +6,7 @@ This document covers building, testing, and contributing to the `@omega-edit/cli
 
 - Node.js 16+
 - Yarn (v1 or compatible)
-- The `@omega-edit/server` package must be built and packaged first (it provides the native gRPC server binary)
+- The `@omega-edit/server` package must be built and packaged first
 
 ## Setup
 
@@ -18,15 +18,15 @@ yarn install
 
 ## Building
 
-### Prepare (generate protobuf stubs)
+### Prepare (generate protobuf bindings)
 
-Before building for the first time, generate the TypeScript protobuf stubs from `proto/omega_edit.proto`:
+Before building for the first time, generate the protobuf-ts bindings from `proto/omega_edit.proto`:
 
 ```bash
-yarn prepare
+yarn compile-src
 ```
 
-This runs `grpc_tools_node_protoc` to produce `omega_edit_pb.js`, `omega_edit_grpc_pb.js`, and their `.d.ts` type definitions under `src/`.
+This runs `grpc-tools` with the `@protobuf-ts/plugin` generator and refreshes the ESM-friendly bindings under `src/protobuf_ts/generated/`.
 
 ### Build the client
 
@@ -34,11 +34,11 @@ This runs `grpc_tools_node_protoc` to produce `omega_edit_pb.js`, `omega_edit_gr
 yarn build
 ```
 
-This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files.
+This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files. The published client surface is backed by protobuf-ts wrappers instead of the old `google-protobuf` / jspb runtime.
 
 ## Testing
 
-Build and test commands rely on generated protobuf stubs and a prepackaged server artifact.
+Build and test commands rely on generated protobuf-ts bindings and a prepackaged server artifact.
 
 ### Prepare (if not already done)
 
@@ -52,15 +52,15 @@ yarn prepare
 yarn test
 ```
 
-This runs the `pretest` hook (rebuilds the client and verifies the server is prepackaged) before executing the test suite.
+This runs the `pretest` hook before executing the test suite.
 
-> **Windows note:** End-to-end client tests do not currently validate emoji filenames on Windows. That path is covered in the native filesystem tests, but not in the Windows client integration suite.
+> Windows note: end-to-end client tests still depend on the native server build environment.
 
 ## Linting
 
 ```bash
-yarn lint        # check
-yarn lint:fix    # auto-fix
+yarn lint
+yarn lint:fix
 ```
 
 ## Generating API docs
@@ -80,26 +80,25 @@ The package ships both ESM and CommonJS formats with full TypeScript source maps
 | Source Maps | `dist/**/*.map` | Embedded TypeScript sources (`sourcesContent`) |
 | Type Definitions | `dist/**/*.d.ts` | Declarations with `.d.ts.map` maps |
 
-This allows downstream consumers (VS Code extensions, webviews, etc.) to set breakpoints in original TypeScript source, see readable names in stack traces, and step through the package code seamlessly.
-
 ## Project Structure
 
-```
+```text
 packages/client/
-├── src/
-│   ├── index.ts          # Barrel export
-│   ├── change.ts         # Insert, delete, overwrite, undo/redo
-│   ├── client.ts         # gRPC client connection management
-│   ├── logger.ts         # File-based logger
-│   ├── server.ts         # Server lifecycle (start, stop, heartbeat)
-│   ├── session.ts        # Session CRUD, save, transactions
-│   ├── version.ts        # Client version constant
-│   ├── viewport.ts       # Viewport CRUD and data access
-│   ├── omega_edit_pb.*   # Generated protobuf stubs
-│   └── omega_edit_grpc_pb.*
-├── tests/                # Test suite
-├── dist/                 # Build output (gitignored)
-├── package.json
-├── tsconfig.json
-└── DEVELOPMENT.md        # This file
+|- src/
+|  |- index.ts
+|  |- change.ts
+|  |- client.ts
+|  |- logger.ts
+|  |- omega_edit_grpc_pb.ts
+|  |- omega_edit_pb.ts
+|  |- protobuf_ts/
+|  |- server.ts
+|  |- session.ts
+|  |- version.ts
+|  `- viewport.ts
+|- tests/
+|- dist/
+|- package.json
+|- tsconfig.json
+`- DEVELOPMENT.md
 ```

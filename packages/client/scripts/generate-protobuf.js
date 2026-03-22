@@ -68,6 +68,9 @@ function writePluginWrapper(pluginEntry) {
 const grpcToolsEntry = require.resolve('grpc-tools/bin/protoc.js', {
   paths: [clientRoot, repoRoot],
 })
+const prettierEntry = require.resolve('prettier/bin/prettier.cjs', {
+  paths: [clientRoot, repoRoot],
+})
 const protobufTsPluginRoot = resolvePackagePath('@protobuf-ts/plugin')
 const protobufTsPluginEntry = path.join(
   protobufTsPluginRoot,
@@ -77,6 +80,7 @@ const protobufTsPluginEntry = path.join(
 
 ensureExists(protoFile, 'proto file')
 ensureExists(grpcToolsEntry, 'grpc-tools protoc entry')
+ensureExists(prettierEntry, 'prettier entry')
 ensureExists(protobufTsPluginEntry, 'protobuf-ts plugin entry')
 
 fs.rmSync(generatedRoot, { recursive: true, force: true })
@@ -101,9 +105,11 @@ execFileSync(process.execPath, args, {
   stdio: 'inherit',
 })
 
+execFileSync(process.execPath, [prettierEntry, '--write', generatedRoot], {
+  cwd: clientRoot,
+  stdio: 'inherit',
+})
+
 console.log(
-  `Generated protobuf-ts spike artifacts at ${path.relative(
-    clientRoot,
-    generatedRoot
-  )}`
+  `Generated protobuf-ts artifacts at ${path.relative(clientRoot, generatedRoot)}`
 )

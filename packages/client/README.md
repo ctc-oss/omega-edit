@@ -65,7 +65,7 @@ const sessionId = sessionResp.getSessionId()
 await insert(sessionId, 0, Buffer.from('Hello, Ωedit™!'))
 
 // 5. Save to disk
-await saveSession(sessionId, '/tmp/hello.txt', IOFlags.IO_FLAGS_OVERWRITE)
+await saveSession(sessionId, '/tmp/hello.txt', IOFlags.IO_FLG_OVERWRITE)
 
 // 6. Clean up
 await destroySession(sessionId)
@@ -148,7 +148,7 @@ setLogger(createSimpleFileLogger('/tmp/omega-edit.log', 'debug'))
 
 ## Package Format
 
-Distributed as both **ESM** and **CommonJS** with full TypeScript source maps and declaration files:
+Distributed as both **ESM** and **CommonJS** with full TypeScript source maps and declaration files. Internally, the package now uses protobuf-ts for native ESM-friendly generated bindings instead of the old jspb runtime bridge.
 
 | Output      | Path              | Format                      |
 | ----------- | ----------------- | --------------------------- |

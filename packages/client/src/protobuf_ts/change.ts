@@ -26,7 +26,7 @@ import {
   type SubmitChangeRequest,
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
-import { getClient } from './client'
+import { getClient } from '../client'
 
 export const ChangeKind = {
   CHANGE_DELETE: ProtoChangeKind.DELETE,

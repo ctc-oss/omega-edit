@@ -17,26 +17,22 @@
  * limitations under the License.
  */
 
-import { EditorClient } from './omega_edit_grpc_pb'
-import * as grpc from '@grpc/grpc-js'
-import { getLogger } from './logger'
-
-// client instance
-let clientInstance_: EditorClient | undefined = undefined
+import type * as grpc from '@grpc/grpc-js'
+import {
+  getClient as getSharedClient,
+  resetClient as resetSharedClient,
+  waitForReady as waitForReadySharedClient,
+} from './protobuf_ts/client'
 
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
 export const ALL_EVENTS = ~NO_EVENTS // subscribe to all events
 
-const DEFAULT_PORT = 9000
-const DEFAULT_HOST = '127.0.0.1'
-const DEFAULT_DEADLINE_SECONDS = 10
-
 /**
  * Reset the client back to undefined.
  */
 export function resetClient() {
-  clientInstance_ = undefined
+  resetSharedClient()
 }
 
 /**
@@ -46,30 +42,10 @@ export function resetClient() {
  * @return true of the client is ready to handle requests, and false if it is not ready
  */
 export function waitForReady(
-  client: EditorClient,
-  deadline: grpc.Deadline = new Date(
-    Date.now() + DEFAULT_DEADLINE_SECONDS * 1000
-  )
+  client: grpc.Client,
+  deadline?: grpc.Deadline
 ): Promise<void> {
-  const log = getLogger()
-  return new Promise<void>((resolve, reject) => {
-    client.waitForReady(deadline, (err: Error | undefined) => {
-      if (err) {
-        log.error({
-          fn: 'waitForReady',
-          state: 'not ready',
-          err: {
-            name: err.name,
-            msg: err.message,
-            stack: err.stack,
-          },
-        })
-        return reject(err)
-      }
-      log.debug({ fn: 'waitForReady', state: 'ready' })
-      return resolve()
-    })
-  })
+  return waitForReadySharedClient(client, deadline)
 }
 
 /**
@@ -78,93 +54,6 @@ export function waitForReady(
  * @param host interface to connect to
  * @return connected editor client
  */
-export async function getClient(
-  port: number = DEFAULT_PORT,
-  host: string = DEFAULT_HOST
-): Promise<EditorClient> {
-  const log = getLogger()
-
-  if (!clientInstance_) {
-    log.debug({
-      fn: 'getClient',
-      port: port,
-      host: host,
-      state: 'initializing',
-    })
-
-    const serverUri = process.env.OMEGA_EDIT_SERVER_URI
-    const serverSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
-
-    const normalizeUnixSocketTarget = (socket: string): string => {
-      if (socket.startsWith('unix:')) return socket
-      if (socket.startsWith('/')) return `unix:///${socket.slice(1)}`
-      return `unix:${socket}`
-    }
-
-    const tcpUri = `${host}:${port}`
-    const candidates = serverUri
-      ? [serverUri]
-      : serverSocket
-        ? [normalizeUnixSocketTarget(serverSocket), tcpUri]
-        : [tcpUri]
-
-    let lastError: unknown
-
-    for (const uri of candidates) {
-      const client = new EditorClient(uri, grpc.credentials.createInsecure())
-
-      try {
-        await waitForReady(client)
-
-        clientInstance_ = client
-        log.debug({
-          fn: 'getClient',
-          port: port,
-          host: host,
-          uri: uri,
-          state: 'ready',
-        })
-
-        return clientInstance_
-      } catch (err) {
-        lastError = err
-        try {
-          client.close()
-        } catch {
-          // ignore close errors
-        }
-
-        if (err instanceof Error) {
-          log.error({
-            fn: 'getClient',
-            host: host,
-            port: port,
-            uri: uri,
-            state: 'not ready',
-            err: {
-              name: err.name,
-              msg: err.message,
-              stack: err.stack,
-            },
-          })
-        } else {
-          log.error({
-            fn: 'getClient',
-            host: host,
-            port: port,
-            uri: uri,
-            state: 'not ready',
-            err: {
-              msg: String(err),
-            },
-          })
-        }
-      }
-    }
-
-    resetClient()
-    throw lastError
-  }
-
-  return clientInstance_
+export async function getClient(port?: number, host?: string) {
+  return getSharedClient(port, host)
 }
