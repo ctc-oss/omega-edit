@@ -22,6 +22,15 @@
 #   # or from TypeScript:
 #   import { getClient } from '@omega-edit/client'
 #   const client = await getClient(9000)
+#
+# Security notes:
+#   - The published port is bound to 127.0.0.1 by default so the unauthenticated
+#     gRPC endpoint is not exposed beyond the host unless you opt into it.
+#   - The container runs with a read-only root filesystem; only /data and /tmp
+#     remain writable.
+#   - The server runs as the caller-supplied UID/GID instead of root. Export
+#     OMEGA_EDIT_UID and OMEGA_EDIT_GID (or use a .env file) when you want the
+#     container to match your host user explicitly.
 
 services:
   omega-edit-server:
@@ -30,20 +39,42 @@ services:
       dockerfile: docker/Dockerfile.server
     image: ghcr.io/ctc-oss/omega-edit-server:latest
     ports:
-      - '9000:9000'
+      - '${OMEGA_EDIT_PUBLISHED_ADDRESS:-127.0.0.1}:9000:9000'
     environment:
       - OMEGA_EDIT_SERVER_HOST=0.0.0.0
       - OMEGA_EDIT_SERVER_PORT=9000
+      - OMEGA_EDIT_MAX_CHANGE_BYTES=${OMEGA_EDIT_MAX_CHANGE_BYTES:-67108864}
+      - OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION=${OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION:-256}
+      - OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY=${OMEGA_EDIT_SESSION_EVENT_QUEUE_CAPACITY:-1024}
+      - OMEGA_EDIT_VIEWPORT_EVENT_QUEUE_CAPACITY=${OMEGA_EDIT_VIEWPORT_EVENT_QUEUE_CAPACITY:-256}
+    user: '${OMEGA_EDIT_UID:-1000}:${OMEGA_EDIT_GID:-1000}'
     volumes:
-      # Mount a host directory for file editing (optional)
-      - omega-edit-data:/data
+      # Bind-mount a host directory so file ownership tracks the caller's UID/GID.
+      - type: bind
+        source: ${OMEGA_EDIT_DATA_DIR:-./data}
+        target: /data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=${OMEGA_EDIT_TMPFS_SIZE:-64m}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: ${OMEGA_EDIT_PIDS_LIMIT:-256}
+    mem_limit: ${OMEGA_EDIT_MEMORY_LIMIT:-1g}
+    cpus: ${OMEGA_EDIT_CPU_LIMIT:-1.0}
+    init: true
     restart: unless-stopped
     healthcheck:
-      test: ['CMD', 'nc', '-z', '127.0.0.1', '9000']
+      test:
+        [
+          'CMD',
+          '/usr/local/bin/grpc_health_probe',
+          '-addr=127.0.0.1:9000',
+          '-connect-timeout=500ms',
+          '-rpc-timeout=500ms',
+        ]
       interval: 10s
       timeout: 3s
       start_period: 5s
       retries: 3
-
-volumes:
-  omega-edit-data:

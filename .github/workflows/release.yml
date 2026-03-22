@@ -28,6 +28,9 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-22.04
+    permissions:
+      checks: read
+      contents: read
     steps:
       - uses: actions/checkout@v6
 
@@ -114,6 +117,8 @@ jobs:
     name: Create Release
     needs: [quality-gate]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -173,6 +178,8 @@ jobs:
             platform: windows-x64
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -206,6 +213,8 @@ jobs:
     name: Node Server Release (Universal)
     needs: [create-release, cpp-server-build]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -288,6 +297,8 @@ jobs:
     name: Node Client Release
     needs: [create-release]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -332,6 +343,8 @@ jobs:
     name: Node AI Tooling Release
     needs: [create-release]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -22,7 +22,8 @@
 #   Stage 1 (builder) — installs build tools, builds the core library and
 #                        gRPC server from source using Conan + CMake + Ninja.
 #   Stage 2 (runtime) — copies only the server binary and shared libraries
-#                        into a minimal Debian base image.
+#                        into a minimal Ubuntu runtime image that matches the
+#                        builder's glibc baseline.
 # ==============================================================================
 
 # ── Stage 1: Builder ──────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND="noninteractive"
+ARG CONAN_VERSION=2.26.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
@@ -40,10 +42,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ninja-build \
       python3 \
       python3-pip \
+      python3-venv \
       uuid-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install conan
+RUN python3 -m venv /opt/conan-venv \
+    && /opt/conan-venv/bin/pip install --upgrade pip \
+    && /opt/conan-venv/bin/pip install "conan==${CONAN_VERSION}"
+
+ENV PATH="/opt/conan-venv/bin:${PATH}"
 
 RUN conan profile detect --force
 
@@ -89,23 +96,28 @@ RUN mkdir -p /runtime-libs \
 
 # ── Stage 2: Runtime ──────────────────────────────────────────────────────────
 
-FROM debian:12-slim AS runtime
+FROM ubuntu:24.04 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
-      netcat-openbsd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Copy the server binary
 COPY --from=builder /src/server/cpp/build/omega-edit-grpc-server /usr/local/bin/omega-edit-grpc-server
 
+# Bundle a pinned gRPC health probe for container health checks.
+COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.42 /ko-app/grpc-health-probe /usr/local/bin/grpc_health_probe
+
 # Copy runtime shared libraries
 COPY --from=builder /runtime-libs/ /usr/local/lib/
 RUN ldconfig
 
-# Non-root user for security
-RUN useradd -r -s /usr/sbin/nologin -d /data omega \
-    && mkdir -p /data && chown omega:omega /data
+# Prepare writable locations for a default non-root runtime user.
+RUN groupadd --system omega \
+    && useradd --system --gid omega --create-home --home-dir /home/omega omega \
+    && mkdir -p /data /tmp \
+    && chown omega:omega /data \
+    && chmod 1777 /tmp
 USER omega
 WORKDIR /data
 
@@ -116,10 +128,9 @@ ENV OMEGA_EDIT_SERVER_HOST="0.0.0.0" \
 
 EXPOSE 9000
 
-# Health check: use gRPC health checking protocol via grpc_health_probe,
-# or fall back to TCP port check
+# Health check: use the standard gRPC health checking protocol exposed by the server.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD ["nc", "-z", "127.0.0.1", "9000"]
+  CMD ["/usr/local/bin/grpc_health_probe", "-addr=127.0.0.1:9000", "-connect-timeout=500ms", "-rpc-timeout=500ms"]
 
 ENTRYPOINT ["omega-edit-grpc-server"]
 CMD ["--interface", "0.0.0.0", "--port", "9000"]

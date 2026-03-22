@@ -61,6 +61,8 @@ const proc = await runServer(9000, '127.0.0.1', '/tmp/server.pid', {
   sessionTimeoutMs: 300000,
   cleanupIntervalMs: 60000,
   shutdownWhenNoSessions: true,
+  maxChangeBytes: 16 * 1024 * 1024,
+  maxViewportsPerSession: 64,
 })
 
 // Or pass raw CLI arguments
@@ -94,7 +96,7 @@ Start the server on a TCP port. Returns the spawned `ChildProcess`.
 | `port` | `number` | — | TCP port to listen on |
 | `host` | `string` | `'127.0.0.1'` | Bind address |
 | `pidfile` | `string` | — | Path to write the server PID |
-| `heartbeat` | `HeartbeatOptions` | — | Session reaping options |
+| `heartbeat` | `HeartbeatOptions` | — | Session reaping and resource limit options |
 
 ### `runServerWithArgs(args, heartbeat?)`
 
@@ -107,8 +109,14 @@ interface HeartbeatOptions {
   sessionTimeoutMs?: number       // Idle timeout before reaping (0 = disabled)
   cleanupIntervalMs?: number      // Reaper sweep interval (0 = disabled)
   shutdownWhenNoSessions?: boolean // Exit when last session is reaped
+  sessionEventQueueCapacity?: number // Buffered session events per subscription (0 = unbounded)
+  viewportEventQueueCapacity?: number // Buffered viewport events per subscription (0 = unbounded)
+  maxChangeBytes?: number        // Insert/overwrite payload limit in bytes (0 = unbounded)
+  maxViewportsPerSession?: number // Viewport cap per session (0 = unbounded)
 }
 ```
+
+Set these limits low in local tests to exercise edge cases quickly, then rely on the production defaults when the options are omitted.
 
 ## CLI Flags
 
@@ -124,6 +132,10 @@ The native binary supports:
 | `--session-timeout` | Idle session timeout in ms |
 | `--cleanup-interval` | Reaper interval in ms |
 | `--shutdown-when-no-sessions` | Exit after last session ends |
+| `--session-event-queue-capacity` | Buffered session events per subscription |
+| `--viewport-event-queue-capacity` | Buffered viewport events per subscription |
+| `--max-change-bytes` | Limit insert/overwrite payload size |
+| `--max-viewports-per-session` | Limit open viewports per session |
 
 ## Platform Support
 

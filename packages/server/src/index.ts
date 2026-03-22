@@ -30,8 +30,7 @@ import * as os from 'os'
 import * as path from 'path'
 
 /**
- * Heartbeat / session-reaping options passed as native CLI flags to the
- * C++ gRPC server.
+ * Server runtime options passed as native CLI flags to the C++ gRPC server.
  */
 export interface HeartbeatOptions {
   /** Idle session timeout in milliseconds (0 = disabled). */
@@ -40,6 +39,14 @@ export interface HeartbeatOptions {
   cleanupIntervalMs?: number
   /** When true, the server exits after reaping the last session. */
   shutdownWhenNoSessions?: boolean
+  /** Cap buffered session events per subscription (0 = unbounded). */
+  sessionEventQueueCapacity?: number
+  /** Cap buffered viewport events per subscription (0 = unbounded). */
+  viewportEventQueueCapacity?: number
+  /** Limit insert and overwrite payload size in bytes (0 = unbounded). */
+  maxChangeBytes?: number
+  /** Limit concurrently open viewports per session (0 = unbounded). */
+  maxViewportsPerSession?: number
 }
 
 /**
@@ -168,6 +175,22 @@ function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
   }
   if (opts.shutdownWhenNoSessions) {
     args.push('--shutdown-when-no-sessions')
+  }
+  if (opts.sessionEventQueueCapacity !== undefined) {
+    args.push(
+      `--session-event-queue-capacity=${opts.sessionEventQueueCapacity}`
+    )
+  }
+  if (opts.viewportEventQueueCapacity !== undefined) {
+    args.push(
+      `--viewport-event-queue-capacity=${opts.viewportEventQueueCapacity}`
+    )
+  }
+  if (opts.maxChangeBytes !== undefined) {
+    args.push(`--max-change-bytes=${opts.maxChangeBytes}`)
+  }
+  if (opts.maxViewportsPerSession !== undefined) {
+    args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
   }
   return args
 }

@@ -21,17 +21,28 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace omega_edit {
 namespace grpc_server {
+
+/// Configurable service limits to bound server-side resource usage.
+struct ResourceLimits {
+    size_t session_event_queue_capacity{1024};   ///< 0 = unbounded
+    size_t viewport_event_queue_capacity{256};   ///< 0 = unbounded
+    int64_t max_change_bytes{64 * 1024 * 1024};  ///< 0 = unbounded
+    size_t max_viewports_per_session{256};       ///< 0 = unbounded
+};
 
 /// Session event data for streaming
 struct SessionEventData {
@@ -58,9 +69,20 @@ struct ViewportEventData {
 template <typename T>
 class EventQueue {
 public:
+    explicit EventQueue(size_t max_size = 0, std::string label = "event queue")
+        : max_size_(max_size), label_(std::move(label)) {}
+
     void push(const T &event) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_) { return; }
+        if (max_size_ > 0 && queue_.size() >= max_size_) {
+            queue_.pop();
+            const size_t dropped = ++dropped_count_;
+            if (should_log_drops(dropped)) {
+                std::cerr << "Warning: dropped " << dropped << " buffered event(s) from " << label_
+                          << " because the queue reached its capacity of " << max_size_ << std::endl;
+            }
+        }
         queue_.push(event);
         cv_.notify_one();
     }
@@ -82,12 +104,27 @@ public:
         cv_.notify_all();
     }
 
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::queue<T> empty;
+        queue_.swap(empty);
+        dropped_count_.store(0, std::memory_order_relaxed);
+    }
+
     bool is_closed() const { return closed_; }
+    size_t dropped_count() const { return dropped_count_.load(std::memory_order_relaxed); }
 
 private:
+    static bool should_log_drops(size_t dropped_count) {
+        return dropped_count == 1 || (dropped_count & (dropped_count - 1)) == 0;
+    }
+
+    size_t max_size_;
+    std::string label_;
     std::queue<T> queue_;
     std::mutex mutex_;
     std::condition_variable cv_;
+    std::atomic<size_t> dropped_count_{0};
     std::atomic<bool> closed_{false};
 };
 
@@ -124,13 +161,14 @@ enum class ViewportCreateError {
     SESSION_NOT_FOUND,
     INVALID_VIEWPORT_ID,   ///< desired_viewport_id contains the reserved ':' character
     DUPLICATE_VIEWPORT_ID, ///< a viewport with the given id already exists
+    TOO_MANY_VIEWPORTS,    ///< the session has reached the configured viewport limit
     CORE_ERROR,            ///< the underlying omega_edit API failed to create the viewport
 };
 
 /// Manages all omega_edit sessions and viewports
 class SessionManager {
 public:
-    SessionManager();
+    explicit SessionManager(ResourceLimits limits = {});
     ~SessionManager();
 
     // Session lifecycle
@@ -176,6 +214,7 @@ private:
                                         const void *ptr);
 
     mutable std::mutex mutex_;
+    ResourceLimits limits_;
     std::map<std::string, std::shared_ptr<SessionInfo>> sessions_;
 };
 

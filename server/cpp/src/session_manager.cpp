@@ -178,7 +178,7 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
 }
 
 // ── Constructor / Destructor ─────────────────────────────────────────────────
-SessionManager::SessionManager() = default;
+SessionManager::SessionManager(ResourceLimits limits) : limits_(limits) {}
 
 SessionManager::~SessionManager() { destroy_all(); }
 
@@ -214,7 +214,8 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     auto info = std::make_shared<SessionInfo>();
     info->session_id = session_id;
-    info->event_queue = std::make_shared<EventQueue<SessionEventData>>();
+    info->event_queue = std::make_shared<EventQueue<SessionEventData>>(
+        limits_.session_event_queue_capacity, "session subscription '" + session_id + "'");
     info->event_interest = 0;
     info->last_activity = std::chrono::steady_clock::now();
 
@@ -308,10 +309,18 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
         return "";
     }
 
+    if (limits_.max_viewports_per_session > 0 &&
+        session_info->viewports.size() >= limits_.max_viewports_per_session) {
+        if (error_out) *error_out = ViewportCreateError::TOO_MANY_VIEWPORTS;
+        return "";
+    }
+
     auto vp_info = std::make_shared<ViewportInfo>();
     vp_info->session_id = session_id;
     vp_info->viewport_id = viewport_id;
-    vp_info->event_queue = std::make_shared<EventQueue<ViewportEventData>>();
+    vp_info->event_queue = std::make_shared<EventQueue<ViewportEventData>>(
+        limits_.viewport_event_queue_capacity,
+        "viewport subscription '" + make_viewport_fqid(session_id, viewport_id) + "'");
     vp_info->event_interest = 0;
 
     // Store first so callback has access
@@ -385,6 +394,9 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id) {
     auto &info = it->second;
     info->event_interest = 0;
     omega_session_set_event_interest(info->session, 0);
+    if (info->event_queue) {
+        info->event_queue->clear();
+    }
 }
 
 std::shared_ptr<EventQueue<ViewportEventData>>
@@ -416,6 +428,9 @@ void SessionManager::unsubscribe_viewport_events(const std::string &session_id, 
     auto &vp_info = vit->second;
     vp_info->event_interest = 0;
     omega_viewport_set_event_interest(vp_info->viewport, 0);
+    if (vp_info->event_queue) {
+        vp_info->event_queue->clear();
+    }
 }
 
 void SessionManager::destroy_all() {

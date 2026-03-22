@@ -18,6 +18,7 @@
  */
 
 import {
+  createViewport,
   createSession,
   createSimpleFileLogger,
   delay,
@@ -26,7 +27,10 @@ import {
   getClient,
   getServerHeartbeat,
   getSessionCount,
+  getViewportCount,
   HeartbeatOptions,
+  insert,
+  overwrite,
   pidIsRunning,
   resetClient,
   setLogger,
@@ -43,6 +47,12 @@ import * as os from 'os'
 
 const path = require('path')
 const rootPath = path.resolve(__dirname, '../..')
+
+function expectResourceExhausted(err: unknown, details: string) {
+  expect(err).to.be.instanceOf(Error)
+  expect((err as Error).message).to.include('RESOURCE_EXHAUSTED')
+  expect((err as Error).message).to.include(details)
+}
 
 describe('Server', () => {
   let pid: number | undefined
@@ -422,6 +432,113 @@ describe('Server Shutdown When No Sessions', () => {
 
     await waitForSessionCount(0, 2000, true)
     await waitForPidToExit(pid as number, 15000)
+  })
+})
+
+describe('Server Resource Limits', () => {
+  let pid: number | undefined
+  let session_id: string
+  const serverTestPort = testPort + 3
+  const isUds = testTransport === 'uds'
+  const socketPath = path.join(
+    rootPath,
+    `.server-resource-limits-${serverTestPort}.sock`
+  )
+
+  const heartbeat: HeartbeatOptions = {
+    maxChangeBytes: 1,
+    maxViewportsPerSession: 1,
+    sessionEventQueueCapacity: 1,
+    viewportEventQueueCapacity: 1,
+  }
+
+  beforeEach(`start limit-aware server on port ${serverTestPort}`, async () => {
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        false,
+        serverTestPort,
+        testHost,
+        heartbeat
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort, undefined, undefined, heartbeat)
+    }
+
+    expect(pid).to.be.a('number').greaterThan(0)
+    expect(pidIsRunning(pid as number)).to.be.true
+    resetClient()
+    expect(await getClient(serverTestPort)).to.not.be.undefined
+    session_id = (await createSession()).getSessionId()
+    expect(session_id.length).to.equal(36)
+  })
+
+  afterEach(`stop limit-aware server on port ${serverTestPort}`, async () => {
+    if (isUds) {
+      expect(await stopProcessUsingPID(pid as number)).to.be.true
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    } else {
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should reject insert payloads larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await insert(session_id, 1, Uint8Array.from([0x42, 0x43]))
+      expect.fail('insert should reject payloads larger than maxChangeBytes')
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject overwrite payloads larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await overwrite(session_id, 0, Uint8Array.from([0x42, 0x43]))
+      expect.fail('overwrite should reject payloads larger than maxChangeBytes')
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject opening more viewports than configured`, async () => {
+    const firstViewport = await createViewport(undefined, session_id, 0, 8)
+    expect(firstViewport.getViewportId()).to.include(`${session_id}:`)
+    expect(await getViewportCount(session_id)).to.equal(1)
+
+    try {
+      await createViewport(undefined, session_id, 0, 8)
+      expect.fail(
+        'createViewport should reject once maxViewportsPerSession is reached'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured viewport limit of 1')
+    }
+
+    expect(await getViewportCount(session_id)).to.equal(1)
   })
 })
 
