@@ -55,6 +55,15 @@ export const ChangeKind = {
 export { EditStats }
 export type { IEditStats }
 
+/**
+ * Delete a number of bytes at the given offset.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param len number of bytes to delete
+ * @param stats optional edit stats to update
+ * @returns positive change serial number
+ * @remarks Function is named `del` because `delete` is a reserved keyword.
+ */
 export function del(
   session_id: string,
   offset: number,
@@ -64,6 +73,14 @@ export function del(
   return rawDel(session_id, offset, len, stats)
 }
 
+/**
+ * Insert bytes at the given offset.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param data bytes to insert at the given offset
+ * @param stats optional edit stats to update
+ * @returns positive change serial number on success
+ */
 export function insert(
   session_id: string,
   offset: number,
@@ -73,6 +90,14 @@ export function insert(
   return rawInsert(session_id, offset, data, stats)
 }
 
+/**
+ * Overwrite bytes at the given offset.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param data replacement bytes
+ * @param stats optional edit stats to update
+ * @returns positive change serial number on success
+ */
 export function overwrite(
   session_id: string,
   offset: number,
@@ -82,6 +107,15 @@ export function overwrite(
   return rawOverwrite(session_id, offset, data, stats)
 }
 
+/**
+ * Replace a byte range with new content.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param remove_bytes_count number of bytes to remove
+ * @param replacement replacement bytes
+ * @param stats optional edit stats to update
+ * @returns positive change serial number on success
+ */
 export function replace(
   session_id: string,
   offset: number,
@@ -121,6 +155,13 @@ async function replaceWithTransaction(
   }
 }
 
+/**
+ * Optimize a simple replace operation by trimming the common prefix and suffix.
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @param offset start offset of the segments in the file
+ * @returns a single optimized replacement descriptor, or `null` if no edit is needed
+ */
 export function editOptimizer(
   original_segment: Uint8Array,
   edited_segment: Uint8Array,
@@ -168,6 +209,16 @@ export function editOptimizer(
   ]
 }
 
+/**
+ * Apply an optimized edit without pausing viewport notifications.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @param stats optional edit stats to update
+ * @returns positive change serial number of the last edit operation on success
+ * @remarks Suitable for bulk edit flows where the caller manages viewport events.
+ */
 export async function editSimple(
   session_id: string,
   offset: number,
@@ -205,46 +256,100 @@ export async function editSimple(
   return result
 }
 
+/**
+ * Undo the last change made in the given session.
+ * @param session_id session to undo the last change for
+ * @param stats optional edit stats to update
+ * @returns negative serial number of the undone change if successful
+ */
 export function undo(session_id: string, stats?: IEditStats): Promise<number> {
   return rawUndo(session_id, stats)
 }
 
+/**
+ * Redo the most recently undone change in the given session.
+ * @param session_id session to redo the last undone change for
+ * @param stats optional edit stats to update
+ * @returns positive serial number of the redone change if successful
+ */
 export function redo(session_id: string, stats?: IEditStats): Promise<number> {
   return rawRedo(session_id, stats)
 }
 
+/**
+ * Clear all change and undo history for a session.
+ * @param session_id session to clear change history for
+ * @param stats optional edit stats to update
+ * @returns session id on success
+ */
 export function clear(session_id: string, stats?: IEditStats): Promise<string> {
   return rawClear(session_id, stats)
 }
 
+/**
+ * Get details about the most recent change in a session.
+ * @param session_id session to inspect
+ * @returns compatibility-wrapped change details
+ */
 export async function getLastChange(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   return wrapChangeDetailsResponse(await rawGetLastChange(session_id))
 }
 
+/**
+ * Get details about the most recent undone change in a session.
+ * @param session_id session to inspect
+ * @returns compatibility-wrapped change details
+ */
 export async function getLastUndo(
   session_id: string
 ): Promise<ChangeDetailsResponse> {
   return wrapChangeDetailsResponse(await rawGetLastUndo(session_id))
 }
 
+/**
+ * Count committed changes in the session.
+ * @param session_id session to inspect
+ * @returns number of changes
+ */
 export function getChangeCount(session_id: string): Promise<number> {
   return rawGetChangeCount(session_id)
 }
 
+/**
+ * Count undoable changes in the session.
+ * @param session_id session to inspect
+ * @returns number of undo entries
+ */
 export function getUndoCount(session_id: string): Promise<number> {
   return rawGetUndoCount(session_id)
 }
 
+/**
+ * Count change transactions in the session.
+ * @param session_id session to inspect
+ * @returns number of change transactions
+ */
 export function getChangeTransactionCount(session_id: string): Promise<number> {
   return rawGetChangeTransactionCount(session_id)
 }
 
+/**
+ * Count undo transactions in the session.
+ * @param session_id session to inspect
+ * @returns number of undo transactions
+ */
 export function getUndoTransactionCount(session_id: string): Promise<number> {
   return rawGetUndoTransactionCount(session_id)
 }
 
+/**
+ * Concatenate two Uint8Arrays.
+ * @param arr1 first array
+ * @param arr2 second array
+ * @returns concatenated array
+ */
 export function concatUint8Arrays(
   arr1: Uint8Array,
   arr2: Uint8Array
@@ -255,6 +360,12 @@ export function concatUint8Arrays(
   return result
 }
 
+/**
+ * Remove the common suffix from two Uint8Arrays.
+ * @param arr1 first array
+ * @param arr2 second array
+ * @returns both arrays with their shared suffix removed
+ */
 export function removeCommonSuffix(
   arr1: Uint8Array,
   arr2: Uint8Array
@@ -270,12 +381,18 @@ export function removeCommonSuffix(
   return [arr1.subarray(0, i + 1), arr2.subarray(0, j + 1)]
 }
 
+/**
+ * Edit operation kinds produced by `editOperations()`.
+ */
 export enum EditOperationType {
   Delete = 'delete',
   Insert = 'insert',
   Overwrite = 'overwrite',
 }
 
+/**
+ * A normalized edit operation that can be replayed against a session.
+ */
 export interface EditOperation {
   type: EditOperationType
   start: number
@@ -283,6 +400,13 @@ export interface EditOperation {
   data?: Uint8Array
 }
 
+/**
+ * Compute a minimal sequence of edit operations to transform one segment into another.
+ * @param originalSegment original segment
+ * @param editedSegment edited segment
+ * @param offset offset of the segments
+ * @returns edit operations necessary to transform the original segment into the edited segment
+ */
 export function editOperations(
   originalSegment: Uint8Array,
   editedSegment: Uint8Array,
@@ -405,6 +529,15 @@ export function editOperations(
   return operations
 }
 
+/**
+ * Edit a segment in a session, pausing viewport notifications when multiple operations are needed.
+ * @param session_id session to make the change in
+ * @param offset location offset to make the change
+ * @param original_segment original segment
+ * @param edited_segment replacement segment
+ * @param stats optional edit stats to update
+ * @returns positive change serial number of the last edit operation on success
+ */
 export async function edit(
   session_id: string,
   offset: number,

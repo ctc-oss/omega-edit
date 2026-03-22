@@ -31,7 +31,6 @@
     "clean": "rimraf dist",
     "generate-version": "node scripts/generate-version.js",
     "generate:protobuf": "node scripts/generate-protobuf.js",
-    "generate:protobuf-ts": "yarn generate:protobuf",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build": "yarn clean && yarn generate-version && yarn compile-src && yarn build:esm && yarn build:cjs && node ../../scripts/write-dist-package-jsons.js",

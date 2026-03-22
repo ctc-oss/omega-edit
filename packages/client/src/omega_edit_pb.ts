@@ -404,6 +404,8 @@ export class ByteOrderMarkResponse {
   }
 
   getByteOrderMarkBytes(): number {
+    // The proto models BOM byte count as `length`; this getter preserves the
+    // legacy jspb API shape expected by existing consumers.
     return this.response_.length
   }
 

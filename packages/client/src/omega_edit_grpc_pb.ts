@@ -21,7 +21,9 @@ import type * as grpc from '@grpc/grpc-js'
 import {
   EditorService as EditorServiceService,
   type SubscribeToSessionEventsRequest,
+  type SubscribeToSessionEventsResponse,
   type SubscribeToViewportEventsRequest,
+  type SubscribeToViewportEventsResponse,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
   EditorServiceClient,
@@ -29,6 +31,8 @@ import {
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client'
 import {
   EventSubscriptionRequest,
+  SessionEvent,
+  ViewportEvent,
   wrapSessionEvent,
   wrapViewportEvent,
 } from './omega_edit_pb'
@@ -100,7 +104,9 @@ export class EditorClient extends EditorServiceClient {
     request: SubscriptionRequest,
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
-  ): grpc.ClientReadableStream<any> {
+  ):
+    | (grpc.ClientReadableStream<SubscribeToSessionEventsResponse> &
+        grpc.ClientReadableStream<SessionEvent>) {
     const normalized = normalizeSubscriptionRequest(request)
     const stream =
       options !== undefined
@@ -108,14 +114,20 @@ export class EditorClient extends EditorServiceClient {
         : metadata !== undefined
           ? super.subscribeToSessionEvents(normalized, metadata)
           : super.subscribeToSessionEvents(normalized)
-    return wrapDataEvents(stream, wrapSessionEvent)
+    return wrapDataEvents(
+      stream,
+      wrapSessionEvent
+    ) as unknown as grpc.ClientReadableStream<SubscribeToSessionEventsResponse> &
+      grpc.ClientReadableStream<SessionEvent>
   }
 
   subscribeToViewportEvents(
     request: SubscriptionRequest,
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
-  ): grpc.ClientReadableStream<any> {
+  ):
+    | (grpc.ClientReadableStream<SubscribeToViewportEventsResponse> &
+        grpc.ClientReadableStream<ViewportEvent>) {
     const normalized = normalizeSubscriptionRequest(request)
     const stream =
       options !== undefined
@@ -123,6 +135,10 @@ export class EditorClient extends EditorServiceClient {
         : metadata !== undefined
           ? super.subscribeToViewportEvents(normalized, metadata)
           : super.subscribeToViewportEvents(normalized)
-    return wrapDataEvents(stream, wrapViewportEvent)
+    return wrapDataEvents(
+      stream,
+      wrapViewportEvent
+    ) as unknown as grpc.ClientReadableStream<SubscribeToViewportEventsResponse> &
+      grpc.ClientReadableStream<ViewportEvent>
   }
 }
