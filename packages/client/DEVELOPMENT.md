@@ -26,7 +26,7 @@ Before building for the first time, generate the protobuf-ts bindings from `prot
 yarn compile-src
 ```
 
-This runs `grpc-tools` with the `@protobuf-ts/plugin` generator and refreshes the ESM-friendly bindings under `src/protobuf_ts/generated/`.
+This runs `@protobuf-ts/plugin` (using the `protoc` binary from `grpc-tools`) and refreshes the ESM-friendly bindings under `src/protobuf_ts/generated/`.
 
 The generated code lives under `src/protobuf_ts/generated/omega_edit/v1/`.
 
@@ -36,7 +36,7 @@ The generated code lives under `src/protobuf_ts/generated/omega_edit/v1/`.
 yarn build
 ```
 
-This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files. The published client surface is backed by protobuf-ts wrappers instead of the old `google-protobuf` / jspb runtime.
+This compiles TypeScript into both ESM (`dist/esm/`) and CommonJS (`dist/cjs/`) outputs with source maps and declaration files. The published client surface uses protobuf-ts for message serialization while `@grpc/grpc-js` remains the gRPC transport layer.
 
 ## Why `src/protobuf_ts/` Exists
 
@@ -46,15 +46,16 @@ Its purpose is to:
 
 - hold the generated protobuf-ts message and gRPC client artifacts in `src/protobuf_ts/generated/`
 - implement the real RPC calls against the protobuf-ts runtime in `client.ts`, `session.ts`, `change.ts`, and `viewport.ts`
-- keep small shared helpers in `utils.ts` so response validation, error wrapping, and timeout behavior stay consistent
+- keep small shared helpers in `utils.ts` for error wrapping (`makeWrappedError`), response validation (`requireResponse`), ID extraction (`getSingleId`), and configurable unsubscribe timeouts
 
 This layer exists because the old `grpc-tools` + `google-protobuf` path generated CommonJS/jspb code, which made the dual ESM/CommonJS package layout awkward and required postbuild compatibility hacks. `protobuf-ts` gives us TypeScript-native, ESM-friendly generated code, which makes the build and published package much cleaner.
 
-The top-level files in `src/` such as `session.ts`, `change.ts`, `omega_edit_pb.ts`, and `omega_edit_grpc_pb.ts` now act as the public compatibility surface:
+The top-level files in `src/` such as `session.ts`, `change.ts`, `omega_edit_pb.ts`, `omega_edit_grpc_pb.ts`, and `proto.ts` now act as the public compatibility surface:
 
-- they preserve legacy enum aliases and wrapper classes where existing consumers expect jspb-style APIs
-- they delegate actual RPC behavior to `src/protobuf_ts/`
-- they isolate compatibility concerns from the new generator/runtime implementation
+- `omega_edit_grpc_pb.ts` defines the `EditorClient` class (backed by `@grpc/grpc-js` and the protobuf-ts service definition) and wraps subscription streams so `data` events emit legacy-compatible wrapper objects
+- `omega_edit_pb.ts` provides jspb-style wrapper classes with getter/setter APIs over protobuf-ts plain objects
+- `proto.ts` re-exports enums with backward-compatible aliases across all naming conventions
+- `session.ts`, `change.ts`, `viewport.ts`, and `client.ts` delegate actual RPC behavior to `src/protobuf_ts/`
 
 This split is intentional and should remain in place:
 
@@ -107,12 +108,12 @@ yarn docgen
 
 The package ships both ESM and CommonJS formats with full TypeScript source maps for debugging:
 
-| Output | Path | Description |
-| --- | --- | --- |
-| ESM | `dist/esm/` | ES2020 modules |
-| CommonJS | `dist/cjs/` | CommonJS modules |
-| Source Maps | `dist/**/*.map` | Embedded TypeScript sources (`sourcesContent`) |
-| Type Definitions | `dist/**/*.d.ts` | Declarations with `.d.ts.map` maps |
+| Output           | Path             | Description                                    |
+| ---------------- | ---------------- | ---------------------------------------------- |
+| ESM              | `dist/esm/`      | ES2020 module syntax (ES6 target)              |
+| CommonJS         | `dist/cjs/`      | CommonJS modules                               |
+| Source Maps      | `dist/**/*.map`  | Embedded TypeScript sources (`sourcesContent`) |
+| Type Definitions | `dist/**/*.d.ts` | Declarations with `.d.ts.map` maps             |
 
 ## Project Structure
 
@@ -122,9 +123,11 @@ packages/client/
 |  |- index.ts
 |  |- change.ts
 |  |- client.ts
+|  |- client_version.ts
 |  |- logger.ts
 |  |- omega_edit_grpc_pb.ts
 |  |- omega_edit_pb.ts
+|  |- proto.ts
 |  |- protobuf_ts/
 |  |- server.ts
 |  |- session.ts
