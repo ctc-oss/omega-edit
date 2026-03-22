@@ -185,8 +185,8 @@ describe('Viewport Edge Cases', () => {
     }
   })
 
-  it('should handle unsubscribe callback errors and call-cancelled stream errors', async () => {
-    let mode: 'callback-error' | 'cancelled' = 'callback-error'
+  it('should handle unsubscribe callback errors, timeouts, and call-cancelled stream errors', async () => {
+    let mode: 'callback-error' | 'cancelled' | 'timeout' = 'callback-error'
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
       'getClient',
@@ -226,6 +226,7 @@ describe('Viewport Edge Cases', () => {
         },
       })
     )
+    const originalTimeout = process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS
 
     try {
       await viewportModule.unsubscribeViewport('viewport-id')
@@ -242,6 +243,25 @@ describe('Viewport Edge Cases', () => {
         'viewport-id'
       )
     } finally {
+      // continue into the timeout path with the same mocked client
+    }
+
+    mode = 'timeout'
+    process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS = '1'
+
+    try {
+      await viewportModule.unsubscribeViewport('viewport-id')
+      expect.fail(
+        'unsubscribeViewport should reject when the RPC never settles'
+      )
+    } catch (err) {
+      expect(err).to.equal('unsubscribeViewport error: timed out after 1ms')
+    } finally {
+      if (originalTimeout === undefined) {
+        delete process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS
+      } else {
+        process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS = originalTimeout
+      }
       restoreGetClient()
     }
   })

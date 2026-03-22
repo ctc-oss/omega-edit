@@ -27,6 +27,7 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
+import { getSingleId, getUnsubscribeTimeoutMs } from './utils'
 
 function getFirstCount(response: GetCountResponse, fn: string): number {
   const count = response.counts[0]?.count
@@ -34,19 +35,6 @@ function getFirstCount(response: GetCountResponse, fn: string): number {
     throw new Error(`${fn} failed: empty count response`)
   }
   return count
-}
-
-function getSingleId(
-  response: { id: string } | { getId(): string } | undefined,
-  fn: string
-): string {
-  if (!response) {
-    throw new Error(`${fn} error: empty response`)
-  }
-  if ('id' in response && typeof response.id === 'string') {
-    return response.id
-  }
-  return (response as { getId(): string }).getId()
 }
 
 export async function createViewport(
@@ -374,15 +362,21 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
+    const timeoutMs = getUnsubscribeTimeoutMs()
     let settled = false
+    const timeout = setTimeout(() => {
+      settleReject(`unsubscribeViewport error: timed out after ${timeoutMs}ms`)
+    }, timeoutMs)
     const settleResolve = (value: string) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
       resolve(value)
     }
     const settleReject = (reason: unknown) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
       reject(reason)
     }
 

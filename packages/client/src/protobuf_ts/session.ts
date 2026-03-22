@@ -39,40 +39,12 @@ import {
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
-
-function getSingleId(
-  response: { id: string } | { getId(): string } | undefined,
-  fn: string
-): string {
-  if (!response) {
-    throw new Error(`${fn} error: empty response`)
-  }
-  if ('id' in response && typeof response.id === 'string') {
-    return response.id
-  }
-  return (response as { getId(): string }).getId()
-}
-
-function requireResponse<T>(response: T | undefined, fn: string): T {
-  if (!response) {
-    throw new Error(`${fn} error: empty response`)
-  }
-  return response
-}
-
-function makeWrappedError(fn: string, error: unknown): Error {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === 'string'
-        ? error
-        : String(error)
-  const wrapped = new Error(`${fn} error: ${message}`)
-  if (error instanceof Error) {
-    ;(wrapped as Error & { cause?: unknown }).cause = error
-  }
-  return wrapped
-}
+import {
+  getSingleId,
+  getUnsubscribeTimeoutMs,
+  makeWrappedError,
+  requireResponse,
+} from './utils'
 
 export async function createSession(
   filePath: string = '',
@@ -457,15 +429,23 @@ export async function unsubscribeSession(sessionId: string): Promise<string> {
   const client = await getClient()
 
   return new Promise<string>((resolve, reject) => {
+    const timeoutMs = getUnsubscribeTimeoutMs()
     let settled = false
+    const timeout = setTimeout(() => {
+      settleReject(
+        makeWrappedError('unsubscribeSession', `timed out after ${timeoutMs}ms`)
+      )
+    }, timeoutMs)
     const settleResolve = (value: string) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
       resolve(value)
     }
     const settleReject = (reason: unknown) => {
       if (settled) return
       settled = true
+      clearTimeout(timeout)
       reject(reason)
     }
 

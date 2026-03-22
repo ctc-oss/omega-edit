@@ -209,8 +209,9 @@ describe('Session Edge Cases', () => {
     }
   })
 
-  it('should handle unsubscribe session callback and stream errors', async () => {
-    let mode: 'callback-error' | 'cancelled' | 'critical' = 'callback-error'
+  it('should handle unsubscribe session callback, timeout, and stream errors', async () => {
+    let mode: 'callback-error' | 'cancelled' | 'critical' | 'timeout' =
+      'callback-error'
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
       'getClient',
@@ -246,6 +247,7 @@ describe('Session Edge Cases', () => {
         },
       })
     )
+    const originalTimeout = process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS
 
     try {
       await sessionModule.unsubscribeSession('session-id')
@@ -270,7 +272,22 @@ describe('Session Edge Cases', () => {
       expect.fail('unsubscribeSession should reject critical stream failures')
     } catch (err) {
       expect((err as Error).message).to.equal('session stream exploded')
+    }
+
+    mode = 'timeout'
+    process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS = '1'
+
+    try {
+      await sessionModule.unsubscribeSession('session-id')
+      expect.fail('unsubscribeSession should reject when the RPC never settles')
+    } catch (err) {
+      expectErrorMessage(err, 'unsubscribeSession error: timed out after 1ms')
     } finally {
+      if (originalTimeout === undefined) {
+        delete process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS
+      } else {
+        process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS = originalTimeout
+      }
       restoreGetClient()
     }
   })
