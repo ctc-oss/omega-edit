@@ -7,7 +7,6 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "typings": "./dist/esm/index.d.ts",
-  "type": "commonjs",
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
