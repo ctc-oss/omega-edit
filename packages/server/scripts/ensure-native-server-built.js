@@ -64,7 +64,148 @@ function findBuiltBinary() {
   return null
 }
 
+function getPackagedBinaryPath() {
+  return path.join(repoRoot, 'packages', 'server', 'out', 'bin', binaryName)
+}
+
+function getWindowsVcVarsCandidates() {
+  const candidates = []
+  const env = process.env
+
+  if (env.VSINSTALLDIR) {
+    candidates.push(
+      path.join(env.VSINSTALLDIR, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat')
+    )
+  }
+
+  const installerVsWhere = path.join(
+    process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)',
+    'Microsoft Visual Studio',
+    'Installer',
+    'vswhere.exe'
+  )
+
+  if (tryStat(installerVsWhere)) {
+    const result = spawnSync(
+      installerVsWhere,
+      [
+        '-latest',
+        '-products',
+        '*',
+        '-requires',
+        'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+        '-property',
+        'installationPath',
+      ],
+      {
+        encoding: 'utf8',
+      }
+    )
+
+    if (result.status === 0 && result.stdout) {
+      const installPath = result.stdout.trim()
+      if (installPath) {
+        candidates.push(
+          path.join(installPath, 'VC', 'Auxiliary', 'Build', 'vcvars64.bat')
+        )
+      }
+    }
+  }
+
+  for (const year of ['2022', '2019']) {
+    for (const edition of [
+      'Community',
+      'Professional',
+      'Enterprise',
+      'BuildTools',
+    ]) {
+      candidates.push(
+        path.join(
+          'C:\\Program Files\\Microsoft Visual Studio',
+          year,
+          edition,
+          'VC',
+          'Auxiliary',
+          'Build',
+          'vcvars64.bat'
+        )
+      )
+      candidates.push(
+        path.join(
+          'C:\\Program Files (x86)\\Microsoft Visual Studio',
+          year,
+          edition,
+          'VC',
+          'Auxiliary',
+          'Build',
+          'vcvars64.bat'
+        )
+      )
+    }
+  }
+
+  return Array.from(new Set(candidates))
+}
+
+function findWindowsVcVars() {
+  for (const candidate of getWindowsVcVarsCandidates()) {
+    if (tryStat(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
 function runCmakeBuild() {
+  if (isWin) {
+    const vcvars64 = findWindowsVcVars()
+
+    if (!vcvars64) {
+      process.stderr.write(
+        '@omega-edit/server: could not find vcvars64.bat; falling back to current environment.\n'
+      )
+    } else {
+      const wrapperName = 'codex-vcvars-build.cmd'
+      const wrapperPath = path.join(buildDir, wrapperName)
+      fs.writeFileSync(
+        wrapperPath,
+        [
+          '@echo off',
+          'call "%OMEGA_EDIT_VCVARS64%" >nul',
+          'if errorlevel 1 exit /b %errorlevel%',
+          'cmake --build "%OMEGA_EDIT_CMAKE_BUILD_DIR%" --target omega-edit-grpc-server',
+          'exit /b %errorlevel%',
+          '',
+        ].join('\r\n')
+      )
+
+      const result = spawnSync('cmd.exe', ['/d', '/c', wrapperName], {
+        cwd: buildDir,
+        env: {
+          ...process.env,
+          OMEGA_EDIT_VCVARS64: vcvars64,
+          OMEGA_EDIT_CMAKE_BUILD_DIR: buildDir,
+        },
+        stdio: 'inherit',
+      })
+
+      if (result.error) {
+        process.stderr.write(
+          `@omega-edit/server: failed to run cmake build via vcvars64: ${String(
+            result.error
+          )}\n`
+        )
+        process.exit(1)
+      }
+
+      if (result.status !== 0) {
+        process.exit(result.status ?? 1)
+      }
+
+      return
+    }
+  }
+
   const result = spawnSync(
     'cmake',
     ['--build', buildDir, '--target', 'omega-edit-grpc-server'],
@@ -83,6 +224,85 @@ function runCmakeBuild() {
 
   if (result.status !== 0) {
     process.exit(result.status ?? 1)
+  }
+}
+
+function parseJsonArray(text) {
+  if (!text) return []
+  try {
+    const parsed = JSON.parse(text)
+    if (!parsed) return []
+    return Array.isArray(parsed) ? parsed : [parsed]
+  } catch {
+    return []
+  }
+}
+
+function stopRunningPackagedBinaryIfNeeded() {
+  if (!isWin) {
+    return
+  }
+
+  const packagedBinary = getPackagedBinaryPath()
+  const packagedStat = tryStat(packagedBinary)
+  if (!packagedStat) {
+    return
+  }
+
+  const packagedRealPath = fs.realpathSync.native(packagedBinary).toLowerCase()
+  const psScript = [
+    `Get-CimInstance Win32_Process -Filter "name = '${binaryName}'" |`,
+    '  Select-Object ProcessId, ExecutablePath |',
+    '  ConvertTo-Json -Compress',
+  ].join(' ')
+  const result = spawnSync(
+    'powershell.exe',
+    ['-NoProfile', '-Command', psScript],
+    { encoding: 'utf8' }
+  )
+
+  if (result.error || result.status !== 0) {
+    return
+  }
+
+  const processes = parseJsonArray(result.stdout)
+  for (const proc of processes) {
+    if (!proc || !proc.ExecutablePath || !proc.ProcessId) {
+      continue
+    }
+
+    let processRealPath
+    try {
+      processRealPath = fs.realpathSync
+        .native(proc.ExecutablePath)
+        .toLowerCase()
+    } catch {
+      continue
+    }
+
+    if (processRealPath !== packagedRealPath) {
+      continue
+    }
+
+    process.stdout.write(
+      `@omega-edit/server: stopping stale packaged server process ${proc.ProcessId}\n`
+    )
+    const killResult = spawnSync(
+      'taskkill.exe',
+      ['/PID', String(proc.ProcessId), '/T', '/F'],
+      { stdio: 'inherit' }
+    )
+    if (killResult.error) {
+      process.stderr.write(
+        `@omega-edit/server: failed to stop stale packaged server process ${proc.ProcessId}: ${String(
+          killResult.error
+        )}\n`
+      )
+      process.exit(1)
+    }
+    if (killResult.status !== 0) {
+      process.exit(killResult.status ?? 1)
+    }
   }
 }
 
@@ -108,6 +328,7 @@ function main() {
     !builtBinaryStat || builtBinaryStat.mtimeMs < latestInputMtime
 
   if (!needsBuild) {
+    stopRunningPackagedBinaryIfNeeded()
     return
   }
 
@@ -122,6 +343,8 @@ function main() {
     '@omega-edit/server: rebuilding native C++ server before packaging\n'
   )
   runCmakeBuild()
+
+  stopRunningPackagedBinaryIfNeeded()
 
   if (!findBuiltBinary()) {
     process.stderr.write(

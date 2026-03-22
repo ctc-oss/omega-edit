@@ -2,7 +2,7 @@ const path = require('path')
 const fs = require('fs')
 const Mocha = require('mocha')
 
-require('ts-node/register')
+require('../tests/register.js')
 
 const { resetClient } = require(
   path.join(__dirname, '..', 'dist', 'cjs', 'index.js')

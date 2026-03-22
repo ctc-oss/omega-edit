@@ -1,27 +1,63 @@
-export {
-  CreateSessionRequest,
-  EventSubscriptionRequest,
-  CreateSessionResponse,
-  HeartbeatRequest,
-  HeartbeatResponse,
-  ServerInfoResponse,
-  SaveSessionRequest,
-  SaveSessionResponse,
-  SessionEvent,
-  ServerControlRequest,
-  ServerControlResponse,
-  ViewportEvent,
-} from './omega_edit_pb'
-
-export {
-  CountKind as ProtoCountKind,
-  ServerControlKind as ProtoServerControlKind,
-} from './omega_edit_pb'
+/*
+ * Copyright (c) 2021 Concurrent Technologies Corporation.
+ *
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import {
-  CountKind as ProtoCountKind,
-  ServerControlKind as ProtoServerControlKind,
+  CountKind as RawProtoCountKind,
+  ServerControlKind as RawProtoServerControlKind,
+} from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+
+export {
+  CreateSessionResponse,
+  EventSubscriptionRequest,
+  HeartbeatRequest,
+  HeartbeatResponse,
+  SaveSessionResponse,
+  ServerControlRequest,
+  ServerControlResponse,
+  ServerInfoResponse,
+  SessionEvent,
+  SingleCount,
+  ViewportEvent,
+  ViewportDataResponse,
 } from './omega_edit_pb'
+
+export { EditorClient, EditorServiceService } from './omega_edit_grpc_pb'
+
+export const ProtoCountKind = {
+  COUNT_KIND_COMPUTED_FILE_SIZE: RawProtoCountKind.COMPUTED_FILE_SIZE,
+  COUNT_KIND_CHANGES: RawProtoCountKind.CHANGES,
+  COUNT_KIND_UNDOS: RawProtoCountKind.UNDOS,
+  COUNT_KIND_VIEWPORTS: RawProtoCountKind.VIEWPORTS,
+  COUNT_KIND_CHECKPOINTS: RawProtoCountKind.CHECKPOINTS,
+  COUNT_KIND_SEARCH_CONTEXTS: RawProtoCountKind.SEARCH_CONTEXTS,
+  COUNT_KIND_CHANGE_TRANSACTIONS: RawProtoCountKind.CHANGE_TRANSACTIONS,
+  COUNT_KIND_UNDO_TRANSACTIONS: RawProtoCountKind.UNDO_TRANSACTIONS,
+  ...RawProtoCountKind,
+}
+
+export const ProtoServerControlKind = {
+  SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN:
+    RawProtoServerControlKind.GRACEFUL_SHUTDOWN,
+  SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
+    RawProtoServerControlKind.IMMEDIATE_SHUTDOWN,
+  ...RawProtoServerControlKind,
+}
 
 export const CountKind = {
   COUNT_COMPUTED_FILE_SIZE: ProtoCountKind.COUNT_KIND_COMPUTED_FILE_SIZE,
@@ -42,5 +78,3 @@ export const ServerControlKind = {
     ProtoServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN,
   ...ProtoServerControlKind,
 }
-
-export { EditorClient, EditorServiceService } from './omega_edit_grpc_pb'

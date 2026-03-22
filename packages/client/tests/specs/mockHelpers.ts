@@ -20,3 +20,12 @@ export function makeObjectIdResponse(id: string) {
     },
   }
 }
+
+export function expectErrorMessage(
+  expect: Chai.ExpectStatic,
+  err: unknown,
+  message: string
+) {
+  expect(err).to.be.instanceOf(Error)
+  expect((err as Error).message).to.equal(message)
+}

@@ -18,60 +18,54 @@
  */
 
 import {
-  DestroySessionRequest,
-  DestroySessionResponse,
-  GetByteFrequencyProfileRequest,
-  GetByteFrequencyProfileResponse as ByteFrequencyProfileResponse,
-  GetByteOrderMarkRequest,
-  GetByteOrderMarkResponse as ByteOrderMarkResponse,
-  GetCharacterCountsRequest,
-  GetCharacterCountsResponse as CharacterCountResponse,
-  GetComputedFileSizeRequest,
-  GetComputedFileSizeResponse as ComputedFileSizeResponse,
-  GetContentTypeRequest,
-  GetContentTypeResponse as ContentTypeResponse,
-  CountKind,
-  GetCountRequest as CountRequest,
-  GetCountResponse as CountResponse,
-  CreateSessionRequest,
-  CreateSessionResponse,
-  GetLanguageRequest,
-  GetLanguageResponse as LanguageResponse,
-  GetSegmentRequest as SegmentRequest,
-  GetSegmentResponse as SegmentResponse,
-  GetSessionCountRequest,
-  NotifyChangedViewportsRequest,
-  NotifyChangedViewportsResponse,
-  PauseSessionChangesRequest,
-  PauseSessionChangesResponse,
-  ResumeSessionChangesRequest,
-  ResumeSessionChangesResponse,
-  SaveSessionRequest,
-  SaveSessionResponse,
-  SearchSessionRequest as SearchRequest,
-  SearchSessionResponse as SearchResponse,
-  SessionBeginTransactionRequest,
-  SessionBeginTransactionResponse,
-  SessionEndTransactionRequest,
-  SessionEndTransactionResponse,
-  GetSessionCountResponse as SessionCountResponse,
-  SingleCount,
-  UnsubscribeToSessionEventsRequest,
-  UnsubscribeToSessionEventsResponse,
   IOFlags as ProtoIOFlags,
-  SessionEventKind as ProtoSessionEventKind,
-  ViewportEventKind as ProtoViewportEventKind,
+  SessionEventKind as RawProtoSessionEventKind,
+  ViewportEventKind as RawProtoViewportEventKind,
+} from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import {
+  beginSessionTransaction as rawBeginSessionTransaction,
+  countCharacters as rawCountCharacters,
+  createSession as rawCreateSession,
+  destroySession as rawDestroySession,
+  getByteOrderMark as rawGetByteOrderMark,
+  getComputedFileSize as rawGetComputedFileSize,
+  getContentType as rawGetContentType,
+  getCounts as rawGetCounts,
+  getLanguage as rawGetLanguage,
+  getSegment as rawGetSegment,
+  getSessionCount as rawGetSessionCount,
+  notifyChangedViewports as rawNotifyChangedViewports,
+  pauseSessionChanges as rawPauseSessionChanges,
+  profileSession as rawProfileSession,
+  resumeSessionChanges as rawResumeSessionChanges,
+  saveSession as rawSaveSession,
+  searchSession as rawSearchSession,
+  unsubscribeSession as rawUnsubscribeSession,
+  endSessionTransaction as rawEndSessionTransaction,
+} from './protobuf_ts/session'
+import {
+  wrapByteOrderMarkResponse,
+  wrapCharacterCountResponse,
+  wrapContentTypeResponse,
+  wrapCreateSessionResponse,
+  wrapLanguageResponse,
+  wrapSaveSessionResponse,
+  wrapSingleCount,
+  type ByteOrderMarkResponse,
+  type CharacterCountResponse,
+  type ContentTypeResponse,
+  type CreateSessionResponse,
+  type LanguageResponse,
+  type SaveSessionResponse,
+  type SingleCount,
 } from './omega_edit_pb'
-import { getClient } from './client'
-import { debugLog, getLogger } from './logger'
-import { editSimple, IEditStats, overwrite } from './change'
+import { editSimple, type IEditStats, overwrite } from './change'
 
 export enum SaveStatus {
-  SUCCESS = 0, // session saved successfully
-  MODIFIED = -100, // target file was modified since the session was created
+  SUCCESS = 0,
+  MODIFIED = -100,
 }
 
-// Backward-compatible enum aliases for public API
 export const IOFlags = {
   IO_FLG_NONE: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
   IO_FLG_OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
@@ -80,131 +74,74 @@ export const IOFlags = {
 }
 
 export const SessionEventKind = {
-  SESSION_EVT_UNDEFINED: ProtoSessionEventKind.SESSION_EVENT_KIND_UNSPECIFIED,
-  SESSION_EVT_CREATE: ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE,
-  SESSION_EVT_EDIT: ProtoSessionEventKind.SESSION_EVENT_KIND_EDIT,
-  SESSION_EVT_UNDO: ProtoSessionEventKind.SESSION_EVENT_KIND_UNDO,
-  SESSION_EVT_CLEAR: ProtoSessionEventKind.SESSION_EVENT_KIND_CLEAR,
-  SESSION_EVT_TRANSFORM: ProtoSessionEventKind.SESSION_EVENT_KIND_TRANSFORM,
-  SESSION_EVT_CREATE_CHECKPOINT:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_CHECKPOINT,
-  SESSION_EVT_DESTROY_CHECKPOINT:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_CHECKPOINT,
-  SESSION_EVT_SAVE: ProtoSessionEventKind.SESSION_EVENT_KIND_SAVE,
-  SESSION_EVT_CHANGES_PAUSED:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_PAUSED,
-  SESSION_EVT_CHANGES_RESUMED:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_CHANGES_RESUMED,
-  SESSION_EVT_CREATE_VIEWPORT:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_CREATE_VIEWPORT,
-  SESSION_EVT_DESTROY_VIEWPORT:
-    ProtoSessionEventKind.SESSION_EVENT_KIND_DESTROY_VIEWPORT,
-  ...ProtoSessionEventKind,
+  SESSION_EVT_UNDEFINED: RawProtoSessionEventKind.UNSPECIFIED,
+  SESSION_EVT_CREATE: RawProtoSessionEventKind.CREATE,
+  SESSION_EVT_EDIT: RawProtoSessionEventKind.EDIT,
+  SESSION_EVT_UNDO: RawProtoSessionEventKind.UNDO,
+  SESSION_EVT_CLEAR: RawProtoSessionEventKind.CLEAR,
+  SESSION_EVT_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
+  SESSION_EVT_CREATE_CHECKPOINT: RawProtoSessionEventKind.CREATE_CHECKPOINT,
+  SESSION_EVT_DESTROY_CHECKPOINT: RawProtoSessionEventKind.DESTROY_CHECKPOINT,
+  SESSION_EVT_SAVE: RawProtoSessionEventKind.SAVE,
+  SESSION_EVT_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
+  SESSION_EVT_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
+  SESSION_EVT_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
+  SESSION_EVT_DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
+  SESSION_EVENT_KIND_UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
+  SESSION_EVENT_KIND_CREATE: RawProtoSessionEventKind.CREATE,
+  SESSION_EVENT_KIND_EDIT: RawProtoSessionEventKind.EDIT,
+  SESSION_EVENT_KIND_UNDO: RawProtoSessionEventKind.UNDO,
+  SESSION_EVENT_KIND_CLEAR: RawProtoSessionEventKind.CLEAR,
+  SESSION_EVENT_KIND_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
+  SESSION_EVENT_KIND_CREATE_CHECKPOINT:
+    RawProtoSessionEventKind.CREATE_CHECKPOINT,
+  SESSION_EVENT_KIND_DESTROY_CHECKPOINT:
+    RawProtoSessionEventKind.DESTROY_CHECKPOINT,
+  SESSION_EVENT_KIND_SAVE: RawProtoSessionEventKind.SAVE,
+  SESSION_EVENT_KIND_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
+  SESSION_EVENT_KIND_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
+  SESSION_EVENT_KIND_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
+  SESSION_EVENT_KIND_DESTROY_VIEWPORT:
+    RawProtoSessionEventKind.DESTROY_VIEWPORT,
+  ...RawProtoSessionEventKind,
 }
 
 export const ViewportEventKind = {
-  VIEWPORT_EVT_UNDEFINED:
-    ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNSPECIFIED,
-  VIEWPORT_EVT_CREATE: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CREATE,
-  VIEWPORT_EVT_EDIT: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_EDIT,
-  VIEWPORT_EVT_UNDO: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_UNDO,
-  VIEWPORT_EVT_CLEAR: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CLEAR,
-  VIEWPORT_EVT_TRANSFORM: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_TRANSFORM,
-  VIEWPORT_EVT_MODIFY: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_MODIFY,
-  VIEWPORT_EVT_CHANGES: ProtoViewportEventKind.VIEWPORT_EVENT_KIND_CHANGES,
-  ...ProtoViewportEventKind,
+  VIEWPORT_EVT_UNDEFINED: RawProtoViewportEventKind.UNSPECIFIED,
+  VIEWPORT_EVT_CREATE: RawProtoViewportEventKind.CREATE,
+  VIEWPORT_EVT_EDIT: RawProtoViewportEventKind.EDIT,
+  VIEWPORT_EVT_UNDO: RawProtoViewportEventKind.UNDO,
+  VIEWPORT_EVT_CLEAR: RawProtoViewportEventKind.CLEAR,
+  VIEWPORT_EVT_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
+  VIEWPORT_EVT_MODIFY: RawProtoViewportEventKind.MODIFY,
+  VIEWPORT_EVT_CHANGES: RawProtoViewportEventKind.CHANGES,
+  VIEWPORT_EVENT_KIND_UNSPECIFIED: RawProtoViewportEventKind.UNSPECIFIED,
+  VIEWPORT_EVENT_KIND_CREATE: RawProtoViewportEventKind.CREATE,
+  VIEWPORT_EVENT_KIND_EDIT: RawProtoViewportEventKind.EDIT,
+  VIEWPORT_EVENT_KIND_UNDO: RawProtoViewportEventKind.UNDO,
+  VIEWPORT_EVENT_KIND_CLEAR: RawProtoViewportEventKind.CLEAR,
+  VIEWPORT_EVENT_KIND_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
+  VIEWPORT_EVENT_KIND_MODIFY: RawProtoViewportEventKind.MODIFY,
+  VIEWPORT_EVENT_KIND_CHANGES: RawProtoViewportEventKind.CHANGES,
+  ...RawProtoViewportEventKind,
 }
 
-// index in the byte frequency profile array for the DOS end of line '\r\n' pair
 export const PROFILE_DOS_EOL = 256
 
-/**
- * Create a file editing session from a file path
- * @param file_path file path, will be opened for read, to create an editing session with, or undefined if starting from
- * scratch
- * @param session_id_desired if defined, the session ID to assign to this session, if undefined a unique session ID will
- * be generated by the server
- * @param checkpoint_directory if defined, the directory to store checkpoints in, if undefined, the server will use a
- * reasonable default
- * @return session ID, on success, or empty string if session creation was blocked (e.g., graceful shutdown)
- */
 export async function createSession(
   file_path: string = '',
   session_id_desired: string = '',
   checkpoint_directory: string = ''
 ): Promise<CreateSessionResponse> {
-  const log = getLogger()
-  let request = new CreateSessionRequest()
-  if (session_id_desired.length > 0)
-    request.setSessionIdDesired(session_id_desired)
-  if (file_path.length > 0) request.setFilePath(file_path)
-  if (checkpoint_directory.length > 0)
-    request.setCheckpointDirectory(checkpoint_directory)
-  debugLog(log, () => ({ fn: 'createSession', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<CreateSessionResponse>((resolve, reject) => {
-    client.createSession(request, (err, r: CreateSessionResponse) => {
-      if (err) {
-        log.error({
-          fn: 'createSession',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('createSession error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'createSession', resp: r.toObject() }))
-      return resolve(r)
-    })
-  })
+  return wrapCreateSessionResponse(
+    await rawCreateSession(file_path, session_id_desired, checkpoint_directory)
+  )
 }
 
-/**
- * Destroy the given session and all associated objects (changes, and viewports)
- * @param session_id session to destroy
- * @return session ID that was destroyed, on success
- */
-export async function destroySession(session_id: string): Promise<string> {
-  const log = getLogger()
-  const request = new DestroySessionRequest().setId(session_id)
-  debugLog(log, () => ({ fn: 'destroySession', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client.destroySession(request, (err, r: DestroySessionResponse) => {
-      if (err) {
-        log.error({
-          fn: 'destroySession',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('destroySession error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'destroySession', resp: r.toObject() }))
-      return resolve(r.getId())
-    })
-  })
+export function destroySession(session_id: string): Promise<string> {
+  return rawDestroySession(session_id)
 }
 
-/**
- * Save the given session (the edited file) to the given file path.  If the save file already exists, it can be
- * overwritten if overwrite is true.  If the file exists and overwrite is false, a new unique file name will be used as
- * determined by server.  If the file being edited is overwritten, the affected editing session will be reset.
- * @param session_id session to save
- * @param file_path file path to save to
- * @param flags IOFlags to control how the session is saved to the file
- * @param offset offset within the session to begin saving from
- * @param length number of bytes to save, if 0, save the entire session
- * @return name of the saved file, on success
- */
 export async function saveSession(
   session_id: string,
   file_path: string,
@@ -212,676 +149,114 @@ export async function saveSession(
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {
-  const log = getLogger()
-  const request = new SaveSessionRequest()
-    .setSessionId(session_id)
-    .setFilePath(file_path)
-    .setIoFlags(flags)
-    .setOffset(offset)
-    .setLength(length)
-  debugLog(log, () => ({ fn: 'saveSession', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<SaveSessionResponse>((resolve, reject) => {
-    client.saveSession(request, (err, r: SaveSessionResponse) => {
-      if (err) {
-        log.error({
-          fn: 'saveSession',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('saveSession error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'saveSession', resp: r.toObject() }))
-      return resolve(r)
-    })
-  })
+  return wrapSaveSessionResponse(
+    await rawSaveSession(session_id, file_path, flags, offset, length)
+  )
 }
 
-/**
- * Computed file size in bytes for a given session
- * @param session_id session to get the computed file size from
- * @return computed file size in bytes, on success
- */
-export async function getComputedFileSize(session_id: string): Promise<number> {
-  const log = getLogger()
-  const request = new GetComputedFileSizeRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'getComputedFileSize',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<number>((resolve, reject) => {
-    client.getComputedFileSize(request, (err, r: ComputedFileSizeResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getComputedFileSize',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('getComputedFileSize error: ' + err.message)
-      }
-      debugLog(log, () => ({
-        fn: 'getComputedFileSize',
-        resp: r.toObject(),
-      }))
-      return resolve(r.getComputedFileSize())
-    })
-  })
+export function getComputedFileSize(session_id: string): Promise<number> {
+  return rawGetComputedFileSize(session_id)
 }
 
-/**
- * Gets any number of counts for a given session concurrently
- * @param session_id session to get the counts from
- * @param kinds kinds of counts to get
- * @return array of counts with associated kinds, on success
- */
 export async function getCounts(
-  session_id,
-  kinds: CountKind[]
+  session_id: string,
+  kinds: number[]
 ): Promise<SingleCount[]> {
-  const log = getLogger()
-  const request = new CountRequest().setSessionId(session_id).setKindList(kinds)
-  debugLog(log, () => ({ fn: 'getCounts', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<SingleCount[]>((resolve, reject) => {
-    client.getCount(request, (err, r: CountResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getCounts',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('getCounts error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'getCounts', resp: r.toObject() }))
-      return resolve(r.getCountsList())
-    })
-  })
+  return (await rawGetCounts(session_id, kinds)).map(wrapSingleCount)
 }
 
-/**
- * Pause data changes to the session
- * @param session_id session to pause changes to
- * @return session ID that has its changes paused, on success
- */
-export async function pauseSessionChanges(session_id: string): Promise<string> {
-  const log = getLogger()
-  const request = new PauseSessionChangesRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'pauseSessionChanges',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client.pauseSessionChanges(
-      request,
-      (err, r: PauseSessionChangesResponse) => {
-        if (err) {
-          log.error({
-            fn: 'pauseSessionChanges',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('pauseSessionChanges error: ' + err.message)
-        }
-        debugLog(log, () => ({
-          fn: 'pauseSessionChanges',
-          resp: r.toObject(),
-        }))
-        return resolve(r.getId())
-      }
-    )
-  })
+export function pauseSessionChanges(session_id: string): Promise<string> {
+  return rawPauseSessionChanges(session_id)
 }
 
-/**
- * Begin a transaction on the given session
- * @param session_id session to begin a transaction on
- * @return session ID that has a transaction started, on success
- */
-export async function beginSessionTransaction(
-  session_id: string
-): Promise<string> {
-  const log = getLogger()
-  const request = new SessionBeginTransactionRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'beginSessionTransaction',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client.sessionBeginTransaction(
-      request,
-      (err, r: SessionBeginTransactionResponse) => {
-        if (err) {
-          log.error({
-            fn: 'beginSessionTransaction',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('beginSessionTransaction error: ' + err.message)
-        }
-        debugLog(log, () => ({
-          fn: 'beginSessionTransaction',
-          resp: r.toObject(),
-        }))
-        return resolve(r.getId())
-      }
-    )
-  })
+export function beginSessionTransaction(session_id: string): Promise<string> {
+  return rawBeginSessionTransaction(session_id)
 }
 
-/**
- * End a transaction on the given session
- * @param session_id session to end a transaction on
- * @return session ID that has a transaction ended, on success
- */
-export async function endSessionTransaction(
-  session_id: string
-): Promise<string> {
-  const log = getLogger()
-  const request = new SessionEndTransactionRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'endSessionTransaction',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client.sessionEndTransaction(
-      request,
-      (err, r: SessionEndTransactionResponse) => {
-        if (err) {
-          log.error({
-            fn: 'endSessionTransaction',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('endSessionTransaction error: ' + err.message)
-        }
-        debugLog(log, () => ({
-          fn: 'endSessionTransaction',
-          resp: r.toObject(),
-        }))
-        return resolve(r.getId())
-      }
-    )
-  })
+export function endSessionTransaction(session_id: string): Promise<string> {
+  return rawEndSessionTransaction(session_id)
 }
 
-/**
- * Resume data changes on the previously paused session
- * @param session_id session to resume changes on
- * @return session ID that has its changes resumed, on success
- */
-export async function resumeSessionChanges(
-  session_id: string
-): Promise<string> {
-  const log = getLogger()
-  const request = new ResumeSessionChangesRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'resumeSessionChanges',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client.resumeSessionChanges(
-      request,
-      (err, r: ResumeSessionChangesResponse) => {
-        if (err) {
-          log.error({
-            fn: 'resumeSessionChanges',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('resumeSessionChanges error: ' + err.message)
-        }
-        debugLog(log, () => ({
-          fn: 'resumeSessionChanges',
-          resp: r.toObject(),
-        }))
-        return resolve(r.getId())
-      }
-    )
-  })
+export function resumeSessionChanges(session_id: string): Promise<string> {
+  return rawResumeSessionChanges(session_id)
 }
 
-/**
- * Unsubscribe to session events
- * @param session_id session to unsubscribe
- * @return session ID that was unsubscribed, on success
- */
-export async function unsubscribeSession(session_id: string): Promise<string> {
-  const log = getLogger()
-  const request = new UnsubscribeToSessionEventsRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'unsubscribeSession',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<string>((resolve, reject) => {
-    client
-      .unsubscribeToSessionEvents(
-        request,
-        (err, r: UnsubscribeToSessionEventsResponse) => {
-          if (err) {
-            log.error({
-              fn: 'unsubscribeSession',
-              rqst: request.toObject(),
-              err: {
-                msg: err.message,
-                details: err.details,
-                code: err.code,
-                stack: err.stack,
-              },
-            })
-            return reject('unsubscribeSession error: ' + err.message)
-          }
-          debugLog(log, () => ({
-            fn: 'unsubscribeSession',
-            resp: r.toObject(),
-          }))
-          return resolve(r.getId())
-        }
-      )
-      .on('error', (err) => {
-        // Call cancelled thrown when server is shutdown
-        if (!err.message.includes('Call cancelled')) {
-          throw err
-        }
-      })
-  })
+export function unsubscribeSession(session_id: string): Promise<string> {
+  return rawUnsubscribeSession(session_id)
 }
 
-/**
- * Given a session and offset, return a copy of that data segment
- * @param session_id session to copy a segment of data from
- * @param offset session offset to begin copying data from
- * @param length number of bytes to copy
- * @return copy of the desired segment of data, on success
- */
-export async function getSegment(
+export function getSegment(
   session_id: string,
   offset: number,
   length: number
 ): Promise<Uint8Array> {
-  const log = getLogger()
-  const request = new SegmentRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(length)
-  debugLog(log, () => ({ fn: 'getSegment', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<Uint8Array>((resolve, reject) => {
-    client.getSegment(request, (err, r: SegmentResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getSegment',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('getSegment error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'getSegment', resp: r.toObject() }))
-      return resolve(r.getData_asU8())
-    })
-  })
+  return rawGetSegment(session_id, offset, length)
 }
 
-/**
- * Gets the number of active editing sessions on the server
- * @return number of active sessions on the server, on success
- */
-export async function getSessionCount(): Promise<number> {
-  const log = getLogger()
-  log.debug({ fn: 'getSessionCount' })
-  const client = await getClient()
-  return new Promise<number>((resolve, reject) => {
-    client.getSessionCount(
-      new GetSessionCountRequest(),
-      (err, r: SessionCountResponse) => {
-        if (err) {
-          log.error({
-            fn: 'getSessionCount',
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('getSessionCount error: ' + err.message)
-        }
-        debugLog(log, () => ({ fn: 'getSessionCount', resp: r.toObject() }))
-        return resolve(r.getCount())
-      }
-    )
-  })
+export function getSessionCount(): Promise<number> {
+  return rawGetSessionCount()
 }
 
-/**
- * Notify changed viewports in the given session with a VIEWPORT_EVT_CHANGES event
- * @param session_id session to notify viewports with changes
- * @return number of viewports that were notified
- */
-export async function notifyChangedViewports(
-  session_id: string
-): Promise<number> {
-  const log = getLogger()
-  const request = new NotifyChangedViewportsRequest().setId(session_id)
-  debugLog(log, () => ({
-    fn: 'notifyChangedViewports',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<number>((resolve, reject) => {
-    client.notifyChangedViewports(
-      request,
-      (err, r: NotifyChangedViewportsResponse) => {
-        if (err) {
-          log.error({
-            fn: 'notifyChangedViewports',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('notifyChangedViewports error: ' + err.message)
-        }
-        debugLog(log, () => ({
-          fn: 'notifyChangedViewports',
-          resp: r.toObject(),
-        }))
-        return resolve(r.getCount())
-      }
-    )
-  })
+export function notifyChangedViewports(session_id: string): Promise<number> {
+  return rawNotifyChangedViewports(session_id)
 }
 
-/**
- * Given a session, offset and length, populate a byte frequency profile
- * @param session_id session to profile
- * @param offset where in the session to begin profiling
- * @param length number of bytes from the offset to stop profiling (if 0, it will profile to the end of the session)
- * @return array of size 256 (for the 8-bit bytes) with the values being the byte frequency in the given range, on
- * success
- */
-export async function profileSession(
+export function profileSession(
   session_id: string,
   offset: number = 0,
   length: number = 0
 ): Promise<number[]> {
-  const log = getLogger()
-  const request = new GetByteFrequencyProfileRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(length)
-  debugLog(log, () => ({ fn: 'profileSession', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<number[]>((resolve, reject) => {
-    client.getByteFrequencyProfile(
-      request,
-      (err, r: ByteFrequencyProfileResponse) => {
-        if (err) {
-          log.error({
-            fn: 'profileSession',
-            rqst: request.toObject(),
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('profileSession error: ' + err.message)
-        }
-        debugLog(log, () => ({ fn: 'profileSession', resp: r.toObject() }))
-        return resolve(r.getFrequencyList())
-      }
-    )
-  })
+  return rawProfileSession(session_id, offset, length)
 }
 
-/**
- * Given a computed profile, return the total number of bytes in the 7-bit ASCII range
- * @param profile computed profile from profileSession
- * @return total number of ASCII bytes found in the profile
- */
 export function numAscii(profile: number[]): number {
   return profile.slice(0, 128).reduce((accumulator, current) => {
     return accumulator + current
   }, 0)
 }
 
-/**
- * Given a session and offset, return the byte order mark (BOM) at that offset, if any
- * @param session_id session to get the BOM from
- * @param offset offset within the session to get the BOM from
- * @return byte order mark response, on success
- */
 export async function getByteOrderMark(
   session_id: string,
   offset: number = 0
 ): Promise<ByteOrderMarkResponse> {
-  const log = getLogger()
-  const request = new GetByteOrderMarkRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(4)
-  debugLog(log, () => ({
-    fn: 'getByteOrderMark',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<ByteOrderMarkResponse>((resolve, reject) => {
-    client.getByteOrderMark(request, (err, r: ByteOrderMarkResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getByteOrderMark',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        reject('getByteOrderMark error: ' + err.message)
-        return
-      }
-      debugLog(log, () => ({ fn: 'getByteOrderMark', resp: r.toObject() }))
-      resolve(r)
-    })
-  })
+  return wrapByteOrderMarkResponse(
+    await rawGetByteOrderMark(session_id, offset)
+  )
 }
 
-/**
- * Detect the content/MIME type of a segment of session data
- * @param session_id session to detect the content type from
- * @param offset byte offset within the session to begin detection
- * @param length number of bytes from the offset to examine
- * @return content type response containing the detected MIME type
- */
 export async function getContentType(
   session_id: string,
   offset: number,
   length: number
 ): Promise<ContentTypeResponse> {
-  const log = getLogger()
-  const request = new GetContentTypeRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(length)
-  debugLog(log, () => ({ fn: 'getContentType', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<ContentTypeResponse>((resolve, reject) => {
-    client.getContentType(request, (err, r: ContentTypeResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getContentType',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        reject('getContentType error: ' + err.message)
-        return
-      }
-      debugLog(log, () => ({ fn: 'getContentType', resp: r.toObject() }))
-      resolve(r)
-    })
-  })
+  return wrapContentTypeResponse(
+    await rawGetContentType(session_id, offset, length)
+  )
 }
 
-/**
- * Detect the natural language of a UTF-encoded text segment
- * @param session_id session to detect the language from
- * @param offset byte offset within the session to begin detection
- * @param length number of bytes from the offset to examine
- * @param bom byte order mark hint for decoding (e.g., "UTF-8", "UTF-16LE", or "none")
- * @return language response containing an ISO 639-1 two-letter language code
- */
 export async function getLanguage(
   session_id: string,
   offset: number,
   length: number,
   bom: string
 ): Promise<LanguageResponse> {
-  const log = getLogger()
-  const request = new GetLanguageRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(length)
-    .setByteOrderMark(bom)
-  debugLog(log, () => ({ fn: 'getLanguage', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<LanguageResponse>((resolve, reject) => {
-    client.getLanguage(request, (err, r: LanguageResponse) => {
-      if (err) {
-        log.error({
-          fn: 'getLanguage',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        reject('getLanguage error: ' + err.message)
-        return
-      }
-      debugLog(log, () => ({ fn: 'getLanguage', resp: r.toObject() }))
-      resolve(r)
-    })
-  })
+  return wrapLanguageResponse(
+    await rawGetLanguage(session_id, offset, length, bom)
+  )
 }
 
-/**
- * Count characters by byte-width in a UTF-encoded text segment.  Returns counts of single-byte,
- * double-byte, triple-byte, and quad-byte characters, as well as invalid bytes.
- * @param session_id session to count characters in
- * @param offset byte offset within the session to begin counting (default: 0)
- * @param length number of bytes from the offset to examine (default: 0 means entire session)
- * @param bom byte order mark hint for decoding (default: "none")
- * @return character count response with per-width counts and invalid byte count
- */
 export async function countCharacters(
   session_id: string,
   offset: number = 0,
   length: number = 0,
   bom: string = 'none'
 ): Promise<CharacterCountResponse> {
-  const log = getLogger()
-  const request = new GetCharacterCountsRequest()
-    .setSessionId(session_id)
-    .setOffset(offset)
-    .setLength(length)
-    .setByteOrderMark(bom)
-  debugLog(log, () => ({
-    fn: 'countCharacters',
-    rqst: request.toObject(),
-  }))
-  const client = await getClient()
-  return new Promise<CharacterCountResponse>((resolve, reject) => {
-    client.getCharacterCounts(request, (err, r: CharacterCountResponse) => {
-      if (err) {
-        log.error({
-          fn: 'countCharacters',
-          rqst: request.toObject(),
-          err: {
-            msg: err.message,
-            details: err.details,
-            code: err.code,
-            stack: err.stack,
-          },
-        })
-        return reject('countCharacters error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'countCharacters', resp: r.toObject() }))
-      return resolve(r)
-    })
-  })
+  return wrapCharacterCountResponse(
+    await rawCountCharacters(session_id, offset, length, bom)
+  )
 }
 
-/**
- * Search a segment in a session for a given pattern and return an array of offsets where the pattern was found
- * @param session_id session to find the pattern in
- * @param pattern pattern to find
- * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
- * @param is_reverse false for forward search and true for reverse search
- * @param offset start searching at this offset within the session, or at the start of the session if undefined
- * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
- * it will search to the end of the session
- * @param limit if defined, limits the number of matches found to this amount
- * @return array of offsets where the pattern was found
- */
-export async function searchSession(
+export function searchSession(
   session_id: string,
   pattern: string | Uint8Array,
   is_case_insensitive: boolean = false,
@@ -890,58 +265,17 @@ export async function searchSession(
   length: number = 0,
   limit: number = 0
 ): Promise<number[]> {
-  const log = getLogger()
-  // make sure we have a pattern to search for
-  if (pattern.length === 0) {
-    log.warn({ fn: 'searchSession', err: { msg: 'empty pattern given' } })
-    return []
-  }
-  let request = new SearchRequest()
-    .setSessionId(session_id)
-    .setPattern(typeof pattern === 'string' ? Buffer.from(pattern) : pattern)
-    .setIsCaseInsensitive(is_case_insensitive)
-    .setIsReverse(is_reverse)
-    .setOffset(offset)
-  if (length > 0) {
-    request.setLength(length)
-  }
-  if (limit > 0) {
-    request.setLimit(limit)
-  }
-  debugLog(log, () => ({ fn: 'searchSession', rqst: request.toObject() }))
-  const client = await getClient()
-  return new Promise<number[]>((resolve, reject) => {
-    client.searchSession(request, (err, r: SearchResponse) => {
-      if (err) {
-        return reject('searchSession error: ' + err.message)
-      }
-      debugLog(log, () => ({ fn: 'searchSession', resp: r.toObject() }))
-      return resolve(r.getMatchOffsetList())
-    })
-  })
+  return rawSearchSession(
+    session_id,
+    pattern,
+    is_case_insensitive,
+    is_reverse,
+    offset,
+    length,
+    limit
+  )
 }
 
-/**
- * Replace all found patterns in a segment in a session with the given replacement and return the number of replacements
- * done
- * @param session_id session to replace patterns in
- * @param pattern pattern to replace
- * @param replacement replacement
- * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
- * @param is_reverse false for forward search and true for reverse search
- * @param offset start searching at this offset within the session, or at the start of the session if undefined
- * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
- * it will search to the end of the session
- * @param limit if defined, limits the number of matches found to this amount
- * @param front_to_back if true, replace from the front of the session to the back, otherwise replace from the back to the front
- * @param overwrite_only if true, do not remove the pattern then insert the replacement, instead overwrite starting at the beginning of the pattern
- * @param stats optional edit stats to update
- * @return number of replacements done
- * @remarks highly recommend pausing all viewport events using pauseViewportEvents before calling this function, then
- * resuming all viewport events with resumeViewportEvents after calling this function.  Since viewport events were
- * disabled during the changes, determine what viewports have changes by using the viewportHasChanges function and if so
- * refresh the ones that have changes.
- */
 export async function replaceSession(
   session_id: string,
   pattern: string | Uint8Array,
@@ -986,7 +320,6 @@ export async function replaceSession(
       }
     }
   } else {
-    // do replacements starting with the highest offset to the lowest offset, so offset adjustments don't need to be made
     if (overwrite_only) {
       for (let i = foundLocations.length - 1; i >= 0; --i) {
         await overwrite(session_id, foundLocations[i], replacementArray, stats)
@@ -1006,23 +339,6 @@ export async function replaceSession(
   return foundLocations.length
 }
 
-/**
- * Replace found patterns in a segment in session iteratively
- * @param session_id session to replace patterns in
- * @param pattern pattern to replace
- * @param replacement replacement
- * @param is_case_insensitive false for case-sensitive matching and true for case-insensitive matching
- * @param offset start searching at this offset within the session, or at the start of the session if undefined
- * @param length search from the starting offset within the session up to this many bytes, if set to zero or undefined,
- * it will search to the end of the session
- * @param overwrite_only if true, do not remove the pattern then insert the replacement, instead overwrite starting at the beginning of the pattern
- * @param stats optional edit stats to update
- * @return offset to use for the next iteration or -1 if no replacement took place
- *
- * @remarks First find the first occurrence of the pattern in the session, then ask the user if they want to replace it.
- * If they do, replace it and return the offset of the end of the replacement.  If they don't, return the offset of the
- * end of the pattern.  The next iteration should start at the returned offset.
- */
 export async function replaceOneSession(
   session_id: string,
   pattern: string | Uint8Array,
@@ -1059,7 +375,6 @@ export async function replaceOneSession(
         stats
       )
     }
-    // the next iteration offset should be at the end of this replacement
     return foundLocations[0] + replacementArray.length
   }
   return -1

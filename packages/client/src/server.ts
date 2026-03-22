@@ -26,24 +26,17 @@ import type { HeartbeatOptions } from '@omega-edit/server'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
-import {
-  GetHeartbeatRequest as HeartbeatRequest,
-  GetHeartbeatResponse as HeartbeatResponse,
-  GetServerInfoRequest,
-  GetServerInfoResponse as ServerInfoResponse,
-  ServerControlKind,
-  ServerControlRequest,
-  ServerControlResponse,
-} from './omega_edit_pb'
+import { ServerControlKind } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
-const importModule = new Function(
-  'specifier',
-  'return import(specifier)'
-) as <T = unknown>(specifier: string) => Promise<T>
+const importModule = new Function('specifier', 'return import(specifier)') as <
+  T = unknown,
+>(
+  specifier: string
+) => Promise<T>
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
@@ -59,9 +52,8 @@ async function getPortToPid(): Promise<
 }
 
 async function getServerModule(): Promise<typeof import('@omega-edit/server')> {
-  const module = await importModule<Record<string, unknown>>(
-    '@omega-edit/server'
-  )
+  const module =
+    await importModule<Record<string, unknown>>('@omega-edit/server')
   const defaultExport = module.default
 
   if (defaultExport && typeof defaultExport === 'object') {
@@ -889,9 +881,7 @@ export async function startServerUnixSocket(
  */
 export function stopServerGraceful(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
-    return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN)
-    )
+    return resolve(stopServer(ServerControlKind.GRACEFUL_SHUTDOWN))
   })
 }
 
@@ -901,9 +891,7 @@ export function stopServerGraceful(): Promise<number> {
  */
 export function stopServerImmediate(): Promise<number> {
   return new Promise<number>(async (resolve, _) => {
-    return resolve(
-      stopServer(ServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN)
-    )
+    return resolve(stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN))
   })
 }
 
@@ -926,24 +914,27 @@ async function stopServer(
   const client = await getClient()
 
   try {
-    const resp: ServerControlResponse = await new Promise((resolve, reject) => {
-      client.serverControl(
-        new ServerControlRequest().setKind(kind),
-        (err, response) => {
+    const resp: { responseCode: number } | { getResponseCode(): number } =
+      await new Promise((resolve, reject) => {
+        client.serverControl({ kind }, (err, response) => {
           if (err) {
             reject(err)
+          } else if (!response) {
+            reject(new Error('undefined server control response'))
           } else {
             resolve(response)
           }
-        }
-      )
-    })
+        })
+      })
 
-    if (resp.getResponseCode() !== 0) {
+    const responseCode =
+      'getResponseCode' in resp ? resp.getResponseCode() : resp.responseCode
+
+    if (responseCode !== 0) {
       log.error({
         ...logMetadata,
         stopped: false,
-        err: { msg: 'stopServer exit status: ' + resp.getResponseCode() },
+        err: { msg: 'stopServer exit status: ' + responseCode },
       })
     } else {
       log.debug({
@@ -951,7 +942,7 @@ async function stopServer(
         stopped: true,
       })
     }
-    return resp.getResponseCode()
+    return responseCode
   } catch (err: unknown) {
     if (err instanceof Error) {
       if ('code' in err) {
@@ -1057,39 +1048,36 @@ export async function getServerInfo(): Promise<IServerInfo> {
   log.debug(logMetadata)
   const client = await getClient()
   return new Promise<IServerInfo>((resolve, reject) => {
-    client.getServerInfo(
-      new GetServerInfoRequest(),
-      (err, serverInfoResponse: ServerInfoResponse) => {
-        if (err) {
-          log.error({
-            ...logMetadata,
-            err: {
-              msg: err.message,
-              details: err.details,
-              code: err.code,
-              stack: err.stack,
-            },
-          })
-          return reject('getServerInfo error: ' + err.message)
-        }
-        if (!serverInfoResponse) {
-          log.error({
-            ...logMetadata,
-            err: { msg: 'undefined server info' },
-          })
-          return reject('undefined server info')
-        }
-        resolve({
-          serverHostname: serverInfoResponse.getHostname(),
-          serverProcessId: serverInfoResponse.getProcessId(),
-          serverVersion: serverInfoResponse.getServerVersion(),
-          jvmVersion: serverInfoResponse.getJvmVersion(),
-          jvmVendor: serverInfoResponse.getJvmVendor(),
-          jvmPath: serverInfoResponse.getJvmPath(),
-          availableProcessors: serverInfoResponse.getAvailableProcessors(),
+    client.getServerInfo({}, (err, serverInfoResponse) => {
+      if (err) {
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
         })
+        return reject('getServerInfo error: ' + err.message)
       }
-    )
+      if (!serverInfoResponse) {
+        log.error({
+          ...logMetadata,
+          err: { msg: 'undefined server info' },
+        })
+        return reject('undefined server info')
+      }
+      resolve({
+        serverHostname: serverInfoResponse.hostname,
+        serverProcessId: serverInfoResponse.processId,
+        serverVersion: serverInfoResponse.serverVersion,
+        jvmVersion: serverInfoResponse.jvmVersion,
+        jvmVendor: serverInfoResponse.jvmVendor,
+        jvmPath: serverInfoResponse.jvmPath,
+        availableProcessors: serverInfoResponse.availableProcessors,
+      })
+    })
   })
 }
 
@@ -1125,12 +1113,13 @@ export async function getServerHeartbeat(
 
   return new Promise<IServerHeartbeat>((resolve, reject) => {
     client.getHeartbeat(
-      new HeartbeatRequest()
-        .setHostname(hostname)
-        .setProcessId(process.pid)
-        .setHeartbeatInterval(heartbeatInterval)
-        .setSessionIdsList(activeSessions),
-      (err, heartbeatResponse: HeartbeatResponse) => {
+      {
+        hostname,
+        processId: process.pid,
+        heartbeatInterval,
+        sessionIds: activeSessions,
+      },
+      (err, heartbeatResponse) => {
         const logMetadata = { fn: 'getServerHeartbeat' }
 
         if (err) {
@@ -1157,14 +1146,14 @@ export async function getServerHeartbeat(
         const latency: number = Date.now() - startTime
         resolve({
           latency: latency,
-          sessionCount: heartbeatResponse.getSessionCount(),
-          serverTimestamp: heartbeatResponse.getTimestamp(),
-          serverUptime: heartbeatResponse.getUptime(),
-          serverCpuCount: heartbeatResponse.getCpuCount(),
-          serverCpuLoadAverage: heartbeatResponse.getCpuLoadAverage(),
-          serverMaxMemory: heartbeatResponse.getMaxMemory(),
-          serverCommittedMemory: heartbeatResponse.getCommittedMemory(),
-          serverUsedMemory: heartbeatResponse.getUsedMemory(),
+          sessionCount: heartbeatResponse.sessionCount,
+          serverTimestamp: heartbeatResponse.timestamp,
+          serverUptime: heartbeatResponse.uptime,
+          serverCpuCount: heartbeatResponse.cpuCount,
+          serverCpuLoadAverage: heartbeatResponse.cpuLoadAverage,
+          serverMaxMemory: heartbeatResponse.maxMemory,
+          serverCommittedMemory: heartbeatResponse.committedMemory,
+          serverUsedMemory: heartbeatResponse.usedMemory,
         })
       }
     )
