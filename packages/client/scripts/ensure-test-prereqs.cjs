@@ -35,23 +35,57 @@ const clientBuildInputs = [
   path.join(repoRoot, 'scripts', 'write-dist-package-jsons.js'),
 ]
 
+function resolveYarnCommand() {
+  if (process.platform !== 'win32') {
+    return {
+      command: 'yarn',
+      args: [],
+    }
+  }
+
+  const whereResult = spawnSync('where.exe', ['yarn.js'], {
+    encoding: 'utf8',
+    shell: false,
+  })
+
+  if (whereResult.error) {
+    console.error(whereResult.error)
+    process.exit(1)
+  }
+
+  if (whereResult.status !== 0) {
+    console.error(whereResult.stderr || 'Unable to locate yarn.js')
+    process.exit(whereResult.status ?? 1)
+  }
+
+  const yarnCliPath = whereResult.stdout
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0)
+
+  if (!yarnCliPath) {
+    console.error('Unable to locate yarn.js')
+    process.exit(1)
+  }
+
+  return {
+    command: process.execPath,
+    args: [yarnCliPath],
+  }
+}
+
 function run(command, args, cwd) {
-  const isWindowsYarn = process.platform === 'win32' && command === 'yarn'
-  const result = isWindowsYarn
-    ? spawnSync(
-        process.env.comspec || 'cmd.exe',
-        ['/d', '/s', '/c', command, ...args],
-        {
-          cwd,
-          stdio: 'inherit',
-          shell: false,
-        }
-      )
-    : spawnSync(command, args, {
-        cwd,
-        stdio: 'inherit',
-        shell: false,
-      })
+  const resolvedCommand =
+    command === 'yarn' ? resolveYarnCommand() : { command, args: [] }
+  const result = spawnSync(
+    resolvedCommand.command,
+    [...resolvedCommand.args, ...args],
+    {
+      cwd,
+      stdio: 'inherit',
+      shell: false,
+    }
+  )
 
   if (result.error) {
     console.error(result.error)
