@@ -165,23 +165,28 @@ function runCmakeBuild() {
         '@omega-edit/server: could not find vcvars64.bat; falling back to current environment.\n'
       )
     } else {
-      const wrapperPath = path.join(buildDir, 'codex-vcvars-build.cmd')
+      const wrapperName = 'codex-vcvars-build.cmd'
+      const wrapperPath = path.join(buildDir, wrapperName)
       fs.writeFileSync(
         wrapperPath,
         [
           '@echo off',
-          `call "${vcvars64}" >nul`,
+          'call "%~1" >nul',
           'if errorlevel 1 exit /b %errorlevel%',
-          `cmake --build "${buildDir}" --target omega-edit-grpc-server`,
+          'cmake --build "%~2" --target omega-edit-grpc-server',
           'exit /b %errorlevel%',
           '',
         ].join('\r\n')
       )
 
-      const result = spawnSync('cmd.exe', ['/d', '/c', wrapperPath], {
-        cwd: repoRoot,
-        stdio: 'inherit',
-      })
+      const result = spawnSync(
+        'cmd.exe',
+        ['/d', '/c', wrapperName, vcvars64, buildDir],
+        {
+          cwd: buildDir,
+          stdio: 'inherit',
+        }
+      )
 
       if (result.error) {
         process.stderr.write(
