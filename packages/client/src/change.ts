@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { ChangeKind as ProtoChangeKind } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import { ChangeKind as RawProtoChangeKind } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
   clear as rawClear,
   del as rawDel,
@@ -46,10 +46,13 @@ import {
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 export const ChangeKind = {
-  CHANGE_DELETE: ProtoChangeKind.DELETE,
-  CHANGE_INSERT: ProtoChangeKind.INSERT,
-  CHANGE_OVERWRITE: ProtoChangeKind.OVERWRITE,
-  ...ProtoChangeKind,
+  CHANGE_DELETE: RawProtoChangeKind.DELETE,
+  CHANGE_INSERT: RawProtoChangeKind.INSERT,
+  CHANGE_OVERWRITE: RawProtoChangeKind.OVERWRITE,
+  CHANGE_KIND_DELETE: RawProtoChangeKind.DELETE,
+  CHANGE_KIND_INSERT: RawProtoChangeKind.INSERT,
+  CHANGE_KIND_OVERWRITE: RawProtoChangeKind.OVERWRITE,
+  ...RawProtoChangeKind,
 }
 
 export { EditStats }

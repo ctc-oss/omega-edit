@@ -18,6 +18,7 @@
  */
 
 import {
+  CountKind,
   type CreateSessionRequest,
   type CreateSessionResponse,
   type GetByteFrequencyProfileResponse,
@@ -59,6 +60,20 @@ function requireResponse<T>(response: T | undefined, fn: string): T {
   return response
 }
 
+function makeWrappedError(fn: string, error: unknown): Error {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String(error)
+  const wrapped = new Error(`${fn} error: ${message}`)
+  if (error instanceof Error) {
+    ;(wrapped as Error & { cause?: unknown }).cause = error
+  }
+  return wrapped
+}
+
 export async function createSession(
   filePath: string = '',
   sessionIdDesired: string = '',
@@ -89,7 +104,7 @@ export async function createSession(
             stack: err.stack,
           },
         })
-        return reject('createSession error: ' + err.message)
+        return reject(makeWrappedError('createSession', err))
       }
 
       try {
@@ -100,7 +115,7 @@ export async function createSession(
         }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('createSession', error))
       }
     })
   })
@@ -125,7 +140,7 @@ export async function destroySession(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('destroySession error: ' + err.message)
+        return reject(makeWrappedError('destroySession', err))
       }
 
       try {
@@ -136,7 +151,7 @@ export async function destroySession(sessionId: string): Promise<string> {
         }))
         return resolve(id)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('destroySession', error))
       }
     })
   })
@@ -174,7 +189,7 @@ export async function saveSession(
             stack: err.stack,
           },
         })
-        return reject('saveSession error: ' + err.message)
+        return reject(makeWrappedError('saveSession', err))
       }
 
       try {
@@ -182,7 +197,7 @@ export async function saveSession(
         debugLog(log, () => ({ fn: 'protobufTs.saveSession', resp: required }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('saveSession', error))
       }
     })
   })
@@ -210,7 +225,7 @@ export async function getComputedFileSize(sessionId: string): Promise<number> {
             stack: err.stack,
           },
         })
-        return reject('getComputedFileSize error: ' + err.message)
+        return reject(makeWrappedError('getComputedFileSize', err))
       }
 
       try {
@@ -224,7 +239,7 @@ export async function getComputedFileSize(sessionId: string): Promise<number> {
         }))
         return resolve(required.computedFileSize)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getComputedFileSize', error))
       }
     })
   })
@@ -237,7 +252,7 @@ export async function getCounts(
   const log = getLogger()
   const request = {
     sessionId: sessionId,
-    kind: kinds as GetCountResponse['counts'][number]['kind'][],
+    kind: kinds as CountKind[],
   }
   debugLog(log, () => ({ fn: 'protobufTs.getCounts', rqst: request }))
   const client = await getClient()
@@ -255,7 +270,7 @@ export async function getCounts(
             stack: err.stack,
           },
         })
-        return reject('getCounts error: ' + err.message)
+        return reject(makeWrappedError('getCounts', err))
       }
 
       try {
@@ -266,7 +281,7 @@ export async function getCounts(
         debugLog(log, () => ({ fn: 'protobufTs.getCounts', resp: required }))
         return resolve(required.counts)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getCounts', error))
       }
     })
   })
@@ -294,7 +309,7 @@ export async function pauseSessionChanges(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('pauseSessionChanges error: ' + err.message)
+        return reject(makeWrappedError('pauseSessionChanges', err))
       }
 
       try {
@@ -305,7 +320,7 @@ export async function pauseSessionChanges(sessionId: string): Promise<string> {
         }))
         return resolve(id)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('pauseSessionChanges', error))
       }
     })
   })
@@ -335,7 +350,7 @@ export async function beginSessionTransaction(
             stack: err.stack,
           },
         })
-        return reject('beginSessionTransaction error: ' + err.message)
+        return reject(makeWrappedError('beginSessionTransaction', err))
       }
 
       try {
@@ -346,7 +361,7 @@ export async function beginSessionTransaction(
         }))
         return resolve(id)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('beginSessionTransaction', error))
       }
     })
   })
@@ -376,7 +391,7 @@ export async function endSessionTransaction(
             stack: err.stack,
           },
         })
-        return reject('endSessionTransaction error: ' + err.message)
+        return reject(makeWrappedError('endSessionTransaction', err))
       }
 
       try {
@@ -387,7 +402,7 @@ export async function endSessionTransaction(
         }))
         return resolve(id)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('endSessionTransaction', error))
       }
     })
   })
@@ -415,7 +430,7 @@ export async function resumeSessionChanges(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return reject('resumeSessionChanges error: ' + err.message)
+        return reject(makeWrappedError('resumeSessionChanges', err))
       }
 
       try {
@@ -426,7 +441,7 @@ export async function resumeSessionChanges(sessionId: string): Promise<string> {
         }))
         return resolve(id)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('resumeSessionChanges', error))
       }
     })
   })
@@ -466,7 +481,7 @@ export async function unsubscribeSession(sessionId: string): Promise<string> {
             stack: err.stack,
           },
         })
-        return settleReject('unsubscribeSession error: ' + err.message)
+        return settleReject(makeWrappedError('unsubscribeSession', err))
       }
 
       try {
@@ -477,7 +492,7 @@ export async function unsubscribeSession(sessionId: string): Promise<string> {
         }))
         return settleResolve(id)
       } catch (error) {
-        return settleReject((error as Error).message)
+        return settleReject(makeWrappedError('unsubscribeSession', error))
       }
     })
 
@@ -517,7 +532,7 @@ export async function getSegment(
             stack: err.stack,
           },
         })
-        return reject('getSegment error: ' + err.message)
+        return reject(makeWrappedError('getSegment', err))
       }
 
       try {
@@ -528,7 +543,7 @@ export async function getSegment(
         debugLog(log, () => ({ fn: 'protobufTs.getSegment', resp: required }))
         return resolve(required.data)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getSegment', error))
       }
     })
   })
@@ -551,7 +566,7 @@ export async function getSessionCount(): Promise<number> {
             stack: err.stack,
           },
         })
-        return reject('getSessionCount error: ' + err.message)
+        return reject(makeWrappedError('getSessionCount', err))
       }
 
       try {
@@ -565,7 +580,7 @@ export async function getSessionCount(): Promise<number> {
         }))
         return resolve(required.count)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getSessionCount', error))
       }
     })
   })
@@ -595,7 +610,7 @@ export async function notifyChangedViewports(
             stack: err.stack,
           },
         })
-        return reject('notifyChangedViewports error: ' + err.message)
+        return reject(makeWrappedError('notifyChangedViewports', err))
       }
 
       try {
@@ -609,7 +624,7 @@ export async function notifyChangedViewports(
         }))
         return resolve(required.count)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('notifyChangedViewports', error))
       }
     })
   })
@@ -642,7 +657,7 @@ export async function profileSession(
             stack: err.stack,
           },
         })
-        return reject('profileSession error: ' + err.message)
+        return reject(makeWrappedError('profileSession', err))
       }
 
       try {
@@ -656,7 +671,7 @@ export async function profileSession(
         }))
         return resolve(required.frequency)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('profileSession', error))
       }
     })
   })
@@ -691,7 +706,7 @@ export async function getByteOrderMark(
             stack: err.stack,
           },
         })
-        return reject('getByteOrderMark error: ' + err.message)
+        return reject(makeWrappedError('getByteOrderMark', err))
       }
 
       try {
@@ -705,7 +720,7 @@ export async function getByteOrderMark(
         }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getByteOrderMark', error))
       }
     })
   })
@@ -738,7 +753,7 @@ export async function getContentType(
             stack: err.stack,
           },
         })
-        return reject('getContentType error: ' + err.message)
+        return reject(makeWrappedError('getContentType', err))
       }
 
       try {
@@ -752,7 +767,7 @@ export async function getContentType(
         }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getContentType', error))
       }
     })
   })
@@ -787,7 +802,7 @@ export async function getLanguage(
             stack: err.stack,
           },
         })
-        return reject('getLanguage error: ' + err.message)
+        return reject(makeWrappedError('getLanguage', err))
       }
 
       try {
@@ -798,7 +813,7 @@ export async function getLanguage(
         debugLog(log, () => ({ fn: 'protobufTs.getLanguage', resp: required }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('getLanguage', error))
       }
     })
   })
@@ -836,7 +851,7 @@ export async function countCharacters(
             stack: err.stack,
           },
         })
-        return reject('countCharacters error: ' + err.message)
+        return reject(makeWrappedError('countCharacters', err))
       }
 
       try {
@@ -850,7 +865,7 @@ export async function countCharacters(
         }))
         return resolve(required)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('countCharacters', error))
       }
     })
   })
@@ -892,7 +907,17 @@ export async function searchSession(
   return new Promise<number[]>((resolve, reject) => {
     client.searchSession(request, (err, response) => {
       if (err) {
-        return reject('searchSession error: ' + err.message)
+        log.error({
+          fn: 'protobufTs.searchSession',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('searchSession', err))
       }
 
       try {
@@ -906,7 +931,7 @@ export async function searchSession(
         }))
         return resolve(required.matchOffset)
       } catch (error) {
-        return reject((error as Error).message)
+        return reject(makeWrappedError('searchSession', error))
       }
     })
   })

@@ -28,7 +28,22 @@ const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_DEADLINE_SECONDS = 10
 
 export function resetClient() {
+  const client = clientInstance_
   clientInstance_ = undefined
+  if (client) {
+    try {
+      client.close()
+    } catch (err) {
+      const log = getLogger()
+      log.warn({
+        fn: 'protobufTs.resetClient',
+        state: 'close failed',
+        err: {
+          msg: err instanceof Error ? err.message : String(err),
+        },
+      })
+    }
+  }
 }
 
 export function waitForReady(

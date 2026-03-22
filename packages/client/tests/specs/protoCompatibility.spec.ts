@@ -74,6 +74,27 @@ class FakeReadableStream<T> {
     return this
   }
 
+  addListener(event: string, listener: Handler): this {
+    return this.on(event, listener)
+  }
+
+  once(event: string, listener: Handler): this {
+    const wrapped: Handler = (...args: any[]) => {
+      this.removeListener(event, wrapped)
+      listener(...args)
+    }
+    return this.on(event, wrapped)
+  }
+
+  removeListener(event: string, listener: Handler): this {
+    const listeners = this.handlers.get(event) || []
+    this.handlers.set(
+      event,
+      listeners.filter((candidate) => candidate !== listener)
+    )
+    return this
+  }
+
   emit(event: string, payload: T): void {
     for (const listener of this.handlers.get(event) || []) {
       listener(payload)
@@ -418,12 +439,17 @@ describe('Proto Compatibility', () => {
       )
 
       let wrappedSessionEvent: SessionEvent | undefined
+      let wrappedSessionEventFromAddListener: SessionEvent | undefined
+      let onceViewportEvents = 0
       client
         .subscribeToSessionEvents(
           new EventSubscriptionRequest().setId('session-id').setInterest(3)
         )
         .on('data', (event) => {
           wrappedSessionEvent = event
+        })
+        .addListener('data', (event) => {
+          wrappedSessionEventFromAddListener = event
         })
       sessionStream.emit('data', {
         sessionId: 'session-id',
@@ -434,6 +460,7 @@ describe('Proto Compatibility', () => {
         serial: 4,
       })
       expect(wrappedSessionEvent).to.be.instanceOf(SessionEvent)
+      expect(wrappedSessionEventFromAddListener).to.be.instanceOf(SessionEvent)
       expect(wrappedSessionEvent?.getSerial()).to.equal(4)
 
       let wrappedViewportEvent: ViewportEvent | undefined
@@ -446,6 +473,10 @@ describe('Proto Compatibility', () => {
         .on('data', (event) => {
           wrappedViewportEvent = event
         })
+        .once('data', (event) => {
+          expect(event).to.be.instanceOf(ViewportEvent)
+          onceViewportEvents += 1
+        })
       viewportStream.emit('data', {
         sessionId: 'session-id',
         viewportId: 'viewport-id',
@@ -455,8 +486,18 @@ describe('Proto Compatibility', () => {
         length: 7,
         data: new Uint8Array([8]),
       })
+      viewportStream.emit('data', {
+        sessionId: 'session-id',
+        viewportId: 'viewport-id',
+        viewportEventKind: ViewportEventKind.EDIT,
+        serial: 6,
+        offset: 7,
+        length: 8,
+        data: new Uint8Array([9]),
+      })
       expect(wrappedViewportEvent).to.be.instanceOf(ViewportEvent)
-      expect(wrappedViewportEvent?.getOffset()).to.equal(6)
+      expect(wrappedViewportEvent?.getOffset()).to.equal(7)
+      expect(onceViewportEvents).to.equal(1)
     } finally {
       EditorServiceClient.prototype.subscribeToSessionEvents =
         originalSessionSubscribe

@@ -261,6 +261,48 @@ describe('Client Utilities', () => {
     }
   })
 
+  it('should close the cached client when resetClient is called', async () => {
+    resetClient()
+    let closeCalls = 0
+
+    class FakeEditorClient {
+      constructor(_uri: string) {}
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        callback()
+      }
+
+      close() {
+        closeCalls += 1
+      }
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      await clientModule.getClient(9312, '127.0.0.1')
+      expect(closeCalls).to.equal(0)
+
+      resetClient()
+      expect(closeCalls).to.equal(1)
+
+      resetClient()
+      expect(closeCalls).to.equal(1)
+    } finally {
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
   it('should reset the client when all connection candidates fail', async () => {
     resetClient()
     const uris: string[] = []

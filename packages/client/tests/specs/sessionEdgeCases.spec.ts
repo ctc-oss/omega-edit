@@ -25,6 +25,11 @@ const clientModule =
 const sessionModule =
   require('../../dist/cjs/session.js') as typeof import('../../src/session')
 
+function expectErrorMessage(err: unknown, message: string) {
+  expect(err).to.be.instanceOf(Error)
+  expect((err as Error).message).to.equal(message)
+}
+
 describe('Session Edge Cases', () => {
   it('should reject createSession and saveSession failures', async () => {
     const restoreGetClient = overrideProperty(
@@ -78,35 +83,35 @@ describe('Session Edge Cases', () => {
       await sessionModule.createSession()
       expect.fail('createSession should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('createSession error: create session failed')
+      expectErrorMessage(err, 'createSession error: create session failed')
     }
 
     try {
       await sessionModule.saveSession('sid', '/tmp/test.txt')
       expect.fail('saveSession should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('saveSession error: save session failed')
+      expectErrorMessage(err, 'saveSession error: save session failed')
     }
 
     try {
       await sessionModule.destroySession('sid')
       expect.fail('destroySession should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('destroySession error: destroy session failed')
+      expectErrorMessage(err, 'destroySession error: destroy session failed')
     }
 
     try {
       await sessionModule.getComputedFileSize('sid')
       expect.fail('getComputedFileSize should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getComputedFileSize error: file size failed')
+      expectErrorMessage(err, 'getComputedFileSize error: file size failed')
     }
 
     try {
       await sessionModule.getCounts('sid', [])
       expect.fail('getCounts should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getCounts error: count failed')
+      expectErrorMessage(err, 'getCounts error: count failed')
     } finally {
       restoreGetClient()
     }
@@ -168,14 +173,15 @@ describe('Session Edge Cases', () => {
       await sessionModule.pauseSessionChanges('session-id')
       expect.fail('pauseSessionChanges should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('pauseSessionChanges error: pause session failed')
+      expectErrorMessage(err, 'pauseSessionChanges error: pause session failed')
     }
 
     try {
       await sessionModule.beginSessionTransaction('session-id')
       expect.fail('beginSessionTransaction should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal(
+      expectErrorMessage(
+        err,
         'beginSessionTransaction error: begin transaction failed'
       )
     }
@@ -184,7 +190,8 @@ describe('Session Edge Cases', () => {
       await sessionModule.endSessionTransaction('session-id')
       expect.fail('endSessionTransaction should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal(
+      expectErrorMessage(
+        err,
         'endSessionTransaction error: end transaction failed'
       )
     }
@@ -193,7 +200,10 @@ describe('Session Edge Cases', () => {
       await sessionModule.resumeSessionChanges('session-id')
       expect.fail('resumeSessionChanges should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('resumeSessionChanges error: resume session failed')
+      expectErrorMessage(
+        err,
+        'resumeSessionChanges error: resume session failed'
+      )
     } finally {
       restoreGetClient()
     }
@@ -243,7 +253,8 @@ describe('Session Edge Cases', () => {
         'unsubscribeSession should reject when the callback returns an error'
       )
     } catch (err) {
-      expect(err).to.equal(
+      expectErrorMessage(
+        err,
         'unsubscribeSession error: unsubscribe session failed'
       )
     }
@@ -320,28 +331,28 @@ describe('Session Edge Cases', () => {
       await sessionModule.getByteOrderMark('session-id')
       expect.fail('getByteOrderMark should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getByteOrderMark error: bom failed')
+      expectErrorMessage(err, 'getByteOrderMark error: bom failed')
     }
 
     try {
       await sessionModule.getContentType('session-id', 0, 1)
       expect.fail('getContentType should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getContentType error: content type failed')
+      expectErrorMessage(err, 'getContentType error: content type failed')
     }
 
     try {
       await sessionModule.getLanguage('session-id', 0, 1, 'none')
       expect.fail('getLanguage should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getLanguage error: language failed')
+      expectErrorMessage(err, 'getLanguage error: language failed')
     }
 
     try {
       await sessionModule.countCharacters('session-id')
       expect.fail('countCharacters should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('countCharacters error: character count failed')
+      expectErrorMessage(err, 'countCharacters error: character count failed')
     } finally {
       restoreGetClient()
     }
@@ -414,35 +425,35 @@ describe('Session Edge Cases', () => {
       await sessionModule.searchSession('session-id', 'needle')
       expect.fail('searchSession should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('searchSession error: search failed')
+      expectErrorMessage(err, 'searchSession error: search failed')
     }
 
     try {
       await sessionModule.getSegment('session-id', 0, 1)
       expect.fail('getSegment should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getSegment error: segment failed')
+      expectErrorMessage(err, 'getSegment error: segment failed')
     }
 
     try {
       await sessionModule.getSessionCount()
       expect.fail('getSessionCount should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getSessionCount error: session count failed')
+      expectErrorMessage(err, 'getSessionCount error: session count failed')
     }
 
     try {
       await sessionModule.notifyChangedViewports('session-id')
       expect.fail('notifyChangedViewports should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('notifyChangedViewports error: notify failed')
+      expectErrorMessage(err, 'notifyChangedViewports error: notify failed')
     }
 
     try {
       await sessionModule.profileSession('session-id')
       expect.fail('profileSession should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('profileSession error: profile failed')
+      expectErrorMessage(err, 'profileSession error: profile failed')
     } finally {
       restoreGetClient()
     }

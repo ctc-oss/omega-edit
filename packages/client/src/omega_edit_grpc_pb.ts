@@ -86,13 +86,104 @@ function wrapDataEvents<TIn, TOut>(
   stream: grpc.ClientReadableStream<TIn>,
   wrap: (message: TIn) => TOut
 ): grpc.ClientReadableStream<TOut> {
-  const originalOn = stream.on.bind(stream)
-  stream.on = ((event: string, listener: (...args: unknown[]) => void) => {
-    if (event === 'data') {
-      return originalOn(event, (message: TIn) => listener(wrap(message)))
+  type StreamListener = (...args: any[]) => void
+  const wrappedListeners = new WeakMap<StreamListener, StreamListener>()
+
+  const getWrappedListener = (
+    event: string,
+    listener: StreamListener
+  ): StreamListener => {
+    if (event !== 'data') {
+      return listener
     }
-    return originalOn(event, listener as Parameters<typeof originalOn>[1])
+
+    const existing = wrappedListeners.get(listener)
+    if (existing) {
+      return existing
+    }
+
+    const wrappedListener = (message: TIn) => listener(wrap(message))
+    wrappedListeners.set(listener, wrappedListener)
+    return wrappedListener
+  }
+
+  const getRemovalListener = (
+    event: string,
+    listener: StreamListener
+  ): StreamListener => {
+    if (event !== 'data') {
+      return listener
+    }
+    return wrappedListeners.get(listener) ?? listener
+  }
+
+  const originalOn = stream.on.bind(stream)
+  const originalAddListener = stream.addListener.bind(stream)
+  const originalOnce = stream.once.bind(stream)
+  const originalRemoveListener = stream.removeListener.bind(stream)
+  const originalOff =
+    typeof stream.off === 'function' ? stream.off.bind(stream) : undefined
+
+  stream.on = ((event: string, listener: (...args: unknown[]) => void) => {
+    return originalOn(
+      event,
+      getWrappedListener(
+        event,
+        listener as Parameters<typeof originalOn>[1] as StreamListener
+      ) as Parameters<typeof originalOn>[1]
+    )
   }) as typeof stream.on
+
+  stream.addListener = ((
+    event: string,
+    listener: (...args: unknown[]) => void
+  ) => {
+    return originalAddListener(
+      event,
+      getWrappedListener(
+        event,
+        listener as Parameters<typeof originalAddListener>[1] as StreamListener
+      ) as Parameters<typeof originalAddListener>[1]
+    )
+  }) as typeof stream.addListener
+
+  stream.once = ((event: string, listener: (...args: unknown[]) => void) => {
+    return originalOnce(
+      event,
+      getWrappedListener(
+        event,
+        listener as Parameters<typeof originalOnce>[1] as StreamListener
+      ) as Parameters<typeof originalOnce>[1]
+    )
+  }) as typeof stream.once
+
+  stream.removeListener = ((
+    event: string,
+    listener: (...args: unknown[]) => void
+  ) => {
+    return originalRemoveListener(
+      event,
+      getRemovalListener(
+        event,
+        listener as Parameters<
+          typeof originalRemoveListener
+        >[1] as StreamListener
+      ) as Parameters<typeof originalRemoveListener>[1]
+    )
+  }) as typeof stream.removeListener
+
+  if (originalOff) {
+    stream.off = ((event: string, listener: (...args: unknown[]) => void) => {
+      return originalOff(
+        event,
+        getRemovalListener(
+          event,
+          listener as Parameters<typeof originalOn>[1] as StreamListener
+        ) as Parameters<typeof originalOn>[1]
+      )
+    }) as typeof stream.off
+  }
+
   return stream as unknown as grpc.ClientReadableStream<TOut>
 }
 
@@ -104,13 +195,16 @@ export class EditorClient extends EditorServiceClient {
     request: SubscriptionRequest,
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
-  ):
-    | (grpc.ClientReadableStream<SubscribeToSessionEventsResponse> &
-        grpc.ClientReadableStream<SessionEvent>) {
+  ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> &
+    grpc.ClientReadableStream<SessionEvent> {
     const normalized = normalizeSubscriptionRequest(request)
     const stream =
       options !== undefined
-        ? super.subscribeToSessionEvents(normalized, metadata as grpc.Metadata, options)
+        ? super.subscribeToSessionEvents(
+            normalized,
+            metadata as grpc.Metadata,
+            options
+          )
         : metadata !== undefined
           ? super.subscribeToSessionEvents(normalized, metadata)
           : super.subscribeToSessionEvents(normalized)
@@ -125,13 +219,16 @@ export class EditorClient extends EditorServiceClient {
     request: SubscriptionRequest,
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
-  ):
-    | (grpc.ClientReadableStream<SubscribeToViewportEventsResponse> &
-        grpc.ClientReadableStream<ViewportEvent>) {
+  ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> &
+    grpc.ClientReadableStream<ViewportEvent> {
     const normalized = normalizeSubscriptionRequest(request)
     const stream =
       options !== undefined
-        ? super.subscribeToViewportEvents(normalized, metadata as grpc.Metadata, options)
+        ? super.subscribeToViewportEvents(
+            normalized,
+            metadata as grpc.Metadata,
+            options
+          )
         : metadata !== undefined
           ? super.subscribeToViewportEvents(normalized, metadata)
           : super.subscribeToViewportEvents(normalized)
