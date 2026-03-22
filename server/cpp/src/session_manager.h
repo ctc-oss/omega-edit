@@ -21,6 +21,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -32,6 +33,14 @@
 
 namespace omega_edit {
 namespace grpc_server {
+
+/// Configurable service limits to bound server-side resource usage.
+struct ResourceLimits {
+    size_t session_event_queue_capacity{1024};   ///< 0 = unbounded
+    size_t viewport_event_queue_capacity{256};   ///< 0 = unbounded
+    int64_t max_change_bytes{64 * 1024 * 1024};  ///< 0 = unbounded
+    size_t max_viewports_per_session{256};       ///< 0 = unbounded
+};
 
 /// Session event data for streaming
 struct SessionEventData {
@@ -58,9 +67,14 @@ struct ViewportEventData {
 template <typename T>
 class EventQueue {
 public:
+    explicit EventQueue(size_t max_size = 0) : max_size_(max_size) {}
+
     void push(const T &event) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (closed_) { return; }
+        if (max_size_ > 0 && queue_.size() >= max_size_) {
+            queue_.pop();
+        }
         queue_.push(event);
         cv_.notify_one();
     }
@@ -82,9 +96,16 @@ public:
         cv_.notify_all();
     }
 
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        std::queue<T> empty;
+        queue_.swap(empty);
+    }
+
     bool is_closed() const { return closed_; }
 
 private:
+    size_t max_size_;
     std::queue<T> queue_;
     std::mutex mutex_;
     std::condition_variable cv_;
@@ -124,13 +145,14 @@ enum class ViewportCreateError {
     SESSION_NOT_FOUND,
     INVALID_VIEWPORT_ID,   ///< desired_viewport_id contains the reserved ':' character
     DUPLICATE_VIEWPORT_ID, ///< a viewport with the given id already exists
+    TOO_MANY_VIEWPORTS,    ///< the session has reached the configured viewport limit
     CORE_ERROR,            ///< the underlying omega_edit API failed to create the viewport
 };
 
 /// Manages all omega_edit sessions and viewports
 class SessionManager {
 public:
-    SessionManager();
+    explicit SessionManager(ResourceLimits limits = {});
     ~SessionManager();
 
     // Session lifecycle
@@ -176,6 +198,7 @@ private:
                                         const void *ptr);
 
     mutable std::mutex mutex_;
+    ResourceLimits limits_;
     std::map<std::string, std::shared_ptr<SessionInfo>> sessions_;
 };
 

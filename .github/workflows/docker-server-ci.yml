@@ -1,0 +1,142 @@
+# Copyright (c) 2021 Concurrent Technologies Corporation.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
+
+---
+name: Docker Server CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    name: Build and smoke test Docker server image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      COMPOSE_FILE: docker/docker-compose.yml
+      OMEGA_EDIT_DATA_DIR: ${{ runner.temp }}/omega-edit-data
+      GRPCURL_IMAGE: fullstorydev/grpcurl:v1.9.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Prepare compose environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${OMEGA_EDIT_DATA_DIR}"
+          echo "OMEGA_EDIT_UID=$(id -u)" >> "${GITHUB_ENV}"
+          echo "OMEGA_EDIT_GID=$(id -g)" >> "${GITHUB_ENV}"
+
+      - name: Render docker compose config
+        run: docker compose -f "${COMPOSE_FILE}" config
+
+      - name: Build and start Docker server
+        run: docker compose -f "${COMPOSE_FILE}" up --build -d omega-edit-server
+
+      - name: Wait for container health
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker compose -f "${COMPOSE_FILE}" ps -q omega-edit-server)"
+          if [[ -z "${container_id}" ]]; then
+            echo "Failed to resolve the omega-edit-server container id" >&2
+            exit 1
+          fi
+
+          for attempt in {1..60}; do
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "${container_id}")"
+            echo "Health status: ${status} (attempt ${attempt}/60)"
+
+            if [[ "${status}" == "healthy" ]]; then
+              exit 0
+            fi
+
+            if [[ "${status}" == "unhealthy" ]]; then
+              echo "Container reported unhealthy status" >&2
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "Timed out waiting for the omega-edit-server container to become healthy" >&2
+          exit 1
+
+      - name: Smoke test EditorService RPCs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            --network host \
+            -v "${GITHUB_WORKSPACE}/proto:/proto:ro" \
+            "${GRPCURL_IMAGE}" \
+            -plaintext \
+            -import-path /proto \
+            -proto omega_edit/v1/omega_edit.proto \
+            -d '{}' \
+            127.0.0.1:9000 \
+            omega_edit.v1.EditorService/GetServerInfo | tee "${RUNNER_TEMP}/server-info.json"
+
+          grep -q '"serverVersion"' "${RUNNER_TEMP}/server-info.json"
+
+          session_json="$(
+            docker run --rm \
+              --network host \
+              -v "${GITHUB_WORKSPACE}/proto:/proto:ro" \
+              "${GRPCURL_IMAGE}" \
+              -plaintext \
+              -import-path /proto \
+              -proto omega_edit/v1/omega_edit.proto \
+              -d '{}' \
+              127.0.0.1:9000 \
+              omega_edit.v1.EditorService/CreateSession
+          )"
+
+          session_id="$(
+            python3 -c 'import json, sys; print(json.load(sys.stdin)["sessionId"])' <<<"${session_json}"
+          )"
+
+          destroy_json="$(
+            python3 -c 'import json, sys; print(json.dumps({"id": sys.argv[1]}))' "${session_id}"
+          )"
+
+          printf '%s' "${destroy_json}" | docker run --rm -i \
+            --network host \
+            -v "${GITHUB_WORKSPACE}/proto:/proto:ro" \
+            "${GRPCURL_IMAGE}" \
+            -plaintext \
+            -import-path /proto \
+            -proto omega_edit/v1/omega_edit.proto \
+            -d @ \
+            127.0.0.1:9000 \
+            omega_edit.v1.EditorService/DestroySession
+
+      - name: Show container status
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" ps
+
+      - name: Show container logs
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" logs --no-color
+
+      - name: Tear down Docker server
+        if: always()
+        run: docker compose -f "${COMPOSE_FILE}" down --remove-orphans --volumes

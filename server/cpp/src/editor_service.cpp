@@ -58,8 +58,10 @@ static int get_cpu_count() {
     return n > 0 ? static_cast<int>(n) : 1;
 }
 
-EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, std::function<void()> shutdown_callback)
-    : start_time_(std::chrono::steady_clock::now()), heartbeat_config_(heartbeat_config),
+EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
+                                     std::function<void()> shutdown_callback)
+    : session_manager_(resource_limits), start_time_(std::chrono::steady_clock::now()),
+      heartbeat_config_(heartbeat_config), resource_limits_(resource_limits),
       shutdown_callback_(std::move(shutdown_callback)),
       content_type_detector_(create_default_content_type_detector()),
       language_detector_(create_default_language_detector()) {
@@ -311,6 +313,13 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
             serial = omega_edit_delete(session, request->offset(), request->length());
             break;
         case ::omega_edit::v1::CHANGE_KIND_INSERT:
+            if (resource_limits_.max_change_bytes > 0 &&
+                request->data().size() > static_cast<size_t>(resource_limits_.max_change_bytes)) {
+                return grpc::Status(
+                    grpc::StatusCode::RESOURCE_EXHAUSTED,
+                    "change payload exceeds configured limit of " +
+                        std::to_string(resource_limits_.max_change_bytes) + " bytes");
+            }
             if (request->has_data()) {
                 serial = omega_edit_insert_bytes(session, request->offset(),
                                                  reinterpret_cast<const omega_byte_t *>(request->data().data()),
@@ -320,6 +329,13 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
             }
             break;
         case ::omega_edit::v1::CHANGE_KIND_OVERWRITE:
+            if (resource_limits_.max_change_bytes > 0 &&
+                request->data().size() > static_cast<size_t>(resource_limits_.max_change_bytes)) {
+                return grpc::Status(
+                    grpc::StatusCode::RESOURCE_EXHAUSTED,
+                    "change payload exceeds configured limit of " +
+                        std::to_string(resource_limits_.max_change_bytes) + " bytes");
+            }
             if (request->has_data()) {
                 serial = omega_edit_overwrite_bytes(session, request->offset(),
                                                     reinterpret_cast<const omega_byte_t *>(request->data().data()),
@@ -522,6 +538,11 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
             case ViewportCreateError::DUPLICATE_VIEWPORT_ID:
                 return grpc::Status(grpc::StatusCode::ALREADY_EXISTS,
                                     "viewport already exists: " + desired_vp_id);
+            case ViewportCreateError::TOO_MANY_VIEWPORTS:
+                return grpc::Status(
+                    grpc::StatusCode::RESOURCE_EXHAUSTED,
+                    "session reached configured viewport limit of " +
+                        std::to_string(resource_limits_.max_viewports_per_session));
             default:
                 return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create viewport");
         }

@@ -22,6 +22,7 @@ import { getClient } from './client'
 import * as fs from 'fs'
 import * as path from 'path'
 import { createServer, Server, createConnection } from 'net'
+import * as omegaEditServer from '@omega-edit/server'
 import type { HeartbeatOptions } from '@omega-edit/server'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
@@ -32,39 +33,10 @@ import { promisify } from 'util'
 
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
-const importModule = new Function('specifier', 'return import(specifier)') as <
-  T = unknown,
->(
-  specifier: string
-) => Promise<T>
 
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
-
-async function getPortToPid(): Promise<
-  (port: number) => Promise<number | undefined>
-> {
-  const module = await importModule<{
-    portToPid: (port: number) => Promise<number | undefined>
-  }>('pid-port')
-  return module.portToPid
-}
-
-async function getServerModule(): Promise<typeof import('@omega-edit/server')> {
-  const module =
-    await importModule<Record<string, unknown>>('@omega-edit/server')
-  const defaultExport = module.default
-
-  if (defaultExport && typeof defaultExport === 'object') {
-    return {
-      ...(defaultExport as object),
-      ...module,
-    } as typeof import('@omega-edit/server')
-  }
-
-  return module as typeof import('@omega-edit/server')
-}
 
 /**
  * Wait for a given number of milliseconds
@@ -352,29 +324,88 @@ export async function stopProcessUsingPID(
  * @returns process id or undefined if the port is not in use
  */
 async function getPidByPort(port: number): Promise<number | undefined> {
+  if (process.platform === 'win32') {
+    return await getPidByPortWithNetstat(port)
+  }
+
   try {
-    // Try to get the PID using `lsof`
     const { stdout } = await execFilePromise('lsof', [
-      '-iTCP:' + port,
+      '-t',
+      `-iTCP:${port}`,
       '-sTCP:LISTEN',
       '-n',
       '-P',
     ])
-    const lines = stdout.trim().split('\n')
-    if (lines.length > 1) {
-      const [_, pid] = lines[1].trim().split(/\s+/)
-      return parseInt(pid, 10)
+    return parseFirstPid(stdout)
+  } catch {
+    if (process.platform === 'linux') {
+      return await getPidByPortWithSs(port)
     }
+
     return undefined
-  } catch (error) {
-    // Fallback to `portToPid` if `lsof` fails
-    try {
-      const portToPid = await getPortToPid()
-      return await portToPid(port)
-    } catch (portToPidError) {
-      return undefined
-    }
   }
+}
+
+function parseFirstPid(stdout: string): number | undefined {
+  const pid = stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+
+  if (!pid) {
+    return undefined
+  }
+
+  const parsed = Number.parseInt(pid, 10)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
+
+async function getPidByPortWithSs(port: number): Promise<number | undefined> {
+  try {
+    const { stdout } = await execFilePromise('ss', ['-ltnp'])
+    for (const line of stdout.split(/\r?\n/)) {
+      if (!line.includes('LISTEN') || !line.includes(`:${port}`)) {
+        continue
+      }
+
+      const match = line.match(/pid=(\d+)/)
+      if (match) {
+        return Number.parseInt(match[1], 10)
+      }
+    }
+  } catch {
+    // ignore and fall through to undefined
+  }
+
+  return undefined
+}
+
+async function getPidByPortWithNetstat(
+  port: number
+): Promise<number | undefined> {
+  try {
+    const { stdout } = await execFilePromise('netstat', ['-ano', '-p', 'tcp'])
+    for (const line of stdout.split(/\r?\n/)) {
+      const parts = line.trim().split(/\s+/)
+      if (parts.length < 5) {
+        continue
+      }
+
+      const [proto, localAddress, , state, pidText] = parts
+      if (
+        proto.toUpperCase() === 'TCP' &&
+        localAddress.endsWith(`:${port}`) &&
+        state.toUpperCase() === 'LISTENING'
+      ) {
+        const pid = Number.parseInt(pidText, 10)
+        return Number.isNaN(pid) ? undefined : pid
+      }
+    }
+  } catch {
+    // ignore and fall through to undefined
+  }
+
+  return undefined
 }
 
 /**
@@ -630,8 +661,12 @@ export async function startServer(
     }
   }
 
-  const { runServer } = await getServerModule()
-  const { pid } = await runServer(port, host, pidFile, heartbeat)
+  const { pid } = await omegaEditServer.runServer(
+    port,
+    host,
+    pidFile,
+    heartbeat
+  )
 
   log.debug({
     ...logMetadata,
@@ -726,7 +761,7 @@ export async function startServerUnixSocket(
         msg: 'Active server detected on socket path, attempting to stop it',
       })
       if (!(await stopServiceOnSocket(socketPath))) {
-        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. This may be due to insufficient permissions, a hung server process, or unavailable system utilities (e.g., lsof).`
+        const errMsg = `Unix socket ${socketPath} has an active server that could not be stopped. This may be due to insufficient permissions, a hung server process, or unavailable system utilities.`
         log.error({
           ...logMetadata,
           err: {
@@ -823,8 +858,7 @@ export async function startServerUnixSocket(
     args.push(`--pidfile=${pidFile}`)
   }
 
-  const { runServerWithArgs } = await getServerModule()
-  const { pid } = await runServerWithArgs(args, heartbeat)
+  const { pid } = await omegaEditServer.runServerWithArgs(args, heartbeat)
 
   log.debug({
     ...logMetadata,

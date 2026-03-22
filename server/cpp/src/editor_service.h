@@ -42,8 +42,8 @@ struct HeartbeatConfig {
 
 class EditorServiceImpl final : public ::omega_edit::v1::EditorService::Service {
 public:
-    /// Construct with optional heartbeat config and shutdown callback
-    explicit EditorServiceImpl(HeartbeatConfig heartbeat_config = {},
+    /// Construct with optional heartbeat config, resource limits, and shutdown callback
+    explicit EditorServiceImpl(HeartbeatConfig heartbeat_config = {}, ResourceLimits resource_limits = {},
                                std::function<void()> shutdown_callback = nullptr);
     ~EditorServiceImpl() override;
 
@@ -203,6 +203,7 @@ private:
 
     // Session reaping
     HeartbeatConfig heartbeat_config_;
+    ResourceLimits resource_limits_;
     std::function<void()> shutdown_callback_;
     std::thread reaper_thread_;
     std::atomic<bool> reaper_stop_{false};
