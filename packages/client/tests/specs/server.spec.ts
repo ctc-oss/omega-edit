@@ -44,8 +44,11 @@ import {
 import { expect, initChai, testHost, testPort, testTransport } from './common'
 import * as fs from 'fs'
 import * as os from 'os'
+import * as path from 'path'
+import * as fsPromises from 'fs/promises'
+import { getModuleCompat } from './moduleCompat'
 
-const path = require('path')
+const { __dirname } = getModuleCompat(import.meta.url)
 const rootPath = path.resolve(__dirname, '../..')
 
 function expectResourceExhausted(err: unknown, details: string) {
@@ -544,8 +547,6 @@ describe('Server Resource Limits', () => {
 
 // Tests involving running the server
 // Created for investigating https://github.com/apache/daffodil-vscode/pull/1277 and https://github.com/apache/daffodil-vscode/issues/1075
-
-const fsPromises = require('fs').promises
 
 describe('Directory with Spaces Test', () => {
   const originalDir = process.cwd()

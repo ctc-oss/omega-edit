@@ -23,7 +23,9 @@ import {
   makeObjectIdResponse,
   overrideProperty,
 } from './mockHelpers'
+import { getModuleCompat } from './moduleCompat'
 
+const { require } = getModuleCompat(import.meta.url)
 const clientModule =
   require('../../dist/cjs/client.js') as typeof import('../../src/client')
 const viewportModule =

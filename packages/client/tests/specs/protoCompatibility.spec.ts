@@ -19,7 +19,20 @@
 
 import * as grpc from '@grpc/grpc-js'
 import { expect, initChai } from './common'
-import {
+import { getModuleCompat } from './moduleCompat'
+
+const { require } = getModuleCompat(import.meta.url)
+const { CountKind, ServerControlKind } = require('../../dist/cjs/proto.js')
+const {
+  EditorServiceClient,
+} = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js')
+const {
+  CountKind: ProtoCountKind,
+  ServerControlKind: ProtoServerControlKind,
+  SessionEventKind,
+  ViewportEventKind,
+} = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
+const {
   ByteOrderMarkResponse,
   ChangeDetailsResponse,
   CharacterCountResponse,
@@ -51,16 +64,8 @@ import {
   wrapSingleCount,
   wrapViewportDataResponse,
   wrapViewportEvent,
-} from '../../src/omega_edit_pb'
-import { CountKind, ServerControlKind } from '../../src/proto'
-import { EditorClient } from '../../src/omega_edit_grpc_pb'
-import {
-  CountKind as ProtoCountKind,
-  ServerControlKind as ProtoServerControlKind,
-  SessionEventKind,
-  ViewportEventKind,
-} from '../../src/protobuf_ts/generated/omega_edit/v1/omega_edit'
-import { EditorServiceClient } from '../../src/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client'
+} = require('../../dist/cjs/omega_edit_pb.js')
+const { EditorClient } = require('../../dist/cjs/omega_edit_grpc_pb.js')
 
 type Handler = (...args: any[]) => void
 
@@ -438,8 +443,10 @@ describe('Proto Compatibility', () => {
         grpc.credentials.createInsecure()
       )
 
-      let wrappedSessionEvent: SessionEvent | undefined
-      let wrappedSessionEventFromAddListener: SessionEvent | undefined
+      let wrappedSessionEvent: InstanceType<typeof SessionEvent> | undefined
+      let wrappedSessionEventFromAddListener:
+        | InstanceType<typeof SessionEvent>
+        | undefined
       let onceViewportEvents = 0
       client
         .subscribeToSessionEvents(
@@ -463,7 +470,7 @@ describe('Proto Compatibility', () => {
       expect(wrappedSessionEventFromAddListener).to.be.instanceOf(SessionEvent)
       expect(wrappedSessionEvent?.getSerial()).to.equal(4)
 
-      let wrappedViewportEvent: ViewportEvent | undefined
+      let wrappedViewportEvent: InstanceType<typeof ViewportEvent> | undefined
       client
         .subscribeToViewportEvents({
           getId() {

@@ -20,7 +20,18 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
-import {
+import { expect, initChai } from './common'
+import { overrideProperty } from './mockHelpers'
+import { getModuleCompat } from './moduleCompat'
+
+const { require } = getModuleCompat(import.meta.url)
+const clientPackage =
+  require('../../dist/cjs/index.js') as typeof import('../../src/index')
+const clientModule =
+  require('../../dist/cjs/client.js') as typeof import('../../src/client')
+const serverModule =
+  require('../../dist/cjs/server.js') as typeof import('../../src/server')
+const {
   delay,
   findFirstAvailablePort,
   getServerHeartbeat,
@@ -32,14 +43,7 @@ import {
   stopProcessUsingPID,
   stopServiceOnPort,
   stopServerImmediate,
-} from '@omega-edit/client'
-import { expect, initChai } from './common'
-import { overrideProperty } from './mockHelpers'
-
-const clientModule =
-  require('../../dist/cjs/client.js') as typeof import('../../src/client')
-const serverModule =
-  require('../../dist/cjs/server.js') as typeof import('../../src/server')
+} = clientPackage
 
 describe('Server Edge Cases', () => {
   before(async () => {

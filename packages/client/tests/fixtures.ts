@@ -29,9 +29,11 @@ import {
   waitForFileToExist,
 } from '@omega-edit/client'
 import * as fs from 'fs'
+import * as path from 'path'
 import { initChai, testHost, testPort, testTransport } from './specs/common'
+import { getModuleCompat } from './specs/moduleCompat'
 
-const path = require('path')
+const { __dirname } = getModuleCompat(import.meta.url)
 const rootPath = path.resolve(__dirname, '..')
 
 /**
