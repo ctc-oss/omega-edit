@@ -171,22 +171,23 @@ function runCmakeBuild() {
         wrapperPath,
         [
           '@echo off',
-          'call "%~1" >nul',
+          'call "%OMEGA_EDIT_VCVARS64%" >nul',
           'if errorlevel 1 exit /b %errorlevel%',
-          'cmake --build "%~2" --target omega-edit-grpc-server',
+          'cmake --build "%OMEGA_EDIT_CMAKE_BUILD_DIR%" --target omega-edit-grpc-server',
           'exit /b %errorlevel%',
           '',
         ].join('\r\n')
       )
 
-      const result = spawnSync(
-        'cmd.exe',
-        ['/d', '/c', wrapperName, vcvars64, buildDir],
-        {
-          cwd: buildDir,
-          stdio: 'inherit',
-        }
-      )
+      const result = spawnSync('cmd.exe', ['/d', '/c', wrapperName], {
+        cwd: buildDir,
+        env: {
+          ...process.env,
+          OMEGA_EDIT_VCVARS64: vcvars64,
+          OMEGA_EDIT_CMAKE_BUILD_DIR: buildDir,
+        },
+        stdio: 'inherit',
+      })
 
       if (result.error) {
         process.stderr.write(
