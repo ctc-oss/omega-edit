@@ -267,7 +267,9 @@ function stopRunningPackagedBinaryIfNeeded() {
 
     let processRealPath
     try {
-      processRealPath = fs.realpathSync.native(proc.ExecutablePath).toLowerCase()
+      processRealPath = fs.realpathSync
+        .native(proc.ExecutablePath)
+        .toLowerCase()
     } catch {
       continue
     }
