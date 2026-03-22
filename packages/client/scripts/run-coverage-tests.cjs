@@ -1,10 +1,11 @@
 const path = require('path')
 const fs = require('fs')
+const { pathToFileURL } = require('url')
 const Mocha = require('mocha')
 
-require('../tests/register.js')
+require('../tests/register.cjs')
 
-const { resetClient } = require(
+const { resetClient: resetCjsClient } = require(
   path.join(__dirname, '..', 'dist', 'cjs', 'index.js')
 )
 
@@ -13,7 +14,7 @@ async function runSuite(files, options = {}) {
   for (const file of files) {
     mocha.addFile(file)
   }
-  mocha.loadFiles()
+  await mocha.loadFilesAsync()
   return new Promise((resolve) => {
     mocha.run((failures) => resolve(failures))
   })
@@ -28,6 +29,9 @@ function getClientSpecFiles() {
 }
 
 async function main() {
+  const { resetClient: resetEsmClient } = await import(
+    pathToFileURL(path.join(__dirname, '..', 'dist', 'esm', 'index.js')).href
+  )
   const lifecycleSpec = path.join(
     __dirname,
     '..',
@@ -44,9 +48,12 @@ async function main() {
     process.exit(lifecycleFailures)
   }
 
-  resetClient()
+  resetCjsClient()
+  resetEsmClient()
 
-  const fixtures = require(path.join(__dirname, '..', 'tests', 'fixtures.ts'))
+  const fixtures = await import(
+    pathToFileURL(path.join(__dirname, '..', 'tests', 'fixtures.ts')).href
+  )
   await fixtures.mochaGlobalSetup()
 
   let clientFailures = 1

@@ -20,10 +20,12 @@
 import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 import { createServer, Server, createConnection } from 'net'
-import * as omegaEditServer from '@omega-edit/server'
+import * as omegaEditServerModule from '@omega-edit/server'
 import type { HeartbeatOptions } from '@omega-edit/server'
+import waitPort from 'wait-port'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
@@ -37,6 +39,13 @@ const execFilePromise = promisify(execFile)
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
+const omegaEditServer =
+  'default' in omegaEditServerModule
+    ? omegaEditServerModule.default
+    : omegaEditServerModule
+const typedOmegaEditServer =
+  omegaEditServer as typeof import('@omega-edit/server')
+const { runServer, runServerWithArgs } = typedOmegaEditServer
 
 /**
  * Wait for a given number of milliseconds
@@ -697,18 +706,13 @@ export async function startServer(
     }
   }
 
-  const { pid } = await omegaEditServer.runServer(
-    port,
-    host,
-    pidFile,
-    heartbeat
-  )
+  const { pid } = await runServer(port, host, pidFile, heartbeat)
 
   log.debug({
     ...logMetadata,
     state: 'waiting',
   })
-  await require('wait-port')({
+  await waitPort({
     host: host,
     port: port,
     output: 'silent',
@@ -894,7 +898,7 @@ export async function startServerUnixSocket(
     args.push(`--pidfile=${pidFile}`)
   }
 
-  const { pid } = await omegaEditServer.runServerWithArgs(args, heartbeat)
+  const { pid } = await runServerWithArgs(args, heartbeat)
 
   log.debug({
     ...logMetadata,
@@ -1178,7 +1182,7 @@ export async function getServerHeartbeat(
 ): Promise<IServerHeartbeat> {
   const log = getLogger()
   const client = await getClient()
-  const hostname = require('os').hostname()
+  const hostname = os.hostname()
   const startTime: number = Date.now()
 
   return new Promise<IServerHeartbeat>((resolve, reject) => {

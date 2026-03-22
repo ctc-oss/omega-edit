@@ -43,6 +43,9 @@ import {
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
+import { getModuleCompat } from './moduleCompat'
+
+const { __dirname } = getModuleCompat(import.meta.url)
 
 function base64Encode(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64url')
@@ -87,12 +90,12 @@ function touch(filePath: string) {
 
 describe('Sessions', () => {
   const iterations = 500
-  const emptyFile = require('path').join(__dirname, 'data', 'empty.txt')
-  const oneByteFile = require('path').join(__dirname, 'data', '1-byte.txt')
-  const twoByteFile = require('path').join(__dirname, 'data', '2-bytes.txt')
-  const testFile = require('path').join(__dirname, 'data', 'csstest.html')
-  const save1 = require('path').join(__dirname, 'data', 'csstest-1.html')
-  const checkpointDir = require('path').join(__dirname, 'data', 'checkpoint')
+  const emptyFile = path.join(__dirname, 'data', 'empty.txt')
+  const oneByteFile = path.join(__dirname, 'data', '1-byte.txt')
+  const twoByteFile = path.join(__dirname, 'data', '2-bytes.txt')
+  const testFile = path.join(__dirname, 'data', 'csstest.html')
+  const save1 = path.join(__dirname, 'data', 'csstest-1.html')
+  const checkpointDir = path.join(__dirname, 'data', 'checkpoint')
   const fileData = fs.readFileSync(testFile)
   const fileBuffer = new Uint8Array(
     fileData.buffer,
@@ -225,7 +228,7 @@ describe('Sessions', () => {
     )
 
     // save various segments of the session to different files
-    let saveFile = require('path').join(__dirname, 'data', 'save-seg.1.dat')
+    let saveFile = path.join(__dirname, 'data', 'save-seg.1.dat')
     await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 1, 8)
     let verify_session = await createSession(saveFile)
     let expected = Buffer.from('12345678')
@@ -239,7 +242,7 @@ describe('Sessions', () => {
     await destroySession(verify_session_id)
     fs.unlinkSync(saveFile)
 
-    saveFile = require('path').join(__dirname, 'data', 'save-seg.2.dat')
+    saveFile = path.join(__dirname, 'data', 'save-seg.2.dat')
     await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 2, 6)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('234567')
@@ -253,7 +256,7 @@ describe('Sessions', () => {
     await destroySession(verify_session_id)
     fs.unlinkSync(saveFile)
 
-    saveFile = require('path').join(__dirname, 'data', 'save-seg.3.dat')
+    saveFile = path.join(__dirname, 'data', 'save-seg.3.dat')
     await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 3, 0)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('3456789')
@@ -267,7 +270,7 @@ describe('Sessions', () => {
     await destroySession(verify_session_id)
     fs.unlinkSync(saveFile)
 
-    saveFile = require('path').join(__dirname, 'data', 'save-seg.4.dat')
+    saveFile = path.join(__dirname, 'data', 'save-seg.4.dat')
     await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 0, 100)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
@@ -281,7 +284,7 @@ describe('Sessions', () => {
     await destroySession(verify_session_id)
     fs.unlinkSync(saveFile)
 
-    saveFile = require('path').join(__dirname, 'data', 'save-seg.5.dat')
+    saveFile = path.join(__dirname, 'data', 'save-seg.5.dat')
     await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
@@ -300,31 +303,31 @@ describe('Sessions', () => {
   })
 
   it('Should be able to detect byte order marks', async () => {
-    let testFile = require('path').join(__dirname, 'data', 'empty.txt')
+    let testFile = path.join(__dirname, 'data', 'empty.txt')
     let session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek.txt')
+    testFile = path.join(__dirname, 'data', 'greek.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF8BOM.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF16BE.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF16LE.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF32BE.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF32LE.txt')
     session = await createSession(testFile)
     await destroySession(session.getSessionId())
 
@@ -332,7 +335,7 @@ describe('Sessions', () => {
   })
 
   it('Should be able to detect various languages', async () => {
-    let testFile = require('path').join(__dirname, 'data', 'arabic.txt')
+    let testFile = path.join(__dirname, 'data', 'arabic.txt')
     let session = await createSession(testFile)
     let fileSize = await getComputedFileSize(session.getSessionId())
     let byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -362,7 +365,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('ar')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'chinese.txt')
+    testFile = path.join(__dirname, 'data', 'chinese.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -376,7 +379,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('zh-CN')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'dutch.txt')
+    testFile = path.join(__dirname, 'data', 'dutch.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -390,7 +393,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('nl')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'english.txt')
+    testFile = path.join(__dirname, 'data', 'english.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -404,7 +407,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('en')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'french.txt')
+    testFile = path.join(__dirname, 'data', 'french.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -418,7 +421,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('fr')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'german.txt')
+    testFile = path.join(__dirname, 'data', 'german.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -432,7 +435,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('de')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek.txt')
+    testFile = path.join(__dirname, 'data', 'greek.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -461,7 +464,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(0)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF8BOM.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF8BOM.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -491,7 +494,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(0)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF16LE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF16LE.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -521,7 +524,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(0)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF16BE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF16BE.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -551,7 +554,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(0)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF32LE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF32LE.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -600,7 +603,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(4) // two at the beginning and two at the end
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'greek-UTF32BE.txt')
+    testFile = path.join(__dirname, 'data', 'greek-UTF32BE.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -630,7 +633,7 @@ describe('Sessions', () => {
     expect(charCounts.getInvalidBytes()).to.equal(0)
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'hindi.txt')
+    testFile = path.join(__dirname, 'data', 'hindi.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -644,7 +647,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('hi')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'italian.txt')
+    testFile = path.join(__dirname, 'data', 'italian.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -659,7 +662,7 @@ describe('Sessions', () => {
     await destroySession(session.getSessionId())
 
     // The short Japanese file is not long enough to be detected as Japanese
-    testFile = require('path').join(__dirname, 'data', 'japanese-short.txt')
+    testFile = path.join(__dirname, 'data', 'japanese-short.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -673,7 +676,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('unknown')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'japanese.txt')
+    testFile = path.join(__dirname, 'data', 'japanese.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -687,7 +690,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('ja')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'korean.txt')
+    testFile = path.join(__dirname, 'data', 'korean.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -701,7 +704,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('ko')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'portuguese.txt')
+    testFile = path.join(__dirname, 'data', 'portuguese.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -715,7 +718,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('pt')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'russian.txt')
+    testFile = path.join(__dirname, 'data', 'russian.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -729,7 +732,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('ru')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'spanish.txt')
+    testFile = path.join(__dirname, 'data', 'spanish.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -743,7 +746,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('es')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'swedish.txt')
+    testFile = path.join(__dirname, 'data', 'swedish.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())
@@ -757,7 +760,7 @@ describe('Sessions', () => {
     expect(languageResponse.getLanguage()).to.equal('sv')
     await destroySession(session.getSessionId())
 
-    testFile = require('path').join(__dirname, 'data', 'empty.txt')
+    testFile = path.join(__dirname, 'data', 'empty.txt')
     session = await createSession(testFile)
     fileSize = await getComputedFileSize(session.getSessionId())
     byteOrderMarkResponse = await getByteOrderMark(session.getSessionId())

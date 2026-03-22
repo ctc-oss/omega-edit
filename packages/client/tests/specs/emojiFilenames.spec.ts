@@ -31,6 +31,9 @@ import {
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
+import { getModuleCompat } from './moduleCompat'
+
+const { __dirname } = getModuleCompat(import.meta.url)
 
 describe('Emoji Filename Handling', () => {
   const testDataDir = path.join(__dirname, 'data')

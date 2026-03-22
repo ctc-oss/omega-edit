@@ -21,6 +21,4 @@ const path = require('path')
 
 process.env.TS_NODE_PROJECT =
   process.env.TS_NODE_PROJECT ||
-  path.join(__dirname, '..', 'tsconfig.tests.json')
-
-require('ts-node/register')
+  path.join(__dirname, '..', 'tsconfig.tests.esm.json')

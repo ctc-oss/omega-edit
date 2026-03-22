@@ -21,7 +21,20 @@ import * as fs from 'fs'
 import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
-import {
+import { expect, initChai } from './common'
+import { overrideProperty } from './mockHelpers'
+import { getModuleCompat } from './moduleCompat'
+
+const { require } = getModuleCompat(import.meta.url)
+const clientPackage =
+  require('../../dist/cjs/index.js') as typeof import('../../src/index')
+const clientModule =
+  require('../../dist/cjs/client.js') as typeof import('../../src/client')
+const grpcModule = require('@grpc/grpc-js') as typeof import('@grpc/grpc-js')
+const grpcClientModule = require('../../dist/cjs/omega_edit_grpc_pb.js') as {
+  EditorClient: new (...args: any[]) => any
+}
+const {
   delay,
   findFirstAvailablePort,
   pidIsRunning,
@@ -29,16 +42,7 @@ import {
   stopProcessUsingPID,
   waitForFileToExist,
   waitForReady,
-} from '@omega-edit/client'
-import { expect, initChai } from './common'
-import { overrideProperty } from './mockHelpers'
-
-const clientModule =
-  require('../../dist/cjs/client.js') as typeof import('../../src/client')
-const grpcModule = require('@grpc/grpc-js') as typeof import('@grpc/grpc-js')
-const grpcClientModule = require('../../dist/cjs/omega_edit_grpc_pb.js') as {
-  EditorClient: new (...args: any[]) => any
-}
+} = clientPackage
 
 describe('Client Utilities', () => {
   before(async () => {
