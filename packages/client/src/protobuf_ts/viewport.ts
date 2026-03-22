@@ -340,7 +340,9 @@ export async function resumeViewportEvents(sessionId: string): Promise<string> {
       }
 
       if (!response) {
-        return reject(makeWrappedError('resumeViewportEvents', 'empty response'))
+        return reject(
+          makeWrappedError('resumeViewportEvents', 'empty response')
+        )
       }
 
       debugLog(log, () => ({
@@ -365,7 +367,12 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
     const timeoutMs = getUnsubscribeTimeoutMs()
     let settled = false
     const timeout = setTimeout(() => {
-      settleReject(makeWrappedError('unsubscribeViewport', `timed out after ${timeoutMs}ms`))
+      settleReject(
+        makeWrappedError(
+          'unsubscribeViewport',
+          `timed out after ${timeoutMs}ms`
+        )
+      )
     }, timeoutMs)
     const settleResolve = (value: string) => {
       if (settled) return
@@ -398,7 +405,9 @@ export async function unsubscribeViewport(viewportId: string): Promise<string> {
         }
 
         if (!response) {
-          return settleReject(makeWrappedError('unsubscribeViewport', 'empty response'))
+          return settleReject(
+            makeWrappedError('unsubscribeViewport', 'empty response')
+          )
         }
 
         debugLog(log, () => ({
