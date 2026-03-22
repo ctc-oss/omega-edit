@@ -50,7 +50,14 @@ import {
 } from './common'
 
 describe('StressTest', () => {
-  const full_rotations = 64
+  const default_rotations = process.env.CI ? 64 : 8
+  const configured_rotations = Number(
+    process.env.OMEGA_EDIT_STRESS_TEST_ROTATIONS ?? default_rotations
+  )
+  const full_rotations =
+    Number.isInteger(configured_rotations) && configured_rotations > 0
+      ? configured_rotations
+      : default_rotations
   let session_id = ''
 
   beforeEach('Create a new session', async () => {
@@ -313,5 +320,5 @@ describe('StressTest', () => {
       log_info('\x1b[32m%s\x1b[0m', session_callbacks)
       log_info('\x1b[32m%s\x1b[0m', viewport_callbacks)
     }
-  ).timeout(4000 * full_rotations)
+  ).timeout(Math.max(10000, 4000 * full_rotations))
 })

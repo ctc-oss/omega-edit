@@ -18,7 +18,11 @@
  */
 
 import { expect } from './common'
-import { overrideProperty } from './mockHelpers'
+import {
+  expectErrorMessage,
+  makeObjectIdResponse,
+  overrideProperty,
+} from './mockHelpers'
 
 const clientModule =
   require('../../dist/cjs/client.js') as typeof import('../../src/client')
@@ -62,21 +66,21 @@ describe('Viewport Edge Cases', () => {
       await viewportModule.createViewport(undefined, 'sid', 0, 100)
       expect.fail('createViewport should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('createViewport error: create failed')
+      expectErrorMessage(expect, err, 'createViewport error: create failed')
     }
 
     try {
       await viewportModule.modifyViewport('vid', 0, 100)
       expect.fail('modifyViewport should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('modifyViewport error: modify failed')
+      expectErrorMessage(expect, err, 'modifyViewport error: modify failed')
     }
 
     try {
       await viewportModule.destroyViewport('vid')
       expect.fail('destroyViewport should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('destroyViewport error: destroy failed')
+      expectErrorMessage(expect, err, 'destroyViewport error: destroy failed')
     } finally {
       restoreGetClient()
     }
@@ -118,21 +122,25 @@ describe('Viewport Edge Cases', () => {
       await viewportModule.getViewportCount('sid')
       expect.fail('getViewportCount should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getViewportCount error: count failed')
+      expectErrorMessage(expect, err, 'getViewportCount error: count failed')
     }
 
     try {
       await viewportModule.getViewportData('vid')
       expect.fail('getViewportData should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('getViewportData error: data failed')
+      expectErrorMessage(expect, err, 'getViewportData error: data failed')
     }
 
     try {
       await viewportModule.viewportHasChanges('vid')
       expect.fail('viewportHasChanges should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('viewportHasChanges error: changes failed')
+      expectErrorMessage(
+        expect,
+        err,
+        'viewportHasChanges error: changes failed'
+      )
     } finally {
       restoreGetClient()
     }
@@ -172,14 +180,18 @@ describe('Viewport Edge Cases', () => {
       await viewportModule.pauseViewportEvents('session-id')
       expect.fail('pauseViewportEvents should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('pauseViewportEvents error: pause failed')
+      expectErrorMessage(expect, err, 'pauseViewportEvents error: pause failed')
     }
 
     try {
       await viewportModule.resumeViewportEvents('session-id')
       expect.fail('resumeViewportEvents should reject when the RPC fails')
     } catch (err) {
-      expect(err).to.equal('resumeViewportEvents error: resume failed')
+      expectErrorMessage(
+        expect,
+        err,
+        'resumeViewportEvents error: resume failed'
+      )
     } finally {
       restoreGetClient()
     }
@@ -210,14 +222,7 @@ describe('Viewport Edge Cases', () => {
           return {
             on(_eventName: string, handler: (err: Error) => void) {
               if (mode === 'cancelled') {
-                callback(null, {
-                  getId() {
-                    return 'viewport-id'
-                  },
-                  toObject() {
-                    return { id: 'viewport-id' }
-                  },
-                })
+                callback(null, makeObjectIdResponse('viewport-id'))
                 handler(new Error('Call cancelled'))
               }
               return this
@@ -234,7 +239,11 @@ describe('Viewport Edge Cases', () => {
         'unsubscribeViewport should reject when the callback returns an error'
       )
     } catch (err) {
-      expect(err).to.equal('unsubscribeViewport error: unsubscribe failed')
+      expectErrorMessage(
+        expect,
+        err,
+        'unsubscribeViewport error: unsubscribe failed'
+      )
     }
 
     mode = 'cancelled'
@@ -255,7 +264,11 @@ describe('Viewport Edge Cases', () => {
         'unsubscribeViewport should reject when the RPC never settles'
       )
     } catch (err) {
-      expect(err).to.equal('unsubscribeViewport error: timed out after 1ms')
+      expectErrorMessage(
+        expect,
+        err,
+        'unsubscribeViewport error: timed out after 1ms'
+      )
     } finally {
       if (originalTimeout === undefined) {
         delete process.env.OMEGA_EDIT_UNSUBSCRIBE_TIMEOUT_MS

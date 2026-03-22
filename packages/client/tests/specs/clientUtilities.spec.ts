@@ -359,6 +359,59 @@ describe('Client Utilities', () => {
     }
   })
 
+  it('should share a single in-flight client initialization', async () => {
+    resetClient()
+    const uris: string[] = []
+    const readyCallbacks: Array<(err?: Error) => void> = []
+
+    class FakeEditorClient {
+      readonly uri: string
+
+      constructor(uri: string) {
+        this.uri = uri
+        uris.push(uri)
+      }
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        readyCallbacks.push(callback)
+      }
+
+      close() {}
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      const firstClientPromise = clientModule.getClient(9313, '127.0.0.1')
+      const secondClientPromise = clientModule.getClient(9313, '127.0.0.1')
+
+      expect(uris).to.deep.equal(['127.0.0.1:9313'])
+      expect(readyCallbacks).to.have.length(1)
+
+      readyCallbacks[0]()
+
+      const [firstClient, secondClient] = await Promise.all([
+        firstClientPromise,
+        secondClientPromise,
+      ])
+
+      expect(firstClient).to.equal(secondClient)
+    } finally {
+      resetClient()
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
   it('should initialize and replace the logger singleton', async () => {
     const loggerModulePath = require.resolve('../../dist/cjs/logger.js')
     delete require.cache[loggerModulePath]
