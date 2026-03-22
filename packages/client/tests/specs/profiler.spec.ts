@@ -29,7 +29,7 @@ import {
   destroyTestSession,
   expect,
   testPort,
-} from './common'
+} from './common.js'
 
 describe('Profiling', () => {
   let session_id = ''

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect, testPort } from './common'
+import { expect, testPort } from './common.js'
 import {
   del,
   countCharacters,
@@ -43,7 +43,7 @@ import {
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
-import { getModuleCompat } from './moduleCompat'
+import { getModuleCompat } from './moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
 

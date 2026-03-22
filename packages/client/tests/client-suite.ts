@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { mochaGlobalSetup, mochaGlobalTeardown } from './fixtures'
+import { mochaGlobalSetup, mochaGlobalTeardown } from './fixtures.js'
 
 before(async () => {
   await mochaGlobalSetup()

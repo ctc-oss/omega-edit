@@ -42,7 +42,7 @@ import {
   destroyTestSession,
   expect,
   testPort,
-} from './common'
+} from './common.js'
 
 describe('Undo/Redo', () => {
   let session_id = ''

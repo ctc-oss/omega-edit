@@ -17,8 +17,15 @@
  * limitations under the License.
  */
 
-const path = require('path')
+import { register } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 process.env.TS_NODE_PROJECT =
   process.env.TS_NODE_PROJECT ||
   path.join(__dirname, '..', 'tsconfig.tests.esm.json')
+
+register('ts-node/esm', import.meta.url)

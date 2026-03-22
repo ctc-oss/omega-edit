@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect } from './common'
+import { expect } from './common.js'
 import { ALL_EVENTS, NO_EVENTS, ViewportEventKind } from '@omega-edit/client'
 
 describe('Events', () => {

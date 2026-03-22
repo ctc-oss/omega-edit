@@ -30,8 +30,8 @@ import {
 } from '@omega-edit/client'
 import * as fs from 'fs'
 import * as path from 'path'
-import { initChai, testHost, testPort, testTransport } from './specs/common'
-import { getModuleCompat } from './specs/moduleCompat'
+import { initChai, testHost, testPort, testTransport } from './specs/common.js'
+import { getModuleCompat } from './specs/moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
 const rootPath = path.resolve(__dirname, '..')

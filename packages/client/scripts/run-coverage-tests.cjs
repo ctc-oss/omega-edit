@@ -3,8 +3,6 @@ const fs = require('fs')
 const { pathToFileURL } = require('url')
 const Mocha = require('mocha')
 
-require('../tests/register.cjs')
-
 const { resetClient: resetCjsClient } = require(
   path.join(__dirname, '..', 'dist', 'cjs', 'index.js')
 )

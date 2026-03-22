@@ -41,12 +41,18 @@ import {
   stopServerImmediate,
   stopServiceOnPort,
 } from '@omega-edit/client'
-import { expect, initChai, testHost, testPort, testTransport } from './common'
+import {
+  expect,
+  initChai,
+  testHost,
+  testPort,
+  testTransport,
+} from './common.js'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import * as fsPromises from 'fs/promises'
-import { getModuleCompat } from './moduleCompat'
+import { getModuleCompat } from './moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
 const rootPath = path.resolve(__dirname, '../..')

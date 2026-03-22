@@ -47,7 +47,7 @@ import {
   session_callbacks,
   subscribeSession,
   testPort,
-} from './common'
+} from './common.js'
 
 describe('Editing', () => {
   let session_id = ''

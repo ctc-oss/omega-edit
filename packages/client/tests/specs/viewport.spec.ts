@@ -46,7 +46,7 @@ import {
   subscribeViewport,
   testPort,
   viewport_callbacks,
-} from './common'
+} from './common.js'
 
 describe('Viewports', () => {
   let session_id = ''
