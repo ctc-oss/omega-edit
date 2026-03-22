@@ -17,13 +17,13 @@
  * limitations under the License.
  */
 
-import { expect } from './common'
+import { expect } from './common.js'
 import {
   expectErrorMessage,
   makeObjectIdResponse,
   overrideProperty,
-} from './mockHelpers'
-import { getModuleCompat } from './moduleCompat'
+} from './mockHelpers.js'
+import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
 const clientModule =

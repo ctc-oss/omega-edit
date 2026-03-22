@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect, testPort } from './common'
+import { expect, testPort } from './common.js'
 import {
   ClientVersion,
   getClient,

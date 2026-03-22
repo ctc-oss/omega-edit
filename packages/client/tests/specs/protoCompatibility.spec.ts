@@ -18,8 +18,8 @@
  */
 
 import * as grpc from '@grpc/grpc-js'
-import { expect, initChai } from './common'
-import { getModuleCompat } from './moduleCompat'
+import { expect, initChai } from './common.js'
+import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
 const { CountKind, ServerControlKind } = require('../../dist/cjs/proto.js')

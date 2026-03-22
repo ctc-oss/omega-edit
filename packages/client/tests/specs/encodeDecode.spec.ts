@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect } from './common'
+import { expect } from './common.js'
 
 describe('Encode/Decode', () => {
   it('Should encode string into Uint8Array', () => {

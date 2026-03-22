@@ -43,7 +43,7 @@ import {
   destroyTestSession,
   expect,
   testPort,
-} from './common'
+} from './common.js'
 
 describe('Searching', () => {
   let session_id = ''

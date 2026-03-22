@@ -47,7 +47,7 @@ import {
   subscribeViewport,
   testPort,
   viewport_callbacks,
-} from './common'
+} from './common.js'
 
 describe('StressTest', () => {
   const default_rotations = process.env.CI ? 64 : 8
