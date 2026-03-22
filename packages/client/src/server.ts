@@ -339,7 +339,12 @@ async function getPidByPort(port: number): Promise<number | undefined> {
     return parseFirstPid(stdout)
   } catch {
     if (process.platform === 'linux') {
-      return await getPidByPortWithSs(port)
+      const pid = await getPidByPortWithSs(port)
+      if (pid !== undefined) {
+        return pid
+      }
+
+      return await getPidByPortWithNetstatLinux(port)
     }
 
     return undefined
@@ -371,6 +376,37 @@ async function getPidByPortWithSs(port: number): Promise<number | undefined> {
       const match = line.match(/pid=(\d+)/)
       if (match) {
         return Number.parseInt(match[1], 10)
+      }
+    }
+  } catch {
+    // ignore and fall through to undefined
+  }
+
+  return undefined
+}
+
+async function getPidByPortWithNetstatLinux(
+  port: number
+): Promise<number | undefined> {
+  try {
+    const { stdout } = await execFilePromise('netstat', ['-ltnp'])
+    for (const line of stdout.split(/\r?\n/)) {
+      const parts = line.trim().split(/\s+/)
+      if (parts.length < 7) {
+        continue
+      }
+
+      const localAddress = parts[3]
+      const state = parts[5]
+      const pidProgram = parts[6]
+      if (
+        localAddress.endsWith(`:${port}`) &&
+        state.toUpperCase() === 'LISTEN'
+      ) {
+        const match = pidProgram.match(/^(\d+)\//)
+        if (match) {
+          return Number.parseInt(match[1], 10)
+        }
       }
     }
   } catch {

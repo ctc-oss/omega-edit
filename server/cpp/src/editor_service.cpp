@@ -58,6 +58,23 @@ static int get_cpu_count() {
     return n > 0 ? static_cast<int>(n) : 1;
 }
 
+static grpc::Status validate_change_payload_size(const ::omega_edit::v1::SubmitChangeRequest *request,
+                                                 int64_t max_change_bytes) {
+    if ((request->kind() != ::omega_edit::v1::CHANGE_KIND_INSERT &&
+         request->kind() != ::omega_edit::v1::CHANGE_KIND_OVERWRITE) ||
+        max_change_bytes <= 0) {
+        return grpc::Status::OK;
+    }
+
+    if (request->data().size() <= static_cast<size_t>(max_change_bytes)) {
+        return grpc::Status::OK;
+    }
+
+    return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                        "change payload exceeds configured limit of " +
+                            std::to_string(max_change_bytes) + " bytes");
+}
+
 EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                      std::function<void()> shutdown_callback)
     : session_manager_(resource_limits), start_time_(std::chrono::steady_clock::now()),
@@ -307,19 +324,18 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
     }
 
     session_manager_.touch_session(request->session_id());
+    const grpc::Status payload_status =
+        validate_change_payload_size(request, resource_limits_.max_change_bytes);
+    if (!payload_status.ok()) {
+        return payload_status;
+    }
+
     int64_t serial = 0;
     switch (request->kind()) {
         case ::omega_edit::v1::CHANGE_KIND_DELETE:
             serial = omega_edit_delete(session, request->offset(), request->length());
             break;
         case ::omega_edit::v1::CHANGE_KIND_INSERT:
-            if (resource_limits_.max_change_bytes > 0 &&
-                request->data().size() > static_cast<size_t>(resource_limits_.max_change_bytes)) {
-                return grpc::Status(
-                    grpc::StatusCode::RESOURCE_EXHAUSTED,
-                    "change payload exceeds configured limit of " +
-                        std::to_string(resource_limits_.max_change_bytes) + " bytes");
-            }
             if (request->has_data()) {
                 serial = omega_edit_insert_bytes(session, request->offset(),
                                                  reinterpret_cast<const omega_byte_t *>(request->data().data()),
@@ -329,13 +345,6 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
             }
             break;
         case ::omega_edit::v1::CHANGE_KIND_OVERWRITE:
-            if (resource_limits_.max_change_bytes > 0 &&
-                request->data().size() > static_cast<size_t>(resource_limits_.max_change_bytes)) {
-                return grpc::Status(
-                    grpc::StatusCode::RESOURCE_EXHAUSTED,
-                    "change payload exceeds configured limit of " +
-                        std::to_string(resource_limits_.max_change_bytes) + " bytes");
-            }
             if (request->has_data()) {
                 serial = omega_edit_overwrite_bytes(session, request->offset(),
                                                     reinterpret_cast<const omega_byte_t *>(request->data().data()),

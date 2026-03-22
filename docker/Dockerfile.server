@@ -31,6 +31,7 @@
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND="noninteractive"
+ARG CONAN_VERSION=2.26.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
@@ -47,7 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN python3 -m venv /opt/conan-venv \
     && /opt/conan-venv/bin/pip install --upgrade pip \
-    && /opt/conan-venv/bin/pip install conan
+    && /opt/conan-venv/bin/pip install "conan==${CONAN_VERSION}"
 
 ENV PATH="/opt/conan-venv/bin:${PATH}"
 
@@ -111,9 +112,13 @@ COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe:v0.4.42 /ko-app/grpc-health
 COPY --from=builder /runtime-libs/ /usr/local/lib/
 RUN ldconfig
 
-# Prepare writable locations for arbitrary non-root users supplied at runtime.
-RUN mkdir -p /data /tmp \
+# Prepare writable locations for a default non-root runtime user.
+RUN groupadd --system omega \
+    && useradd --system --gid omega --create-home --home-dir /home/omega omega \
+    && mkdir -p /data /tmp \
+    && chown omega:omega /data \
     && chmod 1777 /tmp
+USER omega
 WORKDIR /data
 
 # The server listens on 0.0.0.0:9000 inside the container (not 127.0.0.1)

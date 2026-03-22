@@ -214,8 +214,8 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     auto info = std::make_shared<SessionInfo>();
     info->session_id = session_id;
-    info->event_queue =
-        std::make_shared<EventQueue<SessionEventData>>(limits_.session_event_queue_capacity);
+    info->event_queue = std::make_shared<EventQueue<SessionEventData>>(
+        limits_.session_event_queue_capacity, "session subscription '" + session_id + "'");
     info->event_interest = 0;
     info->last_activity = std::chrono::steady_clock::now();
 
@@ -318,8 +318,9 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
     auto vp_info = std::make_shared<ViewportInfo>();
     vp_info->session_id = session_id;
     vp_info->viewport_id = viewport_id;
-    vp_info->event_queue =
-        std::make_shared<EventQueue<ViewportEventData>>(limits_.viewport_event_queue_capacity);
+    vp_info->event_queue = std::make_shared<EventQueue<ViewportEventData>>(
+        limits_.viewport_event_queue_capacity,
+        "viewport subscription '" + make_viewport_fqid(session_id, viewport_id) + "'");
     vp_info->event_interest = 0;
 
     // Store first so callback has access

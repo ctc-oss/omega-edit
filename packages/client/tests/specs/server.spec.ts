@@ -30,6 +30,7 @@ import {
   getViewportCount,
   HeartbeatOptions,
   insert,
+  overwrite,
   pidIsRunning,
   resetClient,
   setLogger,
@@ -507,6 +508,17 @@ describe('Server Resource Limits', () => {
     try {
       await insert(session_id, 1, Uint8Array.from([0x42, 0x43]))
       expect.fail('insert should reject payloads larger than maxChangeBytes')
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject overwrite payloads larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await overwrite(session_id, 0, Uint8Array.from([0x42, 0x43]))
+      expect.fail('overwrite should reject payloads larger than maxChangeBytes')
     } catch (err) {
       expectResourceExhausted(err, 'configured limit of 1 bytes')
     }
