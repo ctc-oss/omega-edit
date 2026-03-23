@@ -61,6 +61,54 @@ TEST_CASE("Bit Manipulation", "[BitManip]") {
     REQUIRE(~(1 << 31) == 2147483647);
 }
 
+TEST_CASE("Replace Helper", "[EditScript]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "alpha beta gamma"));
+    REQUIRE(0 < omega_edit_replace(session_ptr, 6, 4, "OMEGA", 5));
+    REQUIRE("alpha OMEGA gamma" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
+
+    REQUIRE(0 < omega_edit_replace(session_ptr, 0, 5, "ALPHA", 5));
+    REQUIRE("ALPHA OMEGA gamma" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(3 == omega_session_get_num_change_transactions(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Apply Script", "[EditScript]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    static const omega_byte_t hello_world[] = "hello world";
+    static const omega_byte_t omega_edit[] = "OmegaEdit";
+    static const omega_byte_t hello_upper[] = "HELLO";
+    static const omega_byte_t comma_space[] = ", ";
+
+    const omega_edit_script_op_t ops[] = {
+            {0, 0, OMEGA_EDIT_SCRIPT_INSERT, hello_world, 11},
+            {6, 5, OMEGA_EDIT_SCRIPT_REPLACE, omega_edit, 9},
+            {0, 5, OMEGA_EDIT_SCRIPT_OVERWRITE, hello_upper, 5},
+            {5, 1, OMEGA_EDIT_SCRIPT_DELETE, nullptr, 0},
+            {5, 0, OMEGA_EDIT_SCRIPT_INSERT, comma_space, 2},
+    };
+
+    REQUIRE(0 == omega_edit_apply_script(session_ptr, ops, sizeof(ops) / sizeof(ops[0])));
+    REQUIRE("HELLO, OmegaEdit" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
+
+    const omega_edit_script_op_t bad_ops[] = {
+            {0, 3, static_cast<omega_edit_script_op_kind_t>(999), nullptr, 0},
+    };
+    REQUIRE(0 != omega_edit_apply_script(session_ptr, bad_ops, sizeof(bad_ops) / sizeof(bad_ops[0])));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Model Tests", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;

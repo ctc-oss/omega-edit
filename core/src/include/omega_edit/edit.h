@@ -132,6 +132,34 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
 
 /**
+ * Batch script operation kinds for sequential edit replay.
+ */
+typedef enum {
+    OMEGA_EDIT_SCRIPT_DELETE = 1,
+    OMEGA_EDIT_SCRIPT_INSERT = 2,
+    OMEGA_EDIT_SCRIPT_OVERWRITE = 3,
+    OMEGA_EDIT_SCRIPT_REPLACE = 4
+} omega_edit_script_op_kind_t;
+
+/**
+ * A single edit script operation.
+ *
+ * Semantics by kind:
+ * - DELETE: remove `length` bytes at `offset`; `bytes` and `bytes_length` are ignored
+ * - INSERT: insert `bytes_length` bytes from `bytes` at `offset`; `length` should be 0
+ * - OVERWRITE: overwrite `length` bytes at `offset` with `bytes_length` bytes from `bytes`
+ *   (`length` and `bytes_length` should match when both are non-zero)
+ * - REPLACE: replace `length` bytes at `offset` with `bytes_length` bytes from `bytes`
+ */
+typedef struct {
+    int64_t offset;
+    int64_t length;
+    omega_edit_script_op_kind_t kind;
+    const omega_byte_t *bytes;
+    int64_t bytes_length;
+} omega_edit_script_op_t;
+
+/**
  * Delete a number of bytes at the given offset
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
@@ -194,6 +222,48 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * and should not be used in production code.  In production code, explicitly pass in the length.
  */
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length);
+
+/**
+ * Replace a span of bytes at the given offset with a new byte sequence.
+ *
+ * If the delete and insert lengths match, this is lowered to a single overwrite. Otherwise it is
+ * applied as a delete followed by an insert in one logical transaction. If the insert step fails
+ * after a successful delete, the helper attempts to undo the delete before returning failure.
+ *
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param delete_length number of original bytes to remove
+ * @param bytes replacement bytes, or null if `insert_length` is zero
+ * @param insert_length number of replacement bytes to insert
+ * @return positive change serial number on success, zero otherwise
+ */
+int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                 const omega_byte_t *bytes, int64_t insert_length);
+
+/**
+ * Replace a span of bytes at the given offset with a new C string.
+ * @param session_ptr session to make the change in
+ * @param offset location offset to make the change
+ * @param delete_length number of original bytes to remove
+ * @param cstr replacement C string, or null if `insert_length` is zero
+ * @param insert_length length of the replacement string (if 0, strlen will be used)
+ * @return positive change serial number on success, zero otherwise
+ */
+int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
+                           int64_t insert_length);
+
+/**
+ * Apply an array of edit script operations sequentially to the given session.
+ *
+ * Operations are applied in the order given. The function does not roll back already-applied
+ * operations if a later operation fails; it simply stops and returns non-zero.
+ *
+ * @param session_ptr session to edit
+ * @param ops array of edit operations
+ * @param op_count number of operations in the array
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_script_op_t *ops, size_t op_count);
 
 /**
  * Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given

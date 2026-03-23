@@ -185,6 +185,82 @@ namespace {
         return change_ptr;
     }
 
+    inline auto restore_viewport_callbacks_(omega_session_t *session_ptr, bool callbacks_were_paused,
+                                            bool notify_changed_viewports) -> void {
+        if (!session_ptr || callbacks_were_paused) { return; }
+        omega_session_resume_viewport_event_callbacks(session_ptr);
+        if (notify_changed_viewports) { omega_session_notify_changed_viewports(session_ptr); }
+    }
+
+    auto replace_bytes_impl_(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                             const omega_byte_t *bytes, int64_t insert_length) -> int64_t {
+        if (!session_ptr) { return -1; }
+        if (delete_length < 0 || insert_length < 0 || offset < 0) { return 0; }
+        if (!bytes && insert_length > 0) { return -1; }
+        if (delete_length == 0 && insert_length == 0) { return 0; }
+        if (delete_length == 0) { return omega_edit_insert_bytes(session_ptr, offset, bytes, insert_length); }
+        if (insert_length == 0) { return omega_edit_delete(session_ptr, offset, delete_length); }
+        if (delete_length == insert_length) { return omega_edit_overwrite_bytes(session_ptr, offset, bytes, insert_length); }
+
+        const auto callbacks_were_paused = omega_session_viewport_event_callbacks_paused(session_ptr) != 0;
+        if (!callbacks_were_paused) { omega_session_pause_viewport_event_callbacks(session_ptr); }
+
+        const auto transaction_state = omega_session_get_transaction_state(session_ptr);
+        const auto started_transaction = (transaction_state == 0) && (0 == omega_session_begin_transaction(session_ptr));
+        if ((transaction_state == 0) && !started_transaction) {
+            restore_viewport_callbacks_(session_ptr, callbacks_were_paused, false);
+            return -1;
+        }
+
+        int64_t last_serial = 0;
+        bool changed = false;
+        bool success = false;
+
+        do {
+            const auto delete_serial = omega_edit_delete(session_ptr, offset, delete_length);
+            if (delete_serial <= 0) { break; }
+            last_serial = delete_serial;
+            changed = true;
+
+            const auto insert_serial = omega_edit_insert_bytes(session_ptr, offset, bytes, insert_length);
+            if (insert_serial <= 0) {
+                if (0 >= omega_edit_undo_last_change(session_ptr)) { break; }
+                changed = false;
+                break;
+            }
+            last_serial = insert_serial;
+            changed = true;
+            success = true;
+        } while (false);
+
+        if (started_transaction) { omega_session_end_transaction(session_ptr); }
+        restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
+        return success ? last_serial : 0;
+    }
+
+    auto apply_script_op_(omega_session_t *session_ptr, const omega_edit_script_op_t &op) -> int64_t {
+        switch (op.kind) {
+            case OMEGA_EDIT_SCRIPT_DELETE:
+                return (op.length > 0) ? omega_edit_delete(session_ptr, op.offset, op.length) : 0;
+            case OMEGA_EDIT_SCRIPT_INSERT:
+                return (op.bytes_length > 0)
+                       ? omega_edit_insert_bytes(session_ptr, op.offset, op.bytes, op.bytes_length)
+                       : 0;
+            case OMEGA_EDIT_SCRIPT_OVERWRITE: {
+                if (op.length < 0 || op.bytes_length < 0) { return -1; }
+                if ((op.length > 0) && (op.bytes_length > 0) && (op.length != op.bytes_length)) { return -1; }
+                const auto overwrite_length = op.bytes_length > 0 ? op.bytes_length : op.length;
+                return (overwrite_length > 0)
+                       ? omega_edit_overwrite_bytes(session_ptr, op.offset, op.bytes, overwrite_length)
+                       : 0;
+            }
+            case OMEGA_EDIT_SCRIPT_REPLACE:
+                return replace_bytes_impl_(session_ptr, op.offset, op.length, op.bytes, op.bytes_length);
+            default:
+                return -1;
+        }
+    }
+
     inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
                                                    const omega_change_t *change_ptr) {
         assert(0 < change_ptr->length);
@@ -761,6 +837,56 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
     return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+}
+
+int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
+                                 const omega_byte_t *bytes, int64_t insert_length) {
+    return replace_bytes_impl_(session_ptr, offset, delete_length, bytes, insert_length);
+}
+
+int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
+                           int64_t insert_length) {
+    return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, insert_length);
+}
+
+int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_script_op_t *ops, size_t op_count) {
+    if (!session_ptr) { return -1; }
+    if (!ops && op_count > 0) { return -1; }
+    if (op_count == 0) { return 0; }
+
+    const auto callbacks_were_paused = omega_session_viewport_event_callbacks_paused(session_ptr) != 0;
+    if (!callbacks_were_paused) { omega_session_pause_viewport_event_callbacks(session_ptr); }
+
+    const auto transaction_state = omega_session_get_transaction_state(session_ptr);
+    const auto started_transaction = (transaction_state == 0) && (0 == omega_session_begin_transaction(session_ptr));
+    if ((transaction_state == 0) && !started_transaction) {
+        restore_viewport_callbacks_(session_ptr, callbacks_were_paused, false);
+        return -1;
+    }
+
+    bool changed = false;
+    int rc = 0;
+    for (size_t i = 0; i < op_count; ++i) {
+        const auto serial = apply_script_op_(session_ptr, ops[i]);
+        if (serial < 0) {
+            rc = -1;
+            break;
+        }
+        if (serial == 0 &&
+            (ops[i].kind == OMEGA_EDIT_SCRIPT_DELETE ||
+             ops[i].kind == OMEGA_EDIT_SCRIPT_INSERT ||
+             ops[i].kind == OMEGA_EDIT_SCRIPT_OVERWRITE ||
+             ops[i].kind == OMEGA_EDIT_SCRIPT_REPLACE) &&
+            (ops[i].length > 0 || ops[i].bytes_length > 0)) {
+            rc = -1;
+            break;
+        }
+        if (serial > 0) { changed = true; }
+    }
+
+    if (started_transaction) { omega_session_end_transaction(session_ptr); }
+    restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
+    return rc;
 }
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,
