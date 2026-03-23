@@ -9,11 +9,20 @@
 # distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
 # implied.  See the License for the specific language governing permissions and limitations under the License.  
 
+# Duplicated at the repo root on purpose so `core/` can also be consumed directly as a subproject.
+option(OMEGA_EDIT_EMBED_MODE "Configure a lean embeddable build with tests, docs, and examples disabled" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" ON)
 option(BUILD_TESTS "build tests" ON)
 option(BUILD_DOCS "build documentation" ON)
 option(BUILD_EXAMPLES "build examples" ON)
 option(BUILD_COVERAGE "build with code coverage instrumentation (GCC/Clang)" OFF)
+
+if (OMEGA_EDIT_EMBED_MODE)
+    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_COVERAGE OFF CACHE BOOL "" FORCE)
+endif ()
 
 ## Let omega_edit_SHARED_LIBS override BUILD_SHARED_LIBS
 if (DEFINED omega_edit_SHARED_LIBS)
@@ -35,7 +44,9 @@ endif ()
 
 # Common configurations
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
+if (NOT OMEGA_EDIT_EMBED_MODE)
+    set(CMAKE_VERBOSE_MAKEFILE ON CACHE BOOL "ON")
+endif ()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
