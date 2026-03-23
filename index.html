@@ -86,6 +86,13 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#edit-h">edit.h</a><ul>
+<li><a class="reference internal" href="#_CPPv427omega_edit_script_op_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_script_op_kind_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_DELETE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_INSERT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t27OMEGA_EDIT_SCRIPT_OVERWRITEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_OVERWRITE</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_REPLACE</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_destroy_sessionP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_session()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_ti26omega_viewport_event_cbk_tPv7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_viewport()</span></code></a></li>
@@ -100,9 +107,20 @@
 <li><a class="reference internal" href="#_CPPv417omega_edit_insertP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_insert()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_overwrite_bytesP15omega_session_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv420omega_edit_overwriteP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_script()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_create_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_destroy_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_last_checkpoint()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv422omega_edit_script_op_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_script_op_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t6offsetE"><code class="docutils literal notranslate"><span class="pre">offset</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t6lengthE"><code class="docutils literal notranslate"><span class="pre">length</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t4kindE"><code class="docutils literal notranslate"><span class="pre">kind</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t5bytesE"><code class="docutils literal notranslate"><span class="pre">bytes</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t12bytes_lengthE"><code class="docutils literal notranslate"><span class="pre">bytes_length</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li><a class="reference internal" href="#encode-h">encode.h</a><ul>
@@ -609,6 +627,36 @@
 <h2>edit.h<a class="headerlink" href="#edit-h" title="Link to this heading"></a></h2>
 <p>Main editing functions. </p>
 <div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-enums">Enums</p>
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv427omega_edit_script_op_kind_t">
+<span id="_CPPv327omega_edit_script_op_kind_t"></span><span id="_CPPv227omega_edit_script_op_kind_t"></span><span class="target" id="edit_8h_1ab9d0f345a98f88eeeed58ef369430c97"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_script_op_kind_t</span></span></span><a class="headerlink" href="#_CPPv427omega_edit_script_op_kind_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Batch script operation kinds for sequential edit replay. </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE">
+<span id="_CPPv3N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE"></span><span id="_CPPv2N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE"></span><span class="target" id="edit_8h_1ab9d0f345a98f88eeeed58ef369430c97a96109f7539a299ff0f21ac756f9e9463"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_SCRIPT_DELETE</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_DELETEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE">
+<span id="_CPPv3N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE"></span><span id="_CPPv2N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE"></span><span class="target" id="edit_8h_1ab9d0f345a98f88eeeed58ef369430c97a859dade7319d5c65c53d307fd94bc3cc"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_SCRIPT_INSERT</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_script_op_kind_t24OMEGA_EDIT_SCRIPT_INSERTE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_script_op_kind_t27OMEGA_EDIT_SCRIPT_OVERWRITEE">
+<span id="_CPPv3N27omega_edit_script_op_kind_t27OMEGA_EDIT_SCRIPT_OVERWRITEE"></span><span id="_CPPv2N27omega_edit_script_op_kind_t27OMEGA_EDIT_SCRIPT_OVERWRITEE"></span><span class="target" id="edit_8h_1ab9d0f345a98f88eeeed58ef369430c97adc5e1b3735fef0aa5daff0a916c9aaa8"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_SCRIPT_OVERWRITE</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_script_op_kind_t27OMEGA_EDIT_SCRIPT_OVERWRITEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE">
+<span id="_CPPv3N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE"></span><span id="_CPPv2N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE"></span><span class="target" id="edit_8h_1ab9d0f345a98f88eeeed58ef369430c97a7e32a0fe31721446bea560214cdec795"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_SCRIPT_REPLACE</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
 <dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv7int32_tPKc">
@@ -867,6 +915,66 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t">
+<span id="_CPPv324omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"></span><span id="_CPPv224omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"></span><span id="omega_edit_replace_bytes__omega_session_tP.int64_t.int64_t.omega_byte_tCP.int64_t"></span><span class="target" id="edit_8h_1ad744b701042a43847c4c5f6d9229d831"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_bytes</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">delete_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">bytes</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">insert_length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace a span of bytes at the given offset with a new byte sequence.</p>
+<p>If the delete and insert lengths match, this is lowered to a single overwrite. Otherwise it is applied as a delete followed by an insert in one logical transaction. If the insert step fails after a successful delete, the helper attempts to undo the delete before returning failure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to make the change in </p></li>
+<li><p><strong>offset</strong> – location offset to make the change </p></li>
+<li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
+<li><p><strong>bytes</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
+<li><p><strong>insert_length</strong> – number of replacement bytes to insert </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t">
+<span id="_CPPv318omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"></span><span id="_CPPv218omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"></span><span id="omega_edit_replace__omega_session_tP.int64_t.int64_t.cCP.int64_t"></span><span class="target" id="edit_8h_1a58db24b8982a58a7d94a5e4371b58c3d"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">delete_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">cstr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">insert_length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace a span of bytes at the given offset with a new C string. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to make the change in </p></li>
+<li><p><strong>offset</strong> – location offset to make the change </p></li>
+<li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
+<li><p><strong>cstr</strong> – replacement C string, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
+<li><p><strong>insert_length</strong> – length of the replacement string (if 0, strlen will be used) </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t">
+<span id="_CPPv323omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"></span><span id="_CPPv223omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"></span><span id="omega_edit_apply_script__omega_session_tP.omega_edit_script_op_tCP.s"></span><span class="target" id="edit_8h_1a0bb0d4cbfb6037c37ee71dbc11c4b2c4"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_apply_script</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_edit_script_op_t" title="omega_edit_script_op_t"><span class="n"><span class="pre">omega_edit_script_op_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">ops</span></span>, <span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">op_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Apply an array of edit script operations sequentially to the given session.</p>
+<p>Operations are applied in the order given. The function does not roll back already-applied operations if a later operation fails; it simply stops and returns non-zero.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to edit </p></li>
+<li><p><strong>ops</strong> – array of edit operations </p></li>
+<li><p><strong>op_count</strong> – number of operations in the array </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t">
 <span id="_CPPv326omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"></span><span id="_CPPv226omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"></span><span id="omega_edit_apply_transform__omega_session_tP.omega_util_byte_transform_t.voidP.int64_t.int64_t"></span><span class="target" id="edit_8h_1aa84f4999e7dd28b6079670c4407afead"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_apply_transform</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv427omega_util_byte_transform_t" title="omega_util_byte_transform_t"><span class="n"><span class="pre">omega_util_byte_transform_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">transform</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given length </p>
@@ -915,6 +1023,49 @@
 </dd></dl>
 
 </div>
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv422omega_edit_script_op_t">
+<span id="_CPPv322omega_edit_script_op_t"></span><span id="_CPPv222omega_edit_script_op_t"></span><span id="omega_edit_script_op_t"></span><span class="target" id="structomega__edit__script__op__t"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_script_op_t</span></span></span><a class="headerlink" href="#_CPPv422omega_edit_script_op_t" title="Link to this definition"></a><br /></dt>
+<dd><div class="docutils container">
+<em>#include &lt;edit.h&gt;</em></div>
+<p>A single edit script operation.</p>
+<p>Semantics by kind:<ul class="simple">
+<li><p>DELETE: remove <code class="docutils literal notranslate"><span class="pre">length</span></code> bytes at <code class="docutils literal notranslate"><span class="pre">offset</span></code>; <code class="docutils literal notranslate"><span class="pre">bytes</span></code> and <code class="docutils literal notranslate"><span class="pre">bytes_length</span></code> are ignored</p></li>
+<li><p>INSERT: insert <code class="docutils literal notranslate"><span class="pre">bytes_length</span></code> bytes from <code class="docutils literal notranslate"><span class="pre">bytes</span></code> at <code class="docutils literal notranslate"><span class="pre">offset</span></code>; <code class="docutils literal notranslate"><span class="pre">length</span></code> should be 0</p></li>
+<li><p>OVERWRITE: overwrite <code class="docutils literal notranslate"><span class="pre">length</span></code> bytes at <code class="docutils literal notranslate"><span class="pre">offset</span></code> with <code class="docutils literal notranslate"><span class="pre">bytes_length</span></code> bytes from <code class="docutils literal notranslate"><span class="pre">bytes</span></code> (<code class="docutils literal notranslate"><span class="pre">length</span></code> and <code class="docutils literal notranslate"><span class="pre">bytes_length</span></code> should match when both are non-zero)</p></li>
+<li><p>REPLACE: replace <code class="docutils literal notranslate"><span class="pre">length</span></code> bytes at <code class="docutils literal notranslate"><span class="pre">offset</span></code> with <code class="docutils literal notranslate"><span class="pre">bytes_length</span></code> bytes from <code class="docutils literal notranslate"><span class="pre">bytes</span></code></p></li>
+</ul>
+</p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t6offsetE">
+<span id="_CPPv3N22omega_edit_script_op_t6offsetE"></span><span id="_CPPv2N22omega_edit_script_op_t6offsetE"></span><span id="omega_edit_script_op_t::offset__int64_t"></span><span class="target" id="structomega__edit__script__op__t_1a70aa9ca512975f7b5261761640514b43"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">offset</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t6offsetE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t6lengthE">
+<span id="_CPPv3N22omega_edit_script_op_t6lengthE"></span><span id="_CPPv2N22omega_edit_script_op_t6lengthE"></span><span id="omega_edit_script_op_t::length__int64_t"></span><span class="target" id="structomega__edit__script__op__t_1a17648eaaedbd8b03c70398ecac1e6ea1"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">length</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t6lengthE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t4kindE">
+<span id="_CPPv3N22omega_edit_script_op_t4kindE"></span><span id="_CPPv2N22omega_edit_script_op_t4kindE"></span><span id="omega_edit_script_op_t::kind__omega_edit_script_op_kind_t"></span><span class="target" id="structomega__edit__script__op__t_1af256153fc97298392795afa44f82c1ef"></span><a class="reference internal" href="#_CPPv427omega_edit_script_op_kind_t" title="omega_edit_script_op_kind_t"><span class="n"><span class="pre">omega_edit_script_op_kind_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">kind</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t4kindE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t5bytesE">
+<span id="_CPPv3N22omega_edit_script_op_t5bytesE"></span><span id="_CPPv2N22omega_edit_script_op_t5bytesE"></span><span id="omega_edit_script_op_t::bytes__omega_byte_tCP"></span><span class="target" id="structomega__edit__script__op__t_1ad7e9e897c2baa993e7b0fb6efa089dfd"></span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">bytes</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t5bytesE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t12bytes_lengthE">
+<span id="_CPPv3N22omega_edit_script_op_t12bytes_lengthE"></span><span id="_CPPv2N22omega_edit_script_op_t12bytes_lengthE"></span><span id="omega_edit_script_op_t::bytes_length__int64_t"></span><span class="target" id="structomega__edit__script__op__t_1af4a77365c95a75e4d37b593f0978e93e"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bytes_length</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t12bytes_lengthE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
 </section>
 <section id="encode-h">
 <h2>encode.h<a class="headerlink" href="#encode-h" title="Link to this heading"></a></h2>
