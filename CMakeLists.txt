@@ -22,8 +22,19 @@ project(omega_edit
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
 
+option(OMEGA_EDIT_EMBED_MODE "Configure a lean embeddable build with tests, docs, examples, and packaging disabled" OFF)
+
+if (OMEGA_EDIT_EMBED_MODE)
+    set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(BUILD_COVERAGE OFF CACHE BOOL "" FORCE)
+endif()
+
 # Include the core CMakeLists.txt
 add_subdirectory(core)
 
 # Packaging rules
-add_subdirectory(packages/core)
+if (NOT OMEGA_EDIT_EMBED_MODE)
+    add_subdirectory(packages/core)
+endif()

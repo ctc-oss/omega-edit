@@ -184,6 +184,15 @@ Here is how to build a debug version of a shared library, with no documentation 
 cmake -S . -B _build -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=NO -DBUILD_EXAMPLES=NO -DBUILD_SHARED_LIBS=YES
 ```
 
+#### Embedding the core library in another CMake project:
+
+If you want to consume Ωedit as a subproject, enable embed mode to automatically disable tests,
+documentation, examples, coverage instrumentation, and packaging:
+
+```bash
+cmake -S . -B _build -DOMEGA_EDIT_EMBED_MODE=ON
+```
+
 ### Build the configured build:
 
 This will build the core library, and any example programs or documentation if configured.  Note that the config type
