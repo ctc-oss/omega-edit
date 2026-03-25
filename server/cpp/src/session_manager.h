@@ -141,6 +141,8 @@ struct ViewportInfo {
 struct SessionInfo {
     omega_session_t *session;
     std::string session_id;
+    std::string checkpoint_directory;
+    bool owns_checkpoint_directory{false};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
     std::shared_ptr<EventQueue<SessionEventData>> event_queue;
     int32_t event_interest;
@@ -207,6 +209,12 @@ public:
 private:
     static std::string generate_uuid();
     static std::string make_viewport_fqid(const std::string &session_id, const std::string &viewport_id);
+    static void cleanup_directory_best_effort(const std::string &directory_path);
+    static void cleanup_stale_server_roots_best_effort(const std::string &root_path);
+    static bool is_managed_server_root_name(const std::string &name);
+    static std::string create_server_root_name();
+    std::string create_managed_checkpoint_directory();
+    void cleanup_managed_server_root_if_empty();
 
     // Callbacks
     static void session_event_callback(const omega_session_t *session, omega_session_event_t event, const void *ptr);
@@ -216,6 +224,7 @@ private:
     mutable std::mutex mutex_;
     ResourceLimits limits_;
     std::map<std::string, std::shared_ptr<SessionInfo>> sessions_;
+    std::string managed_server_root_;
 };
 
 } // namespace grpc_server

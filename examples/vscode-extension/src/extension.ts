@@ -24,11 +24,25 @@
 
 import * as vscode from 'vscode'
 import { startServer, stopServerGraceful, getClient } from '@omega-edit/client'
+import {
+  OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+  OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_VIEW_TYPE,
+} from './constants'
 import { HexEditorProvider } from './hexEditorProvider'
 
 let serverPid: number | undefined
+let activeProvider: HexEditorProvider | undefined
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+function isTestRuntime(): boolean {
+  return process.env.NODE_ENV === 'test'
+}
+
+export async function activate(
+  context: vscode.ExtensionContext
+): Promise<void> {
   const config = vscode.workspace.getConfiguration('omegaEdit')
   const port = config.get<number>('serverPort', 9000)
 
@@ -65,6 +79,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // --- Step 2: Register the hex editor ---
   const provider = new HexEditorProvider(context, port)
+  activeProvider = provider
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       HexEditorProvider.viewType,
@@ -78,20 +93,76 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // --- Commands ---
   context.subscriptions.push(
-    vscode.commands.registerCommand('omegaEdit.goToOffset', async () => {
-      const input = await vscode.window.showInputBox({
-        prompt: 'Enter byte offset (decimal or 0x hex)',
-        placeHolder: '0x0000',
-        validateInput: (v) => {
-          const n = v.startsWith('0x') ? parseInt(v, 16) : parseInt(v, 10)
-          return isNaN(n) || n < 0 ? 'Enter a valid non-negative integer' : null
-        },
-      })
-      if (input !== undefined) {
-        const offset = input.startsWith('0x') ? parseInt(input, 16) : parseInt(input, 10)
-        provider.goToOffset(offset)
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+      async (resource?: vscode.Uri) => {
+        let target = resource ?? vscode.window.activeTextEditor?.document.uri
+
+        if (!target) {
+          target = (
+            await vscode.window.showOpenDialog({
+              canSelectMany: false,
+              canSelectFiles: true,
+              canSelectFolders: false,
+              openLabel: 'Open in OmegaEdit Hex Editor',
+              title: 'Select a file to open in OmegaEdit Hex Editor',
+            })
+          )?.[0]
+        }
+
+        if (!target) {
+          return
+        }
+
+        await vscode.commands.executeCommand(
+          'vscode.openWith',
+          target,
+          OMEGA_EDIT_VIEW_TYPE
+        )
       }
-    })
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
+      async () => {
+        const input = await vscode.window.showInputBox({
+          prompt: 'Enter byte offset (decimal or 0x hex)',
+          placeHolder: '0x0000',
+          validateInput: (v) => {
+            const n = v.startsWith('0x') ? parseInt(v, 16) : parseInt(v, 10)
+            return isNaN(n) || n < 0
+              ? 'Enter a valid non-negative integer'
+              : null
+          },
+        })
+        if (input !== undefined) {
+          const offset = input.startsWith('0x')
+            ? parseInt(input, 16)
+            : parseInt(input, 10)
+          provider.goToOffset(offset)
+        }
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+      async () => {
+        await provider.exportActiveChangeScript()
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+      async () => {
+        await provider.replayActiveChangeScript()
+      }
+    )
   )
 
   // Listen for configuration changes
@@ -105,6 +176,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 }
 
 export async function deactivate(): Promise<void> {
+  activeProvider = undefined
+
   // --- Step 3: Graceful shutdown ---
   // stopServerGraceful() tells the server to stop accepting new sessions and
   // exit once all existing sessions are destroyed. This mirrors the pattern
@@ -114,4 +187,10 @@ export async function deactivate(): Promise<void> {
   } catch {
     // Server may already be stopped; swallow errors during deactivation
   }
+}
+
+export function getHexEditorProviderForTesting():
+  | HexEditorProvider
+  | undefined {
+  return isTestRuntime() ? activeProvider : undefined
 }

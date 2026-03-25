@@ -15,6 +15,7 @@
 #include "session_manager.h"
 
 #include <omega_edit/edit.h>
+#include <omega_edit/filesystem.h>
 #include <omega_edit/search.h>
 #include <omega_edit/segment.h>
 #include <omega_edit/session.h>
@@ -22,21 +23,106 @@
 #include <omega_edit/viewport.h>
 
 #include <algorithm>
-#include <cstdio>
-#include <cstring>
+#include <cctype>
+#include <cerrno>
 #include <cinttypes>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <filesystem>
 #include <random>
 #include <sstream>
+#include <system_error>
 
 #ifdef _WIN32
+#include <windows.h>
 #include <rpc.h>
 #pragma comment(lib, "rpcrt4.lib")
 #else
+#include <signal.h>
+#include <unistd.h>
 #include <uuid/uuid.h>
 #endif
 
 namespace omega_edit {
 namespace grpc_server {
+namespace fs = std::filesystem;
+
+namespace {
+
+constexpr char kManagedTempRootName[] = "omega-edit-grpc-server";
+constexpr char kManagedServerPrefix[] = "server-";
+constexpr char kManagedSessionPrefix[] = "session-";
+
+int get_current_process_id() {
+#ifdef _WIN32
+    return static_cast<int>(GetCurrentProcessId());
+#else
+    return static_cast<int>(getpid());
+#endif
+}
+
+std::string get_managed_temp_root_path() {
+    char *temp_dir = omega_util_get_temp_directory();
+    if (temp_dir == nullptr) {
+        return "";
+    }
+
+    const std::string root_path = (fs::path(temp_dir) / kManagedTempRootName).string();
+    free(temp_dir);
+    return root_path;
+}
+
+bool parse_managed_server_root_pid(const std::string &name, int &pid_out) {
+    if (name.rfind(kManagedServerPrefix, 0) != 0) {
+        return false;
+    }
+
+    const size_t pid_start = std::strlen(kManagedServerPrefix);
+    const size_t pid_end = name.find('-', pid_start);
+    if (pid_end == std::string::npos || pid_end == pid_start) {
+        return false;
+    }
+
+    const std::string pid_str = name.substr(pid_start, pid_end - pid_start);
+    if (!std::all_of(pid_str.begin(), pid_str.end(), [](unsigned char ch) { return std::isdigit(ch) != 0; })) {
+        return false;
+    }
+
+    try {
+        pid_out = std::stoi(pid_str);
+    } catch (...) {
+        return false;
+    }
+
+    return pid_out > 0;
+}
+
+bool is_process_alive(int pid) {
+    if (pid <= 0) {
+        return false;
+    }
+
+#ifdef _WIN32
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, static_cast<DWORD>(pid));
+    if (process == nullptr) {
+        return false;
+    }
+
+    DWORD exit_code = 0;
+    const BOOL ok = GetExitCodeProcess(process, &exit_code);
+    CloseHandle(process);
+    return ok != FALSE && exit_code == STILL_ACTIVE;
+#else
+    if (kill(static_cast<pid_t>(pid), 0) == 0) {
+        return true;
+    }
+
+    return errno == EPERM;
+#endif
+}
+
+} // namespace
 
 // ── Base64 encoding (URL-safe, no padding — matches Java Base64.getUrlEncoder().withoutPadding()) ──
 static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -109,6 +195,111 @@ std::string SessionManager::make_viewport_fqid(const std::string &session_id, co
     return session_id + ":" + viewport_id;
 }
 
+void SessionManager::cleanup_directory_best_effort(const std::string &directory_path) {
+    if (directory_path.empty()) {
+        return;
+    }
+
+    std::error_code ec;
+    fs::remove_all(fs::path(directory_path), ec);
+}
+
+void SessionManager::cleanup_stale_server_roots_best_effort(const std::string &root_path) {
+    if (root_path.empty()) {
+        return;
+    }
+
+    std::error_code ec;
+    const fs::path managed_root(root_path);
+    if (!fs::exists(managed_root, ec) || !fs::is_directory(managed_root, ec)) {
+        return;
+    }
+
+    for (fs::directory_iterator it(managed_root, ec), end; !ec && it != end; it.increment(ec)) {
+        std::error_code entry_ec;
+        if (!it->is_directory(entry_ec)) {
+            continue;
+        }
+
+        const std::string name = it->path().filename().string();
+        if (!is_managed_server_root_name(name)) {
+            continue;
+        }
+
+        int pid = 0;
+        if (!parse_managed_server_root_pid(name, pid) || is_process_alive(pid)) {
+            continue;
+        }
+
+        std::error_code remove_ec;
+        fs::remove_all(it->path(), remove_ec);
+    }
+}
+
+bool SessionManager::is_managed_server_root_name(const std::string &name) {
+    int pid = 0;
+    return parse_managed_server_root_pid(name, pid);
+}
+
+std::string SessionManager::create_server_root_name() {
+    return std::string(kManagedServerPrefix) + std::to_string(get_current_process_id()) + "-" + generate_uuid();
+}
+
+std::string SessionManager::create_managed_checkpoint_directory() {
+    if (managed_server_root_.empty()) {
+        const std::string managed_root_parent = get_managed_temp_root_path();
+        if (managed_root_parent.empty()) {
+            return "";
+        }
+
+        std::error_code ec;
+        const fs::path managed_root_parent_path(managed_root_parent);
+        fs::create_directories(managed_root_parent_path, ec);
+        if (ec) {
+            return "";
+        }
+
+        cleanup_stale_server_roots_best_effort(managed_root_parent);
+
+        const fs::path server_root = managed_root_parent_path / create_server_root_name();
+        ec.clear();
+        fs::create_directories(server_root, ec);
+        if (ec) {
+            return "";
+        }
+
+        managed_server_root_ = server_root.string();
+    }
+
+    std::error_code ec;
+    const fs::path checkpoint_directory =
+        fs::path(managed_server_root_) / (std::string(kManagedSessionPrefix) + generate_uuid());
+    fs::create_directories(checkpoint_directory, ec);
+    if (ec) {
+        return "";
+    }
+
+    return checkpoint_directory.string();
+}
+
+void SessionManager::cleanup_managed_server_root_if_empty() {
+    if (managed_server_root_.empty() || !sessions_.empty()) {
+        return;
+    }
+
+    std::error_code ec;
+    const fs::path server_root(managed_server_root_);
+    if (fs::exists(server_root, ec) && fs::is_directory(server_root, ec) && fs::is_empty(server_root, ec)) {
+        ec.clear();
+        fs::remove(server_root, ec);
+    }
+
+    ec.clear();
+    if (!fs::exists(server_root, ec)) {
+        managed_server_root_.clear();
+    }
+}
+
 // ── Callbacks ────────────────────────────────────────────────────────────────
 void SessionManager::session_event_callback(const omega_session_t *session, omega_session_event_t event,
                                             const void *ptr) {
@@ -178,7 +369,9 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
 }
 
 // ── Constructor / Destructor ─────────────────────────────────────────────────
-SessionManager::SessionManager(ResourceLimits limits) : limits_(limits) {}
+SessionManager::SessionManager(ResourceLimits limits) : limits_(limits) {
+    cleanup_stale_server_roots_best_effort(get_managed_temp_root_path());
+}
 
 SessionManager::~SessionManager() { destroy_all(); }
 
@@ -223,13 +416,29 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     sessions_[session_id] = info;
 
     const char *path = file_path.empty() ? nullptr : file_path.c_str();
-    const char *chkpt_dir = checkpoint_directory.empty() ? nullptr : checkpoint_directory.c_str();
+    std::string effective_checkpoint_directory = checkpoint_directory;
+    if (effective_checkpoint_directory.empty()) {
+        effective_checkpoint_directory = create_managed_checkpoint_directory();
+        if (effective_checkpoint_directory.empty()) {
+            sessions_.erase(session_id);
+            if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+            return "";
+        }
+        info->owns_checkpoint_directory = true;
+    }
+
+    info->checkpoint_directory = effective_checkpoint_directory;
+    const char *chkpt_dir = effective_checkpoint_directory.empty() ? nullptr : effective_checkpoint_directory.c_str();
 
     omega_session_t *session =
         omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
 
     if (!session) {
+        if (info->owns_checkpoint_directory) {
+            cleanup_directory_best_effort(info->checkpoint_directory);
+        }
         sessions_.erase(session_id);
+        cleanup_managed_server_root_if_empty();
         if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
         return ""; // Failed to create
     }
@@ -239,6 +448,9 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     const char *chkpt = omega_session_get_checkpoint_directory(session);
     checkpoint_dir_out = chkpt ? chkpt : "";
+    if (!checkpoint_dir_out.empty()) {
+        info->checkpoint_directory = checkpoint_dir_out;
+    }
 
     return session_id;
 }
@@ -266,8 +478,12 @@ bool SessionManager::destroy_session(const std::string &session_id) {
 
     // Destroy the session (this also destroys all viewports)
     omega_edit_destroy_session(info->session);
+    if (info->owns_checkpoint_directory) {
+        cleanup_directory_best_effort(info->checkpoint_directory);
+    }
 
     sessions_.erase(it);
+    cleanup_managed_server_root_if_empty();
     return true;
 }
 
@@ -443,8 +659,12 @@ void SessionManager::destroy_all() {
             if (vp.second->event_queue) vp.second->event_queue->close();
         }
         omega_edit_destroy_session(info->session);
+        if (info->owns_checkpoint_directory) {
+            cleanup_directory_best_effort(info->checkpoint_directory);
+        }
     }
     sessions_.clear();
+    cleanup_managed_server_root_if_empty();
 }
 
 void SessionManager::touch_session(const std::string &session_id) {

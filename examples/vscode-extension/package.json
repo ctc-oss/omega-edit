@@ -1,26 +1,29 @@
 {
   "name": "omega-edit-hex-editor",
-  "displayName": "Ωedit™ Hex Editor",
-  "description": "A minimal reference hex/data editor VS Code extension powered by Ωedit™",
+  "displayName": "OmegaEdit Hex Editor",
+  "description": "A minimal reference hex/data editor VS Code extension powered by OmegaEdit",
   "version": "0.1.0",
   "publisher": "omega-edit-example",
   "license": "Apache-2.0",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "Other"
   ],
   "activationEvents": [
     "onCustomEditor:omegaEdit.hexEditor",
-    "onCommand:omegaEdit.goToOffset"
+    "onCommand:omegaEdit.openInHexEditor",
+    "onCommand:omegaEdit.goToOffset",
+    "onCommand:omegaEdit.exportChangeScript",
+    "onCommand:omegaEdit.replayChangeScript"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "customEditors": [
       {
         "viewType": "omegaEdit.hexEditor",
-        "displayName": "Ωedit™ Hex Editor",
+        "displayName": "OmegaEdit Hex Editor",
         "selector": [
           {
             "filenamePattern": "*"
@@ -30,12 +33,12 @@
       }
     ],
     "configuration": {
-      "title": "Ωedit™ Hex Editor",
+      "title": "OmegaEdit Hex Editor",
       "properties": {
         "omegaEdit.serverPort": {
           "type": "number",
           "default": 9000,
-          "description": "Port for the Ωedit™ gRPC server"
+          "description": "Port for the OmegaEdit gRPC server"
         },
         "omegaEdit.logLevel": {
           "type": "string",
@@ -48,7 +51,7 @@
             "error",
             "fatal"
           ],
-          "description": "Log level for the Ωedit™ client"
+          "description": "Log level for the OmegaEdit client"
         },
         "omegaEdit.bytesPerRow": {
           "type": "number",
@@ -64,22 +67,79 @@
     },
     "commands": [
       {
+        "command": "omegaEdit.openInHexEditor",
+        "title": "OmegaEdit: Open in Hex Editor"
+      },
+      {
         "command": "omegaEdit.goToOffset",
-        "title": "Ωedit™: Go to Offset"
+        "title": "OmegaEdit: Go to Offset"
+      },
+      {
+        "command": "omegaEdit.exportChangeScript",
+        "title": "OmegaEdit: Export Change Script"
+      },
+      {
+        "command": "omegaEdit.replayChangeScript",
+        "title": "OmegaEdit: Replay Change Script"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "omegaEdit.openInHexEditor",
+          "when": "resourceScheme == file",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "omegaEdit.openInHexEditor",
+          "when": "resourceScheme == file",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "omegaEdit.openInHexEditor"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "format:check": "prettier --check package.json README.md eslint.config.js src tests .vscode",
+    "format:write": "prettier --write package.json README.md eslint.config.js src tests .vscode",
+    "lint": "npm run format:check && eslint .",
+    "lint:fix": "npm run format:write && eslint --fix .",
+    "test:unit": "node --test tests/extension.test.js",
+    "test:integration": "node ./tests/run-vscode-tests.js",
+    "test:integration:observe": "node ./tests/run-vscode-observe.js",
+    "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
     "@omega-edit/client": "^1.0.1"
   },
   "devDependencies": {
+    "@vscode/test-electron": "^2.5.2",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
     "@types/node": "^18.0.0",
-    "@types/vscode": "^1.80.0",
+    "@types/vscode": "^1.110.0",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.4.0",
+    "mocha": "^10.8.2",
+    "prettier": "^3.8.1",
     "typescript": "^5.0.0"
+  },
+  "prettier": {
+    "endOfLine": "auto",
+    "semi": false,
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "es5"
   }
 }

@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "compile:vscode-extension",
+      "type": "shell",
+      "command": "npm run compile",
+      "options": {
+        "cwd": "${workspaceFolder}/examples/vscode-extension"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$tsc"
+      ]
+    },
+    {
+      "label": "run:vscode-extension-host",
+      "type": "process",
+      "command": "code",
+      "args": [
+        "--new-window",
+        "--disable-extensions",
+        "--disable-workspace-trust",
+        "--skip-welcome",
+        "--extensionDevelopmentPath=${workspaceFolder}\\examples\\vscode-extension",
+        "${workspaceFolder}"
+      ],
+      "group": "test",
+      "dependsOn": "compile:vscode-extension",
+      "problemMatcher": []
+    }
+  ]
+}
