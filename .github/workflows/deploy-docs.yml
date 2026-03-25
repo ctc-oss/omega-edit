@@ -47,7 +47,7 @@ jobs:
           cmake --build --preset ci-docs --target sphinx --config Release
           touch build/core/docs/sphinx/.nojekyll
       - name: Setup Node.js 📦
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'yarn'
