@@ -6,11 +6,12 @@
       "type": "extensionHost",
       "request": "launch",
       "args": [
+        "--disable-extensions",
+        "--disable-workspace-trust",
+        "--skip-welcome",
         "--extensionDevelopmentPath=${workspaceFolder}"
       ],
-      "outFiles": [
-        "${workspaceFolder}/out/**/*.js"
-      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
       "preLaunchTask": "npm: compile"
     }
   ]

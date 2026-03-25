@@ -1,124 +1,142 @@
-# Ωedit™ Hex Editor — Reference VS Code Extension
+# OmegaEdit Hex Editor - Reference VS Code Extension
 
-A minimal, standalone reference VS Code extension that demonstrates how to use [Ωedit™](https://github.com/ctc-oss/omega-edit) as a data/hex editor. This is intended as a starting point for extension developers — not a production hex editor.
+A standalone reference VS Code extension that demonstrates how to use [OmegaEdit](https://github.com/ctc-oss/omega-edit) as a fast, usable data/hex editor. It is still intentionally smaller than a marketplace-grade product, but it now covers the core editing, navigation, save, replay, and testing paths needed to evaluate a serious integration.
 
-![Ωedit™ Hex Editor](../../images/omega-edit-logo.png)
+![OmegaEdit Hex Editor](../../images/omega-edit-logo.png)
 
 ## What This Demonstrates
 
-| Integration Point | Where |
-|---|---|
-| Start Ωedit™ server on `activate()` | [extension.ts](src/extension.ts) |
-| Stop server on `deactivate()` | [extension.ts](src/extension.ts) |
-| `CustomReadonlyEditorProvider` wired to Ωedit™ | [hexEditorProvider.ts](src/hexEditorProvider.ts) |
-| Create session per opened file | [hexEditorProvider.ts](src/hexEditorProvider.ts) |
-| Viewport → webview data flow (reactive) | [hexEditorProvider.ts](src/hexEditorProvider.ts) |
-| Subscribe to viewport & session events | [hexEditorProvider.ts](src/hexEditorProvider.ts) |
-| Insert / delete / overwrite from UI | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts) |
-| Search (text & hex, case-insensitive) | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts) |
-| Undo / redo | [hexEditorProvider.ts](src/hexEditorProvider.ts) |
-| Extension settings (port, log level, bytes/row) | [package.json](package.json) |
-| Hex + ASCII webview rendering | [webview.ts](src/webview.ts) |
+| Integration Point                                         | Where                                                                               |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Start OmegaEdit server on `activate()`                    | [extension.ts](src/extension.ts)                                                    |
+| Stop server on `deactivate()`                             | [extension.ts](src/extension.ts)                                                    |
+| `CustomReadonlyEditorProvider` wired to OmegaEdit         | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| Direct open from command palette / explorer               | [extension.ts](src/extension.ts)                                                    |
+| Create session per opened file                            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| Viewport to webview data flow                             | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| Insert / delete / overwrite / replace from UI             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Search and replace with text/hex and direction controls   | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Undo / redo with stack counts                             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Save / Save As / dirty tracking                           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
+| Bytes-per-row and offset-radix controls                   | [webview.ts](src/webview.ts)                                                        |
+| Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
+| Extension settings                                        | [package.json](package.json)                                                        |
 
 ## Quick Start
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) ≥ 18
-- [VS Code](https://code.visualstudio.com/) ≥ 1.80
+- [Node.js](https://nodejs.org/) >= 18
+- [VS Code](https://code.visualstudio.com/) >= 1.110
 
-### Run with F5
+The current VS Code floor is `1.110` because that is the oldest version exercised in CI and it matches the `@types/vscode` version used to compile the example. If the support range is widened later, the CI matrix should be widened with it.
+
+### Run With F5
 
 ```bash
 cd examples/vscode-extension
 npm install
+npm test
 ```
 
-Then open this folder in VS Code and press **F5**. A new Extension Development Host window will open.
+Then open this folder in VS Code and press `F5`. A new Extension Development Host window will open.
 
-In the new window, right-click any file → **"Open With…"** → **"Ωedit™ Hex Editor"**.
+In the new window:
 
-### What Happens Under the Hood
+- Run `OmegaEdit: Open in Hex Editor` from the Command Palette to pick any file directly
+- Or right-click a file in the Explorer and choose `OmegaEdit: Open in Hex Editor`
 
-1. **`activate()`** reads the `omegaEdit.serverPort` setting (default: `9000`) and calls `startServer(port)` from `@omega-edit/client`. The server binary is bundled inside the npm package — no separate install needed.
+## What Happens Under The Hood
 
-2. When you open a file with the hex editor, the provider:
-   - Creates an **Ωedit™ session** for the file (`createSession(filePath)`)
-   - Creates a **viewport** at offset 0 with 1 KiB capacity (`createViewport()`)
-   - **Subscribes to viewport events** so edits anywhere (including from other sessions sharing the same file) push fresh data to the webview
-
-3. Edits from the UI (Insert/Delete/Overwrite buttons or keyboard) are sent to the extension host, which calls the corresponding `@omega-edit/client` function (`insert()`, `del()`, `overwrite()`). The viewport event subscription automatically updates the webview.
-
-4. **`deactivate()`** calls `stopServerGraceful()` — the server finishes in-flight work and exits.
+1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
+2. Opening a file creates an OmegaEdit session and viewport, then subscribes to viewport and session updates.
+3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
+4. The webview drives edits, navigation, search, replace, save, and replay through the provider, and the provider pushes back reactive state updates for the viewport, undo/redo counts, dirty state, replace counts, and server health.
+5. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
 
 ## Extension Settings
 
-| Setting | Default | Description |
-|---|---|---|
-| `omegaEdit.serverPort` | `9000` | gRPC server port |
-| `omegaEdit.logLevel` | `info` | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
-| `omegaEdit.bytesPerRow` | `16` | Bytes displayed per row (8 / 16 / 32) |
+| Setting                 | Default | Description                                                                |
+| ----------------------- | ------- | -------------------------------------------------------------------------- |
+| `omegaEdit.serverPort`  | `9000`  | gRPC server port                                                           |
+| `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
+| `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
 
-## Keyboard Shortcuts (in the hex view)
+## Keyboard Shortcuts
 
-| Key | Action |
-|---|---|
-| Ctrl+Z | Undo |
-| Ctrl+Y | Redo |
-| Ctrl+S | Save |
-| Ctrl+F | Focus search box |
-| Page Up / Page Down | Scroll by 32 rows |
-| Ctrl+Home / Ctrl+End | Jump to start / end |
-| Mouse wheel | Scroll by 4 rows |
+| Key                      | Action                                                     |
+| ------------------------ | ---------------------------------------------------------- |
+| `Ctrl+Z`                 | Undo                                                       |
+| `Ctrl+Y`                 | Redo                                                       |
+| `Ctrl+S`                 | Save                                                       |
+| `Ctrl+Shift+S`           | Save As                                                    |
+| `Ctrl+F`                 | Focus search                                               |
+| Arrow keys               | Move selection, or scroll by line when nothing is selected |
+| `Page Up` / `Page Down`  | Scroll by 32 rows                                          |
+| `Ctrl+Home` / `Ctrl+End` | Jump to start / end                                        |
+| Mouse wheel              | Scroll by 4 rows                                           |
+
+## Testing
+
+The example is exercised in CI on Linux and Windows against both the declared VS Code floor and latest stable release.
+
+Useful local commands:
+
+```bash
+npm run lint
+npm run format:check
+npm run compile
+npm run test:unit
+VSCODE_VERSION=1.110.0 npm run test:integration
+VSCODE_VERSION=stable npm run test:integration
+```
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  VS Code Extension Host                                 │
-│  ┌─────────────┐    ┌──────────────────────────┐        │
-│  │ extension.ts │───▶│ hexEditorProvider.ts      │        │
-│  │ activate()   │    │ - createSession()         │        │
-│  │ deactivate() │    │ - createViewport()        │        │
-│  └──────┬───────┘    │ - subscribe to events     │        │
-│         │            │ - handle insert/del/...   │        │
-│         │            └────────┬────────▲─────────┘        │
-│         │                     │        │                  │
-│  ┌──────▼───────┐    ┌────────▼────────┴─────────┐       │
-│  │ startServer() │    │ Webview (webview.ts)       │       │
-│  │ stopServer()  │    │ - hex + ASCII grid         │       │
-│  └──────┬───────┘    │ - edit dialog               │       │
-│         │            │ - search UI                  │       │
-│         │            └──────────────────────────────┘       │
-│  ┌──────▼───────────────────────────────────────────┐      │
-│  │  @omega-edit/client  (npm package)               │      │
-│  │  - TypeScript API wrappers                        │      │
-│  │  - Bundled native gRPC server binary              │      │
-│  └──────┬───────────────────────────────────────────┘      │
-│         │ gRPC                                              │
-│  ┌──────▼───────────────────────────────────────────┐      │
-│  │  Ωedit™ C++ Server (child process)               │      │
-│  │  - Session management                             │      │
-│  │  - Change tracking with undo/redo                 │      │
-│  │  - Viewport event streaming                       │      │
-│  │  - Server-side save (replay changes)              │      │
-│  └──────────────────────────────────────────────────┘      │
-└─────────────────────────────────────────────────────────────┘
+```text
++--------------------------------------------------------------+
+| VS Code Extension Host                                       |
+|  extension.ts                                                |
+|   -> startServer() / stopServerGraceful()                    |
+|   -> command registration                                    |
+|   -> custom editor registration                              |
+|                                                              |
+|  hexEditorProvider.ts                                        |
+|   -> createSession() / createViewport()                      |
+|   -> event subscriptions                                     |
+|   -> search / replace / save / replay                        |
+|   -> webview state sync                                      |
+|                                                              |
+|  webview.ts                                                  |
+|   -> hex + text rendering                                    |
+|   -> virtual navigation controls                             |
+|   -> toolbar / dialogs / status bar                          |
++-----------------------------+--------------------------------+
+                              |
+                              | gRPC
+                              v
++--------------------------------------------------------------+
+| OmegaEdit native server                                      |
+|  - sessions, viewports, undo/redo                            |
+|  - checkpoint handling                                       |
+|  - save and replay support                                   |
+|  - server info / heartbeat                                   |
++--------------------------------------------------------------+
 ```
 
 ## Extending This Example
 
-This reference implementation is intentionally minimal. Here are some ideas for extension:
+This reference implementation is intentionally compact. A few natural next steps are:
 
-- **Read-write custom editor**: Switch from `CustomReadonlyEditorProvider` to `CustomEditorProvider` to integrate with VS Code's dirty-document model (backup, revert, etc.)
-- **Multiple viewports**: Create additional viewports for split-pane views or overview panels
-- **Data profiling**: Call `profileSession()` to show byte frequency statistics
-- **Replace**: Wire `replaceSession()` to the search UI
-- **Transactions**: Use `beginSessionTransaction()` / `endSessionTransaction()` to group edits
-- **Multi-author**: Share a session ID across extension instances for collaborative editing
+- Switch from `CustomReadonlyEditorProvider` to `CustomEditorProvider` for full VS Code dirty-document integration
+- Add multiple coordinated viewports or overview panels
+- Surface richer profiling / structure analysis views
+- Add bookmarks and richer navigation helpers
+- Share session IDs across instances for collaborative or multi-tool workflows
 
 ## Related
 
-- [Ωedit™ TypeScript Examples](../typescript/) — Standalone Node.js examples using `@omega-edit/client`
-- [@omega-edit/client on npm](https://www.npmjs.com/package/@omega-edit/client) — The client package used here
-- [Apache Daffodil™ VS Code Extension](https://github.com/apache/daffodil-vscode) — Production extension using Ωedit™
+- [OmegaEdit TypeScript Examples](../typescript/) - Standalone Node.js examples using `@omega-edit/client`
+- [@omega-edit/client on npm](https://www.npmjs.com/package/@omega-edit/client) - The client package used here
+- [Apache Daffodil VS Code Extension](https://github.com/apache/daffodil-vscode) - Production extension using OmegaEdit

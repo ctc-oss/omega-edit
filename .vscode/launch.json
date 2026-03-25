@@ -1,4 +1,20 @@
 {
   "version": "0.2.0",
-  "configurations": []
+  "configurations": [
+    {
+      "name": "Run OmegaEdit VS Code Example",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--disable-extensions",
+        "--disable-workspace-trust",
+        "--skip-welcome",
+        "--extensionDevelopmentPath=${workspaceFolder}/examples/vscode-extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/examples/vscode-extension/out/**/*.js"
+      ],
+      "preLaunchTask": "compile:vscode-extension"
+    }
+  ]
 }
