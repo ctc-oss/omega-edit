@@ -2,7 +2,7 @@
 
 A standalone reference VS Code extension that demonstrates how to use [OmegaEdit](https://github.com/ctc-oss/omega-edit) as a fast, usable data/hex editor. It is still intentionally smaller than a marketplace-grade product, but it now covers the core editing, navigation, save, replay, and testing paths needed to evaluate a serious integration.
 
-![OmegaEdit Hex Editor](../../images/omega-edit-logo.png)
+![OmegaEdit Hex Editor](./images/omega-hex.png)
 
 ## What This Demonstrates
 
