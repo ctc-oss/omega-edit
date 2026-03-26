@@ -1,5 +1,6 @@
 const cp = require('node:child_process')
 const fs = require('node:fs')
+const net = require('node:net')
 const path = require('node:path')
 const { downloadAndUnzipVSCode } = require('@vscode/test-electron')
 
@@ -20,6 +21,7 @@ async function main() {
     const vscodeExecutablePath = await downloadAndUnzipVSCode(
       version ? { version } : undefined
     )
+    const serverPort = await reserveServerPort()
     fs.rmSync(profileRoot, { recursive: true, force: true })
     const args = [
       '--no-sandbox',
@@ -35,7 +37,10 @@ async function main() {
       `--user-data-dir=${userDataDir}`,
     ]
 
-    await runProcess(vscodeExecutablePath, args, extensionDevelopmentPath)
+    console.log(`Using OmegaEdit test server port ${serverPort}`)
+    await runProcess(vscodeExecutablePath, args, extensionDevelopmentPath, {
+      OMEGA_EDIT_SERVER_PORT: String(serverPort),
+    })
   } catch (error) {
     console.error('Failed to run VS Code integration tests')
     console.error(error)
@@ -43,10 +48,11 @@ async function main() {
   }
 }
 
-function runProcess(command, args, cwd) {
+function runProcess(command, args, cwd, extraEnv = {}) {
   return new Promise((resolve, reject) => {
     const env = {
       ...process.env,
+      ...extraEnv,
       NODE_ENV: 'test',
       ELECTRON_RUN_AS_NODE: undefined,
       VSCODE_DEV: undefined,
@@ -74,6 +80,32 @@ function runProcess(command, args, cwd) {
             : `VS Code test run failed with exit code ${code}`
         )
       )
+    })
+  })
+}
+
+function reserveServerPort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer()
+
+    server.on('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        server.close(() => {
+          reject(new Error('Failed to reserve a TCP port for VS Code tests'))
+        })
+        return
+      }
+
+      server.close((err) => {
+        if (err) {
+          reject(err)
+          return
+        }
+
+        resolve(address.port)
+      })
     })
   })
 }
