@@ -14,6 +14,19 @@ configure_file(
 
 find_program(VALGRIND "valgrind")
 
+if (WIN32 AND BUILD_SHARED_LIBS)
+    # Multiple test targets share the same runtime directory, so stage the DLL
+    # once up front instead of racing on per-target POST_BUILD copies.
+    add_custom_target(
+            omega_edit_test_runtime
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:omega_edit>
+            ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Copying omega_edit.dll to shared test runtime directory"
+            DEPENDS omega_edit
+    )
+endif ()
+
 foreach (test_src ${omega_test_srcs})
     get_filename_component(testname ${test_src} NAME_WE)
 
@@ -53,12 +66,7 @@ foreach (test_src ${omega_test_srcs})
     message(STATUS "Test ${testname}: WIN32=${WIN32}, BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}")
     if (WIN32 AND BUILD_SHARED_LIBS)
         message(STATUS "Using manual test registration for ${testname}")
-        add_dependencies(${testname} omega_edit)
-        add_custom_command(TARGET ${testname} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:omega_edit>
-            $<TARGET_FILE_DIR:${testname}>
-            COMMENT "Copying omega_edit.dll to test directory for ${testname}")
+        add_dependencies(${testname} omega_edit_test_runtime)
         
         # For Windows shared builds, add the test manually to avoid discovery issues
         add_test(NAME ${testname} COMMAND ${testname})

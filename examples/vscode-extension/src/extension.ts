@@ -12,18 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/**
- * Ωedit™ Hex Editor — VS Code Extension Entry Point
- *
- * This file demonstrates the minimal lifecycle management needed to integrate
- * Ωedit™ into a VS Code extension:
- *   1. activate()  — start the Ωedit™ gRPC server
- *   2. Register a CustomReadonlyEditorProvider (HexEditorProvider)
- *   3. deactivate() — gracefully shut down the server
- */
-
 import * as vscode from 'vscode'
-import { startServer, stopServerGraceful, getClient } from '@omega-edit/client'
+import { getClient, startServer, stopServerGraceful } from '@omega-edit/client'
 import {
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
@@ -36,50 +26,67 @@ import { HexEditorProvider } from './hexEditorProvider'
 let serverPid: number | undefined
 let activeProvider: HexEditorProvider | undefined
 
+const DEFAULT_SERVER_PORT = 9000
+const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
+
 function isTestRuntime(): boolean {
   return process.env.NODE_ENV === 'test'
+}
+
+function resolveServerPort(config: vscode.WorkspaceConfiguration): number {
+  const envPort = Number.parseInt(
+    process.env[SERVER_PORT_OVERRIDE_ENV] ?? '',
+    10
+  )
+  if (Number.isInteger(envPort) && envPort > 0 && envPort <= 65535) {
+    return envPort
+  }
+
+  return config.get<number>('serverPort', DEFAULT_SERVER_PORT)
+}
+
+function reportActivationError(message: string): void {
+  if (isTestRuntime()) {
+    console.error(message)
+    return
+  }
+
+  void vscode.window.showErrorMessage(message)
 }
 
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<void> {
   const config = vscode.workspace.getConfiguration('omegaEdit')
-  const port = config.get<number>('serverPort', 9000)
+  const port = resolveServerPort(config)
 
-  // Set log level from configuration before starting
   const logLevel = config.get<string>('logLevel', 'info')
   process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL = logLevel
 
-  // --- Step 1: Start the Ωedit™ gRPC server ---
-  // The server binary is bundled inside @omega-edit/client, so no external
-  // install is needed. startServer() spawns it as a child process.
   try {
     serverPid = await startServer(port)
-    if (serverPid) {
-      vscode.window.showInformationMessage(
-        `Ωedit™ server started on port ${port} (pid ${serverPid})`
+    if (serverPid && !isTestRuntime()) {
+      void vscode.window.showInformationMessage(
+        `OmegaEdit server started on port ${port} (pid ${serverPid})`
       )
     }
   } catch (err) {
-    vscode.window.showErrorMessage(
-      `Failed to start Ωedit™ server: ${err instanceof Error ? err.message : String(err)}`
+    reportActivationError(
+      `Failed to start OmegaEdit server: ${err instanceof Error ? err.message : String(err)}`
     )
     return
   }
 
-  // Verify the server is reachable
   try {
-    const client = await getClient(port)
-    const { waitForReady } = await import('@omega-edit/client')
-    await waitForReady(client)
+    await getClient(port)
   } catch {
-    vscode.window.showErrorMessage('Ωedit™ server started but is not reachable')
+    reportActivationError('OmegaEdit server started but is not reachable')
     return
   }
 
-  // --- Step 2: Register the hex editor ---
   const provider = new HexEditorProvider(context, port)
   activeProvider = provider
+
   context.subscriptions.push(
     vscode.window.registerCustomEditorProvider(
       HexEditorProvider.viewType,
@@ -91,7 +98,6 @@ export async function activate(
     )
   )
 
-  // --- Commands ---
   context.subscriptions.push(
     vscode.commands.registerCommand(
       OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
@@ -130,13 +136,16 @@ export async function activate(
         const input = await vscode.window.showInputBox({
           prompt: 'Enter byte offset (decimal or 0x hex)',
           placeHolder: '0x0000',
-          validateInput: (v) => {
-            const n = v.startsWith('0x') ? parseInt(v, 16) : parseInt(v, 10)
-            return isNaN(n) || n < 0
+          validateInput: (value) => {
+            const offset = value.startsWith('0x')
+              ? parseInt(value, 16)
+              : parseInt(value, 10)
+            return Number.isNaN(offset) || offset < 0
               ? 'Enter a valid non-negative integer'
               : null
           },
         })
+
         if (input !== undefined) {
           const offset = input.startsWith('0x')
             ? parseInt(input, 16)
@@ -165,10 +174,9 @@ export async function activate(
     )
   )
 
-  // Listen for configuration changes
   context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('omegaEdit.bytesPerRow')) {
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('omegaEdit.bytesPerRow')) {
         provider.refreshBytesPerRow()
       }
     })
@@ -178,14 +186,10 @@ export async function activate(
 export async function deactivate(): Promise<void> {
   activeProvider = undefined
 
-  // --- Step 3: Graceful shutdown ---
-  // stopServerGraceful() tells the server to stop accepting new sessions and
-  // exit once all existing sessions are destroyed. This mirrors the pattern
-  // used by the Apache Daffodil™ VS Code extension.
   try {
     await stopServerGraceful()
   } catch {
-    // Server may already be stopped; swallow errors during deactivation
+    // Server may already be stopped; swallow errors during deactivation.
   }
 }
 

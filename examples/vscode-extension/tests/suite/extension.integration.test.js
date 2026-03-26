@@ -32,10 +32,7 @@ suite('OmegaEdit VS Code extension', () => {
   suiteSetup(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
 
-    testPort = 43000 + Math.floor(Math.random() * 10000) + (process.pid % 1000)
-    await vscode.workspace
-      .getConfiguration('omegaEdit')
-      .update('serverPort', testPort, vscode.ConfigurationTarget.Global)
+    testPort = getConfiguredTestPort()
 
     const extensionId = `${packageJson.publisher}.${packageJson.name}`
     const extension = vscode.extensions.getExtension(extensionId)
@@ -548,6 +545,15 @@ async function assertSessionText(
 function parseDelay(rawValue, fallbackMs) {
   const parsed = Number.parseInt(rawValue ?? '', 10)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallbackMs
+}
+
+function getConfiguredTestPort() {
+  const parsed = Number.parseInt(process.env.OMEGA_EDIT_SERVER_PORT ?? '', 10)
+  assert.ok(
+    Number.isInteger(parsed) && parsed > 0 && parsed <= 65535,
+    'Expected OMEGA_EDIT_SERVER_PORT to be set to a valid TCP port'
+  )
+  return parsed
 }
 
 function createMockWebviewPanel() {
