@@ -168,7 +168,7 @@ jobs:
           lcov --list coverage-native.info
 
       - name: Upload C/C++ coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: coverage-native.info
           disable_search: true
@@ -264,7 +264,7 @@ jobs:
           CPP_SERVER_BINARY: ''
 
       - name: Upload TypeScript coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: packages/client/coverage/lcov.info
           disable_search: true
