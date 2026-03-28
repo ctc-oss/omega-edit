@@ -177,18 +177,24 @@ describe('Proto Compatibility', () => {
       hostname: 'host',
       processId: 99,
       serverVersion: '1.0.1',
-      jvmVersion: '',
-      jvmVendor: '',
-      jvmPath: '',
+      runtimeKind: 'native',
+      runtimeName: 'C++',
+      platform: 'linux-x64',
       availableProcessors: 16,
+      compiler: 'Clang 20.0.0',
+      buildType: 'Release',
+      cppStandard: 'C++17',
     })
     expect(serverInfo.getHostname()).to.equal('host')
     expect(serverInfo.getProcessId()).to.equal(99)
     expect(serverInfo.getServerVersion()).to.equal('1.0.1')
-    expect(serverInfo.getJvmVersion()).to.equal('')
-    expect(serverInfo.getJvmVendor()).to.equal('')
-    expect(serverInfo.getJvmPath()).to.equal('')
+    expect(serverInfo.getRuntimeKind()).to.equal('native')
+    expect(serverInfo.getRuntimeName()).to.equal('C++')
+    expect(serverInfo.getPlatform()).to.equal('linux-x64')
     expect(serverInfo.getAvailableProcessors()).to.equal(16)
+    expect(serverInfo.getCompiler()).to.equal('Clang 20.0.0')
+    expect(serverInfo.getBuildType()).to.equal('Release')
+    expect(serverInfo.getCppStandard()).to.equal('C++17')
 
     const serverControl = new ServerControlResponse({
       kind: ProtoServerControlKind.IMMEDIATE_SHUTDOWN,
@@ -207,18 +213,18 @@ describe('Proto Compatibility', () => {
       uptime: 4,
       cpuCount: 8,
       cpuLoadAverage: 1.5,
-      maxMemory: 10,
-      committedMemory: 11,
-      usedMemory: 12,
+      residentMemoryBytes: 10,
+      virtualMemoryBytes: 11,
+      peakResidentMemoryBytes: 12,
     })
     expect(heartbeat.getSessionCount()).to.equal(2)
     expect(heartbeat.getTimestamp()).to.equal(3)
     expect(heartbeat.getUptime()).to.equal(4)
     expect(heartbeat.getCpuCount()).to.equal(8)
     expect(heartbeat.getCpuLoadAverage()).to.equal(1.5)
-    expect(heartbeat.getMaxMemory()).to.equal(10)
-    expect(heartbeat.getCommittedMemory()).to.equal(11)
-    expect(heartbeat.getUsedMemory()).to.equal(12)
+    expect(heartbeat.getResidentMemoryBytes()).to.equal(10)
+    expect(heartbeat.getVirtualMemoryBytes()).to.equal(11)
+    expect(heartbeat.getPeakResidentMemoryBytes()).to.equal(12)
 
     const viewportData = new ViewportDataResponse({
       viewportId: 'vid',

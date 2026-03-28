@@ -233,7 +233,7 @@ endif()
 
 # Platform-specific link libraries
 if(WIN32)
-    target_link_libraries(omega-edit-grpc-server PRIVATE rpcrt4)
+    target_link_libraries(omega-edit-grpc-server PRIVATE rpcrt4 psapi)
 elseif(NOT APPLE)
     # libuuid on Linux
     find_library(UUID_LIB uuid)

@@ -22,12 +22,20 @@
 #include <algorithm>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <optional>
 #include <sstream>
 #include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
+#include <psapi.h>
+#elif defined(__APPLE__)
+#include <mach/mach.h>
+#include <sys/resource.h>
+#include <unistd.h>
 #else
+#include <sys/resource.h>
 #include <unistd.h>
 #endif
 
@@ -56,6 +64,185 @@ static int get_pid() {
 static int get_cpu_count() {
     auto n = std::thread::hardware_concurrency();
     return n > 0 ? static_cast<int>(n) : 1;
+}
+
+struct process_memory_metrics {
+    std::optional<int64_t> resident_memory_bytes;
+    std::optional<int64_t> virtual_memory_bytes;
+    std::optional<int64_t> peak_resident_memory_bytes;
+};
+
+static const std::string &get_runtime_kind() {
+    static const std::string value = "native";
+    return value;
+}
+
+static const std::string &get_runtime_name() {
+    static const std::string value = "C++";
+    return value;
+}
+
+static const std::string &get_platform_summary() {
+    static const std::string value = []() {
+#ifdef _WIN32
+        std::string os = "windows";
+#elif defined(__APPLE__)
+        std::string os = "macos";
+#elif defined(__linux__)
+        std::string os = "linux";
+#else
+        std::string os = "unknown";
+#endif
+
+#if defined(_M_X64) || defined(__x86_64__)
+        std::string arch = "x64";
+#elif defined(_M_ARM64) || defined(__aarch64__)
+        std::string arch = "arm64";
+#elif defined(_M_IX86) || defined(__i386__)
+        std::string arch = "x86";
+#elif defined(_M_ARM) || defined(__arm__)
+        std::string arch = "arm";
+#else
+        std::string arch = "unknown";
+#endif
+        return os + "-" + arch;
+    }();
+    return value;
+}
+
+static const std::string &get_compiler_info() {
+    static const std::string value =
+#if defined(__clang__)
+        "Clang " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." +
+        std::to_string(__clang_patchlevel__);
+#elif defined(_MSC_FULL_VER)
+        "MSVC " + std::to_string(_MSC_FULL_VER);
+#elif defined(_MSC_VER)
+        "MSVC " + std::to_string(_MSC_VER);
+#elif defined(__GNUC__)
+        "GCC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." +
+        std::to_string(__GNUC_PATCHLEVEL__);
+#else
+        "unknown";
+#endif
+    return value;
+}
+
+static const std::string &get_build_type() {
+#ifdef NDEBUG
+    static const std::string value = "Release";
+#else
+    static const std::string value = "Debug";
+#endif
+    return value;
+}
+
+static const std::string &get_cpp_standard() {
+    static const std::string value = []() -> std::string {
+#if __cplusplus >= 202302L
+        return "C++23";
+#elif __cplusplus >= 202002L
+        return "C++20";
+#elif __cplusplus >= 201703L
+        return "C++17";
+#elif __cplusplus >= 201402L
+        return "C++14";
+#elif __cplusplus >= 201103L
+        return "C++11";
+#elif defined(_MSVC_LANG)
+#if _MSVC_LANG >= 202302L
+        return "C++23";
+#elif _MSVC_LANG >= 202002L
+        return "C++20";
+#elif _MSVC_LANG >= 201703L
+        return "C++17";
+#elif _MSVC_LANG >= 201402L
+        return "C++14";
+#else
+        return "C++11";
+#endif
+#else
+        return "unknown";
+#endif
+    }();
+    return value;
+}
+
+static std::optional<double> get_cpu_load_average() {
+#ifdef _WIN32
+    return std::nullopt;
+#else
+    double loadavg[1] = {0.0};
+    if (getloadavg(loadavg, 1) == 1) {
+        return loadavg[0];
+    }
+    return std::nullopt;
+#endif
+}
+
+#if defined(__linux__)
+static std::optional<int64_t> read_proc_status_kibibytes(const char *label) {
+    std::ifstream status_file("/proc/self/status");
+    if (!status_file.is_open()) {
+        return std::nullopt;
+    }
+
+    std::string line;
+    while (std::getline(status_file, line)) {
+        if (line.rfind(label, 0) != 0) {
+            continue;
+        }
+
+        std::istringstream stream(line.substr(std::strlen(label)));
+        int64_t kibibytes = 0;
+        std::string unit;
+        if (stream >> kibibytes >> unit) {
+            return kibibytes * 1024;
+        }
+    }
+
+    return std::nullopt;
+}
+#endif
+
+static process_memory_metrics get_process_memory_metrics() {
+    process_memory_metrics metrics;
+
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS_EX counters = {};
+    if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters),
+                             sizeof(counters))) {
+        metrics.resident_memory_bytes = static_cast<int64_t>(counters.WorkingSetSize);
+        metrics.virtual_memory_bytes = static_cast<int64_t>(counters.PrivateUsage);
+        metrics.peak_resident_memory_bytes = static_cast<int64_t>(counters.PeakWorkingSetSize);
+    }
+#elif defined(__APPLE__)
+    mach_task_basic_info info = {};
+    mach_msg_type_number_t info_count = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&info), &info_count) ==
+        KERN_SUCCESS) {
+        metrics.resident_memory_bytes = static_cast<int64_t>(info.resident_size);
+        metrics.virtual_memory_bytes = static_cast<int64_t>(info.virtual_size);
+    }
+
+    struct rusage usage = {};
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        metrics.peak_resident_memory_bytes = static_cast<int64_t>(usage.ru_maxrss);
+    }
+#elif defined(__linux__)
+    metrics.resident_memory_bytes = read_proc_status_kibibytes("VmRSS:");
+    metrics.virtual_memory_bytes = read_proc_status_kibibytes("VmSize:");
+    metrics.peak_resident_memory_bytes = read_proc_status_kibibytes("VmHWM:");
+
+    if (!metrics.peak_resident_memory_bytes.has_value()) {
+        struct rusage usage = {};
+        if (getrusage(RUSAGE_SELF, &usage) == 0) {
+            metrics.peak_resident_memory_bytes = static_cast<int64_t>(usage.ru_maxrss) * 1024;
+        }
+    }
+#endif
+
+    return metrics;
 }
 
 static grpc::Status validate_change_payload_size(const ::omega_edit::v1::SubmitChangeRequest *request,
@@ -187,12 +374,13 @@ grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
     std::ostringstream ver;
     ver << omega_version_major() << "." << omega_version_minor() << "." << omega_version_patch();
     response->set_server_version(ver.str());
-
-    // No JVM for C++ server
-    response->set_jvm_version("N/A (C++ server)");
-    response->set_jvm_vendor("N/A");
-    response->set_jvm_path("N/A");
+    response->set_runtime_kind(get_runtime_kind());
+    response->set_runtime_name(get_runtime_name());
+    response->set_platform(get_platform_summary());
     response->set_available_processors(get_cpu_count());
+    response->set_compiler(get_compiler_info());
+    response->set_build_type(get_build_type());
+    response->set_cpp_standard(get_cpp_standard());
     return grpc::Status::OK;
 }
 
@@ -1080,23 +1268,20 @@ grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
     response->set_uptime(std::chrono::duration_cast<std::chrono::milliseconds>(uptime).count());
     response->set_cpu_count(get_cpu_count());
 
-    // CPU load average - only available on POSIX
-#ifdef _WIN32
-    response->set_cpu_load_average(-1.0);
-#else
-    double loadavg[1] = {0.0};
-    if (getloadavg(loadavg, 1) == 1) {
-        response->set_cpu_load_average(loadavg[0]);
-    } else {
-        response->set_cpu_load_average(-1.0);
+    if (const auto load_average = get_cpu_load_average(); load_average.has_value()) {
+        response->set_cpu_load_average(*load_average);
     }
-#endif
 
-    // Memory stats - rough approximation since C++ doesn't have JVM-like memory reporting
-    // We report reasonable defaults
-    response->set_max_memory(0);
-    response->set_committed_memory(0);
-    response->set_used_memory(0);
+    const process_memory_metrics memory = get_process_memory_metrics();
+    if (memory.resident_memory_bytes.has_value()) {
+        response->set_resident_memory_bytes(*memory.resident_memory_bytes);
+    }
+    if (memory.virtual_memory_bytes.has_value()) {
+        response->set_virtual_memory_bytes(*memory.virtual_memory_bytes);
+    }
+    if (memory.peak_resident_memory_bytes.has_value()) {
+        response->set_peak_resident_memory_bytes(*memory.peak_resident_memory_bytes);
+    }
 
     return grpc::Status::OK;
 }

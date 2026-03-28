@@ -540,28 +540,32 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         0,
         Math.round(heartbeat.serverUptime / 1000)
       )
-      const usedMemoryMb = Math.round(
-        heartbeat.serverUsedMemory / (1024 * 1024)
-      )
-      const committedMemoryMb = Math.round(
-        heartbeat.serverCommittedMemory / (1024 * 1024)
-      )
+      const formatMemoryMiB = (bytes?: number): string =>
+        bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
+
       const detailParts = [
         `server ${serverInfo.serverVersion}`,
         `client ${getClientVersion()}`,
         `host ${serverInfo.serverHostname}`,
         `pid ${serverInfo.serverProcessId}`,
+        `runtime ${serverInfo.runtimeKind}/${serverInfo.runtimeName}`,
+        `platform ${serverInfo.platform}`,
+        `compiler ${serverInfo.compiler}`,
+        `build ${serverInfo.buildType}`,
+        `c++ ${serverInfo.cppStandard}`,
         `latency ${heartbeat.latency} ms`,
         `sessions ${heartbeat.sessionCount}`,
         `uptime ${uptimeSeconds}s`,
         `cpu ${heartbeat.serverCpuCount} cores`,
-        `load ${heartbeat.serverCpuLoadAverage.toFixed(2)}`,
-        `memory ${usedMemoryMb}/${committedMemoryMb} MiB`,
+        `load ${
+          heartbeat.serverCpuLoadAverage === undefined
+            ? 'n/a'
+            : heartbeat.serverCpuLoadAverage.toFixed(2)
+        }`,
+        `rss ${formatMemoryMiB(heartbeat.serverResidentMemoryBytes)}`,
+        `virtual ${formatMemoryMiB(heartbeat.serverVirtualMemoryBytes)}`,
+        `peak rss ${formatMemoryMiB(heartbeat.serverPeakResidentMemoryBytes)}`,
       ]
-
-      if (serverInfo.jvmVersion) {
-        detailParts.push(`jvm ${serverInfo.jvmVersion}`)
-      }
 
       this.broadcastServerHealth({
         type: 'serverHealth',

@@ -82,8 +82,43 @@ await stopServerGraceful()
 | `startServerUnixSocket(socketPath, ...)`          | Start using a Unix domain socket          |
 | `stopServerGraceful()`                            | Graceful shutdown                         |
 | `stopServerImmediate()`                           | Immediate shutdown                        |
-| `getServerInfo()`                                 | Server version, uptime, and session count |
-| `getServerHeartbeat(sessions, interval?)`         | Heartbeat and session health              |
+| `getServerInfo()`                                 | Runtime metadata for the native server    |
+| `getServerHeartbeat(sessions, interval?)`         | Heartbeat and process health              |
+
+### Server Health API Migration
+
+`getServerInfo()` and `getServerHeartbeat()` now expose native-runtime metadata instead of JVM-shaped placeholders.
+
+Current `getServerInfo()` fields:
+
+- `serverHostname`
+- `serverProcessId`
+- `serverVersion`
+- `runtimeKind`
+- `runtimeName`
+- `platform`
+- `availableProcessors`
+- `compiler`
+- `buildType`
+- `cppStandard`
+
+Current `getServerHeartbeat()` fields:
+
+- `latency`
+- `sessionCount`
+- `serverTimestamp`
+- `serverUptime`
+- `serverCpuCount`
+- `serverCpuLoadAverage?`
+- `serverResidentMemoryBytes?`
+- `serverVirtualMemoryBytes?`
+- `serverPeakResidentMemoryBytes?`
+
+Migration notes:
+
+- `jvmVersion`, `jvmVendor`, and `jvmPath` were removed. Use `runtimeKind`, `runtimeName`, `platform`, and `compiler` instead.
+- `serverMaxMemory`, `serverCommittedMemory`, and `serverUsedMemory` were removed. They were JVM-heap concepts and are now replaced with process-memory metrics.
+- Optional heartbeat fields may be `undefined` when the host platform cannot report them. Treat missing values as "unavailable", not zero.
 
 ### Client Connection
 
