@@ -58,6 +58,7 @@ jobs:
         run: npm run lint && npm run compile && npm run test:unit
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
       - name: Run VS Code extension integration tests on Linux
@@ -65,6 +66,7 @@ jobs:
         run: xvfb-run -a npm run test:integration
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
       - name: Run VS Code extension integration tests on Windows
@@ -72,6 +74,7 @@ jobs:
         run: npm run test:integration
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
   build-native:
