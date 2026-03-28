@@ -39,11 +39,12 @@ jobs:
           cache: npm
           cache-dependency-path: examples/vscode-extension/package-lock.json
 
-      - name: Install workspace dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build local OmegaEdit client for the example
-        run: yarn workspace @omega-edit/client prepare
+      - name: Build local OmegaEdit middleware for the example
+        uses: ./.github/workflows/build-middleware
+        with:
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}
+          skip-tests: 'true'
 
       - name: Install VS Code extension example dependencies
         run: npm ci
