@@ -376,7 +376,7 @@ message GetHeartbeatResponse {
   int32 cpu_count = 4;                      // Number of logical CPU cores.
   optional double cpu_load_average = 5;     // 1-min load average (POSIX only, unset on Windows). (was non-optional before v2)
   optional int64 resident_memory_bytes = 6; // Resident set size (RSS) in bytes.         (was max_memory before v2)
-  optional int64 virtual_memory_bytes = 7;  // Virtual address space usage in bytes.     (was committed_memory before v2)
+  optional int64 virtual_memory_bytes = 7;  // Virtual address space usage in bytes when the platform can report it consistently. (was committed_memory before v2)
   optional int64 peak_resident_memory_bytes = 8; // Peak RSS in bytes.                   (was used_memory before v2)
 }
 

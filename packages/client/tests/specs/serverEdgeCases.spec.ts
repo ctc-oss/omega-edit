@@ -119,6 +119,9 @@ describe('Server Edge Cases', () => {
       if (heartbeat.serverPeakResidentMemoryBytes !== undefined) {
         expect(heartbeat.serverPeakResidentMemoryBytes).to.be.greaterThanOrEqual(0)
       }
+      if (process.platform === 'win32') {
+        expect(heartbeat.serverVirtualMemoryBytes).to.equal(undefined)
+      }
 
       expect(await stopServerImmediate()).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {

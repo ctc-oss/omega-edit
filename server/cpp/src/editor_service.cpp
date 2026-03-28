@@ -213,7 +213,6 @@ static process_memory_metrics get_process_memory_metrics() {
     if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters),
                              sizeof(counters))) {
         metrics.resident_memory_bytes = static_cast<int64_t>(counters.WorkingSetSize);
-        metrics.virtual_memory_bytes = static_cast<int64_t>(counters.PrivateUsage);
         metrics.peak_resident_memory_bytes = static_cast<int64_t>(counters.PeakWorkingSetSize);
     }
 #elif defined(__APPLE__)

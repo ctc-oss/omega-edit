@@ -57,15 +57,15 @@ export interface GetServerInfoResponse {
   /**
    * @generated from protobuf field: string runtime_kind = 4
    */
-  runtimeKind: string // Runtime family, for example "native" or "jvm".
+  runtimeKind: string // Runtime family, e.g. "native" or "jvm".  (was jvm_version before v2)
   /**
    * @generated from protobuf field: string runtime_name = 5
    */
-  runtimeName: string // Runtime implementation name, for example "C++".
+  runtimeName: string // Runtime implementation name, e.g. "C++". (was jvm_vendor before v2)
   /**
    * @generated from protobuf field: string platform = 6
    */
-  platform: string // Host platform and architecture summary.
+  platform: string // Host platform and architecture summary.  (was jvm_path before v2)
   /**
    * @generated from protobuf field: int32 available_processors = 7
    */
@@ -162,19 +162,19 @@ export interface GetHeartbeatResponse {
   /**
    * @generated from protobuf field: optional double cpu_load_average = 5
    */
-  cpuLoadAverage?: number // Load average when the platform can report it.
+  cpuLoadAverage?: number // 1-min load average (POSIX only, unset on Windows). (was non-optional before v2)
   /**
    * @generated from protobuf field: optional int64 resident_memory_bytes = 6
    */
-  residentMemoryBytes?: number // Resident set size (RSS) in bytes.
+  residentMemoryBytes?: number // Resident set size (RSS) in bytes.         (was max_memory before v2)
   /**
    * @generated from protobuf field: optional int64 virtual_memory_bytes = 7
    */
-  virtualMemoryBytes?: number // Virtual address space usage in bytes.
+  virtualMemoryBytes?: number // Virtual address space usage in bytes when the platform can report it consistently. (was committed_memory before v2)
   /**
    * @generated from protobuf field: optional int64 peak_resident_memory_bytes = 8
    */
-  peakResidentMemoryBytes?: number // Peak resident set size in bytes.
+  peakResidentMemoryBytes?: number // Peak RSS in bytes.                   (was used_memory before v2)
 }
 // ===========================================================================
 // Request / Response messages — Session lifecycle
@@ -1886,7 +1886,12 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
       },
       { no: 8, name: 'compiler', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
       { no: 9, name: 'build_type', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      { no: 10, name: 'cpp_standard', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 10,
+        name: 'cpp_standard',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(value?: PartialMessage<GetServerInfoResponse>): GetServerInfoResponse {

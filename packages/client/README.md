@@ -119,6 +119,7 @@ Migration notes:
 - `jvmVersion`, `jvmVendor`, and `jvmPath` were removed. Use `runtimeKind`, `runtimeName`, `platform`, and `compiler` instead.
 - `serverMaxMemory`, `serverCommittedMemory`, and `serverUsedMemory` were removed. They were JVM-heap concepts and are now replaced with process-memory metrics.
 - Optional heartbeat fields may be `undefined` when the host platform cannot report them. Treat missing values as "unavailable", not zero.
+- `serverVirtualMemoryBytes` is intentionally best-effort and may be omitted on platforms where the available process metric is not semantically comparable.
 
 ### Client Connection
 

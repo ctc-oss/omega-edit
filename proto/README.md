@@ -23,6 +23,8 @@ The v1 server-health messages intentionally model the native C++ server now:
 
 Consumers migrating from older JVM-oriented fields should treat missing optional
 heartbeat metrics as "unavailable" rather than `0`.
+`virtual_memory_bytes` is best-effort and may be unset on platforms where an
+equivalent process metric is not consistently available.
 
 ## Using with Buf
 
