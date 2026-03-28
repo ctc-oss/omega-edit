@@ -373,6 +373,9 @@ grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
     std::ostringstream ver;
     ver << omega_version_major() << "." << omega_version_minor() << "." << omega_version_patch();
     response->set_server_version(ver.str());
+    response->set_jvm_version("N/A (native server)");
+    response->set_jvm_vendor("N/A");
+    response->set_jvm_path("N/A");
     response->set_runtime_kind(get_runtime_kind());
     response->set_runtime_name(get_runtime_name());
     response->set_platform(get_platform_summary());
@@ -1266,9 +1269,14 @@ grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
     response->set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
     response->set_uptime(std::chrono::duration_cast<std::chrono::milliseconds>(uptime).count());
     response->set_cpu_count(get_cpu_count());
+    response->set_cpu_load_average(-1.0);
+    response->set_max_memory(0);
+    response->set_committed_memory(0);
+    response->set_used_memory(0);
 
     if (const auto load_average = get_cpu_load_average(); load_average.has_value()) {
         response->set_cpu_load_average(*load_average);
+        response->set_load_average(*load_average);
     }
 
     const process_memory_metrics memory = get_process_memory_metrics();

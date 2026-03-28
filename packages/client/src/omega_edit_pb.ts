@@ -302,7 +302,7 @@ export class HeartbeatResponse {
   }
 
   getCpuLoadAverage(): number | undefined {
-    return this.response_.cpuLoadAverage
+    return this.response_.loadAverage ?? this.response_.cpuLoadAverage
   }
 
   getResidentMemoryBytes(): number | undefined {

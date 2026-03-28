@@ -17,14 +17,16 @@ Defines the `Editor` service with RPCs for:
 
 The v1 server-health messages intentionally model the native C++ server now:
 
-- `GetServerInfoResponse` uses `runtime_kind`, `runtime_name`, `platform`, `compiler`, `build_type`, and `cpp_standard`
+- `GetServerInfoResponse` adds `runtime_kind`, `runtime_name`, `platform`, `compiler`, `build_type`, and `cpp_standard`
 - `GetHeartbeatResponse` uses optional process-memory fields:
-  `resident_memory_bytes`, `virtual_memory_bytes`, and `peak_resident_memory_bytes`
+  `load_average`, `resident_memory_bytes`, `virtual_memory_bytes`, and `peak_resident_memory_bytes`
 
 Consumers migrating from older JVM-oriented fields should treat missing optional
 heartbeat metrics as "unavailable" rather than `0`.
 `virtual_memory_bytes` is best-effort and may be unset on platforms where an
 equivalent process metric is not consistently available.
+The legacy JVM-shaped fields remain in the schema as deprecated compatibility
+fields so existing protobuf consumers do not break on the wire.
 
 ## Using with Buf
 
