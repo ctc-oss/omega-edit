@@ -84,8 +84,10 @@ FetchContent_Declare(
   GIT_TAG        main
 )
 FetchContent_MakeAvailable(omega_edit)
-target_link_libraries(my_app PRIVATE omega_edit)
+target_link_libraries(my_app PRIVATE omega_edit::omega_edit)
 ```
+
+For a downstream-native integration guide covering subproject patterns, installed-package consumption, shared vs static tradeoffs, Windows DLL placement, and "use OmegaEdit as a backend" workflows, see [Embedding OmegaEdit Core](Embedding-OmegaEdit-Core).
 
 Minimal C example — open a file, insert bytes, save:
 
@@ -102,7 +104,7 @@ int main() {
 }
 ```
 
-> **Next steps:** See [`core/src/examples/`](https://github.com/ctc-oss/omega-edit/tree/main/core/src/examples) for 15+ C/C++ examples covering search, viewports, profiling, transforms, and record/replay.
+> **Next steps:** See [`core/src/examples/`](https://github.com/ctc-oss/omega-edit/tree/main/core/src/examples) for 15+ C/C++ examples covering search, viewports, profiling, transforms, and record/replay. For embedding and deployment guidance, see [Embedding OmegaEdit Core](Embedding-OmegaEdit-Core).
 
 ### Path 3 — VS Code Extension
 
