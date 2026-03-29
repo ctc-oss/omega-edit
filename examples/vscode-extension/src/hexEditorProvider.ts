@@ -99,6 +99,20 @@ interface ServerHealthState {
 const SESSION_SYNC_TIMEOUT_MS = 2000
 const SESSION_SYNC_POLL_MS = 25
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
+const SERVER_HEALTH_WARN_LATENCY_MS = 75
+const SERVER_HEALTH_ERROR_LATENCY_MS = 250
+
+function classifyServerHealthLatency(
+  latencyMs: number
+): ServerHealthState['severity'] {
+  if (latencyMs <= SERVER_HEALTH_WARN_LATENCY_MS) {
+    return 'ok'
+  }
+  if (latencyMs <= SERVER_HEALTH_ERROR_LATENCY_MS) {
+    return 'warn'
+  }
+  return 'error'
+}
 
 export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = OMEGA_EDIT_VIEW_TYPE
@@ -544,18 +558,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       )
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
-      const classifyLatency = (
-        latencyMs: number
-      ): ServerHealthState['severity'] => {
-        if (latencyMs <= 75) {
-          return 'ok'
-        }
-        if (latencyMs <= 250) {
-          return 'warn'
-        }
-        return 'error'
-      }
-      const severity = classifyLatency(heartbeat.latency)
+      const severity = classifyServerHealthLatency(heartbeat.latency)
       const metrics = [
         { label: 'Version', value: serverInfo.serverVersion },
         { label: 'Client', value: getClientVersion() },
@@ -597,7 +600,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `Ωedit ${heartbeat.latency} ms`,
+        summary: `Ωedit™ ${heartbeat.latency} ms`,
         detail: metrics
           .map((metric) => `${metric.label}: ${metric.value}`)
           .join('\n'),
@@ -609,7 +612,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'Ωedit unavailable',
+        summary: 'Ωedit™ unavailable',
         detail: message,
         severity: 'down',
         metrics: [{ label: 'Error', value: message }],
