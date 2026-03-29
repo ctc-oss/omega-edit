@@ -136,10 +136,12 @@ Migration notes:
 | Function                                                                  | Description                    |
 | ------------------------------------------------------------------------- | ------------------------------ |
 | `createSession(filePath?, sessionId?, checkpointDir?)`                    | Open an editing session        |
+| `createSessionFromBytes(data, sessionId?, checkpointDir?)`                | Open a session from bytes      |
 | `destroySession(sessionId)`                                               | Close and discard a session    |
 | `saveSession(sessionId, path, flags?, offset?, length?)`                  | Save session content to a file |
 | `getComputedFileSize(sessionId)`                                          | Logical file size after edits  |
 | `getSegment(sessionId, offset, length)`                                   | Read a byte range              |
+| `getSessionBytes(sessionId, offset?, length?)`                            | Read session bytes in memory   |
 | `getSessionCount()`                                                       | Number of active sessions      |
 | `pauseSessionChanges(sessionId)` / `resumeSessionChanges(sessionId)`      | Pause/resume change tracking   |
 | `beginSessionTransaction(sessionId)` / `endSessionTransaction(sessionId)` | Group edits atomically         |
