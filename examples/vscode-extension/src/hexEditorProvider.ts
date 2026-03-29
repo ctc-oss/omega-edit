@@ -579,7 +579,12 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         getOptionalStringProperty(serverInfo, 'runtimeKind') ?? 'JVM'
       const runtimeName =
         getOptionalStringProperty(serverInfo, 'runtimeName') ??
-        [serverInfo.jvmVendor, serverInfo.jvmVersion].filter(Boolean).join(' ')
+        [
+          getOptionalStringProperty(serverInfo, 'jvmVendor'),
+          getOptionalStringProperty(serverInfo, 'jvmVersion'),
+        ]
+          .filter(Boolean)
+          .join(' ')
       const runtimeValue = [runtimeKind, runtimeName]
         .filter(Boolean)
         .join(' / ')
@@ -589,6 +594,22 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       const cppStandardValue = getOptionalStringProperty(
         serverInfo,
         'cppStandard'
+      )
+      const availableProcessors = getOptionalNumberProperty(
+        serverInfo,
+        'availableProcessors'
+      )
+      const serverUsedMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverUsedMemory'
+      )
+      const serverCommittedMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverCommittedMemory'
+      )
+      const serverMaxMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverMaxMemory'
       )
       const residentMemoryBytes = getOptionalNumberProperty(
         heartbeat,
@@ -612,7 +633,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         { label: 'Sessions', value: String(heartbeat.sessionCount) },
         { label: 'Uptime', value: `${uptimeSeconds}s` },
         { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
-        { label: 'Processors', value: String(serverInfo.availableProcessors) },
         {
           label: 'Load',
           value:
@@ -620,19 +640,35 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
               ? 'n/a'
               : heartbeat.serverCpuLoadAverage.toFixed(2),
         },
-        {
-          label: 'Heap Used',
-          value: formatMemoryMiB(heartbeat.serverUsedMemory),
-        },
-        {
-          label: 'Heap Committed',
-          value: formatMemoryMiB(heartbeat.serverCommittedMemory),
-        },
-        {
-          label: 'Heap Max',
-          value: formatMemoryMiB(heartbeat.serverMaxMemory),
-        },
       ]
+
+      if (availableProcessors !== undefined) {
+        metrics.push({
+          label: 'Processors',
+          value: String(availableProcessors),
+        })
+      }
+
+      if (serverUsedMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Used',
+          value: formatMemoryMiB(serverUsedMemory),
+        })
+      }
+
+      if (serverCommittedMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Committed',
+          value: formatMemoryMiB(serverCommittedMemory),
+        })
+      }
+
+      if (serverMaxMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Max',
+          value: formatMemoryMiB(serverMaxMemory),
+        })
+      }
 
       if (platformValue) {
         metrics.push({ label: 'Platform', value: platformValue })
