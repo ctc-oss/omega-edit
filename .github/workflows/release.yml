@@ -21,8 +21,10 @@ env:
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
     PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
+    VSCODE_EXTENSION_VERSION=$(echo $(node -p "JSON.stringify(require('./examples/vscode-extension/package.json').version)") | sed 's|"||g')
     echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
     echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
+    echo "VSCODE_EXTENSION_VERSION=$VSCODE_EXTENSION_VERSION" >> $GITHUB_ENV
 
 jobs:
   quality-gate:
@@ -338,6 +340,54 @@ jobs:
           asset_path: ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_name: omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_content_type: application/tar+gzip
+
+  vscode-extension-release:
+    name: VS Code Extension Release
+    needs: [create-release]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Export git tag and package versions
+        run: ${{ env.export_cmd }}
+
+      - name: Download upload_url
+        uses: actions/download-artifact@v8
+        with:
+          name: upload_url
+
+      - name: Add upload_url to GITHUB_ENV
+        run: |
+          UPLOAD_URL=$(cat upload_url)
+          echo "UPLOAD_URL=$UPLOAD_URL" >> $GITHUB_ENV
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.node_version }}
+          cache: 'npm'
+          cache-dependency-path: examples/vscode-extension/package-lock.json
+
+      - name: Install extension dependencies
+        working-directory: examples/vscode-extension
+        run: npm ci
+
+      - name: Build VS Code extension package
+        working-directory: examples/vscode-extension
+        run: npm run package:vsix
+
+      - name: Upload VS Code extension release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.UPLOAD_URL }}
+          asset_path: ./examples/vscode-extension/omega-edit-hex-editor.vsix
+          asset_name: omega-edit-hex-editor-v${{ env.VSCODE_EXTENSION_VERSION }}.vsix
+          asset_content_type: application/vsix
 
   node-ai-release:
     name: Node AI Tooling Release

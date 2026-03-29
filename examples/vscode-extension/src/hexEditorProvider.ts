@@ -114,6 +114,22 @@ function classifyServerHealthLatency(
   return 'error'
 }
 
+function getOptionalStringProperty(
+  source: object,
+  key: string
+): string | undefined {
+  const value = (source as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function getOptionalNumberProperty(
+  source: object,
+  key: string
+): number | undefined {
+  const value = (source as Record<string, unknown>)[key]
+  return typeof value === 'number' ? value : undefined
+}
+
 export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = OMEGA_EDIT_VIEW_TYPE
 
@@ -559,23 +575,44 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
       const severity = classifyServerHealthLatency(heartbeat.latency)
+      const runtimeKind =
+        getOptionalStringProperty(serverInfo, 'runtimeKind') ?? 'JVM'
+      const runtimeName =
+        getOptionalStringProperty(serverInfo, 'runtimeName') ??
+        [serverInfo.jvmVendor, serverInfo.jvmVersion].filter(Boolean).join(' ')
+      const runtimeValue = [runtimeKind, runtimeName]
+        .filter(Boolean)
+        .join(' / ')
+      const platformValue = getOptionalStringProperty(serverInfo, 'platform')
+      const compilerValue = getOptionalStringProperty(serverInfo, 'compiler')
+      const buildValue = getOptionalStringProperty(serverInfo, 'buildType')
+      const cppStandardValue = getOptionalStringProperty(
+        serverInfo,
+        'cppStandard'
+      )
+      const residentMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverResidentMemoryBytes'
+      )
+      const virtualMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverVirtualMemoryBytes'
+      )
+      const peakResidentMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverPeakResidentMemoryBytes'
+      )
       const metrics = [
         { label: 'Version', value: serverInfo.serverVersion },
         { label: 'Client', value: getClientVersion() },
         { label: 'Host', value: serverInfo.serverHostname },
         { label: 'PID', value: String(serverInfo.serverProcessId) },
-        {
-          label: 'Runtime',
-          value: `${serverInfo.runtimeKind}/${serverInfo.runtimeName}`,
-        },
-        { label: 'Platform', value: serverInfo.platform },
-        { label: 'Compiler', value: serverInfo.compiler },
-        { label: 'Build', value: serverInfo.buildType },
-        { label: 'C++', value: serverInfo.cppStandard },
+        { label: 'Runtime', value: runtimeValue || 'n/a' },
         { label: 'Latency', value: `${heartbeat.latency} ms` },
         { label: 'Sessions', value: String(heartbeat.sessionCount) },
         { label: 'Uptime', value: `${uptimeSeconds}s` },
         { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
+        { label: 'Processors', value: String(serverInfo.availableProcessors) },
         {
           label: 'Load',
           value:
@@ -584,18 +621,55 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
               : heartbeat.serverCpuLoadAverage.toFixed(2),
         },
         {
-          label: 'RSS',
-          value: formatMemoryMiB(heartbeat.serverResidentMemoryBytes),
+          label: 'Heap Used',
+          value: formatMemoryMiB(heartbeat.serverUsedMemory),
         },
         {
-          label: 'Virtual',
-          value: formatMemoryMiB(heartbeat.serverVirtualMemoryBytes),
+          label: 'Heap Committed',
+          value: formatMemoryMiB(heartbeat.serverCommittedMemory),
         },
         {
-          label: 'Peak RSS',
-          value: formatMemoryMiB(heartbeat.serverPeakResidentMemoryBytes),
+          label: 'Heap Max',
+          value: formatMemoryMiB(heartbeat.serverMaxMemory),
         },
       ]
+
+      if (platformValue) {
+        metrics.push({ label: 'Platform', value: platformValue })
+      }
+
+      if (compilerValue) {
+        metrics.push({ label: 'Compiler', value: compilerValue })
+      }
+
+      if (buildValue) {
+        metrics.push({ label: 'Build', value: buildValue })
+      }
+
+      if (cppStandardValue) {
+        metrics.push({ label: 'C++', value: cppStandardValue })
+      }
+
+      if (residentMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'RSS',
+          value: formatMemoryMiB(residentMemoryBytes),
+        })
+      }
+
+      if (virtualMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'Virtual',
+          value: formatMemoryMiB(virtualMemoryBytes),
+        })
+      }
+
+      if (peakResidentMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'Peak RSS',
+          value: formatMemoryMiB(peakResidentMemoryBytes),
+        })
+      }
 
       this.broadcastServerHealth({
         type: 'serverHealth',

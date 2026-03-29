@@ -5,6 +5,14 @@
   "version": "0.1.0",
   "publisher": "omega-edit-example",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ctc-oss/omega-edit.git"
+  },
+  "homepage": "https://github.com/ctc-oss/omega-edit/tree/main/examples/vscode-extension",
+  "bugs": {
+    "url": "https://github.com/ctc-oss/omega-edit/issues"
+  },
   "engines": {
     "vscode": "^1.110.0"
   },
@@ -109,6 +117,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "package:vsix": "vsce package --out omega-edit-hex-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
     "lint": "biome ci .",
@@ -123,6 +132,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
+    "@vscode/vsce": "^3.7.1",
     "@vscode/test-electron": "^2.5.2",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.110.0",
