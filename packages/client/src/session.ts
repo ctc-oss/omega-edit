@@ -213,6 +213,9 @@ export async function getSessionBytes(
   offset: number = 0,
   length: number = 0
 ): Promise<Uint8Array> {
+  // This helper issues separate size and segment RPCs, so callers should treat
+  // it as a convenience snapshot read when the session is not being
+  // concurrently modified.
   const computedSize = await getComputedFileSize(session_id)
   const remaining = Math.max(0, computedSize - offset)
   const effectiveLength = length > 0 ? Math.min(length, remaining) : remaining

@@ -60,7 +60,8 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
  * @param user_data_ptr pointer to user-defined data to associate with this session
  * @param event_interest oring together the session events of interest, or zero if all session events are desired
  * @param checkpoint_directory directory to store checkpoints in, if null, the system temp directory (or current working
- * directory as a last resort) will be used
+ * directory as a last resort) will be used.  A checkpoint file is still created internally so the session can reuse
+ * the standard file-backed model and checkpoint machinery.
  * @return pointer to the created session, or NULL on failure
  */
 omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_ptr, int64_t length,
@@ -149,7 +150,8 @@ int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_
 /**
  * Copy a session byte range into a newly allocated memory buffer.
  * @param session_ptr session to copy from
- * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free)
+ * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free).  The buffer is
+ * null-terminated for convenience, but length_out reports the logical byte count.
  * @param length_out receives the number of copied bytes
  * @param offset starting byte offset in the session
  * @param length number of bytes to copy, or zero to copy from offset to the end of the session
@@ -161,7 +163,8 @@ int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_b
 /**
  * Copy the full computed session content into a newly allocated memory buffer.
  * @param session_ptr session to copy from
- * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free)
+ * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free).  The buffer is
+ * null-terminated for convenience, but length_out reports the logical byte count.
  * @param length_out receives the number of copied bytes
  * @return 0 on success, non-zero otherwise
  */
