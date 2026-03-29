@@ -68,9 +68,14 @@ function writePluginWrapper(pluginEntry) {
 const grpcToolsEntry = require.resolve('grpc-tools/bin/protoc.js', {
   paths: [clientRoot, repoRoot],
 })
-const prettierEntry = require.resolve('prettier/bin/prettier.cjs', {
+const biomePackageJson = require.resolve('@biomejs/biome/package.json', {
   paths: [clientRoot, repoRoot],
 })
+const biomePackage = require(biomePackageJson)
+const biomeEntry = path.join(
+  path.dirname(biomePackageJson),
+  biomePackage.bin.biome
+)
 const protobufTsPluginRoot = resolvePackagePath('@protobuf-ts/plugin')
 const protobufTsPluginEntry = path.join(
   protobufTsPluginRoot,
@@ -80,7 +85,7 @@ const protobufTsPluginEntry = path.join(
 
 ensureExists(protoFile, 'proto file')
 ensureExists(grpcToolsEntry, 'grpc-tools protoc entry')
-ensureExists(prettierEntry, 'prettier entry')
+ensureExists(biomeEntry, 'biome entry')
 ensureExists(protobufTsPluginEntry, 'protobuf-ts plugin entry')
 
 fs.rmSync(generatedRoot, { recursive: true, force: true })
@@ -105,10 +110,14 @@ execFileSync(process.execPath, args, {
   stdio: 'inherit',
 })
 
-execFileSync(process.execPath, [prettierEntry, '--write', generatedRoot], {
-  cwd: clientRoot,
-  stdio: 'inherit',
-})
+execFileSync(
+  process.execPath,
+  [biomeEntry, 'format', '--write', generatedRoot],
+  {
+    cwd: clientRoot,
+    stdio: 'inherit',
+  }
+)
 
 console.log(
   `Generated protobuf-ts artifacts at ${path.relative(clientRoot, generatedRoot)}`

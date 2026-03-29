@@ -96,12 +96,12 @@ matrix across Windows, Ubuntu, and macOS (see `.github/workflows/tests.yml`).
 
 ### TypeScript / JavaScript
 
-- Formatted with **Prettier** (configured in root `package.json`):
+- Checked with **Biome** (configured in root `biome.json`):
   - Semicolons: **off**
   - Single quotes: **yes**
   - Tab width: **2 spaces**
   - Trailing commas: **ES5**
-- Linted with **ESLint** + Prettier plugin (see `eslint.config.js`)
+- Repo-owned JS/TS/JSON files are auto-formatted; the VS Code extension example also uses Biome lint rules
 - Run before committing:
   ```bash
   yarn lint        # check

@@ -79,9 +79,15 @@ function rewriteModuleSpecifiers(sourceText) {
   }
 
   return sourceText
-    .replace(/(^\s*import\s+['"])(\.{1,2}\/[^'"]+)(['"]\s*;?)/gm, replaceSpecifier)
+    .replace(
+      /(^\s*import\s+['"])(\.{1,2}\/[^'"]+)(['"]\s*;?)/gm,
+      replaceSpecifier
+    )
     .replace(/(\bfrom\s+['"])(\.{1,2}\/[^'"]+)(['"])/g, replaceSpecifier)
-    .replace(/(\bimport\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g, replaceSpecifier)
+    .replace(
+      /(\bimport\(\s*['"])(\.{1,2}\/[^'"]+)(['"]\s*\))/g,
+      replaceSpecifier
+    )
 }
 
 function rewriteEsmImportsRecursively(directory) {
