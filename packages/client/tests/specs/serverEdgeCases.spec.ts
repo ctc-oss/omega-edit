@@ -95,13 +95,35 @@ describe('Server Edge Cases', () => {
       }
 
       expect(serverInfo.serverVersion).to.be.a('string').and.not.be.empty
+      expect(serverInfo.runtimeKind).to.equal('native')
+      expect(serverInfo.runtimeName).to.be.a('string').and.not.be.empty
+      expect(serverInfo.platform).to.be.a('string').and.not.be.empty
       expect(serverInfo.availableProcessors).to.be.greaterThan(0)
+      expect(serverInfo.compiler).to.be.a('string').and.not.be.empty
+      expect(serverInfo.buildType).to.be.a('string').and.not.be.empty
+      expect(serverInfo.cppStandard).to.be.a('string').and.not.be.empty
 
       const heartbeat = await getServerHeartbeat([], 250)
       expect(heartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(heartbeat.sessionCount).to.equal(0)
       expect(heartbeat.serverCpuCount).to.be.greaterThanOrEqual(0)
-      expect(heartbeat.serverMaxMemory).to.be.greaterThanOrEqual(0)
+      if (heartbeat.serverCpuLoadAverage !== undefined) {
+        expect(heartbeat.serverCpuLoadAverage).to.be.a('number')
+      }
+      if (heartbeat.serverResidentMemoryBytes !== undefined) {
+        expect(heartbeat.serverResidentMemoryBytes).to.be.greaterThanOrEqual(0)
+      }
+      if (heartbeat.serverVirtualMemoryBytes !== undefined) {
+        expect(heartbeat.serverVirtualMemoryBytes).to.be.greaterThanOrEqual(0)
+      }
+      if (heartbeat.serverPeakResidentMemoryBytes !== undefined) {
+        expect(
+          heartbeat.serverPeakResidentMemoryBytes
+        ).to.be.greaterThanOrEqual(0)
+      }
+      if (process.platform === 'win32') {
+        expect(heartbeat.serverVirtualMemoryBytes).to.equal(undefined)
+      }
 
       expect(await stopServerImmediate()).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {

@@ -335,13 +335,19 @@ message GetServerInfoRequest {}
 
 // Server metadata returned by GetServerInfo.
 message GetServerInfoResponse {
-  string hostname = 1;            // Server hostname.
-  int32 process_id = 2;           // Server OS process ID.
-  string server_version = 3;      // Ωedit server version string.
-  string jvm_version = 4;         // JVM version (empty for native builds).
-  string jvm_vendor = 5;          // JVM vendor (empty for native builds).
-  string jvm_path = 6;            // Path to the JVM (empty for native builds).
-  int32 available_processors = 7; // Number of logical CPU cores.
+  string hostname = 1;             // Server hostname.
+  int32 process_id = 2;            // Server OS process ID.
+  string server_version = 3;       // Omega Edit server version string.
+  string jvm_version = 4 [deprecated = true]; // Legacy field kept for compatibility with older clients.
+  string jvm_vendor = 5 [deprecated = true];  // Legacy field kept for compatibility with older clients.
+  string jvm_path = 6 [deprecated = true];    // Legacy field kept for compatibility with older clients.
+  int32 available_processors = 7;  // Number of logical CPU cores.
+  string runtime_kind = 8;         // Runtime family, e.g. "native" or "jvm".
+  string runtime_name = 9;         // Runtime implementation name, e.g. "C++".
+  string platform = 10;            // Host platform and architecture summary.
+  string compiler = 11;            // Compiler or toolchain used to build the server.
+  string build_type = 12;          // Build configuration, e.g. "Release" or "Debug".
+  string cpp_standard = 13;        // C++ standard used, e.g. "C++17".
 }
 
 // Request to send a control command to the server.
@@ -367,14 +373,18 @@ message GetHeartbeatRequest {
 
 // Server heartbeat response with resource metrics.
 message GetHeartbeatResponse {
-  int32 session_count = 1;       // Total active sessions on the server.
-  int64 timestamp = 2;           // Server wall-clock time in milliseconds since epoch.
-  int64 uptime = 3;              // Server uptime in milliseconds.
-  int32 cpu_count = 4;           // Number of logical CPU cores.
-  double cpu_load_average = 5;   // CPU load average as a percentage.
-  int64 max_memory = 6;          // Maximum memory available in bytes.
-  int64 committed_memory = 7;    // Committed (allocated) memory in bytes.
-  int64 used_memory = 8;         // Currently used memory in bytes.
+  int32 session_count = 1;                  // Total active sessions on the server.
+  int64 timestamp = 2;                      // Server wall-clock time in milliseconds since epoch.
+  int64 uptime = 3;                         // Server uptime in milliseconds.
+  int32 cpu_count = 4;                      // Number of logical CPU cores.
+  double cpu_load_average = 5 [deprecated = true]; // Legacy load average field kept for compatibility with older clients.
+  int64 max_memory = 6 [deprecated = true];        // Legacy memory field kept for compatibility with older clients.
+  int64 committed_memory = 7 [deprecated = true];  // Legacy memory field kept for compatibility with older clients.
+  int64 used_memory = 8 [deprecated = true];       // Legacy memory field kept for compatibility with older clients.
+  optional double load_average = 9;                // 1-min load average when the platform can report it.
+  optional int64 resident_memory_bytes = 10;       // Resident set size (RSS) in bytes.
+  optional int64 virtual_memory_bytes = 11;        // Virtual address space usage in bytes when the platform can report it consistently.
+  optional int64 peak_resident_memory_bytes = 12;  // Peak RSS in bytes.
 }
 
 // ===========================================================================

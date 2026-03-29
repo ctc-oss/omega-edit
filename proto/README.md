@@ -13,6 +13,21 @@ Defines the `Editor` service with RPCs for:
 - **Event streams** — server-push notifications for session and viewport changes
 - **Server lifecycle** — heartbeat, graceful/immediate shutdown
 
+### Server Health Schema Note
+
+The v1 server-health messages intentionally model the native C++ server now:
+
+- `GetServerInfoResponse` adds `runtime_kind`, `runtime_name`, `platform`, `compiler`, `build_type`, and `cpp_standard`
+- `GetHeartbeatResponse` uses optional process-memory fields:
+  `load_average`, `resident_memory_bytes`, `virtual_memory_bytes`, and `peak_resident_memory_bytes`
+
+Consumers migrating from older JVM-oriented fields should treat missing optional
+heartbeat metrics as "unavailable" rather than `0`.
+`virtual_memory_bytes` is best-effort and may be unset on platforms where an
+equivalent process metric is not consistently available.
+The legacy JVM-shaped fields remain in the schema as deprecated compatibility
+fields so existing protobuf consumers do not break on the wire.
+
 ## Using with Buf
 
 The proto is published to [buf.build/ctc-oss/omega-edit](https://buf.build/ctc-oss/omega-edit) for easy multi-language stub generation.

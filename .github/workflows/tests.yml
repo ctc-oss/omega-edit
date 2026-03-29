@@ -39,14 +39,26 @@ jobs:
           cache: npm
           cache-dependency-path: examples/vscode-extension/package-lock.json
 
+      - name: Build local OmegaEdit middleware for the example
+        uses: ./.github/workflows/build-middleware
+        with:
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}
+          skip-tests: 'true'
+
       - name: Install VS Code extension example dependencies
         run: npm ci
+        working-directory: examples/vscode-extension
+
+      - name: Use local OmegaEdit client in the VS Code extension example
+        run: npm install ../../packages/client --no-save
         working-directory: examples/vscode-extension
 
       - name: Build and run fast VS Code extension checks
         run: npm run lint && npm run compile && npm run test:unit
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
       - name: Run VS Code extension integration tests on Linux
@@ -54,6 +66,7 @@ jobs:
         run: xvfb-run -a npm run test:integration
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
       - name: Run VS Code extension integration tests on Windows
@@ -61,6 +74,7 @@ jobs:
         run: npm run test:integration
         working-directory: examples/vscode-extension
         env:
+          CPP_SERVER_BINARY: ''
           VSCODE_VERSION: ${{ matrix.vscode-version }}
 
   build-native:

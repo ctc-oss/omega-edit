@@ -229,20 +229,32 @@ export class ServerInfoResponse {
     return this.response_.serverVersion
   }
 
-  getJvmVersion(): string {
-    return this.response_.jvmVersion
+  getRuntimeKind(): string {
+    return this.response_.runtimeKind
   }
 
-  getJvmVendor(): string {
-    return this.response_.jvmVendor
+  getRuntimeName(): string {
+    return this.response_.runtimeName
   }
 
-  getJvmPath(): string {
-    return this.response_.jvmPath
+  getPlatform(): string {
+    return this.response_.platform
   }
 
   getAvailableProcessors(): number {
     return this.response_.availableProcessors
+  }
+
+  getCompiler(): string {
+    return this.response_.compiler
+  }
+
+  getBuildType(): string {
+    return this.response_.buildType
+  }
+
+  getCppStandard(): string {
+    return this.response_.cppStandard
   }
 
   toObject(): RawGetServerInfoResponse {
@@ -289,20 +301,20 @@ export class HeartbeatResponse {
     return this.response_.cpuCount
   }
 
-  getCpuLoadAverage(): number {
-    return this.response_.cpuLoadAverage
+  getCpuLoadAverage(): number | undefined {
+    return this.response_.loadAverage ?? this.response_.cpuLoadAverage
   }
 
-  getMaxMemory(): number {
-    return this.response_.maxMemory
+  getResidentMemoryBytes(): number | undefined {
+    return this.response_.residentMemoryBytes
   }
 
-  getCommittedMemory(): number {
-    return this.response_.committedMemory
+  getVirtualMemoryBytes(): number | undefined {
+    return this.response_.virtualMemoryBytes
   }
 
-  getUsedMemory(): number {
-    return this.response_.usedMemory
+  getPeakResidentMemoryBytes(): number | undefined {
+    return this.response_.peakResidentMemoryBytes
   }
 
   toObject(): RawGetHeartbeatResponse {

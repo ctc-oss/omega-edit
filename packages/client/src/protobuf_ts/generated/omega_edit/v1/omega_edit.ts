@@ -53,23 +53,50 @@ export interface GetServerInfoResponse {
   /**
    * @generated from protobuf field: string server_version = 3
    */
-  serverVersion: string // Ωedit server version string.
+  serverVersion: string // Omega Edit server version string.
   /**
-   * @generated from protobuf field: string jvm_version = 4
+   * @deprecated
+   * @generated from protobuf field: string jvm_version = 4 [deprecated = true]
    */
-  jvmVersion: string // JVM version (empty for native builds).
+  jvmVersion: string // Legacy field kept for compatibility with older clients.
   /**
-   * @generated from protobuf field: string jvm_vendor = 5
+   * @deprecated
+   * @generated from protobuf field: string jvm_vendor = 5 [deprecated = true]
    */
-  jvmVendor: string // JVM vendor (empty for native builds).
+  jvmVendor: string // Legacy field kept for compatibility with older clients.
   /**
-   * @generated from protobuf field: string jvm_path = 6
+   * @deprecated
+   * @generated from protobuf field: string jvm_path = 6 [deprecated = true]
    */
-  jvmPath: string // Path to the JVM (empty for native builds).
+  jvmPath: string // Legacy field kept for compatibility with older clients.
   /**
    * @generated from protobuf field: int32 available_processors = 7
    */
   availableProcessors: number // Number of logical CPU cores.
+  /**
+   * @generated from protobuf field: string runtime_kind = 8
+   */
+  runtimeKind: string // Runtime family, e.g. "native" or "jvm".
+  /**
+   * @generated from protobuf field: string runtime_name = 9
+   */
+  runtimeName: string // Runtime implementation name, e.g. "C++".
+  /**
+   * @generated from protobuf field: string platform = 10
+   */
+  platform: string // Host platform and architecture summary.
+  /**
+   * @generated from protobuf field: string compiler = 11
+   */
+  compiler: string // Compiler or toolchain used to build the server.
+  /**
+   * @generated from protobuf field: string build_type = 12
+   */
+  buildType: string // Build configuration, e.g. "Release" or "Debug".
+  /**
+   * @generated from protobuf field: string cpp_standard = 13
+   */
+  cppStandard: string // C++ standard used, e.g. "C++17".
 }
 /**
  * Request to send a control command to the server.
@@ -148,21 +175,41 @@ export interface GetHeartbeatResponse {
    */
   cpuCount: number // Number of logical CPU cores.
   /**
-   * @generated from protobuf field: double cpu_load_average = 5
+   * @deprecated
+   * @generated from protobuf field: double cpu_load_average = 5 [deprecated = true]
    */
-  cpuLoadAverage: number // CPU load average as a percentage.
+  cpuLoadAverage: number // Legacy load average field kept for compatibility with older clients.
   /**
-   * @generated from protobuf field: int64 max_memory = 6
+   * @deprecated
+   * @generated from protobuf field: int64 max_memory = 6 [deprecated = true]
    */
-  maxMemory: number // Maximum memory available in bytes.
+  maxMemory: number // Legacy memory field kept for compatibility with older clients.
   /**
-   * @generated from protobuf field: int64 committed_memory = 7
+   * @deprecated
+   * @generated from protobuf field: int64 committed_memory = 7 [deprecated = true]
    */
-  committedMemory: number // Committed (allocated) memory in bytes.
+  committedMemory: number // Legacy memory field kept for compatibility with older clients.
   /**
-   * @generated from protobuf field: int64 used_memory = 8
+   * @deprecated
+   * @generated from protobuf field: int64 used_memory = 8 [deprecated = true]
    */
-  usedMemory: number // Currently used memory in bytes.
+  usedMemory: number // Legacy memory field kept for compatibility with older clients.
+  /**
+   * @generated from protobuf field: optional double load_average = 9
+   */
+  loadAverage?: number // 1-min load average when the platform can report it.
+  /**
+   * @generated from protobuf field: optional int64 resident_memory_bytes = 10
+   */
+  residentMemoryBytes?: number // Resident set size (RSS) in bytes.
+  /**
+   * @generated from protobuf field: optional int64 virtual_memory_bytes = 11
+   */
+  virtualMemoryBytes?: number // Virtual address space usage in bytes when the platform can report it consistently.
+  /**
+   * @generated from protobuf field: optional int64 peak_resident_memory_bytes = 12
+   */
+  peakResidentMemoryBytes?: number // Peak RSS in bytes.
 }
 // ===========================================================================
 // Request / Response messages — Session lifecycle
@@ -1867,6 +1914,32 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
         kind: 'scalar',
         T: 5 /*ScalarType.INT32*/,
       },
+      {
+        no: 8,
+        name: 'runtime_kind',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 9,
+        name: 'runtime_name',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      { no: 10, name: 'platform', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 11, name: 'compiler', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 12,
+        name: 'build_type',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 13,
+        name: 'cpp_standard',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(value?: PartialMessage<GetServerInfoResponse>): GetServerInfoResponse {
@@ -1878,6 +1951,12 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
     message.jvmVendor = ''
     message.jvmPath = ''
     message.availableProcessors = 0
+    message.runtimeKind = ''
+    message.runtimeName = ''
+    message.platform = ''
+    message.compiler = ''
+    message.buildType = ''
+    message.cppStandard = ''
     if (value !== undefined)
       reflectionMergePartial<GetServerInfoResponse>(this, message, value)
     return message
@@ -1902,17 +1981,35 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
         case /* string server_version */ 3:
           message.serverVersion = reader.string()
           break
-        case /* string jvm_version */ 4:
+        case /* string jvm_version = 4 [deprecated = true] */ 4:
           message.jvmVersion = reader.string()
           break
-        case /* string jvm_vendor */ 5:
+        case /* string jvm_vendor = 5 [deprecated = true] */ 5:
           message.jvmVendor = reader.string()
           break
-        case /* string jvm_path */ 6:
+        case /* string jvm_path = 6 [deprecated = true] */ 6:
           message.jvmPath = reader.string()
           break
         case /* int32 available_processors */ 7:
           message.availableProcessors = reader.int32()
+          break
+        case /* string runtime_kind */ 8:
+          message.runtimeKind = reader.string()
+          break
+        case /* string runtime_name */ 9:
+          message.runtimeName = reader.string()
+          break
+        case /* string platform */ 10:
+          message.platform = reader.string()
+          break
+        case /* string compiler */ 11:
+          message.compiler = reader.string()
+          break
+        case /* string build_type */ 12:
+          message.buildType = reader.string()
+          break
+        case /* string cpp_standard */ 13:
+          message.cppStandard = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -1947,18 +2044,36 @@ class GetServerInfoResponse$Type extends MessageType<GetServerInfoResponse> {
     /* string server_version = 3; */
     if (message.serverVersion !== '')
       writer.tag(3, WireType.LengthDelimited).string(message.serverVersion)
-    /* string jvm_version = 4; */
+    /* string jvm_version = 4 [deprecated = true]; */
     if (message.jvmVersion !== '')
       writer.tag(4, WireType.LengthDelimited).string(message.jvmVersion)
-    /* string jvm_vendor = 5; */
+    /* string jvm_vendor = 5 [deprecated = true]; */
     if (message.jvmVendor !== '')
       writer.tag(5, WireType.LengthDelimited).string(message.jvmVendor)
-    /* string jvm_path = 6; */
+    /* string jvm_path = 6 [deprecated = true]; */
     if (message.jvmPath !== '')
       writer.tag(6, WireType.LengthDelimited).string(message.jvmPath)
     /* int32 available_processors = 7; */
     if (message.availableProcessors !== 0)
       writer.tag(7, WireType.Varint).int32(message.availableProcessors)
+    /* string runtime_kind = 8; */
+    if (message.runtimeKind !== '')
+      writer.tag(8, WireType.LengthDelimited).string(message.runtimeKind)
+    /* string runtime_name = 9; */
+    if (message.runtimeName !== '')
+      writer.tag(9, WireType.LengthDelimited).string(message.runtimeName)
+    /* string platform = 10; */
+    if (message.platform !== '')
+      writer.tag(10, WireType.LengthDelimited).string(message.platform)
+    /* string compiler = 11; */
+    if (message.compiler !== '')
+      writer.tag(11, WireType.LengthDelimited).string(message.compiler)
+    /* string build_type = 12; */
+    if (message.buildType !== '')
+      writer.tag(12, WireType.LengthDelimited).string(message.buildType)
+    /* string cpp_standard = 13; */
+    if (message.cppStandard !== '')
+      writer.tag(13, WireType.LengthDelimited).string(message.cppStandard)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -2303,6 +2418,37 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
         T: 3 /*ScalarType.INT64*/,
         L: 2 /*LongType.NUMBER*/,
       },
+      {
+        no: 9,
+        name: 'load_average',
+        kind: 'scalar',
+        opt: true,
+        T: 1 /*ScalarType.DOUBLE*/,
+      },
+      {
+        no: 10,
+        name: 'resident_memory_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 11,
+        name: 'virtual_memory_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 12,
+        name: 'peak_resident_memory_bytes',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
     ])
   }
   create(value?: PartialMessage<GetHeartbeatResponse>): GetHeartbeatResponse {
@@ -2342,17 +2488,29 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
         case /* int32 cpu_count */ 4:
           message.cpuCount = reader.int32()
           break
-        case /* double cpu_load_average */ 5:
+        case /* double cpu_load_average = 5 [deprecated = true] */ 5:
           message.cpuLoadAverage = reader.double()
           break
-        case /* int64 max_memory */ 6:
+        case /* int64 max_memory = 6 [deprecated = true] */ 6:
           message.maxMemory = reader.int64().toNumber()
           break
-        case /* int64 committed_memory */ 7:
+        case /* int64 committed_memory = 7 [deprecated = true] */ 7:
           message.committedMemory = reader.int64().toNumber()
           break
-        case /* int64 used_memory */ 8:
+        case /* int64 used_memory = 8 [deprecated = true] */ 8:
           message.usedMemory = reader.int64().toNumber()
+          break
+        case /* optional double load_average */ 9:
+          message.loadAverage = reader.double()
+          break
+        case /* optional int64 resident_memory_bytes */ 10:
+          message.residentMemoryBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 virtual_memory_bytes */ 11:
+          message.virtualMemoryBytes = reader.int64().toNumber()
+          break
+        case /* optional int64 peak_resident_memory_bytes */ 12:
+          message.peakResidentMemoryBytes = reader.int64().toNumber()
           break
         default:
           let u = options.readUnknownField
@@ -2390,18 +2548,30 @@ class GetHeartbeatResponse$Type extends MessageType<GetHeartbeatResponse> {
     /* int32 cpu_count = 4; */
     if (message.cpuCount !== 0)
       writer.tag(4, WireType.Varint).int32(message.cpuCount)
-    /* double cpu_load_average = 5; */
+    /* double cpu_load_average = 5 [deprecated = true]; */
     if (message.cpuLoadAverage !== 0)
       writer.tag(5, WireType.Bit64).double(message.cpuLoadAverage)
-    /* int64 max_memory = 6; */
+    /* int64 max_memory = 6 [deprecated = true]; */
     if (message.maxMemory !== 0)
       writer.tag(6, WireType.Varint).int64(message.maxMemory)
-    /* int64 committed_memory = 7; */
+    /* int64 committed_memory = 7 [deprecated = true]; */
     if (message.committedMemory !== 0)
       writer.tag(7, WireType.Varint).int64(message.committedMemory)
-    /* int64 used_memory = 8; */
+    /* int64 used_memory = 8 [deprecated = true]; */
     if (message.usedMemory !== 0)
       writer.tag(8, WireType.Varint).int64(message.usedMemory)
+    /* optional double load_average = 9; */
+    if (message.loadAverage !== undefined)
+      writer.tag(9, WireType.Bit64).double(message.loadAverage)
+    /* optional int64 resident_memory_bytes = 10; */
+    if (message.residentMemoryBytes !== undefined)
+      writer.tag(10, WireType.Varint).int64(message.residentMemoryBytes)
+    /* optional int64 virtual_memory_bytes = 11; */
+    if (message.virtualMemoryBytes !== undefined)
+      writer.tag(11, WireType.Varint).int64(message.virtualMemoryBytes)
+    /* optional int64 peak_resident_memory_bytes = 12; */
+    if (message.peakResidentMemoryBytes !== undefined)
+      writer.tag(12, WireType.Varint).int64(message.peakResidentMemoryBytes)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

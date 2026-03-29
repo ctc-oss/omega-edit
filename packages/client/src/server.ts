@@ -1102,14 +1102,20 @@ export interface IServerInfo {
   serverProcessId: number
   /** Ωedit server version string. */
   serverVersion: string
-  /** JVM version (empty for native builds). */
-  jvmVersion: string
-  /** JVM vendor (empty for native builds). */
-  jvmVendor: string
-  /** Path to the JVM (empty for native builds). */
-  jvmPath: string
+  /** Runtime family, for example `native`. */
+  runtimeKind: string
+  /** Runtime implementation name, for example `C++`. */
+  runtimeName: string
+  /** Host platform and architecture summary. */
+  platform: string
   /** Number of logical CPU cores. */
   availableProcessors: number
+  /** Compiler or toolchain used to build the server. */
+  compiler: string
+  /** Build configuration, e.g. "Release" or "Debug". */
+  buildType: string
+  /** C++ standard used, e.g. "C++17". */
+  cppStandard: string
 }
 
 /**
@@ -1146,10 +1152,13 @@ export async function getServerInfo(): Promise<IServerInfo> {
         serverHostname: serverInfoResponse.hostname,
         serverProcessId: serverInfoResponse.processId,
         serverVersion: serverInfoResponse.serverVersion,
-        jvmVersion: serverInfoResponse.jvmVersion,
-        jvmVendor: serverInfoResponse.jvmVendor,
-        jvmPath: serverInfoResponse.jvmPath,
+        runtimeKind: serverInfoResponse.runtimeKind,
+        runtimeName: serverInfoResponse.runtimeName,
+        platform: serverInfoResponse.platform,
         availableProcessors: serverInfoResponse.availableProcessors,
+        compiler: serverInfoResponse.compiler,
+        buildType: serverInfoResponse.buildType,
+        cppStandard: serverInfoResponse.cppStandard,
       })
     })
   })
@@ -1164,10 +1173,10 @@ export interface IServerHeartbeat {
   serverTimestamp: number // timestamp in ms
   serverUptime: number // uptime in ms
   serverCpuCount: number // cpu count
-  serverCpuLoadAverage: number // cpu load average
-  serverMaxMemory: number // max memory in bytes
-  serverCommittedMemory: number // committed memory in bytes
-  serverUsedMemory: number // used memory in bytes
+  serverCpuLoadAverage?: number // load average when available
+  serverResidentMemoryBytes?: number // resident memory in bytes
+  serverVirtualMemoryBytes?: number // virtual memory in bytes
+  serverPeakResidentMemoryBytes?: number // peak resident memory in bytes
 }
 
 /**
@@ -1224,10 +1233,15 @@ export async function getServerHeartbeat(
           serverTimestamp: heartbeatResponse.timestamp,
           serverUptime: heartbeatResponse.uptime,
           serverCpuCount: heartbeatResponse.cpuCount,
-          serverCpuLoadAverage: heartbeatResponse.cpuLoadAverage,
-          serverMaxMemory: heartbeatResponse.maxMemory,
-          serverCommittedMemory: heartbeatResponse.committedMemory,
-          serverUsedMemory: heartbeatResponse.usedMemory,
+          serverCpuLoadAverage:
+            heartbeatResponse.loadAverage ??
+            (heartbeatResponse.cpuLoadAverage >= 0
+              ? heartbeatResponse.cpuLoadAverage
+              : undefined),
+          serverResidentMemoryBytes: heartbeatResponse.residentMemoryBytes,
+          serverVirtualMemoryBytes: heartbeatResponse.virtualMemoryBytes,
+          serverPeakResidentMemoryBytes:
+            heartbeatResponse.peakResidentMemoryBytes,
         })
       }
     )
