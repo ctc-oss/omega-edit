@@ -46,8 +46,8 @@
     "test:lifecycle:uds": "node scripts/run-mocha-suite.cjs lifecycle --transport uds",
     "test:uds": "(yarn test:lifecycle:uds && yarn test:client:uds) || (exit 1)",
     "test": "(yarn test:lifecycle && yarn test:client) || (exit 1)",
-    "lint": "prettier --check package.json webpack.config.js src tests && eslint .",
-    "lint:fix": "prettier --write package.json webpack.config.js src tests && eslint --fix ."
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write ."
   },
   "devDependencies": {
     "@protobuf-ts/plugin": "^2.11.1",

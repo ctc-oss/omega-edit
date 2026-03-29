@@ -20,12 +20,11 @@ OmegaEdit is a multi-language library for building editors that can handle massi
 - Use clang-format for automatic formatting
 
 ### TypeScript/JavaScript
-- Use Prettier for formatting (configured in root `package.json`)
+- Use Biome for formatting and checks (configured in root `biome.json`)
 - Semi-colons: OFF
 - Single quotes: YES
 - Tab width: 2 spaces
 - Trailing commas: ES5 style
-- Use ESLint with Prettier plugin for linting
 - Lint command: `yarn lint`
 - Auto-fix command: `yarn lint:fix`
 
@@ -80,7 +79,7 @@ omega-edit/
 
 - `.clang-format` - C/C++ formatting rules
 - `.editorconfig` - Cross-editor configuration
-- `package.json` - Root package configuration with Prettier settings
+- `biome.json` - Root Biome configuration for repo-owned JS/TS/JSON files
 - `CMakeLists.txt` - C/C++ build configuration
 - `Makefile` - Convenience build wrapper
 

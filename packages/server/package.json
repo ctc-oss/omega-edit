@@ -22,7 +22,7 @@
     "build": "node scripts/ensure-native-server-built.js && webpack --mode=production",
     "prepackage": "yarn build",
     "package": "node ../../scripts/pack-workspace.js omega-edit-node-server",
-    "lint": "prettier --check package.json webpack.config.js src && eslint .",
-    "lint:fix": "prettier --write package.json webpack.config.js src && eslint --fix ."
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write ."
   }
 }

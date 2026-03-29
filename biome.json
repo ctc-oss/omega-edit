@@ -1,0 +1,83 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "package.json",
+      "biome.json",
+      "sync-version.js",
+      "scripts/**/*.js",
+      "packages/**/*.js",
+      "packages/**/*.cjs",
+      "packages/**/*.mjs",
+      "packages/**/*.ts",
+      "packages/**/*.json",
+      "examples/vscode-extension/src/**/*.ts",
+      "examples/vscode-extension/tests/**/*.js",
+      "examples/vscode-extension/package.json",
+      "examples/vscode-extension/tsconfig.json",
+      "!!packages/client/coverage",
+      "!!**/dist",
+      "!!**/out",
+      "!!**/node_modules",
+      "!packages/client/doc",
+      "!packages/client/src/client_version.ts",
+      "!packages/client/src/omega_edit_*.ts",
+      "!packages/client/tests/specs/data",
+      "!examples/vscode-extension/package-lock.json"
+    ]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "trailingCommas": "es5",
+      "semicolons": "asNeeded"
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["examples/vscode-extension/**"],
+      "linter": {
+        "enabled": true,
+        "rules": {
+          "recommended": true,
+          "correctness": {
+            "noUnusedVariables": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["examples/vscode-extension/src/webview.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUselessEscapeInString": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["examples/vscode-extension/tests/**/*.js"],
+      "javascript": {
+        "globals": ["suite", "suiteSetup", "teardown", "test"]
+      }
+    }
+  ]
+}

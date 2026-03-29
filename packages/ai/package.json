@@ -40,8 +40,8 @@
     "package": "yarn prepare && node ../../scripts/pack-workspace.js omega-edit-node-ai",
     "pretest": "yarn build",
     "test": "mocha --timeout 90000 --require ts-node/register tests/specs/*.spec.ts --exit",
-    "lint": "prettier --check package.json README.md eslint.config.js src tests && eslint .",
-    "lint:fix": "prettier --write package.json README.md eslint.config.js src tests && eslint --fix ."
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write ."
   },
   "dependencies": {
     "@omega-edit/client": "1.0.1"

@@ -18,23 +18,19 @@
   ],
   "scripts": {
     "sync-version": "node sync-version.js",
-    "lint": "prettier --check package.json && yarn workspaces run lint",
-    "lint:fix": "prettier --write package.json && yarn workspaces run lint:fix",
+    "lint": "biome ci package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
+    "lint:fix": "biome check --write package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
     "@types/chai": "^5.2.3",
     "@types/glob": "^9.0.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^25.5.0",
     "chai": "^6.2.2",
     "copy-webpack-plugin": "^14.0.0",
-    "eslint": "^10.1.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.4.0",
     "mocha": "^10.8.2",
-    "prettier": "^3.8.1",
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.4",
     "typedoc": "^0.28.18",
@@ -45,12 +41,5 @@
   "resolutions": {
     "@types/eslint-scope": "8.4.0",
     "@types/glob": "9.0.0"
-  },
-  "prettier": {
-    "endOfLine": "auto",
-    "semi": false,
-    "singleQuote": true,
-    "tabWidth": 2,
-    "trailingComma": "es5"
   }
 }

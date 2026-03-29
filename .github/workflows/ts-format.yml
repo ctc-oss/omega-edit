@@ -10,7 +10,7 @@
 # implied.  See the License for the specific language governing permissions and limitations under the License.
 
 ---
-name: TypeScript Formatting
+name: TypeScript Biome Checks
 
 permissions: {}
 
@@ -21,7 +21,7 @@ on:
 
 jobs:
   build:
-    name: TypeScript code is properly formatted
+    name: TypeScript code passes Biome checks
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout current branch (full) 🛎️

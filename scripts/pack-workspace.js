@@ -22,7 +22,9 @@ const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 
 const baseName = process.argv[2]
 if (!baseName) {
-  process.stderr.write('Usage: node ../../scripts/pack-workspace.js <base-name>\n')
+  process.stderr.write(
+    'Usage: node ../../scripts/pack-workspace.js <base-name>\n'
+  )
   process.exit(1)
 }
 
@@ -35,14 +37,22 @@ if (!version) {
 const outputFile = `${baseName}-v${version}.tgz`
 const npmExecPath = process.env.npm_execpath
 const result = npmExecPath
-  ? spawnSync(process.execPath, [npmExecPath, 'pack', '--filename', outputFile], {
-      cwd: packageRoot,
-      stdio: 'inherit',
-    })
-  : spawnSync(process.platform === 'win32' ? 'yarn.cmd' : 'yarn', ['pack', '--filename', outputFile], {
-      cwd: packageRoot,
-      stdio: 'inherit',
-    })
+  ? spawnSync(
+      process.execPath,
+      [npmExecPath, 'pack', '--filename', outputFile],
+      {
+        cwd: packageRoot,
+        stdio: 'inherit',
+      }
+    )
+  : spawnSync(
+      process.platform === 'win32' ? 'yarn.cmd' : 'yarn',
+      ['pack', '--filename', outputFile],
+      {
+        cwd: packageRoot,
+        stdio: 'inherit',
+      }
+    )
 
 if (result.error) {
   process.stderr.write(`Failed to run pack command: ${String(result.error)}\n`)
