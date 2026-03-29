@@ -92,11 +92,43 @@ interface ServerHealthState {
   ok: boolean
   summary: string
   detail: string
+  severity: 'ok' | 'warn' | 'error' | 'down'
+  metrics: Array<{ label: string; value: string }>
 }
 
 const SESSION_SYNC_TIMEOUT_MS = 2000
 const SESSION_SYNC_POLL_MS = 25
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
+const SERVER_HEALTH_WARN_LATENCY_MS = 75
+const SERVER_HEALTH_ERROR_LATENCY_MS = 250
+
+function classifyServerHealthLatency(
+  latencyMs: number
+): ServerHealthState['severity'] {
+  if (latencyMs <= SERVER_HEALTH_WARN_LATENCY_MS) {
+    return 'ok'
+  }
+  if (latencyMs <= SERVER_HEALTH_ERROR_LATENCY_MS) {
+    return 'warn'
+  }
+  return 'error'
+}
+
+function getOptionalStringProperty(
+  source: object,
+  key: string
+): string | undefined {
+  const value = (source as Record<string, unknown>)[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function getOptionalNumberProperty(
+  source: object,
+  key: string
+): number | undefined {
+  const value = (source as Record<string, unknown>)[key]
+  return typeof value === 'number' ? value : undefined
+}
 
 export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   public static readonly viewType = OMEGA_EDIT_VIEW_TYPE
@@ -542,44 +574,158 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       )
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
-
-      const detailParts = [
-        `server ${serverInfo.serverVersion}`,
-        `client ${getClientVersion()}`,
-        `host ${serverInfo.serverHostname}`,
-        `pid ${serverInfo.serverProcessId}`,
-        `runtime ${serverInfo.runtimeKind}/${serverInfo.runtimeName}`,
-        `platform ${serverInfo.platform}`,
-        `compiler ${serverInfo.compiler}`,
-        `build ${serverInfo.buildType}`,
-        `c++ ${serverInfo.cppStandard}`,
-        `latency ${heartbeat.latency} ms`,
-        `sessions ${heartbeat.sessionCount}`,
-        `uptime ${uptimeSeconds}s`,
-        `cpu ${heartbeat.serverCpuCount} cores`,
-        `load ${
-          heartbeat.serverCpuLoadAverage === undefined
-            ? 'n/a'
-            : heartbeat.serverCpuLoadAverage.toFixed(2)
-        }`,
-        `rss ${formatMemoryMiB(heartbeat.serverResidentMemoryBytes)}`,
-        `virtual ${formatMemoryMiB(heartbeat.serverVirtualMemoryBytes)}`,
-        `peak rss ${formatMemoryMiB(heartbeat.serverPeakResidentMemoryBytes)}`,
+      const severity = classifyServerHealthLatency(heartbeat.latency)
+      const runtimeKind =
+        getOptionalStringProperty(serverInfo, 'runtimeKind') ?? 'JVM'
+      const runtimeName =
+        getOptionalStringProperty(serverInfo, 'runtimeName') ??
+        [
+          getOptionalStringProperty(serverInfo, 'jvmVendor'),
+          getOptionalStringProperty(serverInfo, 'jvmVersion'),
+        ]
+          .filter(Boolean)
+          .join(' ')
+      const runtimeValue = [runtimeKind, runtimeName]
+        .filter(Boolean)
+        .join(' / ')
+      const platformValue = getOptionalStringProperty(serverInfo, 'platform')
+      const compilerValue = getOptionalStringProperty(serverInfo, 'compiler')
+      const buildValue = getOptionalStringProperty(serverInfo, 'buildType')
+      const cppStandardValue = getOptionalStringProperty(
+        serverInfo,
+        'cppStandard'
+      )
+      const availableProcessors = getOptionalNumberProperty(
+        serverInfo,
+        'availableProcessors'
+      )
+      const serverUsedMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverUsedMemory'
+      )
+      const serverCommittedMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverCommittedMemory'
+      )
+      const serverMaxMemory = getOptionalNumberProperty(
+        heartbeat,
+        'serverMaxMemory'
+      )
+      const residentMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverResidentMemoryBytes'
+      )
+      const virtualMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverVirtualMemoryBytes'
+      )
+      const peakResidentMemoryBytes = getOptionalNumberProperty(
+        heartbeat,
+        'serverPeakResidentMemoryBytes'
+      )
+      const metrics = [
+        { label: 'Version', value: serverInfo.serverVersion },
+        { label: 'Client', value: getClientVersion() },
+        { label: 'Host', value: serverInfo.serverHostname },
+        { label: 'PID', value: String(serverInfo.serverProcessId) },
+        { label: 'Runtime', value: runtimeValue || 'n/a' },
+        { label: 'Latency', value: `${heartbeat.latency} ms` },
+        { label: 'Sessions', value: String(heartbeat.sessionCount) },
+        { label: 'Uptime', value: `${uptimeSeconds}s` },
+        { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
+        {
+          label: 'Load',
+          value:
+            heartbeat.serverCpuLoadAverage === undefined
+              ? 'n/a'
+              : heartbeat.serverCpuLoadAverage.toFixed(2),
+        },
       ]
+
+      if (availableProcessors !== undefined) {
+        metrics.push({
+          label: 'Processors',
+          value: String(availableProcessors),
+        })
+      }
+
+      if (serverUsedMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Used',
+          value: formatMemoryMiB(serverUsedMemory),
+        })
+      }
+
+      if (serverCommittedMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Committed',
+          value: formatMemoryMiB(serverCommittedMemory),
+        })
+      }
+
+      if (serverMaxMemory !== undefined) {
+        metrics.push({
+          label: 'Heap Max',
+          value: formatMemoryMiB(serverMaxMemory),
+        })
+      }
+
+      if (platformValue) {
+        metrics.push({ label: 'Platform', value: platformValue })
+      }
+
+      if (compilerValue) {
+        metrics.push({ label: 'Compiler', value: compilerValue })
+      }
+
+      if (buildValue) {
+        metrics.push({ label: 'Build', value: buildValue })
+      }
+
+      if (cppStandardValue) {
+        metrics.push({ label: 'C++', value: cppStandardValue })
+      }
+
+      if (residentMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'RSS',
+          value: formatMemoryMiB(residentMemoryBytes),
+        })
+      }
+
+      if (virtualMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'Virtual',
+          value: formatMemoryMiB(virtualMemoryBytes),
+        })
+      }
+
+      if (peakResidentMemoryBytes !== undefined) {
+        metrics.push({
+          label: 'Peak RSS',
+          value: formatMemoryMiB(peakResidentMemoryBytes),
+        })
+      }
 
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `OE ${heartbeat.latency} ms`,
-        detail: detailParts.join('\n'),
+        summary: `Ωedit™ ${heartbeat.latency} ms`,
+        detail: metrics
+          .map((metric) => `${metric.label}: ${metric.value}`)
+          .join('\n'),
+        severity,
+        metrics,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'OE unavailable',
+        summary: 'Ωedit™ unavailable',
         detail: message,
+        severity: 'down',
+        metrics: [{ label: 'Error', value: message }],
       })
     } finally {
       this.heartbeatInFlight = false

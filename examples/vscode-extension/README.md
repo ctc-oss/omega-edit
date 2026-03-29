@@ -94,6 +94,18 @@ VSCODE_VERSION=stable npm run test:integration
 
 `npm run lint` now uses Biome for the extension's JavaScript, TypeScript, and JSON sources/config. Biome does not currently format Markdown, so `README.md` stays outside the automated formatter scope for this example.
 
+## Packaging And Release
+
+Build a local `.vsix` package with:
+
+```bash
+npm run package:vsix
+```
+
+That writes `omega-edit-hex-editor.vsix` in this folder after running the normal `vscode:prepublish` compile step.
+
+The repository's tagged release workflow also builds this extension and uploads the packaged `.vsix` to the GitHub release assets alongside the other release artifacts.
+
 ## Architecture
 
 ```text

@@ -63,6 +63,9 @@ export function getWebviewContent(bytesPerRow: number): string {
     --button-bg: var(--vscode-button-background, #0e639c);
     --button-fg: var(--vscode-button-foreground, #fff);
     --button-hover: var(--vscode-button-hoverBackground, #1177bb);
+    --scrollbar-slider-bg: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4));
+    --scrollbar-slider-hover: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
+    --scrollbar-slider-active: var(--vscode-scrollbarSlider-activeBackground, rgba(191, 191, 191, 0.4));
     --offset-fg: var(--vscode-editorLineNumber-foreground, #858585);
     --offset-column-fg: var(--vscode-terminal-ansiCyan, #4fc1ff);
     --ascii-fg: var(--vscode-terminal-ansiGreen, #6a9955);
@@ -296,8 +299,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     color: transparent;
   }
   .scrollbar {
-    width: 18px;
-    padding: 4px 4px 4px 0;
+    width: 14px;
+    padding: 2px 2px 2px 0;
     background: var(--bg);
     border-left: 1px solid var(--border);
     user-select: none;
@@ -309,28 +312,31 @@ export function getWebviewContent(bytesPerRow: number): string {
     position: relative;
     width: 100%;
     height: 100%;
-    background: var(--toolbar-bg);
-    border: 1px solid var(--border);
+    background: transparent;
     border-radius: 999px;
+    overflow: hidden;
   }
   .scrollbar-track.disabled {
     opacity: 0.45;
   }
   .scrollbar-thumb {
     position: absolute;
-    left: 1px;
-    right: 1px;
+    left: 0;
+    right: 0;
     top: 0;
-    min-height: 24px;
-    background: var(--button-bg);
+    height: 24px;
+    background: var(--scrollbar-slider-bg);
     border-radius: 999px;
     cursor: pointer;
     touch-action: none;
-    transform-origin: top center;
-    will-change: transform;
+    transition: background 120ms ease;
   }
   .scrollbar-thumb:hover {
-    background: var(--button-hover);
+    background: var(--scrollbar-slider-hover);
+  }
+  .scrollbar.dragging .scrollbar-thumb,
+  .scrollbar-thumb.dragging {
+    background: var(--scrollbar-slider-active);
   }
   .interaction-blocker {
     position: fixed;
@@ -375,7 +381,9 @@ export function getWebviewContent(bytesPerRow: number): string {
     align-items: center;
     gap: 6px;
     margin-left: auto;
-    cursor: default;
+    position: relative;
+    cursor: help;
+    color: var(--fg);
   }
   .server-health-dot {
     width: 8px;
@@ -387,8 +395,102 @@ export function getWebviewContent(bytesPerRow: number): string {
   .server-health-dot.ok {
     background: var(--vscode-testing-iconPassed, #73c991);
   }
+  .server-health-dot.warn {
+    background: var(--vscode-testing-iconQueued, #cca700);
+  }
   .server-health-dot.error {
     background: var(--vscode-testing-iconFailed, #f14c4c);
+  }
+  .server-health-dot.down {
+    background: var(--vscode-descriptionForeground, #888);
+  }
+  .server-health-summary {
+    color: var(--offset-fg);
+  }
+  .server-health-tooltip {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    display: none;
+    min-width: 260px;
+    max-width: 360px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+      var(--toolbar-bg);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+    z-index: 30;
+    white-space: normal;
+  }
+  .server-health:hover .server-health-tooltip,
+  .server-health:focus-within .server-health-tooltip {
+    display: block;
+  }
+  .server-health-tooltip::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 100%;
+    border-width: 6px;
+    border-style: solid;
+    border-color: var(--toolbar-bg) transparent transparent transparent;
+  }
+  .server-health-tooltip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .server-health-tooltip-title {
+    color: var(--fg);
+    font-size: 12px;
+  }
+  .server-health-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+  }
+  .server-health-badge.ok {
+    color: var(--vscode-testing-iconPassed, #73c991);
+    background: color-mix(in srgb, var(--vscode-testing-iconPassed, #73c991) 16%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-testing-iconPassed, #73c991) 30%, transparent);
+  }
+  .server-health-badge.warn {
+    color: var(--vscode-testing-iconQueued, #cca700);
+    background: color-mix(in srgb, var(--vscode-testing-iconQueued, #cca700) 16%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-testing-iconQueued, #cca700) 30%, transparent);
+  }
+  .server-health-badge.error {
+    color: var(--vscode-testing-iconFailed, #f14c4c);
+    background: color-mix(in srgb, var(--vscode-testing-iconFailed, #f14c4c) 16%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-testing-iconFailed, #f14c4c) 30%, transparent);
+  }
+  .server-health-badge.down {
+    color: var(--offset-fg);
+    background: color-mix(in srgb, var(--offset-fg) 12%, transparent);
+    border-color: color-mix(in srgb, var(--offset-fg) 24%, transparent);
+  }
+  .server-health-metrics {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 12px;
+  }
+  .server-health-metric-label {
+    color: var(--offset-fg);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 10px;
+  }
+  .server-health-metric-value {
+    color: var(--fg);
+    text-align: right;
+    font-size: 11px;
   }
 
   /* ── Edit Dialog ─────────────────────────────────── */
@@ -511,8 +613,16 @@ export function getWebviewContent(bytesPerRow: number): string {
     <span class="highlight" id="statusInspector">-</span>
   </span>
   <span class="status-fill"></span>
-  <span class="server-health" id="serverHealth" title="Waiting for Î©editâ„¢ heartbeat...">
+  <span class="server-health" id="serverHealth" tabindex="0" aria-label="Server health">
     <span class="server-health-dot" id="serverHealthDot"></span>
+    <span class="server-health-summary" id="serverHealthSummary">Ωedit™ pending</span>
+    <span class="server-health-tooltip" id="serverHealthTooltip" role="tooltip">
+      <span class="server-health-tooltip-header">
+        <span class="server-health-tooltip-title">Ωedit™ Server</span>
+        <span class="server-health-badge down" id="serverHealthBadge">Pending</span>
+      </span>
+      <span class="server-health-metrics" id="serverHealthMetrics"></span>
+    </span>
   </span>
 </div>
 
@@ -546,6 +656,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   // ── Configuration ───────────────────────────────────
   const BYTES_PER_ROW = ${bytesPerRow}
   const GROUP_SIZE = 8 // visual separator every N bytes
+  const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
+  const MIN_SCROLLBAR_THUMB_HEIGHT = 20
 
   // ── State ───────────────────────────────────────────
   let bufferOffset = 0
@@ -554,12 +666,14 @@ export function getWebviewContent(bytesPerRow: number): string {
   let viewportData = []      // number[]
   let viewportLength = 0
   let fileSize = 0
-  let selectedOffset = -1    // absolute byte offset of selected byte
+  let selectedOffset = -1    // absolute byte offset of the active selection focus
+  let selectionAnchor = -1   // absolute byte offset where the current range began
   let searchMatches = []     // number[] of match offsets
   let matchedByteOffsets = new Set()
   let searchMatchIndex = -1
   let searchPatternLength = 0
   let isDraggingScrollbar = false
+  let isPointerSelecting = false
   let scrollbarDragOffsetY = 0
   let accumulatedWheelPixels = 0
   let scrollbarInteractionBlocker = null
@@ -567,6 +681,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   let offsetRadix = 'hex'
   let offsetWidthMeasurer = null
   let inspectorLittleEndian = true
+  let activePane = 'hex'
   let hoveredColumn = -1
   let hoveredRowIndex = -1
 
@@ -588,6 +703,9 @@ export function getWebviewContent(bytesPerRow: number): string {
   const inspectorEndianBtn = document.getElementById('inspectorEndianBtn')
   const serverHealth = document.getElementById('serverHealth')
   const serverHealthDot = document.getElementById('serverHealthDot')
+  const serverHealthSummary = document.getElementById('serverHealthSummary')
+  const serverHealthBadge = document.getElementById('serverHealthBadge')
+  const serverHealthMetrics = document.getElementById('serverHealthMetrics')
   const searchInput = document.getElementById('searchInput')
   const replaceInput = document.getElementById('replaceInput')
   const searchHex = document.getElementById('searchHex')
@@ -750,10 +868,47 @@ export function getWebviewContent(bytesPerRow: number): string {
     statusOffset.textContent = formatOffsetDisplay(visibleOffset)
   }
 
+  function hasSelection() {
+    return selectedOffset >= 0 && selectionAnchor >= 0
+  }
+
+  function getSelectionStart() {
+    return hasSelection() ? Math.min(selectionAnchor, selectedOffset) : -1
+  }
+
+  function getSelectionEnd() {
+    return hasSelection() ? Math.max(selectionAnchor, selectedOffset) : -1
+  }
+
+  function getSelectionLength() {
+    return hasSelection() ? getSelectionEnd() - getSelectionStart() + 1 : 0
+  }
+
+  function offsetIsSelected(offset) {
+    return hasSelection() &&
+      offset >= getSelectionStart() &&
+      offset <= getSelectionEnd()
+  }
+
   function updateSelectedStatus() {
-    statusSelected.textContent = selectedOffset >= 0
-      ? formatOffsetDisplay(selectedOffset)
-      : '-'
+    if (!hasSelection()) {
+      statusSelected.textContent = '-'
+      updateInspectorStatus()
+      return
+    }
+
+    const selectionStart = getSelectionStart()
+    const selectionEnd = getSelectionEnd()
+    const selectionLength = getSelectionLength()
+
+    statusSelected.textContent = selectionLength === 1
+      ? formatOffsetDisplay(selectionStart)
+      : formatOffsetDisplay(selectionStart) +
+        ' -> ' +
+        formatOffsetDisplay(selectionEnd) +
+        ' (' +
+        selectionLength.toLocaleString() +
+        ' bytes)'
     updateInspectorStatus()
   }
 
@@ -766,11 +921,52 @@ export function getWebviewContent(bytesPerRow: number): string {
     statusAction.textContent = message
   }
 
+  function formatServerHealthSeverity(severity) {
+    switch (severity) {
+      case 'ok':
+        return 'Healthy'
+      case 'warn':
+        return 'Slow'
+      case 'error':
+        return 'Degraded'
+      case 'down':
+      default:
+        return 'Offline'
+    }
+  }
+
   function updateServerHealthStatus(message) {
-    const ok = !!message?.ok
-    serverHealth.title = message?.detail || 'Waiting for Ωedit™ heartbeat...'
-    serverHealthDot.classList.toggle('ok', ok)
-    serverHealthDot.classList.toggle('error', !!message && !ok)
+    const severity = message?.severity ?? 'down'
+    const metrics = message?.metrics ?? [
+      { label: 'Status', value: 'Waiting for heartbeat...' },
+    ]
+
+    serverHealthDot.classList.toggle('ok', severity === 'ok')
+    serverHealthDot.classList.toggle('warn', severity === 'warn')
+    serverHealthDot.classList.toggle('error', severity === 'error')
+    serverHealthDot.classList.toggle('down', severity === 'down')
+
+    serverHealthSummary.textContent = message?.summary ?? 'Ωedit™ pending'
+    serverHealthBadge.textContent = formatServerHealthSeverity(severity)
+    serverHealthBadge.className = 'server-health-badge ' + severity
+    serverHealthMetrics.innerHTML = metrics
+      .map((metric) =>
+        '<span class="server-health-metric-label">' +
+          escapeHtml(metric.label) +
+        '</span>' +
+        '<span class="server-health-metric-value">' +
+          escapeHtml(metric.value) +
+        '</span>'
+      )
+      .join('')
+    serverHealth.setAttribute(
+      'aria-label',
+      (message?.summary ?? 'Ωedit™ pending') +
+        '. ' +
+        metrics
+          .map((metric) => metric.label + ': ' + metric.value)
+          .join('. ')
+    )
   }
 
   function updateInspectorEndianLabel() {
@@ -781,12 +977,13 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function updateInspectorStatus() {
-    if (selectedOffset < 0) {
+    if (!hasSelection()) {
       statusInspector.textContent = '-'
       return
     }
 
-    const index = selectedOffset - bufferOffset
+    const inspectOffset = getSelectionStart()
+    const index = inspectOffset - bufferOffset
     if (index < 0 || index >= viewportLength) {
       statusInspector.textContent = 'move selection into view'
       return
@@ -808,7 +1005,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       ? new DataView(Uint8Array.from(bytes.slice(0, 4)).buffer).getUint32(0, inspectorLittleEndian)
       : null
 
+    const selectionPrefix = getSelectionLength() > 1
+      ? getSelectionLength().toLocaleString() + ' bytes | '
+      : ''
+
     statusInspector.textContent =
+      selectionPrefix +
       '0x' + toHex2(u8) +
       ' | ' + u8 +
       " | '" + ascii + "'" +
@@ -905,16 +1107,21 @@ export function getWebviewContent(bytesPerRow: number): string {
     scrollbarThumb.style.pointerEvents = trackDisabled ? 'none' : 'auto'
 
     const thumbHeight = trackDisabled
-      ? trackHeight - 2
-      : Math.max(24, Math.round((visible / total) * trackHeight))
+      ? trackHeight
+      : Math.max(
+        MIN_SCROLLBAR_THUMB_HEIGHT,
+        Math.round((visible / total) * trackHeight)
+      )
     const travel = Math.max(0, trackHeight - thumbHeight)
     const thumbTop = trackDisabled || maxRow === 0
       ? 0
       : Math.round((currentStartRow() / maxRow) * travel)
 
-    scrollbarThumb.style.height = trackHeight + 'px'
-    scrollbarThumb.style.transform =
-      'translateY(' + thumbTop + 'px) scaleY(' + (thumbHeight / trackHeight) + ')'
+    scrollbarThumb.style.top = thumbTop + 'px'
+    scrollbarThumb.style.height = thumbHeight + 'px'
+    scrollbarThumb.title = trackDisabled
+      ? 'File fits in view'
+      : 'Viewport ' + statusProgress.textContent
   }
 
   function scrollToViewportOffset(offset) {
@@ -1001,41 +1208,169 @@ export function getWebviewContent(bytesPerRow: number): string {
     )
   }
 
-  function updateRenderedSelection(previousOffset, nextOffset) {
+  function updateRenderedSelection() {
     if (!hexContainer) {
       return
     }
 
-    if (previousOffset >= 0) {
-      hexContainer
-        .querySelectorAll('[data-offset="' + previousOffset + '"].selected')
-        .forEach((el) => el.classList.remove('selected'))
-    }
-
-    if (nextOffset >= 0 && offsetIsVisible(nextOffset)) {
-      hexContainer
-        .querySelectorAll('[data-offset="' + nextOffset + '"]')
-        .forEach((el) => el.classList.add('selected'))
-    }
+    hexContainer.querySelectorAll('[data-offset]').forEach((el) => {
+      const offset = parseInt(el.dataset.offset, 10)
+      el.classList.toggle('selected', !Number.isNaN(offset) && offsetIsSelected(offset))
+    })
   }
 
-  function selectOffset(offset) {
-    const previousOffset = selectedOffset
-
+  function selectOffset(offset, extendSelection = false) {
     if (offset < 0 || fileSize <= 0) {
       selectedOffset = -1
+      selectionAnchor = -1
       updateSelectedStatus()
-      updateRenderedSelection(previousOffset, selectedOffset)
+      updateRenderedSelection()
       return
     }
 
-    selectedOffset = clampOffset(offset)
+    const nextOffset = clampOffset(offset)
+    if (extendSelection) {
+      if (selectionAnchor < 0) {
+        selectionAnchor = selectedOffset >= 0 ? selectedOffset : nextOffset
+      }
+      selectedOffset = nextOffset
+    } else {
+      selectionAnchor = nextOffset
+      selectedOffset = nextOffset
+    }
+
     updateSelectedStatus()
-    updateRenderedSelection(previousOffset, selectedOffset)
+    updateRenderedSelection()
+  }
+
+  function getSelectedBytes() {
+    const selectionStart = getSelectionStart()
+    const selectionEnd = getSelectionEnd()
+    if (selectionStart < 0 || selectionEnd < selectionStart) {
+      return null
+    }
+
+    const startIndex = selectionStart - bufferOffset
+    const endIndex = selectionEnd - bufferOffset
+    if (startIndex < 0 || endIndex >= viewportLength) {
+      return null
+    }
+
+    return viewportData.slice(startIndex, endIndex + 1)
+  }
+
+  function getClipboardSelectionHex() {
+    const bytes = getSelectedBytes()
+    return bytes === null
+      ? null
+      : bytes.map((byte) => toHex2(byte)).join(' ')
+  }
+
+  function parseClipboardTextAsHex(text) {
+    if (text.length === 0) {
+      return null
+    }
+
+    const normalizedHex = normalizedHexQuery(text)
+    if (normalizedHex) {
+      return normalizedHex.toUpperCase()
+    }
+
+    return utf8ToHex(text)
+  }
+
+  function bytesToDisplayText(bytes) {
+    return bytes
+      .map((byte) => (isPrintable(byte) ? String.fromCharCode(byte) : '?'))
+      .join('')
+  }
+
+  function setActivePane(pane) {
+    activePane = pane === 'ascii' ? 'ascii' : 'hex'
+  }
+
+  function getPasteTarget() {
+    if (hasSelection() && getSelectionLength() > 1 && fileSize > 0) {
+      return {
+        type: 'replace',
+        offset: getSelectionStart(),
+        length: getSelectionLength(),
+      }
+    }
+
+    return {
+      type: 'insert',
+      offset: hasSelection() ? getSelectionStart() : Math.max(0, visibleOffset),
+    }
+  }
+
+  function handleCopyEvent(clipboardData) {
+    const selectedBytes = getSelectedBytes()
+    if (!selectedBytes || selectedBytes.length === 0) {
+      updateActionStatus('Select one or more bytes to copy')
+      return false
+    }
+
+    if (!clipboardData) {
+      updateActionStatus('Clipboard is unavailable')
+      return false
+    }
+
+    const selectionHex = selectedBytes.map((byte) => toHex2(byte)).join(' ')
+    clipboardData.setData('text/plain',
+      activePane === 'ascii'
+        ? bytesToDisplayText(selectedBytes)
+        : selectionHex
+    )
+    clipboardData.setData(
+      INTERNAL_HEX_CLIPBOARD_FORMAT,
+      selectedBytes.map((byte) => toHex2(byte)).join('')
+    )
+    updateActionStatus(
+      'Copied ' +
+      getSelectionLength().toLocaleString() +
+      ' byte(s) as ' +
+      (activePane === 'ascii' ? 'text' : 'hex')
+    )
+    return true
+  }
+
+  function handlePasteEvent(clipboardData) {
+    const internalHex = clipboardData?.getData(INTERNAL_HEX_CLIPBOARD_FORMAT) ?? ''
+    const plainText = clipboardData?.getData('text/plain') ?? ''
+    const pasteHex = internalHex ||
+      (activePane === 'ascii'
+        ? (plainText ? utf8ToHex(plainText) : null)
+        : parseClipboardTextAsHex(plainText))
+    if (!pasteHex) {
+      updateActionStatus('Clipboard is empty')
+      return false
+    }
+
+    const target = getPasteTarget()
+    if (target.type === 'replace') {
+      vscode.postMessage({
+        type: 'replace',
+        offset: target.offset,
+        length: target.length,
+        data: pasteHex,
+      })
+    } else {
+      vscode.postMessage({
+        type: 'insert',
+        offset: target.offset,
+        data: pasteHex,
+      })
+    }
+
+    updateActionStatus(
+      'Pasted ' + (pasteHex.length / 2).toLocaleString() + ' byte(s)'
+    )
+    return true
   }
 
   function ensureSelectionVisible(direction) {
-    if (selectedOffset < 0) {
+    if (!hasSelection()) {
       return
     }
 
@@ -1075,12 +1410,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       (target instanceof HTMLElement && target.isContentEditable)
   }
 
-  function moveSelection(direction) {
+  function moveSelection(direction, extendSelection = false) {
     if (fileSize <= 0) {
       return
     }
 
-    if (selectedOffset < 0) {
+    if (!hasSelection()) {
       if (direction === 'up') {
         scrollToViewportOffset(visibleOffset - BYTES_PER_ROW)
       } else if (direction === 'down') {
@@ -1102,7 +1437,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
 
-    selectOffset(nextOffset)
+    selectOffset(nextOffset, extendSelection)
     ensureSelectionVisible(direction)
   }
 
@@ -1171,9 +1506,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function render() {
-    if (selectedOffset >= fileSize) {
-      selectedOffset = fileSize > 0 ? fileSize - 1 : -1
-      updateSelectedStatus()
+    if (selectedOffset >= fileSize || selectionAnchor >= fileSize) {
+      selectOffset(fileSize > 0 ? fileSize - 1 : -1)
     }
 
     updateOffsetColumnWidth()
@@ -1195,15 +1529,15 @@ export function getWebviewContent(bytesPerRow: number): string {
 
         if (idx >= 0 && idx < viewportLength && absOff < fileSize) {
           const b = viewportData[idx]
-          const sel = absOff === selectedOffset ? ' selected' : ''
+          const sel = offsetIsSelected(absOff) ? ' selected' : ''
           const mat = isMatchByte(absOff) ? ' match' : ''
           hexCells += '<span class="hex-byte' + sep + sel + mat +
-            '" data-offset="' + absOff + '">' + toHex2(b) + '</span>'
+            '" data-offset="' + absOff + '" data-pane="hex">' + toHex2(b) + '</span>'
           const printable = isPrintable(b)
           const asciiClass = printable ? 'ascii-char' : 'ascii-char non-printable'
           const ch = printable ? String.fromCharCode(b) : '?'
           asciiCells += '<span class="' + asciiClass + sel + mat +
-            '" data-offset="' + absOff + '">' + escapeHtml(ch) + '</span>'
+            '" data-offset="' + absOff + '" data-pane="ascii">' + escapeHtml(ch) + '</span>'
         } else {
           hexCells += '<span class="hex-byte' + sep + '">  </span>'
           asciiCells += '<span class="ascii-char empty">&nbsp;</span>'
@@ -1227,13 +1561,6 @@ export function getWebviewContent(bytesPerRow: number): string {
     updateProgressStatus()
     updateInspectorStatus()
     updateScrollbar()
-
-    // Attach click handlers to hex bytes and ascii chars
-    hexContainer.querySelectorAll('[data-offset]').forEach(el => {
-      el.addEventListener('click', () => {
-        selectOffset(parseInt(el.dataset.offset, 10))
-      })
-    })
   }
 
   // ── Message Handling ────────────────────────────────
@@ -1341,10 +1668,48 @@ export function getWebviewContent(bytesPerRow: number): string {
       Number.isNaN(rowIndex) ? -1 : rowIndex,
       offset % BYTES_PER_ROW
     )
+
+    if (isPointerSelecting && (e.buttons & 1) === 1) {
+      selectOffset(offset, true)
+    }
   })
 
   hexContainer.addEventListener('pointerleave', () => {
     updateHoverHighlights(-1, -1)
+  })
+
+  hexContainer.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) {
+      return
+    }
+
+    const target = e.target.closest('[data-offset]')
+    if (!target) {
+      return
+    }
+
+    const offset = parseInt(target.dataset.offset, 10)
+    if (Number.isNaN(offset)) {
+      return
+    }
+
+    e.preventDefault()
+    setActivePane(target.dataset.pane)
+    selectOffset(offset, e.shiftKey)
+    isPointerSelecting = true
+  })
+
+  hexContainer.addEventListener('contextmenu', (e) => {
+    const target = e.target.closest('[data-offset]')
+    if (!target) {
+      return
+    }
+
+    setActivePane(target.dataset.pane)
+    const offset = parseInt(target.dataset.offset, 10)
+    if (!Number.isNaN(offset) && !offsetIsSelected(offset)) {
+      selectOffset(offset)
+    }
   })
 
   scrollbarTrack.addEventListener('pointerdown', (e) => {
@@ -1378,12 +1743,14 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
 
   window.addEventListener('pointerup', () => {
+    isPointerSelecting = false
     if (isDraggingScrollbar) {
       stopScrollbarDrag()
     }
   })
 
   window.addEventListener('pointercancel', () => {
+    isPointerSelecting = false
     if (isDraggingScrollbar) {
       stopScrollbarDrag()
     }
@@ -1430,20 +1797,26 @@ export function getWebviewContent(bytesPerRow: number): string {
       // Go to offset — trigger via VS Code command instead
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault()
-      moveSelection('left')
+      moveSelection('left', e.shiftKey)
     } else if (e.key === 'ArrowRight') {
       e.preventDefault()
-      moveSelection('right')
+      moveSelection('right', e.shiftKey)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      moveSelection('up')
+      moveSelection('up', e.shiftKey)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      moveSelection('down')
+      moveSelection('down', e.shiftKey)
     } else if (e.key === 'Delete') {
-      if (selectedOffset >= 0 && fileSize > 0) {
+      if (hasSelection() && fileSize > 0) {
         e.preventDefault()
-        vscode.postMessage({ type: 'delete', offset: selectedOffset, length: 1 })
+        const selectionStart = getSelectionStart()
+        vscode.postMessage({
+          type: 'delete',
+          offset: selectionStart,
+          length: getSelectionLength(),
+        })
+        selectOffset(selectionStart)
       }
     } else if (e.key === 'PageDown') {
       e.preventDefault()
@@ -1461,6 +1834,53 @@ export function getWebviewContent(bytesPerRow: number): string {
     } else if (e.key === 'End' && e.ctrlKey) {
       e.preventDefault()
       scrollToViewportOffset(Math.max(0, fileSize - BYTES_PER_ROW))
+    }
+  })
+
+  document.addEventListener('copy', (e) => {
+    if (isEditableTarget(e.target)) {
+      return
+    }
+
+    if (handleCopyEvent(e.clipboardData)) {
+      e.preventDefault()
+    }
+  })
+
+  document.addEventListener('cut', (e) => {
+    if (isEditableTarget(e.target)) {
+      return
+    }
+
+    if (!handleCopyEvent(e.clipboardData)) {
+      return
+    }
+
+    if (!hasSelection() || fileSize <= 0) {
+      return
+    }
+
+    e.preventDefault()
+    const selectionStart = getSelectionStart()
+    const selectionLength = getSelectionLength()
+    vscode.postMessage({
+      type: 'delete',
+      offset: selectionStart,
+      length: selectionLength,
+    })
+    updateActionStatus(
+      'Cut ' + selectionLength.toLocaleString() + ' byte(s)'
+    )
+    selectOffset(selectionStart)
+  })
+
+  document.addEventListener('paste', (e) => {
+    if (isEditableTarget(e.target)) {
+      return
+    }
+
+    if (handlePasteEvent(e.clipboardData)) {
+      e.preventDefault()
     }
   })
 
@@ -1557,8 +1977,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   nextMatchBtn.addEventListener('click', () => {
     if (searchMatches.length === 0) return
     searchMatchIndex = (searchMatchIndex + 1) % searchMatches.length
-    selectedOffset = searchMatches[searchMatchIndex]
-    updateSelectedStatus()
+    selectOffset(searchMatches[searchMatchIndex])
     updateMatchNav()
     render()
     vscode.postMessage({ type: 'goToMatch', offset: searchMatches[searchMatchIndex] })
@@ -1567,8 +1986,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   prevMatchBtn.addEventListener('click', () => {
     if (searchMatches.length === 0) return
     searchMatchIndex = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length
-    selectedOffset = searchMatches[searchMatchIndex]
-    updateSelectedStatus()
+    selectOffset(searchMatches[searchMatchIndex])
     updateMatchNav()
     render()
     vscode.postMessage({ type: 'goToMatch', offset: searchMatches[searchMatchIndex] })
@@ -1583,9 +2001,9 @@ export function getWebviewContent(bytesPerRow: number): string {
     editTitle.textContent = mode === 'insert' ? 'Insert Bytes'
       : mode === 'overwrite' ? 'Overwrite Bytes'
       : 'Delete Bytes'
-    editOffset.value = selectedOffset >= 0 ? toHex8(selectedOffset) : '00000000'
+    editOffset.value = hasSelection() ? toHex8(getSelectionStart()) : '00000000'
     editData.value = ''
-    editLength.value = '1'
+    editLength.value = hasSelection() ? String(getSelectionLength()) : '1'
     editLengthField.style.display = mode === 'delete' ? 'block' : 'none'
     editDataField.style.display = mode !== 'delete' ? 'block' : 'none'
     editDialog.classList.add('active')
