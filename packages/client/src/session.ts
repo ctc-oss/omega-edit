@@ -138,6 +138,21 @@ export async function createSession(
   )
 }
 
+export async function createSessionFromBytes(
+  initial_data: Uint8Array,
+  session_id_desired: string = '',
+  checkpoint_directory: string = ''
+): Promise<CreateSessionResponse> {
+  return wrapCreateSessionResponse(
+    await rawCreateSession(
+      '',
+      session_id_desired,
+      checkpoint_directory,
+      initial_data
+    )
+  )
+}
+
 export function destroySession(session_id: string): Promise<string> {
   return rawDestroySession(session_id)
 }
@@ -191,6 +206,17 @@ export function getSegment(
   length: number
 ): Promise<Uint8Array> {
   return rawGetSegment(session_id, offset, length)
+}
+
+export async function getSessionBytes(
+  session_id: string,
+  offset: number = 0,
+  length: number = 0
+): Promise<Uint8Array> {
+  const computedSize = await getComputedFileSize(session_id)
+  const remaining = Math.max(0, computedSize - offset)
+  const effectiveLength = length > 0 ? Math.min(length, remaining) : remaining
+  return rawGetSegment(session_id, offset, effectiveLength)
 }
 
 export function getSessionCount(): Promise<number> {

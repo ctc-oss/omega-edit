@@ -377,7 +377,8 @@ SessionManager::~SessionManager() { destroy_all(); }
 
 // ── Session lifecycle ────────────────────────────────────────────────────────
 std::string SessionManager::create_session(const std::string &file_path, const std::string &desired_id,
-                                           const std::string &checkpoint_directory, int64_t &file_size_out,
+                                           const std::string &checkpoint_directory, const std::string *initial_data,
+                                           int64_t &file_size_out,
                                            std::string &checkpoint_dir_out,
                                            SessionCreateError *error_out) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -415,7 +416,6 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     // Store info first so the callback can find it
     sessions_[session_id] = info;
 
-    const char *path = file_path.empty() ? nullptr : file_path.c_str();
     std::string effective_checkpoint_directory = checkpoint_directory;
     if (effective_checkpoint_directory.empty()) {
         effective_checkpoint_directory = create_managed_checkpoint_directory();
@@ -430,8 +430,15 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     info->checkpoint_directory = effective_checkpoint_directory;
     const char *chkpt_dir = effective_checkpoint_directory.empty() ? nullptr : effective_checkpoint_directory.c_str();
 
-    omega_session_t *session =
-        omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
+    omega_session_t *session = nullptr;
+    if (initial_data != nullptr) {
+        session = omega_edit_create_session_from_bytes(
+            reinterpret_cast<const omega_byte_t *>(initial_data->data()), static_cast<int64_t>(initial_data->size()),
+            session_event_callback, info.get(), 0, chkpt_dir);
+    } else {
+        const char *path = file_path.empty() ? nullptr : file_path.c_str();
+        session = omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
+    }
 
     if (!session) {
         if (info->owns_checkpoint_directory) {

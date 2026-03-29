@@ -22,6 +22,7 @@ import {
   del,
   countCharacters,
   createSession,
+  createSessionFromBytes,
   createViewport,
   destroySession,
   getByteOrderMark,
@@ -31,6 +32,7 @@ import {
   getContentType,
   getLanguage,
   getSegment,
+  getSessionBytes,
   getServerHeartbeat,
   getSessionCount,
   getViewportCount,
@@ -803,6 +805,54 @@ describe('Sessions', () => {
     ).to.equal(0)
     removeDirectory(checkpointDir)
     expect(fs.existsSync(checkpointDir)).to.be.false
+  })
+
+  it('Should create a clean baseline session from bytes', async () => {
+    const memoryCheckpointDir = path.join(__dirname, 'data', 'memory-checkpoint')
+    const seed = Buffer.from('memory seed')
+    let session_id = ''
+
+    removeDirectory(memoryCheckpointDir)
+    expect(fs.existsSync(memoryCheckpointDir)).to.be.false
+
+    try {
+      const session = await createSessionFromBytes(
+        seed,
+        'memory_seed_test',
+        memoryCheckpointDir
+      )
+      session_id = session.getSessionId()
+
+      expect(session_id).to.equal('memory_seed_test')
+      expect(session.getCheckpointDirectory()).to.equal(memoryCheckpointDir)
+      expect(session.getFileSize()).to.equal(seed.length)
+      expect(await getComputedFileSize(session_id)).to.equal(seed.length)
+      expect(await getChangeCount(session_id)).to.equal(0)
+      expect(await getSessionBytes(session_id)).to.deep.equal(seed)
+      expect(await getSessionBytes(session_id, 7, 4)).to.deep.equal(
+        Buffer.from('seed')
+      )
+      expect(
+        await countMatchingFilesInDir(memoryCheckpointDir, '.OmegaEdit-bytes.*')
+      ).to.equal(1)
+
+      await insert(session_id, seed.length, Buffer.from('!'))
+      expect(await getChangeCount(session_id)).to.equal(1)
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('memory seed!')
+      )
+    } finally {
+      if (session_id) {
+        await destroySession(session_id)
+      }
+      if (fs.existsSync(memoryCheckpointDir)) {
+        expect(
+          await countMatchingFilesInDir(memoryCheckpointDir, '.OmegaEdit-bytes.*')
+        ).to.equal(0)
+        removeDirectory(memoryCheckpointDir)
+      }
+      expect(fs.existsSync(memoryCheckpointDir)).to.be.false
+    }
   })
 
   it('Should be able to handle different save flags', async () => {

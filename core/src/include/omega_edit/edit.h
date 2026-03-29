@@ -53,6 +53,21 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
                                            int32_t event_interest, const char *checkpoint_directory);
 
 /**
+ * Create an editing session backed by an in-memory byte buffer.
+ * @param data_ptr bytes to seed the session with, or nullptr if length is zero
+ * @param length number of bytes in data_ptr
+ * @param cbk user-defined callback function called whenever a content affecting change is made to this session
+ * @param user_data_ptr pointer to user-defined data to associate with this session
+ * @param event_interest oring together the session events of interest, or zero if all session events are desired
+ * @param checkpoint_directory directory to store checkpoints in, if null, the system temp directory (or current working
+ * directory as a last resort) will be used
+ * @return pointer to the created session, or NULL on failure
+ */
+omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_ptr, int64_t length,
+                                                      omega_session_event_cbk_t cbk, void *user_data_ptr,
+                                                      int32_t event_interest, const char *checkpoint_directory);
+
+/**
  * Destroy the given session and all associated objects (changes, and viewports)
  * @param session_ptr session to destroy
  */
@@ -130,6 +145,27 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
  * @return 0 on success, non-zero otherwise
  */
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path);
+
+/**
+ * Copy a session byte range into a newly allocated memory buffer.
+ * @param session_ptr session to copy from
+ * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free)
+ * @param length_out receives the number of copied bytes
+ * @param offset starting byte offset in the session
+ * @param length number of bytes to copy, or zero to copy from offset to the end of the session
+ * @return 0 on success, non-zero otherwise
+ */
+int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out,
+                                     int64_t *length_out, int64_t offset, int64_t length);
+
+/**
+ * Copy the full computed session content into a newly allocated memory buffer.
+ * @param session_ptr session to copy from
+ * @param data_ptr_out receives a malloc-allocated buffer containing the copied bytes (caller must free)
+ * @param length_out receives the number of copied bytes
+ * @return 0 on success, non-zero otherwise
+ */
+int omega_edit_save_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out, int64_t *length_out);
 
 /**
  * Batch script operation kinds for sequential edit replay.

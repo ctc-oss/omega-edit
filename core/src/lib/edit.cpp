@@ -27,6 +27,7 @@
 #include "impl_/viewport_def.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cstdlib>
 #include <memory>
 
 #ifdef OMEGA_BUILD_WINDOWS
@@ -50,6 +51,79 @@
 namespace {
     // 64KB I/O buffer for save and transform operations — reduces system-call overhead vs BUFSIZ (~8KB)
     constexpr int64_t OMEGA_IO_BUFFER_SIZE = 65536;
+
+    void initialize_model_segments_(omega_model_segments_t &model_segments, int64_t length);
+
+    auto resolve_checkpoint_directory_(const char *file_path, const char *checkpoint_directory,
+                                       std::string &checkpoint_directory_str) -> bool {
+        if (checkpoint_directory == nullptr) {
+            // First try to use the directory of the file being edited
+            if ((file_path != nullptr) && file_path[0] != '\0') {
+                auto *const dirname = omega_util_dirname(file_path, nullptr);
+                if (dirname != nullptr) {
+                    checkpoint_directory = checkpoint_directory_str.assign(dirname).c_str();
+                }
+            }
+            // If that doesn't work, then try to use the system temp directory
+            if (checkpoint_directory == nullptr) {
+                auto *const temp_dir = omega_util_get_temp_directory();
+                if (temp_dir != nullptr) {
+                    checkpoint_directory = checkpoint_directory_str.assign(temp_dir).c_str();
+                    free(temp_dir);
+                } else {
+                    // Finally, if that doesn't work, then use the current working directory
+                    auto *const current_dir = omega_util_get_current_dir(nullptr);
+                    if (current_dir != nullptr) {
+                        checkpoint_directory = checkpoint_directory_str.assign(current_dir).c_str();
+                    }
+                }
+            }
+        }
+        if (checkpoint_directory == nullptr) {
+            LOG_ERROR("failed to determine checkpoint directory");
+            return false;
+        }
+        if ((omega_util_directory_exists(checkpoint_directory) == 0) &&
+            0 != omega_util_create_directory(checkpoint_directory)) {
+            LOG_ERROR("failed to create checkpoint directory '" << checkpoint_directory << "'");
+            return false;
+        }
+        auto *const resolved_path = omega_util_normalize_path(checkpoint_directory, nullptr);
+        if (resolved_path == nullptr) {
+            LOG_ERROR("failed to resolve checkpoint_directory path '" << checkpoint_directory << "' to absolute path");
+            return false;
+        }
+        checkpoint_directory_str.assign(resolved_path);
+        return true;
+    }
+
+    auto create_session_with_backing_file_(FILE *file_ptr, const char *file_path, const char *checkpoint_file_name,
+                                           const std::string &checkpoint_directory, omega_session_event_cbk_t cbk,
+                                           void *user_data_ptr, int32_t event_interest) -> omega_session_t * {
+        off_t file_size = 0;
+        if (file_ptr != nullptr) {
+            if (0 != FSEEK(file_ptr, 0L, SEEK_END)) {
+                FCLOSE(file_ptr);
+                return nullptr;
+            }
+            file_size = FTELL(file_ptr);
+        }
+        auto *const session_ptr = new omega_session_t;
+        session_ptr->checkpoint_directory_ = checkpoint_directory;
+        session_ptr->event_handler = cbk;
+        session_ptr->user_data_ptr = user_data_ptr;
+        session_ptr->event_interest_ = event_interest;
+        session_ptr->num_changes_adjustment_ = 0;
+        session_ptr->models_.push_back(std::make_unique<omega_model_t>());
+        if (file_ptr != nullptr) {
+            session_ptr->models_.back()->file_ptr = file_ptr;
+            if (file_path != nullptr) { session_ptr->models_.back()->file_path.assign(file_path); }
+            if (checkpoint_file_name != nullptr) { session_ptr->checkpoint_file_name_.assign(checkpoint_file_name); }
+        }
+        initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+        omega_session_notify(session_ptr, SESSION_EVT_CREATE, nullptr);
+        return session_ptr;
+    }
 
     auto reserve_output_path_(const char *requested_path, int mode, char *reserved_path, size_t reserved_path_size)
             -> FILE * {
@@ -652,35 +726,7 @@ namespace {
 omega_session_t *omega_edit_create_session(const char *file_path, omega_session_event_cbk_t cbk, void *user_data_ptr,
                                            int32_t event_interest, const char *checkpoint_directory) {
     std::string checkpoint_directory_str;
-    // If no checkpoint directory is specified, then try to figure out a good default
-    if (checkpoint_directory == nullptr) {
-        // First try to use the directory of the file being edited
-        if ((file_path != nullptr) && file_path[0] != '\0') {
-            checkpoint_directory = checkpoint_directory_str.assign(omega_util_dirname(file_path, nullptr)).c_str();
-        }
-        // If that doesn't work, then try to use the system temp directory
-        if (checkpoint_directory == nullptr) {
-            auto *const temp_dir = omega_util_get_temp_directory();
-            if (temp_dir != nullptr) {
-                checkpoint_directory = checkpoint_directory_str.assign(temp_dir).c_str();
-                free(temp_dir);
-            } else {
-                // Finally, if that doesn't work, then use the current working directory
-                checkpoint_directory = checkpoint_directory_str.assign(omega_util_get_current_dir(nullptr)).c_str();
-            }
-        }
-    }
-    if ((omega_util_directory_exists(checkpoint_directory) == 0) &&
-        0 != omega_util_create_directory(checkpoint_directory)) {
-        LOG_ERROR("failed to create checkpoint directory '" << checkpoint_directory << "'");
-        return nullptr;
-    }
-    auto *const resolved_path = omega_util_normalize_path(checkpoint_directory, nullptr);
-    if (resolved_path == nullptr) {
-        LOG_ERROR("failed to resolve checkpoint_directory path '" << checkpoint_directory << "' to absolute path");
-        return nullptr;
-    }
-    checkpoint_directory_str.assign(resolved_path);
+    if (!resolve_checkpoint_directory_(file_path, checkpoint_directory, checkpoint_directory_str)) { return nullptr; }
     FILE *file_ptr = nullptr;
     char checkpoint_filename[FILENAME_MAX + 1]; // +1 for null terminator
     if ((file_path != nullptr) && file_path[0] != '\0') {
@@ -708,29 +754,54 @@ omega_session_t *omega_edit_create_session(const char *file_path, omega_session_
         file_ptr = FOPEN(checkpoint_filename, "rb");
         if (file_ptr == nullptr) { return nullptr; }
     }
-    off_t file_size = 0;
-    if (file_ptr != nullptr) {
-        if (0 != FSEEK(file_ptr, 0L, SEEK_END)) {
-            FCLOSE(file_ptr);
-            return nullptr;
-        }
-        file_size = FTELL(file_ptr);
+    return create_session_with_backing_file_(file_ptr, file_path, checkpoint_filename, checkpoint_directory_str, cbk,
+                                             user_data_ptr, event_interest);
+}
+
+omega_session_t *omega_edit_create_session_from_bytes(const omega_byte_t *data_ptr, int64_t length,
+                                                      omega_session_event_cbk_t cbk, void *user_data_ptr,
+                                                      int32_t event_interest, const char *checkpoint_directory) {
+    if (length < 0 || (length > 0 && data_ptr == nullptr)) { return nullptr; }
+
+    std::string checkpoint_directory_str;
+    if (!resolve_checkpoint_directory_(nullptr, checkpoint_directory, checkpoint_directory_str)) { return nullptr; }
+
+    char checkpoint_filename[FILENAME_MAX + 1];
+    if (FILENAME_MAX <=
+        snprintf(static_cast<char *>(checkpoint_filename), FILENAME_MAX, "%s%c.OmegaEdit-bytes.XXXXXX",
+                 checkpoint_directory_str.c_str(), omega_util_directory_separator())) {
+        LOG_ERROR("failed to create memory-backed checkpoint filename template");
+        return nullptr;
     }
-    auto *const session_ptr = new omega_session_t;
-    session_ptr->checkpoint_directory_ = checkpoint_directory_str;
-    session_ptr->event_handler = cbk;
-    session_ptr->user_data_ptr = user_data_ptr;
-    session_ptr->event_interest_ = event_interest;
-    session_ptr->num_changes_adjustment_ = 0;
-    session_ptr->models_.push_back(std::make_unique<omega_model_t>());
-    if (file_ptr != nullptr) {
-        session_ptr->models_.back()->file_ptr = file_ptr;
-        session_ptr->models_.back()->file_path.assign(file_path);
-        session_ptr->checkpoint_file_name_.assign(checkpoint_filename);
+
+    const auto checkpoint_fd = omega_util_mkstemp(static_cast<char *>(checkpoint_filename), 0600);// S_IRUSR | S_IWUSR
+    if (checkpoint_fd < 0) {
+        LOG_ERROR("omega_util_mkstemp failed for memory-backed checkpoint file '"
+                  << static_cast<char *>(checkpoint_filename) << "'");
+        return nullptr;
     }
-    initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
-    omega_session_notify(session_ptr, SESSION_EVT_CREATE, nullptr);
-    return session_ptr;
+    close(checkpoint_fd);
+
+    auto *file_ptr = FOPEN(checkpoint_filename, "wb");
+    if (file_ptr == nullptr) {
+        omega_util_remove_file(checkpoint_filename);
+        return nullptr;
+    }
+    if ((length > 0) && (static_cast<int64_t>(fwrite(data_ptr, sizeof(omega_byte_t), length, file_ptr)) != length)) {
+        FCLOSE(file_ptr);
+        omega_util_remove_file(checkpoint_filename);
+        return nullptr;
+    }
+    FCLOSE(file_ptr);
+
+    file_ptr = FOPEN(checkpoint_filename, "rb");
+    if (file_ptr == nullptr) {
+        omega_util_remove_file(checkpoint_filename);
+        return nullptr;
+    }
+
+    return create_session_with_backing_file_(file_ptr, nullptr, checkpoint_filename, checkpoint_directory_str, cbk,
+                                             user_data_ptr, event_interest);
 }
 
 void omega_edit_destroy_session(omega_session_t *session_ptr) {
@@ -1127,6 +1198,64 @@ int omega_edit_save_segment(omega_session_t *session_ptr, const char *file_path,
 
 int omega_edit_save(omega_session_t *session_ptr, const char *file_path, int io_flags, char *saved_file_path) {
     return omega_edit_save_segment(session_ptr, file_path, io_flags, saved_file_path, 0, 0);
+}
+
+int omega_edit_save_segment_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out,
+                                     int64_t *length_out, int64_t offset, int64_t length) {
+    if (!session_ptr || !data_ptr_out || !length_out || offset < 0 || length < 0) { return -1; }
+
+    *data_ptr_out = nullptr;
+    *length_out = 0;
+
+    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+    if (offset > computed_file_size) { return -1; }
+
+    const auto remaining_length = computed_file_size - offset;
+    const auto requested_length = (length == 0 || length > remaining_length) ? remaining_length : length;
+    if (requested_length < 0) { return -1; }
+
+    auto *const data_ptr = static_cast<omega_byte_t *>(malloc(static_cast<size_t>(requested_length) + 1));
+    if (data_ptr == nullptr) { return -1; }
+    data_ptr[requested_length] = '\0';
+
+    if (requested_length == 0) {
+        *data_ptr_out = data_ptr;
+        *length_out = 0;
+        return 0;
+    }
+
+    const auto chunk_capacity = std::min<int64_t>(requested_length, OMEGA_IO_BUFFER_SIZE);
+    auto *const segment = omega_segment_create(chunk_capacity);
+    if (!segment) {
+        free(data_ptr);
+        return -1;
+    }
+
+    int64_t bytes_copied = 0;
+    while (bytes_copied < requested_length) {
+        if (0 != omega_session_get_segment(session_ptr, segment, offset + bytes_copied)) {
+            omega_segment_destroy(segment);
+            free(data_ptr);
+            return -1;
+        }
+        const auto segment_length = std::min<int64_t>(omega_segment_get_length(segment), requested_length - bytes_copied);
+        if (segment_length <= 0) {
+            omega_segment_destroy(segment);
+            free(data_ptr);
+            return -1;
+        }
+        memcpy(data_ptr + bytes_copied, omega_segment_get_data(segment), static_cast<size_t>(segment_length));
+        bytes_copied += segment_length;
+    }
+
+    omega_segment_destroy(segment);
+    *data_ptr_out = data_ptr;
+    *length_out = requested_length;
+    return 0;
+}
+
+int omega_edit_save_to_bytes(const omega_session_t *session_ptr, omega_byte_t **data_ptr_out, int64_t *length_out) {
+    return omega_edit_save_segment_to_bytes(session_ptr, data_ptr_out, length_out, 0, 0);
 }
 
 int omega_edit_clear_changes(omega_session_t *session_ptr) {

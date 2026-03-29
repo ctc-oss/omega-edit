@@ -200,6 +200,7 @@ message CreateSessionRequest {
   optional string file_path = 1;
   optional string session_id_desired = 2;
   optional string checkpoint_directory = 3;
+  optional bytes initial_data = 4;
 }
 
 message CreateSessionResponse {

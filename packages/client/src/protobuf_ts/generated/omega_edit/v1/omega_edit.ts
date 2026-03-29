@@ -240,6 +240,12 @@ export interface CreateSessionRequest {
    * @generated from protobuf field: optional string checkpoint_directory = 3
    */
   checkpointDirectory?: string
+  /**
+   * Initial bytes to seed the session with.  Mutually exclusive with file_path.
+   *
+   * @generated from protobuf field: optional bytes initial_data = 4
+   */
+  initialData?: Uint8Array
 }
 /**
  * Response after a session is successfully created.
@@ -2611,6 +2617,13 @@ class CreateSessionRequest$Type extends MessageType<CreateSessionRequest> {
         opt: true,
         T: 9 /*ScalarType.STRING*/,
       },
+      {
+        no: 4,
+        name: 'initial_data',
+        kind: 'scalar',
+        opt: true,
+        T: 12 /*ScalarType.BYTES*/,
+      },
     ])
   }
   create(value?: PartialMessage<CreateSessionRequest>): CreateSessionRequest {
@@ -2638,6 +2651,9 @@ class CreateSessionRequest$Type extends MessageType<CreateSessionRequest> {
           break
         case /* optional string checkpoint_directory */ 3:
           message.checkpointDirectory = reader.string()
+          break
+        case /* optional bytes initial_data */ 4:
+          message.initialData = reader.bytes()
           break
         default:
           let u = options.readUnknownField
@@ -2674,6 +2690,9 @@ class CreateSessionRequest$Type extends MessageType<CreateSessionRequest> {
       writer
         .tag(3, WireType.LengthDelimited)
         .string(message.checkpointDirectory)
+    /* optional bytes initial_data = 4; */
+    if (message.initialData !== undefined)
+      writer.tag(4, WireType.LengthDelimited).bytes(message.initialData)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

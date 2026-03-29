@@ -403,6 +403,12 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
         file_path = request->file_path();
     }
 
+    const auto has_initial_data = request->has_initial_data();
+    if (!file_path.empty() && has_initial_data) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "create session accepts either file_path or initial_data, not both");
+    }
+
     // Validate file path exists if provided (match previous server behavior)
     if (!file_path.empty()) {
         std::error_code ec;
@@ -426,8 +432,13 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
     std::string checkpoint_dir_out;
     std::string session_id;
     SessionCreateError create_error = SessionCreateError::SUCCESS;
+    std::string initial_data;
+    if (has_initial_data) {
+        initial_data = request->initial_data();
+    }
+    const std::string *initial_data_ptr = has_initial_data ? &initial_data : nullptr;
     try {
-        session_id = session_manager_.create_session(file_path, desired_id, checkpoint_dir, file_size,
+        session_id = session_manager_.create_session(file_path, desired_id, checkpoint_dir, initial_data_ptr, file_size,
                                                      checkpoint_dir_out, &create_error);
     } catch (const std::exception &e) {
         return grpc::Status(grpc::StatusCode::INTERNAL, std::string("Failed to create session: ") + e.what());
@@ -448,7 +459,7 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
 
     response->set_session_id(session_id);
     response->set_checkpoint_directory(checkpoint_dir_out);
-    if (!file_path.empty()) {
+    if (!file_path.empty() || has_initial_data) {
         response->set_file_size(file_size);
     }
     return grpc::Status::OK;

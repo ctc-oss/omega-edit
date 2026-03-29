@@ -175,7 +175,8 @@ public:
 
     // Session lifecycle
     std::string create_session(const std::string &file_path, const std::string &desired_id,
-                               const std::string &checkpoint_directory, int64_t &file_size_out,
+                               const std::string &checkpoint_directory, const std::string *initial_data,
+                               int64_t &file_size_out,
                                std::string &checkpoint_dir_out,
                                SessionCreateError *error_out = nullptr);
     bool destroy_session(const std::string &session_id);

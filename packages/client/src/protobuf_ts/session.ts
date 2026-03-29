@@ -49,7 +49,8 @@ import {
 export async function createSession(
   filePath: string = '',
   sessionIdDesired: string = '',
-  checkpointDirectory: string = ''
+  checkpointDirectory: string = '',
+  initialData?: Uint8Array
 ): Promise<CreateSessionResponse> {
   const log = getLogger()
   const request: CreateSessionRequest = {}
@@ -59,6 +60,7 @@ export async function createSession(
   if (checkpointDirectory.length > 0) {
     request.checkpointDirectory = checkpointDirectory
   }
+  if (initialData !== undefined) request.initialData = initialData
 
   debugLog(log, () => ({ fn: 'protobufTs.createSession', rqst: request }))
   const client = await getClient()

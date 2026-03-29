@@ -400,6 +400,8 @@ message CreateSessionRequest {
   optional string session_id_desired = 2;
   // Directory for checkpoint files.  Defaults to a system temp directory.
   optional string checkpoint_directory = 3;
+  // Initial bytes to seed the session with.  Mutually exclusive with file_path.
+  optional bytes initial_data = 4;
 }
 
 // Response after a session is successfully created.

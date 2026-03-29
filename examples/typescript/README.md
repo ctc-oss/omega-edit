@@ -59,7 +59,7 @@ npx ts-node record-replay.ts input.txt
 Each example calls `startServer(port)` to launch the native C++ gRPC server (bundled inside `@omega-edit/client`) and `stopServerGraceful()` to shut it down. In a production application (e.g., a VS Code extension), you would typically start the server once during activation and stop it during deactivation.
 
 ### Sessions
-A session represents an editing context for a file. Create one with `createSession(filePath)` (or omit the path for an empty session). All edits, viewports, and searches happen within a session. Destroy it with `destroySession(sessionId)` when done.
+A session represents an editing context for a file or byte buffer. Create one with `createSession(filePath)` for file-backed input, `createSessionFromBytes(data)` for in-memory input, or omit the path for an empty session. All edits, viewports, and searches happen within a session. Destroy it with `destroySession(sessionId)` when done.
 
 ### Viewports
 Viewports are windows into the session data at a given offset and capacity. They are a core Ωedit™ primitive — not an afterthought. Floating viewports automatically adjust their offset when inserts or deletes shift data before them.
