@@ -141,6 +141,10 @@ legacy fields for wire compatibility.</p>
 <td>Open an editing session</td>
 </tr>
 <tr>
+<td><code>createSessionFromBytes(data, sessionId?, checkpointDir?)</code></td>
+<td>Open a session from bytes</td>
+</tr>
+<tr>
 <td><code>destroySession(sessionId)</code></td>
 <td>Close and discard a session</td>
 </tr>
@@ -155,6 +159,10 @@ legacy fields for wire compatibility.</p>
 <tr>
 <td><code>getSegment(sessionId, offset, length)</code></td>
 <td>Read a byte range</td>
+</tr>
+<tr>
+<td><code>getSessionBytes(sessionId, offset?, length?)</code></td>
+<td>Read session bytes in memory</td>
 </tr>
 <tr>
 <td><code>getSessionCount()</code></td>

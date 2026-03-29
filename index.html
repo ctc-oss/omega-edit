@@ -94,6 +94,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv436omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session_from_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_destroy_sessionP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_session()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_create_viewportP15omega_session_t7int64_t7int64_ti26omega_viewport_event_cbk_tPv7int32_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_viewport()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv427omega_edit_destroy_viewportP16omega_viewport_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_viewport()</span></code></a></li>
@@ -102,6 +103,8 @@
 <li><a class="reference internal" href="#_CPPv425omega_edit_redo_last_undoP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_redo_last_undo()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_save_segmentP15omega_session_tPKciPc7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv415omega_edit_saveP15omega_session_tPKciPc"><code class="docutils literal notranslate"><span class="pre">omega_edit_save()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_segment_to_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv424omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_save_to_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv417omega_edit_deleteP15omega_session_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_delete()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_insert_bytesP15omega_session_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_insert_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv417omega_edit_insertP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_insert()</span></code></a></li>
@@ -679,6 +682,27 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv436omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc">
+<span id="_CPPv336omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc"></span><span id="_CPPv236omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc"></span><span id="omega_edit_create_session_from_bytes__omega_byte_tCP.int64_t.omega_session_event_cbk_t.voidP.int32_t.cCP"></span><span class="target" id="edit_8h_1aec9cb21dd2466fe120a7b520120d4a72"></span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_create_session_from_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span>, <a class="reference internal" href="#_CPPv425omega_session_event_cbk_t" title="omega_session_event_cbk_t"><span class="n"><span class="pre">omega_session_event_cbk_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">cbk</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data_ptr</span></span>, <span class="n"><span class="pre">int32_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">event_interest</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">checkpoint_directory</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv436omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc" title="Link to this definition"></a><br /></dt>
+<dd><p>Create an editing session backed by an in-memory byte buffer. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_ptr</strong> – bytes to seed the session with, or nullptr if length is zero </p></li>
+<li><p><strong>length</strong> – number of bytes in data_ptr </p></li>
+<li><p><strong>cbk</strong> – user-defined callback function called whenever a content affecting change is made to this session </p></li>
+<li><p><strong>user_data_ptr</strong> – pointer to user-defined data to associate with this session </p></li>
+<li><p><strong>event_interest</strong> – oring together the session events of interest, or zero if all session events are desired </p></li>
+<li><p><strong>checkpoint_directory</strong> – directory to store checkpoints in, if null, the system temp directory (or current working directory as a last resort) will be used. A checkpoint file is still created internally so the session can reuse the standard file-backed model and checkpoint machinery. </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>pointer to the created session, or NULL on failure </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv426omega_edit_destroy_sessionP15omega_session_t">
 <span id="_CPPv326omega_edit_destroy_sessionP15omega_session_t"></span><span id="_CPPv226omega_edit_destroy_sessionP15omega_session_t"></span><span id="omega_edit_destroy_session__omega_session_tP"></span><span class="target" id="edit_8h_1afd4fd967d6fd1a4cde6aaadff91eae9a"></span><span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_destroy_session</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_edit_destroy_sessionP15omega_session_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Destroy the given session and all associated objects (changes, and viewports) </p>
@@ -796,6 +820,44 @@
 <li><p><strong>file_path</strong> – file path to save to </p></li>
 <li><p><strong>io_flags</strong> – save IO flags (see <a class="reference internal" href="#fwd__defs_8h_1af74d6c9b2e26c002e4168ac2e7ad140b"><span class="std std-ref">omega_io_flags_t</span></a> for details) </p></li>
 <li><p><strong>saved_file_path</strong> – if overwrite is not set and the target file_path exists, a new file path will be created, and if this parameter is non-null, the saved file path will be copied here (must be able to accommodate FILENAME_MAX bytes) </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t">
+<span id="_CPPv332omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"></span><span id="_CPPv232omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t"></span><span id="omega_edit_save_segment_to_bytes__omega_session_tCP.omega_byte_tPP.int64_tP.int64_t.int64_t"></span><span class="target" id="edit_8h_1abb6b1cf19ddb85878b3f4775e7a5fd5f"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_segment_to_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_ptr_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">length_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv432omega_edit_save_segment_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Copy a session byte range into a newly allocated memory buffer. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to copy from </p></li>
+<li><p><strong>data_ptr_out</strong> – receives a malloc-allocated buffer containing the copied bytes (caller must free). The buffer is null-terminated for convenience, but length_out reports the logical byte count. </p></li>
+<li><p><strong>length_out</strong> – receives the number of copied bytes </p></li>
+<li><p><strong>offset</strong> – starting byte offset in the session </p></li>
+<li><p><strong>length</strong> – number of bytes to copy, or zero to copy from offset to the end of the session </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>0 on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv424omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t">
+<span id="_CPPv324omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t"></span><span id="_CPPv224omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t"></span><span id="omega_edit_save_to_bytes__omega_session_tCP.omega_byte_tPP.int64_tP"></span><span class="target" id="edit_8h_1a5c9fa2cf048856f7546de2f836d2f047"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_save_to_bytes</span></span></span><span class="sig-paren">(</span><span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">data_ptr_out</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">length_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv424omega_edit_save_to_bytesPK15omega_session_tPP12omega_byte_tP7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Copy the full computed session content into a newly allocated memory buffer. </p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to copy from </p></li>
+<li><p><strong>data_ptr_out</strong> – receives a malloc-allocated buffer containing the copied bytes (caller must free). The buffer is null-terminated for convenience, but length_out reports the logical byte count. </p></li>
+<li><p><strong>length_out</strong> – receives the number of copied bytes </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
