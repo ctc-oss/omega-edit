@@ -53,7 +53,39 @@ jobs:
         id: ts-format
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "TypeScript code is properly formatted"
+          checkName: "TypeScript code passes Biome checks"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check VS Code extension - Ubuntu 1.110.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: vscode-ubuntu-floor
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "VS Code extension checks on ubuntu-24.04 with VS Code 1.110.0"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check VS Code extension - Ubuntu stable
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: vscode-ubuntu-stable
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "VS Code extension checks on ubuntu-24.04 with VS Code stable"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check VS Code extension - Windows 1.110.0
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: vscode-windows-floor
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "VS Code extension checks on windows-2025 with VS Code 1.110.0"
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check VS Code extension - Windows stable
+        uses: fountainhead/action-wait-for-check@v1.2.0
+        id: vscode-windows-stable
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          checkName: "VS Code extension checks on windows-2025 with VS Code stable"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - macOS 15
@@ -100,6 +132,10 @@ jobs:
         if: |
           steps.rat-check.outputs.conclusion != 'success' ||
           steps.ts-format.outputs.conclusion != 'success' ||
+          steps.vscode-ubuntu-floor.outputs.conclusion != 'success' ||
+          steps.vscode-ubuntu-stable.outputs.conclusion != 'success' ||
+          steps.vscode-windows-floor.outputs.conclusion != 'success' ||
+          steps.vscode-windows-stable.outputs.conclusion != 'success' ||
           steps.macos15-tests.outputs.conclusion != 'success' ||
           steps.macos14-tests.outputs.conclusion != 'success' ||
           steps.ubuntu-tests.outputs.conclusion != 'success' ||
@@ -108,6 +144,10 @@ jobs:
         run: |
           echo "Rat Check Status: ${{ steps.rat-check.outputs.conclusion }}"
           echo "Typescript Format Status: ${{ steps.ts-format.outputs.conclusion }}"
+          echo "VS Code Ubuntu 1.110.0 Status: ${{ steps.vscode-ubuntu-floor.outputs.conclusion }}"
+          echo "VS Code Ubuntu stable Status: ${{ steps.vscode-ubuntu-stable.outputs.conclusion }}"
+          echo "VS Code Windows 1.110.0 Status: ${{ steps.vscode-windows-floor.outputs.conclusion }}"
+          echo "VS Code Windows stable Status: ${{ steps.vscode-windows-stable.outputs.conclusion }}"
           echo "MacOS 15 Test Status: ${{ steps.macos15-tests.outputs.conclusion }}"
           echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outputs.conclusion }}"
           echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.outputs.conclusion }}"

@@ -55,4 +55,26 @@ fs.writeFileSync(
   JSON.stringify(serverPackageJson, null, 2) + '\n'
 )
 
+// Update VS Code extension example package.json
+const vscodeExtensionPackageJsonPath = path.join(
+  __dirname,
+  'examples',
+  'vscode-extension',
+  'package.json'
+)
+const vscodeExtensionPackageJson = JSON.parse(
+  fs.readFileSync(vscodeExtensionPackageJsonPath, 'utf8')
+)
+vscodeExtensionPackageJson.version = version
+if (
+  vscodeExtensionPackageJson.dependencies &&
+  vscodeExtensionPackageJson.dependencies['@omega-edit/client']
+) {
+  vscodeExtensionPackageJson.dependencies['@omega-edit/client'] = `^${version}`
+}
+fs.writeFileSync(
+  vscodeExtensionPackageJsonPath,
+  JSON.stringify(vscodeExtensionPackageJson, null, 2) + '\n'
+)
+
 console.log(`Updated all package.json files to version ${version}`)
