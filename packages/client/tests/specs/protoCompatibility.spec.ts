@@ -398,7 +398,9 @@ describe('Proto Compatibility', () => {
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)
     expect(
-      wrapHeartbeatResponse(heartbeatWithLoadAverageOnly.toObject()).getCpuLoadAverage()
+      wrapHeartbeatResponse(
+        heartbeatWithLoadAverageOnly.toObject()
+      ).getCpuLoadAverage()
     ).to.equal(0.75)
     expect(
       wrapViewportDataResponse(viewportData.toObject()).getFollowingByteCount()
