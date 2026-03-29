@@ -92,6 +92,8 @@ VSCODE_VERSION=1.110.0 npm run test:integration
 VSCODE_VERSION=stable npm run test:integration
 ```
 
+`npm run lint` now uses Biome for the extension's JavaScript, TypeScript, and JSON sources/config. Biome does not currently format Markdown, so `README.md` stays outside the automated formatter scope for this example.
+
 ## Architecture
 
 ```text

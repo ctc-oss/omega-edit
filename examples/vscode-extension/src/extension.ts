@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as vscode from 'vscode'
 import { getClient, startServer, stopServerGraceful } from '@omega-edit/client'
+import * as vscode from 'vscode'
 import {
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,

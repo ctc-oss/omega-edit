@@ -109,10 +109,10 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "format:check": "prettier --check package.json README.md eslint.config.js src tests .vscode",
-    "format:write": "prettier --write package.json README.md eslint.config.js src tests .vscode",
-    "lint": "npm run format:check && eslint .",
-    "lint:fix": "npm run format:write && eslint --fix .",
+    "format:check": "biome format .",
+    "format:write": "biome format --write .",
+    "lint": "biome ci .",
+    "lint:fix": "biome check --write .",
     "test:unit": "node --test tests/extension.test.js",
     "test:integration": "node ./tests/run-vscode-tests.js",
     "test:integration:observe": "node ./tests/run-vscode-observe.js",
@@ -122,24 +122,11 @@
     "@omega-edit/client": "^1.0.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.9",
     "@vscode/test-electron": "^2.5.2",
-    "@typescript-eslint/eslint-plugin": "^8.57.2",
-    "@typescript-eslint/parser": "^8.57.2",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.110.0",
-    "eslint": "^10.1.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.5",
-    "globals": "^17.4.0",
     "mocha": "^10.8.2",
-    "prettier": "^3.8.1",
     "typescript": "^5.0.0"
-  },
-  "prettier": {
-    "endOfLine": "auto",
-    "semi": false,
-    "singleQuote": true,
-    "tabWidth": 2,
-    "trailingComma": "es5"
   }
 }

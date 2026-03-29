@@ -27,34 +27,34 @@
  *   - Saving via Ωedit™'s server-side replay
  */
 
-import * as vscode from 'vscode'
 import {
   ALL_EVENTS,
-  EventSubscriptionRequest,
-  IOFlags,
-  SessionEventKind,
-  ViewportEventKind,
   createSession,
   createViewport,
   del,
   destroySession,
   destroyViewport,
+  EventSubscriptionRequest,
   editSimple,
   getClient,
   getClientVersion,
+  getComputedFileSize,
+  getSegment,
   getServerHeartbeat,
   getServerInfo,
-  getSegment,
-  getComputedFileSize,
   getViewportData,
+  IOFlags,
   insert,
   modifyViewport,
   overwrite,
   redo,
+  SessionEventKind,
   saveSession,
   searchSession,
   undo,
+  ViewportEventKind,
 } from '@omega-edit/client'
+import * as vscode from 'vscode'
 import { OMEGA_EDIT_VIEW_TYPE } from './constants'
 import { getWebviewContent } from './webview'
 
