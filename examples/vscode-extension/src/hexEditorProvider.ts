@@ -92,6 +92,8 @@ interface ServerHealthState {
   ok: boolean
   summary: string
   detail: string
+  severity: 'ok' | 'warn' | 'error' | 'down'
+  metrics: Array<{ label: string; value: string }>
 }
 
 const SESSION_SYNC_TIMEOUT_MS = 2000
@@ -542,44 +544,75 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       )
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
-
-      const detailParts = [
-        `server ${serverInfo.serverVersion}`,
-        `client ${getClientVersion()}`,
-        `host ${serverInfo.serverHostname}`,
-        `pid ${serverInfo.serverProcessId}`,
-        `runtime ${serverInfo.runtimeKind}/${serverInfo.runtimeName}`,
-        `platform ${serverInfo.platform}`,
-        `compiler ${serverInfo.compiler}`,
-        `build ${serverInfo.buildType}`,
-        `c++ ${serverInfo.cppStandard}`,
-        `latency ${heartbeat.latency} ms`,
-        `sessions ${heartbeat.sessionCount}`,
-        `uptime ${uptimeSeconds}s`,
-        `cpu ${heartbeat.serverCpuCount} cores`,
-        `load ${
-          heartbeat.serverCpuLoadAverage === undefined
-            ? 'n/a'
-            : heartbeat.serverCpuLoadAverage.toFixed(2)
-        }`,
-        `rss ${formatMemoryMiB(heartbeat.serverResidentMemoryBytes)}`,
-        `virtual ${formatMemoryMiB(heartbeat.serverVirtualMemoryBytes)}`,
-        `peak rss ${formatMemoryMiB(heartbeat.serverPeakResidentMemoryBytes)}`,
+      const classifyLatency = (
+        latencyMs: number
+      ): ServerHealthState['severity'] => {
+        if (latencyMs <= 75) {
+          return 'ok'
+        }
+        if (latencyMs <= 250) {
+          return 'warn'
+        }
+        return 'error'
+      }
+      const severity = classifyLatency(heartbeat.latency)
+      const metrics = [
+        { label: 'Version', value: serverInfo.serverVersion },
+        { label: 'Client', value: getClientVersion() },
+        { label: 'Host', value: serverInfo.serverHostname },
+        { label: 'PID', value: String(serverInfo.serverProcessId) },
+        {
+          label: 'Runtime',
+          value: `${serverInfo.runtimeKind}/${serverInfo.runtimeName}`,
+        },
+        { label: 'Platform', value: serverInfo.platform },
+        { label: 'Compiler', value: serverInfo.compiler },
+        { label: 'Build', value: serverInfo.buildType },
+        { label: 'C++', value: serverInfo.cppStandard },
+        { label: 'Latency', value: `${heartbeat.latency} ms` },
+        { label: 'Sessions', value: String(heartbeat.sessionCount) },
+        { label: 'Uptime', value: `${uptimeSeconds}s` },
+        { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
+        {
+          label: 'Load',
+          value:
+            heartbeat.serverCpuLoadAverage === undefined
+              ? 'n/a'
+              : heartbeat.serverCpuLoadAverage.toFixed(2),
+        },
+        {
+          label: 'RSS',
+          value: formatMemoryMiB(heartbeat.serverResidentMemoryBytes),
+        },
+        {
+          label: 'Virtual',
+          value: formatMemoryMiB(heartbeat.serverVirtualMemoryBytes),
+        },
+        {
+          label: 'Peak RSS',
+          value: formatMemoryMiB(heartbeat.serverPeakResidentMemoryBytes),
+        },
       ]
 
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `OE ${heartbeat.latency} ms`,
-        detail: detailParts.join('\n'),
+        summary: `Ωedit ${heartbeat.latency} ms`,
+        detail: metrics
+          .map((metric) => `${metric.label}: ${metric.value}`)
+          .join('\n'),
+        severity,
+        metrics,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'OE unavailable',
+        summary: 'Ωedit unavailable',
         detail: message,
+        severity: 'down',
+        metrics: [{ label: 'Error', value: message }],
       })
     } finally {
       this.heartbeatInFlight = false

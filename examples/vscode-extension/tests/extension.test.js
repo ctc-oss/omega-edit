@@ -96,6 +96,9 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="statusInspector"/)
   assert.match(html, /id="inspectorEndianBtn"/)
   assert.match(html, /id="serverHealthDot"/)
+  assert.match(html, /id="serverHealthSummary"/)
+  assert.match(html, /id="serverHealthBadge"/)
+  assert.match(html, /id="serverHealthMetrics"/)
   assert.match(html, /id="statusProgress"/)
   assert.match(html, /title="Undo \(Ctrl\+Z\)">Undo<\/button>/)
   assert.match(html, /title="Redo \(Ctrl\+Y\)">Redo<\/button>/)
@@ -109,12 +112,28 @@ test('webview HTML includes core controls and configured row width', () => {
     html,
     /--offset-column-fg: var\(--vscode-terminal-ansiCyan, #4fc1ff\);/
   )
+  assert.match(
+    html,
+    /--scrollbar-slider-bg: var\(--vscode-scrollbarSlider-background, rgba\(121, 121, 121, 0.4\)\);/
+  )
   assert.match(html, /\.toolbar label\.disabled/)
   assert.match(html, /\.scrollbar-thumb/)
+  assert.match(html, /\.server-health-dot\.warn/)
+  assert.match(html, /\.server-health-badge\.down/)
   assert.match(html, /searchCase\.disabled = hexMode/)
   assert.match(html, /function formatOffsetDisplay\(offset\)/)
   assert.match(html, /function formatRowOffset\(offset\)/)
   assert.match(html, /function formatColumnOffset\(offset\)/)
+  assert.match(html, /let selectionAnchor = -1/)
+  assert.match(html, /function getSelectionStart\(\)/)
+  assert.match(html, /function getSelectionEnd\(\)/)
+  assert.match(html, /function getSelectionLength\(\)/)
+  assert.match(html, /function offsetIsSelected\(offset\)/)
+  assert.match(
+    html,
+    /const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application\/x-omega-edit-hex'/
+  )
+  assert.match(html, /let activePane = 'hex'/)
   assert.match(html, /function renderColumnHeader\(\)/)
   assert.match(html, /let matchedByteOffsets = new Set\(\)/)
   assert.match(html, /function rebuildMatchedByteOffsets\(\)/)
@@ -126,12 +145,17 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /visibleOffset =/)
   assert.match(html, /bufferOffset = msg\.offset/)
   assert.match(html, /measuredRowHeight/)
+  assert.match(html, /const MIN_SCROLLBAR_THUMB_HEIGHT = 20/)
   assert.match(html, /hexContainer\.clientHeight \/ measuredRowHeight/)
   assert.match(html, /ResizeObserver/)
-  assert.match(html, /moveSelection\('left'\)/)
-  assert.match(html, /moveSelection\('right'\)/)
-  assert.match(html, /moveSelection\('up'\)/)
-  assert.match(html, /moveSelection\('down'\)/)
+  assert.match(html, /moveSelection\('left', e\.shiftKey\)/)
+  assert.match(html, /moveSelection\('right', e\.shiftKey\)/)
+  assert.match(html, /moveSelection\('up', e\.shiftKey\)/)
+  assert.match(html, /moveSelection\('down', e\.shiftKey\)/)
+  assert.match(html, /hexContainer\.addEventListener\('pointerdown'/)
+  assert.match(html, /isPointerSelecting = true/)
+  assert.match(html, /selectOffset\(offset, true\)/)
+  assert.match(html, /hexContainer\.addEventListener\('contextmenu'/)
   assert.match(html, /scrollToViewportOffset\(0\)/)
   assert.match(
     html,
@@ -153,6 +177,26 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /type: 'saveAs'/)
   assert.match(html, /function replaceCurrentMatch\(\)/)
   assert.match(html, /function replaceAllMatches\(\)/)
+  assert.match(html, /document\.addEventListener\('copy'/)
+  assert.match(html, /document\.addEventListener\('cut'/)
+  assert.match(html, /document\.addEventListener\('paste'/)
+  assert.match(html, /function handleCopyEvent\(clipboardData\)/)
+  assert.match(html, /function getClipboardSelectionHex\(\)/)
+  assert.match(html, /function bytesToDisplayText\(bytes\)/)
+  assert.match(html, /function setActivePane\(pane\)/)
+  assert.match(
+    html,
+    /clipboardData\.setData\(\s*INTERNAL_HEX_CLIPBOARD_FORMAT,/
+  )
+  assert.match(html, /function handlePasteEvent\(clipboardData\)/)
+  assert.match(
+    html,
+    /hasSelection\(\)\s*&&\s*getSelectionLength\(\)\s*>\s*1\s*&&\s*fileSize\s*>\s*0/
+  )
+  assert.match(
+    html,
+    /offset: hasSelection\(\) \? getSelectionStart\(\) : Math\.max\(0, visibleOffset\),/
+  )
   assert.match(html, /undoBtn\.textContent = 'Undo \(' \+ undoCount \+ '\)'/)
   assert.match(html, /redoBtn\.textContent = 'Redo \(' \+ redoCount \+ '\)'/)
   assert.match(
@@ -171,6 +215,16 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /u16' \+ endianLabel/)
   assert.match(html, /u32' \+ endianLabel/)
   assert.match(html, /function updateServerHealthStatus\(message\)/)
+  assert.match(html, /function formatServerHealthSeverity\(severity\)/)
+  assert.match(
+    html,
+    /serverHealthSummary\.textContent = message\?\.summary \?\? 'Ωedit™ pending'/
+  )
+  assert.match(
+    html,
+    /serverHealthBadge\.className = 'server-health-badge ' \+ severity/
+  )
+  assert.match(html, /serverHealthMetrics\.innerHTML = metrics/)
   assert.match(html, /case 'serverHealth'/)
   assert.match(html, /msg\.isDirty \?\? false/)
   assert.match(html, /msg\.replacedCount \?\? 0/)
