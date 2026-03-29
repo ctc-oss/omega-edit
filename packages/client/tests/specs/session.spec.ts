@@ -808,7 +808,11 @@ describe('Sessions', () => {
   })
 
   it('Should create a clean baseline session from bytes', async () => {
-    const memoryCheckpointDir = path.join(__dirname, 'data', 'memory-checkpoint')
+    const memoryCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'memory-checkpoint'
+    )
     const seed = Buffer.from('memory seed')
     let session_id = ''
 
@@ -847,7 +851,10 @@ describe('Sessions', () => {
       }
       if (fs.existsSync(memoryCheckpointDir)) {
         expect(
-          await countMatchingFilesInDir(memoryCheckpointDir, '.OmegaEdit-bytes.*')
+          await countMatchingFilesInDir(
+            memoryCheckpointDir,
+            '.OmegaEdit-bytes.*'
+          )
         ).to.equal(0)
         removeDirectory(memoryCheckpointDir)
       }
