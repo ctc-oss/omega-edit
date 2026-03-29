@@ -226,6 +226,15 @@ describe('Proto Compatibility', () => {
     expect(heartbeat.getVirtualMemoryBytes()).to.equal(11)
     expect(heartbeat.getPeakResidentMemoryBytes()).to.equal(12)
 
+    const heartbeatWithLoadAverageOnly = new HeartbeatResponse({
+      sessionCount: 1,
+      timestamp: 2,
+      uptime: 3,
+      cpuCount: 4,
+      loadAverage: 0.75,
+    })
+    expect(heartbeatWithLoadAverageOnly.getCpuLoadAverage()).to.equal(0.75)
+
     const viewportData = new ViewportDataResponse({
       viewportId: 'vid',
       offset: 5,
@@ -388,6 +397,9 @@ describe('Proto Compatibility', () => {
     expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)
+    expect(
+      wrapHeartbeatResponse(heartbeatWithLoadAverageOnly.toObject()).getCpuLoadAverage()
+    ).to.equal(0.75)
     expect(
       wrapViewportDataResponse(viewportData.toObject()).getFollowingByteCount()
     ).to.equal(7)
