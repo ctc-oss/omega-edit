@@ -31,6 +31,9 @@
 *.yml text
 *.xml text
 
+# Keep the VS Code extension example on LF so Biome behaves the same on Linux and Windows runners.
+examples/vscode-extension/** text eol=lf
+
 # Denote all files that are truly binary and should not be modified.
 *.dat binary
 *.png binary
@@ -38,4 +41,3 @@
 # Test data files should not be modified.
 core/src/tests/data/* binary
 packages/client/tests/specs/data/* binary
-
