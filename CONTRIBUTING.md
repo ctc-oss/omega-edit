@@ -149,7 +149,8 @@ yarn sync-version
 ```
 
 This propagates the version to all `package.json` files and CMake
-configuration. See `VERSION_MANAGEMENT.md` for full details.
+configuration, including the VS Code extension example. See
+`VERSION_MANAGEMENT.md` for full details.
 
 ## Pull Request Process
 

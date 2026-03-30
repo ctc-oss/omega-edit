@@ -77,4 +77,25 @@ fs.writeFileSync(
   JSON.stringify(vscodeExtensionPackageJson, null, 2) + '\n'
 )
 
+// Update VS Code extension example package-lock.json metadata when present
+const vscodeExtensionPackageLockPath = path.join(
+  __dirname,
+  'examples',
+  'vscode-extension',
+  'package-lock.json'
+)
+if (fs.existsSync(vscodeExtensionPackageLockPath)) {
+  const vscodeExtensionPackageLock = JSON.parse(
+    fs.readFileSync(vscodeExtensionPackageLockPath, 'utf8')
+  )
+  vscodeExtensionPackageLock.version = version
+  if (vscodeExtensionPackageLock.packages?.['']) {
+    vscodeExtensionPackageLock.packages[''].version = version
+  }
+  fs.writeFileSync(
+    vscodeExtensionPackageLockPath,
+    JSON.stringify(vscodeExtensionPackageLock, null, 2) + '\n'
+  )
+}
+
 console.log(`Updated all package.json files to version ${version}`)

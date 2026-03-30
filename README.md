@@ -245,12 +245,19 @@ Node packages will be in `.tgz` files located at:
 /packages/ai/omega-edit-node-ai-${VERSION}.tgz
 ```
 
+Tagged releases also attach the VS Code extension example as:
+
+```
+omega-edit-hex-editor-v${VERSION}.vsix
+```
+
 More information about the node packages can be found in the [packages](packages/README.md) folder.
 
 ## Release Binaries
 
 [Binary releases](https://github.com/ctc-oss/omega-edit/releases) for macOS (Apple Silicon and x86), Windows (x86), and
-Linux (ARM, and x86; glibc 2.31 or greater required) are built and published via GitHub CI workflows.
+Linux (ARM, and x86; glibc 2.31 or greater required) are built and published via GitHub CI workflows. Tagged releases
+also attach the reference VS Code extension as a `.vsix` asset.
 
 Known limitation: Windows client integration tests do not currently cover emoji filenames end-to-end, even though native filesystem coverage exists for those paths.
 
