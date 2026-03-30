@@ -22,16 +22,35 @@ import {
   expectErrorMessage,
   makeObjectIdResponse,
   overrideProperty,
+  silenceClientLogger,
 } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
-const clientModule =
-  require('../../dist/cjs/client.js') as typeof import('../../src/client')
-const viewportModule =
-  require('../../dist/cjs/viewport.js') as typeof import('../../src/viewport')
+let clientModule: typeof import('../../src/client')
+let viewportModule: typeof import('../../src/viewport')
 
 describe('Viewport Edge Cases', () => {
+  let restoreLogger = () => {}
+
+  before(() => {
+    delete require.cache[require.resolve('../../dist/cjs/logger.js')]
+    delete require.cache[require.resolve('../../dist/cjs/client.js')]
+    delete require.cache[require.resolve('../../dist/cjs/viewport.js')]
+    delete require.cache[
+      require.resolve('../../dist/cjs/protobuf_ts/viewport.js')
+    ]
+    restoreLogger = silenceClientLogger(require)
+    clientModule =
+      require('../../dist/cjs/client.js') as typeof import('../../src/client')
+    viewportModule =
+      require('../../dist/cjs/viewport.js') as typeof import('../../src/viewport')
+  })
+
+  after(() => {
+    restoreLogger()
+  })
+
   it('should reject createViewport, modifyViewport, and destroyViewport failures', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,

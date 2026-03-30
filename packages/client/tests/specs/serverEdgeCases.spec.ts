@@ -21,16 +21,14 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { expect, initChai } from './common.js'
-import { overrideProperty } from './mockHelpers.js'
+import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
 const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
-const clientModule =
-  require('../../dist/cjs/client.js') as typeof import('../../src/client')
-const serverModule =
-  require('../../dist/cjs/server.js') as typeof import('../../src/server')
+let clientModule: typeof import('../../src/client')
+let serverModule: typeof import('../../src/server')
 const {
   delay,
   findFirstAvailablePort,
@@ -46,14 +44,28 @@ const {
 } = clientPackage
 
 describe('Server Edge Cases', () => {
+  let restoreLogger = () => {}
+
   before(async () => {
     await initChai()
+    delete require.cache[require.resolve('../../dist/cjs/logger.js')]
+    delete require.cache[require.resolve('../../dist/cjs/client.js')]
+    delete require.cache[require.resolve('../../dist/cjs/server.js')]
+    restoreLogger = silenceClientLogger(require)
+    clientModule =
+      require('../../dist/cjs/client.js') as typeof import('../../src/client')
+    serverModule =
+      require('../../dist/cjs/server.js') as typeof import('../../src/server')
   })
 
   afterEach(() => {
     resetClient()
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
+  })
+
+  after(() => {
+    restoreLogger()
   })
 
   it('should start a source server with a stale pid file and query info endpoints', async () => {

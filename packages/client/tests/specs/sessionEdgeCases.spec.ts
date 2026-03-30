@@ -22,16 +22,35 @@ import {
   expectErrorMessage,
   makeObjectIdResponse,
   overrideProperty,
+  silenceClientLogger,
 } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
-const clientModule =
-  require('../../dist/cjs/client.js') as typeof import('../../src/client')
-const sessionModule =
-  require('../../dist/cjs/session.js') as typeof import('../../src/session')
+let clientModule: typeof import('../../src/client')
+let sessionModule: typeof import('../../src/session')
 
 describe('Session Edge Cases', () => {
+  let restoreLogger = () => {}
+
+  before(() => {
+    delete require.cache[require.resolve('../../dist/cjs/logger.js')]
+    delete require.cache[require.resolve('../../dist/cjs/client.js')]
+    delete require.cache[require.resolve('../../dist/cjs/session.js')]
+    delete require.cache[
+      require.resolve('../../dist/cjs/protobuf_ts/session.js')
+    ]
+    restoreLogger = silenceClientLogger(require)
+    clientModule =
+      require('../../dist/cjs/client.js') as typeof import('../../src/client')
+    sessionModule =
+      require('../../dist/cjs/session.js') as typeof import('../../src/session')
+  })
+
+  after(() => {
+    restoreLogger()
+  })
+
   it('should reject createSession and saveSession failures', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,

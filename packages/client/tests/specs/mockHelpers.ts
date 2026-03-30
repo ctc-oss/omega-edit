@@ -1,3 +1,5 @@
+import pino from 'pino'
+
 export function overrideProperty(
   target: Record<string, any>,
   key: string,
@@ -28,4 +30,22 @@ export function expectErrorMessage(
 ) {
   expect(err).to.be.instanceOf(Error)
   expect((err as Error).message).to.equal(message)
+}
+
+export function silenceClientLogger(requireFn: NodeRequire): () => void {
+  const loggerModule = requireFn(
+    '../../dist/cjs/logger.js'
+  ) as typeof import('../../src/logger')
+  const originalLogger = loggerModule.getLogger()
+  loggerModule.setLogger(
+    pino(
+      {
+        level: 'silent',
+      },
+      pino.destination(2)
+    )
+  )
+  return () => {
+    loggerModule.setLogger(originalLogger)
+  }
 }
