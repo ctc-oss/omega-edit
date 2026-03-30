@@ -22,7 +22,7 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import { expect, initChai } from './common.js'
-import { overrideProperty } from './mockHelpers.js'
+import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -45,11 +45,18 @@ const {
 } = clientPackage
 
 describe('Client Utilities', () => {
+  let restoreLogger = () => {}
+
   before(async () => {
     await initChai()
   })
 
+  beforeEach(() => {
+    restoreLogger = silenceClientLogger(require)
+  })
+
   afterEach(() => {
+    restoreLogger()
     resetClient()
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET

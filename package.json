@@ -40,6 +40,19 @@
   },
   "resolutions": {
     "@types/eslint-scope": "8.4.0",
-    "@types/glob": "9.0.0"
+    "@types/glob": "9.0.0",
+    "copy-webpack-plugin/**/ajv": "8.18.0",
+    "copy-webpack-plugin/**/picomatch": "4.0.4",
+    "copy-webpack-plugin/serialize-javascript": "7.0.5",
+    "mocha/**/minimatch": "5.1.8",
+    "mocha/**/picomatch": "2.3.2",
+    "mocha/**/diff": "5.2.2",
+    "mocha/serialize-javascript": "7.0.5",
+    "ts-loader/**/picomatch": "2.3.2",
+    "webpack/**/ajv": "8.18.0",
+    "mocha/**/brace-expansion": "2.0.3",
+    "c8/**/brace-expansion": "5.0.5",
+    "globby/**/brace-expansion": "1.1.13",
+    "rimraf/**/brace-expansion": "1.1.13"
   }
 }
