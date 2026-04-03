@@ -58,6 +58,7 @@ const targets = [
     manifest: {
       type: 'commonjs',
       main: './index.js',
+      types: './index.d.ts',
     },
   },
 ]
