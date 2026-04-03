@@ -21,10 +21,9 @@
     "target": "es6",
     "lib": ["es6", "es2021", "es2017"],
     "rootDir": "src",
-    "baseUrl": ".",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "paths": {
-      "@omega-edit/server": ["src/shims/omega-edit-server"]
+      "@omega-edit/server": ["./src/shims/omega-edit-server"]
     },
     "strict": true,
     "noImplicitReturns": true,

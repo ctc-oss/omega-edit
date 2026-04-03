@@ -34,7 +34,7 @@
     "run-script-os": "^1.1.6",
     "ts-loader": "^9.5.4",
     "typedoc": "^0.28.18",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "webpack": "^5.105.4",
     "webpack-cli": "^7.0.2"
   },
