@@ -369,10 +369,7 @@ grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
                                                ::omega_edit::v1::GetServerInfoResponse *response) {
     response->set_hostname(get_hostname());
     response->set_process_id(get_pid());
-
-    std::ostringstream ver;
-    ver << omega_version_major() << "." << omega_version_minor() << "." << omega_version_patch();
-    response->set_server_version(ver.str());
+    response->set_server_version(SERVER_VERSION);
     response->set_jvm_version("N/A (native server)");
     response->set_jvm_vendor("N/A");
     response->set_jvm_path("N/A");

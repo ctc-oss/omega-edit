@@ -11,16 +11,27 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-# Read version from VERSION file
+# Read version from VERSION file. CMake project() only accepts numeric
+# major.minor.patch values, so we parse prerelease/build metadata separately.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" OMEGA_EDIT_VERSION)
 string(STRIP "${OMEGA_EDIT_VERSION}" OMEGA_EDIT_VERSION)
+set(OMEGA_EDIT_VERSION_FULL "${OMEGA_EDIT_VERSION}")
+
+if (NOT OMEGA_EDIT_VERSION_FULL MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$")
+    message(FATAL_ERROR
+            "VERSION must use semantic versioning like 1.2.3 or 1.2.3-rc1. Got: ${OMEGA_EDIT_VERSION_FULL}")
+endif()
+
+set(OMEGA_EDIT_VERSION_BASE "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
 
 # Project information
 project(omega_edit
-        VERSION ${OMEGA_EDIT_VERSION}
+        VERSION ${OMEGA_EDIT_VERSION_BASE}
         DESCRIPTION "Apache open source library for building editors"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
+
+set(OMEGA_EDIT_VERSION "${OMEGA_EDIT_VERSION_FULL}")
 
 option(OMEGA_EDIT_EMBED_MODE "Configure a lean embeddable build with tests, docs, examples, and packaging disabled" OFF)
 
