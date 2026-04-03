@@ -6,7 +6,8 @@ const path = require('path')
 // Read version from VERSION file
 const versionFilePath = path.join(__dirname, 'VERSION')
 const version = fs.readFileSync(versionFilePath, 'utf8').trim()
-const isPrerelease = version.includes('-')
+const versionCore = version.split('+', 1)[0]
+const isPrerelease = versionCore.includes('-')
 
 // Update root package.json
 const rootPackageJsonPath = path.join(__dirname, 'package.json')
