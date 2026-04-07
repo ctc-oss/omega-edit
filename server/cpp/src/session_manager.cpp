@@ -400,8 +400,19 @@ std::string SessionManager::create_session(const std::string &file_path, const s
         session_id = generate_uuid();
     }
 
-    // Check for duplicate
-    if (sessions_.count(session_id)) {
+    const bool share_existing_file_session = desired_id.empty() && !file_path.empty() && initial_data == nullptr;
+
+    auto existing = sessions_.find(session_id);
+    if (existing != sessions_.end()) {
+        if (share_existing_file_session) {
+            auto &info = existing->second;
+            ++info->attachment_count;
+            info->last_activity = std::chrono::steady_clock::now();
+            file_size_out = omega_session_get_computed_file_size(info->session);
+            checkpoint_dir_out = info->checkpoint_directory;
+            return session_id;
+        }
+
         if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
         return ""; // Already exists
     }
@@ -411,6 +422,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     info->event_queue = std::make_shared<EventQueue<SessionEventData>>(
         limits_.session_event_queue_capacity, "session subscription '" + session_id + "'");
     info->event_interest = 0;
+    info->attachment_count = 1;
     info->last_activity = std::chrono::steady_clock::now();
 
     // Store info first so the callback can find it
@@ -469,6 +481,11 @@ bool SessionManager::destroy_session(const std::string &session_id) {
     if (it == sessions_.end()) return false;
 
     auto &info = it->second;
+    if (info->attachment_count > 1) {
+        --info->attachment_count;
+        info->last_activity = std::chrono::steady_clock::now();
+        return true;
+    }
 
     // Close event queues
     if (info->event_queue) {

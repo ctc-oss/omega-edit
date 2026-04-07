@@ -143,6 +143,7 @@ struct SessionInfo {
     std::string session_id;
     std::string checkpoint_directory;
     bool owns_checkpoint_directory{false};
+    size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
     std::shared_ptr<EventQueue<SessionEventData>> event_queue;
     int32_t event_interest;
