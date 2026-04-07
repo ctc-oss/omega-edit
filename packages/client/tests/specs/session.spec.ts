@@ -921,7 +921,10 @@ describe('Sessions', () => {
 
       if (fs.existsSync(sharedCheckpointDir)) {
         expect(
-          await countMatchingFilesInDir(sharedCheckpointDir, '.OmegaEdit-orig.*')
+          await countMatchingFilesInDir(
+            sharedCheckpointDir,
+            '.OmegaEdit-orig.*'
+          )
         ).to.equal(0)
         removeDirectory(sharedCheckpointDir)
       }
