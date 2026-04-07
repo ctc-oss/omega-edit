@@ -26,7 +26,14 @@ heartbeat metrics as "unavailable" rather than `0`.
 `virtual_memory_bytes` is best-effort and may be unset on platforms where an
 equivalent process metric is not consistently available.
 The legacy JVM-shaped fields remain in the schema as deprecated compatibility
-fields so existing protobuf consumers do not break on the wire.
+fields so existing protobuf consumers do not break on the wire. The native C++
+server leaves deprecated JVM-only fields unset rather than fabricating placeholder
+values, so they read as protobuf defaults on the wire:
+
+- `jvm_version`, `jvm_vendor`, and `jvm_path` read as empty strings
+- `max_memory`, `committed_memory`, and `used_memory` read as `0`
+- `cpu_load_average` mirrors `load_average` only when the platform reports a
+  real load average; otherwise it is left unset and reads as `0`
 
 ## Using with Buf
 

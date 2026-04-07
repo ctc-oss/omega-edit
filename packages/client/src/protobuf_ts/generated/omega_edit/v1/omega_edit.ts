@@ -58,17 +58,17 @@ export interface GetServerInfoResponse {
    * @deprecated
    * @generated from protobuf field: string jvm_version = 4 [deprecated = true]
    */
-  jvmVersion: string // Legacy field kept for compatibility with older clients.
+  jvmVersion: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @deprecated
    * @generated from protobuf field: string jvm_vendor = 5 [deprecated = true]
    */
-  jvmVendor: string // Legacy field kept for compatibility with older clients.
+  jvmVendor: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @deprecated
    * @generated from protobuf field: string jvm_path = 6 [deprecated = true]
    */
-  jvmPath: string // Legacy field kept for compatibility with older clients.
+  jvmPath: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @generated from protobuf field: int32 available_processors = 7
    */
@@ -178,22 +178,22 @@ export interface GetHeartbeatResponse {
    * @deprecated
    * @generated from protobuf field: double cpu_load_average = 5 [deprecated = true]
    */
-  cpuLoadAverage: number // Legacy load average field kept for compatibility with older clients.
+  cpuLoadAverage: number // Legacy load average field mirrored from load_average when available, otherwise left unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 max_memory = 6 [deprecated = true]
    */
-  maxMemory: number // Legacy memory field kept for compatibility with older clients.
+  maxMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 committed_memory = 7 [deprecated = true]
    */
-  committedMemory: number // Legacy memory field kept for compatibility with older clients.
+  committedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 used_memory = 8 [deprecated = true]
    */
-  usedMemory: number // Legacy memory field kept for compatibility with older clients.
+  usedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @generated from protobuf field: optional double load_average = 9
    */

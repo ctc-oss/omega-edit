@@ -158,6 +158,75 @@ describe('Server Edge Cases', () => {
     }
   }).timeout(15000)
 
+  it('should leave deprecated native server health fields at protobuf defaults', async () => {
+    const port = await findFirstAvailablePort(9200, 9300)
+    expect(port).to.not.equal(null)
+
+    let pid: number | undefined
+    try {
+      resetClient()
+      pid = await startServer(port as number, '127.0.0.1')
+      expect(pid).to.be.a('number').greaterThan(0)
+      expect(pidIsRunning(pid as number)).to.be.true
+
+      const client = await clientModule.getClient(port as number, '127.0.0.1')
+      const serverInfo = await new Promise<Record<string, any>>(
+        (resolve, reject) => {
+          client.getServerInfo({}, (err, response) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve(response as Record<string, any>)
+          })
+        }
+      )
+
+      expect(serverInfo.jvmVersion).to.equal('')
+      expect(serverInfo.jvmVendor).to.equal('')
+      expect(serverInfo.jvmPath).to.equal('')
+
+      const heartbeat = await new Promise<Record<string, any>>(
+        (resolve, reject) => {
+          client.getHeartbeat(
+            {
+              hostname: os.hostname(),
+              processId: process.pid,
+              heartbeatInterval: 250,
+              sessionIds: [],
+            },
+            (err, response) => {
+              if (err) {
+                reject(err)
+                return
+              }
+              resolve(response as Record<string, any>)
+            }
+          )
+        }
+      )
+      const wrappedHeartbeat = await getServerHeartbeat([], 250)
+
+      expect(heartbeat.maxMemory).to.equal(0)
+      expect(heartbeat.committedMemory).to.equal(0)
+      expect(heartbeat.usedMemory).to.equal(0)
+      if (heartbeat.loadAverage === undefined) {
+        expect(heartbeat.cpuLoadAverage).to.equal(0)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(undefined)
+      } else {
+        expect(heartbeat.cpuLoadAverage).to.equal(heartbeat.loadAverage)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(
+          heartbeat.loadAverage
+        )
+      }
+    } finally {
+      await stopServiceOnPort(port as number, 'SIGKILL')
+      if (pid && pidIsRunning(pid)) {
+        await stopProcessUsingPID(pid, 'SIGKILL')
+      }
+    }
+  }).timeout(15000)
+
   it('should start a UDS-only server after removing a stale socket file', async function () {
     if (process.platform === 'win32') {
       this.skip()
