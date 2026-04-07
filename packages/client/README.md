@@ -80,8 +80,8 @@ await stopServerGraceful()
 | ------------------------------------------------- | ----------------------------------------- |
 | `startServer(port?, host?, pidFile?, heartbeat?)` | Start the bundled native gRPC server      |
 | `startServerUnixSocket(socketPath, ...)`          | Start using a Unix domain socket          |
-| `stopServerGraceful()`                            | Graceful shutdown                         |
-| `stopServerImmediate()`                           | Immediate shutdown                        |
+| `stopServerGraceful()`                            | Graceful shutdown, returning status info  |
+| `stopServerImmediate()`                           | Immediate shutdown, returning status info |
 | `getServerInfo()`                                 | Runtime metadata for the native server    |
 | `getServerHeartbeat(sessions, interval?)`         | Heartbeat and process health              |
 

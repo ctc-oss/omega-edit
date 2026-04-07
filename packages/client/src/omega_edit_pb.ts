@@ -277,6 +277,10 @@ export class ServerControlResponse {
     return this.response_.responseCode
   }
 
+  getStatus(): RawServerControlResponse['status'] {
+    return this.response_.status
+  }
+
   toObject(): RawServerControlResponse {
     return { ...this.response_ }
   }

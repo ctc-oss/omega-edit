@@ -29,7 +29,10 @@ import waitPort from 'wait-port'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
-import { ServerControlKind } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import {
+  ServerControlKind,
+  ServerControlStatus,
+} from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
@@ -951,34 +954,76 @@ export async function startServerUnixSocket(
 
 /**
  * Stops the server gracefully
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
-export function stopServerGraceful(): Promise<number> {
-  return new Promise<number>(async (resolve, _) => {
+export function stopServerGraceful(): Promise<IServerControlResult> {
+  return new Promise<IServerControlResult>(async (resolve, _) => {
     return resolve(stopServer(ServerControlKind.GRACEFUL_SHUTDOWN))
   })
 }
 
 /**
  * Stops the server immediately
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
-export function stopServerImmediate(): Promise<number> {
-  return new Promise<number>(async (resolve, _) => {
+export function stopServerImmediate(): Promise<IServerControlResult> {
+  return new Promise<IServerControlResult>(async (resolve, _) => {
     return resolve(stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN))
   })
 }
 
-type ServerControlResponseCode = number
+export type ServerControlState = 'completed' | 'draining' | 'unknown'
+
+export interface IServerControlResult {
+  responseCode: number
+  serverProcessId: number
+  status: ServerControlState
+}
+
+type RawServerControlResponse =
+  | { responseCode: number; pid?: number; status?: ServerControlStatus }
+  | {
+      getResponseCode(): number
+      getPid?(): number
+      getStatus?(): ServerControlStatus
+    }
+
+function getServerControlStatus(
+  response: RawServerControlResponse,
+  kind: ServerControlKind,
+  responseCode: number
+): ServerControlState {
+  const rawStatus =
+    'getStatus' in response && typeof response.getStatus === 'function'
+      ? response.getStatus()
+      : 'status' in response
+        ? response.status
+        : undefined
+
+  switch (rawStatus) {
+    case ServerControlStatus.COMPLETED:
+      return 'completed'
+    case ServerControlStatus.DRAINING:
+      return 'draining'
+    default:
+      if (kind === ServerControlKind.GRACEFUL_SHUTDOWN && responseCode === 1) {
+        return 'draining'
+      }
+      if (responseCode === 0) {
+        return 'completed'
+      }
+      return 'unknown'
+  }
+}
 
 /**
  * Stop the server
  * @param kind defines how the server should shut down
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
 async function stopServer(
   kind: ServerControlKind
-): Promise<ServerControlResponseCode> {
+): Promise<IServerControlResult> {
   const logMetadata = {
     fn: 'stopServer',
     kind: kind.toString(),
@@ -988,8 +1033,8 @@ async function stopServer(
   const client = await getClient()
 
   try {
-    const resp: { responseCode: number } | { getResponseCode(): number } =
-      await new Promise((resolve, reject) => {
+    const resp: RawServerControlResponse = await new Promise(
+      (resolve, reject) => {
         client.serverControl({ kind }, (err, response) => {
           if (err) {
             reject(err)
@@ -999,12 +1044,20 @@ async function stopServer(
             resolve(response)
           }
         })
-      })
+      }
+    )
 
     const responseCode =
       'getResponseCode' in resp ? resp.getResponseCode() : resp.responseCode
+    const serverProcessId =
+      'getPid' in resp && typeof resp.getPid === 'function'
+        ? resp.getPid()
+        : 'pid' in resp && typeof resp.pid === 'number'
+          ? resp.pid
+          : -1
+    const status = getServerControlStatus(resp, kind, responseCode)
 
-    if (responseCode !== 0) {
+    if (responseCode !== 0 && status !== 'draining') {
       log.error({
         ...logMetadata,
         stopped: false,
@@ -1014,9 +1067,14 @@ async function stopServer(
       log.debug({
         ...logMetadata,
         stopped: true,
+        status,
       })
     }
-    return responseCode
+    return {
+      responseCode,
+      serverProcessId,
+      status,
+    }
   } catch (err: unknown) {
     if (err instanceof Error) {
       if ('code' in err) {
@@ -1071,7 +1129,11 @@ async function stopServer(
         },
       })
     }
-    return -1
+    return {
+      responseCode: -1,
+      serverProcessId: -1,
+      status: 'unknown',
+    }
   }
 }
 

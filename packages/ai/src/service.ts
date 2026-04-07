@@ -148,11 +148,15 @@ export class OmegaEditToolkit {
     return await this.serverInfo()
   }
 
-  async stopServer(): Promise<{ responseCode: number }> {
+  async stopServer(): Promise<{
+    responseCode: number
+    serverProcessId: number
+    status: string
+  }> {
     await this.connectToRunningServer()
-    const responseCode = await stopServerGraceful()
+    const response = await stopServerGraceful()
     resetClient()
-    return { responseCode }
+    return response
   }
 
   async serverInfo(): Promise<object> {

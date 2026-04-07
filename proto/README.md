@@ -28,6 +28,15 @@ equivalent process metric is not consistently available.
 The legacy JVM-shaped fields remain in the schema as deprecated compatibility
 fields so existing protobuf consumers do not break on the wire.
 
+### Server Lifecycle Contract Note
+
+Graceful shutdown is now explicit in the wire contract:
+
+- `CreateSession` fails with gRPC `UNAVAILABLE` once graceful shutdown begins
+- `ServerControlResponse.status` distinguishes `COMPLETED` from `DRAINING`
+- the deprecated `response_code` field remains for compatibility and is `0`
+  for accepted commands, including graceful shutdown while draining
+
 ## Using with Buf
 
 The proto is published to [buf.build/ctc-oss/omega-edit](https://buf.build/ctc-oss/omega-edit) for easy multi-language stub generation.

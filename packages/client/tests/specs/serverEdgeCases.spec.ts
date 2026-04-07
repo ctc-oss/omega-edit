@@ -137,7 +137,7 @@ describe('Server Edge Cases', () => {
         expect(heartbeat.serverVirtualMemoryBytes).to.equal(undefined)
       }
 
-      expect(await stopServerImmediate()).to.equal(0)
+      expect((await stopServerImmediate()).responseCode).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (await stopServiceOnPort(port as number)) {
@@ -184,7 +184,7 @@ describe('Server Edge Cases', () => {
       const serverInfo = await getServerInfo()
       expect(serverInfo.serverProcessId).to.equal(pid)
 
-      expect(await stopServerImmediate()).to.equal(0)
+      expect((await stopServerImmediate()).responseCode).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (!pidIsRunning(pid as number)) {
@@ -318,9 +318,13 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
       errorMessage = 'INTERNAL: unavailable'
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
     } finally {
       restoreGetClient()
     }
@@ -333,11 +337,17 @@ describe('Server Edge Cases', () => {
       async () => ({
         serverControl(
           _request: unknown,
-          callback: (err: null, response: { getResponseCode(): number }) => void
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus(): number }
+          ) => void
         ) {
           callback(null, {
             getResponseCode() {
               return 7
+            },
+            getStatus() {
+              return 0
             },
           })
         },
@@ -345,7 +355,9 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(7)
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(7)
+      expect(response.status).to.equal('unknown')
     } finally {
       restoreGetClient()
     }
@@ -372,9 +384,13 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
       mode = 'string'
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
     } finally {
       restoreGetClient()
     }

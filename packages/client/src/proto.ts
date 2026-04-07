@@ -20,6 +20,7 @@
 import {
   CountKind as RawProtoCountKind,
   ServerControlKind as RawProtoServerControlKind,
+  ServerControlStatus as RawProtoServerControlStatus,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 
 export {
@@ -59,6 +60,12 @@ export const ProtoServerControlKind = {
   ...RawProtoServerControlKind,
 }
 
+export const ProtoServerControlStatus = {
+  SERVER_CONTROL_STATUS_UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
+  SERVER_CONTROL_STATUS_COMPLETED: RawProtoServerControlStatus.COMPLETED,
+  SERVER_CONTROL_STATUS_DRAINING: RawProtoServerControlStatus.DRAINING,
+}
+
 export const CountKind = {
   COUNT_COMPUTED_FILE_SIZE: ProtoCountKind.COUNT_KIND_COMPUTED_FILE_SIZE,
   COUNT_CHANGES: ProtoCountKind.COUNT_KIND_CHANGES,
@@ -77,4 +84,13 @@ export const ServerControlKind = {
   SERVER_CONTROL_IMMEDIATE_SHUTDOWN:
     ProtoServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN,
   ...ProtoServerControlKind,
+}
+
+export const ServerControlStatus = {
+  SERVER_CONTROL_STATUS_UNSPECIFIED:
+    ProtoServerControlStatus.SERVER_CONTROL_STATUS_UNSPECIFIED,
+  SERVER_CONTROL_STATUS_COMPLETED:
+    ProtoServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED,
+  SERVER_CONTROL_STATUS_DRAINING:
+    ProtoServerControlStatus.SERVER_CONTROL_STATUS_DRAINING,
 }

@@ -389,10 +389,8 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::CreateSessionRequest *request,
                                                ::omega_edit::v1::CreateSessionResponse *response) {
     if (graceful_shutdown_.load()) {
-        // During graceful shutdown, refuse new sessions (return empty like previous server behavior)
-        response->set_session_id("");
-        response->set_checkpoint_directory("");
-        return grpc::Status::OK;
+        return grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                            "server is draining existing sessions for graceful shutdown");
     }
 
     std::string file_path;
@@ -1236,17 +1234,20 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             // Check if no sessions remain - if so, we can stop immediately
             if (session_manager_.session_count() == 0) {
                 response->set_response_code(0);
+                response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
                 if (shutdown_callback_) {
                     shutdown_callback_();
                 }
             } else {
-                response->set_response_code(1); // Sessions still active
+                response->set_response_code(0);
+                response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_DRAINING);
             }
             break;
 
         case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
             session_manager_.destroy_all();
             response->set_response_code(0);
+            response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
             if (shutdown_callback_) {
                 shutdown_callback_();
             }
