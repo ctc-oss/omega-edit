@@ -125,6 +125,10 @@ describe('Editing', () => {
       secondStream.on('error', registerStreamError)
 
       try {
+        // Give the streaming RPCs a moment to reach the server before the
+        // first edit so slower macOS runners don't miss the initial event.
+        await delay(200)
+
         const firstChangeSerial = await insert(session_id, 0, Buffer.from('A'))
         await waitForAssertion(() => {
           expect(firstSubscriberSerials).to.deep.equal([firstChangeSerial])
