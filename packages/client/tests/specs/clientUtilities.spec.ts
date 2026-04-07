@@ -314,6 +314,68 @@ describe('Client Utilities', () => {
     }
   })
 
+  it('should keep separate cached clients per endpoint and close them on reset', async () => {
+    resetClient()
+    const uris: string[] = []
+    const closedUris: string[] = []
+
+    class FakeEditorClient {
+      uri: string
+
+      constructor(uri: string) {
+        this.uri = uri
+        uris.push(uri)
+      }
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        callback()
+      }
+
+      close() {
+        closedUris.push(this.uri)
+      }
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      const tcpClient = await clientModule.getClient(9314, '127.0.0.1')
+      const socketClient = await clientModule.getClient(9314, '127.0.0.1', {
+        socketPath: 'relative.sock',
+      })
+
+      expect(socketClient).to.not.equal(tcpClient)
+      expect(await clientModule.getClient(9314, '127.0.0.1')).to.equal(
+        tcpClient
+      )
+      expect(
+        await clientModule.getClient(9314, '127.0.0.1', {
+          socketPath: 'relative.sock',
+        })
+      ).to.equal(socketClient)
+      expect(uris).to.deep.equal(['127.0.0.1:9314', 'unix:relative.sock'])
+
+      resetClient()
+      expect(closedUris.sort()).to.deep.equal([
+        '127.0.0.1:9314',
+        'unix:relative.sock',
+      ])
+    } finally {
+      resetClient()
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
   it('should reset the client when all connection candidates fail', async () => {
     resetClient()
     const uris: string[] = []

@@ -200,6 +200,56 @@ describe('Server Edge Cases', () => {
     }
   }).timeout(20000)
 
+  it('should verify UDS startup against the launched socket endpoint', async function () {
+    if (process.platform === 'win32') {
+      this.skip()
+    }
+
+    const tcpPort = await findFirstAvailablePort(9401, 9500)
+    expect(tcpPort).to.not.equal(null)
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-uds-target-')
+    )
+    const tcpPidFile = path.join(tempDir, 'omega-edit-tcp.pid')
+    const socketPath = path.join(tempDir, 'omega-edit.sock')
+    const udsPidFile = path.join(tempDir, 'omega-edit-uds.pid')
+
+    let tcpPid: number | undefined
+    let udsPid: number | undefined
+    try {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      tcpPid = await startServer(tcpPort as number, '127.0.0.1', tcpPidFile)
+      expect(tcpPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(tcpPid)
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+
+      udsPid = await startServerUnixSocket(socketPath, udsPidFile, true)
+      expect(udsPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(udsPid)
+
+      expect(await stopServerImmediate()).to.equal(0)
+    } finally {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      if (udsPid && pidIsRunning(udsPid)) {
+        await stopProcessUsingPID(udsPid, 'SIGKILL')
+      }
+      if (tcpPid && pidIsRunning(tcpPid)) {
+        await stopProcessUsingPID(tcpPid, 'SIGKILL')
+      }
+
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  }).timeout(25000)
+
   it('should reject server info failures from the RPC client', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,

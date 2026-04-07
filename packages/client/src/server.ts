@@ -935,7 +935,7 @@ export async function startServerUnixSocket(
       ...logMetadata,
       pid: pid,
     })
-    await getClient()
+    await getClient(port, host, { socketPath })
     return pid
   } else {
     const errMsg = 'Error getting server pid'

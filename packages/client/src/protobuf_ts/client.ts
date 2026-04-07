@@ -21,17 +21,25 @@ import * as grpc from '@grpc/grpc-js'
 import { EditorClient } from '../omega_edit_grpc_pb'
 import { getLogger } from '../logger'
 
-let clientInstance_: EditorClient | undefined = undefined
-let pendingInit_: Promise<EditorClient> | undefined = undefined
+export interface ClientConnectionOptions {
+  serverUri?: string
+  socketPath?: string
+  allowTcpFallback?: boolean
+}
+
+const clientInstances_ = new Map<string, EditorClient>()
+const pendingInit_ = new Map<string, Promise<EditorClient>>()
 
 const DEFAULT_PORT = 9000
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_DEADLINE_SECONDS = 10
 
 export function resetClient() {
-  const client = clientInstance_
-  clientInstance_ = undefined
-  if (client) {
+  const clients = Array.from(new Set(clientInstances_.values()))
+  clientInstances_.clear()
+  pendingInit_.clear()
+
+  for (const client of clients) {
     try {
       client.close()
     } catch (err) {
@@ -75,50 +83,114 @@ export function waitForReady(
   })
 }
 
-async function initClient(port: number, host: string): Promise<EditorClient> {
-  const log = getLogger()
+function normalizeUnixSocketTarget(socket: string): string {
+  if (socket.startsWith('unix:')) return socket
+  if (socket.startsWith('/')) return `unix:///${socket.slice(1)}`
+  return `unix:${socket}`
+}
 
-  log.debug({
-    fn: 'protobufTs.getClient',
-    port: port,
-    host: host,
-    state: 'initializing',
-  })
+function resolveCandidates(
+  port: number,
+  host: string,
+  options?: ClientConnectionOptions
+): { requestKey: string; candidates: string[] } {
+  if (options?.serverUri && options?.socketPath) {
+    throw new Error(
+      'getClient accepts either serverUri or socketPath, not both'
+    )
+  }
+
+  const tcpUri = `${host}:${port}`
+
+  if (options?.serverUri) {
+    return {
+      requestKey: options.serverUri,
+      candidates: [options.serverUri],
+    }
+  }
+
+  if (options?.socketPath) {
+    const socketUri = normalizeUnixSocketTarget(options.socketPath)
+    const candidates = options.allowTcpFallback
+      ? [socketUri, tcpUri]
+      : [socketUri]
+
+    return {
+      requestKey: candidates.join('|'),
+      candidates,
+    }
+  }
 
   const serverUri = process.env.OMEGA_EDIT_SERVER_URI
   const serverSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
 
-  const normalizeUnixSocketTarget = (socket: string): string => {
-    if (socket.startsWith('unix:')) return socket
-    if (socket.startsWith('/')) return `unix:///${socket.slice(1)}`
-    return `unix:${socket}`
+  if (serverUri) {
+    return {
+      requestKey: serverUri,
+      candidates: [serverUri],
+    }
   }
 
-  const tcpUri = `${host}:${port}`
-  const candidates = serverUri
-    ? [serverUri]
-    : serverSocket
-      ? [normalizeUnixSocketTarget(serverSocket), tcpUri]
-      : [tcpUri]
+  if (serverSocket) {
+    const socketUri = normalizeUnixSocketTarget(serverSocket)
+    const candidates = [socketUri, tcpUri]
+    return {
+      requestKey: candidates.join('|'),
+      candidates,
+    }
+  }
+
+  return {
+    requestKey: tcpUri,
+    candidates: [tcpUri],
+  }
+}
+
+async function initClient(
+  port: number,
+  host: string,
+  candidates: string[]
+): Promise<EditorClient> {
+  const log = getLogger()
+
+  log.debug({
+    fn: 'protobufTs.getClient',
+    port,
+    host,
+    candidates,
+    state: 'initializing',
+  })
 
   let lastError: unknown
 
   for (const uri of candidates) {
+    const cachedClient = clientInstances_.get(uri)
+    if (cachedClient) {
+      log.debug({
+        fn: 'protobufTs.getClient',
+        port,
+        host,
+        uri,
+        state: 'reused cached endpoint',
+      })
+      return cachedClient
+    }
+
     const client = new EditorClient(uri, grpc.credentials.createInsecure())
 
     try {
       await waitForReady(client)
 
-      clientInstance_ = client
+      clientInstances_.set(uri, client)
       log.debug({
         fn: 'protobufTs.getClient',
-        port: port,
-        host: host,
-        uri: uri,
+        port,
+        host,
+        uri,
         state: 'ready',
       })
 
-      return clientInstance_
+      return client
     } catch (err) {
       lastError = err
       try {
@@ -130,9 +202,9 @@ async function initClient(port: number, host: string): Promise<EditorClient> {
       if (err instanceof Error) {
         log.error({
           fn: 'protobufTs.getClient',
-          host: host,
-          port: port,
-          uri: uri,
+          host,
+          port,
+          uri,
           state: 'not ready',
           err: {
             name: err.name,
@@ -143,9 +215,9 @@ async function initClient(port: number, host: string): Promise<EditorClient> {
       } else {
         log.error({
           fn: 'protobufTs.getClient',
-          host: host,
-          port: port,
-          uri: uri,
+          host,
+          port,
+          uri,
           state: 'not ready',
           err: {
             msg: String(err),
@@ -155,25 +227,48 @@ async function initClient(port: number, host: string): Promise<EditorClient> {
     }
   }
 
-  resetClient()
   throw lastError
 }
 
 export async function getClient(
   port: number = DEFAULT_PORT,
-  host: string = DEFAULT_HOST
+  host: string = DEFAULT_HOST,
+  options?: ClientConnectionOptions
 ): Promise<EditorClient> {
-  if (clientInstance_) {
-    return clientInstance_
+  const hasExplicitTarget =
+    !!options?.serverUri ||
+    !!options?.socketPath ||
+    !!process.env.OMEGA_EDIT_SERVER_URI ||
+    !!process.env.OMEGA_EDIT_SERVER_SOCKET
+
+  if (
+    !hasExplicitTarget &&
+    port === DEFAULT_PORT &&
+    host === DEFAULT_HOST &&
+    clientInstances_.size === 1
+  ) {
+    return clientInstances_.values().next().value as EditorClient
   }
 
-  if (pendingInit_) {
-    return pendingInit_
+  const { requestKey, candidates } = resolveCandidates(port, host, options)
+
+  const primaryCandidate = candidates[0]
+  const cachedClient = primaryCandidate
+    ? clientInstances_.get(primaryCandidate)
+    : undefined
+  if (cachedClient) {
+    return cachedClient
   }
 
-  pendingInit_ = initClient(port, host).finally(() => {
-    pendingInit_ = undefined
+  const pending = pendingInit_.get(requestKey)
+  if (pending) {
+    return pending
+  }
+
+  const initPromise = initClient(port, host, candidates).finally(() => {
+    pendingInit_.delete(requestKey)
   })
+  pendingInit_.set(requestKey, initPromise)
 
-  return pendingInit_
+  return initPromise
 }
