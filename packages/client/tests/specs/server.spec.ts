@@ -342,10 +342,12 @@ describe('Server Heartbeat Timeout', () => {
 
       // Detaching one author should not count as activity for the shared
       // session, so the remaining idle attachment should still expire on the
-      // original timeout schedule.
-      await delay(100)
+      // original timeout schedule. Wait until the session is already close to
+      // expiring so the "correct" and "regressed" outcomes are separated by a
+      // much wider margin on slower macOS runners.
+      await delay(175)
       expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
-      await waitForSessionCount(0, 175)
+      await waitForSessionCount(0, 125)
     } finally {
       await fsPromises.rm(tempDir, { recursive: true, force: true })
     }
