@@ -328,6 +328,8 @@ describe('Client Utilities', () => {
 
   it('should keep separate cached clients per endpoint and close them on reset', async () => {
     resetClient()
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
     const uris: string[] = []
     const closedUris: string[] = []
 
@@ -446,6 +448,8 @@ describe('Client Utilities', () => {
 
   it('should share a single in-flight client initialization', async () => {
     resetClient()
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
     const uris: string[] = []
     const readyCallbacks: Array<(err?: Error) => void> = []
 

@@ -84,6 +84,10 @@ describe('Server Edge Cases', () => {
   })
 
   it('should start a source server with a stale pid file and query info endpoints', async () => {
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    resetClient()
+
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)
 
@@ -95,7 +99,6 @@ describe('Server Edge Cases', () => {
     let pidFromFile: number | undefined
     let serverInfoPid: number | undefined
     try {
-      resetClient()
       pid = await startServer(port as number, '127.0.0.1', pidFile)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
