@@ -128,6 +128,12 @@ private:
     std::atomic<bool> closed_{false};
 };
 
+/// Session event subscription state
+struct SessionEventSubscriptionInfo {
+    std::shared_ptr<EventQueue<SessionEventData>> event_queue;
+    int32_t interest;
+};
+
 /// Information about a viewport managed by the session manager
 struct ViewportInfo {
     omega_viewport_t *viewport;
@@ -145,8 +151,8 @@ struct SessionInfo {
     bool owns_checkpoint_directory{false};
     size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
-    std::shared_ptr<EventQueue<SessionEventData>> event_queue;
-    int32_t event_interest;
+    std::mutex session_subscription_mutex;
+    std::vector<SessionEventSubscriptionInfo> session_subscriptions;
     std::chrono::steady_clock::time_point last_activity;
 };
 
@@ -195,6 +201,8 @@ public:
     std::shared_ptr<EventQueue<SessionEventData>> subscribe_session_events(const std::string &session_id,
                                                                            int32_t interest);
     void unsubscribe_session_events(const std::string &session_id);
+    void unsubscribe_session_events(const std::string &session_id,
+                                    const std::shared_ptr<EventQueue<SessionEventData>> &queue);
     std::shared_ptr<EventQueue<ViewportEventData>> subscribe_viewport_events(const std::string &session_id,
                                                                               const std::string &viewport_id,
                                                                               int32_t interest);

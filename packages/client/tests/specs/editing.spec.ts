@@ -21,6 +21,7 @@ import {
   ALL_EVENTS,
   ChangeKind,
   clear,
+  delay,
   del,
   edit,
   editSimple,
@@ -28,8 +29,10 @@ import {
   editOperations,
   EditOperationType,
   EditStats,
+  EventSubscriptionRequest,
   getChangeCount,
   getChangeTransactionCount,
+  getClient,
   getComputedFileSize,
   getLastChange,
   getSegment,
@@ -49,6 +52,34 @@ import {
   testPort,
 } from './common.js'
 
+async function waitForAssertion(
+  assertion: () => void,
+  timeoutMs: number = 2000,
+  intervalMs: number = 25
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let lastError: unknown
+
+  while (Date.now() < deadline) {
+    try {
+      assertion()
+      return
+    } catch (error) {
+      lastError = error
+      await delay(intervalMs)
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError
+  }
+  throw new Error('Timed out waiting for assertion to pass')
+}
+
+function isExpectedStreamCancellation(error: Error): boolean {
+  return /cancelled|canceled|ECONNRESET/i.test(error.message)
+}
+
 describe('Editing', () => {
   let session_id = ''
 
@@ -58,6 +89,66 @@ describe('Editing', () => {
 
   afterEach('Destroy session', async () => {
     await destroyTestSession(session_id)
+  })
+
+  describe('Session Events', () => {
+    it('should keep remaining subscribers active after one session stream disconnects', async () => {
+      const client = await getClient()
+      const firstSubscriberSerials: number[] = []
+      const secondSubscriberSerials: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const registerStreamError = (error: Error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      }
+
+      const firstStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.SESSION_EVT_EDIT)
+      )
+      const secondStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.SESSION_EVT_EDIT)
+      )
+
+      firstStream.on('data', (event) => {
+        firstSubscriberSerials.push(event.getSerial())
+      })
+      firstStream.on('error', registerStreamError)
+      secondStream.on('data', (event) => {
+        secondSubscriberSerials.push(event.getSerial())
+      })
+      secondStream.on('error', registerStreamError)
+
+      try {
+        const firstChangeSerial = await insert(session_id, 0, Buffer.from('A'))
+        await waitForAssertion(() => {
+          expect(firstSubscriberSerials).to.deep.equal([firstChangeSerial])
+          expect(secondSubscriberSerials).to.deep.equal([firstChangeSerial])
+        })
+
+        firstStream.cancel()
+        await delay(700)
+
+        const secondChangeSerial = await insert(session_id, 1, Buffer.from('B'))
+        await waitForAssertion(() => {
+          expect(firstSubscriberSerials).to.deep.equal([firstChangeSerial])
+          expect(secondSubscriberSerials).to.deep.equal([
+            firstChangeSerial,
+            secondChangeSerial,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        firstStream.cancel()
+        secondStream.cancel()
+        await delay(50)
+      }
+    })
   })
 
   describe('Insert', () => {

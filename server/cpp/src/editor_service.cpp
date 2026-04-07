@@ -1335,7 +1335,7 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
 
     // Unsubscribe so the event queue stops accumulating events after the
     // client disconnects (prevents unbounded memory growth).
-    session_manager_.unsubscribe_session_events(request->id());
+    session_manager_.unsubscribe_session_events(request->id(), queue);
     return grpc::Status::OK;
 }
 

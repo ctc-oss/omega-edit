@@ -870,6 +870,70 @@ describe('Sessions', () => {
     expect(fs.existsSync(checkpointDir)).to.be.false
   })
 
+  it('Should only share file-backed sessions when checkpoint directories are compatible', async () => {
+    const sharedCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'shared-checkpoint'
+    )
+    const conflictingCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'conflicting-checkpoint'
+    )
+    let sharedSessionId = ''
+
+    removeDirectory(sharedCheckpointDir)
+    removeDirectory(conflictingCheckpointDir)
+
+    try {
+      const author1 = await createSession(testFile, '', sharedCheckpointDir)
+      const author2 = await createSession(testFile, '', sharedCheckpointDir)
+      sharedSessionId = author1.getSessionId()
+
+      expect(author2.getSessionId()).to.equal(sharedSessionId)
+      expect(author1.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(author2.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(sharedCheckpointDir)).to.be.true
+      expect(
+        await countMatchingFilesInDir(sharedCheckpointDir, '.OmegaEdit-orig.*')
+      ).to.equal(1)
+
+      let conflictingCreateError: Error | undefined
+      try {
+        await createSession(testFile, '', conflictingCheckpointDir)
+        expect.fail(
+          'createSession should reject when a shared file-backed session requests a different checkpoint directory'
+        )
+      } catch (error) {
+        conflictingCreateError = error as Error
+      }
+
+      expect(conflictingCreateError).to.exist
+      expect(conflictingCreateError?.message).to.include('ALREADY_EXISTS')
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
+    } finally {
+      while (sharedSessionId && (await getSessionCount()) > 0) {
+        expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      }
+
+      if (fs.existsSync(sharedCheckpointDir)) {
+        expect(
+          await countMatchingFilesInDir(sharedCheckpointDir, '.OmegaEdit-orig.*')
+        ).to.equal(0)
+        removeDirectory(sharedCheckpointDir)
+      }
+      if (fs.existsSync(conflictingCheckpointDir)) {
+        removeDirectory(conflictingCheckpointDir)
+      }
+    }
+
+    expect(fs.existsSync(sharedCheckpointDir)).to.be.false
+    expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
+  })
+
   it('Should create a clean baseline session from bytes', async () => {
     const memoryCheckpointDir = path.join(
       __dirname,

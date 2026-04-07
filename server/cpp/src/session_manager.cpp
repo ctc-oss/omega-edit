@@ -122,6 +122,17 @@ bool is_process_alive(int pid) {
 #endif
 }
 
+int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptionInfo> &subscriptions) {
+    int32_t combined = 0;
+    for (const auto &subscription : subscriptions) {
+        if (subscription.interest < 0) {
+            return subscription.interest;
+        }
+        combined |= subscription.interest;
+    }
+    return combined;
+}
+
 } // namespace
 
 // ── Base64 encoding (URL-safe, no padding — matches Java Base64.getUrlEncoder().withoutPadding()) ──
@@ -304,7 +315,7 @@ void SessionManager::cleanup_managed_server_root_if_empty() {
 void SessionManager::session_event_callback(const omega_session_t *session, omega_session_event_t event,
                                             const void *ptr) {
     auto *info = static_cast<SessionInfo *>(const_cast<void *>(omega_session_get_user_data_ptr(session)));
-    if (!info || !info->event_queue) return;
+    if (!info) return;
 
     SessionEventData evt;
     evt.session_id = info->session_id;
@@ -329,7 +340,20 @@ void SessionManager::session_event_callback(const omega_session_t *session, omeg
         break;
     }
 
-    info->event_queue->push(evt);
+    std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        subscribers.reserve(info->session_subscriptions.size());
+        for (const auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue) {
+                subscribers.push_back(subscription.event_queue);
+            }
+        }
+    }
+
+    for (const auto &subscriber : subscribers) {
+        subscriber->push(evt);
+    }
 }
 
 void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, omega_viewport_event_t event,
@@ -400,11 +424,13 @@ std::string SessionManager::create_session(const std::string &file_path, const s
         session_id = generate_uuid();
     }
 
-    const bool share_existing_file_session = desired_id.empty() && !file_path.empty() && initial_data == nullptr;
+    const bool share_existing_file_session = desired_id.empty() && !file_path.empty() &&
+                                            initial_data == nullptr;
 
     auto existing = sessions_.find(session_id);
     if (existing != sessions_.end()) {
-        if (share_existing_file_session) {
+        if (share_existing_file_session &&
+            (checkpoint_directory.empty() || checkpoint_directory == existing->second->checkpoint_directory)) {
             auto &info = existing->second;
             ++info->attachment_count;
             info->last_activity = std::chrono::steady_clock::now();
@@ -419,9 +445,6 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     auto info = std::make_shared<SessionInfo>();
     info->session_id = session_id;
-    info->event_queue = std::make_shared<EventQueue<SessionEventData>>(
-        limits_.session_event_queue_capacity, "session subscription '" + session_id + "'");
-    info->event_interest = 0;
     info->attachment_count = 1;
     info->last_activity = std::chrono::steady_clock::now();
 
@@ -483,13 +506,18 @@ bool SessionManager::destroy_session(const std::string &session_id) {
     auto &info = it->second;
     if (info->attachment_count > 1) {
         --info->attachment_count;
-        info->last_activity = std::chrono::steady_clock::now();
         return true;
     }
 
     // Close event queues
-    if (info->event_queue) {
-        info->event_queue->close();
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        for (auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue) {
+                subscription.event_queue->close();
+            }
+        }
+        info->session_subscriptions.clear();
     }
 
     // Destroy all viewports first
@@ -620,9 +648,15 @@ SessionManager::subscribe_session_events(const std::string &session_id, int32_t 
     if (it == sessions_.end()) return nullptr;
 
     auto &info = it->second;
-    info->event_interest = interest;
-    omega_session_set_event_interest(info->session, interest);
-    return info->event_queue;
+    auto queue = std::make_shared<EventQueue<SessionEventData>>(
+        limits_.session_event_queue_capacity,
+        "session subscription '" + session_id + "#" + generate_uuid() + "'");
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        info->session_subscriptions.push_back({queue, interest});
+        omega_session_set_event_interest(info->session, combine_session_event_interest(info->session_subscriptions));
+    }
+    return queue;
 }
 
 void SessionManager::unsubscribe_session_events(const std::string &session_id) {
@@ -632,10 +666,49 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id) {
     if (it == sessions_.end()) return;
 
     auto &info = it->second;
-    info->event_interest = 0;
-    omega_session_set_event_interest(info->session, 0);
-    if (info->event_queue) {
-        info->event_queue->clear();
+    std::vector<std::shared_ptr<EventQueue<SessionEventData>>> removed_queues;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        for (const auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue) {
+                removed_queues.push_back(subscription.event_queue);
+            }
+        }
+        info->session_subscriptions.clear();
+        omega_session_set_event_interest(info->session, 0);
+    }
+
+    for (const auto &queue : removed_queues) {
+        queue->clear();
+        queue->close();
+    }
+}
+
+void SessionManager::unsubscribe_session_events(const std::string &session_id,
+                                                const std::shared_ptr<EventQueue<SessionEventData>> &queue) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end() || !queue) return;
+
+    auto &info = it->second;
+    bool removed = false;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        auto &subscriptions = info->session_subscriptions;
+        subscriptions.erase(std::remove_if(subscriptions.begin(), subscriptions.end(),
+                                           [&queue, &removed](const SessionEventSubscriptionInfo &subscription) {
+                                               const bool matches = subscription.event_queue == queue;
+                                               removed = removed || matches;
+                                               return matches;
+                                           }),
+                            subscriptions.end());
+        omega_session_set_event_interest(info->session, combine_session_event_interest(subscriptions));
+    }
+
+    if (removed) {
+        queue->clear();
+        queue->close();
     }
 }
 
@@ -678,7 +751,13 @@ void SessionManager::destroy_all() {
 
     for (auto &pair : sessions_) {
         auto &info = pair.second;
-        if (info->event_queue) info->event_queue->close();
+        {
+            std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+            for (auto &subscription : info->session_subscriptions) {
+                if (subscription.event_queue) subscription.event_queue->close();
+            }
+            info->session_subscriptions.clear();
+        }
         for (auto &vp : info->viewports) {
             if (vp.second->event_queue) vp.second->event_queue->close();
         }
