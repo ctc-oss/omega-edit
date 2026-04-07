@@ -46,6 +46,8 @@ const {
 
 describe('Client Utilities', () => {
   let restoreLogger = () => {}
+  let originalServerUri: string | undefined
+  let originalServerSocket: string | undefined
 
   before(async () => {
     await initChai()
@@ -53,13 +55,23 @@ describe('Client Utilities', () => {
 
   beforeEach(() => {
     restoreLogger = silenceClientLogger(require)
+    originalServerUri = process.env.OMEGA_EDIT_SERVER_URI
+    originalServerSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
   })
 
   afterEach(() => {
     restoreLogger()
     resetClient()
-    delete process.env.OMEGA_EDIT_SERVER_URI
-    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    if (originalServerUri === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_URI
+    } else {
+      process.env.OMEGA_EDIT_SERVER_URI = originalServerUri
+    }
+    if (originalServerSocket === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    } else {
+      process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
+    }
   })
 
   const removeDirWithRetry = async (dirPath: string) => {

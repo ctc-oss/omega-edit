@@ -45,6 +45,8 @@ const {
 
 describe('Server Edge Cases', () => {
   let restoreLogger = () => {}
+  let originalServerUri: string | undefined
+  let originalServerSocket: string | undefined
 
   before(async () => {
     await initChai()
@@ -58,10 +60,23 @@ describe('Server Edge Cases', () => {
       require('../../dist/cjs/server.js') as typeof import('../../src/server')
   })
 
+  beforeEach(() => {
+    originalServerUri = process.env.OMEGA_EDIT_SERVER_URI
+    originalServerSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
+  })
+
   afterEach(() => {
     resetClient()
-    delete process.env.OMEGA_EDIT_SERVER_URI
-    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    if (originalServerUri === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_URI
+    } else {
+      process.env.OMEGA_EDIT_SERVER_URI = originalServerUri
+    }
+    if (originalServerSocket === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    } else {
+      process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
+    }
   })
 
   after(() => {
