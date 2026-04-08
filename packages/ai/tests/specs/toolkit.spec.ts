@@ -150,4 +150,52 @@ describe('@omega-edit/ai toolkit', function () {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })
+
+  it('waits for graceful shutdown to finish before reusing the same port', async function () {
+    const port = await findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const firstToolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const secondToolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const firstInputPath = path.join(tempDir, 'first.bin')
+    const secondInputPath = path.join(tempDir, 'second.bin')
+
+    fs.writeFileSync(firstInputPath, Buffer.from('abcdef', 'utf8'))
+    fs.writeFileSync(secondInputPath, Buffer.from('uvwxyz', 'utf8'))
+
+    let firstSessionId = ''
+    let secondSessionId = ''
+
+    try {
+      const firstCreated = await firstToolkit.createSession(firstInputPath)
+      firstSessionId = firstCreated.sessionId
+      assert.ok(firstSessionId.length > 0)
+
+      await firstToolkit.destroySession(firstSessionId)
+      firstSessionId = ''
+
+      const stopResult = await firstToolkit.stopServer()
+      assert.ok(
+        (stopResult.responseCode === 0 && stopResult.status === 'completed') ||
+          (stopResult.responseCode === 1 && stopResult.status === 'draining')
+      )
+
+      const secondCreated = await secondToolkit.createSession(secondInputPath)
+      secondSessionId = secondCreated.sessionId
+      assert.ok(secondSessionId.length > 0)
+    } finally {
+      if (secondSessionId) {
+        await secondToolkit
+          .destroySession(secondSessionId)
+          .catch(() => undefined)
+      }
+      await secondToolkit.stopServer().catch(() => undefined)
+      if (firstSessionId) {
+        await firstToolkit.destroySession(firstSessionId).catch(() => undefined)
+      }
+      await firstToolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
 })

@@ -1,5 +1,6 @@
 import {
   ChangeKind,
+  delay,
   type IServerControlResult,
   IOFlags,
   createSession,
@@ -82,6 +83,28 @@ export class OmegaEditToolkit {
       options.previewContextBytes || DEFAULT_PREVIEW_CONTEXT_BYTES
   }
 
+  private async waitForServerToStop(timeoutMs: number = 10000): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+      if (await isPortAvailable(this.port, this.host)) {
+        return
+      }
+
+      try {
+        await this.connectToServer()
+      } catch {
+        return
+      }
+
+      await delay(100)
+    }
+
+    throw new Error(
+      `OmegaEdit server did not stop on ${this.host}:${this.port} within ${timeoutMs}ms`
+    )
+  }
+
   private async connectToServer(): Promise<void> {
     resetClient()
     await getClient(this.port, this.host)
@@ -139,6 +162,10 @@ export class OmegaEditToolkit {
     await this.connectToRunningServer()
     const response = await stopServerGraceful()
     resetClient()
+    if (response.responseCode === 0 || response.status === 'draining') {
+      await this.waitForServerToStop()
+      resetClient()
+    }
     return response
   }
 
