@@ -481,13 +481,17 @@ TEST_CASE("Null Pointer Operations Rejected", "[EdgeCase][InvalidInput]") {
     omega_edit_destroy_session(session_ptr);
 }
 
-TEST_CASE("Negative Length Delete Rejected", "[EdgeCase][InvalidInput]") {
+TEST_CASE("Negative Edit Parameters Are Rejected", "[EdgeCase][InvalidInput]") {
     const auto session_ptr = omega_edit_create_session(MAKE_PATH("test1.dat"), nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
     const auto original_size = omega_session_get_computed_file_size(session_ptr);
 
-    // Negative length delete should be rejected (returns 0)
-    REQUIRE(0 == omega_edit_delete(session_ptr, 0, -5));
+    REQUIRE(-1 == omega_edit_delete(session_ptr, 0, -5));
+    REQUIRE(-1 == omega_edit_delete(session_ptr, -1, 5));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("x"), -1));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, -1, reinterpret_cast<const omega_byte_t *>("x"), 1));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("x"), -1));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, -1, reinterpret_cast<const omega_byte_t *>("x"), 1));
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == original_size);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_check_model(session_ptr));
