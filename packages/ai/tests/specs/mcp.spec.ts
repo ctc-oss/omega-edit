@@ -24,7 +24,7 @@ describe('@omega-edit/ai mcp server', function () {
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-mcp-'))
     const inputPath = path.join(tempDir, 'input.bin')
-    fs.writeFileSync(inputPath, Buffer.from('hello world', 'utf8'))
+    fs.writeFileSync(inputPath, Buffer.from('hello world hello', 'utf8'))
 
     const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
     const child = spawn(
@@ -123,6 +123,10 @@ describe('@omega-edit/ai mcp server', function () {
         tools.some((tool) => tool.name === 'omega_edit_read_range'),
         'expected omega_edit_read_range in tool list'
       )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_replace_session'),
+        'expected omega_edit_replace_session in tool list'
+      )
 
       const createSessionResponse = await sendRequest('tools/call', {
         name: 'omega_edit_create_session',
@@ -171,6 +175,40 @@ describe('@omega-edit/ai mcp server', function () {
         ((previewStructured.targetAfter as Record<string, unknown>)
           .utf8 as string) || '',
         'OmegaEdit'
+      )
+
+      const replaceResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_replace_session',
+        arguments: {
+          sessionId: createdSessionId,
+          patternText: 'hello',
+          replacementText: 'hi',
+        },
+      })
+      const replaceStructured =
+        ((replaceResponse.result as Record<string, unknown>)
+          .structuredContent as Record<string, unknown>) || {
+          replacedCount: 0,
+        }
+      assert.equal((replaceStructured.replacedCount as number) || 0, 2)
+
+      const replacedRangeResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_read_range',
+        arguments: {
+          sessionId: createdSessionId,
+          offset: 0,
+          length: 11,
+        },
+      })
+      const replacedStructured =
+        ((replacedRangeResponse.result as Record<string, unknown>)
+          .structuredContent as Record<string, unknown>) || {
+          data: { utf8: '' },
+        }
+      assert.equal(
+        (((replacedStructured.data as Record<string, unknown>).utf8 as string) ||
+          ''),
+        'hi world hi'
       )
     } finally {
       if (createdSessionId) {

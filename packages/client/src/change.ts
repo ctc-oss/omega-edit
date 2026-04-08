@@ -139,6 +139,24 @@ export function replace(
   replacement: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
+  return replaceInternal(
+    session_id,
+    offset,
+    remove_bytes_count,
+    replacement,
+    stats,
+    true
+  )
+}
+
+function replaceInternal(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replacement: Uint8Array,
+  stats: IEditStats | undefined,
+  transactional: boolean
+): Promise<number> {
   const safeOffset = requireSafeIntegerInput('replace offset', offset)
   const safeRemoveBytesCount = requireSafeIntegerInput(
     'replace length',
@@ -151,13 +169,21 @@ export function replace(
   } else if (replacement.length === remove_bytes_count) {
     return overwrite(session_id, safeOffset, replacement, stats)
   }
-  return replaceWithTransaction(
-    session_id,
-    safeOffset,
-    safeRemoveBytesCount,
-    replacement,
-    stats
-  )
+  return transactional
+    ? replaceWithTransaction(
+        session_id,
+        safeOffset,
+        safeRemoveBytesCount,
+        replacement,
+        stats
+      )
+    : replaceWithoutTransaction(
+        session_id,
+        safeOffset,
+        safeRemoveBytesCount,
+        replacement,
+        stats
+      )
 }
 
 async function replaceWithTransaction(
@@ -174,6 +200,17 @@ async function replaceWithTransaction(
   } finally {
     await endSessionTransaction(session_id)
   }
+}
+
+async function replaceWithoutTransaction(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replacement: Uint8Array,
+  stats?: IEditStats
+): Promise<number> {
+  await del(session_id, offset, remove_bytes_count, stats)
+  return await insert(session_id, offset, replacement, stats)
 }
 
 /**
@@ -249,7 +286,8 @@ export async function editSimple(
   offset: number,
   original_segment: Uint8Array,
   edited_segment: Uint8Array,
-  stats?: IEditStats
+  stats?: IEditStats,
+  transactional: boolean = true
 ): Promise<number> {
   const optimized_replacements = editOptimizer(
     original_segment,
@@ -258,18 +296,20 @@ export async function editSimple(
   )
   let result = 0
   if (optimized_replacements) {
-    const useTransaction = 1 < optimized_replacements.length
+    const useTransaction = transactional && 1 < optimized_replacements.length
+    const replaceTransactionally = transactional && !useTransaction
     if (useTransaction) {
       await beginSessionTransaction(session_id)
     }
     try {
       for (let i = 0; i < optimized_replacements.length; ++i) {
-        result = await replace(
+        result = await replaceInternal(
           session_id,
           optimized_replacements[i].offset,
           optimized_replacements[i].remove_bytes_count,
           optimized_replacements[i].replacement,
-          stats
+          stats,
+          replaceTransactionally
         )
       }
     } finally {

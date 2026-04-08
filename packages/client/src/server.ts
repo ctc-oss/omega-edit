@@ -371,6 +371,14 @@ function parseFirstPid(stdout: string): number | undefined {
   return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed
 }
 
+function readPidFromFile(pidFilePath: string): number {
+  const pid = parseFirstPid(fs.readFileSync(pidFilePath, 'utf8'))
+  if (pid === undefined) {
+    throw new Error(`Invalid PID in ${pidFilePath}`)
+  }
+  return pid
+}
+
 async function getPidByPortWithSs(port: number): Promise<number | undefined> {
   try {
     const { stdout } = await execFilePromise('ss', ['-ltnp'])
@@ -656,7 +664,7 @@ export async function startServer(
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      const pidFromFile = readPidFromFile(pidFilePath)
       log.warn({
         ...logMetadata,
         err: {
@@ -683,7 +691,7 @@ export async function startServer(
 
   async function getServerPid(pidFilePath: string): Promise<number> {
     await waitForFileToExist(pidFilePath)
-    return Number(fs.readFileSync(pidFilePath).toString())
+    return readPidFromFile(pidFilePath)
   }
 
   if (pidFile) {
@@ -834,7 +842,7 @@ export async function startServerUnixSocket(
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      const pidFromFile = readPidFromFile(pidFilePath)
       log.warn({
         ...logMetadata,
         err: {
@@ -861,7 +869,7 @@ export async function startServerUnixSocket(
 
   async function getServerPid(pidFilePath: string): Promise<number> {
     await waitForFileToExist(pidFilePath)
-    return Number(fs.readFileSync(pidFilePath).toString())
+    return readPidFromFile(pidFilePath)
   }
 
   if (pidFile) {

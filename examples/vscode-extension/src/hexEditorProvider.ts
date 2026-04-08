@@ -47,6 +47,7 @@ import {
   insert,
   modifyViewport,
   overwrite,
+  replaceSession,
   redo,
   SessionEventKind,
   saveSession,
@@ -85,6 +86,7 @@ interface ChangeRecord {
   offset: number
   length: number
   data: string
+  groupId?: string
 }
 
 interface ServerHealthState {
@@ -481,13 +483,15 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private postEditState(session: EditorSession): void {
+    const undoCount = this.getTransactionCount(session.changeLog)
+    const redoCount = this.getTransactionCount(session.undoneChangeLog)
     session.panel.webview.postMessage({
       type: 'editState',
-      canUndo: session.changeLog.length > 0,
-      canRedo: session.undoneChangeLog.length > 0,
-      undoCount: session.changeLog.length,
-      redoCount: session.undoneChangeLog.length,
-      isDirty: session.changeLog.length !== session.savedChangeDepth,
+      canUndo: undoCount > 0,
+      canRedo: redoCount > 0,
+      undoCount,
+      redoCount,
+      isDirty: undoCount !== session.savedChangeDepth,
       savedChangeDepth: session.savedChangeDepth,
     })
   }
@@ -530,9 +534,59 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private pushChange(session: EditorSession, change: ChangeRecord): void {
-    session.changeLog.push(change)
+    this.pushChanges(session, [change])
+  }
+
+  private pushChanges(session: EditorSession, changes: ChangeRecord[]): void {
+    if (changes.length === 0) {
+      return
+    }
+
+    session.changeLog.push(...changes)
     session.undoneChangeLog = []
     this.postEditState(session)
+  }
+
+  private getTransactionCount(changes: ChangeRecord[]): number {
+    let count = 0
+    let previousGroupId: string | undefined
+
+    for (const change of changes) {
+      if (change.groupId) {
+        if (change.groupId !== previousGroupId) {
+          count += 1
+        }
+        previousGroupId = change.groupId
+      } else {
+        count += 1
+        previousGroupId = undefined
+      }
+    }
+
+    return count
+  }
+
+  private moveLastTransaction(
+    source: ChangeRecord[],
+    target: ChangeRecord[]
+  ): void {
+    if (source.length === 0) {
+      return
+    }
+
+    const lastGroupId = source[source.length - 1].groupId
+    let startIndex = source.length - 1
+
+    if (lastGroupId) {
+      while (
+        startIndex > 0 &&
+        source[startIndex - 1].groupId === lastGroupId
+      ) {
+        startIndex -= 1
+      }
+    }
+
+    target.push(...source.splice(startIndex))
   }
 
   private startHealthPolling(): void {
@@ -756,7 +810,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             session,
             change.offset,
             change.length,
-            change.data
+            change.data,
+            change.groupId
           )
           break
       }
@@ -785,7 +840,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     session: EditorSession,
     offset: number,
     length: number,
-    dataHex: string
+    dataHex: string,
+    groupId?: string
   ): Promise<boolean> {
     const originalSegment =
       length > 0
@@ -806,6 +862,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         offset,
         length,
         data: dataHex,
+        groupId,
       })
       return true
     }
@@ -821,7 +878,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   ): Promise<void> {
     await saveSession(session.sessionId, filePath, IOFlags.OVERWRITE)
     if (markClean) {
-      session.savedChangeDepth = session.changeLog.length
+      session.savedChangeDepth = this.getTransactionCount(session.changeLog)
       this.postEditState(session)
     }
     vscode.window.showInformationMessage(successMessage)
@@ -1042,31 +1099,44 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         }
 
         case 'replaceAllMatches': {
-          const offsets = [...msg.offsets].sort((a, b) => b - a)
-          let changedOffset = -1
-          let replacedCount = 0
-          for (const offset of offsets) {
-            const expectedFileSize = this.getExpectedFileSizeAfterRecord(
-              session.fileSize,
-              { kind: 'REPLACE', length: msg.length, data: msg.data }
-            )
-            const changed = await this.applyReplace(
+          const pattern = msg.isHex
+            ? Buffer.from(msg.query, 'hex')
+            : Buffer.from(msg.query, 'utf8')
+          const replacement = Buffer.from(msg.data, 'hex')
+          const orderedOffsets = [...msg.offsets].sort((a, b) => a - b)
+          const replacedCount = await replaceSession(
+            session.sessionId,
+            pattern,
+            replacement,
+            msg.caseInsensitive ?? false,
+            msg.isReverse ?? false,
+            0,
+            0,
+            orderedOffsets.length
+          )
+
+          if (replacedCount > 0) {
+            const expectedFileSize =
+              session.fileSize +
+              replacedCount * (replacement.length - msg.length)
+            const groupId = `replace-all-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
+            this.pushChanges(
               session,
-              offset,
-              msg.length,
-              msg.data
+              orderedOffsets.slice(0, replacedCount).map((offset, index) => ({
+                serial: index + 1,
+                kind: 'REPLACE' as const,
+                offset,
+                length: msg.length,
+                data: msg.data,
+                groupId,
+              }))
             )
-            if (changed && msg.data.length > 0) {
-              changedOffset = offset
-            }
-            if (changed) {
-              replacedCount += 1
-            }
             await this.refreshSessionFileSize(session, expectedFileSize)
           }
           session.panel.webview.postMessage({
             type: 'replaceComplete',
-            selectionOffset: changedOffset,
+            selectionOffset:
+              replacedCount > 0 && msg.data.length > 0 ? orderedOffsets[0] : -1,
             replacedCount,
           })
           break
@@ -1079,10 +1149,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             break
           }
           await undo(session.sessionId)
-          const lastChange = session.changeLog.pop()
-          if (lastChange) {
-            session.undoneChangeLog.push(lastChange)
-          }
+          this.moveLastTransaction(session.changeLog, session.undoneChangeLog)
           await this.refreshSessionFileSize(session)
           this.postEditState(session)
           break
@@ -1094,10 +1161,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             break
           }
           await redo(session.sessionId)
-          const redoneChange = session.undoneChangeLog.pop()
-          if (redoneChange) {
-            session.changeLog.push(redoneChange)
-          }
+          this.moveLastTransaction(session.undoneChangeLog, session.changeLog)
           await this.refreshSessionFileSize(session)
           this.postEditState(session)
           break
@@ -1188,6 +1252,10 @@ type WebviewMessage =
   | {
       type: 'replaceAllMatches'
       offsets: number[]
+      query: string
+      isHex: boolean
+      caseInsensitive?: boolean
+      isReverse?: boolean
       length: number
       data: string
     }

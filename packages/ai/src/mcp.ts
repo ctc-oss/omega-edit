@@ -116,14 +116,34 @@ function getInputValue(argumentsObject: JsonObject): {
   data?: Uint8Array
   inputEncoding?: InputEncoding
 } {
+  return getNamedInputValue(argumentsObject, {
+    text: 'text',
+    hex: 'hex',
+    base64: 'base64',
+  })
+}
+
+function getNamedInputValue(
+  argumentsObject: JsonObject,
+  fieldNames: {
+    text: string
+    hex: string
+    base64: string
+  }
+): {
+  data?: Uint8Array
+  inputEncoding?: InputEncoding
+} {
   const encodings = [
-    argumentsObject.text !== undefined ? 'utf8' : undefined,
-    argumentsObject.hex !== undefined ? 'hex' : undefined,
-    argumentsObject.base64 !== undefined ? 'base64' : undefined,
+    argumentsObject[fieldNames.text] !== undefined ? 'utf8' : undefined,
+    argumentsObject[fieldNames.hex] !== undefined ? 'hex' : undefined,
+    argumentsObject[fieldNames.base64] !== undefined ? 'base64' : undefined,
   ].filter((value): value is InputEncoding => value !== undefined)
 
   if (encodings.length > 1) {
-    throw new Error('Provide only one of text, hex, or base64')
+    throw new Error(
+      `Provide only one of ${fieldNames.text}, ${fieldNames.hex}, or ${fieldNames.base64}`
+    )
   }
 
   if (encodings.length === 0) {
@@ -133,10 +153,10 @@ function getInputValue(argumentsObject: JsonObject): {
   const inputEncoding = encodings[0]
   const value =
     inputEncoding === 'utf8'
-      ? getString(argumentsObject, 'text', true)
+      ? getString(argumentsObject, fieldNames.text, true)
       : inputEncoding === 'hex'
-        ? getString(argumentsObject, 'hex', true)
-        : getString(argumentsObject, 'base64', true)
+        ? getString(argumentsObject, fieldNames.hex, true)
+        : getString(argumentsObject, fieldNames.base64, true)
 
   return {
     data: parseInputData(value!, inputEncoding),
@@ -294,6 +314,68 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
           caseInsensitive:
             getBoolean(argumentsObject, 'caseInsensitive') || false,
           reverse: getBoolean(argumentsObject, 'reverse') || false,
+        })
+      },
+    },
+    {
+      name: 'omega_edit_replace_session',
+      description:
+        'Transactionally replace all matches in a session using OmegaEdit client search-and-replace semantics.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          patternText: { type: 'string' },
+          patternHex: { type: 'string' },
+          patternBase64: { type: 'string' },
+          replacementText: { type: 'string' },
+          replacementHex: { type: 'string' },
+          replacementBase64: { type: 'string' },
+          offset: { type: 'integer' },
+          length: { type: 'integer' },
+          limit: { type: 'integer' },
+          caseInsensitive: { type: 'boolean' },
+          reverse: { type: 'boolean' },
+          frontToBack: { type: 'boolean' },
+          overwriteOnly: { type: 'boolean' },
+        },
+        required: ['sessionId'],
+      },
+      run: async (argumentsObject) => {
+        const pattern = getNamedInputValue(argumentsObject, {
+          text: 'patternText',
+          hex: 'patternHex',
+          base64: 'patternBase64',
+        })
+        const replacement = getNamedInputValue(argumentsObject, {
+          text: 'replacementText',
+          hex: 'replacementHex',
+          base64: 'replacementBase64',
+        })
+
+        if (!pattern.data) {
+          throw new Error(
+            'Replace requires one of patternText, patternHex, or patternBase64'
+          )
+        }
+        if (!replacement.data) {
+          throw new Error(
+            'Replace requires one of replacementText, replacementHex, or replacementBase64'
+          )
+        }
+
+        return await toolkit.replaceSession({
+          sessionId: getString(argumentsObject, 'sessionId', true)!,
+          pattern: pattern.data,
+          replacement: replacement.data,
+          offset: getNumber(argumentsObject, 'offset', false, 0),
+          length: getNumber(argumentsObject, 'length', false, 0),
+          limit: getNumber(argumentsObject, 'limit', false, 0),
+          caseInsensitive:
+            getBoolean(argumentsObject, 'caseInsensitive') || false,
+          reverse: getBoolean(argumentsObject, 'reverse') || false,
+          frontToBack: getBoolean(argumentsObject, 'frontToBack'),
+          overwriteOnly: getBoolean(argumentsObject, 'overwriteOnly') || false,
         })
       },
     },

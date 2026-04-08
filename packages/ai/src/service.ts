@@ -19,6 +19,7 @@ import {
   overwrite,
   redo,
   replace,
+  replaceSession as replaceWholeSession,
   resetClient,
   saveSession,
   searchSession,
@@ -40,6 +41,8 @@ import {
   PatchRequest,
   PatchResult,
   ReadRangeResult,
+  ReplaceSessionRequest,
+  ReplaceSessionResult,
   SearchRequest,
   SearchResult,
   SessionStatus,
@@ -88,12 +91,6 @@ export class OmegaEditToolkit {
 
     while (Date.now() < deadline) {
       if (await isPortAvailable(this.port, this.host)) {
-        return
-      }
-
-      try {
-        await this.connectToServer()
-      } catch {
         return
       }
 
@@ -308,6 +305,72 @@ export class OmegaEditToolkit {
       length,
       limit: requestedLimit,
       matches,
+    }
+  }
+
+  async replaceSession(
+    request: ReplaceSessionRequest
+  ): Promise<ReplaceSessionResult> {
+    const offset = request.offset || 0
+    const length = request.length || 0
+    const requestedLimit = request.limit || 0
+    const frontToBack = request.frontToBack !== false
+    const overwriteOnly = request.overwriteOnly || false
+
+    assertNonNegativeInteger('offset', offset)
+    assertNonNegativeInteger('length', length)
+    assertNonNegativeInteger('limit', requestedLimit)
+
+    if (
+      requestedLimit !== 0 &&
+      requestedLimit > this.maxSearchResults
+    ) {
+      throw new Error(
+        `limit must be between 0 and ${this.maxSearchResults} results`
+      )
+    }
+
+    const pattern =
+      typeof request.pattern === 'string'
+        ? parseInputData(request.pattern, request.inputEncoding || 'utf8')
+        : request.pattern
+    const replacement =
+      typeof request.replacement === 'string'
+        ? parseInputData(request.replacement, request.inputEncoding || 'utf8')
+        : request.replacement
+
+    if (pattern.length === 0) {
+      throw new Error('pattern must not be empty')
+    }
+    if (replacement.length > this.maxEditBytes) {
+      throw new Error(
+        `replacement exceeds configured maximum of ${this.maxEditBytes} bytes`
+      )
+    }
+
+    await this.ensureServerRunning()
+
+    const replacedCount = await replaceWholeSession(
+      request.sessionId,
+      pattern,
+      replacement,
+      request.caseInsensitive || false,
+      request.reverse || false,
+      offset,
+      length,
+      requestedLimit,
+      frontToBack,
+      overwriteOnly
+    )
+
+    return {
+      sessionId: request.sessionId,
+      offset,
+      length,
+      limit: requestedLimit,
+      replacedCount,
+      frontToBack,
+      overwriteOnly,
     }
   }
 

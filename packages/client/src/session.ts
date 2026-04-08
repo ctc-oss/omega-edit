@@ -360,43 +360,57 @@ export async function replaceSession(
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
     typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-  if (front_to_back) {
-    if (overwrite_only) {
-      for (let i = 0; i < foundLocations.length; ++i) {
-        await overwrite(session_id, foundLocations[i], replacementArray, stats)
-      }
-    } else {
-      const adjustment = replacementArray.length - patternArray.length
-      for (let i = 0; i < foundLocations.length; ++i) {
-        await editSimple(
-          session_id,
-          requireSafeIntegerOutput(
-            'replaceSession offset',
-            adjustment * i + foundLocations[i]
-          ),
-          patternArray,
-          replacementArray,
-          stats
-        )
-      }
-    }
-  } else {
-    if (overwrite_only) {
-      for (let i = foundLocations.length - 1; i >= 0; --i) {
-        await overwrite(session_id, foundLocations[i], replacementArray, stats)
-      }
-    } else {
-      for (let i = foundLocations.length - 1; i >= 0; --i) {
-        await editSimple(
-          session_id,
-          foundLocations[i],
-          patternArray,
-          replacementArray,
-          stats
-        )
-      }
-    }
+  if (foundLocations.length === 0) {
+    return 0
   }
+
+  const orderedLocations = [...foundLocations].sort((a, b) =>
+    front_to_back ? a - b : b - a
+  )
+
+  await beginSessionTransaction(session_id)
+  try {
+    if (front_to_back) {
+      if (overwrite_only) {
+        for (const foundLocation of orderedLocations) {
+          await overwrite(session_id, foundLocation, replacementArray, stats)
+        }
+      } else {
+        const adjustment = replacementArray.length - patternArray.length
+        for (let i = 0; i < orderedLocations.length; ++i) {
+          await editSimple(
+            session_id,
+            requireSafeIntegerOutput(
+              'replaceSession offset',
+              adjustment * i + orderedLocations[i]
+            ),
+            patternArray,
+            replacementArray,
+            stats,
+            false
+          )
+        }
+      }
+    } else {
+      for (const foundLocation of orderedLocations) {
+        if (overwrite_only) {
+          await overwrite(session_id, foundLocation, replacementArray, stats)
+        } else {
+          await editSimple(
+            session_id,
+            foundLocation,
+            patternArray,
+            replacementArray,
+            stats,
+            false
+          )
+        }
+      }
+    }
+  } finally {
+    await endSessionTransaction(session_id)
+  }
+
   return requireSafeIntegerOutput('replacement count', foundLocations.length)
 }
 

@@ -177,6 +177,30 @@ describe('Server Edge Cases', () => {
     }
   }).timeout(15000)
 
+  it('should reject invalid stale pid files before attempting startup', async () => {
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    resetClient()
+
+    const port = await findFirstAvailablePort(9200, 9300)
+    expect(port).to.not.equal(null)
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-invalid-pid-')
+    )
+    const pidFile = path.join(tempDir, 'omega-edit.pid')
+    fs.writeFileSync(pidFile, 'garbage')
+
+    try {
+      await startServer(port as number, '127.0.0.1', pidFile)
+      expect.fail('startServer should reject invalid pid file contents')
+    } catch (err) {
+      expect((err as Error).message).to.equal(`Invalid PID in ${pidFile}`)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
   it('should leave deprecated native server health fields at protobuf defaults', async () => {
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)

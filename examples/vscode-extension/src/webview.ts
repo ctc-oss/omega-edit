@@ -1929,6 +1929,13 @@ export function getWebviewContent(bytesPerRow: number): string {
     if (searchMatches.length === 0 || searchPatternLength <= 0) {
       return
     }
+    const query = searchInput.value
+    const isHex = searchHex.checked
+    const normalized = normalizedQuery(query)
+    if (normalized === null) {
+      matchNav.textContent = 'Invalid search hex'
+      return
+    }
     const replacementHex = getReplacementHex()
     if (replacementHex === null) {
       matchNav.textContent = 'Invalid replacement hex'
@@ -1937,6 +1944,10 @@ export function getWebviewContent(bytesPerRow: number): string {
     vscode.postMessage({
       type: 'replaceAllMatches',
       offsets: searchMatches.slice(),
+      query: normalized,
+      isHex: isHex,
+      caseInsensitive: !isHex && searchCase.checked,
+      isReverse: searchDirectionSelect.value === 'reverse',
       length: searchPatternLength,
       data: replacementHex,
     })
