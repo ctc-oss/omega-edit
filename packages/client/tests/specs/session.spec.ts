@@ -35,6 +35,7 @@ import {
   getSessionBytes,
   getServerHeartbeat,
   getSessionCount,
+  getViewportData,
   getViewportCount,
   insert,
   IOFlags,
@@ -217,6 +218,68 @@ describe('Sessions', () => {
       await destroySession(session_id)
       expect(await getSessionCount()).to.equal(0)
     }
+  })
+
+  it('Should allow multiple authors to share a file-backed session', async () => {
+    expect(await getSessionCount()).to.equal(0)
+
+    const author1 = await createSession(testFile)
+    const author2 = await createSession(testFile)
+    const author1SessionId = author1.getSessionId()
+    const author2SessionId = author2.getSessionId()
+    const expectedSharedData = Buffer.concat([fileBuffer, Buffer.from('A2A1')])
+
+    expect(author1SessionId).to.equal(expected_session_id)
+    expect(author2SessionId).to.equal(author1SessionId)
+    expect(author1.getFileSize()).to.equal(fileData.length)
+    expect(author2.getFileSize()).to.equal(fileData.length)
+    expect(await getSessionCount()).to.equal(1)
+
+    const viewport1 = await createViewport(
+      'shared-author-1',
+      author1SessionId,
+      0,
+      1000,
+      false
+    )
+    const viewport2 = await createViewport(
+      'shared-author-2',
+      author2SessionId,
+      0,
+      1000,
+      false
+    )
+
+    expect(await getViewportCount(author1SessionId)).to.equal(2)
+    expect(viewport1.getData_asU8()).to.deep.equal(fileBuffer)
+    expect(viewport2.getData_asU8()).to.deep.equal(fileBuffer)
+
+    await insert(author1SessionId, fileData.length, Buffer.from('A1'))
+    await insert(author2SessionId, fileData.length, Buffer.from('A2'))
+
+    expect(await getChangeCount(author1SessionId)).to.equal(2)
+    expect(await getComputedFileSize(author1SessionId)).to.equal(
+      fileData.length + 4
+    )
+    expect(
+      (await getViewportData(viewport1.getViewportId())).getData_asU8()
+    ).to.deep.equal(expectedSharedData)
+    expect(
+      (await getViewportData(viewport2.getViewportId())).getData_asU8()
+    ).to.deep.equal(expectedSharedData)
+
+    expect(await destroySession(author1SessionId)).to.equal(author1SessionId)
+    expect(await getSessionCount()).to.equal(1)
+    expect(await getViewportCount(author2SessionId)).to.equal(2)
+    expect(await getComputedFileSize(author2SessionId)).to.equal(
+      fileData.length + 4
+    )
+    expect(
+      (await getViewportData(viewport2.getViewportId())).getData_asU8()
+    ).to.deep.equal(expectedSharedData)
+
+    expect(await destroySession(author2SessionId)).to.equal(author2SessionId)
+    expect(await getSessionCount()).to.equal(0)
   })
 
   it('Should be able to save segments from a session', async () => {
@@ -805,6 +868,73 @@ describe('Sessions', () => {
     ).to.equal(0)
     removeDirectory(checkpointDir)
     expect(fs.existsSync(checkpointDir)).to.be.false
+  })
+
+  it('Should only share file-backed sessions when checkpoint directories are compatible', async () => {
+    const sharedCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'shared-checkpoint'
+    )
+    const conflictingCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'conflicting-checkpoint'
+    )
+    let sharedSessionId = ''
+
+    removeDirectory(sharedCheckpointDir)
+    removeDirectory(conflictingCheckpointDir)
+
+    try {
+      const author1 = await createSession(testFile, '', sharedCheckpointDir)
+      const author2 = await createSession(testFile, '', sharedCheckpointDir)
+      sharedSessionId = author1.getSessionId()
+
+      expect(author2.getSessionId()).to.equal(sharedSessionId)
+      expect(author1.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(author2.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(sharedCheckpointDir)).to.be.true
+      expect(
+        await countMatchingFilesInDir(sharedCheckpointDir, '.OmegaEdit-orig.*')
+      ).to.equal(1)
+
+      let conflictingCreateError: Error | undefined
+      try {
+        await createSession(testFile, '', conflictingCheckpointDir)
+        expect.fail(
+          'createSession should reject when a shared file-backed session requests a different checkpoint directory'
+        )
+      } catch (error) {
+        conflictingCreateError = error as Error
+      }
+
+      expect(conflictingCreateError).to.exist
+      expect(conflictingCreateError?.message).to.include('ALREADY_EXISTS')
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
+    } finally {
+      while (sharedSessionId && (await getSessionCount()) > 0) {
+        expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      }
+
+      if (fs.existsSync(sharedCheckpointDir)) {
+        expect(
+          await countMatchingFilesInDir(
+            sharedCheckpointDir,
+            '.OmegaEdit-orig.*'
+          )
+        ).to.equal(0)
+        removeDirectory(sharedCheckpointDir)
+      }
+      if (fs.existsSync(conflictingCheckpointDir)) {
+        removeDirectory(conflictingCheckpointDir)
+      }
+    }
+
+    expect(fs.existsSync(sharedCheckpointDir)).to.be.false
+    expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
   })
 
   it('Should create a clean baseline session from bytes', async () => {

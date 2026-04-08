@@ -219,7 +219,7 @@ describe('Server Heartbeat Timeout', () => {
   )
 
   const heartbeat: HeartbeatOptions = {
-    sessionTimeoutMs: 200,
+    sessionTimeoutMs: 500,
     cleanupIntervalMs: 50,
     shutdownWhenNoSessions: false,
   }
@@ -323,6 +323,64 @@ describe('Server Heartbeat Timeout', () => {
 
     // Stop activity and verify it eventually expires.
     await waitForSessionCount(0, 2000)
+  })
+
+  it(`on port ${serverTestPort} should reap an idle shared session in a single timeout window`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-heartbeat-shared-idle-')
+    )
+    const sharedFilePath = path.join(tempDir, 'shared-session.txt')
+
+    try {
+      await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
+      const authors = await Promise.all(
+        Array.from({ length: 5 }, () => createSession(sharedFilePath))
+      )
+
+      for (const author of authors.slice(1)) {
+        expect(author.getSessionId()).to.equal(authors[0].getSessionId())
+      }
+      expect(await getSessionCount()).to.equal(1)
+
+      // A shared session should be fully reaped on the first cleanup pass
+      // after the timeout, not one attachment per cleanup interval. Using
+      // several attachments widens the regression gap on slower macOS runners:
+      // a buggy detach-per-cycle implementation needs multiple extra reaper
+      // ticks before teardown completes. Allow a wider observation window so
+      // cleanup cadence and scheduler jitter do not make this assertion flaky.
+      await delay(625)
+      await waitForSessionCount(0, 250)
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it(`on port ${serverTestPort} should not extend shared session lifetime when one author detaches`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-heartbeat-')
+    )
+    const sharedFilePath = path.join(tempDir, 'shared-session.txt')
+
+    try {
+      await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
+      const author1 = await createSession(sharedFilePath)
+      const author2 = await createSession(sharedFilePath)
+      const sharedSessionId = author1.getSessionId()
+
+      expect(author2.getSessionId()).to.equal(sharedSessionId)
+      expect(await getSessionCount()).to.equal(1)
+
+      // Detaching one author should not count as activity for the shared
+      // session, so the remaining idle attachment should still expire on the
+      // original timeout schedule. Use a wider timeout window here so the
+      // correct behavior and a detach-driven refresh stay far apart even on
+      // slower macOS runners.
+      await delay(425)
+      expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      await waitForSessionCount(0, 250)
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true })
+    }
   })
 })
 

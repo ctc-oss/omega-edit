@@ -496,7 +496,7 @@ grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::DestroySessionRequest *request,
                                                 ::omega_edit::v1::DestroySessionResponse *response) {
-    if (!session_manager_.destroy_session(request->id())) {
+    if (!session_manager_.detach_session(request->id())) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
     response->set_id(request->id());
@@ -1335,7 +1335,7 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
 
     // Unsubscribe so the event queue stops accumulating events after the
     // client disconnects (prevents unbounded memory growth).
-    session_manager_.unsubscribe_session_events(request->id());
+    session_manager_.unsubscribe_session_events(request->id(), queue);
     return grpc::Status::OK;
 }
 
