@@ -22,13 +22,18 @@ import { expect, initChai } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
-const { CountKind, ServerControlKind } = require('../../dist/cjs/proto.js')
+const {
+  CountKind,
+  ServerControlKind,
+  ServerControlStatus,
+} = require('../../dist/cjs/proto.js')
 const {
   EditorServiceClient,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js')
 const {
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
+  ServerControlStatus: ProtoServerControlStatus,
   SessionEventKind,
   ViewportEventKind,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
@@ -193,12 +198,26 @@ describe('Proto Compatibility', () => {
       kind: ProtoServerControlKind.IMMEDIATE_SHUTDOWN,
       pid: 99,
       responseCode: 0,
+      status: ProtoServerControlStatus.COMPLETED,
     })
     expect(serverControl.getKind()).to.equal(
       ProtoServerControlKind.IMMEDIATE_SHUTDOWN
     )
     expect(serverControl.getPid()).to.equal(99)
     expect(serverControl.getResponseCode()).to.equal(0)
+    expect(serverControl.getStatus()).to.equal(
+      ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
+    )
+    expect(ServerControlStatus.COMPLETED).to.equal(
+      ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
+    )
+    expect(
+      new ServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
 
     const heartbeat = new HeartbeatResponse({
       sessionCount: 2,
@@ -387,6 +406,13 @@ describe('Proto Compatibility', () => {
     expect(
       wrapServerControlResponse(serverControl.toObject()).getPid()
     ).to.equal(99)
+    expect(
+      wrapServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
     expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)

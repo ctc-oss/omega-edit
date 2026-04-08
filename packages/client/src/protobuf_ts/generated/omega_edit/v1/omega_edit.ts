@@ -124,9 +124,14 @@ export interface ServerControlResponse {
    */
   pid: number // Server process ID.
   /**
-   * @generated from protobuf field: int32 response_code = 3
+   * @deprecated
+   * @generated from protobuf field: int32 response_code = 3 [deprecated = true]
    */
-  responseCode: number // 0 for success, non-zero for failure.
+  responseCode: number // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.ServerControlStatus status = 4
+   */
+  status?: ServerControlStatus // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 /**
  * Client heartbeat request. The client lists the session IDs it still holds so
@@ -1825,6 +1830,29 @@ export enum ServerControlKind {
    */
   IMMEDIATE_SHUTDOWN = 2,
 }
+/**
+ * Status reported after a server-control command is accepted.
+ *
+ * @generated from protobuf enum omega_edit.v1.ServerControlStatus
+ */
+export enum ServerControlStatus {
+  /**
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * The requested shutdown path has completed and the server is stopping.
+   *
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_COMPLETED = 1;
+   */
+  COMPLETED = 1,
+  /**
+   * Graceful shutdown was accepted, but the server is still draining sessions.
+   *
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_DRAINING = 2;
+   */
+  DRAINING = 2,
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServerInfoRequest$Type extends MessageType<GetServerInfoRequest> {
   constructor() {
@@ -2183,6 +2211,17 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         kind: 'scalar',
         T: 5 /*ScalarType.INT32*/,
       },
+      {
+        no: 4,
+        name: 'status',
+        kind: 'enum',
+        opt: true,
+        T: () => [
+          'omega_edit.v1.ServerControlStatus',
+          ServerControlStatus,
+          'SERVER_CONTROL_STATUS_',
+        ],
+      },
     ])
   }
   create(value?: PartialMessage<ServerControlResponse>): ServerControlResponse {
@@ -2211,8 +2250,11 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         case /* int32 pid */ 2:
           message.pid = reader.int32()
           break
-        case /* int32 response_code */ 3:
+        case /* int32 response_code = 3 [deprecated = true] */ 3:
           message.responseCode = reader.int32()
+          break
+        case /* optional omega_edit.v1.ServerControlStatus status */ 4:
+          message.status = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -2242,9 +2284,12 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     if (message.kind !== 0) writer.tag(1, WireType.Varint).int32(message.kind)
     /* int32 pid = 2; */
     if (message.pid !== 0) writer.tag(2, WireType.Varint).int32(message.pid)
-    /* int32 response_code = 3; */
+    /* int32 response_code = 3 [deprecated = true]; */
     if (message.responseCode !== 0)
       writer.tag(3, WireType.Varint).int32(message.responseCode)
+    /* optional omega_edit.v1.ServerControlStatus status = 4; */
+    if (message.status !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.status)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

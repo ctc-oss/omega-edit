@@ -172,7 +172,8 @@ export interface IEditorServiceClient {
   /**
    * Create a new editing session, optionally backed by an existing file.
    * Returns the assigned session ID, checkpoint directory, and (if a file was
-   * provided) the original file size.
+   * provided) the original file size. If the server has begun shutdown or is
+   * draining existing sessions, this RPC fails with UNAVAILABLE.
    *
    * @generated from protobuf rpc: CreateSession
    */
@@ -1664,7 +1665,8 @@ export class EditorServiceClient
   /**
    * Create a new editing session, optionally backed by an existing file.
    * Returns the assigned session ID, checkpoint directory, and (if a file was
-   * provided) the original file size.
+   * provided) the original file size. If the server has begun shutdown or is
+   * draining existing sessions, this RPC fails with UNAVAILABLE.
    *
    * @generated from protobuf rpc: CreateSession
    */

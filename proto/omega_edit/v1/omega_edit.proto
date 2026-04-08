@@ -53,7 +53,8 @@ service EditorService {
 
   // Create a new editing session, optionally backed by an existing file.
   // Returns the assigned session ID, checkpoint directory, and (if a file was
-  // provided) the original file size.
+  // provided) the original file size. If the server has begun shutdown or is
+  // draining existing sessions, this RPC fails with UNAVAILABLE.
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
 
   // Persist the session's computed content to disk.  The caller specifies the
@@ -330,6 +331,15 @@ enum ServerControlKind {
   SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN = 2;
 }
 
+// Status reported after a server-control command is accepted.
+enum ServerControlStatus {
+  SERVER_CONTROL_STATUS_UNSPECIFIED = 0;
+  // The requested shutdown path has completed and the server is stopping.
+  SERVER_CONTROL_STATUS_COMPLETED = 1;
+  // Graceful shutdown was accepted, but the server is still draining sessions.
+  SERVER_CONTROL_STATUS_DRAINING = 2;
+}
+
 // ===========================================================================
 // Request / Response messages — Server info & management
 // ===========================================================================
@@ -363,7 +373,8 @@ message ServerControlRequest {
 message ServerControlResponse {
   ServerControlKind kind = 1; // The command that was executed.
   int32 pid = 2;              // Server process ID.
-  int32 response_code = 3;    // 0 for success, non-zero for failure.
+  int32 response_code = 3 [deprecated = true]; // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
+  optional ServerControlStatus status = 4;     // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 
 // Client heartbeat request. The client lists the session IDs it still holds so
