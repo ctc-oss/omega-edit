@@ -124,12 +124,19 @@ function collectScanFiles() {
 function documentsLegacyPathRemoval(contents) {
   const normalizedContents = contents.toLowerCase()
   const normalizedLegacyPath = legacyRepoProtoPath.toLowerCase()
+  const lines = normalizedContents.split(/\r?\n/)
+  const contextLineRadius = 1
 
-  return normalizedContents.split(/\r?\n\s*\r?\n/).some((paragraph) => {
-    return (
-      paragraph.includes(normalizedLegacyPath) &&
-      legacyRemovalMarkers.some((marker) => paragraph.includes(marker))
-    )
+  return lines.some((line, index) => {
+    if (!line.includes(normalizedLegacyPath)) {
+      return false
+    }
+
+    const start = Math.max(0, index - contextLineRadius)
+    const end = Math.min(lines.length - 1, index + contextLineRadius)
+    const surroundingText = lines.slice(start, end + 1).join('\n')
+
+    return legacyRemovalMarkers.some((marker) => surroundingText.includes(marker))
   })
 }
 
