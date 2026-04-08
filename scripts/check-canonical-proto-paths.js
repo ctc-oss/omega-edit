@@ -25,7 +25,6 @@ const repoRoot = path.resolve(__dirname, '..')
 const canonicalProtoPath = 'proto/omega_edit/v1/omega_edit.proto'
 const legacyRepoProtoPath = 'proto/omega_edit.proto'
 const legacyImportPath = 'import "omega_edit.proto"'
-const maxScanFileBytes = 256 * 1024
 const legacyRemovalMarkers = [
   'removed',
   'gone in 2.x',
@@ -122,23 +121,29 @@ function collectScanFiles() {
   return files
 }
 
+function documentsLegacyPathRemoval(contents) {
+  const normalizedContents = contents.toLowerCase()
+  const normalizedLegacyPath = legacyRepoProtoPath.toLowerCase()
+
+  return normalizedContents.split(/\r?\n\s*\r?\n/).some((paragraph) => {
+    return (
+      paragraph.includes(normalizedLegacyPath) &&
+      legacyRemovalMarkers.some((marker) => paragraph.includes(marker))
+    )
+  })
+}
+
 function main() {
   const files = collectScanFiles()
   const errors = []
 
   for (const relativePath of files) {
     const absolutePath = path.join(repoRoot, relativePath)
-    const stats = fs.statSync(absolutePath)
-    if (stats.size > maxScanFileBytes) {
-      continue
-    }
     const contents = fs.readFileSync(absolutePath, 'utf8')
 
     const mentionsLegacyImport = contents.includes(legacyImportPath)
     const mentionsLegacyPath = contents.includes(legacyRepoProtoPath)
-    const documentsLegacyRemoval = legacyRemovalMarkers.some((marker) =>
-      contents.toLowerCase().includes(marker)
-    )
+    const documentsLegacyRemoval = documentsLegacyPathRemoval(contents)
 
     if (mentionsLegacyImport && !allowedLegacyMentions.has(relativePath)) {
       errors.push(
