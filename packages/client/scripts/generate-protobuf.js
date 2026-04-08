@@ -25,6 +25,7 @@ const { execFileSync } = require('child_process')
 const clientRoot = path.join(__dirname, '..')
 const repoRoot = path.join(clientRoot, '..', '..')
 const protoRoot = path.join(repoRoot, 'proto')
+// Canonical schema: proto/omega_edit/v1/omega_edit.proto
 const protoFile = path.join(protoRoot, 'omega_edit', 'v1', 'omega_edit.proto')
 const generatedRoot = path.join(clientRoot, 'src', 'protobuf_ts', 'generated')
 const tempToolsRoot = path.join(clientRoot, 'out', 'protobuf-ts-tools')
