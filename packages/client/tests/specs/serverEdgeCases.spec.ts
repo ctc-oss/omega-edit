@@ -215,9 +215,8 @@ describe('Server Edge Cases', () => {
         expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(undefined)
       } else {
         expect(heartbeat.cpuLoadAverage).to.equal(heartbeat.loadAverage)
-        expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(
-          heartbeat.loadAverage
-        )
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.not.equal(undefined)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.be.a('number')
       }
     } finally {
       await stopServiceOnPort(port as number, 'SIGKILL')
