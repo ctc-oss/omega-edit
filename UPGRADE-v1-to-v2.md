@@ -13,6 +13,7 @@
 - Most TypeScript consumers can upgrade by bumping package versions and rerunning their normal regression tests.
 - If you relied on the old Scala server scripts or deployment model, switch to the packaged C++ server (`@omega-edit/server` or `server/cpp`).
 - Server info and heartbeat responses now expose native-runtime metadata, while legacy JVM-shaped compatibility fields remain deprecated in the schema.
+- The old root-level repo proto file (`proto/omega_edit.proto`) is gone in 2.x; generate new stubs from `proto/omega_edit/v1/omega_edit.proto`.
 - The heartbeat request contract is now session-centric. `GetHeartbeatRequest` only carries `session_ids`, the old hostname / PID / interval request fields are removed, and `@omega-edit/client` now exposes `getServerHeartbeat(sessionIds)`.
 - Caller-chosen `session_id_desired` values and caller-chosen `viewport_id_desired` values are now explicit uniqueness requests: duplicates are rejected with `ALREADY_EXISTS` instead of being remapped to a different ID.
 - `@omega-edit/client` server shutdown helpers now return structured results. `stopServerGraceful()` and `stopServerImmediate()` return `{ responseCode, serverProcessId, status }` instead of a bare numeric response code.

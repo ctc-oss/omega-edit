@@ -17,6 +17,16 @@ upgrade guide rather than expressed through a package rename.
 - **Event streams** — server-push notifications for session and viewport changes
 - **Server lifecycle** — heartbeat, graceful/immediate shutdown
 
+This versioned schema is the canonical published contract for the repository.
+New generated bindings should always come from
+`proto/omega_edit/v1/omega_edit.proto`.
+
+## 2.x Source Of Truth
+
+The old root-level `proto/omega_edit.proto` file is intentionally removed for
+the 2.x line. Repository docs, scripts, and generated bindings should all point
+at `proto/omega_edit/v1/omega_edit.proto` as the sole source of truth.
+
 ### Server Health Schema Note
 
 The v1 server-health messages intentionally model the native C++ server now:
