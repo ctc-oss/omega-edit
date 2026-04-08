@@ -223,7 +223,7 @@ namespace {
         change_ptr->kind =
                 (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_INSERT;
         change_ptr->offset = offset;
-        change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
+        change_ptr->length = length;
         if (change_ptr->length < DATA_T_SIZE) {
             // small bytes optimization
             memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
@@ -245,7 +245,7 @@ namespace {
         change_ptr->kind =
                 (transaction_bit ? OMEGA_CHANGE_TRANSACTION_BIT : 0x00) | (uint8_t) change_kind_t::CHANGE_OVERWRITE;
         change_ptr->offset = offset;
-        change_ptr->length = length ? length : static_cast<int64_t>(strlen((const char *) bytes));
+        change_ptr->length = length;
         if (change_ptr->length < DATA_T_SIZE) {
             // small bytes optimization
             memcpy(change_ptr->data.sm_bytes, bytes, change_ptr->length);
@@ -885,6 +885,7 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
     if (!session_ptr || !bytes) { return -1; }
+    if (length == 0) { return 0; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
@@ -893,12 +894,15 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
 }
 
 int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
-    return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+    if (!cstr) { return -1; }
+    const auto cstr_length = (length == 0) ? static_cast<int64_t>(strlen(cstr)) : length;
+    return omega_edit_insert_bytes(session_ptr, offset, (const omega_byte_t *) cstr, cstr_length);
 }
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
     if (!session_ptr || !bytes) { return -1; }
+    if (length == 0) { return 0; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
@@ -907,7 +911,9 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
 }
 
 int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const char *cstr, int64_t length) {
-    return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, length);
+    if (!cstr) { return -1; }
+    const auto cstr_length = (length == 0) ? static_cast<int64_t>(strlen(cstr)) : length;
+    return omega_edit_overwrite_bytes(session_ptr, offset, (const omega_byte_t *) cstr, cstr_length);
 }
 
 int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
@@ -917,7 +923,9 @@ int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, i
 
 int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
                            int64_t insert_length) {
-    return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, insert_length);
+    if (!cstr) { return omega_edit_replace_bytes(session_ptr, offset, delete_length, nullptr, insert_length); }
+    const auto cstr_length = (insert_length == 0) ? static_cast<int64_t>(strlen(cstr)) : insert_length;
+    return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, cstr_length);
 }
 
 int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_script_op_t *ops, size_t op_count) {

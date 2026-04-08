@@ -14,6 +14,7 @@
 - If you relied on the old Scala server scripts or deployment model, switch to the packaged C++ server (`@omega-edit/server` or `server/cpp`).
 - Server info and heartbeat responses now expose native-runtime metadata, while legacy JVM-shaped compatibility fields remain deprecated in the schema.
 - Caller-chosen `session_id_desired` values and caller-chosen `viewport_id_desired` values are now explicit uniqueness requests: duplicates are rejected with `ALREADY_EXISTS` instead of being remapped to a different ID.
+- Byte-oriented core edit/search APIs now require explicit lengths. `omega_edit_insert_bytes`, `omega_edit_overwrite_bytes`, and `omega_search_create_context_bytes` no longer treat `0` as `strlen(...)`; keep that convenience by using the C-string helpers instead.
 
 ## Quick path
 
