@@ -333,15 +333,21 @@ describe('Server Heartbeat Timeout', () => {
 
     try {
       await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
-      const author1 = await createSession(sharedFilePath)
-      const author2 = await createSession(sharedFilePath)
+      const authors = await Promise.all(
+        Array.from({ length: 5 }, () => createSession(sharedFilePath))
+      )
 
-      expect(author2.getSessionId()).to.equal(author1.getSessionId())
+      for (const author of authors.slice(1)) {
+        expect(author.getSessionId()).to.equal(authors[0].getSessionId())
+      }
       expect(await getSessionCount()).to.equal(1)
 
       // A shared session should be fully reaped on the first cleanup pass
-      // after the timeout, not one attachment per cleanup interval.
-      await delay(525)
+      // after the timeout, not one attachment per cleanup interval. Using
+      // several attachments widens the regression gap on slower macOS runners:
+      // a buggy detach-per-cycle implementation needs multiple extra reaper
+      // ticks before teardown completes.
+      await delay(625)
       await waitForSessionCount(0, 50)
     } finally {
       await fsPromises.rm(tempDir, { recursive: true, force: true })
