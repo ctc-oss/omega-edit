@@ -152,6 +152,17 @@ static std::string base64_encode(const std::string &input) {
     return output;
 }
 
+static bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
+    char normalized_path[FILENAME_MAX] = {};
+    char *result = omega_util_normalize_path(file_path.c_str(), normalized_path);
+    if (result == nullptr) {
+        return false;
+    }
+
+    normalized_path_out = result;
+    return !normalized_path_out.empty();
+}
+
 // ── UUID generation ──────────────────────────────────────────────────────────
 #ifdef _WIN32
 static std::string generate_random_uuid_fallback() {
@@ -409,7 +420,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
-    // Session ID priority: desired_id > base64(file_path) > UUID
+    // Session ID priority: desired_id > base64(canonical file_path) > UUID
     std::string session_id;
     if (!desired_id.empty()) {
         // The ':' character is reserved as the session:viewport FQID separator
@@ -419,7 +430,12 @@ std::string SessionManager::create_session(const std::string &file_path, const s
         }
         session_id = desired_id;
     } else if (!file_path.empty()) {
-        session_id = base64_encode(file_path);
+        std::string canonical_file_path;
+        if (!normalize_existing_file_path(file_path, canonical_file_path)) {
+            if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+            return "";
+        }
+        session_id = base64_encode(canonical_file_path);
     } else {
         session_id = generate_uuid();
     }

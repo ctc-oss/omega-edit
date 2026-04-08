@@ -54,6 +54,10 @@ function base64Encode(str: string): string {
   return Buffer.from(str, 'utf-8').toString('base64url')
 }
 
+function canonicalizePath(filePath: string): string {
+  return fs.realpathSync.native(filePath)
+}
+
 function countMatchingFilesInDir(
   dirPath: string,
   pattern: string
@@ -97,6 +101,8 @@ describe('Sessions', () => {
   const oneByteFile = path.join(__dirname, 'data', '1-byte.txt')
   const twoByteFile = path.join(__dirname, 'data', '2-bytes.txt')
   const testFile = path.join(__dirname, 'data', 'csstest.html')
+  const canonicalEmptyFile = canonicalizePath(emptyFile)
+  const canonicalTestFile = canonicalizePath(testFile)
   const save1 = path.join(__dirname, 'data', 'csstest-1.html')
   const checkpointDir = path.join(__dirname, 'data', 'checkpoint')
   const fileData = fs.readFileSync(testFile)
@@ -105,7 +111,7 @@ describe('Sessions', () => {
     fileData.byteOffset,
     fileData.byteLength
   )
-  const expected_session_id = base64Encode(testFile)
+  const expected_session_id = base64Encode(canonicalTestFile)
   const expected_profile = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 125, 0, 8, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 12, 4,
@@ -125,7 +131,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(emptyFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(emptyFile))
+    expect(session_id).to.equal(base64Encode(canonicalEmptyFile))
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(0)
     expect(await getComputedFileSize(session_id)).to.equal(0)
@@ -222,64 +228,78 @@ describe('Sessions', () => {
 
   it('Should allow multiple authors to share a file-backed session', async () => {
     expect(await getSessionCount()).to.equal(0)
+    const alternateTestFile = `${path.dirname(testFile)}${path.sep}..${path.sep}data${path.sep}${path.basename(testFile)}`
+    let sharedSessionId = ''
 
-    const author1 = await createSession(testFile)
-    const author2 = await createSession(testFile)
-    const author1SessionId = author1.getSessionId()
-    const author2SessionId = author2.getSessionId()
-    const expectedSharedData = Buffer.concat([fileBuffer, Buffer.from('A2A1')])
+    try {
+      const author1 = await createSession(testFile)
+      const author2 = await createSession(alternateTestFile)
+      const author1SessionId = author1.getSessionId()
+      const author2SessionId = author2.getSessionId()
+      const expectedSharedData = Buffer.concat([
+        fileBuffer,
+        Buffer.from('A2A1'),
+      ])
 
-    expect(author1SessionId).to.equal(expected_session_id)
-    expect(author2SessionId).to.equal(author1SessionId)
-    expect(author1.getFileSize()).to.equal(fileData.length)
-    expect(author2.getFileSize()).to.equal(fileData.length)
-    expect(await getSessionCount()).to.equal(1)
+      sharedSessionId = author1SessionId
+      expect(base64Encode(alternateTestFile)).to.not.equal(expected_session_id)
+      expect(author1SessionId).to.equal(expected_session_id)
+      expect(author2SessionId).to.equal(author1SessionId)
+      expect(author1.getFileSize()).to.equal(fileData.length)
+      expect(author2.getFileSize()).to.equal(fileData.length)
+      expect(await getSessionCount()).to.equal(1)
 
-    const viewport1 = await createViewport(
-      'shared-author-1',
-      author1SessionId,
-      0,
-      1000,
-      false
-    )
-    const viewport2 = await createViewport(
-      'shared-author-2',
-      author2SessionId,
-      0,
-      1000,
-      false
-    )
+      const viewport1 = await createViewport(
+        'shared-author-1',
+        author1SessionId,
+        0,
+        1000,
+        false
+      )
+      const viewport2 = await createViewport(
+        'shared-author-2',
+        author2SessionId,
+        0,
+        1000,
+        false
+      )
 
-    expect(await getViewportCount(author1SessionId)).to.equal(2)
-    expect(viewport1.getData_asU8()).to.deep.equal(fileBuffer)
-    expect(viewport2.getData_asU8()).to.deep.equal(fileBuffer)
+      expect(await getViewportCount(author1SessionId)).to.equal(2)
+      expect(viewport1.getData_asU8()).to.deep.equal(fileBuffer)
+      expect(viewport2.getData_asU8()).to.deep.equal(fileBuffer)
 
-    await insert(author1SessionId, fileData.length, Buffer.from('A1'))
-    await insert(author2SessionId, fileData.length, Buffer.from('A2'))
+      await insert(author1SessionId, fileData.length, Buffer.from('A1'))
+      await insert(author2SessionId, fileData.length, Buffer.from('A2'))
 
-    expect(await getChangeCount(author1SessionId)).to.equal(2)
-    expect(await getComputedFileSize(author1SessionId)).to.equal(
-      fileData.length + 4
-    )
-    expect(
-      (await getViewportData(viewport1.getViewportId())).getData_asU8()
-    ).to.deep.equal(expectedSharedData)
-    expect(
-      (await getViewportData(viewport2.getViewportId())).getData_asU8()
-    ).to.deep.equal(expectedSharedData)
+      expect(await getChangeCount(author1SessionId)).to.equal(2)
+      expect(await getComputedFileSize(author1SessionId)).to.equal(
+        fileData.length + 4
+      )
+      expect(
+        (await getViewportData(viewport1.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
+      expect(
+        (await getViewportData(viewport2.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
 
-    expect(await destroySession(author1SessionId)).to.equal(author1SessionId)
-    expect(await getSessionCount()).to.equal(1)
-    expect(await getViewportCount(author2SessionId)).to.equal(2)
-    expect(await getComputedFileSize(author2SessionId)).to.equal(
-      fileData.length + 4
-    )
-    expect(
-      (await getViewportData(viewport2.getViewportId())).getData_asU8()
-    ).to.deep.equal(expectedSharedData)
+      expect(await destroySession(author1SessionId)).to.equal(author1SessionId)
+      expect(await getSessionCount()).to.equal(1)
+      expect(await getViewportCount(author2SessionId)).to.equal(2)
+      expect(await getComputedFileSize(author2SessionId)).to.equal(
+        fileData.length + 4
+      )
+      expect(
+        (await getViewportData(viewport2.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
 
-    expect(await destroySession(author2SessionId)).to.equal(author2SessionId)
-    expect(await getSessionCount()).to.equal(0)
+      expect(await destroySession(author2SessionId)).to.equal(author2SessionId)
+      sharedSessionId = ''
+      expect(await getSessionCount()).to.equal(0)
+    } finally {
+      while (sharedSessionId && (await getSessionCount()) > 0) {
+        expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      }
+    }
   })
 
   it('Should be able to save segments from a session', async () => {
