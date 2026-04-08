@@ -1233,11 +1233,7 @@ export async function getServerHeartbeat(
           serverTimestamp: heartbeatResponse.timestamp,
           serverUptime: heartbeatResponse.uptime,
           serverCpuCount: heartbeatResponse.cpuCount,
-          serverCpuLoadAverage:
-            heartbeatResponse.loadAverage ??
-            (heartbeatResponse.cpuLoadAverage >= 0
-              ? heartbeatResponse.cpuLoadAverage
-              : undefined),
+          serverCpuLoadAverage: heartbeatResponse.loadAverage,
           serverResidentMemoryBytes: heartbeatResponse.residentMemoryBytes,
           serverVirtualMemoryBytes: heartbeatResponse.virtualMemoryBytes,
           serverPeakResidentMemoryBytes:

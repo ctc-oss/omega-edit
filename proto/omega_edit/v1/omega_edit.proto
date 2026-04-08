@@ -338,9 +338,9 @@ message GetServerInfoResponse {
   string hostname = 1;             // Server hostname.
   int32 process_id = 2;            // Server OS process ID.
   string server_version = 3;       // Omega Edit server version string.
-  string jvm_version = 4 [deprecated = true]; // Legacy field kept for compatibility with older clients.
-  string jvm_vendor = 5 [deprecated = true];  // Legacy field kept for compatibility with older clients.
-  string jvm_path = 6 [deprecated = true];    // Legacy field kept for compatibility with older clients.
+  string jvm_version = 4 [deprecated = true]; // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
+  string jvm_vendor = 5 [deprecated = true];  // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
+  string jvm_path = 6 [deprecated = true];    // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   int32 available_processors = 7;  // Number of logical CPU cores.
   string runtime_kind = 8;         // Runtime family, e.g. "native" or "jvm".
   string runtime_name = 9;         // Runtime implementation name, e.g. "C++".
@@ -377,10 +377,10 @@ message GetHeartbeatResponse {
   int64 timestamp = 2;                      // Server wall-clock time in milliseconds since epoch.
   int64 uptime = 3;                         // Server uptime in milliseconds.
   int32 cpu_count = 4;                      // Number of logical CPU cores.
-  double cpu_load_average = 5 [deprecated = true]; // Legacy load average field kept for compatibility with older clients.
-  int64 max_memory = 6 [deprecated = true];        // Legacy memory field kept for compatibility with older clients.
-  int64 committed_memory = 7 [deprecated = true];  // Legacy memory field kept for compatibility with older clients.
-  int64 used_memory = 8 [deprecated = true];       // Legacy memory field kept for compatibility with older clients.
+  double cpu_load_average = 5 [deprecated = true]; // Legacy load average field mirrored from load_average when available, otherwise left unset so it reads as the proto default 0.
+  int64 max_memory = 6 [deprecated = true];        // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
+  int64 committed_memory = 7 [deprecated = true];  // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
+  int64 used_memory = 8 [deprecated = true];       // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   optional double load_average = 9;                // 1-min load average when the platform can report it.
   optional int64 resident_memory_bytes = 10;       // Resident set size (RSS) in bytes.
   optional int64 virtual_memory_bytes = 11;        // Virtual address space usage in bytes when the platform can report it consistently.

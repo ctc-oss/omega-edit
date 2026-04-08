@@ -26,7 +26,18 @@ heartbeat metrics as "unavailable" rather than `0`.
 `virtual_memory_bytes` is best-effort and may be unset on platforms where an
 equivalent process metric is not consistently available.
 The legacy JVM-shaped fields remain in the schema as deprecated compatibility
-fields so existing protobuf consumers do not break on the wire.
+fields so existing protobuf consumers do not break on the wire. The native C++
+server leaves deprecated JVM-only fields unset rather than fabricating placeholder
+values. In proto3, that means these scalar fields are typically omitted from the
+serialized message; when decoded by consumers, they appear as language defaults:
+
+- `jvm_version`, `jvm_vendor`, and `jvm_path` decode as empty strings when not populated
+- `max_memory`, `committed_memory`, and `used_memory` decode as `0` when not populated
+- `cpu_load_average` mirrors `load_average` only when the platform reports a
+  real load average; otherwise it is not populated by the native server, so
+  consumers decoding the message will observe `0`. Because `0` may also be a
+  legitimate value, consumers that need presence semantics should prefer the
+  optional `load_average` field
 
 ## Using with Buf
 
