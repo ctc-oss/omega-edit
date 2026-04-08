@@ -1,5 +1,6 @@
 import {
   ChangeKind,
+  type IServerControlResult,
   IOFlags,
   createSession,
   del,
@@ -148,11 +149,7 @@ export class OmegaEditToolkit {
     return await this.serverInfo()
   }
 
-  async stopServer(): Promise<{
-    responseCode: number
-    serverProcessId: number
-    status: string
-  }> {
+  async stopServer(): Promise<IServerControlResult> {
     await this.connectToRunningServer()
     const response = await stopServerGraceful()
     resetClient()

@@ -41,9 +41,10 @@ serialized message; when decoded by consumers, they appear as language defaults:
 
 ### Server Lifecycle Contract Note
 
-Graceful shutdown is now explicit in the wire contract:
+Shutdown lifecycle behavior is now explicit in the wire contract:
 
-- `CreateSession` fails with gRPC `UNAVAILABLE` once graceful shutdown begins
+- `CreateSession` fails with gRPC `UNAVAILABLE` once shutdown begins, including
+  both graceful and immediate shutdown
 - `ServerControlResponse.status` distinguishes `COMPLETED` from `DRAINING`
 - the deprecated `response_code` field remains for compatibility and is `0`
   for accepted commands, including graceful shutdown while draining
