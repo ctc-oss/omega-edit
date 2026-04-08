@@ -98,6 +98,10 @@ import type { CreateSessionRequest } from './omega_edit'
 import type { GetServerInfoResponse } from './omega_edit'
 import type { GetServerInfoRequest } from './omega_edit'
 import * as grpc from '@grpc/grpc-js'
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport
@@ -1570,6 +1574,10 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
 }
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport

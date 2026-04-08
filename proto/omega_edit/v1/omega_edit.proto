@@ -18,6 +18,10 @@ package omega_edit.v1;
 
 option cc_enable_arenas = true;
 
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 // EditorService is the primary gRPC service for the Ωedit library.  It provides
 // byte-level editing of arbitrarily large files through a session/viewport
 // model with unlimited, serialised undo/redo.
