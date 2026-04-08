@@ -406,8 +406,8 @@ message GetHeartbeatResponse {
 message CreateSessionRequest {
   // Path to the file to load.  Omit to create an empty session.
   optional string file_path = 1;
-  // Caller-chosen session ID.  The server may assign a different ID if this
-  // one is already in use.
+  // Caller-chosen session ID. Must be unique; duplicates are rejected with
+  // ALREADY_EXISTS rather than being silently reassigned.
   optional string session_id_desired = 2;
   // Directory for checkpoint files.  Defaults to a system temp directory.
   optional string checkpoint_directory = 3;
@@ -553,7 +553,9 @@ message CreateViewportRequest {
   int64 capacity = 2;                   // Maximum number of bytes the viewport holds.
   int64 offset = 3;                     // Starting byte offset in the session.
   bool is_floating = 4;                 // When true, the viewport follows edits automatically.
-  optional string viewport_id_desired = 5; // Optional caller-chosen viewport ID.
+  // Optional caller-chosen viewport ID. Must be unique within the session;
+  // duplicates are rejected with ALREADY_EXISTS.
+  optional string viewport_id_desired = 5;
 }
 
 // Response carrying a viewport's content.

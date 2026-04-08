@@ -233,8 +233,8 @@ export interface CreateSessionRequest {
    */
   filePath?: string
   /**
-   * Caller-chosen session ID.  The server may assign a different ID if this
-   * one is already in use.
+   * Caller-chosen session ID. Must be unique; duplicates are rejected with
+   * ALREADY_EXISTS rather than being silently reassigned.
    *
    * @generated from protobuf field: optional string session_id_desired = 2
    */
@@ -578,9 +578,12 @@ export interface CreateViewportRequest {
    */
   isFloating: boolean // When true, the viewport follows edits automatically.
   /**
+   * Optional caller-chosen viewport ID. Must be unique within the session;
+   * duplicates are rejected with ALREADY_EXISTS.
+   *
    * @generated from protobuf field: optional string viewport_id_desired = 5
    */
-  viewportIdDesired?: string // Optional caller-chosen viewport ID.
+  viewportIdDesired?: string
 }
 /**
  * Response carrying a viewport's content.
