@@ -158,6 +158,7 @@ describe('Editing', () => {
       const client = await getClient()
       const editSubscriberEvents: number[] = []
       const clearSubscriberEvents: number[] = []
+      const allExceptEditSubscriberEvents: number[] = []
       const unexpectedStreamErrors: Error[] = []
 
       const registerStreamError = (error: Error) => {
@@ -176,6 +177,11 @@ describe('Editing', () => {
           .setId(session_id)
           .setInterest(SessionEventKind.SESSION_EVT_CLEAR)
       )
+      const allExceptEditStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(ALL_EVENTS & ~SessionEventKind.SESSION_EVT_EDIT)
+      )
 
       editStream.on('data', (event) => {
         editSubscriberEvents.push(event.getSessionEventKind())
@@ -185,6 +191,10 @@ describe('Editing', () => {
         clearSubscriberEvents.push(event.getSessionEventKind())
       })
       clearStream.on('error', registerStreamError)
+      allExceptEditStream.on('data', (event) => {
+        allExceptEditSubscriberEvents.push(event.getSessionEventKind())
+      })
+      allExceptEditStream.on('error', registerStreamError)
 
       try {
         await delay(200)
@@ -195,6 +205,7 @@ describe('Editing', () => {
             SessionEventKind.SESSION_EVT_EDIT,
           ])
           expect(clearSubscriberEvents).to.deep.equal([])
+          expect(allExceptEditSubscriberEvents).to.deep.equal([])
         })
 
         await clear(session_id)
@@ -205,11 +216,15 @@ describe('Editing', () => {
           expect(clearSubscriberEvents).to.deep.equal([
             SessionEventKind.SESSION_EVT_CLEAR,
           ])
+          expect(allExceptEditSubscriberEvents).to.deep.equal([
+            SessionEventKind.SESSION_EVT_CLEAR,
+          ])
         })
         expect(unexpectedStreamErrors).to.deep.equal([])
       } finally {
         editStream.cancel()
         clearStream.cancel()
+        allExceptEditStream.cancel()
         await delay(50)
       }
     })

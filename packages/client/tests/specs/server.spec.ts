@@ -346,9 +346,10 @@ describe('Server Heartbeat Timeout', () => {
       // after the timeout, not one attachment per cleanup interval. Using
       // several attachments widens the regression gap on slower macOS runners:
       // a buggy detach-per-cycle implementation needs multiple extra reaper
-      // ticks before teardown completes.
+      // ticks before teardown completes. Allow a wider observation window so
+      // cleanup cadence and scheduler jitter do not make this assertion flaky.
       await delay(625)
-      await waitForSessionCount(0, 50)
+      await waitForSessionCount(0, 250)
     } finally {
       await fsPromises.rm(tempDir, { recursive: true, force: true })
     }

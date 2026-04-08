@@ -123,14 +123,11 @@ bool is_process_alive(int pid) {
 }
 
 int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptionInfo> &subscriptions) {
-    int32_t combined = 0;
+    uint32_t combined = 0;
     for (const auto &subscription : subscriptions) {
-        if (subscription.interest < 0) {
-            return subscription.interest;
-        }
-        combined |= subscription.interest;
+        combined |= static_cast<uint32_t>(subscription.interest);
     }
-    return combined;
+    return static_cast<int32_t>(combined);
 }
 
 } // namespace
@@ -341,13 +338,14 @@ void SessionManager::session_event_callback(const omega_session_t *session, omeg
     }
 
     const auto event_kind = static_cast<int32_t>(event);
+    const auto event_mask = static_cast<uint32_t>(event_kind);
     std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
     {
         std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
         subscribers.reserve(info->session_subscriptions.size());
         for (const auto &subscription : info->session_subscriptions) {
             if (subscription.event_queue &&
-                (subscription.interest < 0 || (subscription.interest & event_kind) != 0)) {
+                ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
                 subscribers.push_back(subscription.event_queue);
             }
         }

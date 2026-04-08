@@ -57,8 +57,8 @@ service EditorService {
   // can limit the save to a sub-section of the data.
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
 
-  // Destroy a session and release all associated resources (viewports,
-  // checkpoints, and change history).
+  // Detach the caller from a session. The backing session and its resources
+  // are released when the last attachment is destroyed or reaped.
   rpc DestroySession(DestroySessionRequest) returns (DestroySessionResponse);
 
   // ---------------------------------------------------------------------------
@@ -211,7 +211,7 @@ service EditorService {
   // changes, modifications, etc.).
   rpc SubscribeToViewportEvents(SubscribeToViewportEventsRequest) returns (stream SubscribeToViewportEventsResponse);
 
-  // Cancel an active session-event subscription.
+  // Cancel all active session-event subscriptions for the session ID.
   rpc UnsubscribeToSessionEvents(UnsubscribeToSessionEventsRequest) returns (UnsubscribeToSessionEventsResponse);
 
   // Cancel an active viewport-event subscription.
