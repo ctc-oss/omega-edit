@@ -6,6 +6,10 @@ This directory contains the gRPC service definition for Ωedit™.
 
 Defines the `Editor` service with RPCs for:
 
+The `omega_edit/v1` import path is the canonical schema location for the
+OmegaEdit 2.x line. Major-release API breaks are documented in the repo's
+upgrade guide rather than expressed through a package rename.
+
 - **Session management** — create, save, destroy editing sessions
 - **Editing** — insert, delete, overwrite with unlimited undo/redo
 - **Viewports** — sliding windows into session data
@@ -25,6 +29,8 @@ Consumers migrating from older JVM-oriented fields should treat missing optional
 heartbeat metrics as "unavailable" rather than `0`.
 `virtual_memory_bytes` is best-effort and may be unset on platforms where an
 equivalent process metric is not consistently available.
+`GetHeartbeatRequest` is intentionally session-centric in 2.x: the unused
+hostname / process / interval request fields were removed outright.
 The legacy JVM-shaped fields remain in the schema as deprecated compatibility
 fields so existing protobuf consumers do not break on the wire. The native C++
 server leaves deprecated JVM-only fields unset rather than fabricating placeholder

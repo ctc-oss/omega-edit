@@ -20,7 +20,6 @@
 import { getLogger } from './logger'
 import { getClient } from './client'
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import { createServer, Server, createConnection } from 'net'
 import * as omegaEditServerModule from '@omega-edit/server'
@@ -1182,24 +1181,18 @@ export interface IServerHeartbeat {
 /**
  * Get the server heartbeat
  * @param activeSessions list of active sessions
- * @param heartbeatInterval heartbeat interval in ms
  * @returns a promise that resolves to the server heartbeat
  */
 export async function getServerHeartbeat(
-  activeSessions: string[],
-  heartbeatInterval: number = 1000
+  activeSessions: string[]
 ): Promise<IServerHeartbeat> {
   const log = getLogger()
   const client = await getClient()
-  const hostname = os.hostname()
   const startTime: number = Date.now()
 
   return new Promise<IServerHeartbeat>((resolve, reject) => {
     client.getHeartbeat(
       {
-        hostname,
-        processId: process.pid,
-        heartbeatInterval,
         sessionIds: activeSessions,
       },
       (err, heartbeatResponse) => {
