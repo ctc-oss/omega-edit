@@ -390,6 +390,98 @@ describe('Client Utilities', () => {
     }
   })
 
+  it('should reuse the explicit current shared client for default getClient calls', async () => {
+    resetClient()
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    const uris: string[] = []
+
+    class FakeEditorClient {
+      readonly uri: string
+
+      constructor(uri: string) {
+        this.uri = uri
+        uris.push(uri)
+      }
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        callback()
+      }
+
+      close() {}
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      const currentClient = await clientModule.getClient(9316, '127.0.0.1')
+      const defaultClient = await clientModule.getClient()
+
+      expect(defaultClient).to.equal(currentClient)
+      expect(uris).to.deep.equal(['127.0.0.1:9316'])
+    } finally {
+      resetClient()
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
+  it('should switch the current shared client when a new explicit endpoint is chosen', async () => {
+    resetClient()
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    const uris: string[] = []
+
+    class FakeEditorClient {
+      readonly uri: string
+
+      constructor(uri: string) {
+        this.uri = uri
+        uris.push(uri)
+      }
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        callback()
+      }
+
+      close() {}
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      const firstClient = await clientModule.getClient(9316, '127.0.0.1')
+      expect(await clientModule.getClient()).to.equal(firstClient)
+
+      const secondClient = await clientModule.getClient(9317, '127.0.0.1')
+      expect(secondClient).to.not.equal(firstClient)
+      expect(await clientModule.getClient()).to.equal(secondClient)
+      expect(uris).to.deep.equal(['127.0.0.1:9316', '127.0.0.1:9317'])
+    } finally {
+      resetClient()
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
   it('should reset the client when all connection candidates fail', async () => {
     resetClient()
     const uris: string[] = []

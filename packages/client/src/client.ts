@@ -52,8 +52,9 @@ export function waitForReady(
 }
 
 /**
- * Gets the connected editor client. Initializes the client if not already
- * @param port port to bind to
+ * Gets the connected shared editor client. Passing an explicit target updates
+ * the shared client target for later zero-argument calls.
+ * @param port port to connect to
  * @param host interface to connect to
  * @return connected editor client
  */

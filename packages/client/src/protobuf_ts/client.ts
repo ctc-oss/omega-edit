@@ -28,16 +28,25 @@ export interface ClientConnectionOptions {
 }
 
 const clientInstances_ = new Map<string, EditorClient>()
-const pendingInit_ = new Map<string, Promise<EditorClient>>()
+const pendingInit_ = new Map<string, Promise<ConnectedClient>>()
+let currentClientUri_: string | undefined
+let currentRequestKey_: string | undefined
 
 const DEFAULT_PORT = 9000
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_DEADLINE_SECONDS = 10
 
+interface ConnectedClient {
+  client: EditorClient
+  uri: string
+}
+
 export function resetClient() {
   const clients = Array.from(new Set(clientInstances_.values()))
   clientInstances_.clear()
   pendingInit_.clear()
+  currentClientUri_ = undefined
+  currentRequestKey_ = undefined
 
   for (const client of clients) {
     try {
@@ -146,11 +155,26 @@ function resolveCandidates(
   }
 }
 
+function usesCurrentSharedClient(
+  port: number,
+  host: string,
+  options?: ClientConnectionOptions
+): boolean {
+  return (
+    port === DEFAULT_PORT &&
+    host === DEFAULT_HOST &&
+    !options?.serverUri &&
+    !options?.socketPath &&
+    !process.env.OMEGA_EDIT_SERVER_URI &&
+    !process.env.OMEGA_EDIT_SERVER_SOCKET
+  )
+}
+
 async function initClient(
   port: number,
   host: string,
   candidates: string[]
-): Promise<EditorClient> {
+): Promise<ConnectedClient> {
   const log = getLogger()
 
   log.debug({
@@ -173,7 +197,7 @@ async function initClient(
         uri,
         state: 'reused cached endpoint',
       })
-      return cachedClient
+      return { client: cachedClient, uri }
     }
 
     const client = new EditorClient(uri, grpc.credentials.createInsecure())
@@ -190,7 +214,7 @@ async function initClient(
         state: 'ready',
       })
 
-      return client
+      return { client, uri }
     } catch (err) {
       lastError = err
       try {
@@ -235,19 +259,22 @@ export async function getClient(
   host: string = DEFAULT_HOST,
   options?: ClientConnectionOptions
 ): Promise<EditorClient> {
-  const hasExplicitTarget =
-    !!options?.serverUri ||
-    !!options?.socketPath ||
-    !!process.env.OMEGA_EDIT_SERVER_URI ||
-    !!process.env.OMEGA_EDIT_SERVER_SOCKET
+  if (usesCurrentSharedClient(port, host, options)) {
+    if (currentClientUri_) {
+      const currentClient = clientInstances_.get(currentClientUri_)
+      if (currentClient) {
+        return currentClient
+      }
+      currentClientUri_ = undefined
+    }
 
-  if (
-    !hasExplicitTarget &&
-    port === DEFAULT_PORT &&
-    host === DEFAULT_HOST &&
-    clientInstances_.size === 1
-  ) {
-    return clientInstances_.values().next().value as EditorClient
+    if (currentRequestKey_) {
+      const currentPending = pendingInit_.get(currentRequestKey_)
+      if (currentPending) {
+        return (await currentPending).client
+      }
+      currentRequestKey_ = undefined
+    }
   }
 
   const { requestKey, candidates } = resolveCandidates(port, host, options)
@@ -257,18 +284,31 @@ export async function getClient(
     ? clientInstances_.get(primaryCandidate)
     : undefined
   if (cachedClient) {
+    currentClientUri_ = primaryCandidate
+    currentRequestKey_ = requestKey
     return cachedClient
   }
 
   const pending = pendingInit_.get(requestKey)
   if (pending) {
-    return pending
+    currentRequestKey_ = requestKey
+    const connectedClient = await pending
+    currentClientUri_ = connectedClient.uri
+    return connectedClient.client
   }
 
-  const initPromise = initClient(port, host, candidates).finally(() => {
-    pendingInit_.delete(requestKey)
-  })
+  currentRequestKey_ = requestKey
+  const initPromise = initClient(port, host, candidates)
   pendingInit_.set(requestKey, initPromise)
 
-  return initPromise
+  try {
+    const connectedClient = await initPromise
+    currentClientUri_ = connectedClient.uri
+    return connectedClient.client
+  } finally {
+    pendingInit_.delete(requestKey)
+    if (currentRequestKey_ === requestKey && !currentClientUri_) {
+      currentRequestKey_ = undefined
+    }
+  }
 }
