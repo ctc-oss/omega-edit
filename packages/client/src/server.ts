@@ -1250,11 +1250,19 @@ export interface IServerHeartbeat {
 /**
  * Get the server heartbeat
  * @param activeSessions list of active sessions
+ * @throws when called with removed legacy positional arguments from the 1.x API
  * @returns a promise that resolves to the server heartbeat
  */
 export async function getServerHeartbeat(
-  activeSessions: string[]
+  activeSessions: string[],
+  ...unexpectedArgs: unknown[]
 ): Promise<IServerHeartbeat> {
+  if (unexpectedArgs.length > 0) {
+    throw new Error(
+      'getServerHeartbeat(sessionIds) is session-centric in 2.x; legacy hostname/process/interval positional arguments were removed'
+    )
+  }
+
   const log = getLogger()
   const client = await getClient()
   const startTime: number = Date.now()

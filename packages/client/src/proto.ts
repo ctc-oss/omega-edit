@@ -94,6 +94,8 @@ export const ServerControlStatus = {
     ProtoServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED,
   SERVER_CONTROL_STATUS_DRAINING:
     ProtoServerControlStatus.SERVER_CONTROL_STATUS_DRAINING,
+  // Short enum aliases are intentional for the TS-facing shutdown helpers,
+  // while the prefixed names preserve the explicit protobuf-style surface.
   UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
   COMPLETED: RawProtoServerControlStatus.COMPLETED,
   DRAINING: RawProtoServerControlStatus.DRAINING,

@@ -150,6 +150,8 @@ struct SessionInfo {
     std::string canonical_file_path;
     std::string checkpoint_directory;
     bool owns_checkpoint_directory{false};
+    // Shared sessions begin life with one attached author and are only reaped
+    // after the last attachment detaches.
     size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
     std::mutex session_subscription_mutex;

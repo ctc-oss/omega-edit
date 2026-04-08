@@ -929,7 +929,12 @@ int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, i
 
 int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
                            int64_t insert_length) {
-    if (!cstr) { return (insert_length == 0) ? omega_edit_replace_bytes(session_ptr, offset, delete_length, nullptr, 0) : -1; }
+    if (offset < 0 || delete_length < 0 || insert_length < 0) { return -1; }
+    if (!cstr) {
+        return (insert_length == 0)
+                   ? omega_edit_replace_bytes(session_ptr, offset, delete_length, nullptr, 0)
+                   : -1;
+    }
     const auto cstr_length = (insert_length == 0) ? static_cast<int64_t>(strlen(cstr)) : insert_length;
     return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, cstr_length);
 }

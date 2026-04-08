@@ -275,7 +275,9 @@ int64_t omega_edit_overwrite(omega_session_t *session_ptr, int64_t offset, const
  * @param delete_length number of original bytes to remove
  * @param bytes replacement bytes, or null if `insert_length` is zero
  * @param insert_length explicit number of replacement bytes to insert
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success; 0 if the request is rejected without error or
+ * results in no change; -1 if the arguments are invalid (for example, `session_ptr` is null or
+ * `bytes` is null while `insert_length` is greater than zero)
  */
 int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                                  const omega_byte_t *bytes, int64_t insert_length);
@@ -287,7 +289,9 @@ int64_t omega_edit_replace_bytes(omega_session_t *session_ptr, int64_t offset, i
  * @param delete_length number of original bytes to remove
  * @param cstr replacement C string, or null if `insert_length` is zero
  * @param insert_length length of the replacement string (if 0, strlen will be used for null-terminated text)
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success; 0 if the request is rejected without error or
+ * results in no change; -1 if the arguments are invalid (for example, `session_ptr` is null,
+ * a length is negative, or `cstr` is null while `insert_length` is greater than zero)
  */
 int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t delete_length, const char *cstr,
                            int64_t insert_length);

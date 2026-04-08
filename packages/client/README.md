@@ -124,6 +124,7 @@ Current `getServerHeartbeat()` fields:
 
 Migration notes:
 
+- `getServerHeartbeat()` is now strictly `getServerHeartbeat(sessionIds)`. The old extra hostname / PID / interval-style arguments are removed in 2.x.
 - `jvmVersion`, `jvmVendor`, and `jvmPath` were removed from the client-facing TypeScript API. Use `runtimeKind`, `runtimeName`, `platform`, and `compiler` instead.
 - `serverMaxMemory`, `serverCommittedMemory`, and `serverUsedMemory` were removed from the client-facing TypeScript API. They were JVM-heap concepts and are now replaced with process-memory metrics.
 - Optional heartbeat fields may be `undefined` when the host platform cannot report them. Treat missing values as "unavailable", not zero.

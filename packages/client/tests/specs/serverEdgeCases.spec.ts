@@ -434,6 +434,22 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should reject removed legacy heartbeat positional arguments loudly', async () => {
+    let thrown: Error | undefined
+
+    try {
+      await getServerHeartbeat(['sid'], 250 as unknown as never)
+      expect.fail('getServerHeartbeat should reject removed legacy arguments')
+    } catch (error) {
+      thrown = error as Error
+    }
+
+    expect(thrown).to.exist
+    expect(thrown?.message).to.include(
+      'getServerHeartbeat(sessionIds) is session-centric in 2.x'
+    )
+  })
+
   it('should reject unsafe integer heartbeat values', async () => {
     const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
     const restoreGetClient = overrideProperty(

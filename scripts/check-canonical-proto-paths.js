@@ -26,9 +26,10 @@ const canonicalProtoPath = 'proto/omega_edit/v1/omega_edit.proto'
 const legacyRepoProtoPath = 'proto/omega_edit.proto'
 const legacyImportPath = 'import "omega_edit.proto"'
 const legacyRemovalMarkers = [
-  'removed',
+  'intentionally removed',
   'gone in 2.x',
-  'do not use',
+  'canonical schema location',
+  'canonical published contract',
   'sole source of truth',
 ]
 
