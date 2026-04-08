@@ -957,9 +957,7 @@ export async function startServerUnixSocket(
  * @returns structured shutdown status
  */
 export function stopServerGraceful(): Promise<IServerControlResult> {
-  return new Promise<IServerControlResult>(async (resolve, _) => {
-    return resolve(stopServer(ServerControlKind.GRACEFUL_SHUTDOWN))
-  })
+  return stopServer(ServerControlKind.GRACEFUL_SHUTDOWN)
 }
 
 /**
@@ -967,9 +965,7 @@ export function stopServerGraceful(): Promise<IServerControlResult> {
  * @returns structured shutdown status
  */
 export function stopServerImmediate(): Promise<IServerControlResult> {
-  return new Promise<IServerControlResult>(async (resolve, _) => {
-    return resolve(stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN))
-  })
+  return stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN)
 }
 
 export type ServerControlState = 'completed' | 'draining' | 'unknown'

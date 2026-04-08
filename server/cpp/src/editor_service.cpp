@@ -1245,6 +1245,7 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             break;
 
         case ::omega_edit::v1::SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
+            graceful_shutdown_.store(true);
             session_manager_.destroy_all();
             response->set_response_code(0);
             response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
