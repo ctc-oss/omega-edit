@@ -112,7 +112,7 @@ describe('Undo/Redo', () => {
     const last_undo = await getLastUndo(session_id)
     expect(last_undo.getData_asU8()).to.deep.equal(Buffer.from('456'))
     expect(last_undo.getOffset()).to.equal(0)
-    expect(last_undo.getKind()).to.equal(ChangeKind.CHANGE_INSERT)
+    expect(last_undo.getKind()).to.equal(ChangeKind.INSERT)
     expect(last_undo.getSerial()).to.equal(-3)
     expect(last_undo.getLength()).to.equal(3)
     expect(last_undo.getSessionId()).to.equal(session_id)
@@ -196,7 +196,7 @@ describe('Undo/Redo', () => {
     const save_session_response = await saveSession(
       session_id,
       'save_session_test.txt',
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     expect(save_session_response.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(
@@ -218,7 +218,7 @@ describe('Undo/Redo', () => {
     const save_session_response2 = await saveSession(
       session_id,
       'save_session_test.txt',
-      IOFlags.IO_FLG_NONE
+      IOFlags.UNSPECIFIED
     )
     expect(save_session_response2.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response2.getFilePath()).to.not.equal(

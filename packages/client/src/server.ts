@@ -19,6 +19,7 @@
 
 import { getLogger } from './logger'
 import { getClient } from './client'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import * as fs from 'fs'
 import * as path from 'path'
 import { createServer, Server, createConnection } from 'net'
@@ -45,6 +46,7 @@ const execFilePromise = promisify(execFile)
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
+const FILE_EXISTENCE_POLL_INTERVAL_MS = 100 // chosen as a low-overhead compromise across platforms
 const omegaEditServer =
   'default' in omegaEditServerModule
     ? omegaEditServerModule.default
@@ -75,34 +77,23 @@ export async function findFirstAvailablePort(
   endPort: number
 ): Promise<number | null> {
   const log = getLogger()
-  return new Promise((resolve) => {
-    let currentPort = startPort
-
-    const tryNextPort = () => {
-      if (currentPort > endPort) {
-        resolve(null) // No ports available in the range
-        return
+  for (let currentPort = startPort; currentPort <= endPort; currentPort += 1) {
+    try {
+      if (await isPortAvailable(currentPort, '0.0.0.0')) {
+        return currentPort
       }
-
-      const server = createServer()
-      server.listen(currentPort, '0.0.0.0', () => {
-        server.close((err) => {
-          if (err) {
-            log.error(`Error closing server on port ${currentPort}: ${err}`)
-          }
-          resolve(currentPort) // Found an available port
-        })
-      })
-
-      server.on('error', (err) => {
-        log.warn(`Port ${currentPort} is in use, trying next port: ${err}`)
-        ++currentPort
-        tryNextPort() // Try the next port
-      })
+      log.warn(`Port ${currentPort} is in use, trying next port`)
+    } catch (err) {
+      log.error(
+        `Error checking port ${currentPort}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
+      throw err
     }
+  }
 
-    tryNextPort()
-  })
+  return null
 }
 
 /**
@@ -150,7 +141,7 @@ export async function waitForFileToExist(
         return reject(new Error(errMsg))
       }
 
-      timer = setTimeout(check, 100)
+      timer = setTimeout(check, FILE_EXISTENCE_POLL_INTERVAL_MS)
     }
 
     check()
@@ -163,7 +154,7 @@ export async function waitForFileToExist(
  * @param host host to check
  * @returns true if the port is available, false otherwise
  */
-function isPortAvailable(port: number, host: string): Promise<boolean> {
+export function isPortAvailable(port: number, host: string): Promise<boolean> {
   const log = getLogger()
   log.debug({
     fn: 'isPortAvailable',
@@ -171,30 +162,30 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
     port: port,
   })
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server: Server = createServer()
     server.once('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EADDRINUSE') {
-        log.error({
-          fn: 'isPortAvailable',
-          host: host,
-          port: port,
-          avail: false,
-          err: {
-            msg: err.message,
-            code: err.code,
-          },
-        })
-      } else {
+      if (err.code === 'EADDRINUSE') {
         log.debug({
           fn: 'isPortAvailable',
           host: host,
           port: port,
           avail: false,
         })
+        return resolve(false)
       }
-      // Ensure server closes before resolving the promise
-      server.close(() => resolve(false))
+
+      log.error({
+        fn: 'isPortAvailable',
+        host: host,
+        port: port,
+        avail: false,
+        err: {
+          msg: err.message,
+          code: err.code,
+        },
+      })
+      return reject(err)
     })
 
     server.once('listening', () => {
@@ -377,7 +368,7 @@ function parseFirstPid(stdout: string): number | undefined {
   }
 
   const parsed = Number.parseInt(pid, 10)
-  return Number.isNaN(parsed) ? undefined : parsed
+  return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed
 }
 
 async function getPidByPortWithSs(port: number): Promise<number | undefined> {
@@ -1085,15 +1076,15 @@ async function stopServer(
     if (err instanceof Error) {
       if ('code' in err) {
         // Checks if it is a ServiceError
-        if (err.message.includes('Call cancelled')) {
+        if (err.code === GrpcStatus.CANCELLED) {
           log.debug({
             ...logMetadata,
             stopped: true,
             msg: err.message,
           })
         } else if (
-          err.message.includes('No connection established') ||
-          err.message.includes('INTERNAL:')
+          err.code === GrpcStatus.UNAVAILABLE ||
+          err.code === GrpcStatus.INTERNAL
         ) {
           log.debug({
             ...logMetadata,
@@ -1148,7 +1139,7 @@ async function stopServer(
  * @param pid process id
  * @returns true if the process is running, false otherwise
  */
-export function pidIsRunning(pid) {
+export function pidIsRunning(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
@@ -1207,14 +1198,14 @@ export async function getServerInfo(): Promise<IServerInfo> {
             stack: err.stack,
           },
         })
-        return reject('getServerInfo error: ' + err.message)
+        return reject(new Error('getServerInfo error: ' + err.message))
       }
       if (!serverInfoResponse) {
         log.error({
           ...logMetadata,
           err: { msg: 'undefined server info' },
         })
-        return reject('undefined server info')
+        return reject(new Error('undefined server info'))
       }
       resolve({
         serverHostname: serverInfoResponse.hostname,
@@ -1285,7 +1276,7 @@ export async function getServerHeartbeat(
               stack: err.stack,
             },
           })
-          return reject('getServerHeartbeat error: ' + err.message)
+          return reject(new Error('getServerHeartbeat error: ' + err.message))
         }
 
         if (!heartbeatResponse) {
@@ -1293,7 +1284,7 @@ export async function getServerHeartbeat(
             ...logMetadata,
             err: { msg: 'undefined heartbeat' },
           })
-          return reject('undefined heartbeat')
+          return reject(new Error('undefined heartbeat'))
         }
 
         try {

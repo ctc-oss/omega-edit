@@ -18,14 +18,14 @@
  */
 
 /**
- * record-replay.ts — Demonstrates recording edits and replaying them:
+ * record-replay.ts - Demonstrates recording edits and replaying them:
  *   1. Open a file and apply a series of programmatic edits
  *   2. Record each edit to a JSON change log
  *   3. Open a second session and replay the recorded edits
  *   4. Save both files and verify they match
  *
  * This is the TypeScript equivalent of the C++ play.cpp / replay.cpp pair.
- * It shows how Ωedit™ can be used for patching: record edits against one
+ * It shows how OmegaEdit can be used for patching: record edits against one
  * file, then replay the same edits against another copy (or many copies)
  * to keep them in sync.
  *
@@ -70,9 +70,9 @@ interface ChangeRecord {
 }
 
 const CHANGE_KIND_NAMES: Record<number, ChangeRecord['kind']> = {
-  [ChangeKind.CHANGE_INSERT]: 'INSERT',
-  [ChangeKind.CHANGE_DELETE]: 'DELETE',
-  [ChangeKind.CHANGE_OVERWRITE]: 'OVERWRITE',
+  [ChangeKind.INSERT]: 'INSERT',
+  [ChangeKind.DELETE]: 'DELETE',
+  [ChangeKind.OVERWRITE]: 'OVERWRITE',
 }
 
 /** Record the last change from a session into the change log */
@@ -117,7 +117,7 @@ async function main() {
   const replayedFile = 'record-replay-replayed.dat'
   const changeLogFile = 'record-replay-changes.json'
 
-  console.log('Starting Ωedit™ server...')
+  console.log('Starting OmegaEdit server...')
   const pid = await startServer(PORT)
 
   try {
@@ -150,7 +150,7 @@ async function main() {
     console.log(`Applied ${await getChangeCount(session1Id)} changes (new size: ${editedSize} bytes)`)
 
     // Save the edited file
-    await saveSession(session1Id, editedFile, IOFlags.IO_FLAGS_OVERWRITE)
+    await saveSession(session1Id, editedFile, IOFlags.OVERWRITE)
     console.log(`Saved edited file to "${editedFile}"`)
 
     // Write the change log to disk
@@ -179,7 +179,7 @@ async function main() {
     console.log(`Replayed ${loadedChanges.length} changes (new size: ${replayedSize} bytes)`)
 
     // Save the replayed result
-    await saveSession(session2Id, replayedFile, IOFlags.IO_FLAGS_OVERWRITE)
+    await saveSession(session2Id, replayedFile, IOFlags.OVERWRITE)
     console.log(`Saved replayed file to "${replayedFile}"`)
 
     await destroySession(session2Id)
@@ -194,7 +194,7 @@ async function main() {
     if (editedContent.equals(replayedContent)) {
       console.log('SUCCESS: Edited and replayed files are identical')
     } else {
-      console.error('MISMATCH: Files differ — replay did not produce the same result')
+      console.error('MISMATCH: Files differ - replay did not produce the same result')
       process.exit(1)
     }
   } finally {

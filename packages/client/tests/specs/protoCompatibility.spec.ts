@@ -28,9 +28,15 @@ const {
   ServerControlStatus,
 } = require('../../dist/cjs/proto.js')
 const {
+  IOFlags,
+  SessionEventKind: PublicSessionEventKind,
+  ViewportEventKind: PublicViewportEventKind,
+} = require('../../dist/cjs/session.js')
+const {
   EditorServiceClient,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js')
 const {
+  IOFlags: ProtoIOFlags,
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
   ServerControlStatus: ProtoServerControlStatus,
@@ -205,11 +211,9 @@ describe('Proto Compatibility', () => {
     )
     expect(serverControl.getPid()).to.equal(99)
     expect(serverControl.getResponseCode()).to.equal(0)
-    expect(serverControl.getStatus()).to.equal(
-      ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
-    )
+    expect(serverControl.getStatus()).to.equal(ServerControlStatus.COMPLETED)
     expect(ServerControlStatus.COMPLETED).to.equal(
-      ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
+      ProtoServerControlStatus.COMPLETED
     )
     expect(
       new ServerControlResponse({
@@ -445,10 +449,26 @@ describe('Proto Compatibility', () => {
     )
     expect(wrapViewportEvent(viewportEvent.toObject()).getLength()).to.equal(3)
 
-    expect(CountKind.COUNT_VIEWPORTS).to.equal(ProtoCountKind.VIEWPORTS)
-    expect(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN).to.equal(
+    expect(CountKind.VIEWPORTS).to.equal(ProtoCountKind.VIEWPORTS)
+    expect(ServerControlKind.GRACEFUL_SHUTDOWN).to.equal(
       ProtoServerControlKind.GRACEFUL_SHUTDOWN
     )
+    expect(ServerControlStatus.COMPLETED).to.equal(
+      ProtoServerControlStatus.COMPLETED
+    )
+    expect(IOFlags.OVERWRITE).to.equal(ProtoIOFlags.IO_FLAGS_OVERWRITE)
+    expect(PublicSessionEventKind.EDIT).to.equal(SessionEventKind.EDIT)
+    expect(PublicViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
+    expect('COUNT_VIEWPORTS' in CountKind).to.equal(false)
+    expect('SERVER_CONTROL_GRACEFUL_SHUTDOWN' in ServerControlKind).to.equal(
+      false
+    )
+    expect('SERVER_CONTROL_STATUS_COMPLETED' in ServerControlStatus).to.equal(
+      false
+    )
+    expect('IO_FLG_OVERWRITE' in IOFlags).to.equal(false)
+    expect('SESSION_EVT_EDIT' in PublicSessionEventKind).to.equal(false)
+    expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
   })
 
   it('should wrap subscription data events for legacy EditorClient consumers', () => {

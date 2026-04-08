@@ -133,10 +133,7 @@ describe('Viewports', () => {
     await checkCallbackCount(viewport_callbacks, viewport_2_id, 2)
 
     // Toggle off interest in edit events
-    await subscribeViewport(
-      viewport_2_id,
-      ALL_EVENTS & ~ViewportEventKind.VIEWPORT_EVT_EDIT
-    )
+    await subscribeViewport(viewport_2_id, ALL_EVENTS & ~ViewportEventKind.EDIT)
     change_id = await overwrite(session_id, 8, Buffer.from('!@#'))
     expect(change_id).to.equal(3)
 

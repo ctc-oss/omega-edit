@@ -27,17 +27,11 @@ describe('Events', () => {
     expect(ALL_EVENTS).to.equal(-1)
     expect(ALL_EVENTS).to.equal(~NO_EVENTS)
     expect(NO_EVENTS).to.equal(~ALL_EVENTS)
-    expect(ALL_EVENTS & ~ViewportEventKind.VIEWPORT_EVT_EDIT).to.equal(-3)
-    expect(ALL_EVENTS & ViewportEventKind.VIEWPORT_EVT_EDIT).to.equal(
-      ViewportEventKind.VIEWPORT_EVT_EDIT
-    )
+    expect(ALL_EVENTS & ~ViewportEventKind.EDIT).to.equal(-3)
+    expect(ALL_EVENTS & ViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
     expect(
-      ALL_EVENTS &
-        ~ViewportEventKind.VIEWPORT_EVT_EDIT &
-        ViewportEventKind.VIEWPORT_EVT_EDIT
+      ALL_EVENTS & ~ViewportEventKind.EDIT & ViewportEventKind.EDIT
     ).to.equal(NO_EVENTS)
-    expect(NO_EVENTS | ViewportEventKind.VIEWPORT_EVT_EDIT).to.equal(
-      ViewportEventKind.VIEWPORT_EVT_EDIT
-    )
+    expect(NO_EVENTS | ViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
   })
 })

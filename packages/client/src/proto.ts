@@ -40,63 +40,31 @@ export {
 
 export { EditorClient, EditorServiceService } from './omega_edit_grpc_pb'
 
-export const ProtoCountKind = {
-  COUNT_KIND_COMPUTED_FILE_SIZE: RawProtoCountKind.COMPUTED_FILE_SIZE,
-  COUNT_KIND_CHANGES: RawProtoCountKind.CHANGES,
-  COUNT_KIND_UNDOS: RawProtoCountKind.UNDOS,
-  COUNT_KIND_VIEWPORTS: RawProtoCountKind.VIEWPORTS,
-  COUNT_KIND_CHECKPOINTS: RawProtoCountKind.CHECKPOINTS,
-  COUNT_KIND_SEARCH_CONTEXTS: RawProtoCountKind.SEARCH_CONTEXTS,
-  COUNT_KIND_CHANGE_TRANSACTIONS: RawProtoCountKind.CHANGE_TRANSACTIONS,
-  COUNT_KIND_UNDO_TRANSACTIONS: RawProtoCountKind.UNDO_TRANSACTIONS,
-  ...RawProtoCountKind,
-}
-
-export const ProtoServerControlKind = {
-  SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN:
-    RawProtoServerControlKind.GRACEFUL_SHUTDOWN,
-  SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN:
-    RawProtoServerControlKind.IMMEDIATE_SHUTDOWN,
-  ...RawProtoServerControlKind,
-}
-
-export const ProtoServerControlStatus = {
-  SERVER_CONTROL_STATUS_UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
-  SERVER_CONTROL_STATUS_COMPLETED: RawProtoServerControlStatus.COMPLETED,
-  SERVER_CONTROL_STATUS_DRAINING: RawProtoServerControlStatus.DRAINING,
-  ...RawProtoServerControlStatus,
-}
-
 export const CountKind = {
-  COUNT_COMPUTED_FILE_SIZE: ProtoCountKind.COUNT_KIND_COMPUTED_FILE_SIZE,
-  COUNT_CHANGES: ProtoCountKind.COUNT_KIND_CHANGES,
-  COUNT_UNDOS: ProtoCountKind.COUNT_KIND_UNDOS,
-  COUNT_VIEWPORTS: ProtoCountKind.COUNT_KIND_VIEWPORTS,
-  COUNT_CHECKPOINTS: ProtoCountKind.COUNT_KIND_CHECKPOINTS,
-  COUNT_SEARCH_CONTEXTS: ProtoCountKind.COUNT_KIND_SEARCH_CONTEXTS,
-  COUNT_CHANGE_TRANSACTIONS: ProtoCountKind.COUNT_KIND_CHANGE_TRANSACTIONS,
-  COUNT_UNDO_TRANSACTIONS: ProtoCountKind.COUNT_KIND_UNDO_TRANSACTIONS,
-  ...ProtoCountKind,
-}
+  UNSPECIFIED: RawProtoCountKind.UNSPECIFIED,
+  COMPUTED_FILE_SIZE: RawProtoCountKind.COMPUTED_FILE_SIZE,
+  CHANGES: RawProtoCountKind.CHANGES,
+  UNDOS: RawProtoCountKind.UNDOS,
+  VIEWPORTS: RawProtoCountKind.VIEWPORTS,
+  CHECKPOINTS: RawProtoCountKind.CHECKPOINTS,
+  SEARCH_CONTEXTS: RawProtoCountKind.SEARCH_CONTEXTS,
+  CHANGE_TRANSACTIONS: RawProtoCountKind.CHANGE_TRANSACTIONS,
+  UNDO_TRANSACTIONS: RawProtoCountKind.UNDO_TRANSACTIONS,
+} as const
+export type CountKind = (typeof CountKind)[keyof typeof CountKind]
 
 export const ServerControlKind = {
-  SERVER_CONTROL_GRACEFUL_SHUTDOWN:
-    ProtoServerControlKind.SERVER_CONTROL_KIND_GRACEFUL_SHUTDOWN,
-  SERVER_CONTROL_IMMEDIATE_SHUTDOWN:
-    ProtoServerControlKind.SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN,
-  ...ProtoServerControlKind,
-}
+  UNSPECIFIED: RawProtoServerControlKind.UNSPECIFIED,
+  GRACEFUL_SHUTDOWN: RawProtoServerControlKind.GRACEFUL_SHUTDOWN,
+  IMMEDIATE_SHUTDOWN: RawProtoServerControlKind.IMMEDIATE_SHUTDOWN,
+} as const
+export type ServerControlKind =
+  (typeof ServerControlKind)[keyof typeof ServerControlKind]
 
 export const ServerControlStatus = {
-  SERVER_CONTROL_STATUS_UNSPECIFIED:
-    ProtoServerControlStatus.SERVER_CONTROL_STATUS_UNSPECIFIED,
-  SERVER_CONTROL_STATUS_COMPLETED:
-    ProtoServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED,
-  SERVER_CONTROL_STATUS_DRAINING:
-    ProtoServerControlStatus.SERVER_CONTROL_STATUS_DRAINING,
-  // Short enum aliases are intentional for the TS-facing shutdown helpers,
-  // while the prefixed names preserve the explicit protobuf-style surface.
   UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
   COMPLETED: RawProtoServerControlStatus.COMPLETED,
   DRAINING: RawProtoServerControlStatus.DRAINING,
-}
+} as const
+export type ServerControlStatus =
+  (typeof ServerControlStatus)[keyof typeof ServerControlStatus]

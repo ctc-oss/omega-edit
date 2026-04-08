@@ -20,6 +20,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initChai } from './common.js'
 import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
@@ -356,7 +357,8 @@ describe('Server Edge Cases', () => {
       await serverModule.getServerInfo()
       expect.fail('getServerInfo should reject when the RPC returns an error')
     } catch (err) {
-      expect(err).to.equal('getServerInfo error: boom')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('getServerInfo error: boom')
     } finally {
       restoreGetClient()
     }
@@ -380,7 +382,8 @@ describe('Server Edge Cases', () => {
       await serverModule.getServerInfo()
       expect.fail('getServerInfo should reject when the RPC response is empty')
     } catch (err) {
-      expect(err).to.equal('undefined server info')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('undefined server info')
     } finally {
       restoreGetClient()
     }
@@ -417,7 +420,10 @@ describe('Server Edge Cases', () => {
         'getServerHeartbeat should reject when the RPC returns an error'
       )
     } catch (err) {
-      expect(err).to.equal('getServerHeartbeat error: heartbeat failed')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal(
+        'getServerHeartbeat error: heartbeat failed'
+      )
     }
 
     mode = 'empty'
@@ -428,7 +434,8 @@ describe('Server Edge Cases', () => {
         'getServerHeartbeat should reject when the RPC response is empty'
       )
     } catch (err) {
-      expect(err).to.equal('undefined heartbeat')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('undefined heartbeat')
     } finally {
       restoreGetClient()
     }
@@ -517,6 +524,42 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should tolerate cancelled shutdown RPCs and unexpected gRPC status codes', async () => {
+    let grpcCode = GrpcStatus.CANCELLED
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('shutdown transport edge case'), {
+              code: grpcCode,
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      const cancelledResponse = await serverModule.stopServerImmediate()
+      expect(cancelledResponse.responseCode).to.equal(-1)
+      expect(cancelledResponse.serverProcessId).to.equal(-1)
+      expect(cancelledResponse.status).to.equal('unknown')
+
+      grpcCode = GrpcStatus.UNKNOWN
+
+      const unknownResponse = await serverModule.stopServerImmediate()
+      expect(unknownResponse.responseCode).to.equal(-1)
+      expect(unknownResponse.serverProcessId).to.equal(-1)
+      expect(unknownResponse.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should return nonzero shutdown response codes from the RPC client', async () => {
     const restoreGetClient = overrideProperty(
       clientModule as Record<string, any>,
@@ -544,6 +587,40 @@ describe('Server Edge Cases', () => {
     try {
       const response = await serverModule.stopServerImmediate()
       expect(response.responseCode).to.equal(7)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should treat missing shutdown status with nonzero response codes as unknown', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getPid(): number }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 7
+            },
+            getPid() {
+              return 321
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(7)
+      expect(response.serverProcessId).to.equal(321)
       expect(response.status).to.equal('unknown')
     } finally {
       restoreGetClient()
@@ -673,6 +750,48 @@ describe('Server Edge Cases', () => {
       )
     } finally {
       restoreGetClient()
+    }
+  })
+
+  it('should return unknown shutdown status for empty server control responses', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (err: null, response?: unknown) => void
+        ) {
+          callback(null, undefined)
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(-1)
+      expect(response.serverProcessId).to.equal(-1)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should rethrow pidIsRunning errors other than ESRCH', () => {
+    const restoreKill = overrideProperty(
+      process as unknown as Record<string, any>,
+      'kill',
+      () => {
+        throw Object.assign(new Error('permission denied'), {
+          code: 'EPERM',
+        })
+      }
+    )
+
+    try {
+      expect(() => pidIsRunning(12345)).to.throw('permission denied')
+    } finally {
+      restoreKill()
     }
   })
 

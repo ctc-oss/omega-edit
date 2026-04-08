@@ -18,7 +18,7 @@
  */
 
 /**
- * search-replace.ts — Demonstrates search and replace using Ωedit™:
+ * search-replace.ts â€” Demonstrates search and replace using Î©editâ„¢:
  *   1. Search for all occurrences of a pattern (forward and reverse)
  *   2. Perform a search-and-replace across the session
  *   3. Case-insensitive search
@@ -59,7 +59,7 @@ async function main() {
 
   const [, , inputFile, outputFile, searchPattern, replacement] = process.argv
 
-  console.log('Starting Ωedit™ server...')
+  console.log('Starting Î©editâ„¢ server...')
   const pid = await startServer(PORT)
   console.log(`Server started (PID: ${pid})`)
 
@@ -120,7 +120,7 @@ async function main() {
     console.log(`New file size: ${await getComputedFileSize(sessionId)} bytes`)
 
     // Save the result
-    await saveSession(sessionId, outputFile, IOFlags.IO_FLAGS_OVERWRITE)
+    await saveSession(sessionId, outputFile, IOFlags.OVERWRITE)
     console.log(`Saved to "${outputFile}"`)
 
     await destroySession(sessionId)

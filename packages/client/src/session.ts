@@ -72,64 +72,42 @@ export enum SaveStatus {
 }
 
 export const IOFlags = {
-  IO_FLG_NONE: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
-  IO_FLG_OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
-  IO_FLG_FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
-  ...ProtoIOFlags,
-}
+  UNSPECIFIED: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
+  OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
+  FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
+} as const
+export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
 
 export const SessionEventKind = {
-  SESSION_EVT_UNDEFINED: RawProtoSessionEventKind.UNSPECIFIED,
-  SESSION_EVT_CREATE: RawProtoSessionEventKind.CREATE,
-  SESSION_EVT_EDIT: RawProtoSessionEventKind.EDIT,
-  SESSION_EVT_UNDO: RawProtoSessionEventKind.UNDO,
-  SESSION_EVT_CLEAR: RawProtoSessionEventKind.CLEAR,
-  SESSION_EVT_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
-  SESSION_EVT_CREATE_CHECKPOINT: RawProtoSessionEventKind.CREATE_CHECKPOINT,
-  SESSION_EVT_DESTROY_CHECKPOINT: RawProtoSessionEventKind.DESTROY_CHECKPOINT,
-  SESSION_EVT_SAVE: RawProtoSessionEventKind.SAVE,
-  SESSION_EVT_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
-  SESSION_EVT_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
-  SESSION_EVT_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
-  SESSION_EVT_DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
-  SESSION_EVENT_KIND_UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
-  SESSION_EVENT_KIND_CREATE: RawProtoSessionEventKind.CREATE,
-  SESSION_EVENT_KIND_EDIT: RawProtoSessionEventKind.EDIT,
-  SESSION_EVENT_KIND_UNDO: RawProtoSessionEventKind.UNDO,
-  SESSION_EVENT_KIND_CLEAR: RawProtoSessionEventKind.CLEAR,
-  SESSION_EVENT_KIND_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
-  SESSION_EVENT_KIND_CREATE_CHECKPOINT:
-    RawProtoSessionEventKind.CREATE_CHECKPOINT,
-  SESSION_EVENT_KIND_DESTROY_CHECKPOINT:
-    RawProtoSessionEventKind.DESTROY_CHECKPOINT,
-  SESSION_EVENT_KIND_SAVE: RawProtoSessionEventKind.SAVE,
-  SESSION_EVENT_KIND_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
-  SESSION_EVENT_KIND_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
-  SESSION_EVENT_KIND_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
-  SESSION_EVENT_KIND_DESTROY_VIEWPORT:
-    RawProtoSessionEventKind.DESTROY_VIEWPORT,
-  ...RawProtoSessionEventKind,
-}
+  UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
+  CREATE: RawProtoSessionEventKind.CREATE,
+  EDIT: RawProtoSessionEventKind.EDIT,
+  UNDO: RawProtoSessionEventKind.UNDO,
+  CLEAR: RawProtoSessionEventKind.CLEAR,
+  TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
+  CREATE_CHECKPOINT: RawProtoSessionEventKind.CREATE_CHECKPOINT,
+  DESTROY_CHECKPOINT: RawProtoSessionEventKind.DESTROY_CHECKPOINT,
+  SAVE: RawProtoSessionEventKind.SAVE,
+  CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
+  CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
+  CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
+  DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
+} as const
+export type SessionEventKind =
+  (typeof SessionEventKind)[keyof typeof SessionEventKind]
 
 export const ViewportEventKind = {
-  VIEWPORT_EVT_UNDEFINED: RawProtoViewportEventKind.UNSPECIFIED,
-  VIEWPORT_EVT_CREATE: RawProtoViewportEventKind.CREATE,
-  VIEWPORT_EVT_EDIT: RawProtoViewportEventKind.EDIT,
-  VIEWPORT_EVT_UNDO: RawProtoViewportEventKind.UNDO,
-  VIEWPORT_EVT_CLEAR: RawProtoViewportEventKind.CLEAR,
-  VIEWPORT_EVT_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
-  VIEWPORT_EVT_MODIFY: RawProtoViewportEventKind.MODIFY,
-  VIEWPORT_EVT_CHANGES: RawProtoViewportEventKind.CHANGES,
-  VIEWPORT_EVENT_KIND_UNSPECIFIED: RawProtoViewportEventKind.UNSPECIFIED,
-  VIEWPORT_EVENT_KIND_CREATE: RawProtoViewportEventKind.CREATE,
-  VIEWPORT_EVENT_KIND_EDIT: RawProtoViewportEventKind.EDIT,
-  VIEWPORT_EVENT_KIND_UNDO: RawProtoViewportEventKind.UNDO,
-  VIEWPORT_EVENT_KIND_CLEAR: RawProtoViewportEventKind.CLEAR,
-  VIEWPORT_EVENT_KIND_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
-  VIEWPORT_EVENT_KIND_MODIFY: RawProtoViewportEventKind.MODIFY,
-  VIEWPORT_EVENT_KIND_CHANGES: RawProtoViewportEventKind.CHANGES,
-  ...RawProtoViewportEventKind,
-}
+  UNSPECIFIED: RawProtoViewportEventKind.UNSPECIFIED,
+  CREATE: RawProtoViewportEventKind.CREATE,
+  EDIT: RawProtoViewportEventKind.EDIT,
+  UNDO: RawProtoViewportEventKind.UNDO,
+  CLEAR: RawProtoViewportEventKind.CLEAR,
+  TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
+  MODIFY: RawProtoViewportEventKind.MODIFY,
+  CHANGES: RawProtoViewportEventKind.CHANGES,
+} as const
+export type ViewportEventKind =
+  (typeof ViewportEventKind)[keyof typeof ViewportEventKind]
 
 export const PROFILE_DOS_EOL = 256
 
@@ -165,7 +143,7 @@ export function destroySession(session_id: string): Promise<string> {
 export async function saveSession(
   session_id: string,
   file_path: string,
-  flags: number = IOFlags.IO_FLG_NONE,
+  flags: number = IOFlags.UNSPECIFIED,
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {

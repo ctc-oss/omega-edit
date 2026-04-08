@@ -47,13 +47,10 @@ import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 export const ChangeKind = {
-  CHANGE_DELETE: RawProtoChangeKind.DELETE,
-  CHANGE_INSERT: RawProtoChangeKind.INSERT,
-  CHANGE_OVERWRITE: RawProtoChangeKind.OVERWRITE,
-  CHANGE_KIND_DELETE: RawProtoChangeKind.DELETE,
-  CHANGE_KIND_INSERT: RawProtoChangeKind.INSERT,
-  CHANGE_KIND_OVERWRITE: RawProtoChangeKind.OVERWRITE,
-  ...RawProtoChangeKind,
+  UNSPECIFIED: RawProtoChangeKind.UNSPECIFIED,
+  DELETE: RawProtoChangeKind.DELETE,
+  INSERT: RawProtoChangeKind.INSERT,
+  OVERWRITE: RawProtoChangeKind.OVERWRITE,
 }
 
 export { EditStats }
@@ -483,92 +480,53 @@ export function editOperations(
   const len2 = editedSegment.length
   const maxLen = Math.max(len1, len2)
   const operations: EditOperation[] = []
+  let overwriteRunStart: number | undefined
 
-  let previousOp: EditOperation | undefined
+  const flushOverwriteRun = (endExclusive: number) => {
+    if (overwriteRunStart === undefined) {
+      return
+    }
+
+    operations.push({
+      type: EditOperationType.Overwrite,
+      start: requireSafeIntegerOutput(
+        'edit offset',
+        safeOffset + overwriteRunStart
+      ),
+      data: editedSegment.subarray(overwriteRunStart, endExclusive),
+    })
+    overwriteRunStart = undefined
+  }
 
   for (let i = 0; i < maxLen; i++) {
     if (i < len1 && i < len2) {
       if (originalSegment[i] !== editedSegment[i]) {
-        if (
-          previousOp &&
-          previousOp.type === EditOperationType.Overwrite &&
-          previousOp.start + previousOp.data!.length === i
-        ) {
-          previousOp.data = concatUint8Arrays(
-            previousOp.data!,
-            new Uint8Array([editedSegment[i]])
-          )
-        } else {
-          operations.push({
-            type: EditOperationType.Overwrite,
-            start: requireSafeIntegerOutput('edit offset', safeOffset + i),
-            data: new Uint8Array([editedSegment[i]]),
-          })
-          previousOp = operations[operations.length - 1]
+        if (overwriteRunStart === undefined) {
+          overwriteRunStart = i
         }
+      } else {
+        flushOverwriteRun(i)
       }
     } else if (i < len1) {
-      const deleteStart =
-        previousOp && previousOp.type === EditOperationType.Delete
-          ? previousOp.start
-          : i
+      flushOverwriteRun(i)
       operations.push({
         type: EditOperationType.Delete,
-        start: requireSafeIntegerOutput(
-          'edit offset',
-          safeOffset + deleteStart
-        ),
-        length: len1 - deleteStart,
+        start: requireSafeIntegerOutput('edit offset', safeOffset + i),
+        length: len1 - i,
       })
-      previousOp = operations[operations.length - 1]
       break
     } else {
+      flushOverwriteRun(i)
       operations.push({
         type: EditOperationType.Insert,
         start: requireSafeIntegerOutput('edit offset', safeOffset + i),
         data: editedSegment.subarray(i),
       })
-      previousOp = operations[operations.length - 1]
       break
     }
   }
 
-  for (let k = 0; k < operations.length - 1; k++) {
-    const op = operations[k]
-    const nextOp = operations[k + 1]
-
-    if (
-      op.type === nextOp.type &&
-      op.start + (op.length ?? op.data!.length) === nextOp.start
-    ) {
-      if (op.type === EditOperationType.Overwrite) {
-        op.data = concatUint8Arrays(op.data!, nextOp.data!)
-        op.length = undefined
-      } else {
-        op.length =
-          (op.length ?? op.data!.length) +
-          (nextOp.length ?? nextOp.data!.length)
-      }
-      operations.splice(k + 1, 1)
-      k--
-    } else if (
-      op.type === EditOperationType.Delete &&
-      nextOp.type === EditOperationType.Delete &&
-      op.start + (op.length ?? 0) === nextOp.start
-    ) {
-      op.length = (op.length ?? 0) + nextOp.length!
-      operations.splice(k + 1, 1)
-      k--
-    } else if (
-      op.type === EditOperationType.Insert &&
-      nextOp.type === EditOperationType.Insert &&
-      op.start + (op.data?.length ?? 0) === nextOp.start
-    ) {
-      op.data = concatUint8Arrays(op.data!, nextOp.data!)
-      operations.splice(k + 1, 1)
-      k--
-    }
-  }
+  flushOverwriteRun(maxLen)
 
   return operations
 }

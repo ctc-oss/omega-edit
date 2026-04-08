@@ -9,6 +9,25 @@ import { parseInputData } from '../../src/codec'
 describe('@omega-edit/ai toolkit', function () {
   this.timeout(90000)
 
+  it('preserves the original connection failure as the cause', async function () {
+    const port = await findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: false })
+
+    try {
+      await (toolkit as any).connectToRunningServer()
+      assert.fail('connectToRunningServer should fail without a running server')
+    } catch (error) {
+      assert.ok(error instanceof Error)
+      assert.match(
+        error.message,
+        new RegExp(`OmegaEdit server is not running on 127.0.0.1:${port}`)
+      )
+      assert.ok((error as Error & { cause?: unknown }).cause instanceof Error)
+    }
+  })
+
   it('supports bounded reads, search, preview, patching, and undo/redo', async function () {
     const port = await findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')
@@ -88,6 +107,46 @@ describe('@omega-edit/ai toolkit', function () {
         await toolkit.destroySession(createdSessionId)
       }
       await toolkit.stopServer()
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('normalizes patch input only once during applyPatch', async function () {
+    const port = await findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const inputPath = path.join(tempDir, 'input.bin')
+    fs.writeFileSync(inputPath, Buffer.from('abcdef', 'utf8'))
+
+    let createdSessionId = ''
+    let normalizeCalls = 0
+    const originalNormalize = (toolkit as any).normalizePatchRequest
+
+    ;(toolkit as any).normalizePatchRequest = function (request: unknown) {
+      normalizeCalls += 1
+      return originalNormalize.call(this, request)
+    }
+
+    try {
+      const created = await toolkit.createSession(inputPath)
+      createdSessionId = created.sessionId
+
+      const patchResult = await toolkit.applyPatch({
+        sessionId: createdSessionId,
+        kind: 'overwrite',
+        offset: 1,
+        data: parseInputData('Z', 'utf8'),
+      })
+
+      assert.equal(patchResult.applied, true)
+      assert.equal(normalizeCalls, 1)
+    } finally {
+      if (createdSessionId) {
+        await toolkit.destroySession(createdSessionId)
+      }
+      await toolkit.stopServer().catch(() => undefined)
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   })

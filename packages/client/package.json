@@ -47,6 +47,7 @@
     "test:client": "node scripts/run-mocha-suite.cjs client",
     "test:lifecycle": "node scripts/run-mocha-suite.cjs lifecycle",
     "test:coverage": "yarn build && node scripts/ensure-test-prereqs.cjs && c8 --all --src src --exclude-after-remap --exclude=src/**/*.d.ts --exclude=src/client_version.ts --exclude=src/protobuf_ts/generated/** --exclude=dist/** --exclude=tests/** --exclude=scripts/** --check-coverage --lines 75 --branches 75 --functions 75 --statements 75 --reporter=lcov --reporter=text --reports-dir=coverage node --import ./tests/register-ts-node-esm.mjs scripts/run-coverage-tests.cjs",
+    "test:coverage:uds": "yarn build && node scripts/ensure-test-prereqs.cjs && c8 --all --src src --exclude-after-remap --exclude=src/**/*.d.ts --exclude=src/client_version.ts --exclude=src/protobuf_ts/generated/** --exclude=dist/** --exclude=tests/** --exclude=scripts/** --check-coverage --lines 75 --branches 75 --functions 75 --statements 75 --reporter=lcov --reporter=text --reports-dir=coverage node --import ./tests/register-ts-node-esm.mjs scripts/run-coverage-tests.cjs --transport uds",
     "test:client:uds": "node scripts/run-mocha-suite.cjs client --transport uds",
     "test:lifecycle:uds": "node scripts/run-mocha-suite.cjs lifecycle --transport uds",
     "test:uds": "(yarn test:lifecycle:uds && yarn test:client:uds) || (exit 1)",

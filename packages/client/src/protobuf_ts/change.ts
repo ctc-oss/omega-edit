@@ -29,11 +29,11 @@ import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
 
 export const ChangeKind = {
-  CHANGE_DELETE: ProtoChangeKind.DELETE,
-  CHANGE_INSERT: ProtoChangeKind.INSERT,
-  CHANGE_OVERWRITE: ProtoChangeKind.OVERWRITE,
-  ...ProtoChangeKind,
-}
+  UNSPECIFIED: ProtoChangeKind.UNSPECIFIED,
+  DELETE: ProtoChangeKind.DELETE,
+  INSERT: ProtoChangeKind.INSERT,
+  OVERWRITE: ProtoChangeKind.OVERWRITE,
+} as const
 
 export interface IEditStats {
   delete_count: number

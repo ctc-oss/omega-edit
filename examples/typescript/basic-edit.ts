@@ -18,7 +18,7 @@
  */
 
 /**
- * basic-edit.ts — Demonstrates the core Ωedit™ workflow:
+ * basic-edit.ts â€” Demonstrates the core Î©editâ„¢ workflow:
  *   1. Start the server
  *   2. Connect the client
  *   3. Create a session (empty or from a file)
@@ -60,10 +60,10 @@ async function main() {
   const inputFile = process.argv[2] || ''
   const outputFile = process.argv[3] || 'basic-edit-output.dat'
 
-  console.log(`Ωedit™ client version: ${getClientVersion()}`)
+  console.log(`Î©editâ„¢ client version: ${getClientVersion()}`)
 
   // 1. Start the native gRPC server (bundled inside @omega-edit/client)
-  console.log('Starting Ωedit™ server...')
+  console.log('Starting Î©editâ„¢ server...')
   const pid = await startServer(PORT)
   console.log(`Server started (PID: ${pid})`)
 
@@ -72,7 +72,7 @@ async function main() {
     await getClient(PORT)
     console.log('Client connected')
 
-    // 3. Create a session — from a file or empty
+    // 3. Create a session â€” from a file or empty
     const sessionResp = await createSession(inputFile)
     const sessionId = sessionResp.getSessionId()
     const initialSize = await getComputedFileSize(sessionId)
@@ -83,24 +83,24 @@ async function main() {
     // 4. Track edit statistics
     const stats = new EditStats()
 
-    // Insert "Hello, Ωedit™! " at the beginning
-    const greeting = Buffer.from('Hello, Ωedit™! ')
+    // Insert "Hello, Î©editâ„¢! " at the beginning
+    const greeting = Buffer.from('Hello, Î©editâ„¢! ')
     await insert(sessionId, 0, greeting, stats)
     console.log(`After insert: ${await getComputedFileSize(sessionId)} bytes`)
 
-    // Overwrite "Ωedit" with "World" (use Buffer.byteLength for correct UTF-8 offsets)
+    // Overwrite "Î©edit" with "World" (use Buffer.byteLength for correct UTF-8 offsets)
     const overwriteOffset = Buffer.byteLength('Hello, ')
     await overwrite(sessionId, overwriteOffset, Buffer.from('World'), stats)
     console.log(
       `After overwrite: ${await getComputedFileSize(sessionId)} bytes`
     )
 
-    // Delete the leftover byte + "™" to get "Hello, World! "
+    // Delete the leftover byte + "â„¢" to get "Hello, World! "
     const deleteOffset = overwriteOffset + Buffer.byteLength('World')
     const deleteLength =
-      Buffer.byteLength('Ωedit') -
+      Buffer.byteLength('Î©edit') -
       Buffer.byteLength('World') +
-      Buffer.byteLength('™')
+      Buffer.byteLength('â„¢')
     await del(sessionId, deleteOffset, deleteLength, stats)
     console.log(`After delete: ${await getComputedFileSize(sessionId)} bytes`)
 
@@ -120,12 +120,12 @@ async function main() {
     console.log(`After redo: ${afterRedo} bytes`)
 
     console.log(
-      `Edit stats — inserts: ${stats.insert_count}, overwrites: ${stats.overwrite_count}, ` +
+      `Edit stats â€” inserts: ${stats.insert_count}, overwrites: ${stats.overwrite_count}, ` +
         `deletes: ${stats.delete_count}, undos: ${stats.undo_count}, redos: ${stats.redo_count}`
     )
 
     // 6. Save the session to a file
-    await saveSession(sessionId, outputFile, IOFlags.IO_FLAGS_OVERWRITE)
+    await saveSession(sessionId, outputFile, IOFlags.OVERWRITE)
     console.log(`Session saved to "${outputFile}"`)
 
     // 7. Destroy the session

@@ -13,18 +13,18 @@
 // limitations under the License.
 
 /**
- * Ωedit™ Hex Editor — Custom Editor Provider
+ * Î©editâ„¢ Hex Editor â€” Custom Editor Provider
  *
  * This is the core integration point between VS Code's custom editor API and
- * the Ωedit™ editing engine. It demonstrates:
+ * the Î©editâ„¢ editing engine. It demonstrates:
  *
- *   - Creating an Ωedit™ session for each opened file
+ *   - Creating an Î©editâ„¢ session for each opened file
  *   - Creating a viewport that tracks the visible region
  *   - Subscribing to viewport events so the webview updates live
  *   - Handling insert / delete / overwrite edits from the webview
  *   - Undo / redo wired through VS Code's built-in command palette
  *   - Search within the file
- *   - Saving via Ωedit™'s server-side replay
+ *   - Saving via Î©editâ„¢'s server-side replay
  */
 
 import {
@@ -179,7 +179,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     await this.handleWebviewMessage(session, msg)
   }
 
-  // ── VS Code Custom Editor API ───────────────────────────────────────
+  // â”€â”€ VS Code Custom Editor API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -197,7 +197,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const uri = document.uri
     const filePath = uri.fsPath
 
-    // --- Create Ωedit™ session for this file ---
+    // --- Create Î©editâ„¢ session for this file ---
     const sessionResp = await createSession(filePath)
     const sessionId = sessionResp.getSessionId()
     const fileSize = await getComputedFileSize(sessionId)
@@ -288,7 +288,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     })
   }
 
-  // ── Public methods called from extension.ts ─────────────────────────
+  // â”€â”€ Public methods called from extension.ts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Navigate the active editor to a byte offset */
   goToOffset(offset: number): void {
@@ -366,12 +366,12 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     vscode.window.showInformationMessage(`Replayed ${changes.length} change(s)`)
   }
 
-  // ── Event Subscriptions ─────────────────────────────────────────────
+  // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
-   * Subscribe to Ωedit™ viewport events. When edits change data visible in
+   * Subscribe to Î©editâ„¢ viewport events. When edits change data visible in
    * the viewport, the server streams an event and we push fresh data to the
-   * webview. This is the reactive data flow at the heart of Ωedit™.
+   * webview. This is the reactive data flow at the heart of Î©editâ„¢.
    */
   private async subscribeToViewportEvents(
     session: EditorSession
@@ -386,17 +386,17 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       .on('data', async (event) => {
         const kind = event.getViewportEventKind()
         if (
-          kind === ViewportEventKind.VIEWPORT_EVT_EDIT ||
-          kind === ViewportEventKind.VIEWPORT_EVT_UNDO ||
-          kind === ViewportEventKind.VIEWPORT_EVT_CLEAR ||
-          kind === ViewportEventKind.VIEWPORT_EVT_TRANSFORM ||
-          kind === ViewportEventKind.VIEWPORT_EVT_MODIFY
+          kind === ViewportEventKind.EDIT ||
+          kind === ViewportEventKind.UNDO ||
+          kind === ViewportEventKind.CLEAR ||
+          kind === ViewportEventKind.TRANSFORM ||
+          kind === ViewportEventKind.MODIFY
         ) {
           await this.sendViewportData(session)
         }
       })
       .on('error', () => {
-        // Stream closed — expected during shutdown
+        // Stream closed â€” expected during shutdown
       })
     session.viewportStream = vpStream
   }
@@ -417,9 +417,9 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       .on('data', async (event) => {
         const kind = event.getSessionEventKind()
         if (
-          kind === SessionEventKind.SESSION_EVT_EDIT ||
-          kind === SessionEventKind.SESSION_EVT_UNDO ||
-          kind === SessionEventKind.SESSION_EVT_CLEAR
+          kind === SessionEventKind.EDIT ||
+          kind === SessionEventKind.UNDO ||
+          kind === SessionEventKind.CLEAR
         ) {
           session.fileSize = await getComputedFileSize(session.sessionId)
           session.panel.webview.postMessage({
@@ -432,7 +432,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     session.sessionStream = sesStream
   }
 
-  // ── Viewport Data ───────────────────────────────────────────────────
+  // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /** Fetch current viewport data and send it to the webview */
   private async sendViewportData(session: EditorSession): Promise<void> {
@@ -574,16 +574,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       const formatMemoryMiB = (bytes?: number): string =>
         bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
       const severity = classifyServerHealthLatency(heartbeat.latency)
-      const runtimeKind =
-        getOptionalStringProperty(serverInfo, 'runtimeKind') ?? 'JVM'
-      const runtimeName =
-        getOptionalStringProperty(serverInfo, 'runtimeName') ??
-        [
-          getOptionalStringProperty(serverInfo, 'jvmVendor'),
-          getOptionalStringProperty(serverInfo, 'jvmVersion'),
-        ]
-          .filter(Boolean)
-          .join(' ')
+      const runtimeKind = getOptionalStringProperty(serverInfo, 'runtimeKind')
+      const runtimeName = getOptionalStringProperty(serverInfo, 'runtimeName')
       const runtimeValue = [runtimeKind, runtimeName]
         .filter(Boolean)
         .join(' / ')
@@ -597,18 +589,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       const availableProcessors = getOptionalNumberProperty(
         serverInfo,
         'availableProcessors'
-      )
-      const serverUsedMemory = getOptionalNumberProperty(
-        heartbeat,
-        'serverUsedMemory'
-      )
-      const serverCommittedMemory = getOptionalNumberProperty(
-        heartbeat,
-        'serverCommittedMemory'
-      )
-      const serverMaxMemory = getOptionalNumberProperty(
-        heartbeat,
-        'serverMaxMemory'
       )
       const residentMemoryBytes = getOptionalNumberProperty(
         heartbeat,
@@ -645,27 +625,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         metrics.push({
           label: 'Processors',
           value: String(availableProcessors),
-        })
-      }
-
-      if (serverUsedMemory !== undefined) {
-        metrics.push({
-          label: 'Heap Used',
-          value: formatMemoryMiB(serverUsedMemory),
-        })
-      }
-
-      if (serverCommittedMemory !== undefined) {
-        metrics.push({
-          label: 'Heap Committed',
-          value: formatMemoryMiB(serverCommittedMemory),
-        })
-      }
-
-      if (serverMaxMemory !== undefined) {
-        metrics.push({
-          label: 'Heap Max',
-          value: formatMemoryMiB(serverMaxMemory),
         })
       }
 
@@ -709,7 +668,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `Ωedit™ ${heartbeat.latency} ms`,
+        summary: `Î©editâ„¢ ${heartbeat.latency} ms`,
         detail: metrics
           .map((metric) => `${metric.label}: ${metric.value}`)
           .join('\n'),
@@ -721,7 +680,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'Ωedit™ unavailable',
+        summary: 'Î©editâ„¢ unavailable',
         detail: message,
         severity: 'down',
         metrics: [{ label: 'Error', value: message }],
@@ -860,7 +819,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     successMessage: string,
     markClean: boolean
   ): Promise<void> {
-    await saveSession(session.sessionId, filePath, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(session.sessionId, filePath, IOFlags.OVERWRITE)
     if (markClean) {
       session.savedChangeDepth = session.changeLog.length
       this.postEditState(session)
@@ -948,7 +907,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     return session.scrollTask
   }
 
-  // ── Webview Message Handler ─────────────────────────────────────────
+  // â”€â”€ Webview Message Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async handleWebviewMessage(
     session: EditorSession,
@@ -1215,7 +1174,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 }
 
-// ── Webview Message Types ─────────────────────────────────────────────
+// â”€â”€ Webview Message Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type WebviewMessage =
   | { type: 'scroll'; direction: 'up' | 'down' }

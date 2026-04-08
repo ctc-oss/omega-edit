@@ -286,3 +286,43 @@ jobs:
           name: omega-edit-client
           use_oidc: true
           fail_ci_if_error: true
+
+  coverage-client-uds:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            label: linux
+          - os: macos-15
+            label: macos
+      fail-fast: false
+    name: Client UDS Coverage ${{ matrix.os }} ??
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build middleware for UDS coverage
+        uses: ./.github/workflows/build-middleware
+        with:
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}
+          skip-tests: 'true'
+
+      - name: Run client UDS coverage
+        run: yarn workspace @omega-edit/client test:coverage:uds
+        env:
+          CPP_SERVER_BINARY: ''
+
+      - name: Upload TypeScript UDS coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: packages/client/coverage/lcov.info
+          disable_search: true
+          flags: client-uds-${{ matrix.label }}
+          name: omega-edit-client-uds-${{ matrix.label }}
+          use_oidc: true
+          fail_ci_if_error: true

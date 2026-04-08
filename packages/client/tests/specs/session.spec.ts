@@ -330,7 +330,7 @@ describe('Sessions', () => {
 
     // save various segments of the session to different files
     let saveFile = path.join(__dirname, 'data', 'save-seg.1.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 1, 8)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 1, 8)
     let verify_session = await createSession(saveFile)
     let expected = Buffer.from('12345678')
     let verify_session_id = verify_session.getSessionId()
@@ -344,7 +344,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.2.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 2, 6)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 2, 6)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('234567')
     verify_session_id = verify_session.getSessionId()
@@ -358,7 +358,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.3.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 3, 0)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 3, 0)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('3456789')
     verify_session_id = verify_session.getSessionId()
@@ -372,7 +372,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.4.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 0, 100)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 0, 100)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
     verify_session_id = verify_session.getSessionId()
@@ -386,7 +386,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.5.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
     verify_session_id = verify_session.getSessionId()
@@ -1036,7 +1036,7 @@ describe('Sessions', () => {
     const save_session_response = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_NONE
+      IOFlags.UNSPECIFIED
     )
     // No flags will succeed because the file will be saved to a new file
     // created by the server
@@ -1054,7 +1054,7 @@ describe('Sessions', () => {
     const save_session_response2 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     // Overwrite alone should fail because the file was modified out-of-band
     expect(save_session_response2.getSaveStatus()).to.equal(SaveStatus.MODIFIED)
@@ -1063,7 +1063,7 @@ describe('Sessions', () => {
     const save_session_response3 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_FORCE_OVERWRITE
+      IOFlags.FORCE_OVERWRITE
     )
     // Force overwrite should succeed even if the original file was modified
     // out-of-band
@@ -1074,7 +1074,7 @@ describe('Sessions', () => {
     const save_session_response4 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     expect(save_session_response4.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response4.getFilePath()).to.equal(testFile)
@@ -1082,7 +1082,7 @@ describe('Sessions', () => {
     const save_session_response5 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     expect(save_session_response5.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response5.getFilePath()).to.equal(testFile)
@@ -1134,11 +1134,7 @@ describe('Sessions', () => {
       expect(resp1.getFilePath()).to.be.a('string')
 
       await insert(session_id, 0, Buffer.from('PREFIX_'))
-      const resp2 = await saveSession(
-        session_id,
-        savePath,
-        IOFlags.IO_FLG_OVERWRITE
-      )
+      const resp2 = await saveSession(session_id, savePath, IOFlags.OVERWRITE)
       expect(resp2.getFilePath()).to.include('coverage_save_overwrite')
       expect(fs.readFileSync(resp2.getFilePath(), 'utf-8')).to.equal(
         'PREFIX_save test data'

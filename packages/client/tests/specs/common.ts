@@ -136,7 +136,7 @@ export async function subscribeSession(
           : 1
       )
       const event = sessionEvent.getSessionEventKind()
-      if (SessionEventKind.SESSION_EVT_EDIT == event) {
+      if (SessionEventKind.EDIT == event) {
         log_info(
           'session: ' +
             session_id +
@@ -193,7 +193,7 @@ export async function subscribeViewport(
       )
       const event = viewportEvent.getViewportEventKind()
       const viewport_id_from_event = viewportEvent.getViewportId()
-      if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
+      if (ViewportEventKind.EDIT == event) {
         log_info(
           'viewport_id: ' +
             viewport_id +

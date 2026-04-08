@@ -47,7 +47,8 @@ export function requireSafeIntegerArrayOutput(
   name: string,
   values: number[]
 ): number[] {
-  return values.map((value, index) =>
-    requireSafeIntegerOutput(`${name}[${index}]`, value)
-  )
+  for (let index = 0; index < values.length; index += 1) {
+    requireSafeIntegerOutput(`${name}[${index}]`, values[index])
+  }
+  return values
 }
