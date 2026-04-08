@@ -203,7 +203,8 @@ typedef struct {
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
  * @param length number of bytes to delete
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid
+ * arguments
  */
 int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t length);
 
@@ -213,7 +214,8 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
  * @param offset location offset to make the change
  * @param bytes bytes to insert at the given offset
  * @param length explicit number of bytes to insert
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success, 0 for a no-op when length is 0 or when the request is rejected
+ * without error, or -1 for invalid arguments
  * @warning This byte-oriented API never infers a length from strlen. Use omega_edit_insert for null-terminated C
  * strings. Passing length 0 is treated as a no-op.
  */
@@ -227,7 +229,8 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
  * @param cstr C string to insert at the given offset
  * @param length length of the C string to insert (if 0, strlen will be used to calculate the length of null-terminated
  * bytes)
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid
+ * arguments
  * @warning This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls,
  * use omega_edit_insert_bytes and pass an explicit byte length.
  */
@@ -239,7 +242,8 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
  * @param offset location offset to make the change
  * @param bytes new bytes to overwrite the old bytes with
  * @param length explicit number of new bytes
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success, 0 for a no-op when length is 0 or when the request is rejected
+ * without error, or -1 for invalid arguments
  * @warning This byte-oriented API never infers a length from strlen. Use omega_edit_overwrite for null-terminated C
  * strings. Passing length 0 is treated as a no-op.
  */
@@ -252,7 +256,8 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
  * @param offset location offset to make the change
  * @param cstr new C string to overwrite the old bytes with
  * @param length length of the new C string (if 0, strlen will be used to calculate the length of null-terminated bytes)
- * @return positive change serial number on success, zero otherwise
+ * @return positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid
+ * arguments
  * @warning This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls,
  * use omega_edit_overwrite_bytes and pass an explicit byte length.
  */
