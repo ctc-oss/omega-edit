@@ -19,8 +19,8 @@
   "scripts": {
     "check:proto-paths": "node scripts/check-canonical-proto-paths.js",
     "sync-version": "node sync-version.js",
-    "lint": "node scripts/check-canonical-proto-paths.js && biome ci package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
-    "lint:fix": "node scripts/check-canonical-proto-paths.js && biome check --write package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
+    "lint": "yarn check:proto-paths && biome ci package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
+    "lint:fix": "yarn check:proto-paths && biome check --write package.json biome.json sync-version.js scripts packages examples/vscode-extension/package.json examples/vscode-extension/tsconfig.json examples/vscode-extension/src examples/vscode-extension/tests",
     "package": "yarn workspace @omega-edit/server package && yarn workspace @omega-edit/client package && yarn workspace @omega-edit/ai package"
   },
   "devDependencies": {

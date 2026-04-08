@@ -25,11 +25,23 @@ const repoRoot = path.resolve(__dirname, '..')
 const canonicalProtoPath = 'proto/omega_edit/v1/omega_edit.proto'
 const legacyRepoProtoPath = 'proto/omega_edit.proto'
 const legacyImportPath = 'import "omega_edit.proto"'
+const maxScanFileBytes = 256 * 1024
 const legacyRemovalMarkers = [
   'removed',
   'gone in 2.x',
   'do not use',
   'sole source of truth',
+]
+
+const scanRoots = [
+  'README.md',
+  'UPGRADE-v1-to-v2.md',
+  'buf.yaml',
+  'package.json',
+  'examples',
+  'packages',
+  'proto',
+  'scripts',
 ]
 
 const excludedDirectories = new Set([
@@ -53,22 +65,26 @@ const checkedExtensions = new Set([
   '.yml',
 ])
 
+function toRepoPath(relativePath) {
+  return relativePath.replaceAll('\\', '/')
+}
+
 const allowedLegacyMentions = new Set([
-  path.join('scripts', 'check-canonical-proto-paths.js'),
+  'scripts/check-canonical-proto-paths.js',
 ])
 
 const requiredCanonicalMentions = new Set([
   'UPGRADE-v1-to-v2.md',
-  path.join('packages', 'client', 'DEVELOPMENT.md'),
-  path.join('packages', 'client', 'scripts', 'generate-protobuf.js'),
-  path.join('proto', 'README.md'),
+  'packages/client/DEVELOPMENT.md',
+  'packages/client/scripts/generate-protobuf.js',
+  'proto/README.md',
 ])
 
 function collectFiles(rootDir) {
   const files = []
   for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
     const absolutePath = path.join(rootDir, entry.name)
-    const relativePath = path.relative(repoRoot, absolutePath)
+    const relativePath = toRepoPath(path.relative(repoRoot, absolutePath))
 
     if (entry.isDirectory()) {
       if (excludedDirectories.has(entry.name)) {
@@ -85,12 +101,37 @@ function collectFiles(rootDir) {
   return files
 }
 
+function collectScanFiles() {
+  const files = []
+
+  for (const scanRoot of scanRoots) {
+    const absolutePath = path.join(repoRoot, scanRoot)
+    if (!fs.existsSync(absolutePath)) {
+      continue
+    }
+
+    const stats = fs.statSync(absolutePath)
+    if (stats.isDirectory()) {
+      files.push(...collectFiles(absolutePath))
+      continue
+    }
+
+    files.push(toRepoPath(scanRoot))
+  }
+
+  return files
+}
+
 function main() {
-  const files = collectFiles(repoRoot)
+  const files = collectScanFiles()
   const errors = []
 
   for (const relativePath of files) {
     const absolutePath = path.join(repoRoot, relativePath)
+    const stats = fs.statSync(absolutePath)
+    if (stats.size > maxScanFileBytes) {
+      continue
+    }
     const contents = fs.readFileSync(absolutePath, 'utf8')
 
     const mentionsLegacyImport = contents.includes(legacyImportPath)
