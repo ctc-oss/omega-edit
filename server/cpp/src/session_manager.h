@@ -187,6 +187,7 @@ public:
                                std::string &checkpoint_dir_out,
                                SessionCreateError *error_out = nullptr);
     bool destroy_session(const std::string &session_id);
+    bool detach_session(const std::string &session_id);
     omega_session_t *get_session(const std::string &session_id);
     int64_t session_count() const;
 
@@ -225,6 +226,7 @@ private:
     static std::string create_server_root_name();
     std::string create_managed_checkpoint_directory();
     void cleanup_managed_server_root_if_empty();
+    bool destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
 
     // Callbacks
     static void session_event_callback(const omega_session_t *session, omega_session_event_t event, const void *ptr);

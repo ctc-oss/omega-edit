@@ -153,6 +153,66 @@ describe('Editing', () => {
         await delay(50)
       }
     })
+
+    it('should honor per-subscriber session event interests', async () => {
+      const client = await getClient()
+      const editSubscriberEvents: number[] = []
+      const clearSubscriberEvents: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const registerStreamError = (error: Error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      }
+
+      const editStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.SESSION_EVT_EDIT)
+      )
+      const clearStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.SESSION_EVT_CLEAR)
+      )
+
+      editStream.on('data', (event) => {
+        editSubscriberEvents.push(event.getSessionEventKind())
+      })
+      editStream.on('error', registerStreamError)
+      clearStream.on('data', (event) => {
+        clearSubscriberEvents.push(event.getSessionEventKind())
+      })
+      clearStream.on('error', registerStreamError)
+
+      try {
+        await delay(200)
+
+        await insert(session_id, 0, Buffer.from('A'))
+        await waitForAssertion(() => {
+          expect(editSubscriberEvents).to.deep.equal([
+            SessionEventKind.SESSION_EVT_EDIT,
+          ])
+          expect(clearSubscriberEvents).to.deep.equal([])
+        })
+
+        await clear(session_id)
+        await waitForAssertion(() => {
+          expect(editSubscriberEvents).to.deep.equal([
+            SessionEventKind.SESSION_EVT_EDIT,
+          ])
+          expect(clearSubscriberEvents).to.deep.equal([
+            SessionEventKind.SESSION_EVT_CLEAR,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        editStream.cancel()
+        clearStream.cancel()
+        await delay(50)
+      }
+    })
   })
 
   describe('Insert', () => {

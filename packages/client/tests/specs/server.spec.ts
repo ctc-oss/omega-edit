@@ -325,6 +325,29 @@ describe('Server Heartbeat Timeout', () => {
     await waitForSessionCount(0, 2000)
   })
 
+  it(`on port ${serverTestPort} should reap an idle shared session in a single timeout window`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-heartbeat-shared-idle-')
+    )
+    const sharedFilePath = path.join(tempDir, 'shared-session.txt')
+
+    try {
+      await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
+      const author1 = await createSession(sharedFilePath)
+      const author2 = await createSession(sharedFilePath)
+
+      expect(author2.getSessionId()).to.equal(author1.getSessionId())
+      expect(await getSessionCount()).to.equal(1)
+
+      // A shared session should be fully reaped on the first cleanup pass
+      // after the timeout, not one attachment per cleanup interval.
+      await delay(525)
+      await waitForSessionCount(0, 50)
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
   it(`on port ${serverTestPort} should not extend shared session lifetime when one author detaches`, async () => {
     const tempDir = await fsPromises.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-heartbeat-')

@@ -340,12 +340,14 @@ void SessionManager::session_event_callback(const omega_session_t *session, omeg
         break;
     }
 
+    const auto event_kind = static_cast<int32_t>(event);
     std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
     {
         std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
         subscribers.reserve(info->session_subscriptions.size());
         for (const auto &subscription : info->session_subscriptions) {
-            if (subscription.event_queue) {
+            if (subscription.event_queue &&
+                (subscription.interest < 0 || (subscription.interest & event_kind) != 0)) {
                 subscribers.push_back(subscription.event_queue);
             }
         }
@@ -497,17 +499,8 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     return session_id;
 }
 
-bool SessionManager::destroy_session(const std::string &session_id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto it = sessions_.find(session_id);
-    if (it == sessions_.end()) return false;
-
+bool SessionManager::destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
     auto &info = it->second;
-    if (info->attachment_count > 1) {
-        --info->attachment_count;
-        return true;
-    }
 
     // Close event queues
     {
@@ -537,6 +530,30 @@ bool SessionManager::destroy_session(const std::string &session_id) {
     sessions_.erase(it);
     cleanup_managed_server_root_if_empty();
     return true;
+}
+
+bool SessionManager::destroy_session(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end()) return false;
+
+    return destroy_session_locked(it);
+}
+
+bool SessionManager::detach_session(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end()) return false;
+
+    auto &info = it->second;
+    if (info->attachment_count > 1) {
+        --info->attachment_count;
+        return true;
+    }
+
+    return destroy_session_locked(it);
 }
 
 omega_session_t *SessionManager::get_session(const std::string &session_id) {
