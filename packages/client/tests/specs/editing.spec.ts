@@ -580,6 +580,32 @@ describe('Editing', () => {
         expect(err).to.exist
       }
     })
+
+    it('should reject invalid negative edit coordinates instead of returning a serial', async () => {
+      await overwrite(session_id, 0, Buffer.from('abcd'))
+      const initialChangeCount = await getChangeCount(session_id)
+
+      for (const attempt of [
+        () => insert(session_id, -1, Buffer.from('x')),
+        () => del(session_id, 0, -1),
+        () => overwrite(session_id, -1, Buffer.from('y')),
+      ]) {
+        try {
+          await attempt()
+          expect.fail('invalid edit should have thrown an error')
+        } catch (err: any) {
+          expect(String(err?.message ?? err)).to.contain(
+            'invalid change arguments'
+          )
+        }
+      }
+
+      expect(await getChangeCount(session_id)).to.equal(initialChangeCount)
+      expect(await getComputedFileSize(session_id)).to.equal(4)
+      expect(await getSegment(session_id, 0, 4)).to.deep.equal(
+        Buffer.from('abcd')
+      )
+    })
   })
 })
 

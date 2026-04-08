@@ -34,6 +34,10 @@ import {
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import {
+  requireOptionalSafeIntegerOutput,
+  requireSafeIntegerOutput,
+} from './safe_int'
 
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
@@ -1284,19 +1288,37 @@ export async function getServerHeartbeat(
           return reject('undefined heartbeat')
         }
 
-        const latency: number = Date.now() - startTime
-        resolve({
-          latency: latency,
-          sessionCount: heartbeatResponse.sessionCount,
-          serverTimestamp: heartbeatResponse.timestamp,
-          serverUptime: heartbeatResponse.uptime,
-          serverCpuCount: heartbeatResponse.cpuCount,
-          serverCpuLoadAverage: heartbeatResponse.loadAverage,
-          serverResidentMemoryBytes: heartbeatResponse.residentMemoryBytes,
-          serverVirtualMemoryBytes: heartbeatResponse.virtualMemoryBytes,
-          serverPeakResidentMemoryBytes:
-            heartbeatResponse.peakResidentMemoryBytes,
-        })
+        try {
+          const latency: number = Date.now() - startTime
+          resolve({
+            latency: latency,
+            sessionCount: heartbeatResponse.sessionCount,
+            serverTimestamp: requireSafeIntegerOutput(
+              'server heartbeat timestamp',
+              heartbeatResponse.timestamp
+            ),
+            serverUptime: requireSafeIntegerOutput(
+              'server heartbeat uptime',
+              heartbeatResponse.uptime
+            ),
+            serverCpuCount: heartbeatResponse.cpuCount,
+            serverCpuLoadAverage: heartbeatResponse.loadAverage,
+            serverResidentMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server resident memory bytes',
+              heartbeatResponse.residentMemoryBytes
+            ),
+            serverVirtualMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server virtual memory bytes',
+              heartbeatResponse.virtualMemoryBytes
+            ),
+            serverPeakResidentMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server peak resident memory bytes',
+              heartbeatResponse.peakResidentMemoryBytes
+            ),
+          })
+        } catch (safeIntegerError) {
+          reject(safeIntegerError)
+        }
       }
     )
   })

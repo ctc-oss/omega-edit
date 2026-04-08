@@ -434,6 +434,41 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should reject unsafe integer heartbeat values', async () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getHeartbeat(
+          _request: unknown,
+          callback: (
+            err: Error | null,
+            response?: Record<string, number>
+          ) => void
+        ) {
+          callback(null, {
+            sessionCount: 0,
+            timestamp: unsafeInteger,
+            uptime: 1,
+            cpuCount: 4,
+          })
+        },
+      })
+    )
+
+    try {
+      await serverModule.getServerHeartbeat([])
+      expect.fail('getServerHeartbeat should reject unsafe integer values')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        "server heartbeat timestamp exceeds the OmegaEdit TypeScript client's safe integer range"
+      )
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should return an error code when server shutdown RPCs fail', async () => {
     let errorMessage = 'Call cancelled'
     const restoreGetClient = overrideProperty(

@@ -535,4 +535,60 @@ describe('Session Edge Cases', () => {
       restoreGetClient()
     }
   })
+
+  it('should reject unsafe integer session values from the public API', async () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getComputedFileSize(
+          _request: unknown,
+          callback: (err: Error | null, response?: { count: number }) => void
+        ) {
+          callback(null, { count: unsafeInteger })
+        },
+      })
+    )
+
+    try {
+      await sessionModule.getComputedFileSize('session-id')
+      expect.fail('getComputedFileSize should reject unsafe integers')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        "computed file size exceeds the OmegaEdit TypeScript client's safe integer range"
+      )
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should reject unsafe integer inputs before issuing session RPCs', async () => {
+    let getSegmentCalls = 0
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getSegment() {
+          getSegmentCalls += 1
+        },
+      })
+    )
+
+    try {
+      await sessionModule.getSegment(
+        'session-id',
+        Number.MAX_SAFE_INTEGER + 1,
+        1
+      )
+      expect.fail('getSegment should reject unsafe integer inputs')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        'getSegment offset must be a safe integer in the OmegaEdit TypeScript client'
+      )
+      expect(getSegmentCalls).to.equal(0)
+    } finally {
+      restoreGetClient()
+    }
+  })
 })

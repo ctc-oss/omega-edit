@@ -551,4 +551,29 @@ describe('Proto Compatibility', () => {
         originalViewportSubscribe
     }
   })
+
+  it('should reject unsafe int64 values from compatibility wrappers', () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
+
+    expect(() =>
+      new CreateSessionResponse({
+        sessionId: 'sid',
+        checkpointDirectory: 'chk',
+        fileSize: unsafeInteger,
+      }).getFileSize()
+    ).to.throw(
+      "CreateSessionResponse.fileSize exceeds the OmegaEdit TypeScript client's safe integer range"
+    )
+
+    expect(() =>
+      new ViewportEvent({
+        sessionId: 'sid',
+        viewportId: 'vid',
+        viewportEventKind: ViewportEventKind.EDIT,
+        serial: unsafeInteger,
+      }).getSerial()
+    ).to.throw(
+      "ViewportEvent.serial exceeds the OmegaEdit TypeScript client's safe integer range"
+    )
+  })
 })

@@ -522,6 +522,10 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
         return payload_status;
     }
 
+    if (request->offset() < 0 || request->length() < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "invalid change arguments");
+    }
+
     int64_t serial = 0;
     switch (request->kind()) {
         case ::omega_edit::v1::CHANGE_KIND_DELETE:
@@ -547,6 +551,10 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
             break;
         default:
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "undefined change kind");
+    }
+
+    if (serial < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "invalid change arguments");
     }
 
     if (serial == 0) {

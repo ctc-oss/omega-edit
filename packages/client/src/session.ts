@@ -60,6 +60,11 @@ import {
   type SingleCount,
 } from './omega_edit_pb'
 import { editSimple, type IEditStats, overwrite } from './change'
+import {
+  requireSafeIntegerArrayOutput,
+  requireSafeIntegerInput,
+  requireSafeIntegerOutput,
+} from './safe_int'
 
 export enum SaveStatus {
   SUCCESS = 0,
@@ -165,12 +170,20 @@ export async function saveSession(
   length: number = 0
 ): Promise<SaveSessionResponse> {
   return wrapSaveSessionResponse(
-    await rawSaveSession(session_id, file_path, flags, offset, length)
+    await rawSaveSession(
+      session_id,
+      file_path,
+      flags,
+      requireSafeIntegerInput('saveSession offset', offset),
+      requireSafeIntegerInput('saveSession length', length)
+    )
   )
 }
 
 export function getComputedFileSize(session_id: string): Promise<number> {
-  return rawGetComputedFileSize(session_id)
+  return rawGetComputedFileSize(session_id).then((size) =>
+    requireSafeIntegerOutput('computed file size', size)
+  )
 }
 
 export async function getCounts(
@@ -205,7 +218,11 @@ export function getSegment(
   offset: number,
   length: number
 ): Promise<Uint8Array> {
-  return rawGetSegment(session_id, offset, length)
+  return rawGetSegment(
+    session_id,
+    requireSafeIntegerInput('getSegment offset', offset),
+    requireSafeIntegerInput('getSegment length', length)
+  )
 }
 
 export async function getSessionBytes(
@@ -213,21 +230,28 @@ export async function getSessionBytes(
   offset: number = 0,
   length: number = 0
 ): Promise<Uint8Array> {
+  const safeOffset = requireSafeIntegerInput('getSessionBytes offset', offset)
+  const safeLength = requireSafeIntegerInput('getSessionBytes length', length)
   // This helper issues separate size and segment RPCs, so callers should treat
   // it as a convenience snapshot read when the session is not being
   // concurrently modified.
   const computedSize = await getComputedFileSize(session_id)
-  const remaining = Math.max(0, computedSize - offset)
-  const effectiveLength = length > 0 ? Math.min(length, remaining) : remaining
-  return rawGetSegment(session_id, offset, effectiveLength)
+  const remaining = Math.max(0, computedSize - safeOffset)
+  const effectiveLength =
+    safeLength > 0 ? Math.min(safeLength, remaining) : remaining
+  return rawGetSegment(session_id, safeOffset, effectiveLength)
 }
 
 export function getSessionCount(): Promise<number> {
-  return rawGetSessionCount()
+  return rawGetSessionCount().then((count) =>
+    requireSafeIntegerOutput('session count', count)
+  )
 }
 
 export function notifyChangedViewports(session_id: string): Promise<number> {
-  return rawNotifyChangedViewports(session_id)
+  return rawNotifyChangedViewports(session_id).then((count) =>
+    requireSafeIntegerOutput('changed viewport count', count)
+  )
 }
 
 export function profileSession(
@@ -235,13 +259,20 @@ export function profileSession(
   offset: number = 0,
   length: number = 0
 ): Promise<number[]> {
-  return rawProfileSession(session_id, offset, length)
+  return rawProfileSession(
+    session_id,
+    requireSafeIntegerInput('profileSession offset', offset),
+    requireSafeIntegerInput('profileSession length', length)
+  ).then((profile) => requireSafeIntegerArrayOutput('byte profile', profile))
 }
 
 export function numAscii(profile: number[]): number {
-  return profile.slice(0, 128).reduce((accumulator, current) => {
-    return accumulator + current
-  }, 0)
+  return requireSafeIntegerOutput(
+    'ASCII character count',
+    profile.slice(0, 128).reduce((accumulator, current) => {
+      return accumulator + current
+    }, 0)
+  )
 }
 
 export async function getByteOrderMark(
@@ -249,7 +280,10 @@ export async function getByteOrderMark(
   offset: number = 0
 ): Promise<ByteOrderMarkResponse> {
   return wrapByteOrderMarkResponse(
-    await rawGetByteOrderMark(session_id, offset)
+    await rawGetByteOrderMark(
+      session_id,
+      requireSafeIntegerInput('getByteOrderMark offset', offset)
+    )
   )
 }
 
@@ -259,7 +293,11 @@ export async function getContentType(
   length: number
 ): Promise<ContentTypeResponse> {
   return wrapContentTypeResponse(
-    await rawGetContentType(session_id, offset, length)
+    await rawGetContentType(
+      session_id,
+      requireSafeIntegerInput('getContentType offset', offset),
+      requireSafeIntegerInput('getContentType length', length)
+    )
   )
 }
 
@@ -270,7 +308,12 @@ export async function getLanguage(
   bom: string
 ): Promise<LanguageResponse> {
   return wrapLanguageResponse(
-    await rawGetLanguage(session_id, offset, length, bom)
+    await rawGetLanguage(
+      session_id,
+      requireSafeIntegerInput('getLanguage offset', offset),
+      requireSafeIntegerInput('getLanguage length', length),
+      bom
+    )
   )
 }
 
@@ -281,7 +324,12 @@ export async function countCharacters(
   bom: string = 'none'
 ): Promise<CharacterCountResponse> {
   return wrapCharacterCountResponse(
-    await rawCountCharacters(session_id, offset, length, bom)
+    await rawCountCharacters(
+      session_id,
+      requireSafeIntegerInput('countCharacters offset', offset),
+      requireSafeIntegerInput('countCharacters length', length),
+      bom
+    )
   )
 }
 
@@ -299,10 +347,10 @@ export function searchSession(
     pattern,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
-    limit
-  )
+    requireSafeIntegerInput('searchSession offset', offset),
+    requireSafeIntegerInput('searchSession length', length),
+    requireSafeIntegerInput('searchSession limit', limit)
+  ).then((matches) => requireSafeIntegerArrayOutput('match offsets', matches))
 }
 
 export async function replaceSession(
@@ -318,14 +366,17 @@ export async function replaceSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
+  const safeOffset = requireSafeIntegerInput('replaceSession offset', offset)
+  const safeLength = requireSafeIntegerInput('replaceSession length', length)
+  const safeLimit = requireSafeIntegerInput('replaceSession limit', limit)
   const foundLocations = await searchSession(
     session_id,
     pattern,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
-    limit
+    safeOffset,
+    safeLength,
+    safeLimit
   )
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
@@ -341,7 +392,10 @@ export async function replaceSession(
       for (let i = 0; i < foundLocations.length; ++i) {
         await editSimple(
           session_id,
-          adjustment * i + foundLocations[i],
+          requireSafeIntegerOutput(
+            'replaceSession offset',
+            adjustment * i + foundLocations[i]
+          ),
           patternArray,
           replacementArray,
           stats
@@ -365,7 +419,7 @@ export async function replaceSession(
       }
     }
   }
-  return foundLocations.length
+  return requireSafeIntegerOutput('replacement count', foundLocations.length)
 }
 
 export async function replaceOneSession(
@@ -379,6 +433,8 @@ export async function replaceOneSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
+  const safeOffset = requireSafeIntegerInput('replaceOneSession offset', offset)
+  const safeLength = requireSafeIntegerInput('replaceOneSession length', length)
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
@@ -388,8 +444,8 @@ export async function replaceOneSession(
     patternArray,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
+    safeOffset,
+    safeLength,
     1
   )
   if (foundLocations.length > 0) {
@@ -404,7 +460,10 @@ export async function replaceOneSession(
         stats
       )
     }
-    return foundLocations[0] + replacementArray.length
+    return requireSafeIntegerOutput(
+      'replacement end offset',
+      foundLocations[0] + replacementArray.length
+    )
   }
   return -1
 }

@@ -17,6 +17,7 @@
 - The heartbeat request contract is now session-centric. `GetHeartbeatRequest` only carries `session_ids`, the old hostname / PID / interval request fields are removed, and `@omega-edit/client` now exposes `getServerHeartbeat(sessionIds)`.
 - Caller-chosen `session_id_desired` values and caller-chosen `viewport_id_desired` values are now explicit uniqueness requests: duplicates are rejected with `ALREADY_EXISTS` instead of being remapped to a different ID.
 - `@omega-edit/client` server shutdown helpers now return structured results. `stopServerGraceful()` and `stopServerImmediate()` return `{ responseCode, serverProcessId, status }` instead of a bare numeric response code.
+- `@omega-edit/client` now enforces a clean JavaScript numeric contract for `int64`-backed API values: public inputs must be safe integers, and public outputs outside the safe integer range are rejected instead of being rounded.
 - Byte-oriented core edit/search APIs now require explicit lengths. `omega_edit_insert_bytes`, `omega_edit_overwrite_bytes`, and `omega_search_create_context_bytes` no longer treat `0` as `strlen(...)`; keep that convenience by using the C-string helpers instead.
 
 ## Quick path

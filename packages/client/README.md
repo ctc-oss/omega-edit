@@ -88,6 +88,7 @@ await stopServerGraceful()
 Shutdown migration note:
 
 - In the 2.x line, `stopServerGraceful()` and `stopServerImmediate()` return a structured result object with `responseCode`, `serverProcessId`, and `status` instead of returning only a numeric response code.
+- In the 2.x line, `@omega-edit/client` treats all `int64`-backed public values as JavaScript safe integers. Unsafe inputs are rejected before RPCs are sent, and unsafe outputs are rejected instead of being silently rounded.
 
 ### Server Health API Migration
 
