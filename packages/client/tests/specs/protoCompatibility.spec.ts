@@ -215,6 +215,13 @@ describe('Proto Compatibility', () => {
     expect(serverControl.getStatus()).to.equal(
       ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
     )
+    expect(
+      new ServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
 
     const heartbeat = new HeartbeatResponse({
       sessionCount: 2,
@@ -403,6 +410,13 @@ describe('Proto Compatibility', () => {
     expect(
       wrapServerControlResponse(serverControl.toObject()).getPid()
     ).to.equal(99)
+    expect(
+      wrapServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
     expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)

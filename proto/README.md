@@ -46,6 +46,9 @@ Shutdown lifecycle behavior is now explicit in the wire contract:
 - `CreateSession` fails with gRPC `UNAVAILABLE` once shutdown begins, including
   both graceful and immediate shutdown
 - `ServerControlResponse.status` distinguishes `COMPLETED` from `DRAINING`
+  when present, and remains `optional` so newer clients can detect older
+  servers that omitted the field and fall back to legacy response-code
+  handling
 - the deprecated `response_code` field remains for compatibility and is `0`
   for accepted commands, including graceful shutdown while draining
 

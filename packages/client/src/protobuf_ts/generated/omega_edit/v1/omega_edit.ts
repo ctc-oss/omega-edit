@@ -129,9 +129,9 @@ export interface ServerControlResponse {
    */
   responseCode: number // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
   /**
-   * @generated from protobuf field: omega_edit.v1.ServerControlStatus status = 4
+   * @generated from protobuf field: optional omega_edit.v1.ServerControlStatus status = 4
    */
-  status: ServerControlStatus // Explicit shutdown progress for accepted commands.
+  status?: ServerControlStatus // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 /**
  * Client heartbeat request.  The client identifies itself and lists its
@@ -2227,6 +2227,7 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         no: 4,
         name: 'status',
         kind: 'enum',
+        opt: true,
         T: () => [
           'omega_edit.v1.ServerControlStatus',
           ServerControlStatus,
@@ -2240,7 +2241,6 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     message.kind = 0
     message.pid = 0
     message.responseCode = 0
-    message.status = 0
     if (value !== undefined)
       reflectionMergePartial<ServerControlResponse>(this, message, value)
     return message
@@ -2265,7 +2265,7 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         case /* int32 response_code = 3 [deprecated = true] */ 3:
           message.responseCode = reader.int32()
           break
-        case /* omega_edit.v1.ServerControlStatus status */ 4:
+        case /* optional omega_edit.v1.ServerControlStatus status */ 4:
           message.status = reader.int32()
           break
         default:
@@ -2299,8 +2299,8 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     /* int32 response_code = 3 [deprecated = true]; */
     if (message.responseCode !== 0)
       writer.tag(3, WireType.Varint).int32(message.responseCode)
-    /* omega_edit.v1.ServerControlStatus status = 4; */
-    if (message.status !== 0)
+    /* optional omega_edit.v1.ServerControlStatus status = 4; */
+    if (message.status !== undefined)
       writer.tag(4, WireType.Varint).int32(message.status)
     let u = options.writeUnknownFields
     if (u !== false)

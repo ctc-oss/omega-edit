@@ -370,7 +370,7 @@ message ServerControlResponse {
   ServerControlKind kind = 1; // The command that was executed.
   int32 pid = 2;              // Server process ID.
   int32 response_code = 3 [deprecated = true]; // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
-  ServerControlStatus status = 4;              // Explicit shutdown progress for accepted commands.
+  optional ServerControlStatus status = 4;     // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 
 // Client heartbeat request.  The client identifies itself and lists its

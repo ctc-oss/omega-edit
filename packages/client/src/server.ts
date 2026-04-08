@@ -981,7 +981,7 @@ type RawServerControlResponse =
   | {
       getResponseCode(): number
       getPid?(): number
-      getStatus?(): ServerControlStatus
+      getStatus?(): ServerControlStatus | undefined
     }
 
 function getServerControlStatus(
