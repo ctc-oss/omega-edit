@@ -1001,12 +1001,19 @@ function getServerControlStatus(
       return 'completed'
     case ServerControlStatus.DRAINING:
       return 'draining'
+    case ServerControlStatus.UNSPECIFIED:
+      return 'unknown'
     default:
-      if (kind === ServerControlKind.GRACEFUL_SHUTDOWN && responseCode === 1) {
-        return 'draining'
-      }
-      if (responseCode === 0) {
-        return 'completed'
+      if (rawStatus === undefined) {
+        if (
+          kind === ServerControlKind.GRACEFUL_SHUTDOWN &&
+          responseCode === 1
+        ) {
+          return 'draining'
+        }
+        if (responseCode === 0) {
+          return 'completed'
+        }
       }
       return 'unknown'
   }

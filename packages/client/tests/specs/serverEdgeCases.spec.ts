@@ -502,6 +502,69 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should treat an explicit UNSPECIFIED shutdown status as unknown', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus(): number }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 0
+            },
+            getStatus() {
+              return 0
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(0)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should preserve response-code fallback when shutdown status is absent', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus?: undefined }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 0
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(0)
+      expect(response.status).to.equal('completed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should return an error code for generic shutdown exceptions', async () => {
     let mode: 'error' | 'string' = 'error'
     const restoreGetClient = overrideProperty(
