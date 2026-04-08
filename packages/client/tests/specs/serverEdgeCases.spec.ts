@@ -319,7 +319,10 @@ describe('Server Edge Cases', () => {
       expect(udsPid).to.be.a('number').greaterThan(0)
       expect((await getServerInfo()).serverProcessId).to.equal(udsPid)
 
-      expect(await stopServerImmediate()).to.equal(0)
+      const stopResponse = await stopServerImmediate()
+      expect(stopResponse.responseCode).to.equal(0)
+      expect(stopResponse.status).to.equal('completed')
+      expect(stopResponse.serverProcessId).to.equal(udsPid)
     } finally {
       delete process.env.OMEGA_EDIT_SERVER_SOCKET
       delete process.env.OMEGA_EDIT_SERVER_URI
