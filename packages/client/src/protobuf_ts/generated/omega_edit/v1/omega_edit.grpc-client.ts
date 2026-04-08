@@ -245,8 +245,8 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
   /**
-   * Destroy a session and release all associated resources (viewports,
-   * checkpoints, and change history).
+   * Detach the caller from a session. The backing session and its resources
+   * are released when the last attachment is destroyed or reaped.
    *
    * @generated from protobuf rpc: DestroySession
    */
@@ -1497,7 +1497,7 @@ export interface IEditorServiceClient {
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse>
   /**
-   * Cancel an active session-event subscription.
+   * Cancel all active session-event subscriptions for the session ID.
    *
    * @generated from protobuf rpc: UnsubscribeToSessionEvents
    */
@@ -1730,8 +1730,8 @@ export class EditorServiceClient
     )
   }
   /**
-   * Destroy a session and release all associated resources (viewports,
-   * checkpoints, and change history).
+   * Detach the caller from a session. The backing session and its resources
+   * are released when the last attachment is destroyed or reaped.
    *
    * @generated from protobuf rpc: DestroySession
    */
@@ -3045,7 +3045,7 @@ export class EditorServiceClient
     )
   }
   /**
-   * Cancel an active session-event subscription.
+   * Cancel all active session-event subscriptions for the session ID.
    *
    * @generated from protobuf rpc: UnsubscribeToSessionEvents
    */

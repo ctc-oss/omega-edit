@@ -370,9 +370,6 @@ grpc::Status EditorServiceImpl::GetServerInfo(grpc::ServerContext * /*context*/,
     response->set_hostname(get_hostname());
     response->set_process_id(get_pid());
     response->set_server_version(SERVER_VERSION);
-    response->set_jvm_version("N/A (native server)");
-    response->set_jvm_vendor("N/A");
-    response->set_jvm_path("N/A");
     response->set_runtime_kind(get_runtime_kind());
     response->set_runtime_name(get_runtime_name());
     response->set_platform(get_platform_summary());
@@ -493,7 +490,7 @@ grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::DestroySessionRequest *request,
                                                 ::omega_edit::v1::DestroySessionResponse *response) {
-    if (!session_manager_.destroy_session(request->id())) {
+    if (!session_manager_.detach_session(request->id())) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
     response->set_id(request->id());
@@ -1278,10 +1275,6 @@ grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
     response->set_timestamp(std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count());
     response->set_uptime(std::chrono::duration_cast<std::chrono::milliseconds>(uptime).count());
     response->set_cpu_count(get_cpu_count());
-    response->set_cpu_load_average(-1.0);
-    response->set_max_memory(0);
-    response->set_committed_memory(0);
-    response->set_used_memory(0);
 
     if (const auto load_average = get_cpu_load_average(); load_average.has_value()) {
         response->set_cpu_load_average(*load_average);
@@ -1336,7 +1329,7 @@ grpc::Status EditorServiceImpl::SubscribeToSessionEvents(
 
     // Unsubscribe so the event queue stops accumulating events after the
     // client disconnects (prevents unbounded memory growth).
-    session_manager_.unsubscribe_session_events(request->id());
+    session_manager_.unsubscribe_session_events(request->id(), queue);
     return grpc::Status::OK;
 }
 
