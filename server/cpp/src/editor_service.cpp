@@ -389,8 +389,7 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::CreateSessionRequest *request,
                                                ::omega_edit::v1::CreateSessionResponse *response) {
     if (graceful_shutdown_.load()) {
-        return grpc::Status(grpc::StatusCode::UNAVAILABLE,
-                            "server is draining existing sessions for graceful shutdown");
+        return grpc::Status(grpc::StatusCode::UNAVAILABLE, "server is shutting down");
     }
 
     std::string file_path;

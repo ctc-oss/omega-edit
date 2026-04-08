@@ -1062,7 +1062,7 @@ async function stopServer(
     } else {
       log.debug({
         ...logMetadata,
-        stopped: true,
+        stopped: status === 'completed',
         status,
       })
     }

@@ -187,7 +187,7 @@ describe('Server', () => {
       expect.fail('createSession should reject while graceful shutdown drains')
     } catch (err) {
       expect((err as Error).message).to.include('UNAVAILABLE')
-      expect((err as Error).message).to.include('graceful shutdown')
+      expect((err as Error).message).to.include('server is shutting down')
     }
     expect(await getSessionCount()).to.equal(1)
 
