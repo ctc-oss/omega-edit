@@ -33,6 +33,7 @@ import type {
   SaveSessionResponse as RawSaveSessionResponse,
   ServerControlRequest as RawServerControlRequest,
   ServerControlResponse as RawServerControlResponse,
+  ServerControlStatus,
   SingleCount as RawSingleCount,
   SubscribeToSessionEventsRequest as RawSubscribeToSessionEventsRequest,
   SubscribeToSessionEventsResponse as RawSubscribeToSessionEventsResponse,
@@ -277,7 +278,7 @@ export class ServerControlResponse {
     return this.response_.responseCode
   }
 
-  getStatus(): RawServerControlResponse['status'] {
+  getStatus(): ServerControlStatus | undefined {
     return this.response_.status
   }
 

@@ -64,6 +64,7 @@ export const ProtoServerControlStatus = {
   SERVER_CONTROL_STATUS_UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
   SERVER_CONTROL_STATUS_COMPLETED: RawProtoServerControlStatus.COMPLETED,
   SERVER_CONTROL_STATUS_DRAINING: RawProtoServerControlStatus.DRAINING,
+  ...RawProtoServerControlStatus,
 }
 
 export const CountKind = {
@@ -93,4 +94,7 @@ export const ServerControlStatus = {
     ProtoServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED,
   SERVER_CONTROL_STATUS_DRAINING:
     ProtoServerControlStatus.SERVER_CONTROL_STATUS_DRAINING,
+  UNSPECIFIED: RawProtoServerControlStatus.UNSPECIFIED,
+  COMPLETED: RawProtoServerControlStatus.COMPLETED,
+  DRAINING: RawProtoServerControlStatus.DRAINING,
 }

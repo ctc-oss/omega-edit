@@ -215,6 +215,9 @@ describe('Proto Compatibility', () => {
     expect(serverControl.getStatus()).to.equal(
       ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
     )
+    expect(ServerControlStatus.COMPLETED).to.equal(
+      ServerControlStatus.SERVER_CONTROL_STATUS_COMPLETED
+    )
     expect(
       new ServerControlResponse({
         kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
