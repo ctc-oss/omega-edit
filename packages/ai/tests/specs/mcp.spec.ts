@@ -185,11 +185,11 @@ describe('@omega-edit/ai mcp server', function () {
           replacementText: 'hi',
         },
       })
-      const replaceStructured =
-        ((replaceResponse.result as Record<string, unknown>)
-          .structuredContent as Record<string, unknown>) || {
-          replacedCount: 0,
-        }
+      const replaceStructured = ((
+        replaceResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || {
+        replacedCount: 0,
+      }
       assert.equal((replaceStructured.replacedCount as number) || 0, 2)
 
       const replacedRangeResponse = await sendRequest('tools/call', {
@@ -200,14 +200,14 @@ describe('@omega-edit/ai mcp server', function () {
           length: 11,
         },
       })
-      const replacedStructured =
-        ((replacedRangeResponse.result as Record<string, unknown>)
-          .structuredContent as Record<string, unknown>) || {
-          data: { utf8: '' },
-        }
+      const replacedStructured = ((
+        replacedRangeResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || {
+        data: { utf8: '' },
+      }
       assert.equal(
-        (((replacedStructured.data as Record<string, unknown>).utf8 as string) ||
-          ''),
+        ((replacedStructured.data as Record<string, unknown>).utf8 as string) ||
+          '',
         'hi world hi'
       )
     } finally {

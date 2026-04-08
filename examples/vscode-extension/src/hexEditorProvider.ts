@@ -578,10 +578,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     let startIndex = source.length - 1
 
     if (lastGroupId) {
-      while (
-        startIndex > 0 &&
-        source[startIndex - 1].groupId === lastGroupId
-      ) {
+      while (startIndex > 0 && source[startIndex - 1].groupId === lastGroupId) {
         startIndex -= 1
       }
     }

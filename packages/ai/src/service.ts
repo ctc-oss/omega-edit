@@ -321,10 +321,7 @@ export class OmegaEditToolkit {
     assertNonNegativeInteger('length', length)
     assertNonNegativeInteger('limit', requestedLimit)
 
-    if (
-      requestedLimit !== 0 &&
-      requestedLimit > this.maxSearchResults
-    ) {
+    if (requestedLimit !== 0 && requestedLimit > this.maxSearchResults) {
       throw new Error(
         `limit must be between 0 and ${this.maxSearchResults} results`
       )

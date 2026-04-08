@@ -784,7 +784,9 @@ describe('Searching', () => {
     expect(await getChangeTransactionCount(session_id)).to.equal(
       transactionCountBeforeSecondReplace + 1
     )
-    expect(await undo(session_id)).to.be.a('number').that.is.lessThan(0)
+    expect(await undo(session_id))
+      .to.be.a('number')
+      .that.is.lessThan(0)
     expect(await getChangeTransactionCount(session_id)).to.equal(
       transactionCountBeforeSecondReplace
     )
@@ -793,7 +795,9 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('Item here Item there ItemItem everywhere'))
-    expect(await redo(session_id)).to.be.a('number').that.is.greaterThan(0)
+    expect(await redo(session_id))
+      .to.be.a('number')
+      .that.is.greaterThan(0)
     expect(await getChangeCount(session_id)).to.equal(15)
     expect(await getChangeTransactionCount(session_id)).to.equal(
       transactionCountBeforeSecondReplace + 1
