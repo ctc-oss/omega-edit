@@ -45,6 +45,8 @@ const {
 
 describe('Server Edge Cases', () => {
   let restoreLogger = () => {}
+  let originalServerUri: string | undefined
+  let originalServerSocket: string | undefined
 
   before(async () => {
     await initChai()
@@ -58,10 +60,23 @@ describe('Server Edge Cases', () => {
       require('../../dist/cjs/server.js') as typeof import('../../src/server')
   })
 
+  beforeEach(() => {
+    originalServerUri = process.env.OMEGA_EDIT_SERVER_URI
+    originalServerSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
+  })
+
   afterEach(() => {
     resetClient()
-    delete process.env.OMEGA_EDIT_SERVER_URI
-    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    if (originalServerUri === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_URI
+    } else {
+      process.env.OMEGA_EDIT_SERVER_URI = originalServerUri
+    }
+    if (originalServerSocket === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    } else {
+      process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
+    }
   })
 
   after(() => {
@@ -69,6 +84,10 @@ describe('Server Edge Cases', () => {
   })
 
   it('should start a source server with a stale pid file and query info endpoints', async () => {
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    resetClient()
+
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)
 
@@ -80,7 +99,6 @@ describe('Server Edge Cases', () => {
     let pidFromFile: number | undefined
     let serverInfoPid: number | undefined
     try {
-      resetClient()
       pid = await startServer(port as number, '127.0.0.1', pidFile)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
@@ -199,6 +217,56 @@ describe('Server Edge Cases', () => {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   }).timeout(20000)
+
+  it('should verify UDS startup against the launched socket endpoint', async function () {
+    if (process.platform === 'win32') {
+      this.skip()
+    }
+
+    const tcpPort = await findFirstAvailablePort(9401, 9500)
+    expect(tcpPort).to.not.equal(null)
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-uds-target-')
+    )
+    const tcpPidFile = path.join(tempDir, 'omega-edit-tcp.pid')
+    const socketPath = path.join(tempDir, 'omega-edit.sock')
+    const udsPidFile = path.join(tempDir, 'omega-edit-uds.pid')
+
+    let tcpPid: number | undefined
+    let udsPid: number | undefined
+    try {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      tcpPid = await startServer(tcpPort as number, '127.0.0.1', tcpPidFile)
+      expect(tcpPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(tcpPid)
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+
+      udsPid = await startServerUnixSocket(socketPath, udsPidFile, true)
+      expect(udsPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(udsPid)
+
+      expect(await stopServerImmediate()).to.equal(0)
+    } finally {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      if (udsPid && pidIsRunning(udsPid)) {
+        await stopProcessUsingPID(udsPid, 'SIGKILL')
+      }
+      if (tcpPid && pidIsRunning(tcpPid)) {
+        await stopProcessUsingPID(tcpPid, 'SIGKILL')
+      }
+
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  }).timeout(25000)
 
   it('should reject server info failures from the RPC client', async () => {
     const restoreGetClient = overrideProperty(
