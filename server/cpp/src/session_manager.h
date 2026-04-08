@@ -147,6 +147,7 @@ struct ViewportInfo {
 struct SessionInfo {
     omega_session_t *session;
     std::string session_id;
+    std::string canonical_file_path;
     std::string checkpoint_directory;
     bool owns_checkpoint_directory{false};
     size_t attachment_count{0};
@@ -218,7 +219,12 @@ public:
     void destroy_all();
 
 private:
-    static std::string generate_uuid();
+    static std::string generate_uuid_v4();
+    static std::string generate_uuid_v7();
+    static std::string generate_prefixed_id(const char *prefix);
+    static std::string generate_session_id();
+    static std::string generate_viewport_id();
+    static std::string generate_subscription_id();
     static std::string make_viewport_fqid(const std::string &session_id, const std::string &viewport_id);
     static void cleanup_directory_best_effort(const std::string &directory_path);
     static void cleanup_stale_server_roots_best_effort(const std::string &root_path);
@@ -236,6 +242,7 @@ private:
     mutable std::mutex mutex_;
     ResourceLimits limits_;
     std::map<std::string, std::shared_ptr<SessionInfo>> sessions_;
+    std::map<std::string, std::string> file_sessions_by_path_;
     std::string managed_server_root_;
 };
 

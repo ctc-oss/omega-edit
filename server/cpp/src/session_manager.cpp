@@ -26,6 +26,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -53,6 +54,9 @@ namespace {
 constexpr char kManagedTempRootName[] = "omega-edit-grpc-server";
 constexpr char kManagedServerPrefix[] = "server-";
 constexpr char kManagedSessionPrefix[] = "session-";
+constexpr char kSessionIdPrefix[] = "sess_";
+constexpr char kViewportIdPrefix[] = "vp_";
+constexpr char kSubscriptionIdPrefix[] = "sub_";
 
 int get_current_process_id() {
 #ifdef _WIN32
@@ -130,28 +134,6 @@ int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptio
     return static_cast<int32_t>(combined);
 }
 
-} // namespace
-
-// ── Base64 encoding (URL-safe, no padding — matches Java Base64.getUrlEncoder().withoutPadding()) ──
-static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-static std::string base64_encode(const std::string &input) {
-    std::string output;
-    output.reserve(((input.size() + 2) / 3) * 4);
-
-    for (size_t i = 0; i < input.size(); i += 3) {
-        unsigned int n = static_cast<unsigned char>(input[i]) << 16;
-        if (i + 1 < input.size()) n |= static_cast<unsigned char>(input[i + 1]) << 8;
-        if (i + 2 < input.size()) n |= static_cast<unsigned char>(input[i + 2]);
-
-        output.push_back(base64_chars[(n >> 18) & 0x3F]);
-        output.push_back(base64_chars[(n >> 12) & 0x3F]);
-        if (i + 1 < input.size()) output.push_back(base64_chars[(n >> 6) & 0x3F]);
-        if (i + 2 < input.size()) output.push_back(base64_chars[n & 0x3F]);
-    }
-    return output;
-}
-
 static bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
     char normalized_path[FILENAME_MAX] = {};
     char *result = omega_util_normalize_path(file_path.c_str(), normalized_path);
@@ -163,17 +145,25 @@ static bool normalize_existing_file_path(const std::string &file_path, std::stri
     return !normalized_path_out.empty();
 }
 
-// ── UUID generation ──────────────────────────────────────────────────────────
-#ifdef _WIN32
-static std::string generate_random_uuid_fallback() {
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
+uint64_t random_u64(std::mt19937_64 &rng) {
     std::uniform_int_distribution<uint64_t> dis;
-    uint64_t hi = dis(gen);
-    uint64_t lo = dis(gen);
-    // Set version 4 and variant bits per RFC 4122
-    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
-    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+    return dis(rng);
+}
+
+std::mt19937_64 create_seeded_rng() {
+    std::random_device rd;
+    std::seed_seq seed{
+        rd(),
+        rd(),
+        rd(),
+        rd(),
+        static_cast<unsigned int>(
+            std::chrono::steady_clock::now().time_since_epoch().count()),
+    };
+    return std::mt19937_64(seed);
+}
+
+std::string format_uuid(uint64_t hi, uint64_t lo) {
     char buf[37];
     std::snprintf(buf, sizeof(buf),
                   "%08" PRIx32 "-%04" PRIx16 "-%04" PRIx16 "-%04" PRIx16 "-%012" PRIx64,
@@ -182,9 +172,23 @@ static std::string generate_random_uuid_fallback() {
                   static_cast<uint64_t>(lo & 0x0000FFFFFFFFFFFFULL));
     return std::string(buf);
 }
+
+} // namespace
+
+// ── UUID generation ──────────────────────────────────────────────────────────
+#ifdef _WIN32
+static std::string generate_random_uuid_fallback() {
+    static thread_local std::mt19937_64 rng = create_seeded_rng();
+    uint64_t hi = random_u64(rng);
+    uint64_t lo = random_u64(rng);
+    // Set version 4 and variant bits per RFC 4122
+    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
+    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+    return format_uuid(hi, lo);
+}
 #endif
 
-std::string SessionManager::generate_uuid() {
+std::string SessionManager::generate_uuid_v4() {
 #ifdef _WIN32
     UUID uuid;
     if (UuidCreate(&uuid) != RPC_S_OK) {
@@ -209,6 +213,60 @@ std::string SessionManager::generate_uuid() {
     return std::string(str);
 #endif
 }
+
+std::string SessionManager::generate_uuid_v7() {
+    struct UuidV7State {
+        std::mutex mutex;
+        uint64_t last_timestamp_ms{0};
+        uint16_t rand_a{0};
+        uint64_t rand_b{0};
+        std::mt19937_64 rng{create_seeded_rng()};
+    };
+
+    static UuidV7State state;
+
+    const auto now_ms = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    uint64_t timestamp_ms = now_ms;
+    if (timestamp_ms > state.last_timestamp_ms) {
+        state.last_timestamp_ms = timestamp_ms;
+        state.rand_a = static_cast<uint16_t>(random_u64(state.rng) & 0x0FFFU);
+        state.rand_b = random_u64(state.rng) & 0x3FFFFFFFFFFFFFFFULL;
+    } else {
+        timestamp_ms = state.last_timestamp_ms;
+        if (state.rand_b == 0x3FFFFFFFFFFFFFFFULL) {
+            state.rand_b = 0;
+            state.rand_a = static_cast<uint16_t>((state.rand_a + 1U) & 0x0FFFU);
+            if (state.rand_a == 0) {
+                ++state.last_timestamp_ms;
+                timestamp_ms = state.last_timestamp_ms;
+            }
+        } else {
+            ++state.rand_b;
+        }
+    }
+
+    const uint64_t hi = ((timestamp_ms & 0x0000FFFFFFFFFFFFULL) << 16) |
+                        (0x7ULL << 12) |
+                        static_cast<uint64_t>(state.rand_a & 0x0FFFU);
+    const uint64_t lo = 0x8000000000000000ULL | (state.rand_b & 0x3FFFFFFFFFFFFFFFULL);
+    return format_uuid(hi, lo);
+}
+
+std::string SessionManager::generate_prefixed_id(const char *prefix) {
+    return std::string(prefix) + generate_uuid_v7();
+}
+
+std::string SessionManager::generate_session_id() { return generate_prefixed_id(kSessionIdPrefix); }
+
+std::string SessionManager::generate_viewport_id() { return generate_prefixed_id(kViewportIdPrefix); }
+
+std::string SessionManager::generate_subscription_id() { return generate_prefixed_id(kSubscriptionIdPrefix); }
 
 std::string SessionManager::make_viewport_fqid(const std::string &session_id, const std::string &viewport_id) {
     return session_id + ":" + viewport_id;
@@ -261,7 +319,7 @@ bool SessionManager::is_managed_server_root_name(const std::string &name) {
 }
 
 std::string SessionManager::create_server_root_name() {
-    return std::string(kManagedServerPrefix) + std::to_string(get_current_process_id()) + "-" + generate_uuid();
+    return std::string(kManagedServerPrefix) + std::to_string(get_current_process_id()) + "-" + generate_uuid_v4();
 }
 
 std::string SessionManager::create_managed_checkpoint_directory() {
@@ -292,7 +350,7 @@ std::string SessionManager::create_managed_checkpoint_directory() {
 
     std::error_code ec;
     const fs::path checkpoint_directory =
-        fs::path(managed_server_root_) / (std::string(kManagedSessionPrefix) + generate_uuid());
+        fs::path(managed_server_root_) / (std::string(kManagedSessionPrefix) + generate_uuid_v4());
     fs::create_directories(checkpoint_directory, ec);
     if (ec) {
         return "";
@@ -420,7 +478,36 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
-    // Session ID priority: desired_id > base64(canonical file_path) > UUID
+    const bool has_file_backing = !file_path.empty() && initial_data == nullptr;
+    std::string canonical_file_path;
+    if (has_file_backing && !normalize_existing_file_path(file_path, canonical_file_path)) {
+        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+        return "";
+    }
+
+    const bool share_existing_file_session = desired_id.empty() && has_file_backing;
+
+    if (share_existing_file_session) {
+        auto existing_file_session = file_sessions_by_path_.find(canonical_file_path);
+        if (existing_file_session != file_sessions_by_path_.end()) {
+            auto existing = sessions_.find(existing_file_session->second);
+            if (existing == sessions_.end()) {
+                file_sessions_by_path_.erase(existing_file_session);
+            } else if (checkpoint_directory.empty() || checkpoint_directory == existing->second->checkpoint_directory) {
+                auto &info = existing->second;
+                ++info->attachment_count;
+                info->last_activity = std::chrono::steady_clock::now();
+                file_size_out = omega_session_get_computed_file_size(info->session);
+                checkpoint_dir_out = info->checkpoint_directory;
+                return info->session_id;
+            } else {
+                if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+                return "";
+            }
+        }
+    }
+
+    // Session ID priority: desired_id > generated opaque session ID
     std::string session_id;
     if (!desired_id.empty()) {
         // The ':' character is reserved as the session:viewport FQID separator
@@ -429,38 +516,23 @@ std::string SessionManager::create_session(const std::string &file_path, const s
             return ""; // Invalid: contains reserved character
         }
         session_id = desired_id;
-    } else if (!file_path.empty()) {
-        std::string canonical_file_path;
-        if (!normalize_existing_file_path(file_path, canonical_file_path)) {
-            if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
-            return "";
-        }
-        session_id = base64_encode(canonical_file_path);
     } else {
-        session_id = generate_uuid();
+        do {
+            session_id = generate_session_id();
+        } while (sessions_.count(session_id) != 0);
     }
 
-    const bool share_existing_file_session = desired_id.empty() && !file_path.empty() &&
-                                            initial_data == nullptr;
-
-    auto existing = sessions_.find(session_id);
-    if (existing != sessions_.end()) {
-        if (share_existing_file_session &&
-            (checkpoint_directory.empty() || checkpoint_directory == existing->second->checkpoint_directory)) {
-            auto &info = existing->second;
-            ++info->attachment_count;
-            info->last_activity = std::chrono::steady_clock::now();
-            file_size_out = omega_session_get_computed_file_size(info->session);
-            checkpoint_dir_out = info->checkpoint_directory;
-            return session_id;
+    if (!desired_id.empty()) {
+        auto existing = sessions_.find(session_id);
+        if (existing != sessions_.end()) {
+            if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+            return ""; // Already exists
         }
-
-        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
-        return ""; // Already exists
     }
 
     auto info = std::make_shared<SessionInfo>();
     info->session_id = session_id;
+    info->canonical_file_path = canonical_file_path;
     info->attachment_count = 1;
     info->last_activity = std::chrono::steady_clock::now();
 
@@ -487,7 +559,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
             reinterpret_cast<const omega_byte_t *>(initial_data->data()), static_cast<int64_t>(initial_data->size()),
             session_event_callback, info.get(), 0, chkpt_dir);
     } else {
-        const char *path = file_path.empty() ? nullptr : file_path.c_str();
+        const char *path = canonical_file_path.empty() ? nullptr : canonical_file_path.c_str();
         session = omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
     }
 
@@ -508,6 +580,10 @@ std::string SessionManager::create_session(const std::string &file_path, const s
     checkpoint_dir_out = chkpt ? chkpt : "";
     if (!checkpoint_dir_out.empty()) {
         info->checkpoint_directory = checkpoint_dir_out;
+    }
+
+    if (share_existing_file_session) {
+        file_sessions_by_path_[canonical_file_path] = session_id;
     }
 
     return session_id;
@@ -539,6 +615,13 @@ bool SessionManager::destroy_session_locked(const std::map<std::string, std::sha
     omega_edit_destroy_session(info->session);
     if (info->owns_checkpoint_directory) {
         cleanup_directory_best_effort(info->checkpoint_directory);
+    }
+
+    if (!info->canonical_file_path.empty()) {
+        auto canonical_it = file_sessions_by_path_.find(info->canonical_file_path);
+        if (canonical_it != file_sessions_by_path_.end() && canonical_it->second == info->session_id) {
+            file_sessions_by_path_.erase(canonical_it);
+        }
     }
 
     sessions_.erase(it);
@@ -600,7 +683,12 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
     }
 
     auto &session_info = sit->second;
-    std::string viewport_id = desired_viewport_id.empty() ? generate_uuid() : desired_viewport_id;
+    std::string viewport_id = desired_viewport_id;
+    if (viewport_id.empty()) {
+        do {
+            viewport_id = generate_viewport_id();
+        } while (session_info->viewports.count(viewport_id) != 0);
+    }
 
     // Check for duplicate viewport
     if (session_info->viewports.count(viewport_id)) {
@@ -681,7 +769,7 @@ SessionManager::subscribe_session_events(const std::string &session_id, int32_t 
     auto &info = it->second;
     auto queue = std::make_shared<EventQueue<SessionEventData>>(
         limits_.session_event_queue_capacity,
-        "session subscription '" + session_id + "#" + generate_uuid() + "'");
+        "session subscription '" + session_id + "#" + generate_subscription_id() + "'");
     {
         std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
         info->session_subscriptions.push_back({queue, interest});

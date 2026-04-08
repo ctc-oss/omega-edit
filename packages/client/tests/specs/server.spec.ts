@@ -43,6 +43,7 @@ import {
 } from '@omega-edit/client'
 import {
   expect,
+  expectOpaqueId,
   initChai,
   testHost,
   testPort,
@@ -115,7 +116,7 @@ describe('Server', () => {
       expect(await getClient(serverTestPort)).to.not.be.undefined
       expect(await getSessionCount()).to.equal(0)
       session_id = (await createSession()).getSessionId()
-      expect(session_id.length).to.equal(36)
+      expectOpaqueId(session_id, 'sess_')
       expect(await getSessionCount()).to.equal(1)
     }
   )
@@ -321,7 +322,7 @@ describe('Server Heartbeat Timeout', () => {
 
   it(`on port ${serverTestPort} should reap idle sessions`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
 
     // Send a heartbeat to keep it alive.
@@ -338,7 +339,7 @@ describe('Server Heartbeat Timeout', () => {
 
   it(`on port ${serverTestPort} should keep sessions alive via normal session RPCs (no heartbeat)`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
 
     // Keep the session active beyond the 200ms timeout using a regular session RPC.
@@ -517,7 +518,7 @@ describe('Server Shutdown When No Sessions', () => {
 
   it(`on port ${serverTestPort} should exit after reaping the last session`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
 
     await delay(50)
     await getServerHeartbeat([session_id])
@@ -579,7 +580,7 @@ describe('Server Resource Limits', () => {
     resetClient()
     expect(await getClient(serverTestPort)).to.not.be.undefined
     session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
   })
 
   afterEach(`stop limit-aware server on port ${serverTestPort}`, async () => {
@@ -620,7 +621,11 @@ describe('Server Resource Limits', () => {
 
   it(`on port ${serverTestPort} should reject opening more viewports than configured`, async () => {
     const firstViewport = await createViewport(undefined, session_id, 0, 8)
-    expect(firstViewport.getViewportId()).to.include(`${session_id}:`)
+    expect(firstViewport.getViewportId()).to.match(
+      new RegExp(
+        `^${session_id}:vp_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+      )
+    )
     expect(await getViewportCount(session_id)).to.equal(1)
 
     try {
@@ -633,6 +638,16 @@ describe('Server Resource Limits', () => {
     }
 
     expect(await getViewportCount(session_id)).to.equal(1)
+  })
+
+  it(`on port ${serverTestPort} should generate opaque sess_ IDs for unmanaged sessions`, async () => {
+    const session = await createSession()
+
+    try {
+      expectOpaqueId(session.getSessionId(), 'sess_')
+    } finally {
+      await destroySession(session.getSessionId())
+    }
   })
 })
 
@@ -724,7 +739,7 @@ describe('Directory with Spaces Test', () => {
 
   it(`Create on port ${serverTestPort} with a single session and is able to be closed`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
   })
 })

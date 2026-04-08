@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect, testPort } from './common.js'
+import { expect, expectOpaqueId, opaqueIdPattern, testPort } from './common.js'
 import {
   del,
   countCharacters,
@@ -50,12 +50,23 @@ import { getModuleCompat } from './moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
 
-function base64Encode(str: string): string {
-  return Buffer.from(str, 'utf-8').toString('base64url')
-}
-
 function canonicalizePath(filePath: string): string {
   return fs.realpathSync.native(filePath)
+}
+
+const viewportIdPattern = opaqueIdPattern('vp_')
+
+function expectGeneratedSessionId(sessionId: string): void {
+  expectOpaqueId(sessionId, 'sess_')
+}
+
+function expectGeneratedViewportId(
+  viewportId: string,
+  sessionId: string
+): void {
+  expect(viewportId).to.match(
+    new RegExp(`^${sessionId}:${viewportIdPattern.source.slice(1, -1)}$`)
+  )
 }
 
 function countMatchingFilesInDir(
@@ -101,8 +112,6 @@ describe('Sessions', () => {
   const oneByteFile = path.join(__dirname, 'data', '1-byte.txt')
   const twoByteFile = path.join(__dirname, 'data', '2-bytes.txt')
   const testFile = path.join(__dirname, 'data', 'csstest.html')
-  const canonicalEmptyFile = canonicalizePath(emptyFile)
-  const canonicalTestFile = canonicalizePath(testFile)
   const save1 = path.join(__dirname, 'data', 'csstest-1.html')
   const checkpointDir = path.join(__dirname, 'data', 'checkpoint')
   const fileData = fs.readFileSync(testFile)
@@ -111,7 +120,6 @@ describe('Sessions', () => {
     fileData.byteOffset,
     fileData.byteLength
   )
-  const expected_session_id = base64Encode(canonicalTestFile)
   const expected_profile = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 125, 0, 8, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 12, 4,
@@ -131,7 +139,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(emptyFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(canonicalEmptyFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(0)
     expect(await getComputedFileSize(session_id)).to.equal(0)
@@ -154,7 +162,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(oneByteFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(oneByteFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(1)
     expect(await getComputedFileSize(session_id)).to.equal(1)
@@ -177,7 +185,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(twoByteFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(twoByteFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(2)
     expect(await getComputedFileSize(session_id)).to.equal(2)
@@ -203,7 +211,7 @@ describe('Sessions', () => {
     for (let i = 0; i < iterations; ++i) {
       const session = await createSession(testFile)
       const session_id = session.getSessionId()
-      expect(session_id).to.equal(expected_session_id)
+      expectGeneratedSessionId(session_id)
       expect(session.hasFileSize()).to.be.true
       expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
@@ -242,8 +250,10 @@ describe('Sessions', () => {
       ])
 
       sharedSessionId = author1SessionId
-      expect(base64Encode(alternateTestFile)).to.not.equal(expected_session_id)
-      expect(author1SessionId).to.equal(expected_session_id)
+      expectGeneratedSessionId(author1SessionId)
+      expect(alternateTestFile).to.not.equal(
+        canonicalizePath(alternateTestFile)
+      )
       expect(author2SessionId).to.equal(author1SessionId)
       expect(author1.getFileSize()).to.equal(fileData.length)
       expect(author2.getFileSize()).to.equal(fileData.length)
@@ -265,6 +275,12 @@ describe('Sessions', () => {
       )
 
       expect(await getViewportCount(author1SessionId)).to.equal(2)
+      expect(viewport1.getViewportId()).to.equal(
+        `${author1SessionId}:shared-author-1`
+      )
+      expect(viewport2.getViewportId()).to.equal(
+        `${author2SessionId}:shared-author-2`
+      )
       expect(viewport1.getData_asU8()).to.deep.equal(fileBuffer)
       expect(viewport2.getData_asU8()).to.deep.equal(fileBuffer)
 
@@ -1142,6 +1158,8 @@ describe('Sessions', () => {
 
     const session_id1 = session1.getSessionId()
     const session_id2 = session2.getSessionId()
+    expectGeneratedSessionId(session_id1)
+    expectGeneratedSessionId(session_id2)
     expect(session_id1).to.not.equal(session_id2)
     expect(session1.hasFileSize()).to.be.false
 
@@ -1256,6 +1274,19 @@ describe('Sessions', () => {
           `viewport already exists: ${desiredViewportId}`
         )
       }
+    } finally {
+      await destroySession(sessionId)
+    }
+  })
+
+  it('Should generate opaque viewport IDs with a vp_ UUIDv7 suffix', async () => {
+    const session = await createSession()
+    const sessionId = session.getSessionId()
+
+    try {
+      expectGeneratedSessionId(sessionId)
+      const viewport = await createViewport(undefined, sessionId, 0, 16)
+      expectGeneratedViewportId(viewport.getViewportId(), sessionId)
     } finally {
       await destroySession(sessionId)
     }

@@ -25,10 +25,25 @@ jobs:
         with:
           fetch-depth: 0
       - uses: bufbuild/buf-setup-action@v1
+      - name: Detect intentional major prerelease proto-breaking window
+        id: proto_breaking_policy
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ "$version" =~ ^[0-9]+\.0\.0- ]]; then
+            echo "skip_breaking=true" >> "$GITHUB_OUTPUT"
+            echo "Major prerelease version $version allows intentional proto breaks."
+          else
+            echo "skip_breaking=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Lint
         run: buf lint
+      - name: Breaking change detection skipped for major prerelease
+        if: github.event_name == 'pull_request' && steps.proto_breaking_policy.outputs.skip_breaking == 'true'
+        run: |
+          echo "Skipping buf breaking because package.json declares a major prerelease version:"
+          node -p "require('./package.json').version"
       - name: Breaking change detection
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.proto_breaking_policy.outputs.skip_breaking != 'true'
         # Compare against origin/main's proto subdirectory because main predates
         # the repository-level buf.yaml and Actions checks out a detached merge
         # ref without a local main branch.

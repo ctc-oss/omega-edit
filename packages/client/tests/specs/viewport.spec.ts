@@ -42,6 +42,7 @@ import {
   createTestSession,
   destroyTestSession,
   expect,
+  opaqueIdPattern,
   log_info,
   subscribeViewport,
   testPort,
@@ -50,6 +51,7 @@ import {
 
 describe('Viewports', () => {
   let session_id = ''
+  const viewportIdPattern = opaqueIdPattern('vp_')
 
   beforeEach('Create a new session', async () => {
     session_id = await createTestSession(testPort)
@@ -82,7 +84,9 @@ describe('Viewports', () => {
       false
     )
     const viewport_2_id = viewport_2_response.getViewportId()
-    expect(viewport_2_id).to.be.a('string').with.length(73) // viewport_id is the session ID, colon, then a random UUID
+    expect(viewport_2_id).to.match(
+      new RegExp(`^${session_id}:${viewportIdPattern.source.slice(1, -1)}$`)
+    )
     expect(await subscribeViewport(viewport_2_id)).to.equal(viewport_2_id)
     expect(await viewportHasChanges(viewport_2_id)).to.be.false
     expect(await getViewportCount(session_id)).to.equal(2)
