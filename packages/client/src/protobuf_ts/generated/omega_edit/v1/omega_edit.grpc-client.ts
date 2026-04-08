@@ -1423,8 +1423,8 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */
@@ -2953,8 +2953,8 @@ export class EditorServiceClient
     )
   }
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */

@@ -124,19 +124,12 @@ describe('Proto Compatibility', () => {
       interest: 7,
     })
 
-    const heartbeatRequest = new HeartbeatRequest()
-      .setHostname('host')
-      .setProcessId(42)
-      .setHeartbeatInterval(250)
-      .setSessionIdsList(['a', 'b'])
-    expect(heartbeatRequest.getHostname()).to.equal('host')
-    expect(heartbeatRequest.getProcessId()).to.equal(42)
-    expect(heartbeatRequest.getHeartbeatInterval()).to.equal(250)
+    const heartbeatRequest = new HeartbeatRequest().setSessionIdsList([
+      'a',
+      'b',
+    ])
     expect(heartbeatRequest.getSessionIdsList()).to.deep.equal(['a', 'b'])
     expect(heartbeatRequest.toRaw()).to.deep.equal({
-      hostname: 'host',
-      processId: 42,
-      heartbeatInterval: 250,
       sessionIds: ['a', 'b'],
     })
 

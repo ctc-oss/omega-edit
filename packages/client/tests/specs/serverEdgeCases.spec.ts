@@ -133,7 +133,7 @@ describe('Server Edge Cases', () => {
       expect(serverInfo.buildType).to.be.a('string').and.not.be.empty
       expect(serverInfo.cppStandard).to.be.a('string').and.not.be.empty
 
-      const heartbeat = await getServerHeartbeat([], 250)
+      const heartbeat = await getServerHeartbeat([])
       expect(heartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(heartbeat.sessionCount).to.equal(0)
       expect(heartbeat.serverCpuCount).to.be.greaterThanOrEqual(0)
@@ -208,9 +208,6 @@ describe('Server Edge Cases', () => {
         (resolve, reject) => {
           client.getHeartbeat(
             {
-              hostname: os.hostname(),
-              processId: process.pid,
-              heartbeatInterval: 250,
               sessionIds: [],
             },
             (err, response) => {
@@ -223,7 +220,7 @@ describe('Server Edge Cases', () => {
           )
         }
       )
-      const wrappedHeartbeat = await getServerHeartbeat([], 250)
+      const wrappedHeartbeat = await getServerHeartbeat([])
 
       expect(heartbeat.maxMemory).to.equal(0)
       expect(heartbeat.committedMemory).to.equal(0)
@@ -412,7 +409,7 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      await serverModule.getServerHeartbeat([], 100)
+      await serverModule.getServerHeartbeat([])
       expect.fail(
         'getServerHeartbeat should reject when the RPC returns an error'
       )
@@ -423,7 +420,7 @@ describe('Server Edge Cases', () => {
     mode = 'empty'
 
     try {
-      await serverModule.getServerHeartbeat([], 100)
+      await serverModule.getServerHeartbeat([])
       expect.fail(
         'getServerHeartbeat should reject when the RPC response is empty'
       )

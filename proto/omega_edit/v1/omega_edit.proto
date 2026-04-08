@@ -194,8 +194,8 @@ service EditorService {
   // Send a control command to the server (graceful or immediate shutdown).
   rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
 
-  // Exchange a heartbeat with the server.  The client sends its hostname,
-  // PID, and active session IDs; the server responds with resource metrics.
+  // Exchange a heartbeat with the server. The client sends the session IDs it
+  // still holds so the server can keep them alive and return resource metrics.
   rpc GetHeartbeat(GetHeartbeatRequest) returns (GetHeartbeatResponse);
 
   // ---------------------------------------------------------------------------
@@ -362,13 +362,10 @@ message ServerControlResponse {
   int32 response_code = 3;    // 0 for success, non-zero for failure.
 }
 
-// Client heartbeat request.  The client identifies itself and lists its
-// active sessions so the server can track liveness.
+// Client heartbeat request. The client lists the session IDs it still holds so
+// the server can track liveness.
 message GetHeartbeatRequest {
-  string hostname = 1;            // Client hostname.
-  int32 process_id = 2;           // Client OS process ID.
-  int32 heartbeat_interval = 3;   // Interval in milliseconds between heartbeats.
-  repeated string session_ids = 4; // Session IDs the client currently holds.
+  repeated string session_ids = 1; // Session IDs the client currently holds.
 }
 
 // Server heartbeat response with resource metrics.
