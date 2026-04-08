@@ -116,12 +116,14 @@ TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers c
 
     const omega_byte_t bytes[] = {'A', '\0', 'B'};
     REQUIRE(0 == omega_edit_insert_bytes(session_ptr, 0, bytes, 0));
+    REQUIRE(0 == omega_edit_insert_bytes(session_ptr, 0, nullptr, 0));
     REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
 
     REQUIRE(0 < omega_edit_insert(session_ptr, 0, "text", 0));
     REQUIRE("text" == omega_session_get_segment_string(session_ptr, 0, 4));
     REQUIRE(0 == omega_edit_overwrite_bytes(session_ptr, 1, bytes, 0));
+    REQUIRE(0 == omega_edit_overwrite_bytes(session_ptr, 1, nullptr, 0));
     REQUIRE("text" == omega_session_get_segment_string(session_ptr, 0, 4));
 
     REQUIRE(0 < omega_edit_overwrite(session_ptr, 1, "A", 0));

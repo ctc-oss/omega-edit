@@ -884,8 +884,9 @@ int64_t omega_edit_delete(omega_session_t *session_ptr, int64_t offset, int64_t 
 
 int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                 int64_t length) {
-    if (!session_ptr || !bytes) { return -1; }
+    if (!session_ptr) { return -1; }
     if (length == 0) { return 0; }
+    if (!bytes) { return -1; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
@@ -901,8 +902,9 @@ int64_t omega_edit_insert(omega_session_t *session_ptr, int64_t offset, const ch
 
 int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset, const omega_byte_t *bytes,
                                    int64_t length) {
-    if (!session_ptr || !bytes) { return -1; }
+    if (!session_ptr) { return -1; }
     if (length == 0) { return 0; }
+    if (!bytes) { return -1; }
     return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
