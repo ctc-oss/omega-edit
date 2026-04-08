@@ -83,7 +83,7 @@ await stopServerGraceful()
 | `stopServerGraceful()`                            | Graceful shutdown, returning status info  |
 | `stopServerImmediate()`                           | Immediate shutdown, returning status info |
 | `getServerInfo()`                                 | Runtime metadata for the native server    |
-| `getServerHeartbeat(sessions, interval?)`         | Heartbeat and process health              |
+| `getServerHeartbeat(sessions)`                    | Heartbeat and process health              |
 
 Shutdown migration note:
 

@@ -563,8 +563,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       const [serverInfo, heartbeat] = await Promise.all([
         getServerInfo(),
         getServerHeartbeat(
-          Array.from(this.sessions.values(), (session) => session.sessionId),
-          1000
+          Array.from(this.sessions.values(), (session) => session.sessionId)
         ),
       ])
 

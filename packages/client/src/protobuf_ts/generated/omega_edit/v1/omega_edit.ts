@@ -134,26 +134,14 @@ export interface ServerControlResponse {
   status?: ServerControlStatus // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 /**
- * Client heartbeat request.  The client identifies itself and lists its
- * active sessions so the server can track liveness.
+ * Client heartbeat request. The client lists the session IDs it still holds so
+ * the server can track liveness.
  *
  * @generated from protobuf message omega_edit.v1.GetHeartbeatRequest
  */
 export interface GetHeartbeatRequest {
   /**
-   * @generated from protobuf field: string hostname = 1
-   */
-  hostname: string // Client hostname.
-  /**
-   * @generated from protobuf field: int32 process_id = 2
-   */
-  processId: number // Client OS process ID.
-  /**
-   * @generated from protobuf field: int32 heartbeat_interval = 3
-   */
-  heartbeatInterval: number // Interval in milliseconds between heartbeats.
-  /**
-   * @generated from protobuf field: repeated string session_ids = 4
+   * @generated from protobuf field: repeated string session_ids = 1
    */
   sessionIds: string[] // Session IDs the client currently holds.
 }
@@ -2320,16 +2308,8 @@ export const ServerControlResponse = new ServerControlResponse$Type()
 class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
   constructor() {
     super('omega_edit.v1.GetHeartbeatRequest', [
-      { no: 1, name: 'hostname', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: 'process_id', kind: 'scalar', T: 5 /*ScalarType.INT32*/ },
       {
-        no: 3,
-        name: 'heartbeat_interval',
-        kind: 'scalar',
-        T: 5 /*ScalarType.INT32*/,
-      },
-      {
-        no: 4,
+        no: 1,
         name: 'session_ids',
         kind: 'scalar',
         repeat: 2 /*RepeatType.UNPACKED*/,
@@ -2339,9 +2319,6 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
   }
   create(value?: PartialMessage<GetHeartbeatRequest>): GetHeartbeatRequest {
     const message = globalThis.Object.create(this.messagePrototype!)
-    message.hostname = ''
-    message.processId = 0
-    message.heartbeatInterval = 0
     message.sessionIds = []
     if (value !== undefined)
       reflectionMergePartial<GetHeartbeatRequest>(this, message, value)
@@ -2358,16 +2335,7 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
     while (reader.pos < end) {
       let [fieldNo, wireType] = reader.tag()
       switch (fieldNo) {
-        case /* string hostname */ 1:
-          message.hostname = reader.string()
-          break
-        case /* int32 process_id */ 2:
-          message.processId = reader.int32()
-          break
-        case /* int32 heartbeat_interval */ 3:
-          message.heartbeatInterval = reader.int32()
-          break
-        case /* repeated string session_ids */ 4:
+        case /* repeated string session_ids */ 1:
           message.sessionIds.push(reader.string())
           break
         default:
@@ -2394,18 +2362,9 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
     writer: IBinaryWriter,
     options: BinaryWriteOptions
   ): IBinaryWriter {
-    /* string hostname = 1; */
-    if (message.hostname !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.hostname)
-    /* int32 process_id = 2; */
-    if (message.processId !== 0)
-      writer.tag(2, WireType.Varint).int32(message.processId)
-    /* int32 heartbeat_interval = 3; */
-    if (message.heartbeatInterval !== 0)
-      writer.tag(3, WireType.Varint).int32(message.heartbeatInterval)
-    /* repeated string session_ids = 4; */
+    /* repeated string session_ids = 1; */
     for (let i = 0; i < message.sessionIds.length; i++)
-      writer.tag(4, WireType.LengthDelimited).string(message.sessionIds[i])
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionIds[i])
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

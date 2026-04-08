@@ -96,37 +96,7 @@ export class EventSubscriptionRequest {
 
 export class HeartbeatRequest {
   private request_: RawGetHeartbeatRequest = {
-    hostname: '',
-    processId: 0,
-    heartbeatInterval: 0,
     sessionIds: [],
-  }
-
-  setHostname(value: string): this {
-    this.request_.hostname = value
-    return this
-  }
-
-  getHostname(): string {
-    return this.request_.hostname
-  }
-
-  setProcessId(value: number): this {
-    this.request_.processId = value
-    return this
-  }
-
-  getProcessId(): number {
-    return this.request_.processId
-  }
-
-  setHeartbeatInterval(value: number): this {
-    this.request_.heartbeatInterval = value
-    return this
-  }
-
-  getHeartbeatInterval(): number {
-    return this.request_.heartbeatInterval
   }
 
   setSessionIdsList(value: string[]): this {

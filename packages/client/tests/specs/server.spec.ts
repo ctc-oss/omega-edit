@@ -326,9 +326,9 @@ describe('Server Heartbeat Timeout', () => {
 
     // Send a heartbeat to keep it alive.
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
     expect(await getSessionCount()).to.equal(1)
 
@@ -520,9 +520,9 @@ describe('Server Shutdown When No Sessions', () => {
     expect(session_id.length).to.equal(36)
 
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
 
     await waitForSessionCount(0, 2000, true)
     await waitForPidToExit(pid as number, 15000)

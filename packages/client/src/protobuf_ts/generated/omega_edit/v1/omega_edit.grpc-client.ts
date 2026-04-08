@@ -98,6 +98,10 @@ import type { CreateSessionRequest } from './omega_edit'
 import type { GetServerInfoResponse } from './omega_edit'
 import type { GetServerInfoRequest } from './omega_edit'
 import * as grpc from '@grpc/grpc-js'
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport
@@ -1424,8 +1428,8 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */
@@ -1571,6 +1575,10 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
 }
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport
@@ -2955,8 +2963,8 @@ export class EditorServiceClient
     )
   }
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */
