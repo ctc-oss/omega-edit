@@ -134,7 +134,7 @@ int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptio
     return static_cast<int32_t>(combined);
 }
 
-static bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
+bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
     char normalized_path[FILENAME_MAX] = {};
     char *result = omega_util_normalize_path(file_path.c_str(), normalized_path);
     if (result == nullptr) {
@@ -458,7 +458,7 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
         evt.data.assign(data, data + length);
     }
 
-    info->event_queue->push(evt);
+    info->event_queue->push(std::move(evt));
 }
 
 // ── Constructor / Destructor ─────────────────────────────────────────────────
@@ -516,18 +516,14 @@ std::string SessionManager::create_session(const std::string &file_path, const s
             return ""; // Invalid: contains reserved character
         }
         session_id = desired_id;
+        if (sessions_.count(session_id) != 0) {
+            if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+            return ""; // Already exists
+        }
     } else {
         do {
             session_id = generate_session_id();
         } while (sessions_.count(session_id) != 0);
-    }
-
-    if (!desired_id.empty()) {
-        auto existing = sessions_.find(session_id);
-        if (existing != sessions_.end()) {
-            if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
-            return ""; // Already exists
-        }
     }
 
     auto info = std::make_shared<SessionInfo>();
@@ -886,6 +882,7 @@ void SessionManager::destroy_all() {
         }
     }
     sessions_.clear();
+    file_sessions_by_path_.clear();
     cleanup_managed_server_root_if_empty();
 }
 
@@ -894,17 +891,6 @@ void SessionManager::touch_session(const std::string &session_id) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) {
         it->second->last_activity = std::chrono::steady_clock::now();
-    }
-}
-
-void SessionManager::touch_sessions(const std::vector<std::string> &session_ids) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto now = std::chrono::steady_clock::now();
-    for (const auto &sid : session_ids) {
-        auto it = sessions_.find(sid);
-        if (it != sessions_.end()) {
-            it->second->last_activity = now;
-        }
     }
 }
 

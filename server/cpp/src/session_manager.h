@@ -73,25 +73,18 @@ public:
         : max_size_(max_size), label_(std::move(label)) {}
 
     void push(const T &event) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (closed_) { return; }
-        if (max_size_ > 0 && queue_.size() >= max_size_) {
-            queue_.pop();
-            const size_t dropped = ++dropped_count_;
-            if (should_log_drops(dropped)) {
-                std::cerr << "Warning: dropped " << dropped << " buffered event(s) from " << label_
-                          << " because the queue reached its capacity of " << max_size_ << std::endl;
-            }
-        }
-        queue_.push(event);
-        cv_.notify_one();
+        push_impl(event);
+    }
+
+    void push(T &&event) {
+        push_impl(std::move(event));
     }
 
     bool pop(T &event, std::chrono::milliseconds timeout) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (cv_.wait_for(lock, timeout, [this] { return !queue_.empty() || closed_; })) {
             if (closed_ && queue_.empty()) return false;
-            event = queue_.front();
+            event = std::move(queue_.front());
             queue_.pop();
             return true;
         }
@@ -115,8 +108,26 @@ public:
     size_t dropped_count() const { return dropped_count_.load(std::memory_order_relaxed); }
 
 private:
+    template <typename U>
+    void push_impl(U &&event) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_) { return; }
+            if (max_size_ > 0 && queue_.size() >= max_size_) {
+                queue_.pop();
+                const size_t dropped = ++dropped_count_;
+                if (should_log_drops(dropped)) {
+                    std::cerr << "Warning: dropped " << dropped << " buffered event(s) from " << label_
+                              << " because the queue reached its capacity of " << max_size_ << std::endl;
+                }
+            }
+            queue_.push(std::forward<U>(event));
+        }
+        cv_.notify_one();
+    }
+
     static bool should_log_drops(size_t dropped_count) {
-        return dropped_count == 1 || (dropped_count & (dropped_count - 1)) == 0;
+        return (dropped_count & (dropped_count - 1)) == 0;
     }
 
     size_t max_size_;
@@ -214,7 +225,17 @@ public:
 
     // Session activity tracking
     void touch_session(const std::string &session_id);
-    void touch_sessions(const std::vector<std::string> &session_ids);
+    template <typename SessionIdRange>
+    void touch_sessions(const SessionIdRange &session_ids) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto now = std::chrono::steady_clock::now();
+        for (const auto &sid : session_ids) {
+            auto it = sessions_.find(sid);
+            if (it != sessions_.end()) {
+                it->second->last_activity = now;
+            }
+        }
+    }
     std::vector<std::string> get_idle_session_ids(std::chrono::milliseconds timeout) const;
 
     // Destroy all sessions (for shutdown)

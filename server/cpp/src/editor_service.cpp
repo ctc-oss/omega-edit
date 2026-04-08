@@ -42,15 +42,18 @@
 namespace omega_edit {
 namespace grpc_server {
 
-static std::string get_hostname() {
-    char buf[256] = {};
+static const std::string &get_hostname() {
+    static const std::string value = []() -> std::string {
+        char buf[256] = {};
 #ifdef _WIN32
-    DWORD size = sizeof(buf);
-    if (GetComputerNameA(buf, &size)) return std::string(buf, size);
+        DWORD size = sizeof(buf);
+        if (GetComputerNameA(buf, &size)) return std::string(buf, size);
 #else
-    if (gethostname(buf, sizeof(buf)) == 0) return std::string(buf);
+        if (gethostname(buf, sizeof(buf)) == 0) return std::string(buf);
 #endif
-    return "unknown";
+        return "unknown";
+    }();
+    return value;
 }
 
 static int get_pid() {
@@ -301,9 +304,7 @@ void EditorServiceImpl::reaper_loop() {
         if (heartbeat_config_.shutdown_when_no_sessions && session_manager_.session_count() == 0 &&
             !idle_ids.empty()) {
             // We just reaped sessions and now there are none left
-            if (shutdown_callback_) {
-                shutdown_callback_();
-            }
+            request_shutdown();
             break;
         }
     }
@@ -316,6 +317,23 @@ bool EditorServiceImpl::parse_viewport_id(const std::string &fqid, std::string &
     session_id = fqid.substr(0, pos);
     viewport_id = fqid.substr(pos + 1);
     return !session_id.empty() && !viewport_id.empty();
+}
+
+std::string EditorServiceImpl::make_viewport_fqid(const std::string &session_id, const std::string &viewport_id) {
+    std::string fqid;
+    fqid.reserve(session_id.size() + 1 + viewport_id.size());
+    fqid.append(session_id);
+    fqid.push_back(':');
+    fqid.append(viewport_id);
+    return fqid;
+}
+
+void EditorServiceImpl::request_shutdown() {
+    if (!shutdown_callback_) {
+        return;
+    }
+
+    std::call_once(shutdown_once_, [this]() { shutdown_callback_(); });
 }
 
 template <typename T>
@@ -497,9 +515,7 @@ grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/
 
     // If graceful shutdown is pending and no sessions remain, trigger shutdown
     if (graceful_shutdown_.load() && session_manager_.session_count() == 0) {
-        if (shutdown_callback_) {
-            shutdown_callback_();
-        }
+        request_shutdown();
     }
 
     return grpc::Status::OK;
@@ -948,23 +964,22 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
         response->set_content_type("application/octet-stream");
         return grpc::Status::OK;
     }
-    auto *segment = omega_segment_create(request->length());
+    auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
+        omega_segment_create(request->length()), omega_segment_destroy);
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
     }
 
-    int result = omega_session_get_segment(session, segment, request->offset());
+    int result = omega_session_get_segment(session, segment.get(), request->offset());
     std::string content_type;
     int64_t actual_length = 0;
     if (result == 0) {
-        auto *data = omega_segment_get_data(segment);
-        actual_length = omega_segment_get_length(segment);
+        auto *data = omega_segment_get_data(segment.get());
+        actual_length = omega_segment_get_length(segment.get());
         content_type = content_type_detector_->detect(data, actual_length);
     } else {
-        omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
     }
-    omega_segment_destroy(segment);
 
     response->set_session_id(request->session_id());
     response->set_offset(request->offset());
@@ -989,24 +1004,23 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
         response->set_language("unknown");
         return grpc::Status::OK;
     }
-    auto *segment = omega_segment_create(request->length());
+    auto segment = std::unique_ptr<omega_segment_t, decltype(&omega_segment_destroy)>(
+        omega_segment_create(request->length()), omega_segment_destroy);
     if (!segment) {
         return grpc::Status(grpc::StatusCode::INTERNAL, "failed to allocate segment");
     }
 
-    int result = omega_session_get_segment(session, segment, request->offset());
+    int result = omega_session_get_segment(session, segment.get(), request->offset());
     std::string language;
     int64_t actual_length = 0;
     if (result == 0) {
-        auto *data = omega_segment_get_data(segment);
-        actual_length = omega_segment_get_length(segment);
+        auto *data = omega_segment_get_data(segment.get());
+        actual_length = omega_segment_get_length(segment.get());
         std::string bom_str = request->byte_order_mark();
         language = language_detector_->detect(data, actual_length, bom_str);
     } else {
-        omega_segment_destroy(segment);
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
     }
-    omega_segment_destroy(segment);
 
     response->set_session_id(request->session_id());
     response->set_offset(request->offset());
@@ -1145,8 +1159,7 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
 
     if (ctx) {
         int64_t num_matches = 0;
-        while (omega_search_next_match(ctx, 1) > 0) {
-            if (limit > 0 && num_matches >= limit) break;
+        while ((limit <= 0 || num_matches < limit) && omega_search_next_match(ctx, 1) > 0) {
             response->add_match_offset(omega_search_context_get_match_offset(ctx));
             ++num_matches;
         }
@@ -1239,9 +1252,7 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             if (session_manager_.session_count() == 0) {
                 response->set_response_code(0);
                 response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
-                if (shutdown_callback_) {
-                    shutdown_callback_();
-                }
+                request_shutdown();
             } else {
                 response->set_response_code(0);
                 response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_DRAINING);
@@ -1253,9 +1264,7 @@ grpc::Status EditorServiceImpl::ServerControl(grpc::ServerContext * /*context*/,
             session_manager_.destroy_all();
             response->set_response_code(0);
             response->set_status(::omega_edit::v1::SERVER_CONTROL_STATUS_COMPLETED);
-            if (shutdown_callback_) {
-                shutdown_callback_();
-            }
+            request_shutdown();
             break;
 
         default:
@@ -1272,8 +1281,7 @@ grpc::Status EditorServiceImpl::GetHeartbeat(grpc::ServerContext * /*context*/,
                                               ::omega_edit::v1::GetHeartbeatResponse *response) {
     // Touch sessions referenced in the heartbeat to keep them alive
     if (request->session_ids_size() > 0) {
-        std::vector<std::string> ids(request->session_ids().begin(), request->session_ids().end());
-        session_manager_.touch_sessions(ids);
+        session_manager_.touch_sessions(request->session_ids());
     }
 
     auto now = std::chrono::system_clock::now();
@@ -1361,7 +1369,7 @@ grpc::Status EditorServiceImpl::SubscribeToViewportEvents(
         if (queue->pop(event_data, std::chrono::milliseconds(500))) {
             ::omega_edit::v1::SubscribeToViewportEventsResponse event;
             event.set_session_id(event_data.session_id);
-            event.set_viewport_id(event_data.session_id + ":" + event_data.viewport_id);
+            event.set_viewport_id(make_viewport_fqid(event_data.session_id, event_data.viewport_id));
             event.set_viewport_event_kind(
                 static_cast<::omega_edit::v1::ViewportEventKind>(event_data.viewport_event_kind));
             if (event_data.serial != 0) {

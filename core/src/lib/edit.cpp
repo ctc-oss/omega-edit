@@ -890,7 +890,7 @@ int64_t omega_edit_insert_bytes(omega_session_t *session_ptr, int64_t offset, co
     if (offset < 0 || length < 0) { return -1; }
     if (length == 0) { return 0; }
     if (!bytes) { return -1; }
-    return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
+    return (omega_session_changes_paused(session_ptr) == 0) &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ins_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
                                        determine_change_transaction_bit_(session_ptr)))
@@ -909,7 +909,7 @@ int64_t omega_edit_overwrite_bytes(omega_session_t *session_ptr, int64_t offset,
     if (offset < 0 || length < 0) { return -1; }
     if (length == 0) { return 0; }
     if (!bytes) { return -1; }
-    return (omega_session_changes_paused(session_ptr) == 0) && 0 <= length &&
+    return (omega_session_changes_paused(session_ptr) == 0) &&
            offset <= omega_session_get_computed_file_size(session_ptr)
            ? update_(session_ptr, ovr_(1 + omega_session_get_num_changes(session_ptr), offset, bytes, length,
                                        determine_change_transaction_bit_(session_ptr)))
