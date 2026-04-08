@@ -85,6 +85,10 @@ await stopServerGraceful()
 | `getServerInfo()`                                 | Runtime metadata for the native server    |
 | `getServerHeartbeat(sessions, interval?)`         | Heartbeat and process health              |
 
+Shutdown migration note:
+
+- In the 2.x line, `stopServerGraceful()` and `stopServerImmediate()` return a structured result object with `responseCode`, `serverProcessId`, and `status` instead of returning only a numeric response code.
+
 ### Server Health API Migration
 
 `getServerInfo()` and `getServerHeartbeat()` now expose native-runtime metadata instead of JVM-shaped placeholders.

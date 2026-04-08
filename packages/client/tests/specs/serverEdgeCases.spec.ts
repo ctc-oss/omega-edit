@@ -565,6 +565,36 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should infer draining for graceful shutdown when status is absent', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus?: undefined }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 1
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerGraceful()
+      expect(response.responseCode).to.equal(1)
+      expect(response.status).to.equal('draining')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
   it('should return an error code for generic shutdown exceptions', async () => {
     let mode: 'error' | 'string' = 'error'
     const restoreGetClient = overrideProperty(
