@@ -1190,6 +1190,57 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(initialCount)
   })
 
+  it('Should reject duplicate desired session IDs', async () => {
+    const initialCount = await getSessionCount()
+    const desiredSessionId = 'desired-session-id'
+    const session = await createSession('', desiredSessionId)
+    const sessionId = session.getSessionId()
+
+    expect(sessionId).to.equal(desiredSessionId)
+    expect(await getSessionCount()).to.equal(initialCount + 1)
+
+    try {
+      await createSession('', desiredSessionId)
+      expect.fail('createSession should reject duplicate desired session IDs')
+    } catch (err) {
+      expect((err as Error).message).to.include('ALREADY_EXISTS')
+      expect((err as Error).message).to.include(
+        `session already exists: ${desiredSessionId}`
+      )
+    } finally {
+      await destroySession(sessionId)
+    }
+
+    expect(await getSessionCount()).to.equal(initialCount)
+  })
+
+  it('Should reject duplicate desired viewport IDs within a session', async () => {
+    const session = await createSession()
+    const sessionId = session.getSessionId()
+    const desiredViewportId = 'desired-viewport-id'
+
+    try {
+      const viewport = await createViewport(desiredViewportId, sessionId, 0, 16)
+      expect(viewport.getViewportId()).to.equal(
+        `${sessionId}:${desiredViewportId}`
+      )
+
+      try {
+        await createViewport(desiredViewportId, sessionId, 0, 16)
+        expect.fail(
+          'createViewport should reject duplicate desired viewport IDs'
+        )
+      } catch (err) {
+        expect((err as Error).message).to.include('ALREADY_EXISTS')
+        expect((err as Error).message).to.include(
+          `viewport already exists: ${desiredViewportId}`
+        )
+      }
+    } finally {
+      await destroySession(sessionId)
+    }
+  })
+
   it('Should reject invalid and nonexistent sessions', async () => {
     try {
       await getComputedFileSize('nonexistent-session-id-12345')
