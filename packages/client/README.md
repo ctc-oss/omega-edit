@@ -80,10 +80,14 @@ await stopServerGraceful()
 | ------------------------------------------------- | ----------------------------------------- |
 | `startServer(port?, host?, pidFile?, heartbeat?)` | Start the bundled native gRPC server      |
 | `startServerUnixSocket(socketPath, ...)`          | Start using a Unix domain socket          |
-| `stopServerGraceful()`                            | Graceful shutdown                         |
-| `stopServerImmediate()`                           | Immediate shutdown                        |
+| `stopServerGraceful()`                            | Graceful shutdown, returning status info  |
+| `stopServerImmediate()`                           | Immediate shutdown, returning status info |
 | `getServerInfo()`                                 | Runtime metadata for the native server    |
-| `getServerHeartbeat(sessions, interval?)`         | Heartbeat and process health              |
+| `getServerHeartbeat(sessions)`                    | Heartbeat and process health              |
+
+Shutdown migration note:
+
+- In the 2.x line, `stopServerGraceful()` and `stopServerImmediate()` return a structured result object with `responseCode`, `serverProcessId`, and `status` instead of returning only a numeric response code.
 
 ### Server Health API Migration
 

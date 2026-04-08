@@ -157,7 +157,7 @@ TEST_CASE("Empty Session File Tests", "[EmptySessionFileTests]") {
     REQUIRE(0 == omega_session_get_num_change_transactions(session_ptr));
     REQUIRE(0 == omega_edit_undo_last_change(session_ptr));
     auto change_serial =
-            omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("1234567890"), 0);
+            omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("1234567890"), 10);
     REQUIRE(0 < change_serial);
     REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
     file_size += 10;

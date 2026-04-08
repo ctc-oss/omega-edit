@@ -18,6 +18,10 @@ package omega_edit.v1;
 
 option cc_enable_arenas = true;
 
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 // EditorService is the primary gRPC service for the Ωedit library.  It provides
 // byte-level editing of arbitrarily large files through a session/viewport
 // model with unlimited, serialised undo/redo.
@@ -49,7 +53,8 @@ service EditorService {
 
   // Create a new editing session, optionally backed by an existing file.
   // Returns the assigned session ID, checkpoint directory, and (if a file was
-  // provided) the original file size.
+  // provided) the original file size. If the server has begun shutdown or is
+  // draining existing sessions, this RPC fails with UNAVAILABLE.
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
 
   // Persist the session's computed content to disk.  The caller specifies the
@@ -194,8 +199,8 @@ service EditorService {
   // Send a control command to the server (graceful or immediate shutdown).
   rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
 
-  // Exchange a heartbeat with the server.  The client sends its hostname,
-  // PID, and active session IDs; the server responds with resource metrics.
+  // Exchange a heartbeat with the server. The client sends the session IDs it
+  // still holds so the server can keep them alive and return resource metrics.
   rpc GetHeartbeat(GetHeartbeatRequest) returns (GetHeartbeatResponse);
 
   // ---------------------------------------------------------------------------
@@ -326,6 +331,15 @@ enum ServerControlKind {
   SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN = 2;
 }
 
+// Status reported after a server-control command is accepted.
+enum ServerControlStatus {
+  SERVER_CONTROL_STATUS_UNSPECIFIED = 0;
+  // The requested shutdown path has completed and the server is stopping.
+  SERVER_CONTROL_STATUS_COMPLETED = 1;
+  // Graceful shutdown was accepted, but the server is still draining sessions.
+  SERVER_CONTROL_STATUS_DRAINING = 2;
+}
+
 // ===========================================================================
 // Request / Response messages — Server info & management
 // ===========================================================================
@@ -359,16 +373,14 @@ message ServerControlRequest {
 message ServerControlResponse {
   ServerControlKind kind = 1; // The command that was executed.
   int32 pid = 2;              // Server process ID.
-  int32 response_code = 3;    // 0 for success, non-zero for failure.
+  int32 response_code = 3 [deprecated = true]; // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
+  optional ServerControlStatus status = 4;     // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 
-// Client heartbeat request.  The client identifies itself and lists its
-// active sessions so the server can track liveness.
+// Client heartbeat request. The client lists the session IDs it still holds so
+// the server can track liveness.
 message GetHeartbeatRequest {
-  string hostname = 1;            // Client hostname.
-  int32 process_id = 2;           // Client OS process ID.
-  int32 heartbeat_interval = 3;   // Interval in milliseconds between heartbeats.
-  repeated string session_ids = 4; // Session IDs the client currently holds.
+  repeated string session_ids = 1; // Session IDs the client currently holds.
 }
 
 // Server heartbeat response with resource metrics.

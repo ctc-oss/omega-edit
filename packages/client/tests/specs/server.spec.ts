@@ -173,13 +173,22 @@ describe('Server', () => {
 
   it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
-    await stopServerGraceful()
+    const response = await stopServerGraceful()
+    expect(response.responseCode).to.equal(0)
+    expect(response.status).to.equal('draining')
+    expect(response.serverProcessId).to.equal(pid)
 
     // for graceful shutdown, the server should still be running until the session count drops to 0
     expect(pidIsRunning(pid as number)).to.be.true
 
     // once the server is stopping gracefully, no new sessions should be allowed
-    expect((await createSession()).getSessionId()).to.be.empty
+    try {
+      await createSession()
+      expect.fail('createSession should reject while graceful shutdown drains')
+    } catch (err) {
+      expect((err as Error).message).to.include('UNAVAILABLE')
+      expect((err as Error).message).to.include('server is shutting down')
+    }
     expect(await getSessionCount()).to.equal(1)
 
     // destroy the session, dropping the count to 0, then the server should stop
@@ -188,6 +197,24 @@ describe('Server', () => {
     // pause for up to 2 seconds to allow server some time to stop
     for (let i = 0; i < 20; ++i) {
       await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop gracefully via API when no sessions are active`, async () => {
+    expect(await destroySession(session_id)).to.equal(session_id)
+    expect(await getSessionCount()).to.equal(0)
+
+    const response = await stopServerGraceful()
+    expect(response.responseCode).to.equal(0)
+    expect(response.status).to.equal('completed')
+    expect(response.serverProcessId).to.equal(pid)
+
+    for (let i = 0; i < 20; ++i) {
+      await delay(100)
       if (!pidIsRunning(pid as number)) {
         break
       }
@@ -299,9 +326,9 @@ describe('Server Heartbeat Timeout', () => {
 
     // Send a heartbeat to keep it alive.
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
     expect(await getSessionCount()).to.equal(1)
 
@@ -493,9 +520,9 @@ describe('Server Shutdown When No Sessions', () => {
     expect(session_id.length).to.equal(36)
 
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
 
     await waitForSessionCount(0, 2000, true)
     await waitForPidToExit(pid as number, 15000)

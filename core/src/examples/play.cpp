@@ -213,10 +213,10 @@ int main(int /*argc*/, char ** /*argv*/) {
     omega_edit_delete(session_ptr.get(), 70, 2);
     view_mode.display_mode = display_mode_t::CHAR_MODE;
     omega_edit_insert_string(session_ptr.get(), 10, "++++");
-    omega_edit_overwrite_bytes(session_ptr.get(), 12, (const omega_byte_t *) ".", 0);
-    omega_edit_insert_bytes(session_ptr.get(), 0, (const omega_byte_t *) "+++", 0);
-    omega_edit_overwrite_bytes(session_ptr.get(), 1, (const omega_byte_t *) ".", 0);
-    omega_edit_overwrite_bytes(session_ptr.get(), 77, (const omega_byte_t *) ".", 0);
+    omega_edit_overwrite_bytes(session_ptr.get(), 12, (const omega_byte_t *) ".", 1);
+    omega_edit_insert_bytes(session_ptr.get(), 0, (const omega_byte_t *) "+++", 3);
+    omega_edit_overwrite_bytes(session_ptr.get(), 1, (const omega_byte_t *) ".", 1);
+    omega_edit_overwrite_bytes(session_ptr.get(), 77, (const omega_byte_t *) ".", 1);
     omega_edit_delete(session_ptr.get(), 50, 3);
     omega_edit_insert_bytes(session_ptr.get(), 50, (const omega_byte_t *) "***", 3);
     omega_edit_delete(session_ptr.get(), 1, 50);

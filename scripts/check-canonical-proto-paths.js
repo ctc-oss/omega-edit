@@ -136,7 +136,9 @@ function documentsLegacyPathRemoval(contents) {
     const end = Math.min(lines.length - 1, index + contextLineRadius)
     const surroundingText = lines.slice(start, end + 1).join('\n')
 
-    return legacyRemovalMarkers.some((marker) => surroundingText.includes(marker))
+    return legacyRemovalMarkers.some((marker) =>
+      surroundingText.includes(marker)
+    )
   })
 }
 
