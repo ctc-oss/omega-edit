@@ -460,6 +460,49 @@ TEST_CASE("Large Transaction Undo/Redo", "[TransactionTests]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Large Replace-Style Transaction Undo/Redo", "[TransactionTests]") {
+    auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    constexpr int match_count = 1000;
+    const std::string original_token = "PDF\n";
+    const std::string replacement = "Everybody Wang Chung Tonight";
+    std::string original_content;
+    original_content.reserve(match_count * static_cast<int>(original_token.size()));
+    for (int i = 0; i < match_count; ++i) { original_content += original_token; }
+
+    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, original_content));
+    REQUIRE(static_cast<int64_t>(original_content.size()) == omega_session_get_computed_file_size(session_ptr));
+
+    REQUIRE(0 == omega_session_begin_transaction(session_ptr));
+    for (int i = match_count - 1; i >= 0; --i) {
+        REQUIRE(0 != omega_edit_replace(session_ptr, static_cast<int64_t>(i) * original_token.size(),
+                                        static_cast<int64_t>(original_token.size()) - 1, replacement.c_str(), 0));
+    }
+    REQUIRE(0 == omega_session_end_transaction(session_ptr));
+    REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(match_count * 2 + 1 == omega_session_get_num_changes(session_ptr));
+
+    const auto expanded_size =
+            static_cast<int64_t>(original_content.size()) + match_count * (static_cast<int64_t>(replacement.size()) - 3);
+    REQUIRE(expanded_size == omega_session_get_computed_file_size(session_ptr));
+
+    const auto undo_result = omega_edit_undo_last_change(session_ptr);
+    REQUIRE(undo_result < 0);
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(match_count * 2 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(static_cast<int64_t>(original_content.size()) == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(original_content == omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const auto redo_result = omega_edit_redo_last_undo(session_ptr);
+    REQUIRE(redo_result > 0);
+    REQUIRE(match_count * 2 + 1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(expanded_size == omega_session_get_computed_file_size(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Null Pointer Safety", "[NullSafety]") {
     // Session API null safety
     REQUIRE(nullptr == omega_session_get_user_data_ptr(nullptr));
