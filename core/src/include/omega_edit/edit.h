@@ -297,6 +297,70 @@ int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t
                            int64_t insert_length);
 
 /**
+ * Replace matching byte patterns inside a session range using in-place transactional edits.
+ *
+ * Matches are located against the original session content and replaced in one logical transaction. Matching is
+ * non-overlapping: after a match is found, searching resumes immediately after the matched pattern bytes in the
+ * original content. When `front_to_back` is non-zero, replacements are applied from the start of the range toward the
+ * end with offset adjustments for prior replacements. When `front_to_back` is zero, replacements are applied from the
+ * end toward the start so no offset adjustment is required.
+ *
+ * Each individual match is lowered through the same optimized edit shape used by higher-level clients: unchanged
+ * prefix/suffix bytes are trimmed so a match may become an insert, delete, overwrite, or replace op depending on the
+ * actual delta. When `overwrite_only` is non-zero, each match is applied as a raw overwrite of the replacement bytes
+ * at the match offset without deleting any extra bytes from the matched pattern.
+ *
+ * @param session_ptr session to edit
+ * @param pattern pattern bytes to search for
+ * @param pattern_length explicit number of bytes in pattern
+ * @param replacement replacement bytes, or null if `replacement_length` is zero
+ * @param replacement_length explicit number of bytes in replacement
+ * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param is_reverse zero to search forward and non-zero to search backward before applying replacements
+ * @param offset starting byte offset of the replace range
+ * @param length number of bytes in the replace range, or zero to search from `offset` to end of session
+ * @param limit maximum number of matches to replace, or zero for no limit
+ * @param front_to_back non-zero to apply replacements from low offsets to high offsets, zero for high-to-low
+ * @param overwrite_only non-zero to overwrite replacement bytes in place instead of replacing the full matched span
+ * @param replacement_count_out optional out-parameter that receives the number of matches selected for replacement
+ * @param delete_count_out optional out-parameter that receives the number of lowered delete operations
+ * @param insert_count_out optional out-parameter that receives the number of lowered insert operations
+ * @param overwrite_count_out optional out-parameter that receives the number of lowered overwrite operations
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                     const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+                                     int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                                     int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+                                     int64_t *insert_count_out, int64_t *overwrite_count_out);
+
+/**
+ * Replace matching C-string patterns inside a session range using in-place transactional edits.
+ * @param session_ptr session to edit
+ * @param pattern pattern C string to search for
+ * @param pattern_length explicit pattern length (if 0, strlen will be used)
+ * @param replacement replacement C string, or null if `replacement_length` is zero
+ * @param replacement_length explicit replacement length (if 0, strlen will be used)
+ * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param is_reverse zero to search forward and non-zero to search backward before applying replacements
+ * @param offset starting byte offset of the replace range
+ * @param length number of bytes in the replace range, or zero to search from `offset` to end of session
+ * @param limit maximum number of matches to replace, or zero for no limit
+ * @param front_to_back non-zero to apply replacements from low offsets to high offsets, zero for high-to-low
+ * @param overwrite_only non-zero to overwrite replacement bytes in place instead of replacing the full matched span
+ * @param replacement_count_out optional out-parameter that receives the number of matches selected for replacement
+ * @param delete_count_out optional out-parameter that receives the number of lowered delete operations
+ * @param insert_count_out optional out-parameter that receives the number of lowered insert operations
+ * @param overwrite_count_out optional out-parameter that receives the number of lowered overwrite operations
+ * @return zero on success and non-zero otherwise
+ */
+int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                               const char *replacement, int64_t replacement_length, int case_insensitive,
+                               int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                               int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+                               int64_t *insert_count_out, int64_t *overwrite_count_out);
+
+/**
  * Replace all non-overlapping matches of a byte pattern within a session range using a streamed checkpoint rewrite.
  *
  * The current session content is read once in forward order and rewritten into a new checkpoint file. Bytes outside the

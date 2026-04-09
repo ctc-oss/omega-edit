@@ -644,6 +644,52 @@ TEST_CASE("Checkpoint Replace All Leaves Session Unchanged Without Matches", "[E
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Transactional Replace Matches Uses Non-Overlapping Semantics", "[EdgeCase][ReplaceMatches]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "aaaaaa"));
+
+    int64_t replacement_count = -1;
+    int64_t delete_count = -1;
+    int64_t insert_count = -1;
+    int64_t overwrite_count = -1;
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "b", 0, 0, 0, 0, 0, 0, 1, 0,
+                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(3 == replacement_count);
+    REQUIRE(3 == delete_count);
+    REQUIRE(3 == insert_count);
+    REQUIRE(0 == overwrite_count);
+    REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) ==
+            "bbb");
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Transactional Replace Matches Honors Reverse Limits And Lowered Stats", "[EdgeCase][ReplaceMatches]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "Item|Item|Item"));
+
+    int64_t replacement_count = -1;
+    int64_t delete_count = -1;
+    int64_t insert_count = -1;
+    int64_t overwrite_count = -1;
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "Item", 0, "Item-1", 0, 0, 1, 0, 0, 1, 1, 0,
+                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(1 == replacement_count);
+    REQUIRE(0 == delete_count);
+    REQUIRE(1 == insert_count);
+    REQUIRE(0 == overwrite_count);
+    REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) ==
+            "Item|Item|Item-1");
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Save Segment Partial File", "[EdgeCase][SaveSegment]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);

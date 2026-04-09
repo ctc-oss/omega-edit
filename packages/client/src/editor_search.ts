@@ -297,7 +297,7 @@ export class EditorSearchController {
           replacedCount > 0 && request.replacementData !== undefined
             ? {
                 kind: 'CHECKPOINT_REPLACE_ALL',
-                query: request.query,
+                query: normalizedQuery,
                 isHex: request.isHex,
                 caseInsensitive: request.caseInsensitive ?? false,
                 data: request.replacementData,

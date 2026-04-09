@@ -29,6 +29,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <memory>
+#include <vector>
 
 #ifdef OMEGA_BUILD_WINDOWS
 
@@ -381,6 +382,105 @@ namespace {
             default:
                 return -1;
         }
+    }
+
+    struct replace_match_stats_t {
+        int64_t replacements = 0;
+        int64_t deletes = 0;
+        int64_t inserts = 0;
+        int64_t overwrites = 0;
+    };
+
+    void append_optimized_replace_ops_(std::vector<omega_edit_script_op_t> &ops, replace_match_stats_t &stats,
+                                       int64_t offset, const omega_byte_t *pattern, int64_t pattern_length,
+                                       const omega_byte_t *replacement, int64_t replacement_length,
+                                       bool overwrite_only) {
+        ++stats.replacements;
+
+        if (overwrite_only) {
+            if (!replacement || replacement_length <= 0) { return; }
+            const omega_edit_script_op_t op{
+                    offset,
+                    replacement_length,
+                    OMEGA_EDIT_SCRIPT_OVERWRITE,
+                    replacement,
+                    replacement_length,
+            };
+            ops.push_back(op);
+            ++stats.overwrites;
+            return;
+        }
+
+        int64_t prefix_length = 0;
+        while (prefix_length < pattern_length && prefix_length < replacement_length &&
+               pattern[prefix_length] == replacement[prefix_length]) {
+            ++prefix_length;
+        }
+
+        int64_t suffix_length = 0;
+        while (suffix_length < pattern_length - prefix_length &&
+               suffix_length < replacement_length - prefix_length &&
+               pattern[pattern_length - 1 - suffix_length] ==
+                       replacement[replacement_length - 1 - suffix_length]) {
+            ++suffix_length;
+        }
+
+        const auto remove_length = pattern_length - prefix_length - suffix_length;
+        const auto insert_length = replacement_length - prefix_length - suffix_length;
+        if (remove_length == 0 && insert_length == 0) { return; }
+
+        const auto *insert_bytes = (insert_length > 0) ? replacement + prefix_length : nullptr;
+        const auto op_offset = offset + prefix_length;
+
+        if (remove_length == 0) {
+            const omega_edit_script_op_t op{
+                    op_offset,
+                    0,
+                    OMEGA_EDIT_SCRIPT_INSERT,
+                    insert_bytes,
+                    insert_length,
+            };
+            ops.push_back(op);
+            ++stats.inserts;
+            return;
+        }
+
+        if (insert_length == 0) {
+            const omega_edit_script_op_t op{
+                    op_offset,
+                    remove_length,
+                    OMEGA_EDIT_SCRIPT_DELETE,
+                    nullptr,
+                    0,
+            };
+            ops.push_back(op);
+            ++stats.deletes;
+            return;
+        }
+
+        if (remove_length == insert_length) {
+            const omega_edit_script_op_t op{
+                    op_offset,
+                    remove_length,
+                    OMEGA_EDIT_SCRIPT_OVERWRITE,
+                    insert_bytes,
+                    insert_length,
+            };
+            ops.push_back(op);
+            ++stats.overwrites;
+            return;
+        }
+
+        const omega_edit_script_op_t op{
+                op_offset,
+                remove_length,
+                OMEGA_EDIT_SCRIPT_REPLACE,
+                insert_bytes,
+                insert_length,
+        };
+        ops.push_back(op);
+        ++stats.deletes;
+        ++stats.inserts;
     }
 
     inline void update_viewport_offset_adjustment_(omega_viewport_t *viewport_ptr,
@@ -1157,6 +1257,100 @@ int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t
     }
     const auto cstr_length = (insert_length == 0) ? static_cast<int64_t>(strlen(cstr)) : insert_length;
     return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, cstr_length);
+}
+
+int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                     const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+                                     int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                                     int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+                                     int64_t *insert_count_out, int64_t *overwrite_count_out) {
+    if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
+    if (delete_count_out != nullptr) { *delete_count_out = 0; }
+    if (insert_count_out != nullptr) { *insert_count_out = 0; }
+    if (overwrite_count_out != nullptr) { *overwrite_count_out = 0; }
+
+    if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || limit < 0 ||
+        replacement_length < 0) {
+        return -1;
+    }
+    if (!replacement && replacement_length > 0) { return -1; }
+    if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
+
+    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+    if (offset > computed_file_size) { return -1; }
+    const auto adjusted_length =
+            length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
+    if (adjusted_length < 0) { return -1; }
+    if (pattern_length > adjusted_length) { return 0; }
+
+    auto *const search_context =
+            omega_search_create_context_bytes(session_ptr, pattern, pattern_length, offset, adjusted_length,
+                                              case_insensitive, is_reverse);
+    if (!search_context) { return -1; }
+
+    std::vector<int64_t> match_offsets;
+    int64_t last_accepted_offset = -1;
+    while ((limit <= 0 || static_cast<int64_t>(match_offsets.size()) < limit) &&
+           omega_search_next_match(search_context, 1) > 0) {
+        const auto match_offset = omega_search_context_get_match_offset(search_context);
+        const bool overlaps_prior =
+                !match_offsets.empty() &&
+                (is_reverse ? (match_offset + pattern_length > last_accepted_offset)
+                            : (match_offset < last_accepted_offset + pattern_length));
+        if (overlaps_prior) { continue; }
+        match_offsets.push_back(match_offset);
+        last_accepted_offset = match_offset;
+    }
+    omega_search_destroy_context(search_context);
+
+    if (match_offsets.empty()) { return 0; }
+
+    std::sort(match_offsets.begin(), match_offsets.end(),
+              [front_to_back](const int64_t lhs, const int64_t rhs) { return front_to_back ? lhs < rhs : rhs < lhs; });
+
+    std::vector<omega_edit_script_op_t> ops;
+    ops.reserve(match_offsets.size());
+    replace_match_stats_t stats;
+    const auto replacement_delta = replacement_length - pattern_length;
+    for (size_t i = 0; i < match_offsets.size(); ++i) {
+        const auto base_offset = front_to_back ? match_offsets[i] + replacement_delta * static_cast<int64_t>(i)
+                                               : match_offsets[i];
+        append_optimized_replace_ops_(ops, stats, base_offset, pattern, pattern_length, replacement,
+                                      replacement_length, overwrite_only != 0);
+    }
+
+    if (!ops.empty() && 0 != omega_edit_apply_script(session_ptr, ops.data(), ops.size())) { return -1; }
+
+    if (replacement_count_out != nullptr) { *replacement_count_out = stats.replacements; }
+    if (delete_count_out != nullptr) { *delete_count_out = stats.deletes; }
+    if (insert_count_out != nullptr) { *insert_count_out = stats.inserts; }
+    if (overwrite_count_out != nullptr) { *overwrite_count_out = stats.overwrites; }
+    return 0;
+}
+
+int omega_edit_replace_matches(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                               const char *replacement, int64_t replacement_length, int case_insensitive,
+                               int is_reverse, int64_t offset, int64_t length, int64_t limit, int front_to_back,
+                               int overwrite_only, int64_t *replacement_count_out, int64_t *delete_count_out,
+                               int64_t *insert_count_out, int64_t *overwrite_count_out) {
+    if (!pattern) { return -1; }
+    const auto resolved_pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
+    if (!replacement) {
+        if (replacement_length > 0) { return -1; }
+        return omega_edit_replace_matches_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
+                                                resolved_pattern_length, nullptr, 0, case_insensitive, is_reverse,
+                                                offset, length, limit, front_to_back, overwrite_only,
+                                                replacement_count_out, delete_count_out, insert_count_out,
+                                                overwrite_count_out);
+    }
+    const auto resolved_replacement_length =
+            replacement_length ? replacement_length : static_cast<int64_t>(strlen(replacement));
+    return omega_edit_replace_matches_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
+                                            resolved_pattern_length,
+                                            reinterpret_cast<const omega_byte_t *>(replacement),
+                                            resolved_replacement_length, case_insensitive, is_reverse, offset, length,
+                                            limit, front_to_back, overwrite_only, replacement_count_out,
+                                            delete_count_out, insert_count_out, overwrite_count_out);
 }
 
 int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
