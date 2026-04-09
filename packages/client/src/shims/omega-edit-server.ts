@@ -36,6 +36,9 @@ export interface HeartbeatOptions {
   viewportEventQueueCapacity?: number
   maxChangeBytes?: number
   maxViewportsPerSession?: number
+  logFile?: string
+  logLevel?: string
+  logConfigFile?: string
 }
 
 export declare function runServer(

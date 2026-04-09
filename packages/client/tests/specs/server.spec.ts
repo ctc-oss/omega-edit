@@ -762,6 +762,159 @@ describe('Server Resource Limits', () => {
   })
 })
 
+describe('Server Logging', () => {
+  let pid: number | undefined
+  const tempDirs: string[] = []
+  const serverTestPort = testPort + 4
+  const isUds = testTransport === 'uds'
+  const socketPath = path.join(
+    rootPath,
+    `.server-logging-${serverTestPort}.sock`
+  )
+
+  const waitForLogText = async (
+    logPath: string,
+    expectedText: string,
+    timeoutMs: number = 5000
+  ): Promise<void> => {
+    const start = Date.now()
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const contents = await fsPromises.readFile(logPath, 'utf8')
+        if (contents.includes(expectedText)) {
+          return
+        }
+      } catch {
+        // keep polling until timeout
+      }
+      await delay(100)
+    }
+
+    expect(await fsPromises.readFile(logPath, 'utf8')).to.include(expectedText)
+  }
+
+  afterEach(`cleanup logging server on port ${serverTestPort}`, async () => {
+    if (pid !== undefined && pidIsRunning(pid)) {
+      if (isUds) {
+        expect(await stopProcessUsingPID(pid)).to.be.true
+      } else {
+        expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      }
+    }
+
+    if (isUds) {
+      try {
+        fs.unlinkSync(socketPath)
+      } catch {
+        // ignore
+      }
+    }
+
+    while (tempDirs.length > 0) {
+      await fsPromises.rm(tempDirs.pop() as string, {
+        recursive: true,
+        force: true,
+      })
+    }
+
+    pid = undefined
+  })
+
+  it(`on port ${serverTestPort} should write native lifecycle logs to a configured log file`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-server-log-')
+    )
+    tempDirs.push(tempDir)
+    const serverLogPath = path.join(tempDir, 'omega-edit-server.log')
+
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        false,
+        serverTestPort,
+        testHost,
+        { logFile: serverLogPath, logLevel: 'info' }
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort, undefined, undefined, {
+        logFile: serverLogPath,
+        logLevel: 'info',
+      })
+    }
+
+    expect(pid).to.be.a('number').greaterThan(0)
+    await waitForLogText(serverLogPath, 'ready...')
+  })
+
+  it(`on port ${serverTestPort} should accept a logback-style config file for native logging`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-server-log-config-')
+    )
+    tempDirs.push(tempDir)
+    const serverLogPath = path.join(tempDir, 'omega-edit-server.log')
+    const logConfigPath = path.join(tempDir, 'server-log.xml')
+    const logConfig = `<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>${serverLogPath}</file>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="FILE" />
+  </root>
+</configuration>
+`
+
+    await fsPromises.writeFile(logConfigPath, logConfig, 'utf8')
+
+    if (isUds) {
+      const udsJavaHome = process.env.OMEGA_EDIT_TEST_JAVA_HOME
+      if (udsJavaHome) {
+        process.env.JAVA_HOME = udsJavaHome
+        const currentPath = process.env.PATH || ''
+        if (!currentPath.includes(`${udsJavaHome}/bin`)) {
+          process.env.PATH = `${udsJavaHome}/bin:${currentPath}`
+        }
+      }
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      pid = await startServerUnixSocket(
+        socketPath,
+        undefined,
+        false,
+        serverTestPort,
+        testHost,
+        { logConfigFile: logConfigPath }
+      )
+    } else {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      expect(await stopServiceOnPort(serverTestPort)).to.be.true
+      pid = await startServer(serverTestPort, undefined, undefined, {
+        logConfigFile: logConfigPath,
+      })
+    }
+
+    expect(pid).to.be.a('number').greaterThan(0)
+    await waitForLogText(serverLogPath, 'ready...')
+  })
+})
+
 // Tests involving running the server
 // Created for investigating https://github.com/apache/daffodil-vscode/pull/1277 and https://github.com/apache/daffodil-vscode/issues/1075
 

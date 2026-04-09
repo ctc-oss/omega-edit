@@ -47,6 +47,12 @@ export interface HeartbeatOptions {
   maxChangeBytes?: number
   /** Limit concurrently open viewports per session (0 = unbounded). */
   maxViewportsPerSession?: number
+  /** Append native server lifecycle logs to this file. */
+  logFile?: string
+  /** Native server log level. */
+  logLevel?: string
+  /** Compatibility shim: read native log file/level from a logback-style XML config. */
+  logConfigFile?: string
 }
 
 /**
@@ -191,6 +197,15 @@ function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
   }
   if (opts.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
+  }
+  if (opts.logFile !== undefined) {
+    args.push(`--log-file=${opts.logFile}`)
+  }
+  if (opts.logLevel !== undefined) {
+    args.push(`--log-level=${opts.logLevel}`)
+  }
+  if (opts.logConfigFile !== undefined) {
+    args.push(`--log-config=${opts.logConfigFile}`)
   }
   return args
 }

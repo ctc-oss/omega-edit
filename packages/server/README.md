@@ -63,6 +63,8 @@ const proc = await runServer(9000, '127.0.0.1', '/tmp/server.pid', {
   shutdownWhenNoSessions: true,
   maxChangeBytes: 16 * 1024 * 1024,
   maxViewportsPerSession: 64,
+  logFile: '/tmp/omega-edit-server.log',
+  logLevel: 'info',
 })
 
 // Or pass raw CLI arguments
@@ -113,6 +115,9 @@ interface HeartbeatOptions {
   viewportEventQueueCapacity?: number // Buffered viewport events per subscription (0 = unbounded)
   maxChangeBytes?: number        // Insert/overwrite payload limit in bytes (0 = unbounded)
   maxViewportsPerSession?: number // Viewport cap per session (0 = unbounded)
+  logFile?: string               // Append native server lifecycle logs to this file
+  logLevel?: string              // Native log level: debug, info, warn, error
+  logConfigFile?: string         // Compatibility shim for logback-style XML config
 }
 ```
 
@@ -136,6 +141,9 @@ The native binary supports:
 | `--viewport-event-queue-capacity` | Buffered viewport events per subscription |
 | `--max-change-bytes` | Limit insert/overwrite payload size |
 | `--max-viewports-per-session` | Limit open viewports per session |
+| `--log-file` | Append native server logs to a file |
+| `--log-level` | Set native server log verbosity |
+| `--log-config` | Read log file/level from a logback-style XML config |
 
 ## Platform Support
 

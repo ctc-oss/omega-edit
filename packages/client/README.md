@@ -86,6 +86,8 @@ await stopServerGraceful()
 | `getServerHeartbeat(sessions)`                    | Heartbeat and process health              |
 | `startServerHeartbeatLoop(options)`               | Managed liveness heartbeat loop           |
 
+`startServer(..., heartbeat)` and `startServerUnixSocket(..., heartbeat)` accept the same `HeartbeatOptions` bag exported from `@omega-edit/server`, including native logging fields such as `logFile`, `logLevel`, and `logConfigFile`.
+
 Shutdown migration note:
 
 - In the 2.x line, `stopServerGraceful()` and `stopServerImmediate()` return a structured result object with `responseCode`, `serverProcessId`, and `status` instead of returning only a numeric response code.
@@ -257,6 +259,8 @@ Distributed as both **ESM** and **CommonJS** with full TypeScript source maps an
 | ----------------------------- | ----------- | --------------------- |
 | `OMEGA_EDIT_SERVER_HOST`      | `127.0.0.1` | Server bind address   |
 | `OMEGA_EDIT_SERVER_PORT`      | `9000`      | Server port           |
+| `OMEGA_EDIT_SERVER_LOG_FILE`  | -           | Native server log file |
+| `OMEGA_EDIT_SERVER_LOG_LEVEL` | -           | Native server log level |
 | `OMEGA_EDIT_CLIENT_LOG_LEVEL` | -           | Client-side log level |
 
 ## Examples
