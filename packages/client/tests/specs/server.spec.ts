@@ -32,6 +32,7 @@ import {
   insert,
   overwrite,
   pidIsRunning,
+  replaceSessionCheckpointed,
   resetClient,
   setLogger,
   startServer,
@@ -614,6 +615,46 @@ describe('Server Resource Limits', () => {
     try {
       await overwrite(session_id, 0, Uint8Array.from([0x42, 0x43]))
       expect.fail('overwrite should reject payloads larger than maxChangeBytes')
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject checkpointed replace patterns larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await replaceSessionCheckpointed(
+        session_id,
+        Uint8Array.from([0x41, 0x42]),
+        Uint8Array.from([0x43]),
+        false,
+        0,
+        0
+      )
+      expect.fail(
+        'replaceSessionCheckpointed should reject patterns larger than maxChangeBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject checkpointed replace replacements larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await replaceSessionCheckpointed(
+        session_id,
+        Uint8Array.from([0x41]),
+        Uint8Array.from([0x42, 0x43]),
+        false,
+        0,
+        0
+      )
+      expect.fail(
+        'replaceSessionCheckpointed should reject replacements larger than maxChangeBytes'
+      )
     } catch (err) {
       expectResourceExhausted(err, 'configured limit of 1 bytes')
     }

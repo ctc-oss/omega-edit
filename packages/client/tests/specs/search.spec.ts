@@ -25,6 +25,7 @@ import {
   EditStats,
   getChangeCount,
   getChangeTransactionCount,
+  getClient,
   getComputedFileSize,
   getSegment,
   getUndoTransactionCount,
@@ -46,6 +47,36 @@ import {
 
 describe('Searching', () => {
   let session_id = ''
+
+  async function replaceSessionCheckpointedRaw(request: {
+    sessionId: string
+    pattern: Uint8Array
+    replacement: Uint8Array
+    isCaseInsensitive?: boolean
+    offset?: number
+    length?: number
+  }) {
+    const client = await getClient()
+    return await new Promise<{
+      replacementCount: number
+      sessionId: string
+      pattern: Uint8Array
+      replacement: Uint8Array
+      isCaseInsensitive: boolean
+      offset: number
+      length: number
+    }>((resolve, reject) => {
+      client.replaceSessionCheckpointed(request, (err, response) => {
+        if (err) {
+          return reject(err)
+        }
+        if (!response) {
+          return reject(new Error('undefined checkpointed replace response'))
+        }
+        return resolve(response)
+      })
+    })
+  }
 
   beforeEach('Create a new session', async () => {
     session_id = await createTestSession(testPort)
@@ -921,6 +952,45 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('aaaaaa'))
+  })
+
+  it('Should treat empty checkpointed replace patterns as a no-op over the raw RPC', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    const response = await replaceSessionCheckpointedRaw({
+      sessionId: session_id,
+      pattern: Buffer.alloc(0),
+      replacement: Buffer.from('b'),
+      offset: 0,
+      length: 0,
+    })
+
+    expect(response.replacementCount).to.equal(0)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('aaaaaa'))
+  })
+
+  it('Should reject checkpointed replace requests with invalid negative ranges', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    try {
+      await replaceSessionCheckpointedRaw({
+        sessionId: session_id,
+        pattern: Buffer.from('aa'),
+        replacement: Buffer.from('b'),
+        offset: -1,
+        length: -1,
+      })
+      expect.fail(
+        'replaceSessionCheckpointed should reject negative offset/length values'
+      )
+    } catch (err) {
+      expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      expect((err as Error).message).to.include(
+        'offset and length must be non-negative'
+      )
+    }
   })
 
   it('Should work with replace on binary data', async () => {
