@@ -198,14 +198,14 @@ function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
   if (opts.maxViewportsPerSession !== undefined) {
     args.push(`--max-viewports-per-session=${opts.maxViewportsPerSession}`)
   }
+  if (opts.logConfigFile !== undefined) {
+    args.push(`--log-config=${opts.logConfigFile}`)
+  }
   if (opts.logFile !== undefined) {
     args.push(`--log-file=${opts.logFile}`)
   }
   if (opts.logLevel !== undefined) {
     args.push(`--log-level=${opts.logLevel}`)
-  }
-  if (opts.logConfigFile !== undefined) {
-    args.push(`--log-config=${opts.logConfigFile}`)
   }
   return args
 }

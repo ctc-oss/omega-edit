@@ -148,8 +148,6 @@ static bool configure_log_output(const std::string &log_file) {
         return false;
     }
     g_log_stream = &g_log_file_stream;
-    std::cerr.rdbuf(g_log_file_stream.rdbuf());
-    std::clog.rdbuf(g_log_file_stream.rdbuf());
     return true;
 }
 
@@ -321,12 +319,12 @@ int main(int argc, char **argv) {
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) {
         pidfile = env;
     }
-    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_FILE")) {
-        log_file = env;
-    }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
         log_config_file = env;
         if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_FILE")) {
+        log_file = env;
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_LEVEL")) {
         if (!parse_log_level(env, "OMEGA_EDIT_SERVER_LOG_LEVEL", log_level)) return 1;
@@ -433,7 +431,27 @@ int main(int argc, char **argv) {
                     return 1;
                 }
                 log_config_file = value;
-                if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
+                // Pre-scan for explicit --log-file / --log-level flags so that they
+                // always win over the config file regardless of argument order.
+                bool has_explicit_log_file = false;
+                bool has_explicit_log_level = false;
+                for (int j = 1; j < argc; ++j) {
+                    const std::string a = argv[j];
+                    if (a == "--log-file" || a.rfind("--log-file=", 0) == 0) {
+                        has_explicit_log_file = true;
+                    } else if (a == "--log-level" || a.rfind("--log-level=", 0) == 0) {
+                        has_explicit_log_level = true;
+                    }
+                }
+                std::string config_log_file = log_file;
+                LogLevel config_log_level = log_level;
+                if (!apply_log_config_file(log_config_file, config_log_file, config_log_level)) return 1;
+                if (!has_explicit_log_file) {
+                    log_file = config_log_file;
+                }
+                if (!has_explicit_log_level) {
+                    log_level = config_log_level;
+                }
             } else if (key == "--session-timeout") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";

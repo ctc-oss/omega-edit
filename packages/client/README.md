@@ -257,11 +257,12 @@ Distributed as both **ESM** and **CommonJS** with full TypeScript source maps an
 
 | Variable                      | Default     | Description           |
 | ----------------------------- | ----------- | --------------------- |
-| `OMEGA_EDIT_SERVER_HOST`      | `127.0.0.1` | Server bind address   |
-| `OMEGA_EDIT_SERVER_PORT`      | `9000`      | Server port           |
-| `OMEGA_EDIT_SERVER_LOG_FILE`  | -           | Native server log file |
-| `OMEGA_EDIT_SERVER_LOG_LEVEL` | -           | Native server log level |
-| `OMEGA_EDIT_CLIENT_LOG_LEVEL` | -           | Client-side log level |
+| `OMEGA_EDIT_SERVER_HOST`        | `127.0.0.1` | Server bind address                       |
+| `OMEGA_EDIT_SERVER_PORT`        | `9000`      | Server port                               |
+| `OMEGA_EDIT_SERVER_LOG_CONFIG`  | -           | Native server logback-style XML config    |
+| `OMEGA_EDIT_SERVER_LOG_FILE`    | -           | Native server log file                    |
+| `OMEGA_EDIT_SERVER_LOG_LEVEL`   | -           | Native server log level                   |
+| `OMEGA_EDIT_CLIENT_LOG_LEVEL`   | -           | Client-side log level                     |
 
 ## Examples
 
