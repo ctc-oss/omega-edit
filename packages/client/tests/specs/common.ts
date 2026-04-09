@@ -45,6 +45,16 @@ export const testSocketPath =
   process.env.OMEGA_EDIT_TEST_SOCKET || `${process.cwd()}/.omega-edit-test.sock`
 export const testHost = process.env.OMEGA_EDIT_TEST_HOST || '127.0.0.1'
 export const testPort = parseInt(process.env.OMEGA_EDIT_TEST_PORT || '9010')
+const uuidV7BodyPattern =
+  '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}'
+
+export function opaqueIdPattern(prefix: string): RegExp {
+  return new RegExp(`^${prefix}${uuidV7BodyPattern}$`)
+}
+
+export function expectOpaqueId(id: string, prefix: string): void {
+  expect(id).to.match(opaqueIdPattern(prefix))
+}
 
 export async function createTestSession(port: number) {
   let session_id = ''
@@ -53,9 +63,7 @@ export async function createTestSession(port: number) {
   const new_session = await createSession()
   const new_session_id = new_session.getSessionId()
   expect(new_session_id).to.be.a('string').and.not.equal(session_id)
-
-  // Generated IDs are 36 character UUIDs
-  expect(new_session_id.length).to.equal(36)
+  expectOpaqueId(new_session_id, 'sess_')
   expect(await getSessionCount()).to.equal(1)
   return new_session_id
 }
@@ -128,7 +136,7 @@ export async function subscribeSession(
           : 1
       )
       const event = sessionEvent.getSessionEventKind()
-      if (SessionEventKind.SESSION_EVT_EDIT == event) {
+      if (SessionEventKind.EDIT == event) {
         log_info(
           'session: ' +
             session_id +
@@ -185,7 +193,7 @@ export async function subscribeViewport(
       )
       const event = viewportEvent.getViewportEventKind()
       const viewport_id_from_event = viewportEvent.getViewportId()
-      if (ViewportEventKind.VIEWPORT_EVT_EDIT == event) {
+      if (ViewportEventKind.EDIT == event) {
         log_info(
           'viewport_id: ' +
             viewport_id +

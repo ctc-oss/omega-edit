@@ -29,7 +29,7 @@ export function parseInputData(
 }
 
 export function encodeData(data: Uint8Array): EncodedData {
-  const buffer = Buffer.from(data)
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
   return {
     byteLength: buffer.length,
     hex: buffer.toString('hex'),

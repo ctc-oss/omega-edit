@@ -98,6 +98,10 @@ import type { CreateSessionRequest } from './omega_edit'
 import type { GetServerInfoResponse } from './omega_edit'
 import type { GetServerInfoRequest } from './omega_edit'
 import * as grpc from '@grpc/grpc-js'
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport
@@ -168,7 +172,8 @@ export interface IEditorServiceClient {
   /**
    * Create a new editing session, optionally backed by an existing file.
    * Returns the assigned session ID, checkpoint directory, and (if a file was
-   * provided) the original file size.
+   * provided) the original file size. If the server has begun shutdown or is
+   * draining existing sessions, this RPC fails with UNAVAILABLE.
    *
    * @generated from protobuf rpc: CreateSession
    */
@@ -244,8 +249,8 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
   /**
-   * Destroy a session and release all associated resources (viewports,
-   * checkpoints, and change history).
+   * Detach the caller from a session. The backing session and its resources
+   * are released when the last attachment is destroyed or reaped.
    *
    * @generated from protobuf rpc: DestroySession
    */
@@ -1423,8 +1428,8 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */
@@ -1496,7 +1501,7 @@ export interface IEditorServiceClient {
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse>
   /**
-   * Cancel an active session-event subscription.
+   * Cancel all active session-event subscriptions for the session ID.
    *
    * @generated from protobuf rpc: UnsubscribeToSessionEvents
    */
@@ -1570,6 +1575,10 @@ export interface IEditorServiceClient {
     ) => void
   ): grpc.ClientUnaryCall
 }
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 /**
  * EditorService is the primary gRPC service for the Ωedit library.  It provides
  * byte-level editing of arbitrarily large files through a session/viewport
@@ -1656,7 +1665,8 @@ export class EditorServiceClient
   /**
    * Create a new editing session, optionally backed by an existing file.
    * Returns the assigned session ID, checkpoint directory, and (if a file was
-   * provided) the original file size.
+   * provided) the original file size. If the server has begun shutdown or is
+   * draining existing sessions, this RPC fails with UNAVAILABLE.
    *
    * @generated from protobuf rpc: CreateSession
    */
@@ -1728,8 +1738,8 @@ export class EditorServiceClient
     )
   }
   /**
-   * Destroy a session and release all associated resources (viewports,
-   * checkpoints, and change history).
+   * Detach the caller from a session. The backing session and its resources
+   * are released when the last attachment is destroyed or reaped.
    *
    * @generated from protobuf rpc: DestroySession
    */
@@ -2953,8 +2963,8 @@ export class EditorServiceClient
     )
   }
   /**
-   * Exchange a heartbeat with the server.  The client sends its hostname,
-   * PID, and active session IDs; the server responds with resource metrics.
+   * Exchange a heartbeat with the server. The client sends the session IDs it
+   * still holds so the server can keep them alive and return resource metrics.
    *
    * @generated from protobuf rpc: GetHeartbeat
    */
@@ -3043,7 +3053,7 @@ export class EditorServiceClient
     )
   }
   /**
-   * Cancel an active session-event subscription.
+   * Cancel all active session-event subscriptions for the session ID.
    *
    * @generated from protobuf rpc: UnsubscribeToSessionEvents
    */

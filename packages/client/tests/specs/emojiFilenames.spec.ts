@@ -47,12 +47,12 @@ describe('Emoji Filename Handling', () => {
 
   // Array of emoji filenames to test
   const emojiFilenames = [
-    'test_😀.txt',
-    'test_👍.txt',
-    'test_🔥.txt',
-    'test 💩.txt', // Space in filename as well
-    'test_🚀.txt',
-    'test_👨‍👩‍👧‍👦.txt', // Family emoji with zero-width joiners
+    'test_\u{1F600}.txt',
+    'test_\u{1F44D}.txt',
+    'test_\u{1F525}.txt',
+    'test \u{1F4A9}.txt', // Space in filename as well
+    'test_\u{1F680}.txt',
+    'test_\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}.txt', // Family emoji with zero-width joiners
   ]
 
   // Helper function to clean up test files
@@ -116,7 +116,7 @@ describe('Emoji Filename Handling', () => {
         const saveResult = await saveSession(
           session_id,
           copyFilePath,
-          IOFlags.IO_FLG_OVERWRITE
+          IOFlags.OVERWRITE
         )
 
         // Verify save was successful

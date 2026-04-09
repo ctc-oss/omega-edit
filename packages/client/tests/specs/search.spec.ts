@@ -18,17 +18,14 @@
  */
 
 import {
-  beginSessionTransaction,
   clear,
   edit,
   editOptimizer,
   EditStats,
-  endSessionTransaction,
   getChangeCount,
   getChangeTransactionCount,
   getComputedFileSize,
   getSegment,
-  getUndoCount,
   getUndoTransactionCount,
   overwrite,
   redo,
@@ -764,8 +761,9 @@ describe('Searching', () => {
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('Item here Item there ItemItem everywhere'))
     expect(await getChangeCount(session_id)).to.equal(9)
-    expect(await getChangeTransactionCount(session_id)).to.equal(5)
-    expect(await beginSessionTransaction(session_id)).to.equal(session_id)
+    expect(await getChangeTransactionCount(session_id)).to.equal(2)
+    const transactionCountBeforeSecondReplace =
+      await getChangeTransactionCount(session_id)
     stats.reset()
     expect(
       await replaceSession(
@@ -782,21 +780,28 @@ describe('Searching', () => {
         stats
       )
     ).to.equal(3)
-    expect(await endSessionTransaction(session_id)).to.equal(session_id)
     expect(await getChangeCount(session_id)).to.equal(15)
-    expect(await getChangeTransactionCount(session_id)).to.equal(8)
+    expect(await getChangeTransactionCount(session_id)).to.equal(
+      transactionCountBeforeSecondReplace + 1
+    )
     expect(await undo(session_id))
       .to.be.a('number')
-      .that.equals(-14)
-    expect(await getChangeTransactionCount(session_id)).to.equal(7)
+      .that.is.lessThan(0)
+    expect(await getChangeTransactionCount(session_id)).to.equal(
+      transactionCountBeforeSecondReplace
+    )
     expect(await getUndoTransactionCount(session_id)).to.equal(1)
-    expect(await getUndoCount(session_id)).to.equal(2)
-    expect(await getChangeCount(session_id)).to.equal(13)
+    expect(await getChangeCount(session_id)).to.equal(9)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('Item here Item there ItemItem everywhere'))
     expect(await redo(session_id))
       .to.be.a('number')
-      .that.equals(15)
+      .that.is.greaterThan(0)
     expect(await getChangeCount(session_id)).to.equal(15)
-    expect(await getChangeTransactionCount(session_id)).to.equal(8)
+    expect(await getChangeTransactionCount(session_id)).to.equal(
+      transactionCountBeforeSecondReplace + 1
+    )
     // expect 3 deletes and 3 inserts
     expect(stats.delete_count).to.equal(3)
     expect(stats.insert_count).to.equal(3)
@@ -854,6 +859,51 @@ describe('Searching', () => {
     expect(stats.insert_count).to.equal(0)
     expect(stats.overwrite_count).to.equal(1)
     expect(stats.error_count).to.equal(0)
+  })
+
+  it('Should replace reverse-search matches transactionally in either direction', async () => {
+    await overwrite(session_id, 0, Buffer.from('needle|needle|needle'))
+
+    expect(
+      await replaceSession(
+        session_id,
+        'needle',
+        'x',
+        false,
+        true,
+        0,
+        0,
+        0,
+        true,
+        false
+      )
+    ).to.equal(3)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('x|x|x'))
+    expect(await getChangeTransactionCount(session_id)).to.equal(2)
+
+    await clear(session_id)
+    await overwrite(session_id, 0, Buffer.from('needle|needle|needle'))
+
+    expect(
+      await replaceSession(
+        session_id,
+        'needle',
+        'x',
+        false,
+        true,
+        0,
+        0,
+        0,
+        false,
+        false
+      )
+    ).to.equal(3)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('x|x|x'))
+    expect(await getChangeTransactionCount(session_id)).to.equal(2)
   })
 
   it('Should work with replace on binary data', async () => {

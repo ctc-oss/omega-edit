@@ -59,6 +59,30 @@ export interface SearchResult {
   matches: number[]
 }
 
+export interface ReplaceSessionRequest {
+  sessionId: string
+  pattern: string | Uint8Array
+  replacement: string | Uint8Array
+  inputEncoding?: InputEncoding
+  caseInsensitive?: boolean
+  reverse?: boolean
+  offset?: number
+  length?: number
+  limit?: number
+  frontToBack?: boolean
+  overwriteOnly?: boolean
+}
+
+export interface ReplaceSessionResult {
+  sessionId: string
+  offset: number
+  length: number
+  limit: number
+  replacedCount: number
+  frontToBack: boolean
+  overwriteOnly: boolean
+}
+
 export interface PatchRequest {
   sessionId: string
   kind: PatchKind

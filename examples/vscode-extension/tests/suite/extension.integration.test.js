@@ -335,6 +335,8 @@ suite('OmegaEdit VS Code extension', () => {
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'replaceAllMatches',
       offsets: [0, 4, 8, 12],
+      query: 'foo',
+      isHex: false,
       length: 3,
       data: Buffer.from('qux', 'utf8').toString('hex'),
     })
@@ -351,7 +353,7 @@ suite('OmegaEdit VS Code extension', () => {
       type: 'editState',
       canUndo: true,
       canRedo: false,
-      undoCount: 4,
+      undoCount: 1,
       redoCount: 0,
       isDirty: true,
       savedChangeDepth: 0,
@@ -366,10 +368,10 @@ suite('OmegaEdit VS Code extension', () => {
       type: 'editState',
       canUndo: true,
       canRedo: false,
-      undoCount: 4,
+      undoCount: 1,
       redoCount: 0,
       isDirty: false,
-      savedChangeDepth: 4,
+      savedChangeDepth: 1,
     })
 
     const saved = await fs.readFile(samplePath, 'utf8')

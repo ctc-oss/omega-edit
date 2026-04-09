@@ -73,25 +73,18 @@ public:
         : max_size_(max_size), label_(std::move(label)) {}
 
     void push(const T &event) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (closed_) { return; }
-        if (max_size_ > 0 && queue_.size() >= max_size_) {
-            queue_.pop();
-            const size_t dropped = ++dropped_count_;
-            if (should_log_drops(dropped)) {
-                std::cerr << "Warning: dropped " << dropped << " buffered event(s) from " << label_
-                          << " because the queue reached its capacity of " << max_size_ << std::endl;
-            }
-        }
-        queue_.push(event);
-        cv_.notify_one();
+        push_impl(event);
+    }
+
+    void push(T &&event) {
+        push_impl(std::move(event));
     }
 
     bool pop(T &event, std::chrono::milliseconds timeout) {
         std::unique_lock<std::mutex> lock(mutex_);
         if (cv_.wait_for(lock, timeout, [this] { return !queue_.empty() || closed_; })) {
             if (closed_ && queue_.empty()) return false;
-            event = queue_.front();
+            event = std::move(queue_.front());
             queue_.pop();
             return true;
         }
@@ -115,8 +108,26 @@ public:
     size_t dropped_count() const { return dropped_count_.load(std::memory_order_relaxed); }
 
 private:
+    template <typename U>
+    void push_impl(U &&event) {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (closed_) { return; }
+            if (max_size_ > 0 && queue_.size() >= max_size_) {
+                queue_.pop();
+                const size_t dropped = ++dropped_count_;
+                if (should_log_drops(dropped)) {
+                    std::cerr << "Warning: dropped " << dropped << " buffered event(s) from " << label_
+                              << " because the queue reached its capacity of " << max_size_ << std::endl;
+                }
+            }
+            queue_.push(std::forward<U>(event));
+        }
+        cv_.notify_one();
+    }
+
     static bool should_log_drops(size_t dropped_count) {
-        return dropped_count == 1 || (dropped_count & (dropped_count - 1)) == 0;
+        return (dropped_count & (dropped_count - 1)) == 0;
     }
 
     size_t max_size_;
@@ -126,6 +137,12 @@ private:
     std::condition_variable cv_;
     std::atomic<size_t> dropped_count_{0};
     std::atomic<bool> closed_{false};
+};
+
+/// Session event subscription state
+struct SessionEventSubscriptionInfo {
+    std::shared_ptr<EventQueue<SessionEventData>> event_queue;
+    int32_t interest;
 };
 
 /// Information about a viewport managed by the session manager
@@ -141,11 +158,15 @@ struct ViewportInfo {
 struct SessionInfo {
     omega_session_t *session;
     std::string session_id;
+    std::string canonical_file_path;
     std::string checkpoint_directory;
     bool owns_checkpoint_directory{false};
+    // Shared sessions begin life with one attached author and are only reaped
+    // after the last attachment detaches.
+    size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
-    std::shared_ptr<EventQueue<SessionEventData>> event_queue;
-    int32_t event_interest;
+    std::mutex session_subscription_mutex;
+    std::vector<SessionEventSubscriptionInfo> session_subscriptions;
     std::chrono::steady_clock::time_point last_activity;
 };
 
@@ -180,6 +201,7 @@ public:
                                std::string &checkpoint_dir_out,
                                SessionCreateError *error_out = nullptr);
     bool destroy_session(const std::string &session_id);
+    bool detach_session(const std::string &session_id);
     omega_session_t *get_session(const std::string &session_id);
     int64_t session_count() const;
 
@@ -194,6 +216,8 @@ public:
     std::shared_ptr<EventQueue<SessionEventData>> subscribe_session_events(const std::string &session_id,
                                                                            int32_t interest);
     void unsubscribe_session_events(const std::string &session_id);
+    void unsubscribe_session_events(const std::string &session_id,
+                                    const std::shared_ptr<EventQueue<SessionEventData>> &queue);
     std::shared_ptr<EventQueue<ViewportEventData>> subscribe_viewport_events(const std::string &session_id,
                                                                               const std::string &viewport_id,
                                                                               int32_t interest);
@@ -201,14 +225,29 @@ public:
 
     // Session activity tracking
     void touch_session(const std::string &session_id);
-    void touch_sessions(const std::vector<std::string> &session_ids);
+    template <typename SessionIdRange>
+    void touch_sessions(const SessionIdRange &session_ids) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const auto now = std::chrono::steady_clock::now();
+        for (const auto &sid : session_ids) {
+            auto it = sessions_.find(sid);
+            if (it != sessions_.end()) {
+                it->second->last_activity = now;
+            }
+        }
+    }
     std::vector<std::string> get_idle_session_ids(std::chrono::milliseconds timeout) const;
 
     // Destroy all sessions (for shutdown)
     void destroy_all();
 
 private:
-    static std::string generate_uuid();
+    static std::string generate_uuid_v4();
+    static std::string generate_uuid_v7();
+    static std::string generate_prefixed_id(const char *prefix);
+    static std::string generate_session_id();
+    static std::string generate_viewport_id();
+    static std::string generate_subscription_id();
     static std::string make_viewport_fqid(const std::string &session_id, const std::string &viewport_id);
     static void cleanup_directory_best_effort(const std::string &directory_path);
     static void cleanup_stale_server_roots_best_effort(const std::string &root_path);
@@ -216,6 +255,7 @@ private:
     static std::string create_server_root_name();
     std::string create_managed_checkpoint_directory();
     void cleanup_managed_server_root_if_empty();
+    bool destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it);
 
     // Callbacks
     static void session_event_callback(const omega_session_t *session, omega_session_event_t event, const void *ptr);
@@ -225,6 +265,7 @@ private:
     mutable std::mutex mutex_;
     ResourceLimits limits_;
     std::map<std::string, std::shared_ptr<SessionInfo>> sessions_;
+    std::map<std::string, std::string> file_sessions_by_path_;
     std::string managed_server_root_;
 };
 

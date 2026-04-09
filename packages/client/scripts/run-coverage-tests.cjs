@@ -7,6 +7,31 @@ const { resetClient: resetCjsClient } = require(
   path.join(__dirname, '..', 'dist', 'cjs', 'index.js')
 )
 
+function parseArgs(argv) {
+  let transport
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index]
+
+    if (arg === '--transport') {
+      transport = argv[index + 1]
+      if (!transport || !['tcp', 'uds'].includes(transport)) {
+        console.error(
+          `Unknown transport "${transport}". Expected one of: tcp, uds`
+        )
+        process.exit(1)
+      }
+      index += 1
+      continue
+    }
+
+    console.error(`Unknown argument "${arg}"`)
+    process.exit(1)
+  }
+
+  return { transport }
+}
+
 async function runSuite(files, options = {}) {
   const mocha = new Mocha(options)
   for (const file of files) {
@@ -27,6 +52,11 @@ function getClientSpecFiles() {
 }
 
 async function main() {
+  const { transport } = parseArgs(process.argv.slice(2))
+  if (transport) {
+    process.env.OMEGA_EDIT_TEST_TRANSPORT = transport
+  }
+
   const { resetClient: resetEsmClient } = await import(
     pathToFileURL(path.join(__dirname, '..', 'dist', 'esm', 'index.js')).href
   )

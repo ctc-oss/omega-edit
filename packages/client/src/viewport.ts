@@ -32,6 +32,7 @@ import {
   wrapViewportDataResponse,
   type ViewportDataResponse,
 } from './omega_edit_pb'
+import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
 
 export async function createViewport(
   desired_viewport_id: string | undefined,
@@ -44,8 +45,8 @@ export async function createViewport(
     await rawCreateViewport(
       desired_viewport_id,
       session_id,
-      offset,
-      capacity,
+      requireSafeIntegerInput('createViewport offset', offset),
+      requireSafeIntegerInput('createViewport capacity', capacity),
       is_floating
     )
   )
@@ -58,7 +59,12 @@ export async function modifyViewport(
   is_floating: boolean = false
 ): Promise<ViewportDataResponse> {
   return wrapViewportDataResponse(
-    await rawModifyViewport(viewport_id, offset, capacity, is_floating)
+    await rawModifyViewport(
+      viewport_id,
+      requireSafeIntegerInput('modifyViewport offset', offset),
+      requireSafeIntegerInput('modifyViewport capacity', capacity),
+      is_floating
+    )
   )
 }
 
@@ -67,7 +73,9 @@ export function destroyViewport(viewport_id: string): Promise<string> {
 }
 
 export function getViewportCount(session_id: string): Promise<number> {
-  return rawGetViewportCount(session_id)
+  return rawGetViewportCount(session_id).then((count) =>
+    requireSafeIntegerOutput('viewport count', count)
+  )
 }
 
 export async function getViewportData(

@@ -26,6 +26,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -53,6 +54,9 @@ namespace {
 constexpr char kManagedTempRootName[] = "omega-edit-grpc-server";
 constexpr char kManagedServerPrefix[] = "server-";
 constexpr char kManagedSessionPrefix[] = "session-";
+constexpr char kSessionIdPrefix[] = "sess_";
+constexpr char kViewportIdPrefix[] = "vp_";
+constexpr char kSubscriptionIdPrefix[] = "sub_";
 
 int get_current_process_id() {
 #ifdef _WIN32
@@ -122,39 +126,44 @@ bool is_process_alive(int pid) {
 #endif
 }
 
-} // namespace
-
-// ── Base64 encoding (URL-safe, no padding — matches Java Base64.getUrlEncoder().withoutPadding()) ──
-static const char base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-static std::string base64_encode(const std::string &input) {
-    std::string output;
-    output.reserve(((input.size() + 2) / 3) * 4);
-
-    for (size_t i = 0; i < input.size(); i += 3) {
-        unsigned int n = static_cast<unsigned char>(input[i]) << 16;
-        if (i + 1 < input.size()) n |= static_cast<unsigned char>(input[i + 1]) << 8;
-        if (i + 2 < input.size()) n |= static_cast<unsigned char>(input[i + 2]);
-
-        output.push_back(base64_chars[(n >> 18) & 0x3F]);
-        output.push_back(base64_chars[(n >> 12) & 0x3F]);
-        if (i + 1 < input.size()) output.push_back(base64_chars[(n >> 6) & 0x3F]);
-        if (i + 2 < input.size()) output.push_back(base64_chars[n & 0x3F]);
+int32_t combine_session_event_interest(const std::vector<SessionEventSubscriptionInfo> &subscriptions) {
+    uint32_t combined = 0;
+    for (const auto &subscription : subscriptions) {
+        combined |= static_cast<uint32_t>(subscription.interest);
     }
-    return output;
+    return static_cast<int32_t>(combined);
 }
 
-// ── UUID generation ──────────────────────────────────────────────────────────
-#ifdef _WIN32
-static std::string generate_random_uuid_fallback() {
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
+bool normalize_existing_file_path(const std::string &file_path, std::string &normalized_path_out) {
+    char normalized_path[FILENAME_MAX] = {};
+    char *result = omega_util_normalize_path(file_path.c_str(), normalized_path);
+    if (result == nullptr) {
+        return false;
+    }
+
+    normalized_path_out = result;
+    return !normalized_path_out.empty();
+}
+
+uint64_t random_u64(std::mt19937_64 &rng) {
     std::uniform_int_distribution<uint64_t> dis;
-    uint64_t hi = dis(gen);
-    uint64_t lo = dis(gen);
-    // Set version 4 and variant bits per RFC 4122
-    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
-    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+    return dis(rng);
+}
+
+std::mt19937_64 create_seeded_rng() {
+    std::random_device rd;
+    std::seed_seq seed{
+        rd(),
+        rd(),
+        rd(),
+        rd(),
+        static_cast<unsigned int>(
+            std::chrono::steady_clock::now().time_since_epoch().count()),
+    };
+    return std::mt19937_64(seed);
+}
+
+std::string format_uuid(uint64_t hi, uint64_t lo) {
     char buf[37];
     std::snprintf(buf, sizeof(buf),
                   "%08" PRIx32 "-%04" PRIx16 "-%04" PRIx16 "-%04" PRIx16 "-%012" PRIx64,
@@ -163,9 +172,23 @@ static std::string generate_random_uuid_fallback() {
                   static_cast<uint64_t>(lo & 0x0000FFFFFFFFFFFFULL));
     return std::string(buf);
 }
+
+} // namespace
+
+// ── UUID generation ──────────────────────────────────────────────────────────
+#ifdef _WIN32
+static std::string generate_random_uuid_fallback() {
+    static thread_local std::mt19937_64 rng = create_seeded_rng();
+    uint64_t hi = random_u64(rng);
+    uint64_t lo = random_u64(rng);
+    // Set version 4 and variant bits per RFC 4122
+    hi = (hi & 0xFFFFFFFFFFFF0FFFULL) | 0x0000000000004000ULL;
+    lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
+    return format_uuid(hi, lo);
+}
 #endif
 
-std::string SessionManager::generate_uuid() {
+std::string SessionManager::generate_uuid_v4() {
 #ifdef _WIN32
     UUID uuid;
     if (UuidCreate(&uuid) != RPC_S_OK) {
@@ -190,6 +213,60 @@ std::string SessionManager::generate_uuid() {
     return std::string(str);
 #endif
 }
+
+std::string SessionManager::generate_uuid_v7() {
+    struct UuidV7State {
+        std::mutex mutex;
+        uint64_t last_timestamp_ms{0};
+        uint16_t rand_a{0};
+        uint64_t rand_b{0};
+        std::mt19937_64 rng{create_seeded_rng()};
+    };
+
+    static UuidV7State state;
+
+    const auto now_ms = static_cast<uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+
+    uint64_t timestamp_ms = now_ms;
+    if (timestamp_ms > state.last_timestamp_ms) {
+        state.last_timestamp_ms = timestamp_ms;
+        state.rand_a = static_cast<uint16_t>(random_u64(state.rng) & 0x0FFFU);
+        state.rand_b = random_u64(state.rng) & 0x3FFFFFFFFFFFFFFFULL;
+    } else {
+        timestamp_ms = state.last_timestamp_ms;
+        if (state.rand_b == 0x3FFFFFFFFFFFFFFFULL) {
+            state.rand_b = 0;
+            state.rand_a = static_cast<uint16_t>((state.rand_a + 1U) & 0x0FFFU);
+            if (state.rand_a == 0) {
+                ++state.last_timestamp_ms;
+                timestamp_ms = state.last_timestamp_ms;
+            }
+        } else {
+            ++state.rand_b;
+        }
+    }
+
+    const uint64_t hi = ((timestamp_ms & 0x0000FFFFFFFFFFFFULL) << 16) |
+                        (0x7ULL << 12) |
+                        static_cast<uint64_t>(state.rand_a & 0x0FFFU);
+    const uint64_t lo = 0x8000000000000000ULL | (state.rand_b & 0x3FFFFFFFFFFFFFFFULL);
+    return format_uuid(hi, lo);
+}
+
+std::string SessionManager::generate_prefixed_id(const char *prefix) {
+    return std::string(prefix) + generate_uuid_v7();
+}
+
+std::string SessionManager::generate_session_id() { return generate_prefixed_id(kSessionIdPrefix); }
+
+std::string SessionManager::generate_viewport_id() { return generate_prefixed_id(kViewportIdPrefix); }
+
+std::string SessionManager::generate_subscription_id() { return generate_prefixed_id(kSubscriptionIdPrefix); }
 
 std::string SessionManager::make_viewport_fqid(const std::string &session_id, const std::string &viewport_id) {
     return session_id + ":" + viewport_id;
@@ -242,7 +319,7 @@ bool SessionManager::is_managed_server_root_name(const std::string &name) {
 }
 
 std::string SessionManager::create_server_root_name() {
-    return std::string(kManagedServerPrefix) + std::to_string(get_current_process_id()) + "-" + generate_uuid();
+    return std::string(kManagedServerPrefix) + std::to_string(get_current_process_id()) + "-" + generate_uuid_v4();
 }
 
 std::string SessionManager::create_managed_checkpoint_directory() {
@@ -273,7 +350,7 @@ std::string SessionManager::create_managed_checkpoint_directory() {
 
     std::error_code ec;
     const fs::path checkpoint_directory =
-        fs::path(managed_server_root_) / (std::string(kManagedSessionPrefix) + generate_uuid());
+        fs::path(managed_server_root_) / (std::string(kManagedSessionPrefix) + generate_uuid_v4());
     fs::create_directories(checkpoint_directory, ec);
     if (ec) {
         return "";
@@ -304,7 +381,7 @@ void SessionManager::cleanup_managed_server_root_if_empty() {
 void SessionManager::session_event_callback(const omega_session_t *session, omega_session_event_t event,
                                             const void *ptr) {
     auto *info = static_cast<SessionInfo *>(const_cast<void *>(omega_session_get_user_data_ptr(session)));
-    if (!info || !info->event_queue) return;
+    if (!info) return;
 
     SessionEventData evt;
     evt.session_id = info->session_id;
@@ -329,7 +406,23 @@ void SessionManager::session_event_callback(const omega_session_t *session, omeg
         break;
     }
 
-    info->event_queue->push(evt);
+    const auto event_kind = static_cast<int32_t>(event);
+    const auto event_mask = static_cast<uint32_t>(event_kind);
+    std::vector<std::shared_ptr<EventQueue<SessionEventData>>> subscribers;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        subscribers.reserve(info->session_subscriptions.size());
+        for (const auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue &&
+                ((static_cast<uint32_t>(subscription.interest) & event_mask) != 0U)) {
+                subscribers.push_back(subscription.event_queue);
+            }
+        }
+    }
+
+    for (const auto &subscriber : subscribers) {
+        subscriber->push(evt);
+    }
 }
 
 void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, omega_viewport_event_t event,
@@ -365,7 +458,7 @@ void SessionManager::viewport_event_callback(const omega_viewport_t *viewport, o
         evt.data.assign(data, data + length);
     }
 
-    info->event_queue->push(evt);
+    info->event_queue->push(std::move(evt));
 }
 
 // ── Constructor / Destructor ─────────────────────────────────────────────────
@@ -385,7 +478,36 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     if (error_out) { *error_out = SessionCreateError::SUCCESS; }
 
-    // Session ID priority: desired_id > base64(file_path) > UUID
+    const bool has_file_backing = !file_path.empty() && initial_data == nullptr;
+    std::string canonical_file_path;
+    if (has_file_backing && !normalize_existing_file_path(file_path, canonical_file_path)) {
+        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+        return "";
+    }
+
+    const bool share_existing_file_session = desired_id.empty() && has_file_backing;
+
+    if (share_existing_file_session) {
+        auto existing_file_session = file_sessions_by_path_.find(canonical_file_path);
+        if (existing_file_session != file_sessions_by_path_.end()) {
+            auto existing = sessions_.find(existing_file_session->second);
+            if (existing == sessions_.end()) {
+                file_sessions_by_path_.erase(existing_file_session);
+            } else if (checkpoint_directory.empty() || checkpoint_directory == existing->second->checkpoint_directory) {
+                auto &info = existing->second;
+                ++info->attachment_count;
+                info->last_activity = std::chrono::steady_clock::now();
+                file_size_out = omega_session_get_computed_file_size(info->session);
+                checkpoint_dir_out = info->checkpoint_directory;
+                return info->session_id;
+            } else {
+                if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+                return "";
+            }
+        }
+    }
+
+    // Session ID priority: desired_id > generated opaque session ID
     std::string session_id;
     if (!desired_id.empty()) {
         // The ':' character is reserved as the session:viewport FQID separator
@@ -394,23 +516,20 @@ std::string SessionManager::create_session(const std::string &file_path, const s
             return ""; // Invalid: contains reserved character
         }
         session_id = desired_id;
-    } else if (!file_path.empty()) {
-        session_id = base64_encode(file_path);
+        if (sessions_.count(session_id) != 0) {
+            if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
+            return ""; // Already exists
+        }
     } else {
-        session_id = generate_uuid();
-    }
-
-    // Check for duplicate
-    if (sessions_.count(session_id)) {
-        if (error_out) { *error_out = SessionCreateError::ALREADY_EXISTS; }
-        return ""; // Already exists
+        do {
+            session_id = generate_session_id();
+        } while (sessions_.count(session_id) != 0);
     }
 
     auto info = std::make_shared<SessionInfo>();
     info->session_id = session_id;
-    info->event_queue = std::make_shared<EventQueue<SessionEventData>>(
-        limits_.session_event_queue_capacity, "session subscription '" + session_id + "'");
-    info->event_interest = 0;
+    info->canonical_file_path = canonical_file_path;
+    info->attachment_count = 1;
     info->last_activity = std::chrono::steady_clock::now();
 
     // Store info first so the callback can find it
@@ -436,7 +555,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
             reinterpret_cast<const omega_byte_t *>(initial_data->data()), static_cast<int64_t>(initial_data->size()),
             session_event_callback, info.get(), 0, chkpt_dir);
     } else {
-        const char *path = file_path.empty() ? nullptr : file_path.c_str();
+        const char *path = canonical_file_path.empty() ? nullptr : canonical_file_path.c_str();
         session = omega_edit_create_session(path, session_event_callback, info.get(), 0, chkpt_dir);
     }
 
@@ -459,20 +578,25 @@ std::string SessionManager::create_session(const std::string &file_path, const s
         info->checkpoint_directory = checkpoint_dir_out;
     }
 
+    if (share_existing_file_session) {
+        file_sessions_by_path_[canonical_file_path] = session_id;
+    }
+
     return session_id;
 }
 
-bool SessionManager::destroy_session(const std::string &session_id) {
-    std::lock_guard<std::mutex> lock(mutex_);
-
-    auto it = sessions_.find(session_id);
-    if (it == sessions_.end()) return false;
-
+bool SessionManager::destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
     auto &info = it->second;
 
     // Close event queues
-    if (info->event_queue) {
-        info->event_queue->close();
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        for (auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue) {
+                subscription.event_queue->close();
+            }
+        }
+        info->session_subscriptions.clear();
     }
 
     // Destroy all viewports first
@@ -489,9 +613,40 @@ bool SessionManager::destroy_session(const std::string &session_id) {
         cleanup_directory_best_effort(info->checkpoint_directory);
     }
 
+    if (!info->canonical_file_path.empty()) {
+        auto canonical_it = file_sessions_by_path_.find(info->canonical_file_path);
+        if (canonical_it != file_sessions_by_path_.end() && canonical_it->second == info->session_id) {
+            file_sessions_by_path_.erase(canonical_it);
+        }
+    }
+
     sessions_.erase(it);
     cleanup_managed_server_root_if_empty();
     return true;
+}
+
+bool SessionManager::destroy_session(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end()) return false;
+
+    return destroy_session_locked(it);
+}
+
+bool SessionManager::detach_session(const std::string &session_id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end()) return false;
+
+    auto &info = it->second;
+    if (info->attachment_count > 1) {
+        --info->attachment_count;
+        return true;
+    }
+
+    return destroy_session_locked(it);
 }
 
 omega_session_t *SessionManager::get_session(const std::string &session_id) {
@@ -524,7 +679,12 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
     }
 
     auto &session_info = sit->second;
-    std::string viewport_id = desired_viewport_id.empty() ? generate_uuid() : desired_viewport_id;
+    std::string viewport_id = desired_viewport_id;
+    if (viewport_id.empty()) {
+        do {
+            viewport_id = generate_viewport_id();
+        } while (session_info->viewports.count(viewport_id) != 0);
+    }
 
     // Check for duplicate viewport
     if (session_info->viewports.count(viewport_id)) {
@@ -603,9 +763,15 @@ SessionManager::subscribe_session_events(const std::string &session_id, int32_t 
     if (it == sessions_.end()) return nullptr;
 
     auto &info = it->second;
-    info->event_interest = interest;
-    omega_session_set_event_interest(info->session, interest);
-    return info->event_queue;
+    auto queue = std::make_shared<EventQueue<SessionEventData>>(
+        limits_.session_event_queue_capacity,
+        "session subscription '" + session_id + "#" + generate_subscription_id() + "'");
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        info->session_subscriptions.push_back({queue, interest});
+        omega_session_set_event_interest(info->session, combine_session_event_interest(info->session_subscriptions));
+    }
+    return queue;
 }
 
 void SessionManager::unsubscribe_session_events(const std::string &session_id) {
@@ -615,10 +781,49 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id) {
     if (it == sessions_.end()) return;
 
     auto &info = it->second;
-    info->event_interest = 0;
-    omega_session_set_event_interest(info->session, 0);
-    if (info->event_queue) {
-        info->event_queue->clear();
+    std::vector<std::shared_ptr<EventQueue<SessionEventData>>> removed_queues;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        for (const auto &subscription : info->session_subscriptions) {
+            if (subscription.event_queue) {
+                removed_queues.push_back(subscription.event_queue);
+            }
+        }
+        info->session_subscriptions.clear();
+        omega_session_set_event_interest(info->session, 0);
+    }
+
+    for (const auto &queue : removed_queues) {
+        queue->clear();
+        queue->close();
+    }
+}
+
+void SessionManager::unsubscribe_session_events(const std::string &session_id,
+                                                const std::shared_ptr<EventQueue<SessionEventData>> &queue) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    auto it = sessions_.find(session_id);
+    if (it == sessions_.end() || !queue) return;
+
+    auto &info = it->second;
+    bool removed = false;
+    {
+        std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+        auto &subscriptions = info->session_subscriptions;
+        subscriptions.erase(std::remove_if(subscriptions.begin(), subscriptions.end(),
+                                           [&queue, &removed](const SessionEventSubscriptionInfo &subscription) {
+                                               const bool matches = subscription.event_queue == queue;
+                                               removed = removed || matches;
+                                               return matches;
+                                           }),
+                            subscriptions.end());
+        omega_session_set_event_interest(info->session, combine_session_event_interest(subscriptions));
+    }
+
+    if (removed) {
+        queue->clear();
+        queue->close();
     }
 }
 
@@ -661,7 +866,13 @@ void SessionManager::destroy_all() {
 
     for (auto &pair : sessions_) {
         auto &info = pair.second;
-        if (info->event_queue) info->event_queue->close();
+        {
+            std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
+            for (auto &subscription : info->session_subscriptions) {
+                if (subscription.event_queue) subscription.event_queue->close();
+            }
+            info->session_subscriptions.clear();
+        }
         for (auto &vp : info->viewports) {
             if (vp.second->event_queue) vp.second->event_queue->close();
         }
@@ -671,6 +882,7 @@ void SessionManager::destroy_all() {
         }
     }
     sessions_.clear();
+    file_sessions_by_path_.clear();
     cleanup_managed_server_root_if_empty();
 }
 
@@ -679,17 +891,6 @@ void SessionManager::touch_session(const std::string &session_id) {
     auto it = sessions_.find(session_id);
     if (it != sessions_.end()) {
         it->second->last_activity = std::chrono::steady_clock::now();
-    }
-}
-
-void SessionManager::touch_sessions(const std::vector<std::string> &session_ids) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto now = std::chrono::steady_clock::now();
-    for (const auto &sid : session_ids) {
-        auto it = sessions_.find(sid);
-        if (it != sessions_.end()) {
-            it->second->last_activity = now;
-        }
     }
 }
 

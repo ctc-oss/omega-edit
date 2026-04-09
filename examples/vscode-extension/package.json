@@ -2,7 +2,7 @@
   "name": "omega-edit-hex-editor",
   "displayName": "OmegaEdit Hex Editor",
   "description": "A minimal reference hex/data editor VS Code extension powered by OmegaEdit",
-  "version": "1.0.1",
+  "version": "2.0.0-rc1",
   "publisher": "omega-edit-example",
   "license": "Apache-2.0",
   "repository": {
@@ -128,7 +128,7 @@
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
-    "@omega-edit/client": "^1.0.1"
+    "@omega-edit/client": "file:../../packages/client"
   },
   "overrides": {
     "mocha": {

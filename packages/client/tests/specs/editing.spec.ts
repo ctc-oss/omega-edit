@@ -21,6 +21,7 @@ import {
   ALL_EVENTS,
   ChangeKind,
   clear,
+  delay,
   del,
   edit,
   editSimple,
@@ -28,8 +29,10 @@ import {
   editOperations,
   EditOperationType,
   EditStats,
+  EventSubscriptionRequest,
   getChangeCount,
   getChangeTransactionCount,
+  getClient,
   getComputedFileSize,
   getLastChange,
   getSegment,
@@ -49,6 +52,34 @@ import {
   testPort,
 } from './common.js'
 
+async function waitForAssertion(
+  assertion: () => void,
+  timeoutMs: number = 2000,
+  intervalMs: number = 25
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  let lastError: unknown
+
+  while (Date.now() < deadline) {
+    try {
+      assertion()
+      return
+    } catch (error) {
+      lastError = error
+      await delay(intervalMs)
+    }
+  }
+
+  if (lastError instanceof Error) {
+    throw lastError
+  }
+  throw new Error('Timed out waiting for assertion to pass')
+}
+
+function isExpectedStreamCancellation(error: Error): boolean {
+  return /cancelled|canceled|ECONNRESET/i.test(error.message)
+}
+
 describe('Editing', () => {
   let session_id = ''
 
@@ -60,6 +91,139 @@ describe('Editing', () => {
     await destroyTestSession(session_id)
   })
 
+  describe('Session Events', () => {
+    it('should keep remaining subscribers active after one session stream disconnects', async () => {
+      const client = await getClient()
+      const firstSubscriberSerials: number[] = []
+      const secondSubscriberSerials: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const registerStreamError = (error: Error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      }
+
+      const firstStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.EDIT)
+      )
+      const secondStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.EDIT)
+      )
+
+      firstStream.on('data', (event) => {
+        firstSubscriberSerials.push(event.getSerial())
+      })
+      firstStream.on('error', registerStreamError)
+      secondStream.on('data', (event) => {
+        secondSubscriberSerials.push(event.getSerial())
+      })
+      secondStream.on('error', registerStreamError)
+
+      try {
+        // Give the streaming RPCs a moment to reach the server before the
+        // first edit so slower macOS runners don't miss the initial event.
+        await delay(200)
+
+        const firstChangeSerial = await insert(session_id, 0, Buffer.from('A'))
+        await waitForAssertion(() => {
+          expect(firstSubscriberSerials).to.deep.equal([firstChangeSerial])
+          expect(secondSubscriberSerials).to.deep.equal([firstChangeSerial])
+        })
+
+        firstStream.cancel()
+        await delay(700)
+
+        const secondChangeSerial = await insert(session_id, 1, Buffer.from('B'))
+        await waitForAssertion(() => {
+          expect(firstSubscriberSerials).to.deep.equal([firstChangeSerial])
+          expect(secondSubscriberSerials).to.deep.equal([
+            firstChangeSerial,
+            secondChangeSerial,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        firstStream.cancel()
+        secondStream.cancel()
+        await delay(50)
+      }
+    })
+
+    it('should honor per-subscriber session event interests', async () => {
+      const client = await getClient()
+      const editSubscriberEvents: number[] = []
+      const clearSubscriberEvents: number[] = []
+      const allExceptEditSubscriberEvents: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const registerStreamError = (error: Error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      }
+
+      const editStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.EDIT)
+      )
+      const clearStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(SessionEventKind.CLEAR)
+      )
+      const allExceptEditStream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(ALL_EVENTS & ~SessionEventKind.EDIT)
+      )
+
+      editStream.on('data', (event) => {
+        editSubscriberEvents.push(event.getSessionEventKind())
+      })
+      editStream.on('error', registerStreamError)
+      clearStream.on('data', (event) => {
+        clearSubscriberEvents.push(event.getSessionEventKind())
+      })
+      clearStream.on('error', registerStreamError)
+      allExceptEditStream.on('data', (event) => {
+        allExceptEditSubscriberEvents.push(event.getSessionEventKind())
+      })
+      allExceptEditStream.on('error', registerStreamError)
+
+      try {
+        await delay(200)
+
+        await insert(session_id, 0, Buffer.from('A'))
+        await waitForAssertion(() => {
+          expect(editSubscriberEvents).to.deep.equal([SessionEventKind.EDIT])
+          expect(clearSubscriberEvents).to.deep.equal([])
+          expect(allExceptEditSubscriberEvents).to.deep.equal([])
+        })
+
+        await clear(session_id)
+        await waitForAssertion(() => {
+          expect(editSubscriberEvents).to.deep.equal([SessionEventKind.EDIT])
+          expect(clearSubscriberEvents).to.deep.equal([SessionEventKind.CLEAR])
+          expect(allExceptEditSubscriberEvents).to.deep.equal([
+            SessionEventKind.CLEAR,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        editStream.cancel()
+        clearStream.cancel()
+        allExceptEditStream.cancel()
+        await delay(50)
+      }
+    })
+  })
+
   describe('Insert', () => {
     it('Should insert a string', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
@@ -67,7 +231,7 @@ describe('Editing', () => {
       // Subscribe to all events but edit events
       const subscribed_session_id = await subscribeSession(
         session_id,
-        ALL_EVENTS & ~SessionEventKind.SESSION_EVT_EDIT
+        ALL_EVENTS & ~SessionEventKind.EDIT
       )
       expect(subscribed_session_id).to.equal(session_id)
       const stats = new EditStats()
@@ -130,7 +294,7 @@ describe('Editing', () => {
   describe('Overwrite', () => {
     it('Should overwrite some data', async () => {
       expect(await getComputedFileSize(session_id)).to.equal(0)
-      const data: Uint8Array = Buffer.from('abcdefghijklmnopqrstuvwxyΩ') // Note: Ω is a 2-byte character
+      const data: Uint8Array = Buffer.from('abcdefghijklmnopqrstuvwxy\u03A9') // Note: \u03A9 is a 2-byte character in UTF-8
       expect(data.length).equals(27)
       const stats = new EditStats()
       let change_id = await overwrite(session_id, 0, data, stats)
@@ -145,7 +309,7 @@ describe('Editing', () => {
       let last_change = await getLastChange(session_id)
       expect(last_change.getSessionId()).to.equal(session_id)
       expect(last_change.getOffset()).to.equal(0)
-      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
+      expect(last_change.getKind()).to.equal(ChangeKind.OVERWRITE)
       expect(last_change.getSerial()).to.equal(1)
       expect(last_change.getLength()).to.equal(data.length)
       expect(last_change.getData().length).to.equal(data.length)
@@ -164,7 +328,7 @@ describe('Editing', () => {
       last_change = await getLastChange(session_id)
       expect(last_change.getData_asU8()).deep.equals(Buffer.from('NO123456VW'))
       expect(last_change.getOffset()).to.equal(13)
-      expect(last_change.getKind()).to.equal(ChangeKind.CHANGE_OVERWRITE)
+      expect(last_change.getKind()).to.equal(ChangeKind.OVERWRITE)
       expect(last_change.getSerial()).to.equal(2)
       expect(last_change.getLength()).to.equal(10)
       expect(last_change.getSessionId()).to.equal(session_id)
@@ -180,7 +344,9 @@ describe('Editing', () => {
       file_size = await getComputedFileSize(session_id)
       expect(file_size).equals(data.length)
       segment = await getSegment(session_id, 0, file_size)
-      expect(segment).deep.equals(Buffer.from('abcdefghijklmNOPQRSTUVWxyΩ'))
+      expect(segment).deep.equals(
+        Buffer.from('abcdefghijklmNOPQRSTUVWxy\u03A9')
+      )
       await checkCallbackCount(session_callbacks, session_id, 2)
       await unsubscribeSession(session_id)
       // To overwrite a 2-byte character with a single-byte character, we need to delete the 2-byte character and insert the single-byte character
@@ -362,35 +528,53 @@ describe('Editing', () => {
     })
 
     it('should handle unicode insert and overwrite flows', async () => {
-      const cafeData = Buffer.from('cafe', 'utf-8')
-      await insert(session_id, 0, Buffer.from('cafe', 'utf-8'))
+      const cafeData = Buffer.from('caf\u00e9', 'utf-8')
+      expect(cafeData.length).to.equal(5)
+      await insert(session_id, 0, cafeData)
 
       let fileSize = await getComputedFileSize(session_id)
       expect(fileSize).to.equal(cafeData.length)
 
       let segment = await getSegment(session_id, 0, fileSize)
-      expect(Buffer.from(segment).toString('utf-8')).to.equal('cafe')
+      expect(Buffer.from(segment)).to.deep.equal(cafeData)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('caf\u00e9')
 
-      const emojiData = Buffer.from('😀', 'utf-8')
+      await clear(session_id)
+
+      const emojiData = Buffer.from('\u{1F600}', 'utf-8')
       expect(emojiData.length).to.equal(4)
       await overwrite(session_id, 0, emojiData)
       expect(await getComputedFileSize(session_id)).to.equal(4)
       segment = await getSegment(session_id, 0, 4)
-      expect(Buffer.from(segment).toString('utf-8')).to.equal('😀')
+      expect(Buffer.from(segment)).to.deep.equal(emojiData)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal('\u{1F600}')
 
-      const mixedData = Buffer.from('Hello, 世界!', 'utf-8')
+      await clear(session_id)
+
+      const mixedData = Buffer.from('Hello, \u4e16\u754c!', 'utf-8')
+      expect(mixedData.length).to.equal(14)
       await overwrite(session_id, 0, mixedData)
       fileSize = await getComputedFileSize(session_id)
       expect(fileSize).to.equal(mixedData.length)
 
       segment = await getSegment(session_id, 0, fileSize)
-      expect(Buffer.from(segment).toString('utf-8')).to.equal('Hello, 世界!')
+      expect(Buffer.from(segment)).to.deep.equal(mixedData)
+      expect(Buffer.from(segment).toString('utf-8')).to.equal(
+        'Hello, \u4e16\u754c!'
+      )
 
-      await overwrite(session_id, 0, Buffer.from('Grüße'))
+      await clear(session_id)
+
+      const germanData = Buffer.from('Gr\u00fc\u00dfe', 'utf-8')
+      expect(germanData.length).to.equal(7)
+      await overwrite(session_id, 0, germanData)
       const newSize = await getComputedFileSize(session_id)
+      expect(newSize).to.equal(germanData.length)
       const newSegment = await getSegment(session_id, 0, newSize)
-      expect(Buffer.from(newSegment).toString('utf-8').startsWith('Grüße')).to
-        .be.true
+      expect(Buffer.from(newSegment)).to.deep.equal(germanData)
+      expect(Buffer.from(newSegment).toString('utf-8')).to.equal(
+        'Gr\u00fc\u00dfe'
+      )
     })
 
     it('should reject insert operations on invalid session IDs', async () => {
@@ -410,10 +594,48 @@ describe('Editing', () => {
         expect(err).to.exist
       }
     })
+
+    it('should reject invalid negative edit coordinates instead of returning a serial', async () => {
+      await overwrite(session_id, 0, Buffer.from('abcd'))
+      const initialChangeCount = await getChangeCount(session_id)
+
+      for (const attempt of [
+        () => insert(session_id, -1, Buffer.from('x')),
+        () => del(session_id, 0, -1),
+        () => overwrite(session_id, -1, Buffer.from('y')),
+      ]) {
+        try {
+          await attempt()
+          expect.fail('invalid edit should have thrown an error')
+        } catch (err: any) {
+          expect(String(err?.message ?? err)).to.contain(
+            'invalid change arguments'
+          )
+        }
+      }
+
+      expect(await getChangeCount(session_id)).to.equal(initialChangeCount)
+      expect(await getComputedFileSize(session_id)).to.equal(4)
+      expect(await getSegment(session_id, 0, 4)).to.deep.equal(
+        Buffer.from('abcd')
+      )
+    })
   })
 })
 
 describe('Remove Common Suffix', function () {
+  it('should expose ChangeKind without numeric reverse-mapping keys', () => {
+    expect(ChangeKind.DELETE).to.equal(1)
+    expect(ChangeKind.INSERT).to.equal(2)
+    expect(ChangeKind.OVERWRITE).to.equal(3)
+    expect('0' in ChangeKind).to.equal(false)
+    expect('1' in ChangeKind).to.equal(false)
+    expect('2' in ChangeKind).to.equal(false)
+    expect('3' in ChangeKind).to.equal(false)
+    expect('CHANGE_DELETE' in ChangeKind).to.equal(false)
+    expect('CHANGE_KIND_DELETE' in ChangeKind).to.equal(false)
+  })
+
   it('should return the same arrays if there is no common suffix', () => {
     const arr1 = new Uint8Array([1, 2, 3, 4, 5])
     const arr2 = new Uint8Array([6, 7, 8, 9, 10])

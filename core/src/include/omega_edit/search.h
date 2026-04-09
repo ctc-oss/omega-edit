@@ -38,18 +38,15 @@ extern "C" {
  * Create a search context
  * @param session_ptr session to find patterns in
  * @param pattern pointer to the pattern to find (as a sequence of bytes)
- * @param pattern_length length of the pattern (if 0, strlen will be used to calculate the length of null-terminated
- * bytes)
+ * @param pattern_length explicit length of the pattern in bytes
  * @param session_offset start searching at this offset within the session
  * @param session_length search from the starting offset within the session up to this many bytes, if set to zero, it
  * will track the computed session length
  * @param case_insensitive zero for case sensitive match and non-zero otherwise
  * @param is_reverse_search zero for forward search and non-zero for reverse search
  * @return search context
- * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
- * have this function compute the length using strlen, because it will be wrong. Passing pattern length 0 is a
- * convenience for testing and should not be used in production code. In production code, explicitly pass in the pattern
- * length.
+ * @warning This byte-oriented API never infers a pattern length from strlen. Use omega_search_create_context for
+ * null-terminated C strings. Passing pattern_length 0 is invalid and returns null.
  * @warning Ensure that the pattern_length does not exceed the session_length - session_offset.  This is considered an
  * error and a null pointer will be returned.
  */
@@ -70,9 +67,8 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
  * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
  * @param is_reverse_search zero for forward search and non-zero for reverse search
  * @return search context
- * @warning If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and
- * have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for
- * testing and should not be used in production code. In production code, explicitly pass in the length.
+ * @warning This helper is for null-terminated text patterns. For binary data or patterns that may contain embedded
+ * nulls, use omega_search_create_context_bytes and pass an explicit pattern_length.
  * @warning Ensure that the pattern_length does not exceed the session_length - session_offset.  This is considered an
  * error and a null pointer will be returned.
  */

@@ -38,8 +38,6 @@ omega_search_context_t *omega_search_create_context_bytes(omega_session_t *sessi
                                                           int64_t session_length, int case_insensitive,
                                                           int is_reverse_search) {
     if (!session_ptr || !pattern || session_offset < 0) { return nullptr; }
-    pattern_length =
-            pattern_length ? pattern_length : static_cast<int64_t>(strlen(reinterpret_cast<const char *>(pattern)));
     if (pattern_length <= 0) { return nullptr; }
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto session_length_computed = session_length ? session_length : computed_file_size - session_offset;
@@ -80,6 +78,8 @@ omega_search_context_t *omega_search_create_context(omega_session_t *session_ptr
                                                     int64_t pattern_length, int64_t session_offset,
                                                     int64_t session_length, int case_insensitive,
                                                     int is_reverse_search) {
+    if (!pattern) { return nullptr; }
+    pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
     return omega_search_create_context_bytes(session_ptr, (const omega_byte_t *) pattern, pattern_length,
                                              session_offset, session_length, case_insensitive, is_reverse_search);
 }

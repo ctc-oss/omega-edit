@@ -60,6 +60,11 @@ import {
   type SingleCount,
 } from './omega_edit_pb'
 import { editSimple, type IEditStats, overwrite } from './change'
+import {
+  requireSafeIntegerArrayOutput,
+  requireSafeIntegerInput,
+  requireSafeIntegerOutput,
+} from './safe_int'
 
 export enum SaveStatus {
   SUCCESS = 0,
@@ -67,64 +72,42 @@ export enum SaveStatus {
 }
 
 export const IOFlags = {
-  IO_FLG_NONE: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
-  IO_FLG_OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
-  IO_FLG_FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
-  ...ProtoIOFlags,
-}
+  UNSPECIFIED: ProtoIOFlags.IO_FLAGS_UNSPECIFIED,
+  OVERWRITE: ProtoIOFlags.IO_FLAGS_OVERWRITE,
+  FORCE_OVERWRITE: ProtoIOFlags.IO_FLAGS_FORCE_OVERWRITE,
+} as const
+export type IOFlags = (typeof IOFlags)[keyof typeof IOFlags]
 
 export const SessionEventKind = {
-  SESSION_EVT_UNDEFINED: RawProtoSessionEventKind.UNSPECIFIED,
-  SESSION_EVT_CREATE: RawProtoSessionEventKind.CREATE,
-  SESSION_EVT_EDIT: RawProtoSessionEventKind.EDIT,
-  SESSION_EVT_UNDO: RawProtoSessionEventKind.UNDO,
-  SESSION_EVT_CLEAR: RawProtoSessionEventKind.CLEAR,
-  SESSION_EVT_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
-  SESSION_EVT_CREATE_CHECKPOINT: RawProtoSessionEventKind.CREATE_CHECKPOINT,
-  SESSION_EVT_DESTROY_CHECKPOINT: RawProtoSessionEventKind.DESTROY_CHECKPOINT,
-  SESSION_EVT_SAVE: RawProtoSessionEventKind.SAVE,
-  SESSION_EVT_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
-  SESSION_EVT_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
-  SESSION_EVT_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
-  SESSION_EVT_DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
-  SESSION_EVENT_KIND_UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
-  SESSION_EVENT_KIND_CREATE: RawProtoSessionEventKind.CREATE,
-  SESSION_EVENT_KIND_EDIT: RawProtoSessionEventKind.EDIT,
-  SESSION_EVENT_KIND_UNDO: RawProtoSessionEventKind.UNDO,
-  SESSION_EVENT_KIND_CLEAR: RawProtoSessionEventKind.CLEAR,
-  SESSION_EVENT_KIND_TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
-  SESSION_EVENT_KIND_CREATE_CHECKPOINT:
-    RawProtoSessionEventKind.CREATE_CHECKPOINT,
-  SESSION_EVENT_KIND_DESTROY_CHECKPOINT:
-    RawProtoSessionEventKind.DESTROY_CHECKPOINT,
-  SESSION_EVENT_KIND_SAVE: RawProtoSessionEventKind.SAVE,
-  SESSION_EVENT_KIND_CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
-  SESSION_EVENT_KIND_CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
-  SESSION_EVENT_KIND_CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
-  SESSION_EVENT_KIND_DESTROY_VIEWPORT:
-    RawProtoSessionEventKind.DESTROY_VIEWPORT,
-  ...RawProtoSessionEventKind,
-}
+  UNSPECIFIED: RawProtoSessionEventKind.UNSPECIFIED,
+  CREATE: RawProtoSessionEventKind.CREATE,
+  EDIT: RawProtoSessionEventKind.EDIT,
+  UNDO: RawProtoSessionEventKind.UNDO,
+  CLEAR: RawProtoSessionEventKind.CLEAR,
+  TRANSFORM: RawProtoSessionEventKind.TRANSFORM,
+  CREATE_CHECKPOINT: RawProtoSessionEventKind.CREATE_CHECKPOINT,
+  DESTROY_CHECKPOINT: RawProtoSessionEventKind.DESTROY_CHECKPOINT,
+  SAVE: RawProtoSessionEventKind.SAVE,
+  CHANGES_PAUSED: RawProtoSessionEventKind.CHANGES_PAUSED,
+  CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
+  CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
+  DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
+} as const
+export type SessionEventKind =
+  (typeof SessionEventKind)[keyof typeof SessionEventKind]
 
 export const ViewportEventKind = {
-  VIEWPORT_EVT_UNDEFINED: RawProtoViewportEventKind.UNSPECIFIED,
-  VIEWPORT_EVT_CREATE: RawProtoViewportEventKind.CREATE,
-  VIEWPORT_EVT_EDIT: RawProtoViewportEventKind.EDIT,
-  VIEWPORT_EVT_UNDO: RawProtoViewportEventKind.UNDO,
-  VIEWPORT_EVT_CLEAR: RawProtoViewportEventKind.CLEAR,
-  VIEWPORT_EVT_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
-  VIEWPORT_EVT_MODIFY: RawProtoViewportEventKind.MODIFY,
-  VIEWPORT_EVT_CHANGES: RawProtoViewportEventKind.CHANGES,
-  VIEWPORT_EVENT_KIND_UNSPECIFIED: RawProtoViewportEventKind.UNSPECIFIED,
-  VIEWPORT_EVENT_KIND_CREATE: RawProtoViewportEventKind.CREATE,
-  VIEWPORT_EVENT_KIND_EDIT: RawProtoViewportEventKind.EDIT,
-  VIEWPORT_EVENT_KIND_UNDO: RawProtoViewportEventKind.UNDO,
-  VIEWPORT_EVENT_KIND_CLEAR: RawProtoViewportEventKind.CLEAR,
-  VIEWPORT_EVENT_KIND_TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
-  VIEWPORT_EVENT_KIND_MODIFY: RawProtoViewportEventKind.MODIFY,
-  VIEWPORT_EVENT_KIND_CHANGES: RawProtoViewportEventKind.CHANGES,
-  ...RawProtoViewportEventKind,
-}
+  UNSPECIFIED: RawProtoViewportEventKind.UNSPECIFIED,
+  CREATE: RawProtoViewportEventKind.CREATE,
+  EDIT: RawProtoViewportEventKind.EDIT,
+  UNDO: RawProtoViewportEventKind.UNDO,
+  CLEAR: RawProtoViewportEventKind.CLEAR,
+  TRANSFORM: RawProtoViewportEventKind.TRANSFORM,
+  MODIFY: RawProtoViewportEventKind.MODIFY,
+  CHANGES: RawProtoViewportEventKind.CHANGES,
+} as const
+export type ViewportEventKind =
+  (typeof ViewportEventKind)[keyof typeof ViewportEventKind]
 
 export const PROFILE_DOS_EOL = 256
 
@@ -160,17 +143,25 @@ export function destroySession(session_id: string): Promise<string> {
 export async function saveSession(
   session_id: string,
   file_path: string,
-  flags: number = IOFlags.IO_FLG_NONE,
+  flags: number = IOFlags.UNSPECIFIED,
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {
   return wrapSaveSessionResponse(
-    await rawSaveSession(session_id, file_path, flags, offset, length)
+    await rawSaveSession(
+      session_id,
+      file_path,
+      flags,
+      requireSafeIntegerInput('saveSession offset', offset),
+      requireSafeIntegerInput('saveSession length', length)
+    )
   )
 }
 
 export function getComputedFileSize(session_id: string): Promise<number> {
-  return rawGetComputedFileSize(session_id)
+  return rawGetComputedFileSize(session_id).then((size) =>
+    requireSafeIntegerOutput('computed file size', size)
+  )
 }
 
 export async function getCounts(
@@ -205,7 +196,11 @@ export function getSegment(
   offset: number,
   length: number
 ): Promise<Uint8Array> {
-  return rawGetSegment(session_id, offset, length)
+  return rawGetSegment(
+    session_id,
+    requireSafeIntegerInput('getSegment offset', offset),
+    requireSafeIntegerInput('getSegment length', length)
+  )
 }
 
 export async function getSessionBytes(
@@ -213,21 +208,28 @@ export async function getSessionBytes(
   offset: number = 0,
   length: number = 0
 ): Promise<Uint8Array> {
+  const safeOffset = requireSafeIntegerInput('getSessionBytes offset', offset)
+  const safeLength = requireSafeIntegerInput('getSessionBytes length', length)
   // This helper issues separate size and segment RPCs, so callers should treat
   // it as a convenience snapshot read when the session is not being
   // concurrently modified.
   const computedSize = await getComputedFileSize(session_id)
-  const remaining = Math.max(0, computedSize - offset)
-  const effectiveLength = length > 0 ? Math.min(length, remaining) : remaining
-  return rawGetSegment(session_id, offset, effectiveLength)
+  const remaining = Math.max(0, computedSize - safeOffset)
+  const effectiveLength =
+    safeLength > 0 ? Math.min(safeLength, remaining) : remaining
+  return rawGetSegment(session_id, safeOffset, effectiveLength)
 }
 
 export function getSessionCount(): Promise<number> {
-  return rawGetSessionCount()
+  return rawGetSessionCount().then((count) =>
+    requireSafeIntegerOutput('session count', count)
+  )
 }
 
 export function notifyChangedViewports(session_id: string): Promise<number> {
-  return rawNotifyChangedViewports(session_id)
+  return rawNotifyChangedViewports(session_id).then((count) =>
+    requireSafeIntegerOutput('changed viewport count', count)
+  )
 }
 
 export function profileSession(
@@ -235,13 +237,20 @@ export function profileSession(
   offset: number = 0,
   length: number = 0
 ): Promise<number[]> {
-  return rawProfileSession(session_id, offset, length)
+  return rawProfileSession(
+    session_id,
+    requireSafeIntegerInput('profileSession offset', offset),
+    requireSafeIntegerInput('profileSession length', length)
+  ).then((profile) => requireSafeIntegerArrayOutput('byte profile', profile))
 }
 
 export function numAscii(profile: number[]): number {
-  return profile.slice(0, 128).reduce((accumulator, current) => {
-    return accumulator + current
-  }, 0)
+  return requireSafeIntegerOutput(
+    'ASCII character count',
+    profile.slice(0, 128).reduce((accumulator, current) => {
+      return accumulator + current
+    }, 0)
+  )
 }
 
 export async function getByteOrderMark(
@@ -249,7 +258,10 @@ export async function getByteOrderMark(
   offset: number = 0
 ): Promise<ByteOrderMarkResponse> {
   return wrapByteOrderMarkResponse(
-    await rawGetByteOrderMark(session_id, offset)
+    await rawGetByteOrderMark(
+      session_id,
+      requireSafeIntegerInput('getByteOrderMark offset', offset)
+    )
   )
 }
 
@@ -259,7 +271,11 @@ export async function getContentType(
   length: number
 ): Promise<ContentTypeResponse> {
   return wrapContentTypeResponse(
-    await rawGetContentType(session_id, offset, length)
+    await rawGetContentType(
+      session_id,
+      requireSafeIntegerInput('getContentType offset', offset),
+      requireSafeIntegerInput('getContentType length', length)
+    )
   )
 }
 
@@ -270,7 +286,12 @@ export async function getLanguage(
   bom: string
 ): Promise<LanguageResponse> {
   return wrapLanguageResponse(
-    await rawGetLanguage(session_id, offset, length, bom)
+    await rawGetLanguage(
+      session_id,
+      requireSafeIntegerInput('getLanguage offset', offset),
+      requireSafeIntegerInput('getLanguage length', length),
+      bom
+    )
   )
 }
 
@@ -281,7 +302,12 @@ export async function countCharacters(
   bom: string = 'none'
 ): Promise<CharacterCountResponse> {
   return wrapCharacterCountResponse(
-    await rawCountCharacters(session_id, offset, length, bom)
+    await rawCountCharacters(
+      session_id,
+      requireSafeIntegerInput('countCharacters offset', offset),
+      requireSafeIntegerInput('countCharacters length', length),
+      bom
+    )
   )
 }
 
@@ -299,10 +325,10 @@ export function searchSession(
     pattern,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
-    limit
-  )
+    requireSafeIntegerInput('searchSession offset', offset),
+    requireSafeIntegerInput('searchSession length', length),
+    requireSafeIntegerInput('searchSession limit', limit)
+  ).then((matches) => requireSafeIntegerArrayOutput('match offsets', matches))
 }
 
 export async function replaceSession(
@@ -318,54 +344,74 @@ export async function replaceSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
+  const safeOffset = requireSafeIntegerInput('replaceSession offset', offset)
+  const safeLength = requireSafeIntegerInput('replaceSession length', length)
+  const safeLimit = requireSafeIntegerInput('replaceSession limit', limit)
   const foundLocations = await searchSession(
     session_id,
     pattern,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
-    limit
+    safeOffset,
+    safeLength,
+    safeLimit
   )
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
     typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-  if (front_to_back) {
-    if (overwrite_only) {
-      for (let i = 0; i < foundLocations.length; ++i) {
-        await overwrite(session_id, foundLocations[i], replacementArray, stats)
-      }
-    } else {
-      const adjustment = replacementArray.length - patternArray.length
-      for (let i = 0; i < foundLocations.length; ++i) {
-        await editSimple(
-          session_id,
-          adjustment * i + foundLocations[i],
-          patternArray,
-          replacementArray,
-          stats
-        )
-      }
-    }
-  } else {
-    if (overwrite_only) {
-      for (let i = foundLocations.length - 1; i >= 0; --i) {
-        await overwrite(session_id, foundLocations[i], replacementArray, stats)
-      }
-    } else {
-      for (let i = foundLocations.length - 1; i >= 0; --i) {
-        await editSimple(
-          session_id,
-          foundLocations[i],
-          patternArray,
-          replacementArray,
-          stats
-        )
-      }
-    }
+  if (foundLocations.length === 0) {
+    return 0
   }
-  return foundLocations.length
+
+  const orderedLocations = [...foundLocations].sort((a, b) =>
+    front_to_back ? a - b : b - a
+  )
+
+  await beginSessionTransaction(session_id)
+  try {
+    if (front_to_back) {
+      if (overwrite_only) {
+        for (const foundLocation of orderedLocations) {
+          await overwrite(session_id, foundLocation, replacementArray, stats)
+        }
+      } else {
+        const adjustment = replacementArray.length - patternArray.length
+        for (let i = 0; i < orderedLocations.length; ++i) {
+          await editSimple(
+            session_id,
+            requireSafeIntegerOutput(
+              'replaceSession offset',
+              adjustment * i + orderedLocations[i]
+            ),
+            patternArray,
+            replacementArray,
+            stats,
+            false
+          )
+        }
+      }
+    } else {
+      for (const foundLocation of orderedLocations) {
+        if (overwrite_only) {
+          await overwrite(session_id, foundLocation, replacementArray, stats)
+        } else {
+          await editSimple(
+            session_id,
+            foundLocation,
+            patternArray,
+            replacementArray,
+            stats,
+            false
+          )
+        }
+      }
+    }
+  } finally {
+    await endSessionTransaction(session_id)
+  }
+
+  return requireSafeIntegerOutput('replacement count', foundLocations.length)
 }
 
 export async function replaceOneSession(
@@ -379,6 +425,8 @@ export async function replaceOneSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
+  const safeOffset = requireSafeIntegerInput('replaceOneSession offset', offset)
+  const safeLength = requireSafeIntegerInput('replaceOneSession length', length)
   const patternArray =
     typeof pattern == 'string' ? Buffer.from(pattern) : pattern
   const replacementArray =
@@ -388,8 +436,8 @@ export async function replaceOneSession(
     patternArray,
     is_case_insensitive,
     is_reverse,
-    offset,
-    length,
+    safeOffset,
+    safeLength,
     1
   )
   if (foundLocations.length > 0) {
@@ -404,7 +452,10 @@ export async function replaceOneSession(
         stats
       )
     }
-    return foundLocations[0] + replacementArray.length
+    return requireSafeIntegerOutput(
+      'replacement end offset',
+      foundLocations[0] + replacementArray.length
+    )
   }
   return -1
 }

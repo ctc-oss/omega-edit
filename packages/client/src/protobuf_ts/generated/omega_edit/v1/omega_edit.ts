@@ -58,17 +58,17 @@ export interface GetServerInfoResponse {
    * @deprecated
    * @generated from protobuf field: string jvm_version = 4 [deprecated = true]
    */
-  jvmVersion: string // Legacy field kept for compatibility with older clients.
+  jvmVersion: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @deprecated
    * @generated from protobuf field: string jvm_vendor = 5 [deprecated = true]
    */
-  jvmVendor: string // Legacy field kept for compatibility with older clients.
+  jvmVendor: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @deprecated
    * @generated from protobuf field: string jvm_path = 6 [deprecated = true]
    */
-  jvmPath: string // Legacy field kept for compatibility with older clients.
+  jvmPath: string // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   /**
    * @generated from protobuf field: int32 available_processors = 7
    */
@@ -124,31 +124,24 @@ export interface ServerControlResponse {
    */
   pid: number // Server process ID.
   /**
-   * @generated from protobuf field: int32 response_code = 3
+   * @deprecated
+   * @generated from protobuf field: int32 response_code = 3 [deprecated = true]
    */
-  responseCode: number // 0 for success, non-zero for failure.
+  responseCode: number // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
+  /**
+   * @generated from protobuf field: optional omega_edit.v1.ServerControlStatus status = 4
+   */
+  status?: ServerControlStatus // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 /**
- * Client heartbeat request.  The client identifies itself and lists its
- * active sessions so the server can track liveness.
+ * Client heartbeat request. The client lists the session IDs it still holds so
+ * the server can track liveness.
  *
  * @generated from protobuf message omega_edit.v1.GetHeartbeatRequest
  */
 export interface GetHeartbeatRequest {
   /**
-   * @generated from protobuf field: string hostname = 1
-   */
-  hostname: string // Client hostname.
-  /**
-   * @generated from protobuf field: int32 process_id = 2
-   */
-  processId: number // Client OS process ID.
-  /**
-   * @generated from protobuf field: int32 heartbeat_interval = 3
-   */
-  heartbeatInterval: number // Interval in milliseconds between heartbeats.
-  /**
-   * @generated from protobuf field: repeated string session_ids = 4
+   * @generated from protobuf field: repeated string session_ids = 1
    */
   sessionIds: string[] // Session IDs the client currently holds.
 }
@@ -178,22 +171,22 @@ export interface GetHeartbeatResponse {
    * @deprecated
    * @generated from protobuf field: double cpu_load_average = 5 [deprecated = true]
    */
-  cpuLoadAverage: number // Legacy load average field kept for compatibility with older clients.
+  cpuLoadAverage: number // Legacy load average field mirrored from load_average when available, otherwise left unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 max_memory = 6 [deprecated = true]
    */
-  maxMemory: number // Legacy memory field kept for compatibility with older clients.
+  maxMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 committed_memory = 7 [deprecated = true]
    */
-  committedMemory: number // Legacy memory field kept for compatibility with older clients.
+  committedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @deprecated
    * @generated from protobuf field: int64 used_memory = 8 [deprecated = true]
    */
-  usedMemory: number // Legacy memory field kept for compatibility with older clients.
+  usedMemory: number // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   /**
    * @generated from protobuf field: optional double load_average = 9
    */
@@ -228,8 +221,8 @@ export interface CreateSessionRequest {
    */
   filePath?: string
   /**
-   * Caller-chosen session ID.  The server may assign a different ID if this
-   * one is already in use.
+   * Caller-chosen session ID. Must be unique; duplicates are rejected with
+   * ALREADY_EXISTS rather than being silently reassigned.
    *
    * @generated from protobuf field: optional string session_id_desired = 2
    */
@@ -573,9 +566,12 @@ export interface CreateViewportRequest {
    */
   isFloating: boolean // When true, the viewport follows edits automatically.
   /**
+   * Optional caller-chosen viewport ID. Must be unique within the session;
+   * duplicates are rejected with ALREADY_EXISTS.
+   *
    * @generated from protobuf field: optional string viewport_id_desired = 5
    */
-  viewportIdDesired?: string // Optional caller-chosen viewport ID.
+  viewportIdDesired?: string
 }
 /**
  * Response carrying a viewport's content.
@@ -1834,6 +1830,29 @@ export enum ServerControlKind {
    */
   IMMEDIATE_SHUTDOWN = 2,
 }
+/**
+ * Status reported after a server-control command is accepted.
+ *
+ * @generated from protobuf enum omega_edit.v1.ServerControlStatus
+ */
+export enum ServerControlStatus {
+  /**
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * The requested shutdown path has completed and the server is stopping.
+   *
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_COMPLETED = 1;
+   */
+  COMPLETED = 1,
+  /**
+   * Graceful shutdown was accepted, but the server is still draining sessions.
+   *
+   * @generated from protobuf enum value: SERVER_CONTROL_STATUS_DRAINING = 2;
+   */
+  DRAINING = 2,
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServerInfoRequest$Type extends MessageType<GetServerInfoRequest> {
   constructor() {
@@ -2192,6 +2211,17 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         kind: 'scalar',
         T: 5 /*ScalarType.INT32*/,
       },
+      {
+        no: 4,
+        name: 'status',
+        kind: 'enum',
+        opt: true,
+        T: () => [
+          'omega_edit.v1.ServerControlStatus',
+          ServerControlStatus,
+          'SERVER_CONTROL_STATUS_',
+        ],
+      },
     ])
   }
   create(value?: PartialMessage<ServerControlResponse>): ServerControlResponse {
@@ -2220,8 +2250,11 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
         case /* int32 pid */ 2:
           message.pid = reader.int32()
           break
-        case /* int32 response_code */ 3:
+        case /* int32 response_code = 3 [deprecated = true] */ 3:
           message.responseCode = reader.int32()
+          break
+        case /* optional omega_edit.v1.ServerControlStatus status */ 4:
+          message.status = reader.int32()
           break
         default:
           let u = options.readUnknownField
@@ -2251,9 +2284,12 @@ class ServerControlResponse$Type extends MessageType<ServerControlResponse> {
     if (message.kind !== 0) writer.tag(1, WireType.Varint).int32(message.kind)
     /* int32 pid = 2; */
     if (message.pid !== 0) writer.tag(2, WireType.Varint).int32(message.pid)
-    /* int32 response_code = 3; */
+    /* int32 response_code = 3 [deprecated = true]; */
     if (message.responseCode !== 0)
       writer.tag(3, WireType.Varint).int32(message.responseCode)
+    /* optional omega_edit.v1.ServerControlStatus status = 4; */
+    if (message.status !== undefined)
+      writer.tag(4, WireType.Varint).int32(message.status)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(
@@ -2272,16 +2308,8 @@ export const ServerControlResponse = new ServerControlResponse$Type()
 class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
   constructor() {
     super('omega_edit.v1.GetHeartbeatRequest', [
-      { no: 1, name: 'hostname', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: 'process_id', kind: 'scalar', T: 5 /*ScalarType.INT32*/ },
       {
-        no: 3,
-        name: 'heartbeat_interval',
-        kind: 'scalar',
-        T: 5 /*ScalarType.INT32*/,
-      },
-      {
-        no: 4,
+        no: 1,
         name: 'session_ids',
         kind: 'scalar',
         repeat: 2 /*RepeatType.UNPACKED*/,
@@ -2291,9 +2319,6 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
   }
   create(value?: PartialMessage<GetHeartbeatRequest>): GetHeartbeatRequest {
     const message = globalThis.Object.create(this.messagePrototype!)
-    message.hostname = ''
-    message.processId = 0
-    message.heartbeatInterval = 0
     message.sessionIds = []
     if (value !== undefined)
       reflectionMergePartial<GetHeartbeatRequest>(this, message, value)
@@ -2310,16 +2335,7 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
     while (reader.pos < end) {
       let [fieldNo, wireType] = reader.tag()
       switch (fieldNo) {
-        case /* string hostname */ 1:
-          message.hostname = reader.string()
-          break
-        case /* int32 process_id */ 2:
-          message.processId = reader.int32()
-          break
-        case /* int32 heartbeat_interval */ 3:
-          message.heartbeatInterval = reader.int32()
-          break
-        case /* repeated string session_ids */ 4:
+        case /* repeated string session_ids */ 1:
           message.sessionIds.push(reader.string())
           break
         default:
@@ -2346,18 +2362,9 @@ class GetHeartbeatRequest$Type extends MessageType<GetHeartbeatRequest> {
     writer: IBinaryWriter,
     options: BinaryWriteOptions
   ): IBinaryWriter {
-    /* string hostname = 1; */
-    if (message.hostname !== '')
-      writer.tag(1, WireType.LengthDelimited).string(message.hostname)
-    /* int32 process_id = 2; */
-    if (message.processId !== 0)
-      writer.tag(2, WireType.Varint).int32(message.processId)
-    /* int32 heartbeat_interval = 3; */
-    if (message.heartbeatInterval !== 0)
-      writer.tag(3, WireType.Varint).int32(message.heartbeatInterval)
-    /* repeated string session_ids = 4; */
+    /* repeated string session_ids = 1; */
     for (let i = 0; i < message.sessionIds.length; i++)
-      writer.tag(4, WireType.LengthDelimited).string(message.sessionIds[i])
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionIds[i])
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

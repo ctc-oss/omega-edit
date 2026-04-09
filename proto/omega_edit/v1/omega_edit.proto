@@ -18,6 +18,10 @@ package omega_edit.v1;
 
 option cc_enable_arenas = true;
 
+// The omega_edit/v1 import path remains the canonical schema location for the
+// OmegaEdit 2.x line. Major-release API breaks are documented in the upgrade
+// guide rather than expressed through a package rename.
+
 // EditorService is the primary gRPC service for the Ωedit library.  It provides
 // byte-level editing of arbitrarily large files through a session/viewport
 // model with unlimited, serialised undo/redo.
@@ -49,7 +53,8 @@ service EditorService {
 
   // Create a new editing session, optionally backed by an existing file.
   // Returns the assigned session ID, checkpoint directory, and (if a file was
-  // provided) the original file size.
+  // provided) the original file size. If the server has begun shutdown or is
+  // draining existing sessions, this RPC fails with UNAVAILABLE.
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
 
   // Persist the session's computed content to disk.  The caller specifies the
@@ -57,8 +62,8 @@ service EditorService {
   // can limit the save to a sub-section of the data.
   rpc SaveSession(SaveSessionRequest) returns (SaveSessionResponse);
 
-  // Destroy a session and release all associated resources (viewports,
-  // checkpoints, and change history).
+  // Detach the caller from a session. The backing session and its resources
+  // are released when the last attachment is destroyed or reaped.
   rpc DestroySession(DestroySessionRequest) returns (DestroySessionResponse);
 
   // ---------------------------------------------------------------------------
@@ -194,8 +199,8 @@ service EditorService {
   // Send a control command to the server (graceful or immediate shutdown).
   rpc ServerControl(ServerControlRequest) returns (ServerControlResponse);
 
-  // Exchange a heartbeat with the server.  The client sends its hostname,
-  // PID, and active session IDs; the server responds with resource metrics.
+  // Exchange a heartbeat with the server. The client sends the session IDs it
+  // still holds so the server can keep them alive and return resource metrics.
   rpc GetHeartbeat(GetHeartbeatRequest) returns (GetHeartbeatResponse);
 
   // ---------------------------------------------------------------------------
@@ -211,7 +216,7 @@ service EditorService {
   // changes, modifications, etc.).
   rpc SubscribeToViewportEvents(SubscribeToViewportEventsRequest) returns (stream SubscribeToViewportEventsResponse);
 
-  // Cancel an active session-event subscription.
+  // Cancel all active session-event subscriptions for the session ID.
   rpc UnsubscribeToSessionEvents(UnsubscribeToSessionEventsRequest) returns (UnsubscribeToSessionEventsResponse);
 
   // Cancel an active viewport-event subscription.
@@ -326,6 +331,15 @@ enum ServerControlKind {
   SERVER_CONTROL_KIND_IMMEDIATE_SHUTDOWN = 2;
 }
 
+// Status reported after a server-control command is accepted.
+enum ServerControlStatus {
+  SERVER_CONTROL_STATUS_UNSPECIFIED = 0;
+  // The requested shutdown path has completed and the server is stopping.
+  SERVER_CONTROL_STATUS_COMPLETED = 1;
+  // Graceful shutdown was accepted, but the server is still draining sessions.
+  SERVER_CONTROL_STATUS_DRAINING = 2;
+}
+
 // ===========================================================================
 // Request / Response messages — Server info & management
 // ===========================================================================
@@ -338,9 +352,9 @@ message GetServerInfoResponse {
   string hostname = 1;             // Server hostname.
   int32 process_id = 2;            // Server OS process ID.
   string server_version = 3;       // Omega Edit server version string.
-  string jvm_version = 4 [deprecated = true]; // Legacy field kept for compatibility with older clients.
-  string jvm_vendor = 5 [deprecated = true];  // Legacy field kept for compatibility with older clients.
-  string jvm_path = 6 [deprecated = true];    // Legacy field kept for compatibility with older clients.
+  string jvm_version = 4 [deprecated = true]; // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
+  string jvm_vendor = 5 [deprecated = true];  // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
+  string jvm_path = 6 [deprecated = true];    // Legacy JVM field; the native server leaves it unset so it reads as the proto default empty string.
   int32 available_processors = 7;  // Number of logical CPU cores.
   string runtime_kind = 8;         // Runtime family, e.g. "native" or "jvm".
   string runtime_name = 9;         // Runtime implementation name, e.g. "C++".
@@ -359,16 +373,14 @@ message ServerControlRequest {
 message ServerControlResponse {
   ServerControlKind kind = 1; // The command that was executed.
   int32 pid = 2;              // Server process ID.
-  int32 response_code = 3;    // 0 for success, non-zero for failure.
+  int32 response_code = 3 [deprecated = true]; // Legacy field: 0 when the command was accepted, non-zero only for compatibility with older clients.
+  optional ServerControlStatus status = 4;     // Explicit shutdown progress for accepted commands; optional so clients can detect older servers that omitted the field and fall back to legacy compatibility handling.
 }
 
-// Client heartbeat request.  The client identifies itself and lists its
-// active sessions so the server can track liveness.
+// Client heartbeat request. The client lists the session IDs it still holds so
+// the server can track liveness.
 message GetHeartbeatRequest {
-  string hostname = 1;            // Client hostname.
-  int32 process_id = 2;           // Client OS process ID.
-  int32 heartbeat_interval = 3;   // Interval in milliseconds between heartbeats.
-  repeated string session_ids = 4; // Session IDs the client currently holds.
+  repeated string session_ids = 1; // Session IDs the client currently holds.
 }
 
 // Server heartbeat response with resource metrics.
@@ -377,10 +389,10 @@ message GetHeartbeatResponse {
   int64 timestamp = 2;                      // Server wall-clock time in milliseconds since epoch.
   int64 uptime = 3;                         // Server uptime in milliseconds.
   int32 cpu_count = 4;                      // Number of logical CPU cores.
-  double cpu_load_average = 5 [deprecated = true]; // Legacy load average field kept for compatibility with older clients.
-  int64 max_memory = 6 [deprecated = true];        // Legacy memory field kept for compatibility with older clients.
-  int64 committed_memory = 7 [deprecated = true];  // Legacy memory field kept for compatibility with older clients.
-  int64 used_memory = 8 [deprecated = true];       // Legacy memory field kept for compatibility with older clients.
+  double cpu_load_average = 5 [deprecated = true]; // Legacy load average field mirrored from load_average when available, otherwise left unset so it reads as the proto default 0.
+  int64 max_memory = 6 [deprecated = true];        // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
+  int64 committed_memory = 7 [deprecated = true];  // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
+  int64 used_memory = 8 [deprecated = true];       // Legacy JVM heap field; the native server leaves it unset so it reads as the proto default 0.
   optional double load_average = 9;                // 1-min load average when the platform can report it.
   optional int64 resident_memory_bytes = 10;       // Resident set size (RSS) in bytes.
   optional int64 virtual_memory_bytes = 11;        // Virtual address space usage in bytes when the platform can report it consistently.
@@ -395,8 +407,8 @@ message GetHeartbeatResponse {
 message CreateSessionRequest {
   // Path to the file to load.  Omit to create an empty session.
   optional string file_path = 1;
-  // Caller-chosen session ID.  The server may assign a different ID if this
-  // one is already in use.
+  // Caller-chosen session ID. Must be unique; duplicates are rejected with
+  // ALREADY_EXISTS rather than being silently reassigned.
   optional string session_id_desired = 2;
   // Directory for checkpoint files.  Defaults to a system temp directory.
   optional string checkpoint_directory = 3;
@@ -542,7 +554,9 @@ message CreateViewportRequest {
   int64 capacity = 2;                   // Maximum number of bytes the viewport holds.
   int64 offset = 3;                     // Starting byte offset in the session.
   bool is_floating = 4;                 // When true, the viewport follows edits automatically.
-  optional string viewport_id_desired = 5; // Optional caller-chosen viewport ID.
+  // Optional caller-chosen viewport ID. Must be unique within the session;
+  // duplicates are rejected with ALREADY_EXISTS.
+  optional string viewport_id_desired = 5;
 }
 
 // Response carrying a viewport's content.

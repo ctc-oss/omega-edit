@@ -76,6 +76,77 @@ TEST_CASE("Insert on Empty Session", "[EdgeCase][EmptyInsert]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Byte APIs preserve embedded nulls with explicit lengths", "[EdgeCase][BinaryLengths]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t inserted[] = {'A', '\0', 'B'};
+    REQUIRE(0 < omega_edit_insert_bytes(session_ptr, 0, inserted, static_cast<int64_t>(sizeof(inserted))));
+    REQUIRE(3 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(std::string(reinterpret_cast<const char *>(inserted), sizeof(inserted)) ==
+            omega_session_get_segment_string(session_ptr, 0, 3));
+
+    const omega_byte_t overwritten[] = {'X', '\0', 'Y'};
+    REQUIRE(0 < omega_edit_overwrite_bytes(session_ptr, 0, overwritten, static_cast<int64_t>(sizeof(overwritten))));
+    REQUIRE(std::string(reinterpret_cast<const char *>(overwritten), sizeof(overwritten)) ==
+            omega_session_get_segment_string(session_ptr, 0, 3));
+
+    const omega_byte_t replaced[] = {'Q', '\0', 'R', '\0'};
+    REQUIRE(0 < omega_edit_replace_bytes(session_ptr, 0, 3, replaced, static_cast<int64_t>(sizeof(replaced))));
+    REQUIRE(4 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(std::string(reinterpret_cast<const char *>(replaced), sizeof(replaced)) ==
+            omega_session_get_segment_string(session_ptr, 0, 4));
+
+    const omega_byte_t pattern[] = {'\0', 'R'};
+    const auto search_context =
+            omega_search_create_context_bytes(session_ptr, pattern, static_cast<int64_t>(sizeof(pattern)), 0, 0, 0, 0);
+    REQUIRE(search_context);
+    REQUIRE(1 == omega_search_next_match(search_context, 1));
+    REQUIRE(1 == omega_search_context_get_match_offset(search_context));
+    omega_search_destroy_context(search_context);
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Byte APIs treat zero-length inputs as empty and keep string helpers convenient",
+          "[EdgeCase][BinaryLengths]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_byte_t bytes[] = {'A', '\0', 'B'};
+    REQUIRE(0 == omega_edit_insert_bytes(session_ptr, 0, bytes, 0));
+    REQUIRE(0 == omega_edit_insert_bytes(session_ptr, 0, nullptr, 0));
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+
+    REQUIRE(0 < omega_edit_insert(session_ptr, 0, "text", 0));
+    REQUIRE("text" == omega_session_get_segment_string(session_ptr, 0, 4));
+    REQUIRE(0 == omega_edit_overwrite_bytes(session_ptr, 1, bytes, 0));
+    REQUIRE(0 == omega_edit_overwrite_bytes(session_ptr, 1, nullptr, 0));
+    REQUIRE("text" == omega_session_get_segment_string(session_ptr, 0, 4));
+
+    REQUIRE(0 < omega_edit_overwrite(session_ptr, 1, "A", 0));
+    REQUIRE("tAxt" == omega_session_get_segment_string(session_ptr, 0, 4));
+    REQUIRE(0 < omega_edit_replace(session_ptr, 1, 2, "BCD", 0));
+    REQUIRE("tBCDt" == omega_session_get_segment_string(session_ptr, 0, 5));
+    REQUIRE(-1 == omega_edit_replace(session_ptr, 0, 0, nullptr, 1));
+    REQUIRE(-1 == omega_edit_replace(session_ptr, -1, 0, "X", 1));
+    REQUIRE(-1 == omega_edit_replace(session_ptr, 0, -1, "X", 1));
+    REQUIRE(-1 == omega_edit_replace(session_ptr, 0, 0, "X", -1));
+    REQUIRE("tBCDt" == omega_session_get_segment_string(session_ptr, 0, 5));
+
+    const auto cstring_search = omega_search_create_context(session_ptr, "BCD", 0, 0, 0, 0, 0);
+    REQUIRE(cstring_search);
+    REQUIRE(1 == omega_search_next_match(cstring_search, 1));
+    REQUIRE(1 == omega_search_context_get_match_offset(cstring_search));
+    omega_search_destroy_context(cstring_search);
+
+    REQUIRE(nullptr == omega_search_create_context_bytes(session_ptr, bytes, 0, 0, 0, 0, 0));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Delete Entire File Content", "[EdgeCase][DeleteAll]") {
     const auto session_ptr = omega_edit_create_session(MAKE_PATH("test1.dat"), nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
@@ -413,13 +484,17 @@ TEST_CASE("Null Pointer Operations Rejected", "[EdgeCase][InvalidInput]") {
     omega_edit_destroy_session(session_ptr);
 }
 
-TEST_CASE("Negative Length Delete Rejected", "[EdgeCase][InvalidInput]") {
+TEST_CASE("Negative Edit Parameters Are Rejected", "[EdgeCase][InvalidInput]") {
     const auto session_ptr = omega_edit_create_session(MAKE_PATH("test1.dat"), nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);
     const auto original_size = omega_session_get_computed_file_size(session_ptr);
 
-    // Negative length delete should be rejected (returns 0)
-    REQUIRE(0 == omega_edit_delete(session_ptr, 0, -5));
+    REQUIRE(-1 == omega_edit_delete(session_ptr, 0, -5));
+    REQUIRE(-1 == omega_edit_delete(session_ptr, -1, 5));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("x"), -1));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, -1, reinterpret_cast<const omega_byte_t *>("x"), 1));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, 0, reinterpret_cast<const omega_byte_t *>("x"), -1));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, -1, reinterpret_cast<const omega_byte_t *>("x"), 1));
     REQUIRE(omega_session_get_computed_file_size(session_ptr) == original_size);
     REQUIRE(0 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_check_model(session_ptr));

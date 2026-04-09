@@ -1,5 +1,7 @@
 import {
   ChangeKind,
+  delay,
+  type IServerControlResult,
   IOFlags,
   createSession,
   del,
@@ -10,12 +12,14 @@ import {
   getLastChange,
   getServerInfo,
   getSegment,
+  isPortAvailable,
   getUndoCount,
   getViewportCount,
   insert,
   overwrite,
   redo,
   replace,
+  replaceSession as replaceWholeSession,
   resetClient,
   saveSession,
   searchSession,
@@ -23,7 +27,6 @@ import {
   stopServerGraceful,
   undo,
 } from '@omega-edit/client'
-import * as net from 'net'
 import {
   DEFAULT_HOST,
   DEFAULT_MAX_EDIT_BYTES,
@@ -38,6 +41,8 @@ import {
   PatchRequest,
   PatchResult,
   ReadRangeResult,
+  ReplaceSessionRequest,
+  ReplaceSessionResult,
   SearchRequest,
   SearchResult,
   SessionStatus,
@@ -58,22 +63,6 @@ function assertNonNegativeInteger(name: string, value: number): void {
   if (!isFiniteInteger(value) || value < 0) {
     throw new Error(`${name} must be a non-negative integer`)
   }
-}
-
-async function isPortAvailable(host: string, port: number): Promise<boolean> {
-  return new Promise<boolean>((resolve) => {
-    const server = net.createServer()
-
-    server.once('error', () => {
-      resolve(false)
-    })
-
-    server.once('listening', () => {
-      server.close(() => resolve(true))
-    })
-
-    server.listen(port, host)
-  })
 }
 
 export class OmegaEditToolkit {
@@ -97,6 +86,22 @@ export class OmegaEditToolkit {
       options.previewContextBytes || DEFAULT_PREVIEW_CONTEXT_BYTES
   }
 
+  private async waitForServerToStop(timeoutMs: number = 10000): Promise<void> {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() < deadline) {
+      if (await isPortAvailable(this.port, this.host)) {
+        return
+      }
+
+      await delay(100)
+    }
+
+    throw new Error(
+      `OmegaEdit server did not stop on ${this.host}:${this.port} within ${timeoutMs}ms`
+    )
+  }
+
   private async connectToServer(): Promise<void> {
     resetClient()
     await getClient(this.port, this.host)
@@ -106,16 +111,18 @@ export class OmegaEditToolkit {
   private async connectToRunningServer(): Promise<void> {
     try {
       await this.connectToServer()
-    } catch {
+    } catch (err) {
       resetClient()
-      throw new Error(
+      const connectionError = new Error(
         `OmegaEdit server is not running on ${this.host}:${this.port}`
       )
+      ;(connectionError as Error & { cause?: unknown }).cause = err
+      throw connectionError
     }
   }
 
   async ensureServerRunning(): Promise<void> {
-    const portIsAvailable = await isPortAvailable(this.host, this.port)
+    const portIsAvailable = await isPortAvailable(this.port, this.host)
     if (portIsAvailable) {
       if (!this.autoStart) {
         throw new Error(
@@ -148,11 +155,15 @@ export class OmegaEditToolkit {
     return await this.serverInfo()
   }
 
-  async stopServer(): Promise<{ responseCode: number }> {
+  async stopServer(): Promise<IServerControlResult> {
     await this.connectToRunningServer()
-    const responseCode = await stopServerGraceful()
+    const response = await stopServerGraceful()
     resetClient()
-    return { responseCode }
+    if (response.responseCode === 0 || response.status === 'draining') {
+      await this.waitForServerToStop()
+      resetClient()
+    }
+    return response
   }
 
   async serverInfo(): Promise<object> {
@@ -297,6 +308,69 @@ export class OmegaEditToolkit {
     }
   }
 
+  async replaceSession(
+    request: ReplaceSessionRequest
+  ): Promise<ReplaceSessionResult> {
+    const offset = request.offset || 0
+    const length = request.length || 0
+    const requestedLimit = request.limit || 0
+    const frontToBack = request.frontToBack !== false
+    const overwriteOnly = request.overwriteOnly || false
+
+    assertNonNegativeInteger('offset', offset)
+    assertNonNegativeInteger('length', length)
+    assertNonNegativeInteger('limit', requestedLimit)
+
+    if (requestedLimit !== 0 && requestedLimit > this.maxSearchResults) {
+      throw new Error(
+        `limit must be between 0 and ${this.maxSearchResults} results`
+      )
+    }
+
+    const pattern =
+      typeof request.pattern === 'string'
+        ? parseInputData(request.pattern, request.inputEncoding || 'utf8')
+        : request.pattern
+    const replacement =
+      typeof request.replacement === 'string'
+        ? parseInputData(request.replacement, request.inputEncoding || 'utf8')
+        : request.replacement
+
+    if (pattern.length === 0) {
+      throw new Error('pattern must not be empty')
+    }
+    if (replacement.length > this.maxEditBytes) {
+      throw new Error(
+        `replacement exceeds configured maximum of ${this.maxEditBytes} bytes`
+      )
+    }
+
+    await this.ensureServerRunning()
+
+    const replacedCount = await replaceWholeSession(
+      request.sessionId,
+      pattern,
+      replacement,
+      request.caseInsensitive || false,
+      request.reverse || false,
+      offset,
+      length,
+      requestedLimit,
+      frontToBack,
+      overwriteOnly
+    )
+
+    return {
+      sessionId: request.sessionId,
+      offset,
+      length,
+      limit: requestedLimit,
+      replacedCount,
+      frontToBack,
+      overwriteOnly,
+    }
+  }
+
   private normalizePatchRequest(request: PatchRequest): {
     removeLength: number
     data: Uint8Array
@@ -337,10 +411,13 @@ export class OmegaEditToolkit {
     }
   }
 
-  async previewPatch(request: PatchRequest): Promise<PatchPreview> {
+  private async buildPatchPreview(
+    request: PatchRequest,
+    normalizedRequest: { removeLength: number; data: Uint8Array }
+  ): Promise<PatchPreview> {
     await this.ensureServerRunning()
 
-    const { removeLength, data } = this.normalizePatchRequest(request)
+    const { removeLength, data } = normalizedRequest
     const sessionSize = await getComputedFileSize(request.sessionId)
     const previewContext = Math.min(
       request.previewContext || this.previewContextBytes,
@@ -400,8 +477,13 @@ export class OmegaEditToolkit {
     }
   }
 
+  async previewPatch(request: PatchRequest): Promise<PatchPreview> {
+    return this.buildPatchPreview(request, this.normalizePatchRequest(request))
+  }
+
   async applyPatch(request: PatchRequest): Promise<PatchResult> {
-    const preview = await this.previewPatch(request)
+    const normalizedRequest = this.normalizePatchRequest(request)
+    const preview = await this.buildPatchPreview(request, normalizedRequest)
 
     if (request.dryRun) {
       return {
@@ -410,7 +492,7 @@ export class OmegaEditToolkit {
       }
     }
 
-    const { removeLength, data } = this.normalizePatchRequest(request)
+    const { removeLength, data } = normalizedRequest
 
     let serial: number
     switch (request.kind) {
@@ -459,9 +541,7 @@ export class OmegaEditToolkit {
     const response = await saveSession(
       sessionId,
       outputPath,
-      overwriteExisting
-        ? IOFlags.IO_FLAGS_OVERWRITE
-        : IOFlags.IO_FLAGS_UNSPECIFIED
+      overwriteExisting ? IOFlags.OVERWRITE : IOFlags.UNSPECIFIED
     )
     return {
       filePath: response.getFilePath(),
@@ -493,9 +573,7 @@ export class OmegaEditToolkit {
     const response = await saveSession(
       sessionId,
       outputPath,
-      overwriteExisting
-        ? IOFlags.IO_FLAGS_OVERWRITE
-        : IOFlags.IO_FLAGS_UNSPECIFIED,
+      overwriteExisting ? IOFlags.OVERWRITE : IOFlags.UNSPECIFIED,
       offset,
       length
     )

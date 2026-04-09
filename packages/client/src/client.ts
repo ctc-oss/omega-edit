@@ -19,10 +19,13 @@
 
 import type * as grpc from '@grpc/grpc-js'
 import {
+  type ClientConnectionOptions,
   getClient as getSharedClient,
   resetClient as resetSharedClient,
   waitForReady as waitForReadySharedClient,
 } from './protobuf_ts/client'
+
+export type { ClientConnectionOptions }
 
 // subscription events
 export const NO_EVENTS = 0 // subscribe to no events
@@ -49,11 +52,16 @@ export function waitForReady(
 }
 
 /**
- * Gets the connected editor client. Initializes the client if not already
- * @param port port to bind to
+ * Gets the connected shared editor client. Passing an explicit target updates
+ * the shared client target for later zero-argument calls.
+ * @param port port to connect to
  * @param host interface to connect to
  * @return connected editor client
  */
-export async function getClient(port?: number, host?: string) {
-  return getSharedClient(port, host)
+export async function getClient(
+  port?: number,
+  host?: string,
+  options?: ClientConnectionOptions
+) {
+  return getSharedClient(port, host, options)
 }

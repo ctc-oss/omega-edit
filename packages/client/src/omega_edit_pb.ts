@@ -33,11 +33,16 @@ import type {
   SaveSessionResponse as RawSaveSessionResponse,
   ServerControlRequest as RawServerControlRequest,
   ServerControlResponse as RawServerControlResponse,
+  ServerControlStatus,
   SingleCount as RawSingleCount,
   SubscribeToSessionEventsRequest as RawSubscribeToSessionEventsRequest,
   SubscribeToSessionEventsResponse as RawSubscribeToSessionEventsResponse,
   SubscribeToViewportEventsResponse as RawSubscribeToViewportEventsResponse,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import {
+  requireOptionalSafeIntegerOutput,
+  requireSafeIntegerOutput,
+} from './safe_int'
 
 function bytesOrEmpty(data?: Uint8Array): Uint8Array {
   return data ?? new Uint8Array()
@@ -45,6 +50,10 @@ function bytesOrEmpty(data?: Uint8Array): Uint8Array {
 
 function numberOrZero(value?: number): number {
   return value ?? 0
+}
+
+function safeNumberOrZero(name: string, value?: number): number {
+  return requireSafeIntegerOutput(name, numberOrZero(value))
 }
 
 export type CompatibilityViewportResponse =
@@ -95,37 +104,7 @@ export class EventSubscriptionRequest {
 
 export class HeartbeatRequest {
   private request_: RawGetHeartbeatRequest = {
-    hostname: '',
-    processId: 0,
-    heartbeatInterval: 0,
     sessionIds: [],
-  }
-
-  setHostname(value: string): this {
-    this.request_.hostname = value
-    return this
-  }
-
-  getHostname(): string {
-    return this.request_.hostname
-  }
-
-  setProcessId(value: number): this {
-    this.request_.processId = value
-    return this
-  }
-
-  getProcessId(): number {
-    return this.request_.processId
-  }
-
-  setHeartbeatInterval(value: number): this {
-    this.request_.heartbeatInterval = value
-    return this
-  }
-
-  getHeartbeatInterval(): number {
-    return this.request_.heartbeatInterval
   }
 
   setSessionIdsList(value: string[]): this {
@@ -182,7 +161,7 @@ export class CreateSessionResponse {
   }
 
   getFileSize(): number {
-    return numberOrZero(this.response_.fileSize)
+    return safeNumberOrZero('CreateSessionResponse.fileSize', this.response_.fileSize)
   }
 
   hasFileSize(): boolean {
@@ -190,7 +169,10 @@ export class CreateSessionResponse {
   }
 
   toObject(): RawCreateSessionResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      fileSize: this.hasFileSize() ? this.getFileSize() : undefined,
+    }
   }
 }
 
@@ -277,6 +259,10 @@ export class ServerControlResponse {
     return this.response_.responseCode
   }
 
+  getStatus(): ServerControlStatus | undefined {
+    return this.response_.status
+  }
+
   toObject(): RawServerControlResponse {
     return { ...this.response_ }
   }
@@ -290,11 +276,17 @@ export class HeartbeatResponse {
   }
 
   getTimestamp(): number {
-    return this.response_.timestamp
+    return requireSafeIntegerOutput(
+      'HeartbeatResponse.timestamp',
+      this.response_.timestamp
+    )
   }
 
   getUptime(): number {
-    return this.response_.uptime
+    return requireSafeIntegerOutput(
+      'HeartbeatResponse.uptime',
+      this.response_.uptime
+    )
   }
 
   getCpuCount(): number {
@@ -306,19 +298,35 @@ export class HeartbeatResponse {
   }
 
   getResidentMemoryBytes(): number | undefined {
-    return this.response_.residentMemoryBytes
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.residentMemoryBytes',
+      this.response_.residentMemoryBytes
+    )
   }
 
   getVirtualMemoryBytes(): number | undefined {
-    return this.response_.virtualMemoryBytes
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.virtualMemoryBytes',
+      this.response_.virtualMemoryBytes
+    )
   }
 
   getPeakResidentMemoryBytes(): number | undefined {
-    return this.response_.peakResidentMemoryBytes
+    return requireOptionalSafeIntegerOutput(
+      'HeartbeatResponse.peakResidentMemoryBytes',
+      this.response_.peakResidentMemoryBytes
+    )
   }
 
   toObject(): RawGetHeartbeatResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      timestamp: this.getTimestamp(),
+      uptime: this.getUptime(),
+      residentMemoryBytes: this.getResidentMemoryBytes(),
+      virtualMemoryBytes: this.getVirtualMemoryBytes(),
+      peakResidentMemoryBytes: this.getPeakResidentMemoryBytes(),
+    }
   }
 }
 
@@ -330,11 +338,17 @@ export class ViewportDataResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'ViewportDataResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'ViewportDataResponse.length',
+      this.response_.length
+    )
   }
 
   getData(): Uint8Array {
@@ -346,13 +360,19 @@ export class ViewportDataResponse {
   }
 
   getFollowingByteCount(): number {
-    return this.response_.followingByteCount
+    return requireSafeIntegerOutput(
+      'ViewportDataResponse.followingByteCount',
+      this.response_.followingByteCount
+    )
   }
 
   toObject(): CompatibilityViewportResponse {
     return {
       ...this.response_,
+      offset: this.getOffset(),
+      length: this.getLength(),
       data: this.getData(),
+      followingByteCount: this.getFollowingByteCount(),
     }
   }
 }
@@ -365,7 +385,10 @@ export class ChangeDetailsResponse {
   }
 
   getSerial(): number {
-    return this.response_.serial
+    return requireSafeIntegerOutput(
+      'ChangeDetailsResponse.serial',
+      this.response_.serial
+    )
   }
 
   getKind(): RawGetChangeDetailsResponse['kind'] {
@@ -373,11 +396,17 @@ export class ChangeDetailsResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'ChangeDetailsResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'ChangeDetailsResponse.length',
+      this.response_.length
+    )
   }
 
   getData(): Uint8Array {
@@ -391,6 +420,9 @@ export class ChangeDetailsResponse {
   toObject(): RawGetChangeDetailsResponse {
     return {
       ...this.response_,
+      serial: this.getSerial(),
+      offset: this.getOffset(),
+      length: this.getLength(),
       data: this.getData(),
     }
   }
@@ -404,11 +436,17 @@ export class ByteOrderMarkResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'ByteOrderMarkResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'ByteOrderMarkResponse.length',
+      this.response_.length
+    )
   }
 
   getByteOrderMark(): string {
@@ -418,11 +456,18 @@ export class ByteOrderMarkResponse {
   getByteOrderMarkBytes(): number {
     // The proto models BOM byte count as `length`; this getter preserves the
     // legacy jspb API shape expected by existing consumers.
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'ByteOrderMarkResponse.byteOrderMarkBytes',
+      this.response_.length
+    )
   }
 
   toObject(): RawGetByteOrderMarkResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      offset: this.getOffset(),
+      length: this.getLength(),
+    }
   }
 }
 
@@ -434,11 +479,17 @@ export class ContentTypeResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'ContentTypeResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'ContentTypeResponse.length',
+      this.response_.length
+    )
   }
 
   getContentType(): string {
@@ -446,7 +497,11 @@ export class ContentTypeResponse {
   }
 
   toObject(): RawGetContentTypeResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      offset: this.getOffset(),
+      length: this.getLength(),
+    }
   }
 }
 
@@ -458,11 +513,17 @@ export class LanguageResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'LanguageResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'LanguageResponse.length',
+      this.response_.length
+    )
   }
 
   getLanguage(): string {
@@ -470,7 +531,11 @@ export class LanguageResponse {
   }
 
   toObject(): RawGetLanguageResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      offset: this.getOffset(),
+      length: this.getLength(),
+    }
   }
 }
 
@@ -482,11 +547,17 @@ export class CharacterCountResponse {
   }
 
   getOffset(): number {
-    return this.response_.offset
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.offset',
+      this.response_.offset
+    )
   }
 
   getLength(): number {
-    return this.response_.length
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.length',
+      this.response_.length
+    )
   }
 
   getByteOrderMark(): string {
@@ -494,31 +565,59 @@ export class CharacterCountResponse {
   }
 
   getByteOrderMarkBytes(): number {
-    return this.response_.byteOrderMarkBytes
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.byteOrderMarkBytes',
+      this.response_.byteOrderMarkBytes
+    )
   }
 
   getSingleByteChars(): number {
-    return this.response_.singleByteChars
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.singleByteChars',
+      this.response_.singleByteChars
+    )
   }
 
   getDoubleByteChars(): number {
-    return this.response_.doubleByteChars
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.doubleByteChars',
+      this.response_.doubleByteChars
+    )
   }
 
   getTripleByteChars(): number {
-    return this.response_.tripleByteChars
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.tripleByteChars',
+      this.response_.tripleByteChars
+    )
   }
 
   getQuadByteChars(): number {
-    return this.response_.quadByteChars
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.quadByteChars',
+      this.response_.quadByteChars
+    )
   }
 
   getInvalidBytes(): number {
-    return this.response_.invalidBytes
+    return requireSafeIntegerOutput(
+      'CharacterCountResponse.invalidBytes',
+      this.response_.invalidBytes
+    )
   }
 
   toObject(): RawGetCharacterCountsResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      offset: this.getOffset(),
+      length: this.getLength(),
+      byteOrderMarkBytes: this.getByteOrderMarkBytes(),
+      singleByteChars: this.getSingleByteChars(),
+      doubleByteChars: this.getDoubleByteChars(),
+      tripleByteChars: this.getTripleByteChars(),
+      quadByteChars: this.getQuadByteChars(),
+      invalidBytes: this.getInvalidBytes(),
+    }
   }
 }
 
@@ -530,11 +629,14 @@ export class SingleCount {
   }
 
   getCount(): number {
-    return this.count_.count
+    return requireSafeIntegerOutput('SingleCount.count', this.count_.count)
   }
 
   toObject(): RawSingleCount {
-    return { ...this.count_ }
+    return {
+      ...this.count_,
+      count: this.getCount(),
+    }
   }
 }
 
@@ -550,23 +652,38 @@ export class SessionEvent {
   }
 
   getComputedFileSize(): number {
-    return this.response_.computedFileSize
+    return requireSafeIntegerOutput(
+      'SessionEvent.computedFileSize',
+      this.response_.computedFileSize
+    )
   }
 
   getChangeCount(): number {
-    return this.response_.changeCount
+    return requireSafeIntegerOutput(
+      'SessionEvent.changeCount',
+      this.response_.changeCount
+    )
   }
 
   getUndoCount(): number {
-    return this.response_.undoCount
+    return requireSafeIntegerOutput(
+      'SessionEvent.undoCount',
+      this.response_.undoCount
+    )
   }
 
   getSerial(): number {
-    return numberOrZero(this.response_.serial)
+    return safeNumberOrZero('SessionEvent.serial', this.response_.serial)
   }
 
   toObject(): RawSubscribeToSessionEventsResponse {
-    return { ...this.response_ }
+    return {
+      ...this.response_,
+      computedFileSize: this.getComputedFileSize(),
+      changeCount: this.getChangeCount(),
+      undoCount: this.getUndoCount(),
+      serial: this.response_.serial === undefined ? undefined : this.getSerial(),
+    }
   }
 }
 
@@ -586,15 +703,15 @@ export class ViewportEvent {
   }
 
   getSerial(): number {
-    return numberOrZero(this.response_.serial)
+    return safeNumberOrZero('ViewportEvent.serial', this.response_.serial)
   }
 
   getOffset(): number {
-    return numberOrZero(this.response_.offset)
+    return safeNumberOrZero('ViewportEvent.offset', this.response_.offset)
   }
 
   getLength(): number {
-    return numberOrZero(this.response_.length)
+    return safeNumberOrZero('ViewportEvent.length', this.response_.length)
   }
 
   getData(): Uint8Array {
@@ -608,6 +725,9 @@ export class ViewportEvent {
   toObject(): RawSubscribeToViewportEventsResponse {
     return {
       ...this.response_,
+      serial: this.response_.serial === undefined ? undefined : this.getSerial(),
+      offset: this.response_.offset === undefined ? undefined : this.getOffset(),
+      length: this.response_.length === undefined ? undefined : this.getLength(),
       data: this.getData(),
     }
   }

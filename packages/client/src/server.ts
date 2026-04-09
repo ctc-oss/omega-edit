@@ -19,8 +19,8 @@
 
 import { getLogger } from './logger'
 import { getClient } from './client'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import { createServer, Server, createConnection } from 'net'
 import * as omegaEditServerModule from '@omega-edit/server'
@@ -29,9 +29,16 @@ import waitPort from 'wait-port'
 
 // Re-export HeartbeatOptions so consumers can import it from @omega-edit/client
 export type { HeartbeatOptions }
-import { ServerControlKind } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import {
+  ServerControlKind,
+  ServerControlStatus,
+} from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import {
+  requireOptionalSafeIntegerOutput,
+  requireSafeIntegerOutput,
+} from './safe_int'
 
 // Convert execFile to a promise-based function
 const execFilePromise = promisify(execFile)
@@ -39,6 +46,7 @@ const execFilePromise = promisify(execFile)
 const DEFAULT_PORT = 9000 // default port for the server
 const DEFAULT_HOST = '127.0.0.1' // default host for the server
 const KILL_YIELD_MS = 1000 // max time to yield after killing a service
+const FILE_EXISTENCE_POLL_INTERVAL_MS = 100 // chosen as a low-overhead compromise across platforms
 const omegaEditServer =
   'default' in omegaEditServerModule
     ? omegaEditServerModule.default
@@ -69,34 +77,23 @@ export async function findFirstAvailablePort(
   endPort: number
 ): Promise<number | null> {
   const log = getLogger()
-  return new Promise((resolve) => {
-    let currentPort = startPort
-
-    const tryNextPort = () => {
-      if (currentPort > endPort) {
-        resolve(null) // No ports available in the range
-        return
+  for (let currentPort = startPort; currentPort <= endPort; currentPort += 1) {
+    try {
+      if (await isPortAvailable(currentPort, '0.0.0.0')) {
+        return currentPort
       }
-
-      const server = createServer()
-      server.listen(currentPort, '0.0.0.0', () => {
-        server.close((err) => {
-          if (err) {
-            log.error(`Error closing server on port ${currentPort}: ${err}`)
-          }
-          resolve(currentPort) // Found an available port
-        })
-      })
-
-      server.on('error', (err) => {
-        log.warn(`Port ${currentPort} is in use, trying next port: ${err}`)
-        ++currentPort
-        tryNextPort() // Try the next port
-      })
+      log.warn(`Port ${currentPort} is in use, trying next port`)
+    } catch (err) {
+      log.error(
+        `Error checking port ${currentPort}: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
+      throw err
     }
+  }
 
-    tryNextPort()
-  })
+  return null
 }
 
 /**
@@ -144,7 +141,7 @@ export async function waitForFileToExist(
         return reject(new Error(errMsg))
       }
 
-      timer = setTimeout(check, 100)
+      timer = setTimeout(check, FILE_EXISTENCE_POLL_INTERVAL_MS)
     }
 
     check()
@@ -157,7 +154,7 @@ export async function waitForFileToExist(
  * @param host host to check
  * @returns true if the port is available, false otherwise
  */
-function isPortAvailable(port: number, host: string): Promise<boolean> {
+export function isPortAvailable(port: number, host: string): Promise<boolean> {
   const log = getLogger()
   log.debug({
     fn: 'isPortAvailable',
@@ -165,30 +162,30 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
     port: port,
   })
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server: Server = createServer()
     server.once('error', (err: NodeJS.ErrnoException) => {
-      if (err.code !== 'EADDRINUSE') {
-        log.error({
-          fn: 'isPortAvailable',
-          host: host,
-          port: port,
-          avail: false,
-          err: {
-            msg: err.message,
-            code: err.code,
-          },
-        })
-      } else {
+      if (err.code === 'EADDRINUSE') {
         log.debug({
           fn: 'isPortAvailable',
           host: host,
           port: port,
           avail: false,
         })
+        return resolve(false)
       }
-      // Ensure server closes before resolving the promise
-      server.close(() => resolve(false))
+
+      log.error({
+        fn: 'isPortAvailable',
+        host: host,
+        port: port,
+        avail: false,
+        err: {
+          msg: err.message,
+          code: err.code,
+        },
+      })
+      return reject(err)
     })
 
     server.once('listening', () => {
@@ -371,7 +368,15 @@ function parseFirstPid(stdout: string): number | undefined {
   }
 
   const parsed = Number.parseInt(pid, 10)
-  return Number.isNaN(parsed) ? undefined : parsed
+  return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed
+}
+
+function readPidFromFile(pidFilePath: string): number {
+  const pid = parseFirstPid(fs.readFileSync(pidFilePath, 'utf8'))
+  if (pid === undefined) {
+    throw new Error(`Invalid PID in ${pidFilePath}`)
+  }
+  return pid
 }
 
 async function getPidByPortWithSs(port: number): Promise<number | undefined> {
@@ -659,7 +664,7 @@ export async function startServer(
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      const pidFromFile = readPidFromFile(pidFilePath)
       log.warn({
         ...logMetadata,
         err: {
@@ -686,7 +691,7 @@ export async function startServer(
 
   async function getServerPid(pidFilePath: string): Promise<number> {
     await waitForFileToExist(pidFilePath)
-    return Number(fs.readFileSync(pidFilePath).toString())
+    return readPidFromFile(pidFilePath)
   }
 
   if (pidFile) {
@@ -837,7 +842,7 @@ export async function startServerUnixSocket(
 
   async function handleExistingPidFile(pidFilePath: string): Promise<void> {
     if (fs.existsSync(pidFilePath)) {
-      const pidFromFile = Number(fs.readFileSync(pidFilePath).toString())
+      const pidFromFile = readPidFromFile(pidFilePath)
       log.warn({
         ...logMetadata,
         err: {
@@ -864,7 +869,7 @@ export async function startServerUnixSocket(
 
   async function getServerPid(pidFilePath: string): Promise<number> {
     await waitForFileToExist(pidFilePath)
-    return Number(fs.readFileSync(pidFilePath).toString())
+    return readPidFromFile(pidFilePath)
   }
 
   if (pidFile) {
@@ -935,7 +940,7 @@ export async function startServerUnixSocket(
       ...logMetadata,
       pid: pid,
     })
-    await getClient()
+    await getClient(port, host, { socketPath })
     return pid
   } else {
     const errMsg = 'Error getting server pid'
@@ -951,34 +956,79 @@ export async function startServerUnixSocket(
 
 /**
  * Stops the server gracefully
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
-export function stopServerGraceful(): Promise<number> {
-  return new Promise<number>(async (resolve, _) => {
-    return resolve(stopServer(ServerControlKind.GRACEFUL_SHUTDOWN))
-  })
+export function stopServerGraceful(): Promise<IServerControlResult> {
+  return stopServer(ServerControlKind.GRACEFUL_SHUTDOWN)
 }
 
 /**
  * Stops the server immediately
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
-export function stopServerImmediate(): Promise<number> {
-  return new Promise<number>(async (resolve, _) => {
-    return resolve(stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN))
-  })
+export function stopServerImmediate(): Promise<IServerControlResult> {
+  return stopServer(ServerControlKind.IMMEDIATE_SHUTDOWN)
 }
 
-type ServerControlResponseCode = number
+export type ServerControlState = 'completed' | 'draining' | 'unknown'
+
+export interface IServerControlResult {
+  responseCode: number
+  serverProcessId: number
+  status: ServerControlState
+}
+
+type RawServerControlResponse =
+  | { responseCode: number; pid?: number; status?: ServerControlStatus }
+  | {
+      getResponseCode(): number
+      getPid?(): number
+      getStatus?(): ServerControlStatus | undefined
+    }
+
+function getServerControlStatus(
+  response: RawServerControlResponse,
+  kind: ServerControlKind,
+  responseCode: number
+): ServerControlState {
+  const rawStatus =
+    'getStatus' in response && typeof response.getStatus === 'function'
+      ? response.getStatus()
+      : 'status' in response
+        ? response.status
+        : undefined
+
+  switch (rawStatus) {
+    case ServerControlStatus.COMPLETED:
+      return 'completed'
+    case ServerControlStatus.DRAINING:
+      return 'draining'
+    case ServerControlStatus.UNSPECIFIED:
+      return 'unknown'
+    default:
+      if (rawStatus === undefined) {
+        if (
+          kind === ServerControlKind.GRACEFUL_SHUTDOWN &&
+          responseCode === 1
+        ) {
+          return 'draining'
+        }
+        if (responseCode === 0) {
+          return 'completed'
+        }
+      }
+      return 'unknown'
+  }
+}
 
 /**
  * Stop the server
  * @param kind defines how the server should shut down
- * @returns 0 if the server was stopped, non-zero otherwise
+ * @returns structured shutdown status
  */
 async function stopServer(
   kind: ServerControlKind
-): Promise<ServerControlResponseCode> {
+): Promise<IServerControlResult> {
   const logMetadata = {
     fn: 'stopServer',
     kind: kind.toString(),
@@ -988,8 +1038,8 @@ async function stopServer(
   const client = await getClient()
 
   try {
-    const resp: { responseCode: number } | { getResponseCode(): number } =
-      await new Promise((resolve, reject) => {
+    const resp: RawServerControlResponse = await new Promise(
+      (resolve, reject) => {
         client.serverControl({ kind }, (err, response) => {
           if (err) {
             reject(err)
@@ -999,12 +1049,20 @@ async function stopServer(
             resolve(response)
           }
         })
-      })
+      }
+    )
 
     const responseCode =
       'getResponseCode' in resp ? resp.getResponseCode() : resp.responseCode
+    const serverProcessId =
+      'getPid' in resp && typeof resp.getPid === 'function'
+        ? resp.getPid()
+        : 'pid' in resp && typeof resp.pid === 'number'
+          ? resp.pid
+          : -1
+    const status = getServerControlStatus(resp, kind, responseCode)
 
-    if (responseCode !== 0) {
+    if (responseCode !== 0 && status !== 'draining') {
       log.error({
         ...logMetadata,
         stopped: false,
@@ -1013,23 +1071,28 @@ async function stopServer(
     } else {
       log.debug({
         ...logMetadata,
-        stopped: true,
+        stopped: status === 'completed',
+        status,
       })
     }
-    return responseCode
+    return {
+      responseCode,
+      serverProcessId,
+      status,
+    }
   } catch (err: unknown) {
     if (err instanceof Error) {
       if ('code' in err) {
         // Checks if it is a ServiceError
-        if (err.message.includes('Call cancelled')) {
+        if (err.code === GrpcStatus.CANCELLED) {
           log.debug({
             ...logMetadata,
             stopped: true,
             msg: err.message,
           })
         } else if (
-          err.message.includes('No connection established') ||
-          err.message.includes('INTERNAL:')
+          err.code === GrpcStatus.UNAVAILABLE ||
+          err.code === GrpcStatus.INTERNAL
         ) {
           log.debug({
             ...logMetadata,
@@ -1071,7 +1134,11 @@ async function stopServer(
         },
       })
     }
-    return -1
+    return {
+      responseCode: -1,
+      serverProcessId: -1,
+      status: 'unknown',
+    }
   }
 }
 
@@ -1080,7 +1147,7 @@ async function stopServer(
  * @param pid process id
  * @returns true if the process is running, false otherwise
  */
-export function pidIsRunning(pid) {
+export function pidIsRunning(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
@@ -1139,14 +1206,14 @@ export async function getServerInfo(): Promise<IServerInfo> {
             stack: err.stack,
           },
         })
-        return reject('getServerInfo error: ' + err.message)
+        return reject(new Error('getServerInfo error: ' + err.message))
       }
       if (!serverInfoResponse) {
         log.error({
           ...logMetadata,
           err: { msg: 'undefined server info' },
         })
-        return reject('undefined server info')
+        return reject(new Error('undefined server info'))
       }
       resolve({
         serverHostname: serverInfoResponse.hostname,
@@ -1182,24 +1249,26 @@ export interface IServerHeartbeat {
 /**
  * Get the server heartbeat
  * @param activeSessions list of active sessions
- * @param heartbeatInterval heartbeat interval in ms
+ * @throws when called with removed legacy positional arguments from the 1.x API
  * @returns a promise that resolves to the server heartbeat
  */
 export async function getServerHeartbeat(
   activeSessions: string[],
-  heartbeatInterval: number = 1000
+  ...unexpectedArgs: unknown[]
 ): Promise<IServerHeartbeat> {
+  if (unexpectedArgs.length > 0) {
+    throw new Error(
+      'getServerHeartbeat(sessionIds) is session-centric in 2.x; legacy hostname/process/interval positional arguments were removed'
+    )
+  }
+
   const log = getLogger()
   const client = await getClient()
-  const hostname = os.hostname()
   const startTime: number = Date.now()
 
   return new Promise<IServerHeartbeat>((resolve, reject) => {
     client.getHeartbeat(
       {
-        hostname,
-        processId: process.pid,
-        heartbeatInterval,
         sessionIds: activeSessions,
       },
       (err, heartbeatResponse) => {
@@ -1215,7 +1284,7 @@ export async function getServerHeartbeat(
               stack: err.stack,
             },
           })
-          return reject('getServerHeartbeat error: ' + err.message)
+          return reject(new Error('getServerHeartbeat error: ' + err.message))
         }
 
         if (!heartbeatResponse) {
@@ -1223,26 +1292,40 @@ export async function getServerHeartbeat(
             ...logMetadata,
             err: { msg: 'undefined heartbeat' },
           })
-          return reject('undefined heartbeat')
+          return reject(new Error('undefined heartbeat'))
         }
 
-        const latency: number = Date.now() - startTime
-        resolve({
-          latency: latency,
-          sessionCount: heartbeatResponse.sessionCount,
-          serverTimestamp: heartbeatResponse.timestamp,
-          serverUptime: heartbeatResponse.uptime,
-          serverCpuCount: heartbeatResponse.cpuCount,
-          serverCpuLoadAverage:
-            heartbeatResponse.loadAverage ??
-            (heartbeatResponse.cpuLoadAverage >= 0
-              ? heartbeatResponse.cpuLoadAverage
-              : undefined),
-          serverResidentMemoryBytes: heartbeatResponse.residentMemoryBytes,
-          serverVirtualMemoryBytes: heartbeatResponse.virtualMemoryBytes,
-          serverPeakResidentMemoryBytes:
-            heartbeatResponse.peakResidentMemoryBytes,
-        })
+        try {
+          const latency: number = Date.now() - startTime
+          resolve({
+            latency: latency,
+            sessionCount: heartbeatResponse.sessionCount,
+            serverTimestamp: requireSafeIntegerOutput(
+              'server heartbeat timestamp',
+              heartbeatResponse.timestamp
+            ),
+            serverUptime: requireSafeIntegerOutput(
+              'server heartbeat uptime',
+              heartbeatResponse.uptime
+            ),
+            serverCpuCount: heartbeatResponse.cpuCount,
+            serverCpuLoadAverage: heartbeatResponse.loadAverage,
+            serverResidentMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server resident memory bytes',
+              heartbeatResponse.residentMemoryBytes
+            ),
+            serverVirtualMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server virtual memory bytes',
+              heartbeatResponse.virtualMemoryBytes
+            ),
+            serverPeakResidentMemoryBytes: requireOptionalSafeIntegerOutput(
+              'server peak resident memory bytes',
+              heartbeatResponse.peakResidentMemoryBytes
+            ),
+          })
+        } catch (safeIntegerError) {
+          reject(safeIntegerError)
+        }
       }
     )
   })

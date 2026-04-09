@@ -4,7 +4,7 @@
 
 ## Version File
 
-The `VERSION` file contains the current version number in semantic versioning format (e.g., `0.9.88`).
+The `VERSION` file contains the current version number in semantic versioning format (for example `0.9.88` or `2.0.0-rc1`).
 
 ## Updating Version
 
@@ -25,17 +25,21 @@ This will automatically update:
 - Root `package.json`
 - `packages/client/package.json`
 - `packages/server/package.json`
+- `packages/ai/package.json`
 - `examples/vscode-extension/package.json`
 - `examples/vscode-extension/package-lock.json` metadata
-- Client-server dependency versions
-- VS Code extension client dependency version
+- Client-server and AI-client dependency versions
+- VS Code extension version metadata
+
+The VS Code extension example intentionally depends on the local workspace client via `file:../../packages/client` so CI and local development exercise the in-repo client implementation directly.
 
 ## Build System Integration
 
 ### CMake (C/C++ Core Library)
 The CMake build system reads the version from the `VERSION` file automatically:
 - Configures `OMEGA_EDIT_VERSION_MAJOR`, `OMEGA_EDIT_VERSION_MINOR`, `OMEGA_EDIT_VERSION_PATCH` defines
-- Sets project version for shared library versioning
+- Uses the numeric `major.minor.patch` portion for shared library versioning
+- Preserves the full semantic version string for release metadata such as `-rc1`
 
 ### Node.js (Client and Server Packages)
 The Node.js packages use the `sync-version.js` script to maintain version consistency across:
@@ -53,7 +57,7 @@ The VS Code extension example uses the synced version in:
 
 The version sync script ensures:
 - All package.json files have consistent versions
-- Client-server dependency versions are properly aligned
+- Client-server and AI-client dependency versions are properly aligned
 - The VS Code extension package stays aligned with the repo version
 - Build artifacts use the correct version number
 

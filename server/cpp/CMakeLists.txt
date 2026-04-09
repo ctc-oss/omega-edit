@@ -11,12 +11,21 @@
 
 cmake_minimum_required(VERSION 3.16)
 
-# Read version from VERSION file
+# Read version from VERSION file. CMake project() only accepts numeric
+# major.minor.patch values, so we parse prerelease/build metadata separately.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../VERSION" OMEGA_EDIT_SERVER_VERSION)
 string(STRIP "${OMEGA_EDIT_SERVER_VERSION}" OMEGA_EDIT_SERVER_VERSION)
+set(OMEGA_EDIT_SERVER_VERSION_FULL "${OMEGA_EDIT_SERVER_VERSION}")
+
+if (NOT OMEGA_EDIT_SERVER_VERSION_FULL MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$")
+    message(FATAL_ERROR
+            "VERSION must use semantic versioning like 1.2.3 or 1.2.3-rc1. Got: ${OMEGA_EDIT_SERVER_VERSION_FULL}")
+endif()
+
+set(OMEGA_EDIT_SERVER_VERSION_BASE "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.${CMAKE_MATCH_3}")
 
 project(omega_edit_grpc_server
-        VERSION ${OMEGA_EDIT_SERVER_VERSION}
+        VERSION ${OMEGA_EDIT_SERVER_VERSION_BASE}
         DESCRIPTION "Omega Edit gRPC Server (C++ middleware)"
         HOMEPAGE_URL "https://github.com/ctc-oss/omega-edit"
         LANGUAGES C CXX)
@@ -215,7 +224,7 @@ endif()
 
 # Version definitions
 target_compile_definitions(omega-edit-grpc-server PRIVATE
-    "SERVER_VERSION=\"${PROJECT_VERSION}\""
+    "SERVER_VERSION=\"${OMEGA_EDIT_SERVER_VERSION_FULL}\""
 )
 
 # libmagic compile definition and link

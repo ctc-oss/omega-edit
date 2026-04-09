@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-import { expect, testPort } from './common.js'
+import { expect, expectOpaqueId, opaqueIdPattern, testPort } from './common.js'
 import {
   del,
   countCharacters,
@@ -35,6 +35,7 @@ import {
   getSessionBytes,
   getServerHeartbeat,
   getSessionCount,
+  getViewportData,
   getViewportCount,
   insert,
   IOFlags,
@@ -49,8 +50,23 @@ import { getModuleCompat } from './moduleCompat.js'
 
 const { __dirname } = getModuleCompat(import.meta.url)
 
-function base64Encode(str: string): string {
-  return Buffer.from(str, 'utf-8').toString('base64url')
+function canonicalizePath(filePath: string): string {
+  return fs.realpathSync.native(filePath)
+}
+
+const viewportIdPattern = opaqueIdPattern('vp_')
+
+function expectGeneratedSessionId(sessionId: string): void {
+  expectOpaqueId(sessionId, 'sess_')
+}
+
+function expectGeneratedViewportId(
+  viewportId: string,
+  sessionId: string
+): void {
+  expect(viewportId).to.match(
+    new RegExp(`^${sessionId}:${viewportIdPattern.source.slice(1, -1)}$`)
+  )
 }
 
 function countMatchingFilesInDir(
@@ -104,7 +120,6 @@ describe('Sessions', () => {
     fileData.byteOffset,
     fileData.byteLength
   )
-  const expected_session_id = base64Encode(testFile)
   const expected_profile = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 125, 0, 8, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 5, 0, 12, 4,
@@ -124,7 +139,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(emptyFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(emptyFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(0)
     expect(await getComputedFileSize(session_id)).to.equal(0)
@@ -147,7 +162,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(oneByteFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(oneByteFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(1)
     expect(await getComputedFileSize(session_id)).to.equal(1)
@@ -170,7 +185,7 @@ describe('Sessions', () => {
     expect(await getSessionCount()).to.equal(0)
     const session = await createSession(twoByteFile)
     const session_id = session.getSessionId()
-    expect(session_id).to.equal(base64Encode(twoByteFile))
+    expectGeneratedSessionId(session_id)
     expect(await getSessionCount()).to.equal(1)
     expect(session.getFileSize()).to.equal(2)
     expect(await getComputedFileSize(session_id)).to.equal(2)
@@ -196,7 +211,7 @@ describe('Sessions', () => {
     for (let i = 0; i < iterations; ++i) {
       const session = await createSession(testFile)
       const session_id = session.getSessionId()
-      expect(session_id).to.equal(expected_session_id)
+      expectGeneratedSessionId(session_id)
       expect(session.hasFileSize()).to.be.true
       expect(session.getFileSize()).to.equal(fileData.length)
       expect(await getSessionCount()).to.equal(1)
@@ -219,6 +234,90 @@ describe('Sessions', () => {
     }
   })
 
+  it('Should allow multiple authors to share a file-backed session', async () => {
+    expect(await getSessionCount()).to.equal(0)
+    const alternateTestFile = `${path.dirname(testFile)}${path.sep}..${path.sep}data${path.sep}${path.basename(testFile)}`
+    let sharedSessionId = ''
+
+    try {
+      const author1 = await createSession(testFile)
+      const author2 = await createSession(alternateTestFile)
+      const author1SessionId = author1.getSessionId()
+      const author2SessionId = author2.getSessionId()
+      const expectedSharedData = Buffer.concat([
+        fileBuffer,
+        Buffer.from('A2A1'),
+      ])
+
+      sharedSessionId = author1SessionId
+      expectGeneratedSessionId(author1SessionId)
+      expect(alternateTestFile).to.not.equal(
+        canonicalizePath(alternateTestFile)
+      )
+      expect(author2SessionId).to.equal(author1SessionId)
+      expect(author1.getFileSize()).to.equal(fileData.length)
+      expect(author2.getFileSize()).to.equal(fileData.length)
+      expect(await getSessionCount()).to.equal(1)
+
+      const viewport1 = await createViewport(
+        'shared-author-1',
+        author1SessionId,
+        0,
+        1000,
+        false
+      )
+      const viewport2 = await createViewport(
+        'shared-author-2',
+        author2SessionId,
+        0,
+        1000,
+        false
+      )
+
+      expect(await getViewportCount(author1SessionId)).to.equal(2)
+      expect(viewport1.getViewportId()).to.equal(
+        `${author1SessionId}:shared-author-1`
+      )
+      expect(viewport2.getViewportId()).to.equal(
+        `${author2SessionId}:shared-author-2`
+      )
+      expect(viewport1.getData_asU8()).to.deep.equal(fileBuffer)
+      expect(viewport2.getData_asU8()).to.deep.equal(fileBuffer)
+
+      await insert(author1SessionId, fileData.length, Buffer.from('A1'))
+      await insert(author2SessionId, fileData.length, Buffer.from('A2'))
+
+      expect(await getChangeCount(author1SessionId)).to.equal(2)
+      expect(await getComputedFileSize(author1SessionId)).to.equal(
+        fileData.length + 4
+      )
+      expect(
+        (await getViewportData(viewport1.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
+      expect(
+        (await getViewportData(viewport2.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
+
+      expect(await destroySession(author1SessionId)).to.equal(author1SessionId)
+      expect(await getSessionCount()).to.equal(1)
+      expect(await getViewportCount(author2SessionId)).to.equal(2)
+      expect(await getComputedFileSize(author2SessionId)).to.equal(
+        fileData.length + 4
+      )
+      expect(
+        (await getViewportData(viewport2.getViewportId())).getData_asU8()
+      ).to.deep.equal(expectedSharedData)
+
+      expect(await destroySession(author2SessionId)).to.equal(author2SessionId)
+      sharedSessionId = ''
+      expect(await getSessionCount()).to.equal(0)
+    } finally {
+      while (sharedSessionId && (await getSessionCount()) > 0) {
+        expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      }
+    }
+  })
+
   it('Should be able to save segments from a session', async () => {
     const session = await createSession()
     const session_id = session.getSessionId()
@@ -231,7 +330,7 @@ describe('Sessions', () => {
 
     // save various segments of the session to different files
     let saveFile = path.join(__dirname, 'data', 'save-seg.1.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 1, 8)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 1, 8)
     let verify_session = await createSession(saveFile)
     let expected = Buffer.from('12345678')
     let verify_session_id = verify_session.getSessionId()
@@ -245,7 +344,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.2.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 2, 6)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 2, 6)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('234567')
     verify_session_id = verify_session.getSessionId()
@@ -259,7 +358,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.3.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 3, 0)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 3, 0)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('3456789')
     verify_session_id = verify_session.getSessionId()
@@ -273,7 +372,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.4.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE, 0, 100)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE, 0, 100)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
     verify_session_id = verify_session.getSessionId()
@@ -287,7 +386,7 @@ describe('Sessions', () => {
     fs.unlinkSync(saveFile)
 
     saveFile = path.join(__dirname, 'data', 'save-seg.5.dat')
-    await saveSession(session_id, saveFile, IOFlags.IO_FLG_OVERWRITE)
+    await saveSession(session_id, saveFile, IOFlags.OVERWRITE)
     verify_session = await createSession(saveFile)
     expected = Buffer.from('0123456789')
     verify_session_id = verify_session.getSessionId()
@@ -807,6 +906,73 @@ describe('Sessions', () => {
     expect(fs.existsSync(checkpointDir)).to.be.false
   })
 
+  it('Should only share file-backed sessions when checkpoint directories are compatible', async () => {
+    const sharedCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'shared-checkpoint'
+    )
+    const conflictingCheckpointDir = path.join(
+      __dirname,
+      'data',
+      'conflicting-checkpoint'
+    )
+    let sharedSessionId = ''
+
+    removeDirectory(sharedCheckpointDir)
+    removeDirectory(conflictingCheckpointDir)
+
+    try {
+      const author1 = await createSession(testFile, '', sharedCheckpointDir)
+      const author2 = await createSession(testFile, '', sharedCheckpointDir)
+      sharedSessionId = author1.getSessionId()
+
+      expect(author2.getSessionId()).to.equal(sharedSessionId)
+      expect(author1.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(author2.getCheckpointDirectory()).to.equal(sharedCheckpointDir)
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(sharedCheckpointDir)).to.be.true
+      expect(
+        await countMatchingFilesInDir(sharedCheckpointDir, '.OmegaEdit-orig.*')
+      ).to.equal(1)
+
+      let conflictingCreateError: Error | undefined
+      try {
+        await createSession(testFile, '', conflictingCheckpointDir)
+        expect.fail(
+          'createSession should reject when a shared file-backed session requests a different checkpoint directory'
+        )
+      } catch (error) {
+        conflictingCreateError = error as Error
+      }
+
+      expect(conflictingCreateError).to.exist
+      expect(conflictingCreateError?.message).to.include('ALREADY_EXISTS')
+      expect(await getSessionCount()).to.equal(1)
+      expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
+    } finally {
+      while (sharedSessionId && (await getSessionCount()) > 0) {
+        expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      }
+
+      if (fs.existsSync(sharedCheckpointDir)) {
+        expect(
+          await countMatchingFilesInDir(
+            sharedCheckpointDir,
+            '.OmegaEdit-orig.*'
+          )
+        ).to.equal(0)
+        removeDirectory(sharedCheckpointDir)
+      }
+      if (fs.existsSync(conflictingCheckpointDir)) {
+        removeDirectory(conflictingCheckpointDir)
+      }
+    }
+
+    expect(fs.existsSync(sharedCheckpointDir)).to.be.false
+    expect(fs.existsSync(conflictingCheckpointDir)).to.be.false
+  })
+
   it('Should create a clean baseline session from bytes', async () => {
     const memoryCheckpointDir = path.join(
       __dirname,
@@ -870,7 +1036,7 @@ describe('Sessions', () => {
     const save_session_response = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_NONE
+      IOFlags.UNSPECIFIED
     )
     // No flags will succeed because the file will be saved to a new file
     // created by the server
@@ -888,7 +1054,7 @@ describe('Sessions', () => {
     const save_session_response2 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     // Overwrite alone should fail because the file was modified out-of-band
     expect(save_session_response2.getSaveStatus()).to.equal(SaveStatus.MODIFIED)
@@ -897,7 +1063,7 @@ describe('Sessions', () => {
     const save_session_response3 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_FORCE_OVERWRITE
+      IOFlags.FORCE_OVERWRITE
     )
     // Force overwrite should succeed even if the original file was modified
     // out-of-band
@@ -908,7 +1074,7 @@ describe('Sessions', () => {
     const save_session_response4 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     expect(save_session_response4.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response4.getFilePath()).to.equal(testFile)
@@ -916,7 +1082,7 @@ describe('Sessions', () => {
     const save_session_response5 = await saveSession(
       session_id,
       testFile,
-      IOFlags.IO_FLG_OVERWRITE
+      IOFlags.OVERWRITE
     )
     expect(save_session_response5.getSaveStatus()).to.equal(SaveStatus.SUCCESS)
     expect(save_session_response5.getFilePath()).to.equal(testFile)
@@ -968,11 +1134,7 @@ describe('Sessions', () => {
       expect(resp1.getFilePath()).to.be.a('string')
 
       await insert(session_id, 0, Buffer.from('PREFIX_'))
-      const resp2 = await saveSession(
-        session_id,
-        savePath,
-        IOFlags.IO_FLG_OVERWRITE
-      )
+      const resp2 = await saveSession(session_id, savePath, IOFlags.OVERWRITE)
       expect(resp2.getFilePath()).to.include('coverage_save_overwrite')
       expect(fs.readFileSync(resp2.getFilePath(), 'utf-8')).to.equal(
         'PREFIX_save test data'
@@ -992,6 +1154,8 @@ describe('Sessions', () => {
 
     const session_id1 = session1.getSessionId()
     const session_id2 = session2.getSessionId()
+    expectGeneratedSessionId(session_id1)
+    expectGeneratedSessionId(session_id2)
     expect(session_id1).to.not.equal(session_id2)
     expect(session1.hasFileSize()).to.be.false
 
@@ -1058,6 +1222,70 @@ describe('Sessions', () => {
     await destroySession(session1_id)
     await destroySession(session2_id)
     expect(await getSessionCount()).to.equal(initialCount)
+  })
+
+  it('Should reject duplicate desired session IDs', async () => {
+    const initialCount = await getSessionCount()
+    const desiredSessionId = 'desired-session-id'
+    const session = await createSession('', desiredSessionId)
+    const sessionId = session.getSessionId()
+
+    expect(sessionId).to.equal(desiredSessionId)
+    expect(await getSessionCount()).to.equal(initialCount + 1)
+
+    try {
+      await createSession('', desiredSessionId)
+      expect.fail('createSession should reject duplicate desired session IDs')
+    } catch (err) {
+      expect((err as Error).message).to.include('ALREADY_EXISTS')
+      expect((err as Error).message).to.include(
+        `session already exists: ${desiredSessionId}`
+      )
+    } finally {
+      await destroySession(sessionId)
+    }
+
+    expect(await getSessionCount()).to.equal(initialCount)
+  })
+
+  it('Should reject duplicate desired viewport IDs within a session', async () => {
+    const session = await createSession()
+    const sessionId = session.getSessionId()
+    const desiredViewportId = 'desired-viewport-id'
+
+    try {
+      const viewport = await createViewport(desiredViewportId, sessionId, 0, 16)
+      expect(viewport.getViewportId()).to.equal(
+        `${sessionId}:${desiredViewportId}`
+      )
+
+      try {
+        await createViewport(desiredViewportId, sessionId, 0, 16)
+        expect.fail(
+          'createViewport should reject duplicate desired viewport IDs'
+        )
+      } catch (err) {
+        expect((err as Error).message).to.include('ALREADY_EXISTS')
+        expect((err as Error).message).to.include(
+          `viewport already exists: ${desiredViewportId}`
+        )
+      }
+    } finally {
+      await destroySession(sessionId)
+    }
+  })
+
+  it('Should generate opaque viewport IDs with a vp_ UUIDv7 suffix', async () => {
+    const session = await createSession()
+    const sessionId = session.getSessionId()
+
+    try {
+      expectGeneratedSessionId(sessionId)
+      const viewport = await createViewport(undefined, sessionId, 0, 16)
+      expectGeneratedViewportId(viewport.getViewportId(), sessionId)
+    } finally {
+      await destroySession(sessionId)
+    }
   })
 
   it('Should reject invalid and nonexistent sessions', async () => {

@@ -20,7 +20,8 @@ yarn install
 
 ### Prepare (generate protobuf bindings)
 
-Before building for the first time, generate the protobuf-ts bindings from `proto/omega_edit.proto`:
+Before building for the first time, generate the protobuf-ts bindings from the
+canonical schema at `proto/omega_edit/v1/omega_edit.proto`:
 
 ```bash
 yarn compile-src

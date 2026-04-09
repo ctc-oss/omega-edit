@@ -6,12 +6,26 @@ This directory contains the gRPC service definition for Ωedit™.
 
 Defines the `Editor` service with RPCs for:
 
+The `omega_edit/v1` import path is the canonical schema location for the
+OmegaEdit 2.x line. Major-release API breaks are documented in the repo's
+upgrade guide rather than expressed through a package rename.
+
 - **Session management** — create, save, destroy editing sessions
 - **Editing** — insert, delete, overwrite with unlimited undo/redo
 - **Viewports** — sliding windows into session data
 - **Search & profiling** — byte-pattern search, byte-frequency histograms
 - **Event streams** — server-push notifications for session and viewport changes
 - **Server lifecycle** — heartbeat, graceful/immediate shutdown
+
+This versioned schema is the canonical published contract for the repository.
+New generated bindings should always come from
+`proto/omega_edit/v1/omega_edit.proto`.
+
+## 2.x Source Of Truth
+
+The old root-level `proto/omega_edit.proto` file is intentionally removed for
+the 2.x line. Repository docs, scripts, and generated bindings should all point
+at `proto/omega_edit/v1/omega_edit.proto` as the sole source of truth.
 
 ### Server Health Schema Note
 
@@ -25,8 +39,34 @@ Consumers migrating from older JVM-oriented fields should treat missing optional
 heartbeat metrics as "unavailable" rather than `0`.
 `virtual_memory_bytes` is best-effort and may be unset on platforms where an
 equivalent process metric is not consistently available.
+`GetHeartbeatRequest` is intentionally session-centric in 2.x: the unused
+hostname / process / interval request fields were removed outright.
 The legacy JVM-shaped fields remain in the schema as deprecated compatibility
-fields so existing protobuf consumers do not break on the wire.
+fields so existing protobuf consumers do not break on the wire. The native C++
+server leaves deprecated JVM-only fields unset rather than fabricating placeholder
+values. In proto3, that means these scalar fields are typically omitted from the
+serialized message; when decoded by consumers, they appear as language defaults:
+
+- `jvm_version`, `jvm_vendor`, and `jvm_path` decode as empty strings when not populated
+- `max_memory`, `committed_memory`, and `used_memory` decode as `0` when not populated
+- `cpu_load_average` mirrors `load_average` only when the platform reports a
+  real load average; otherwise it is not populated by the native server, so
+  consumers decoding the message will observe `0`. Because `0` may also be a
+  legitimate value, consumers that need presence semantics should prefer the
+  optional `load_average` field
+
+### Server Lifecycle Contract Note
+
+Shutdown lifecycle behavior is now explicit in the wire contract:
+
+- `CreateSession` fails with gRPC `UNAVAILABLE` once shutdown begins, including
+  both graceful and immediate shutdown
+- `ServerControlResponse.status` distinguishes `COMPLETED` from `DRAINING`
+  when present, and remains `optional` so newer clients can detect older
+  servers that omitted the field and fall back to legacy response-code
+  handling
+- the deprecated `response_code` field remains for compatibility and is `0`
+  for accepted commands, including graceful shutdown while draining
 
 ## Using with Buf
 

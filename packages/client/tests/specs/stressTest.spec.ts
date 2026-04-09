@@ -220,14 +220,14 @@ describe('StressTest', () => {
       expect(await destroyViewport(viewport_2_id)).to.equal(viewport_2_id)
       await undo(session_id)
       const countKinds = [
-        CountKind.COUNT_COMPUTED_FILE_SIZE,
-        CountKind.COUNT_CHANGES,
-        CountKind.COUNT_UNDOS,
-        CountKind.COUNT_VIEWPORTS,
-        CountKind.COUNT_CHECKPOINTS,
-        CountKind.COUNT_SEARCH_CONTEXTS,
-        CountKind.COUNT_CHANGE_TRANSACTIONS,
-        CountKind.COUNT_UNDO_TRANSACTIONS,
+        CountKind.COMPUTED_FILE_SIZE,
+        CountKind.CHANGES,
+        CountKind.UNDOS,
+        CountKind.VIEWPORTS,
+        CountKind.CHECKPOINTS,
+        CountKind.SEARCH_CONTEXTS,
+        CountKind.CHANGE_TRANSACTIONS,
+        CountKind.UNDO_TRANSACTIONS,
       ]
       let counts = await getCounts(session_id, countKinds)
       expect(counts).to.be.an('array').with.lengthOf(countKinds.length)
@@ -235,28 +235,28 @@ describe('StressTest', () => {
       counts.forEach((count) => {
         const c = count.getCount()
         switch (count.getKind()) {
-          case CountKind.COUNT_COMPUTED_FILE_SIZE:
+          case CountKind.COMPUTED_FILE_SIZE:
             expect(c).to.equal(computedFileSize)
             break
-          case CountKind.COUNT_CHANGES:
+          case CountKind.CHANGES:
             expect(c).to.equal(276 * full_rotations)
             break
-          case CountKind.COUNT_UNDOS:
+          case CountKind.UNDOS:
             expect(c).to.equal(1)
             break
-          case CountKind.COUNT_VIEWPORTS:
+          case CountKind.VIEWPORTS:
             expect(c).to.equal(1)
             break
-          case CountKind.COUNT_CHECKPOINTS:
+          case CountKind.CHECKPOINTS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_SEARCH_CONTEXTS:
+          case CountKind.SEARCH_CONTEXTS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_CHANGE_TRANSACTIONS:
+          case CountKind.CHANGE_TRANSACTIONS:
             expect(c).to.equal(276 * full_rotations)
             break
-          case CountKind.COUNT_UNDO_TRANSACTIONS:
+          case CountKind.UNDO_TRANSACTIONS:
             expect(c).to.equal(1)
             break
           default:
@@ -270,28 +270,28 @@ describe('StressTest', () => {
       counts.forEach((count) => {
         const c = count.getCount()
         switch (count.getKind()) {
-          case CountKind.COUNT_COMPUTED_FILE_SIZE:
+          case CountKind.COMPUTED_FILE_SIZE:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_CHANGES:
+          case CountKind.CHANGES:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_UNDOS:
+          case CountKind.UNDOS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_VIEWPORTS:
+          case CountKind.VIEWPORTS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_CHECKPOINTS:
+          case CountKind.CHECKPOINTS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_SEARCH_CONTEXTS:
+          case CountKind.SEARCH_CONTEXTS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_CHANGE_TRANSACTIONS:
+          case CountKind.CHANGE_TRANSACTIONS:
             expect(c).to.equal(0)
             break
-          case CountKind.COUNT_UNDO_TRANSACTIONS:
+          case CountKind.UNDO_TRANSACTIONS:
             expect(c).to.equal(0)
             break
           default:

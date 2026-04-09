@@ -6,6 +6,8 @@ const path = require('path')
 // Read version from VERSION file
 const versionFilePath = path.join(__dirname, 'VERSION')
 const version = fs.readFileSync(versionFilePath, 'utf8').trim()
+const versionCore = version.split('+', 1)[0]
+const isPrerelease = versionCore.includes('-')
 
 // Update root package.json
 const rootPackageJsonPath = path.join(__dirname, 'package.json')
@@ -55,6 +57,21 @@ fs.writeFileSync(
   JSON.stringify(serverPackageJson, null, 2) + '\n'
 )
 
+// Update AI package.json
+const aiPackageJsonPath = path.join(__dirname, 'packages', 'ai', 'package.json')
+const aiPackageJson = JSON.parse(fs.readFileSync(aiPackageJsonPath, 'utf8'))
+aiPackageJson.version = version
+if (
+  aiPackageJson.dependencies &&
+  aiPackageJson.dependencies['@omega-edit/client']
+) {
+  aiPackageJson.dependencies['@omega-edit/client'] = version
+}
+fs.writeFileSync(
+  aiPackageJsonPath,
+  JSON.stringify(aiPackageJson, null, 2) + '\n'
+)
+
 // Update VS Code extension example package.json
 const vscodeExtensionPackageJsonPath = path.join(
   __dirname,
@@ -70,7 +87,8 @@ if (
   vscodeExtensionPackageJson.dependencies &&
   vscodeExtensionPackageJson.dependencies['@omega-edit/client']
 ) {
-  vscodeExtensionPackageJson.dependencies['@omega-edit/client'] = `^${version}`
+  vscodeExtensionPackageJson.dependencies['@omega-edit/client'] =
+    'file:../../packages/client'
 }
 fs.writeFileSync(
   vscodeExtensionPackageJsonPath,
@@ -91,6 +109,15 @@ if (fs.existsSync(vscodeExtensionPackageLockPath)) {
   vscodeExtensionPackageLock.version = version
   if (vscodeExtensionPackageLock.packages?.['']) {
     vscodeExtensionPackageLock.packages[''].version = version
+    if (
+      vscodeExtensionPackageLock.packages[''].dependencies?.[
+        '@omega-edit/client'
+      ]
+    ) {
+      vscodeExtensionPackageLock.packages[''].dependencies[
+        '@omega-edit/client'
+      ] = 'file:../../packages/client'
+    }
   }
   fs.writeFileSync(
     vscodeExtensionPackageLockPath,
@@ -98,4 +125,7 @@ if (fs.existsSync(vscodeExtensionPackageLockPath)) {
   )
 }
 
-console.log(`Updated all package.json files to version ${version}`)
+console.log(`Updated repo versioned packages to ${version}`)
+console.log(
+  'Set the VS Code example client dependency to the local workspace path.'
+)

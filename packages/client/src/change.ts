@@ -43,16 +43,14 @@ import {
   endSessionTransaction,
   notifyChangedViewports,
 } from './session'
+import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 export const ChangeKind = {
-  CHANGE_DELETE: RawProtoChangeKind.DELETE,
-  CHANGE_INSERT: RawProtoChangeKind.INSERT,
-  CHANGE_OVERWRITE: RawProtoChangeKind.OVERWRITE,
-  CHANGE_KIND_DELETE: RawProtoChangeKind.DELETE,
-  CHANGE_KIND_INSERT: RawProtoChangeKind.INSERT,
-  CHANGE_KIND_OVERWRITE: RawProtoChangeKind.OVERWRITE,
-  ...RawProtoChangeKind,
+  UNSPECIFIED: RawProtoChangeKind.UNSPECIFIED,
+  DELETE: RawProtoChangeKind.DELETE,
+  INSERT: RawProtoChangeKind.INSERT,
+  OVERWRITE: RawProtoChangeKind.OVERWRITE,
 }
 
 export { EditStats }
@@ -73,7 +71,12 @@ export function del(
   len: number,
   stats?: IEditStats
 ): Promise<number> {
-  return rawDel(session_id, offset, len, stats)
+  return rawDel(
+    session_id,
+    requireSafeIntegerInput('delete offset', offset),
+    requireSafeIntegerInput('delete length', len),
+    stats
+  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
 }
 
 /**
@@ -90,7 +93,12 @@ export function insert(
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  return rawInsert(session_id, offset, data, stats)
+  return rawInsert(
+    session_id,
+    requireSafeIntegerInput('insert offset', offset),
+    data,
+    stats
+  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
 }
 
 /**
@@ -107,7 +115,12 @@ export function overwrite(
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  return rawOverwrite(session_id, offset, data, stats)
+  return rawOverwrite(
+    session_id,
+    requireSafeIntegerInput('overwrite offset', offset),
+    data,
+    stats
+  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
 }
 
 /**
@@ -126,20 +139,51 @@ export function replace(
   replacement: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  if (remove_bytes_count === 0) {
-    return insert(session_id, offset, replacement, stats)
-  } else if (replacement.length === 0) {
-    return del(session_id, offset, remove_bytes_count, stats)
-  } else if (replacement.length === remove_bytes_count) {
-    return overwrite(session_id, offset, replacement, stats)
-  }
-  return replaceWithTransaction(
+  return replaceInternal(
     session_id,
     offset,
     remove_bytes_count,
     replacement,
-    stats
+    stats,
+    true
   )
+}
+
+function replaceInternal(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replacement: Uint8Array,
+  stats: IEditStats | undefined,
+  transactional: boolean
+): Promise<number> {
+  const safeOffset = requireSafeIntegerInput('replace offset', offset)
+  const safeRemoveBytesCount = requireSafeIntegerInput(
+    'replace length',
+    remove_bytes_count
+  )
+  if (remove_bytes_count === 0) {
+    return insert(session_id, safeOffset, replacement, stats)
+  } else if (replacement.length === 0) {
+    return del(session_id, safeOffset, safeRemoveBytesCount, stats)
+  } else if (replacement.length === remove_bytes_count) {
+    return overwrite(session_id, safeOffset, replacement, stats)
+  }
+  return transactional
+    ? replaceWithTransaction(
+        session_id,
+        safeOffset,
+        safeRemoveBytesCount,
+        replacement,
+        stats
+      )
+    : replaceWithoutTransaction(
+        session_id,
+        safeOffset,
+        safeRemoveBytesCount,
+        replacement,
+        stats
+      )
 }
 
 async function replaceWithTransaction(
@@ -158,6 +202,17 @@ async function replaceWithTransaction(
   }
 }
 
+async function replaceWithoutTransaction(
+  session_id: string,
+  offset: number,
+  remove_bytes_count: number,
+  replacement: Uint8Array,
+  stats?: IEditStats
+): Promise<number> {
+  await del(session_id, offset, remove_bytes_count, stats)
+  return await insert(session_id, offset, replacement, stats)
+}
+
 /**
  * Optimize a simple replace operation by trimming the common prefix and suffix.
  * @param original_segment original segment
@@ -172,6 +227,7 @@ export function editOptimizer(
 ):
   | [{ offset: number; remove_bytes_count: number; replacement: Uint8Array }]
   | null {
+  const safeOffset = requireSafeIntegerInput('edit offset', offset)
   let first_difference = 0
   let last_difference = 0
 
@@ -201,7 +257,10 @@ export function editOptimizer(
 
   return [
     {
-      offset: offset + first_difference,
+      offset: requireSafeIntegerOutput(
+        'edit offset',
+        safeOffset + first_difference
+      ),
       remove_bytes_count:
         original_segment.length - first_difference - last_difference,
       replacement: edited_segment.slice(
@@ -227,7 +286,8 @@ export async function editSimple(
   offset: number,
   original_segment: Uint8Array,
   edited_segment: Uint8Array,
-  stats?: IEditStats
+  stats?: IEditStats,
+  transactional: boolean = true
 ): Promise<number> {
   const optimized_replacements = editOptimizer(
     original_segment,
@@ -236,18 +296,20 @@ export async function editSimple(
   )
   let result = 0
   if (optimized_replacements) {
-    const useTransaction = 1 < optimized_replacements.length
+    const useTransaction = transactional && 1 < optimized_replacements.length
+    const replaceTransactionally = transactional && !useTransaction
     if (useTransaction) {
       await beginSessionTransaction(session_id)
     }
     try {
       for (let i = 0; i < optimized_replacements.length; ++i) {
-        result = await replace(
+        result = await replaceInternal(
           session_id,
           optimized_replacements[i].offset,
           optimized_replacements[i].remove_bytes_count,
           optimized_replacements[i].replacement,
-          stats
+          stats,
+          replaceTransactionally
         )
       }
     } finally {
@@ -266,7 +328,9 @@ export async function editSimple(
  * @returns negative serial number of the undone change if successful
  */
 export function undo(session_id: string, stats?: IEditStats): Promise<number> {
-  return rawUndo(session_id, stats)
+  return rawUndo(session_id, stats).then((serial) =>
+    requireSafeIntegerOutput('undo serial', serial)
+  )
 }
 
 /**
@@ -276,7 +340,9 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
  * @returns positive serial number of the redone change if successful
  */
 export function redo(session_id: string, stats?: IEditStats): Promise<number> {
-  return rawRedo(session_id, stats)
+  return rawRedo(session_id, stats).then((serial) =>
+    requireSafeIntegerOutput('redo serial', serial)
+  )
 }
 
 /**
@@ -317,7 +383,9 @@ export async function getLastUndo(
  * @returns number of changes
  */
 export function getChangeCount(session_id: string): Promise<number> {
-  return rawGetChangeCount(session_id)
+  return rawGetChangeCount(session_id).then((count) =>
+    requireSafeIntegerOutput('change count', count)
+  )
 }
 
 /**
@@ -326,7 +394,9 @@ export function getChangeCount(session_id: string): Promise<number> {
  * @returns number of undo entries
  */
 export function getUndoCount(session_id: string): Promise<number> {
-  return rawGetUndoCount(session_id)
+  return rawGetUndoCount(session_id).then((count) =>
+    requireSafeIntegerOutput('undo count', count)
+  )
 }
 
 /**
@@ -335,7 +405,9 @@ export function getUndoCount(session_id: string): Promise<number> {
  * @returns number of change transactions
  */
 export function getChangeTransactionCount(session_id: string): Promise<number> {
-  return rawGetChangeTransactionCount(session_id)
+  return rawGetChangeTransactionCount(session_id).then((count) =>
+    requireSafeIntegerOutput('change transaction count', count)
+  )
 }
 
 /**
@@ -344,7 +416,9 @@ export function getChangeTransactionCount(session_id: string): Promise<number> {
  * @returns number of undo transactions
  */
 export function getUndoTransactionCount(session_id: string): Promise<number> {
-  return rawGetUndoTransactionCount(session_id)
+  return rawGetUndoTransactionCount(session_id).then((count) =>
+    requireSafeIntegerOutput('undo transaction count', count)
+  )
 }
 
 /**
@@ -415,6 +489,7 @@ export function editOperations(
   editedSegment: Uint8Array,
   offset: number = 0
 ): EditOperation[] {
+  const safeOffset = requireSafeIntegerInput('edit offset', offset)
   if (originalSegment.length === 0) {
     if (editedSegment.length === 0) {
       return []
@@ -422,7 +497,7 @@ export function editOperations(
     return [
       {
         type: EditOperationType.Insert,
-        start: offset,
+        start: requireSafeIntegerOutput('edit offset', safeOffset),
         data: editedSegment,
       },
     ]
@@ -431,7 +506,7 @@ export function editOperations(
     return [
       {
         type: EditOperationType.Delete,
-        start: offset,
+        start: requireSafeIntegerOutput('edit offset', safeOffset),
         length: originalSegment.length,
       },
     ]
@@ -445,89 +520,53 @@ export function editOperations(
   const len2 = editedSegment.length
   const maxLen = Math.max(len1, len2)
   const operations: EditOperation[] = []
+  let overwriteRunStart: number | undefined
 
-  let previousOp: EditOperation | undefined
+  const flushOverwriteRun = (endExclusive: number) => {
+    if (overwriteRunStart === undefined) {
+      return
+    }
+
+    operations.push({
+      type: EditOperationType.Overwrite,
+      start: requireSafeIntegerOutput(
+        'edit offset',
+        safeOffset + overwriteRunStart
+      ),
+      data: editedSegment.subarray(overwriteRunStart, endExclusive),
+    })
+    overwriteRunStart = undefined
+  }
 
   for (let i = 0; i < maxLen; i++) {
     if (i < len1 && i < len2) {
       if (originalSegment[i] !== editedSegment[i]) {
-        if (
-          previousOp &&
-          previousOp.type === EditOperationType.Overwrite &&
-          previousOp.start + previousOp.data!.length === i
-        ) {
-          previousOp.data = concatUint8Arrays(
-            previousOp.data!,
-            new Uint8Array([editedSegment[i]])
-          )
-        } else {
-          operations.push({
-            type: EditOperationType.Overwrite,
-            start: offset + i,
-            data: new Uint8Array([editedSegment[i]]),
-          })
-          previousOp = operations[operations.length - 1]
+        if (overwriteRunStart === undefined) {
+          overwriteRunStart = i
         }
+      } else {
+        flushOverwriteRun(i)
       }
     } else if (i < len1) {
-      const deleteStart =
-        previousOp && previousOp.type === EditOperationType.Delete
-          ? previousOp.start
-          : i
+      flushOverwriteRun(i)
       operations.push({
         type: EditOperationType.Delete,
-        start: offset + deleteStart,
-        length: len1 - deleteStart,
+        start: requireSafeIntegerOutput('edit offset', safeOffset + i),
+        length: len1 - i,
       })
-      previousOp = operations[operations.length - 1]
       break
     } else {
+      flushOverwriteRun(i)
       operations.push({
         type: EditOperationType.Insert,
-        start: offset + i,
+        start: requireSafeIntegerOutput('edit offset', safeOffset + i),
         data: editedSegment.subarray(i),
       })
-      previousOp = operations[operations.length - 1]
       break
     }
   }
 
-  for (let k = 0; k < operations.length - 1; k++) {
-    const op = operations[k]
-    const nextOp = operations[k + 1]
-
-    if (
-      op.type === nextOp.type &&
-      op.start + (op.length ?? op.data!.length) === nextOp.start
-    ) {
-      if (op.type === EditOperationType.Overwrite) {
-        op.data = concatUint8Arrays(op.data!, nextOp.data!)
-        op.length = undefined
-      } else {
-        op.length =
-          (op.length ?? op.data!.length) +
-          (nextOp.length ?? nextOp.data!.length)
-      }
-      operations.splice(k + 1, 1)
-      k--
-    } else if (
-      op.type === EditOperationType.Delete &&
-      nextOp.type === EditOperationType.Delete &&
-      op.start + (op.length ?? 0) === nextOp.start
-    ) {
-      op.length = (op.length ?? 0) + nextOp.length!
-      operations.splice(k + 1, 1)
-      k--
-    } else if (
-      op.type === EditOperationType.Insert &&
-      nextOp.type === EditOperationType.Insert &&
-      op.start + (op.data?.length ?? 0) === nextOp.start
-    ) {
-      op.data = concatUint8Arrays(op.data!, nextOp.data!)
-      operations.splice(k + 1, 1)
-      k--
-    }
-  }
+  flushOverwriteRun(maxLen)
 
   return operations
 }

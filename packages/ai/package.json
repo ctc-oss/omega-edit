@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/ai",
-  "version": "1.0.1",
+  "version": "2.0.0-rc1",
   "description": "AI-facing CLI and MCP tooling for OmegaEdit",
   "publisher": "ctc-oss",
   "main": "./dist/cjs/index.js",
@@ -44,7 +44,7 @@
     "lint:fix": "biome check --write ."
   },
   "dependencies": {
-    "@omega-edit/client": "1.0.1"
+    "@omega-edit/client": "2.0.0-rc1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

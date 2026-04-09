@@ -93,7 +93,7 @@ jobs:
         id: macos15-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Build middleware macos-15 ??"
+          checkName: "Build middleware macos-15"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - macOS 14
@@ -101,7 +101,7 @@ jobs:
         id: macos14-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Build middleware macos-14 ??"
+          checkName: "Build middleware macos-14"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Linux
@@ -109,7 +109,7 @@ jobs:
         id: ubuntu-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Build middleware ubuntu-22.04 ??"
+          checkName: "Build middleware ubuntu-22.04"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check tests - Windows
@@ -117,7 +117,7 @@ jobs:
         id: windows-tests
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Build middleware windows-2022 ??"
+          checkName: "Build middleware windows-2022"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check native build arm64 - Linux
@@ -125,7 +125,7 @@ jobs:
         id: ubuntu-arm64-native
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "Native build ubuntu-22.04 arm64 ??"
+          checkName: "Native build ubuntu-22.04 arm64"
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Quality Gate
@@ -171,7 +171,7 @@ jobs:
       - name: Check if pre-release
         shell: bash
         run: |
-          if [[ ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
+          if [[ ${{ env.GIT_TAG }} == *"-alpha"* || ${{ env.GIT_TAG }} == *"-beta"* || ${{ env.GIT_TAG }} == *"-rc"* || ${{ env.GIT_TAG }} == *"pre-"* || ${{ env.GIT_TAG }} == *"-pre"* ]]; then
             echo "PRE_RELEASE=true" >> $GITHUB_ENV
           else
             echo "PRE_RELEASE=false" >> $GITHUB_ENV

@@ -29,7 +29,12 @@ if (DEFINED omega_edit_SHARED_LIBS)
     set(BUILD_SHARED_LIBS "${omega_edit_SHARED_LIBS}")
 endif ()
 
-message(STATUS "Building ${PROJECT_NAME} ${PROJECT_VERSION} (shared: ${BUILD_SHARED_LIBS}, tests: ${BUILD_TESTS}, docs: ${BUILD_DOCS}, examples: ${BUILD_EXAMPLES}, coverage: ${BUILD_COVERAGE})")
+set(OMEGA_EDIT_DISPLAY_VERSION "${PROJECT_VERSION}")
+if (DEFINED OMEGA_EDIT_VERSION)
+    set(OMEGA_EDIT_DISPLAY_VERSION "${OMEGA_EDIT_VERSION}")
+endif ()
+
+message(STATUS "Building ${PROJECT_NAME} ${OMEGA_EDIT_DISPLAY_VERSION} (shared: ${BUILD_SHARED_LIBS}, tests: ${BUILD_TESTS}, docs: ${BUILD_DOCS}, examples: ${BUILD_EXAMPLES}, coverage: ${BUILD_COVERAGE})")
 
 # Code coverage instrumentation (GCC/Clang only)
 if (BUILD_COVERAGE)

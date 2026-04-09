@@ -189,11 +189,13 @@ public:
 private:
     // Parse "sessionId:viewportId" format
     static bool parse_viewport_id(const std::string &fqid, std::string &session_id, std::string &viewport_id);
+    static std::string make_viewport_fqid(const std::string &session_id, const std::string &viewport_id);
     template <typename T>
     grpc::Status fill_viewport_data(const std::string &session_id, const std::string &viewport_id,
                                     const std::string &fqid, T *response);
     template <typename T>
     void fill_change_details(const omega_change_t *change, const std::string &session_id, T *response);
+    void request_shutdown();
 
     SessionManager session_manager_;
     std::unique_ptr<IContentTypeDetector> content_type_detector_;
@@ -205,6 +207,7 @@ private:
     HeartbeatConfig heartbeat_config_;
     ResourceLimits resource_limits_;
     std::function<void()> shutdown_callback_;
+    std::once_flag shutdown_once_;
     std::thread reaper_thread_;
     std::atomic<bool> reaper_stop_{false};
     std::mutex reaper_cv_mutex_;

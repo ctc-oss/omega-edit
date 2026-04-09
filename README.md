@@ -265,6 +265,8 @@ Known limitation: Windows client integration tests do not currently cover emoji 
 
 Ωedit™ follows [Semantic Versioning](http://semver.org/). Version information is managed through a single source of truth in the `VERSION` file at the repository root. See [VERSION_MANAGEMENT.md](VERSION_MANAGEMENT.md) for details on updating versions across all components.
 
+Planning a move from the 1.x line to the 2.x release candidate? Start with the short [v1 to v2 upgrade guide](UPGRADE-v1-to-v2.md).
+
 ## &#9889;Powered by Ωedit™
 
 - [Apache Daffodil™ Extension for Visual Studio Code](https://github.com/apache/daffodil-vscode) - The Data Editor

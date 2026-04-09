@@ -50,10 +50,6 @@ jobs:
         run: npm ci
         working-directory: examples/vscode-extension
 
-      - name: Use local OmegaEdit client in the VS Code extension example
-        run: npm install ../../packages/client --no-save
-        working-directory: examples/vscode-extension
-
       - name: Run Biome, compile, and unit tests for the VS Code extension
         run: npm run lint && npm run compile && npm run test:unit
         working-directory: examples/vscode-extension
@@ -82,7 +78,7 @@ jobs:
       matrix:
         os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
       fail-fast: false
-    name: Native build and test on ${{ matrix.os }} ??
+    name: Native build and test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -100,7 +96,7 @@ jobs:
           os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
 
   build-native-macos-x64:
-    name: Native build macos-15 x64 ??
+    name: Native build macos-15 x64
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -113,7 +109,7 @@ jobs:
           os-name: macos-15-x64
 
   build-native-linux-arm64:
-    name: Native build ubuntu-22.04 arm64 ??
+    name: Native build ubuntu-22.04 arm64
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -132,7 +128,7 @@ jobs:
         os: [windows-2022, windows-2025, ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
       fail-fast: false
     runs-on: ${{ matrix.os }}
-    name: Build middleware ${{ matrix.os }} ??
+    name: Build middleware ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -149,7 +145,7 @@ jobs:
           os-name: ${{ matrix.os }}-${{ env.artifact_arch }}
 
   coverage:
-    name: Code Coverage ??
+    name: Code Coverage
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -284,5 +280,45 @@ jobs:
           disable_search: true
           flags: client
           name: omega-edit-client
+          use_oidc: true
+          fail_ci_if_error: true
+
+  coverage-client-uds:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            label: linux
+          - os: macos-15
+            label: macos
+      fail-fast: false
+    name: Client UDS Coverage ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build middleware for UDS coverage
+        uses: ./.github/workflows/build-middleware
+        with:
+          runner-os: ${{ runner.os }}
+          os-name: ${{ matrix.os }}
+          skip-tests: 'true'
+
+      - name: Run client UDS coverage
+        run: yarn workspace @omega-edit/client test:coverage:uds
+        env:
+          CPP_SERVER_BINARY: ''
+
+      - name: Upload TypeScript UDS coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          files: packages/client/coverage/lcov.info
+          disable_search: true
+          flags: client-uds-${{ matrix.label }}
+          name: omega-edit-client-uds-${{ matrix.label }}
           use_oidc: true
           fail_ci_if_error: true

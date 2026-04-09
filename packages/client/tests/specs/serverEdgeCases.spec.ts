@@ -20,6 +20,7 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initChai } from './common.js'
 import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
@@ -45,6 +46,8 @@ const {
 
 describe('Server Edge Cases', () => {
   let restoreLogger = () => {}
+  let originalServerUri: string | undefined
+  let originalServerSocket: string | undefined
 
   before(async () => {
     await initChai()
@@ -58,10 +61,23 @@ describe('Server Edge Cases', () => {
       require('../../dist/cjs/server.js') as typeof import('../../src/server')
   })
 
+  beforeEach(() => {
+    originalServerUri = process.env.OMEGA_EDIT_SERVER_URI
+    originalServerSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
+  })
+
   afterEach(() => {
     resetClient()
-    delete process.env.OMEGA_EDIT_SERVER_URI
-    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    if (originalServerUri === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_URI
+    } else {
+      process.env.OMEGA_EDIT_SERVER_URI = originalServerUri
+    }
+    if (originalServerSocket === undefined) {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    } else {
+      process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
+    }
   })
 
   after(() => {
@@ -69,6 +85,10 @@ describe('Server Edge Cases', () => {
   })
 
   it('should start a source server with a stale pid file and query info endpoints', async () => {
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    resetClient()
+
     const port = await findFirstAvailablePort(9200, 9300)
     expect(port).to.not.equal(null)
 
@@ -80,7 +100,6 @@ describe('Server Edge Cases', () => {
     let pidFromFile: number | undefined
     let serverInfoPid: number | undefined
     try {
-      resetClient()
       pid = await startServer(port as number, '127.0.0.1', pidFile)
       expect(pid).to.be.a('number').greaterThan(0)
       expect(pidIsRunning(pid as number)).to.be.true
@@ -115,7 +134,7 @@ describe('Server Edge Cases', () => {
       expect(serverInfo.buildType).to.be.a('string').and.not.be.empty
       expect(serverInfo.cppStandard).to.be.a('string').and.not.be.empty
 
-      const heartbeat = await getServerHeartbeat([], 250)
+      const heartbeat = await getServerHeartbeat([])
       expect(heartbeat.latency).to.be.greaterThanOrEqual(0)
       expect(heartbeat.sessionCount).to.equal(0)
       expect(heartbeat.serverCpuCount).to.be.greaterThanOrEqual(0)
@@ -137,7 +156,7 @@ describe('Server Edge Cases', () => {
         expect(heartbeat.serverVirtualMemoryBytes).to.equal(undefined)
       }
 
-      expect(await stopServerImmediate()).to.equal(0)
+      expect((await stopServerImmediate()).responseCode).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (await stopServiceOnPort(port as number)) {
@@ -155,6 +174,95 @@ describe('Server Edge Cases', () => {
       }
 
       fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  }).timeout(15000)
+
+  it('should reject invalid stale pid files before attempting startup', async () => {
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    resetClient()
+
+    const port = await findFirstAvailablePort(9200, 9300)
+    expect(port).to.not.equal(null)
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-invalid-pid-')
+    )
+    const pidFile = path.join(tempDir, 'omega-edit.pid')
+    fs.writeFileSync(pidFile, 'garbage')
+
+    try {
+      await startServer(port as number, '127.0.0.1', pidFile)
+      expect.fail('startServer should reject invalid pid file contents')
+    } catch (err) {
+      expect((err as Error).message).to.equal(`Invalid PID in ${pidFile}`)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('should leave deprecated native server health fields at protobuf defaults', async () => {
+    const port = await findFirstAvailablePort(9200, 9300)
+    expect(port).to.not.equal(null)
+
+    let pid: number | undefined
+    try {
+      resetClient()
+      pid = await startServer(port as number, '127.0.0.1')
+      expect(pid).to.be.a('number').greaterThan(0)
+      expect(pidIsRunning(pid as number)).to.be.true
+
+      const client = await clientModule.getClient(port as number, '127.0.0.1')
+      const serverInfo = await new Promise<Record<string, any>>(
+        (resolve, reject) => {
+          client.getServerInfo({}, (err, response) => {
+            if (err) {
+              reject(err)
+              return
+            }
+            resolve(response as Record<string, any>)
+          })
+        }
+      )
+
+      expect(serverInfo.jvmVersion).to.equal('')
+      expect(serverInfo.jvmVendor).to.equal('')
+      expect(serverInfo.jvmPath).to.equal('')
+
+      const heartbeat = await new Promise<Record<string, any>>(
+        (resolve, reject) => {
+          client.getHeartbeat(
+            {
+              sessionIds: [],
+            },
+            (err, response) => {
+              if (err) {
+                reject(err)
+                return
+              }
+              resolve(response as Record<string, any>)
+            }
+          )
+        }
+      )
+      const wrappedHeartbeat = await getServerHeartbeat([])
+
+      expect(heartbeat.maxMemory).to.equal(0)
+      expect(heartbeat.committedMemory).to.equal(0)
+      expect(heartbeat.usedMemory).to.equal(0)
+      if (heartbeat.loadAverage === undefined) {
+        expect(heartbeat.cpuLoadAverage).to.equal(0)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.equal(undefined)
+      } else {
+        expect(heartbeat.cpuLoadAverage).to.equal(heartbeat.loadAverage)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.not.equal(undefined)
+        expect(wrappedHeartbeat.serverCpuLoadAverage).to.be.a('number')
+      }
+    } finally {
+      await stopServiceOnPort(port as number, 'SIGKILL')
+      if (pid && pidIsRunning(pid)) {
+        await stopProcessUsingPID(pid, 'SIGKILL')
+      }
     }
   }).timeout(15000)
 
@@ -184,7 +292,7 @@ describe('Server Edge Cases', () => {
       const serverInfo = await getServerInfo()
       expect(serverInfo.serverProcessId).to.equal(pid)
 
-      expect(await stopServerImmediate()).to.equal(0)
+      expect((await stopServerImmediate()).responseCode).to.equal(0)
       for (let attempt = 0; attempt < 30; attempt += 1) {
         await delay(100)
         if (!pidIsRunning(pid as number)) {
@@ -199,6 +307,59 @@ describe('Server Edge Cases', () => {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   }).timeout(20000)
+
+  it('should verify UDS startup against the launched socket endpoint', async function () {
+    if (process.platform === 'win32') {
+      this.skip()
+    }
+
+    const tcpPort = await findFirstAvailablePort(9401, 9500)
+    expect(tcpPort).to.not.equal(null)
+
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-uds-target-')
+    )
+    const tcpPidFile = path.join(tempDir, 'omega-edit-tcp.pid')
+    const socketPath = path.join(tempDir, 'omega-edit.sock')
+    const udsPidFile = path.join(tempDir, 'omega-edit-uds.pid')
+
+    let tcpPid: number | undefined
+    let udsPid: number | undefined
+    try {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      tcpPid = await startServer(tcpPort as number, '127.0.0.1', tcpPidFile)
+      expect(tcpPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(tcpPid)
+
+      process.env.OMEGA_EDIT_SERVER_SOCKET = socketPath
+      delete process.env.OMEGA_EDIT_SERVER_URI
+
+      udsPid = await startServerUnixSocket(socketPath, udsPidFile, true)
+      expect(udsPid).to.be.a('number').greaterThan(0)
+      expect((await getServerInfo()).serverProcessId).to.equal(udsPid)
+
+      const stopResponse = await stopServerImmediate()
+      expect(stopResponse.responseCode).to.equal(0)
+      expect(stopResponse.status).to.equal('completed')
+      expect(stopResponse.serverProcessId).to.equal(udsPid)
+    } finally {
+      delete process.env.OMEGA_EDIT_SERVER_SOCKET
+      delete process.env.OMEGA_EDIT_SERVER_URI
+      resetClient()
+
+      if (udsPid && pidIsRunning(udsPid)) {
+        await stopProcessUsingPID(udsPid, 'SIGKILL')
+      }
+      if (tcpPid && pidIsRunning(tcpPid)) {
+        await stopProcessUsingPID(tcpPid, 'SIGKILL')
+      }
+
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  }).timeout(25000)
 
   it('should reject server info failures from the RPC client', async () => {
     const restoreGetClient = overrideProperty(
@@ -220,7 +381,8 @@ describe('Server Edge Cases', () => {
       await serverModule.getServerInfo()
       expect.fail('getServerInfo should reject when the RPC returns an error')
     } catch (err) {
-      expect(err).to.equal('getServerInfo error: boom')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('getServerInfo error: boom')
     } finally {
       restoreGetClient()
     }
@@ -244,7 +406,8 @@ describe('Server Edge Cases', () => {
       await serverModule.getServerInfo()
       expect.fail('getServerInfo should reject when the RPC response is empty')
     } catch (err) {
-      expect(err).to.equal('undefined server info')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('undefined server info')
     } finally {
       restoreGetClient()
     }
@@ -276,23 +439,78 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      await serverModule.getServerHeartbeat([], 100)
+      await serverModule.getServerHeartbeat([])
       expect.fail(
         'getServerHeartbeat should reject when the RPC returns an error'
       )
     } catch (err) {
-      expect(err).to.equal('getServerHeartbeat error: heartbeat failed')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal(
+        'getServerHeartbeat error: heartbeat failed'
+      )
     }
 
     mode = 'empty'
 
     try {
-      await serverModule.getServerHeartbeat([], 100)
+      await serverModule.getServerHeartbeat([])
       expect.fail(
         'getServerHeartbeat should reject when the RPC response is empty'
       )
     } catch (err) {
-      expect(err).to.equal('undefined heartbeat')
+      expect(err).to.be.instanceOf(Error)
+      expect((err as Error).message).to.equal('undefined heartbeat')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should reject removed legacy heartbeat positional arguments loudly', async () => {
+    let thrown: Error | undefined
+
+    try {
+      await getServerHeartbeat(['sid'], 250 as unknown as never)
+      expect.fail('getServerHeartbeat should reject removed legacy arguments')
+    } catch (error) {
+      thrown = error as Error
+    }
+
+    expect(thrown).to.exist
+    expect(thrown?.message).to.include(
+      'getServerHeartbeat(sessionIds) is session-centric in 2.x'
+    )
+  })
+
+  it('should reject unsafe integer heartbeat values', async () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        getHeartbeat(
+          _request: unknown,
+          callback: (
+            err: Error | null,
+            response?: Record<string, number>
+          ) => void
+        ) {
+          callback(null, {
+            sessionCount: 0,
+            timestamp: unsafeInteger,
+            uptime: 1,
+            cpuCount: 4,
+          })
+        },
+      })
+    )
+
+    try {
+      await serverModule.getServerHeartbeat([])
+      expect.fail('getServerHeartbeat should reject unsafe integer values')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        "server heartbeat timestamp exceeds the OmegaEdit TypeScript client's safe integer range"
+      )
     } finally {
       restoreGetClient()
     }
@@ -318,9 +536,49 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
       errorMessage = 'INTERNAL: unavailable'
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should tolerate cancelled shutdown RPCs and unexpected gRPC status codes', async () => {
+    let grpcCode = GrpcStatus.CANCELLED
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (err: Error | null, response?: unknown) => void
+        ) {
+          callback(
+            Object.assign(new Error('shutdown transport edge case'), {
+              code: grpcCode,
+            })
+          )
+        },
+      })
+    )
+
+    try {
+      const cancelledResponse = await serverModule.stopServerImmediate()
+      expect(cancelledResponse.responseCode).to.equal(-1)
+      expect(cancelledResponse.serverProcessId).to.equal(-1)
+      expect(cancelledResponse.status).to.equal('unknown')
+
+      grpcCode = GrpcStatus.UNKNOWN
+
+      const unknownResponse = await serverModule.stopServerImmediate()
+      expect(unknownResponse.responseCode).to.equal(-1)
+      expect(unknownResponse.serverProcessId).to.equal(-1)
+      expect(unknownResponse.status).to.equal('unknown')
     } finally {
       restoreGetClient()
     }
@@ -333,11 +591,17 @@ describe('Server Edge Cases', () => {
       async () => ({
         serverControl(
           _request: unknown,
-          callback: (err: null, response: { getResponseCode(): number }) => void
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus(): number }
+          ) => void
         ) {
           callback(null, {
             getResponseCode() {
               return 7
+            },
+            getStatus() {
+              return 0
             },
           })
         },
@@ -345,7 +609,136 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(7)
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(7)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should treat missing shutdown status with nonzero response codes as unknown', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getPid(): number }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 7
+            },
+            getPid() {
+              return 321
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(7)
+      expect(response.serverProcessId).to.equal(321)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should treat an explicit UNSPECIFIED shutdown status as unknown', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus(): number }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 0
+            },
+            getStatus() {
+              return 0
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(0)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should preserve response-code fallback when shutdown status is absent', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus?: undefined }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 0
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(0)
+      expect(response.status).to.equal('completed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should infer draining for graceful shutdown when status is absent', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (
+            err: null,
+            response: { getResponseCode(): number; getStatus?: undefined }
+          ) => void
+        ) {
+          callback(null, {
+            getResponseCode() {
+              return 1
+            },
+          })
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerGraceful()
+      expect(response.responseCode).to.equal(1)
+      expect(response.status).to.equal('draining')
     } finally {
       restoreGetClient()
     }
@@ -372,11 +765,57 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
       mode = 'string'
-      expect(await serverModule.stopServerImmediate()).to.equal(-1)
+      expect((await serverModule.stopServerImmediate()).responseCode).to.equal(
+        -1
+      )
     } finally {
       restoreGetClient()
+    }
+  })
+
+  it('should return unknown shutdown status for empty server control responses', async () => {
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        serverControl(
+          _request: unknown,
+          callback: (err: null, response?: unknown) => void
+        ) {
+          callback(null, undefined)
+        },
+      })
+    )
+
+    try {
+      const response = await serverModule.stopServerImmediate()
+      expect(response.responseCode).to.equal(-1)
+      expect(response.serverProcessId).to.equal(-1)
+      expect(response.status).to.equal('unknown')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should rethrow pidIsRunning errors other than ESRCH', () => {
+    const restoreKill = overrideProperty(
+      process as unknown as Record<string, any>,
+      'kill',
+      () => {
+        throw Object.assign(new Error('permission denied'), {
+          code: 'EPERM',
+        })
+      }
+    )
+
+    try {
+      expect(() => pidIsRunning(12345)).to.throw('permission denied')
+    } finally {
+      restoreKill()
     }
   })
 

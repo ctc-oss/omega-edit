@@ -22,13 +22,24 @@ import { expect, initChai } from './common.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
-const { CountKind, ServerControlKind } = require('../../dist/cjs/proto.js')
+const {
+  CountKind,
+  ServerControlKind,
+  ServerControlStatus,
+} = require('../../dist/cjs/proto.js')
+const {
+  IOFlags,
+  SessionEventKind: PublicSessionEventKind,
+  ViewportEventKind: PublicViewportEventKind,
+} = require('../../dist/cjs/session.js')
 const {
   EditorServiceClient,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.grpc-client.js')
 const {
+  IOFlags: ProtoIOFlags,
   CountKind: ProtoCountKind,
   ServerControlKind: ProtoServerControlKind,
+  ServerControlStatus: ProtoServerControlStatus,
   SessionEventKind,
   ViewportEventKind,
 } = require('../../dist/cjs/protobuf_ts/generated/omega_edit/v1/omega_edit.js')
@@ -124,19 +135,12 @@ describe('Proto Compatibility', () => {
       interest: 7,
     })
 
-    const heartbeatRequest = new HeartbeatRequest()
-      .setHostname('host')
-      .setProcessId(42)
-      .setHeartbeatInterval(250)
-      .setSessionIdsList(['a', 'b'])
-    expect(heartbeatRequest.getHostname()).to.equal('host')
-    expect(heartbeatRequest.getProcessId()).to.equal(42)
-    expect(heartbeatRequest.getHeartbeatInterval()).to.equal(250)
+    const heartbeatRequest = new HeartbeatRequest().setSessionIdsList([
+      'a',
+      'b',
+    ])
     expect(heartbeatRequest.getSessionIdsList()).to.deep.equal(['a', 'b'])
     expect(heartbeatRequest.toRaw()).to.deep.equal({
-      hostname: 'host',
-      processId: 42,
-      heartbeatInterval: 250,
       sessionIds: ['a', 'b'],
     })
 
@@ -200,12 +204,24 @@ describe('Proto Compatibility', () => {
       kind: ProtoServerControlKind.IMMEDIATE_SHUTDOWN,
       pid: 99,
       responseCode: 0,
+      status: ProtoServerControlStatus.COMPLETED,
     })
     expect(serverControl.getKind()).to.equal(
       ProtoServerControlKind.IMMEDIATE_SHUTDOWN
     )
     expect(serverControl.getPid()).to.equal(99)
     expect(serverControl.getResponseCode()).to.equal(0)
+    expect(serverControl.getStatus()).to.equal(ServerControlStatus.COMPLETED)
+    expect(ServerControlStatus.COMPLETED).to.equal(
+      ProtoServerControlStatus.COMPLETED
+    )
+    expect(
+      new ServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
 
     const heartbeat = new HeartbeatResponse({
       sessionCount: 2,
@@ -395,6 +411,13 @@ describe('Proto Compatibility', () => {
       wrapServerControlResponse(serverControl.toObject()).getPid()
     ).to.equal(99)
     expect(
+      wrapServerControlResponse({
+        kind: ProtoServerControlKind.GRACEFUL_SHUTDOWN,
+        pid: 77,
+        responseCode: 1,
+      }).getStatus()
+    ).to.equal(undefined)
+    expect(
       wrapHeartbeatResponse(heartbeat.toObject()).getSessionCount()
     ).to.equal(2)
     expect(
@@ -426,10 +449,26 @@ describe('Proto Compatibility', () => {
     )
     expect(wrapViewportEvent(viewportEvent.toObject()).getLength()).to.equal(3)
 
-    expect(CountKind.COUNT_VIEWPORTS).to.equal(ProtoCountKind.VIEWPORTS)
-    expect(ServerControlKind.SERVER_CONTROL_GRACEFUL_SHUTDOWN).to.equal(
+    expect(CountKind.VIEWPORTS).to.equal(ProtoCountKind.VIEWPORTS)
+    expect(ServerControlKind.GRACEFUL_SHUTDOWN).to.equal(
       ProtoServerControlKind.GRACEFUL_SHUTDOWN
     )
+    expect(ServerControlStatus.COMPLETED).to.equal(
+      ProtoServerControlStatus.COMPLETED
+    )
+    expect(IOFlags.OVERWRITE).to.equal(ProtoIOFlags.IO_FLAGS_OVERWRITE)
+    expect(PublicSessionEventKind.EDIT).to.equal(SessionEventKind.EDIT)
+    expect(PublicViewportEventKind.EDIT).to.equal(ViewportEventKind.EDIT)
+    expect('COUNT_VIEWPORTS' in CountKind).to.equal(false)
+    expect('SERVER_CONTROL_GRACEFUL_SHUTDOWN' in ServerControlKind).to.equal(
+      false
+    )
+    expect('SERVER_CONTROL_STATUS_COMPLETED' in ServerControlStatus).to.equal(
+      false
+    )
+    expect('IO_FLG_OVERWRITE' in IOFlags).to.equal(false)
+    expect('SESSION_EVT_EDIT' in PublicSessionEventKind).to.equal(false)
+    expect('VIEWPORT_EVT_EDIT' in PublicViewportEventKind).to.equal(false)
   })
 
   it('should wrap subscription data events for legacy EditorClient consumers', () => {
@@ -531,5 +570,30 @@ describe('Proto Compatibility', () => {
       EditorServiceClient.prototype.subscribeToViewportEvents =
         originalViewportSubscribe
     }
+  })
+
+  it('should reject unsafe int64 values from compatibility wrappers', () => {
+    const unsafeInteger = Number.MAX_SAFE_INTEGER + 1
+
+    expect(() =>
+      new CreateSessionResponse({
+        sessionId: 'sid',
+        checkpointDirectory: 'chk',
+        fileSize: unsafeInteger,
+      }).getFileSize()
+    ).to.throw(
+      "CreateSessionResponse.fileSize exceeds the OmegaEdit TypeScript client's safe integer range"
+    )
+
+    expect(() =>
+      new ViewportEvent({
+        sessionId: 'sid',
+        viewportId: 'vid',
+        viewportEventKind: ViewportEventKind.EDIT,
+        serial: unsafeInteger,
+      }).getSerial()
+    ).to.throw(
+      "ViewportEvent.serial exceeds the OmegaEdit TypeScript client's safe integer range"
+    )
   })
 })

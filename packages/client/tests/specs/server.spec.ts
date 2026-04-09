@@ -43,6 +43,7 @@ import {
 } from '@omega-edit/client'
 import {
   expect,
+  expectOpaqueId,
   initChai,
   testHost,
   testPort,
@@ -115,7 +116,7 @@ describe('Server', () => {
       expect(await getClient(serverTestPort)).to.not.be.undefined
       expect(await getSessionCount()).to.equal(0)
       session_id = (await createSession()).getSessionId()
-      expect(session_id.length).to.equal(36)
+      expectOpaqueId(session_id, 'sess_')
       expect(await getSessionCount()).to.equal(1)
     }
   )
@@ -173,13 +174,22 @@ describe('Server', () => {
 
   it(`on port ${serverTestPort} should stop gracefully via API`, async () => {
     // stop the server gracefully
-    await stopServerGraceful()
+    const response = await stopServerGraceful()
+    expect(response.responseCode).to.equal(0)
+    expect(response.status).to.equal('draining')
+    expect(response.serverProcessId).to.equal(pid)
 
     // for graceful shutdown, the server should still be running until the session count drops to 0
     expect(pidIsRunning(pid as number)).to.be.true
 
     // once the server is stopping gracefully, no new sessions should be allowed
-    expect((await createSession()).getSessionId()).to.be.empty
+    try {
+      await createSession()
+      expect.fail('createSession should reject while graceful shutdown drains')
+    } catch (err) {
+      expect((err as Error).message).to.include('UNAVAILABLE')
+      expect((err as Error).message).to.include('server is shutting down')
+    }
     expect(await getSessionCount()).to.equal(1)
 
     // destroy the session, dropping the count to 0, then the server should stop
@@ -188,6 +198,24 @@ describe('Server', () => {
     // pause for up to 2 seconds to allow server some time to stop
     for (let i = 0; i < 20; ++i) {
       await delay(100) // 0.1 second
+      if (!pidIsRunning(pid as number)) {
+        break
+      }
+    }
+    expect(pidIsRunning(pid as number)).to.be.false
+  })
+
+  it(`on port ${serverTestPort} should stop gracefully via API when no sessions are active`, async () => {
+    expect(await destroySession(session_id)).to.equal(session_id)
+    expect(await getSessionCount()).to.equal(0)
+
+    const response = await stopServerGraceful()
+    expect(response.responseCode).to.equal(0)
+    expect(response.status).to.equal('completed')
+    expect(response.serverProcessId).to.equal(pid)
+
+    for (let i = 0; i < 20; ++i) {
+      await delay(100)
       if (!pidIsRunning(pid as number)) {
         break
       }
@@ -219,7 +247,7 @@ describe('Server Heartbeat Timeout', () => {
   )
 
   const heartbeat: HeartbeatOptions = {
-    sessionTimeoutMs: 200,
+    sessionTimeoutMs: 500,
     cleanupIntervalMs: 50,
     shutdownWhenNoSessions: false,
   }
@@ -294,14 +322,14 @@ describe('Server Heartbeat Timeout', () => {
 
   it(`on port ${serverTestPort} should reap idle sessions`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
 
     // Send a heartbeat to keep it alive.
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
     expect(await getSessionCount()).to.equal(1)
 
@@ -311,7 +339,7 @@ describe('Server Heartbeat Timeout', () => {
 
   it(`on port ${serverTestPort} should keep sessions alive via normal session RPCs (no heartbeat)`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
 
     // Keep the session active beyond the 200ms timeout using a regular session RPC.
@@ -323,6 +351,64 @@ describe('Server Heartbeat Timeout', () => {
 
     // Stop activity and verify it eventually expires.
     await waitForSessionCount(0, 2000)
+  })
+
+  it(`on port ${serverTestPort} should reap an idle shared session in a single timeout window`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-heartbeat-shared-idle-')
+    )
+    const sharedFilePath = path.join(tempDir, 'shared-session.txt')
+
+    try {
+      await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
+      const authors = await Promise.all(
+        Array.from({ length: 5 }, () => createSession(sharedFilePath))
+      )
+
+      for (const author of authors.slice(1)) {
+        expect(author.getSessionId()).to.equal(authors[0].getSessionId())
+      }
+      expect(await getSessionCount()).to.equal(1)
+
+      // A shared session should be fully reaped on the first cleanup pass
+      // after the timeout, not one attachment per cleanup interval. Using
+      // several attachments widens the regression gap on slower macOS runners:
+      // a buggy detach-per-cycle implementation needs multiple extra reaper
+      // ticks before teardown completes. Allow a wider observation window so
+      // cleanup cadence and scheduler jitter do not make this assertion flaky.
+      await delay(625)
+      await waitForSessionCount(0, 250)
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it(`on port ${serverTestPort} should not extend shared session lifetime when one author detaches`, async () => {
+    const tempDir = await fsPromises.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-heartbeat-')
+    )
+    const sharedFilePath = path.join(tempDir, 'shared-session.txt')
+
+    try {
+      await fsPromises.writeFile(sharedFilePath, 'shared heartbeat test')
+      const author1 = await createSession(sharedFilePath)
+      const author2 = await createSession(sharedFilePath)
+      const sharedSessionId = author1.getSessionId()
+
+      expect(author2.getSessionId()).to.equal(sharedSessionId)
+      expect(await getSessionCount()).to.equal(1)
+
+      // Detaching one author should not count as activity for the shared
+      // session, so the remaining idle attachment should still expire on the
+      // original timeout schedule. Use a wider timeout window here so the
+      // correct behavior and a detach-driven refresh stay far apart even on
+      // slower macOS runners.
+      await delay(425)
+      expect(await destroySession(sharedSessionId)).to.equal(sharedSessionId)
+      await waitForSessionCount(0, 250)
+    } finally {
+      await fsPromises.rm(tempDir, { recursive: true, force: true })
+    }
   })
 })
 
@@ -432,12 +518,12 @@ describe('Server Shutdown When No Sessions', () => {
 
   it(`on port ${serverTestPort} should exit after reaping the last session`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
 
     await delay(50)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
     await delay(100)
-    await getServerHeartbeat([session_id], 50)
+    await getServerHeartbeat([session_id])
 
     await waitForSessionCount(0, 2000, true)
     await waitForPidToExit(pid as number, 15000)
@@ -494,7 +580,7 @@ describe('Server Resource Limits', () => {
     resetClient()
     expect(await getClient(serverTestPort)).to.not.be.undefined
     session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
   })
 
   afterEach(`stop limit-aware server on port ${serverTestPort}`, async () => {
@@ -535,7 +621,11 @@ describe('Server Resource Limits', () => {
 
   it(`on port ${serverTestPort} should reject opening more viewports than configured`, async () => {
     const firstViewport = await createViewport(undefined, session_id, 0, 8)
-    expect(firstViewport.getViewportId()).to.include(`${session_id}:`)
+    expect(firstViewport.getViewportId()).to.match(
+      new RegExp(
+        `^${session_id}:vp_[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+      )
+    )
     expect(await getViewportCount(session_id)).to.equal(1)
 
     try {
@@ -548,6 +638,16 @@ describe('Server Resource Limits', () => {
     }
 
     expect(await getViewportCount(session_id)).to.equal(1)
+  })
+
+  it(`on port ${serverTestPort} should generate opaque sess_ IDs for unmanaged sessions`, async () => {
+    const session = await createSession()
+
+    try {
+      expectOpaqueId(session.getSessionId(), 'sess_')
+    } finally {
+      await destroySession(session.getSessionId())
+    }
   })
 })
 
@@ -639,7 +739,7 @@ describe('Directory with Spaces Test', () => {
 
   it(`Create on port ${serverTestPort} with a single session and is able to be closed`, async () => {
     const session_id = (await createSession()).getSessionId()
-    expect(session_id.length).to.equal(36)
+    expectOpaqueId(session_id, 'sess_')
     expect(await getSessionCount()).to.equal(1)
   })
 })

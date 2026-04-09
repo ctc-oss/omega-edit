@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
                 ++inserts;
                 break;
             case 'O':
-                omega_edit_overwrite_bytes(session_ptr.get(), offset, bytes, 0);
+                omega_edit_overwrite_bytes(session_ptr.get(), offset, bytes, length);
                 ++overwrites;
                 break;
             default:
