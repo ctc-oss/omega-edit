@@ -414,7 +414,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         }
       },
       onError: () => {
-        // Stream closed â€” expected during shutdown
+        // Stream closed - expected during shutdown
       },
     })
   }
@@ -665,7 +665,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         this.broadcastServerHealth({
           type: 'serverHealth',
           ok: false,
-          summary: 'Î©editâ„¢ unavailable',
+          summary: 'Ωedit™ unavailable',
           detail: error.message,
           severity: 'down',
           metrics: [{ label: 'Error', value: error.message }],

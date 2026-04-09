@@ -59,7 +59,7 @@ namespace {
     }
 }// namespace
 
-TEST_CASE("Benchmark stacked replace-style transaction undo latency", "[UndoBenchmark]") {
+TEST_CASE("Benchmark stacked replace-style transaction undo latency", "[.][UndoBenchmark]") {
     constexpr int match_count = 1000;
     constexpr int transaction_rounds = 7;
     const std::string short_token = "PDF";

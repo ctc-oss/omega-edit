@@ -182,11 +182,15 @@ export function pauseSessionChanges(session_id: string): Promise<string> {
 }
 
 export function beginSessionTransaction(session_id: string): Promise<string> {
-  return rawBeginSessionTransaction(session_id)
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawBeginSessionTransaction(session_id)
+  })
 }
 
 export function endSessionTransaction(session_id: string): Promise<string> {
-  return rawEndSessionTransaction(session_id)
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawEndSessionTransaction(session_id)
+  })
 }
 
 export async function runSessionTransaction<T>(
