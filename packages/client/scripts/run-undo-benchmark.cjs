@@ -17,14 +17,50 @@
  * limitations under the License.
  */
 
-export * from './change'
-export * from './client'
-export * from './logger'
-export * from './server'
-export * from './session'
-export * from './subscriptions'
-export * from './version'
-export * from './viewport'
+const path = require('path')
+const { spawnSync } = require('child_process')
 
-// generated files from protoc
-export * from './proto'
+const packageRoot = path.join(__dirname, '..')
+
+const compile = spawnSync(
+  process.execPath,
+  [
+    require.resolve('typescript/bin/tsc'),
+    '-p',
+    path.join(packageRoot, 'tsconfig.scripts.esm.json'),
+  ],
+  {
+    cwd: packageRoot,
+    env: process.env,
+    stdio: 'inherit',
+  }
+)
+
+if (compile.error) {
+  console.error(compile.error)
+  process.exit(1)
+}
+
+if (compile.status !== 0) {
+  process.exit(compile.status ?? 1)
+}
+
+const run = spawnSync(
+  process.execPath,
+  [
+    path.join(packageRoot, 'out', 'scripts', 'benchmark-undo.js'),
+    ...process.argv.slice(2),
+  ],
+  {
+    cwd: packageRoot,
+    env: process.env,
+    stdio: 'inherit',
+  }
+)
+
+if (run.error) {
+  console.error(run.error)
+  process.exit(1)
+}
+
+process.exit(run.status ?? 1)

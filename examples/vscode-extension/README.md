@@ -52,10 +52,19 @@ In the new window:
 ## What Happens Under The Hood
 
 1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
-2. Opening a file creates an Ωedit™ session and viewport, then subscribes to viewport and session updates.
+2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
 3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
 4. The webview drives edits, navigation, search, replace, save, and replay through the provider, and the provider pushes back reactive state updates for the viewport, undo/redo counts, dirty state, replace counts, and server health.
 5. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
+
+### Large Search Mode
+
+The example extension uses a bounded search window of `1000` matches. It probes for `1001` matches so it can distinguish between:
+
+- `bounded` mode, where the full match list is kept in memory because the result set fits in the window
+- `large` mode, where match navigation switches to on-demand forward/backward search from the current cursor instead of storing every match offset
+
+This mode decision is made only when the user runs an explicit search. If a replace operation changes the remaining match count across the `1000` threshold, the extension keeps the current mode until the next explicit search. For example, a search that starts in `large` mode with exactly `1001` matches stays in `large` mode after one single replacement leaves `1000` remaining matches.
 
 ## Extension Settings
 
@@ -120,9 +129,10 @@ The repository's tagged release workflow also builds this extension and uploads 
 |                                                              |
 |  hexEditorProvider.ts                                        |
 |   -> createSession() / createViewport()                      |
-|   -> event subscriptions                                     |
+|   -> session + viewport subscriptions as primary state sync  |
 |   -> search / replace / save / replay                        |
 |   -> webview state sync                                      |
+|   -> heartbeat as the only intentional poll                  |
 |                                                              |
 |  webview.ts                                                  |
 |   -> hex + text rendering                                    |
@@ -140,6 +150,13 @@ The repository's tagged release workflow also builds this extension and uploads 
 |  - server info / heartbeat                                   |
 +--------------------------------------------------------------+
 ```
+
+Subscription rule:
+
+- This extension is intentionally subscription-first. Session state, computed file size, and viewport refreshes should come from event streams, not repeated snapshot polling.
+- The extension uses the shared `@omega-edit/client` helpers for that wiring instead of hand-rolling raw stream setup in the example.
+- Heartbeat is the only acceptable polling loop here, because the server uses it to detect dead clients and reap abandoned sessions.
+- If you need any other poll to keep the extension correct, treat that as a design bug and fix the missing event-driven integration instead.
 
 ## Extending This Example
 

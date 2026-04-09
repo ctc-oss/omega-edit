@@ -668,7 +668,10 @@ export function getWebviewContent(bytesPerRow: number): string {
   let fileSize = 0
   let selectedOffset = -1    // absolute byte offset of the active selection focus
   let selectionAnchor = -1   // absolute byte offset where the current range began
+  let searchMode = 'none'
   let searchMatches = []     // number[] of match offsets
+  let searchCurrentOffset = -1
+  let searchWindowLimit = 1000
   let matchedByteOffsets = new Set()
   let searchMatchIndex = -1
   let searchPatternLength = 0
@@ -684,6 +687,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   let activePane = 'hex'
   let hoveredColumn = -1
   let hoveredRowIndex = -1
+  let replaceSummaryActive = false
 
   // ── DOM Refs ────────────────────────────────────────
   const hexContainer = document.getElementById('hexContainer')
@@ -854,7 +858,10 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function clearSearchResults(message = '') {
+    searchMode = 'none'
     searchMatches = []
+    searchCurrentOffset = -1
+    searchWindowLimit = 1000
     matchedByteOffsets = new Set()
     searchMatchIndex = -1
     searchPatternLength = 0
@@ -862,6 +869,22 @@ export function getWebviewContent(bytesPerRow: number): string {
     statusMatches.textContent = ''
     updateSearchButtons()
     render()
+  }
+
+  function hasSearchResults() {
+    return searchMode === 'large'
+      ? searchCurrentOffset >= 0
+      : searchMatches.length > 0
+  }
+
+  function getCurrentSearchOffset() {
+    if (searchMode === 'large') {
+      return searchCurrentOffset
+    }
+    if (searchMatches.length === 0 || searchMatchIndex < 0) {
+      return -1
+    }
+    return searchMatches[searchMatchIndex]
   }
 
   function updateOffsetStatus() {
@@ -917,8 +940,15 @@ export function getWebviewContent(bytesPerRow: number): string {
     saveBtn.disabled = !isDirty
   }
 
-  function updateActionStatus(message = '') {
+  function updateActionStatus(message = '', source = 'generic') {
     statusAction.textContent = message
+    replaceSummaryActive = source === 'replace-summary' && message.length > 0
+  }
+
+  function clearReplaceSummaryActionStatus() {
+    if (replaceSummaryActive) {
+      updateActionStatus('')
+    }
   }
 
   function formatServerHealthSeverity(severity) {
@@ -1035,7 +1065,7 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   function updateSearchButtons() {
     searchBtn.disabled = searchInput.value.trim().length === 0
-    const hasMatches = searchMatches.length > 0
+    const hasMatches = hasSearchResults()
     prevMatchBtn.disabled = !hasMatches
     nextMatchBtn.disabled = !hasMatches
     replaceBtn.disabled = !hasMatches
@@ -1349,6 +1379,7 @@ export function getWebviewContent(bytesPerRow: number): string {
 
     const target = getPasteTarget()
     if (target.type === 'replace') {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'replace',
         offset: target.offset,
@@ -1356,6 +1387,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         data: pasteHex,
       })
     } else {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'insert',
         offset: target.offset,
@@ -1451,9 +1483,19 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function updateMatchNav() {
-    if (searchMatches.length === 0) {
+    if (!hasSearchResults()) {
       matchNav.textContent = 'No matches'
       statusMatches.textContent = ''
+      updateSearchButtons()
+      return
+    }
+
+    if (searchMode === 'large') {
+      matchNav.textContent = searchWindowLimit.toLocaleString() + '+ matches'
+      statusMatches.textContent =
+        searchWindowLimit.toLocaleString() +
+        '+ matches | current ' +
+        formatOffsetDisplay(searchCurrentOffset)
       updateSearchButtons()
       return
     }
@@ -1471,6 +1513,16 @@ export function getWebviewContent(bytesPerRow: number): string {
       : null
   }
 
+  function normalizeSearchQuery(query, isHex) {
+    return isHex ? normalizedHexQuery(query) : query
+  }
+
+  function getSearchPatternByteLength(query, isHex) {
+    return isHex
+      ? query.length / 2
+      : new TextEncoder().encode(query).length
+  }
+
   function utf8ToHex(text) {
     return Array.from(new TextEncoder().encode(text))
       .map((value) => value.toString(16).toUpperCase().padStart(2, '0'))
@@ -1485,9 +1537,41 @@ export function getWebviewContent(bytesPerRow: number): string {
     return normalizedHexQuery(replacement)
   }
 
+  function navigateLargeSearch(direction) {
+    const query = searchInput.value.trim()
+    const isHex = searchHex.checked
+    const normalizedQuery = normalizeSearchQuery(query, isHex)
+    if (normalizedQuery === null) {
+      matchNav.textContent = 'Invalid search hex'
+      return
+    }
+    if (!normalizedQuery) {
+      clearSearchResults()
+      return
+    }
+    vscode.postMessage({
+      type: 'findAdjacentMatch',
+      query: normalizedQuery,
+      isHex: isHex,
+      caseInsensitive: !isHex && searchCase.checked,
+      direction,
+      offset: selectedOffset >= 0 ? selectedOffset : searchCurrentOffset,
+    })
+  }
+
   function rebuildMatchedByteOffsets() {
     const offsets = new Set()
     if (searchPatternLength <= 0) {
+      matchedByteOffsets = offsets
+      return
+    }
+
+    if (searchMode === 'large') {
+      if (searchCurrentOffset >= 0) {
+        for (let i = 0; i < searchPatternLength; i += 1) {
+          offsets.add(searchCurrentOffset + i)
+        }
+      }
       matchedByteOffsets = offsets
       return
     }
@@ -1499,6 +1583,38 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
 
     matchedByteOffsets = offsets
+  }
+
+  function applySingleReplaceToSearchMatches(replacedOffset, offsetDelta) {
+    if (searchMatches.length === 0 || searchMatchIndex < 0) {
+      clearSearchResults()
+      return null
+    }
+
+    searchMatches.splice(searchMatchIndex, 1)
+
+    if (searchMatches.length === 0) {
+      clearSearchResults()
+      return null
+    }
+
+    if (searchMatchIndex >= searchMatches.length) {
+      searchMatchIndex = searchMatches.length - 1
+    }
+
+    if (offsetDelta !== 0) {
+      searchMatches = searchMatches.map((matchOffset) =>
+        matchOffset > replacedOffset ? matchOffset + offsetDelta : matchOffset
+      )
+    }
+
+    const nextMatchOffset = searchMatches[searchMatchIndex]
+    selectOffset(nextMatchOffset)
+    rebuildMatchedByteOffsets()
+    updateMatchNav()
+    render()
+    vscode.postMessage({ type: 'goToMatch', offset: nextMatchOffset })
+    return nextMatchOffset
   }
 
   function isMatchByte(absOffset) {
@@ -1589,17 +1705,29 @@ export function getWebviewContent(bytesPerRow: number): string {
         break
 
       case 'searchResults':
-        searchMatches = msg.matches
         searchPatternLength = msg.patternLength || searchPatternLength
+        searchWindowLimit = msg.windowLimit || searchWindowLimit
+        if (msg.mode === 'large' && typeof msg.currentOffset === 'number' && msg.currentOffset >= 0) {
+          searchMode = 'large'
+          searchMatches = []
+          searchCurrentOffset = msg.currentOffset
+          searchMatchIndex = -1
+          rebuildMatchedByteOffsets()
+          selectOffset(searchCurrentOffset)
+          updateMatchNav()
+          render()
+          break
+        }
+        searchMode = 'bounded'
+        searchCurrentOffset = -1
+        searchMatches = msg.matches
         rebuildMatchedByteOffsets()
         searchMatchIndex = msg.matches.length > 0 ? 0 : -1
         if (searchMatches.length > 0) {
           selectOffset(searchMatches[0])
         }
         updateMatchNav()
-        if (searchMatches.length === 0) {
-          render()
-        }
+        render()
         break
 
       case 'editState':
@@ -1617,12 +1745,62 @@ export function getWebviewContent(bytesPerRow: number): string {
         updateActionStatus(
           (msg.replacedCount ?? 0) === 1
             ? 'Replaced 1 match'
-            : 'Replaced ' + (msg.replacedCount ?? 0) + ' matches'
+            : 'Replaced ' + (msg.replacedCount ?? 0) + ' matches',
+          'replace-summary'
         )
-        if (typeof msg.selectionOffset === 'number' && msg.selectionOffset >= 0) {
+        let nextMatchOffset = null
+        if (
+          msg.scope === 'single' &&
+          (msg.replacedCount ?? 0) > 0 &&
+          typeof msg.replacedOffset === 'number'
+        ) {
+          if (searchMode === 'large') {
+            // Stay in large mode until the user explicitly runs search again.
+            // That keeps single-step replace/navigation on the on-demand path
+            // even if the remaining matches fall back to the bounded window.
+            searchCurrentOffset =
+              typeof msg.selectionOffset === 'number' ? msg.selectionOffset : -1
+            rebuildMatchedByteOffsets()
+            updateMatchNav()
+            render()
+            navigateLargeSearch(
+              searchDirectionSelect.value === 'reverse' ? 'backward' : 'forward'
+            )
+          } else {
+            nextMatchOffset = applySingleReplaceToSearchMatches(
+              msg.replacedOffset,
+              typeof msg.offsetDelta === 'number' ? msg.offsetDelta : 0
+            )
+          }
+        } else if (msg.scope === 'single' && (msg.replacedCount ?? 0) === 0) {
+          updateMatchNav()
+          render()
+        } else {
+          clearSearchResults()
+        }
+        if (
+          nextMatchOffset === null &&
+          typeof msg.selectionOffset === 'number' &&
+          msg.selectionOffset >= 0
+        ) {
           selectOffset(msg.selectionOffset)
         }
-        doSearch()
+        break
+
+      case 'searchNavigationResult':
+        if (typeof msg.offset === 'number' && msg.offset >= 0) {
+          searchMode = 'large'
+          searchCurrentOffset = msg.offset
+          searchPatternLength = msg.patternLength || searchPatternLength
+          rebuildMatchedByteOffsets()
+          selectOffset(msg.offset)
+          updateMatchNav()
+          render()
+        }
+        break
+
+      case 'searchStateCleared':
+        clearSearchResults()
         break
 
       case 'serverHealth':
@@ -1811,6 +1989,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       if (hasSelection() && fileSize > 0) {
         e.preventDefault()
         const selectionStart = getSelectionStart()
+        clearReplaceSummaryActionStatus()
         vscode.postMessage({
           type: 'delete',
           offset: selectionStart,
@@ -1863,6 +2042,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     e.preventDefault()
     const selectionStart = getSelectionStart()
     const selectionLength = getSelectionLength()
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'delete',
       offset: selectionStart,
@@ -1893,12 +2073,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
     const isHex = searchHex.checked
-    const normalizedQuery = isHex ? normalizedHexQuery(query) : query
+    const normalizedQuery = normalizeSearchQuery(query, isHex)
     if (normalizedQuery === null) {
       clearSearchResults('Invalid hex')
       return
     }
-    searchPatternLength = isHex ? normalizedQuery.length / 2 : query.length
+    searchPatternLength = getSearchPatternByteLength(normalizedQuery, isHex)
     vscode.postMessage({
       type: 'search',
       query: normalizedQuery,
@@ -1909,7 +2089,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function replaceCurrentMatch() {
-    if (searchMatches.length === 0 || searchMatchIndex < 0 || searchPatternLength <= 0) {
+    const currentSearchOffset = getCurrentSearchOffset()
+    if (currentSearchOffset < 0 || searchPatternLength <= 0) {
       return
     }
     const replacementHex = getReplacementHex()
@@ -1917,21 +2098,22 @@ export function getWebviewContent(bytesPerRow: number): string {
       matchNav.textContent = 'Invalid replacement hex'
       return
     }
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'replace',
-      offset: searchMatches[searchMatchIndex],
+      offset: currentSearchOffset,
       length: searchPatternLength,
       data: replacementHex,
     })
   }
 
   function replaceAllMatches() {
-    if (searchMatches.length === 0 || searchPatternLength <= 0) {
+    if (!hasSearchResults() || searchPatternLength <= 0) {
       return
     }
-    const query = searchInput.value
+    const query = searchInput.value.trim()
     const isHex = searchHex.checked
-    const normalized = normalizedQuery(query)
+    const normalized = normalizeSearchQuery(query, isHex)
     if (normalized === null) {
       matchNav.textContent = 'Invalid search hex'
       return
@@ -1941,9 +2123,10 @@ export function getWebviewContent(bytesPerRow: number): string {
       matchNav.textContent = 'Invalid replacement hex'
       return
     }
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'replaceAllMatches',
-      offsets: searchMatches.slice(),
+      offsets: searchMode === 'large' ? undefined : searchMatches.slice(),
       query: normalized,
       isHex: isHex,
       caseInsensitive: !isHex && searchCase.checked,
@@ -1986,7 +2169,11 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
 
   nextMatchBtn.addEventListener('click', () => {
-    if (searchMatches.length === 0) return
+    if (!hasSearchResults()) return
+    if (searchMode === 'large') {
+      navigateLargeSearch('forward')
+      return
+    }
     searchMatchIndex = (searchMatchIndex + 1) % searchMatches.length
     selectOffset(searchMatches[searchMatchIndex])
     updateMatchNav()
@@ -1995,7 +2182,11 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
 
   prevMatchBtn.addEventListener('click', () => {
-    if (searchMatches.length === 0) return
+    if (!hasSearchResults()) return
+    if (searchMode === 'large') {
+      navigateLargeSearch('backward')
+      return
+    }
     searchMatchIndex = (searchMatchIndex - 1 + searchMatches.length) % searchMatches.length
     selectOffset(searchMatches[searchMatchIndex])
     updateMatchNav()
@@ -2038,6 +2229,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     if (editMode === 'delete') {
       const len = parseInt(editLength.value, 10)
       if (isNaN(len) || len < 1) return
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'delete', offset: offset, length: len })
     } else {
       const hex = editData.value.replace(/\\s/g, '')
@@ -2046,6 +2238,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         return
       }
       editData.style.borderColor = ''
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: editMode, offset: offset, data: hex })
     }
     closeEditDialog()
@@ -2073,11 +2266,13 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   undoBtn.addEventListener('click', () => {
     if (!undoBtn.disabled) {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'undo' })
     }
   })
   redoBtn.addEventListener('click', () => {
     if (!redoBtn.disabled) {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'redo' })
     }
   })

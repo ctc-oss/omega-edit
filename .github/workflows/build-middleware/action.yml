@@ -113,7 +113,17 @@ runs:
 
     - name: Yarn Install 🏗️
       shell: bash
-      run: yarn
+      run: |
+        for attempt in 1 2 3; do
+          if yarn --network-timeout 300000; then
+            exit 0
+          fi
+          if [ "$attempt" -eq 3 ]; then
+            exit 1
+          fi
+          echo "yarn install failed on attempt $attempt; retrying in 15 seconds" >&2
+          sleep 15
+        done
 
     - name: Yarn Package - Server 📦
       shell: bash

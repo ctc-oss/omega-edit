@@ -1,6 +1,4 @@
 /*
- * Copyright (c) 2021 Concurrent Technologies Corporation.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -17,14 +15,20 @@
  * limitations under the License.
  */
 
-export * from './change'
-export * from './client'
-export * from './logger'
-export * from './server'
-export * from './session'
-export * from './subscriptions'
-export * from './version'
-export * from './viewport'
-
-// generated files from protoc
-export * from './proto'
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "out",
+    "types": ["node"],
+    "declaration": false,
+    "declarationMap": false,
+    "inlineSources": false,
+    "sourceMap": false
+  },
+  "include": ["scripts/benchmark-undo.ts"],
+  "exclude": ["node_modules", "dist", "out", "tests"]
+}

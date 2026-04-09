@@ -38,6 +38,7 @@ const {
   pidIsRunning,
   resetClient,
   startServer,
+  startServerHeartbeatLoop,
   startServerUnixSocket,
   stopProcessUsingPID,
   stopServiceOnPort,
@@ -514,6 +515,136 @@ describe('Server Edge Cases', () => {
     } finally {
       restoreGetClient()
     }
+  })
+
+  it('should run a reusable heartbeat loop immediately without overlapping requests', async () => {
+    let concurrentCalls = 0
+    let maxConcurrentCalls = 0
+    let heartbeatCalls = 0
+    const sessionCounts: number[] = []
+
+    const loop = startServerHeartbeatLoop({
+      intervalMs: 10,
+      getSessionIds: () => ['sid-1', 'sid-2'],
+      getHeartbeat: async (sessionIds) => {
+        heartbeatCalls += 1
+        concurrentCalls += 1
+        maxConcurrentCalls = Math.max(maxConcurrentCalls, concurrentCalls)
+        await delay(30)
+        concurrentCalls -= 1
+        return {
+          latency: 1,
+          sessionCount: sessionIds.length,
+          serverTimestamp: heartbeatCalls,
+          serverUptime: 1,
+          serverCpuCount: 4,
+        }
+      },
+      onHeartbeat: (heartbeat) => {
+        sessionCounts.push(heartbeat.sessionCount)
+      },
+    })
+
+    try {
+      await delay(95)
+      loop.stop()
+      await delay(40)
+
+      expect(maxConcurrentCalls).to.equal(1)
+      expect(heartbeatCalls).to.be.greaterThanOrEqual(2)
+      expect(heartbeatCalls - sessionCounts.length).to.be.within(0, 1)
+      expect(sessionCounts.every((count) => count === 2)).to.equal(true)
+    } finally {
+      loop.stop()
+    }
+  })
+
+  it('should expose heartbeat loop errors and stop scheduling after stop()', async () => {
+    let heartbeatCalls = 0
+    let shouldFail = true
+    const errors: string[] = []
+    const sessionCounts: number[] = []
+
+    const loop = startServerHeartbeatLoop({
+      intervalMs: 15,
+      immediate: false,
+      getSessionIds: () => ['sid-1'],
+      getHeartbeat: async (sessionIds) => {
+        heartbeatCalls += 1
+        if (shouldFail) {
+          throw new Error('heartbeat failed')
+        }
+        return {
+          latency: 1,
+          sessionCount: sessionIds.length,
+          serverTimestamp: heartbeatCalls,
+          serverUptime: 1,
+          serverCpuCount: 4,
+        }
+      },
+      onHeartbeat: (heartbeat) => {
+        sessionCounts.push(heartbeat.sessionCount)
+      },
+      onError: (error) => {
+        errors.push(error.message)
+      },
+    })
+
+    try {
+      await loop.tick()
+      shouldFail = false
+      await loop.tick()
+
+      expect(errors).to.deep.equal(['heartbeat failed'])
+      expect(sessionCounts).to.deep.equal([1])
+
+      loop.stop()
+      const heartbeatCallsAtStop = heartbeatCalls
+      await delay(40)
+      expect(heartbeatCalls).to.equal(heartbeatCallsAtStop)
+    } finally {
+      loop.stop()
+    }
+  })
+
+  it('should suppress in-flight heartbeat callbacks after stop()', async () => {
+    let releaseHeartbeat!: () => void
+    const heartbeats: number[] = []
+    const errors: string[] = []
+
+    const loop = startServerHeartbeatLoop({
+      intervalMs: 1000,
+      immediate: false,
+      getSessionIds: () => ['sid-1'],
+      getHeartbeat: async (sessionIds) => {
+        await new Promise<void>((resolve) => {
+          releaseHeartbeat = resolve
+        })
+        return {
+          latency: 1,
+          sessionCount: sessionIds.length,
+          serverTimestamp: 1,
+          serverUptime: 1,
+          serverCpuCount: 4,
+        }
+      },
+      onHeartbeat: (heartbeat) => {
+        heartbeats.push(heartbeat.sessionCount)
+      },
+      onError: (error) => {
+        errors.push(error.message)
+      },
+    })
+
+    const inFlightTick = loop.tick()
+    await delay(0)
+    loop.stop()
+    releaseHeartbeat()
+    await inFlightTick
+    await delay(10)
+
+    expect(heartbeats).to.deep.equal([])
+    expect(errors).to.deep.equal([])
   })
 
   it('should return an error code when server shutdown RPCs fail', async () => {

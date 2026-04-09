@@ -1285,6 +1285,98 @@ export interface SearchSessionResponse {
   matchOffset: number[] // Byte offsets of each match.
 }
 /**
+ * Request to replace all non-overlapping matches by checkpointed streaming.
+ *
+ * @generated from protobuf message omega_edit.v1.ReplaceSessionCheckpointedRequest
+ */
+export interface ReplaceSessionCheckpointedRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to edit.
+  /**
+   * @generated from protobuf field: bytes pattern = 2
+   */
+  pattern: Uint8Array // Byte pattern to replace.
+  /**
+   * @generated from protobuf field: bytes replacement = 3
+   */
+  replacement: Uint8Array // Replacement bytes.
+  /**
+   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   */
+  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  /**
+   * @generated from protobuf field: optional int64 offset = 5
+   */
+  offset?: number // Starting byte offset of the replace-all range.
+  /**
+   * @generated from protobuf field: optional int64 length = 6
+   */
+  length?: number // Number of bytes to process within the session.
+}
+/**
+ * Result of a checkpointed replace-all operation.
+ *
+ * @generated from protobuf message omega_edit.v1.ReplaceSessionCheckpointedResponse
+ */
+export interface ReplaceSessionCheckpointedResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was edited.
+  /**
+   * @generated from protobuf field: bytes pattern = 2
+   */
+  pattern: Uint8Array // The pattern that was replaced.
+  /**
+   * @generated from protobuf field: bytes replacement = 3
+   */
+  replacement: Uint8Array // The replacement bytes that were written.
+  /**
+   * @generated from protobuf field: bool is_case_insensitive = 4
+   */
+  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  /**
+   * @generated from protobuf field: int64 offset = 5
+   */
+  offset: number // Starting offset of the processed range.
+  /**
+   * @generated from protobuf field: int64 length = 6
+   */
+  length: number // Length of the processed range.
+  /**
+   * @generated from protobuf field: int64 replacement_count = 7
+   */
+  replacementCount: number // Number of replacements performed.
+}
+/**
+ * Request to remove the most recent checkpoint model from a session.
+ *
+ * @generated from protobuf message omega_edit.v1.DestroyLastCheckpointRequest
+ */
+export interface DestroyLastCheckpointRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to revert.
+}
+/**
+ * Result of removing the most recent checkpoint model.
+ *
+ * @generated from protobuf message omega_edit.v1.DestroyLastCheckpointResponse
+ */
+export interface DestroyLastCheckpointResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was reverted.
+  /**
+   * @generated from protobuf field: int64 remaining_checkpoints = 2
+   */
+  remainingCheckpoints: number // Remaining checkpoint count after revert.
+}
+/**
  * Request to compute a byte-frequency histogram.
  *
  * @generated from protobuf message omega_edit.v1.GetByteFrequencyProfileRequest
@@ -1691,6 +1783,18 @@ export enum SessionEventKind {
    * @generated from protobuf enum value: SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
    */
   DESTROY_VIEWPORT = 2048,
+  /**
+   * A transaction was opened on this session.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSACTION_STARTED = 4096;
+   */
+  TRANSACTION_STARTED = 4096,
+  /**
+   * An open transaction was ended on this session.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
+   */
+  TRANSACTION_ENDED = 8192,
 }
 /**
  * Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -8165,6 +8269,458 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
  */
 export const SearchSessionResponse = new SearchSessionResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionCheckpointedRequest> {
+  constructor() {
+    super('omega_edit.v1.ReplaceSessionCheckpointedRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      {
+        no: 3,
+        name: 'replacement',
+        kind: 'scalar',
+        T: 12 /*ScalarType.BYTES*/,
+      },
+      {
+        no: 4,
+        name: 'is_case_insensitive',
+        kind: 'scalar',
+        opt: true,
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 5,
+        name: 'offset',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 6,
+        name: 'length',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ReplaceSessionCheckpointedRequest>
+  ): ReplaceSessionCheckpointedRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pattern = new Uint8Array(0)
+    message.replacement = new Uint8Array(0)
+    if (value !== undefined)
+      reflectionMergePartial<ReplaceSessionCheckpointedRequest>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ReplaceSessionCheckpointedRequest
+  ): ReplaceSessionCheckpointedRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bytes pattern */ 2:
+          message.pattern = reader.bytes()
+          break
+        case /* bytes replacement */ 3:
+          message.replacement = reader.bytes()
+          break
+        case /* optional bool is_case_insensitive */ 4:
+          message.isCaseInsensitive = reader.bool()
+          break
+        case /* optional int64 offset */ 5:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* optional int64 length */ 6:
+          message.length = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ReplaceSessionCheckpointedRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bytes pattern = 2; */
+    if (message.pattern.length)
+      writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
+    /* bytes replacement = 3; */
+    if (message.replacement.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
+    /* optional bool is_case_insensitive = 4; */
+    if (message.isCaseInsensitive !== undefined)
+      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional int64 offset = 5; */
+    if (message.offset !== undefined)
+      writer.tag(5, WireType.Varint).int64(message.offset)
+    /* optional int64 length = 6; */
+    if (message.length !== undefined)
+      writer.tag(6, WireType.Varint).int64(message.length)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ReplaceSessionCheckpointedRequest
+ */
+export const ReplaceSessionCheckpointedRequest =
+  new ReplaceSessionCheckpointedRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSessionCheckpointedResponse> {
+  constructor() {
+    super('omega_edit.v1.ReplaceSessionCheckpointedResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      {
+        no: 3,
+        name: 'replacement',
+        kind: 'scalar',
+        T: 12 /*ScalarType.BYTES*/,
+      },
+      {
+        no: 4,
+        name: 'is_case_insensitive',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 5,
+        name: 'offset',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 6,
+        name: 'length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 7,
+        name: 'replacement_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ReplaceSessionCheckpointedResponse>
+  ): ReplaceSessionCheckpointedResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pattern = new Uint8Array(0)
+    message.replacement = new Uint8Array(0)
+    message.isCaseInsensitive = false
+    message.offset = 0
+    message.length = 0
+    message.replacementCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<ReplaceSessionCheckpointedResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ReplaceSessionCheckpointedResponse
+  ): ReplaceSessionCheckpointedResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bytes pattern */ 2:
+          message.pattern = reader.bytes()
+          break
+        case /* bytes replacement */ 3:
+          message.replacement = reader.bytes()
+          break
+        case /* bool is_case_insensitive */ 4:
+          message.isCaseInsensitive = reader.bool()
+          break
+        case /* int64 offset */ 5:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* int64 length */ 6:
+          message.length = reader.int64().toNumber()
+          break
+        case /* int64 replacement_count */ 7:
+          message.replacementCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ReplaceSessionCheckpointedResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bytes pattern = 2; */
+    if (message.pattern.length)
+      writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
+    /* bytes replacement = 3; */
+    if (message.replacement.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
+    /* bool is_case_insensitive = 4; */
+    if (message.isCaseInsensitive !== false)
+      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* int64 offset = 5; */
+    if (message.offset !== 0)
+      writer.tag(5, WireType.Varint).int64(message.offset)
+    /* int64 length = 6; */
+    if (message.length !== 0)
+      writer.tag(6, WireType.Varint).int64(message.length)
+    /* int64 replacement_count = 7; */
+    if (message.replacementCount !== 0)
+      writer.tag(7, WireType.Varint).int64(message.replacementCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ReplaceSessionCheckpointedResponse
+ */
+export const ReplaceSessionCheckpointedResponse =
+  new ReplaceSessionCheckpointedResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class DestroyLastCheckpointRequest$Type extends MessageType<DestroyLastCheckpointRequest> {
+  constructor() {
+    super('omega_edit.v1.DestroyLastCheckpointRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<DestroyLastCheckpointRequest>
+  ): DestroyLastCheckpointRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    if (value !== undefined)
+      reflectionMergePartial<DestroyLastCheckpointRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: DestroyLastCheckpointRequest
+  ): DestroyLastCheckpointRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: DestroyLastCheckpointRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.DestroyLastCheckpointRequest
+ */
+export const DestroyLastCheckpointRequest =
+  new DestroyLastCheckpointRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class DestroyLastCheckpointResponse$Type extends MessageType<DestroyLastCheckpointResponse> {
+  constructor() {
+    super('omega_edit.v1.DestroyLastCheckpointResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'remaining_checkpoints',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<DestroyLastCheckpointResponse>
+  ): DestroyLastCheckpointResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.remainingCheckpoints = 0
+    if (value !== undefined)
+      reflectionMergePartial<DestroyLastCheckpointResponse>(
+        this,
+        message,
+        value
+      )
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: DestroyLastCheckpointResponse
+  ): DestroyLastCheckpointResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 remaining_checkpoints */ 2:
+          message.remainingCheckpoints = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: DestroyLastCheckpointResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 remaining_checkpoints = 2; */
+    if (message.remainingCheckpoints !== 0)
+      writer.tag(2, WireType.Varint).int64(message.remainingCheckpoints)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.DestroyLastCheckpointResponse
+ */
+export const DestroyLastCheckpointResponse =
+  new DestroyLastCheckpointResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class GetByteFrequencyProfileRequest$Type extends MessageType<GetByteFrequencyProfileRequest> {
   constructor() {
     super('omega_edit.v1.GetByteFrequencyProfileRequest', [
@@ -9678,6 +10234,18 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: SearchSessionRequest,
     O: SearchSessionResponse,
+  },
+  {
+    name: 'ReplaceSessionCheckpointed',
+    options: {},
+    I: ReplaceSessionCheckpointedRequest,
+    O: ReplaceSessionCheckpointedResponse,
+  },
+  {
+    name: 'DestroyLastCheckpoint',
+    options: {},
+    I: DestroyLastCheckpointRequest,
+    O: DestroyLastCheckpointResponse,
   },
   {
     name: 'GetByteFrequencyProfile',

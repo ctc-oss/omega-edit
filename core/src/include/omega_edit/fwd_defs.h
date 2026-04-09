@@ -39,7 +39,9 @@ typedef enum {
     SESSION_EVT_CHANGES_PAUSED = 1 << 8,//< Occurs when session changes have been paused
     SESSION_EVT_CHANGES_RESUMED = 1 << 9,//< Occurs when session changes have been resumed
     SESSION_EVT_CREATE_VIEWPORT = 1 << 10,//< Occurs when the session has successfully created a viewport
-    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11//< Occurs when the session has successfully destroyed a viewport
+    SESSION_EVT_DESTROY_VIEWPORT = 1 << 11,//< Occurs when the session has successfully destroyed a viewport
+    SESSION_EVT_TRANSACTION_STARTED = 1 << 12,//< Occurs when a transaction is opened on the session
+    SESSION_EVT_TRANSACTION_ENDED = 1 << 13//< Occurs when an open transaction is ended on the session
 } omega_session_event_t;
 
 /** Enumeration of viewport events */

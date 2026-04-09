@@ -28,6 +28,7 @@ import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
 let clientModule: typeof import('../../src/client')
+let changeModule: typeof import('../../src/change')
 let sessionModule: typeof import('../../src/session')
 
 describe('Session Edge Cases', () => {
@@ -36,13 +37,19 @@ describe('Session Edge Cases', () => {
   before(() => {
     delete require.cache[require.resolve('../../dist/cjs/logger.js')]
     delete require.cache[require.resolve('../../dist/cjs/client.js')]
+    delete require.cache[require.resolve('../../dist/cjs/change.js')]
     delete require.cache[require.resolve('../../dist/cjs/session.js')]
+    delete require.cache[
+      require.resolve('../../dist/cjs/protobuf_ts/change.js')
+    ]
     delete require.cache[
       require.resolve('../../dist/cjs/protobuf_ts/session.js')
     ]
     restoreLogger = silenceClientLogger(require)
     clientModule =
       require('../../dist/cjs/client.js') as typeof import('../../src/client')
+    changeModule =
+      require('../../dist/cjs/change.js') as typeof import('../../src/change')
     sessionModule =
       require('../../dist/cjs/session.js') as typeof import('../../src/session')
   })
@@ -144,6 +151,73 @@ describe('Session Edge Cases', () => {
       expect.fail('getCounts should reject when the RPC fails')
     } catch (err) {
       expectErrorMessage(expect, err, 'getCounts error: count failed')
+    } finally {
+      restoreGetClient()
+    }
+  })
+
+  it('should serialize low-level transaction helpers through the mutation queue', async () => {
+    const calls: string[] = []
+    let nextSerial = 1
+    const restoreGetClient = overrideProperty(
+      clientModule as Record<string, any>,
+      'getClient',
+      async () => ({
+        sessionBeginTransaction(
+          _request: unknown,
+          callback: (
+            err: Error | null,
+            response?: { getId(): string; toObject(): { id: string } }
+          ) => void
+        ) {
+          calls.push('begin:start')
+          setTimeout(() => {
+            calls.push('begin:end')
+            callback(null, makeObjectIdResponse('session-id'))
+          }, 25)
+        },
+        submitChange(
+          _request: unknown,
+          callback: (err: Error | null, response?: { serial: number }) => void
+        ) {
+          calls.push('edit')
+          callback(null, { serial: nextSerial++ })
+        },
+        sessionEndTransaction(
+          _request: unknown,
+          callback: (
+            err: Error | null,
+            response?: { getId(): string; toObject(): { id: string } }
+          ) => void
+        ) {
+          calls.push('end:start')
+          setTimeout(() => {
+            calls.push('end:end')
+            callback(null, makeObjectIdResponse('session-id'))
+          }, 25)
+        },
+      })
+    )
+
+    try {
+      await Promise.all([
+        sessionModule.beginSessionTransaction('session-id'),
+        changeModule.insert('session-id', 0, new Uint8Array([0x41])),
+      ])
+
+      await Promise.all([
+        sessionModule.endSessionTransaction('session-id'),
+        changeModule.insert('session-id', 1, new Uint8Array([0x42])),
+      ])
+
+      expect(calls).to.deep.equal([
+        'begin:start',
+        'begin:end',
+        'edit',
+        'end:start',
+        'end:end',
+        'edit',
+      ])
     } finally {
       restoreGetClient()
     }

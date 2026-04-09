@@ -38,11 +38,8 @@ import {
   wrapChangeDetailsResponse,
   type ChangeDetailsResponse,
 } from './omega_edit_pb'
-import {
-  beginSessionTransaction,
-  endSessionTransaction,
-  notifyChangedViewports,
-} from './session'
+import { enqueueSessionMutation } from './mutation_queue'
+import { notifyChangedViewports, runSessionTransaction } from './session'
 import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
@@ -71,12 +68,14 @@ export function del(
   len: number,
   stats?: IEditStats
 ): Promise<number> {
-  return rawDel(
-    session_id,
-    requireSafeIntegerInput('delete offset', offset),
-    requireSafeIntegerInput('delete length', len),
-    stats
-  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawDel(
+      session_id,
+      requireSafeIntegerInput('delete offset', offset),
+      requireSafeIntegerInput('delete length', len),
+      stats
+    ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  })
 }
 
 /**
@@ -93,12 +92,14 @@ export function insert(
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  return rawInsert(
-    session_id,
-    requireSafeIntegerInput('insert offset', offset),
-    data,
-    stats
-  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawInsert(
+      session_id,
+      requireSafeIntegerInput('insert offset', offset),
+      data,
+      stats
+    ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  })
 }
 
 /**
@@ -115,12 +116,14 @@ export function overwrite(
   data: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  return rawOverwrite(
-    session_id,
-    requireSafeIntegerInput('overwrite offset', offset),
-    data,
-    stats
-  ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawOverwrite(
+      session_id,
+      requireSafeIntegerInput('overwrite offset', offset),
+      data,
+      stats
+    ).then((serial) => requireSafeIntegerOutput('change serial', serial))
+  })
 }
 
 /**
@@ -193,13 +196,12 @@ async function replaceWithTransaction(
   replacement: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  await beginSessionTransaction(session_id)
-  try {
-    await del(session_id, offset, remove_bytes_count, stats)
-    return await insert(session_id, offset, replacement, stats)
-  } finally {
-    await endSessionTransaction(session_id)
-  }
+  return await enqueueSessionMutation(session_id, async () => {
+    return await runSessionTransaction(session_id, async () => {
+      await del(session_id, offset, remove_bytes_count, stats)
+      return await insert(session_id, offset, replacement, stats)
+    })
+  })
 }
 
 async function replaceWithoutTransaction(
@@ -289,36 +291,37 @@ export async function editSimple(
   stats?: IEditStats,
   transactional: boolean = true
 ): Promise<number> {
-  const optimized_replacements = editOptimizer(
-    original_segment,
-    edited_segment,
-    offset
-  )
-  let result = 0
-  if (optimized_replacements) {
-    const useTransaction = transactional && 1 < optimized_replacements.length
-    const replaceTransactionally = transactional && !useTransaction
-    if (useTransaction) {
-      await beginSessionTransaction(session_id)
-    }
-    try {
-      for (let i = 0; i < optimized_replacements.length; ++i) {
-        result = await replaceInternal(
-          session_id,
-          optimized_replacements[i].offset,
-          optimized_replacements[i].remove_bytes_count,
-          optimized_replacements[i].replacement,
-          stats,
-          replaceTransactionally
-        )
+  return await enqueueSessionMutation(session_id, async () => {
+    const optimized_replacements = editOptimizer(
+      original_segment,
+      edited_segment,
+      offset
+    )
+    let result = 0
+    if (optimized_replacements) {
+      const useTransaction = transactional && 1 < optimized_replacements.length
+      const replaceTransactionally = transactional && !useTransaction
+      const applyReplacements = async () => {
+        for (let i = 0; i < optimized_replacements.length; ++i) {
+          result = await replaceInternal(
+            session_id,
+            optimized_replacements[i].offset,
+            optimized_replacements[i].remove_bytes_count,
+            optimized_replacements[i].replacement,
+            stats,
+            replaceTransactionally
+          )
+        }
       }
-    } finally {
+
       if (useTransaction) {
-        await endSessionTransaction(session_id)
+        await runSessionTransaction(session_id, applyReplacements)
+      } else {
+        await applyReplacements()
       }
     }
-  }
-  return result
+    return result
+  })
 }
 
 /**
@@ -328,9 +331,11 @@ export async function editSimple(
  * @returns negative serial number of the undone change if successful
  */
 export function undo(session_id: string, stats?: IEditStats): Promise<number> {
-  return rawUndo(session_id, stats).then((serial) =>
-    requireSafeIntegerOutput('undo serial', serial)
-  )
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawUndo(session_id, stats).then((serial) =>
+      requireSafeIntegerOutput('undo serial', serial)
+    )
+  })
 }
 
 /**
@@ -340,9 +345,11 @@ export function undo(session_id: string, stats?: IEditStats): Promise<number> {
  * @returns positive serial number of the redone change if successful
  */
 export function redo(session_id: string, stats?: IEditStats): Promise<number> {
-  return rawRedo(session_id, stats).then((serial) =>
-    requireSafeIntegerOutput('redo serial', serial)
-  )
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawRedo(session_id, stats).then((serial) =>
+      requireSafeIntegerOutput('redo serial', serial)
+    )
+  })
 }
 
 /**
@@ -352,7 +359,9 @@ export function redo(session_id: string, stats?: IEditStats): Promise<number> {
  * @returns session id on success
  */
 export function clear(session_id: string, stats?: IEditStats): Promise<string> {
-  return rawClear(session_id, stats)
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawClear(session_id, stats)
+  })
 }
 
 /**
@@ -587,59 +596,62 @@ export async function edit(
   edited_segment: Uint8Array,
   stats?: IEditStats
 ): Promise<number> {
-  const optimized_edits = editOperations(
-    original_segment,
-    edited_segment,
-    offset
-  )
-  let result = 0
-  if (optimized_edits) {
-    const useTransaction = 1 < optimized_edits.length
-    if (useTransaction) {
-      await beginSessionTransaction(session_id)
-      await pauseViewportEvents(session_id)
-    }
-
-    try {
-      for (let i = 0; i < optimized_edits.length; ++i) {
-        switch (optimized_edits[i].type) {
-          case EditOperationType.Insert:
-            result = await insert(
-              session_id,
-              optimized_edits[i].start,
-              optimized_edits[i].data!,
-              stats
-            )
-            break
-          case EditOperationType.Delete:
-            result = await del(
-              session_id,
-              optimized_edits[i].start,
-              optimized_edits[i].length!,
-              stats
-            )
-            break
-          case EditOperationType.Overwrite:
-            result = await overwrite(
-              session_id,
-              optimized_edits[i].start,
-              optimized_edits[i].data!,
-              stats
-            )
-            break
-          default:
-            throw new Error('Unknown edit operation type')
+  return await enqueueSessionMutation(session_id, async () => {
+    const optimized_edits = editOperations(
+      original_segment,
+      edited_segment,
+      offset
+    )
+    let result = 0
+    if (optimized_edits) {
+      const useTransaction = 1 < optimized_edits.length
+      const applyEdits = async () => {
+        for (let i = 0; i < optimized_edits.length; ++i) {
+          switch (optimized_edits[i].type) {
+            case EditOperationType.Insert:
+              result = await insert(
+                session_id,
+                optimized_edits[i].start,
+                optimized_edits[i].data!,
+                stats
+              )
+              break
+            case EditOperationType.Delete:
+              result = await del(
+                session_id,
+                optimized_edits[i].start,
+                optimized_edits[i].length!,
+                stats
+              )
+              break
+            case EditOperationType.Overwrite:
+              result = await overwrite(
+                session_id,
+                optimized_edits[i].start,
+                optimized_edits[i].data!,
+                stats
+              )
+              break
+            default:
+              throw new Error('Unknown edit operation type')
+          }
         }
       }
-    } finally {
+
       if (useTransaction) {
-        await resumeViewportEvents(session_id)
-        await endSessionTransaction(session_id)
+        await pauseViewportEvents(session_id)
+        try {
+          await runSessionTransaction(session_id, applyEdits)
+        } finally {
+          await resumeViewportEvents(session_id)
+        }
+      } else {
+        await applyEdits()
+      }
+      if (useTransaction) {
+        await notifyChangedViewports(session_id)
       }
     }
-    if (useTransaction) {
-      await notifyChangedViewports(session_id)
-    }
-  }
-  return result
+    return result
+  })
 }

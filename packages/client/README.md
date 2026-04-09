@@ -84,6 +84,7 @@ await stopServerGraceful()
 | `stopServerImmediate()`                           | Immediate shutdown, returning status info |
 | `getServerInfo()`                                 | Runtime metadata for the native server    |
 | `getServerHeartbeat(sessions)`                    | Heartbeat and process health              |
+| `startServerHeartbeatLoop(options)`               | Managed liveness heartbeat loop           |
 
 Shutdown migration note:
 
@@ -98,6 +99,12 @@ Shutdown migration note:
 `getServerInfo()` and `getServerHeartbeat()` now expose native-runtime metadata instead of JVM-shaped placeholders.
 The client-facing TypeScript API is renamed, while the protobuf layer keeps the
 legacy fields for wire compatibility.
+
+Design rule:
+
+- Heartbeat is the only expected polling loop in a healthy OmegaEdit client.
+- Use `SubscribeToSessionEvents` and `SubscribeToViewportEvents` to keep UI state, computed file size, and viewport contents current.
+- If you are polling session or viewport state in steady-state operation, you are working around the design incorrectly and should fix the integration to consume subscriptions instead.
 
 Current `getServerInfo()` fields:
 
@@ -123,6 +130,8 @@ Current `getServerHeartbeat()` fields:
 - `serverResidentMemoryBytes?`
 - `serverVirtualMemoryBytes?`
 - `serverPeakResidentMemoryBytes?`
+
+`startServerHeartbeatLoop()` builds the sanctioned recurring heartbeat pattern on top of `getServerHeartbeat(sessionIds)`: it starts immediately by default, skips overlapping heartbeats, and routes results and errors through callbacks so integrations do not need to hand-roll their own timer logic.
 
 Migration notes:
 
@@ -153,7 +162,33 @@ Migration notes:
 | `getSessionBytes(sessionId, offset?, length?)`                            | Read session bytes in memory   |
 | `getSessionCount()`                                                       | Number of active sessions      |
 | `pauseSessionChanges(sessionId)` / `resumeSessionChanges(sessionId)`      | Pause/resume change tracking   |
+| `runSessionTransaction(sessionId, work)`                                  | Run scoped atomic edit work    |
 | `beginSessionTransaction(sessionId)` / `endSessionTransaction(sessionId)` | Group edits atomically         |
+
+Subscription-first guidance:
+
+- `getComputedFileSize(sessionId)` is a direct snapshot RPC, not a steady-state synchronization mechanism.
+- Long-lived clients should treat `subscribeSessionEvents(...)` as the authoritative source for computed file size and other session-derived state.
+- Long-lived viewport consumers should treat `subscribeViewportEvents(...)` as the authoritative source for viewport invalidation and refresh timing.
+- Prefer `runSessionTransaction(...)` over hand-managed `beginSessionTransaction(...)` / `endSessionTransaction(...)` pairs so transaction scope is enforced in one function.
+- Outside of heartbeat, polling is a design smell. If a consumer needs repeated polling to stay correct, the right fix is to expose or consume the relevant event stream.
+
+### Subscriptions
+
+| Function                                                                | Description                   |
+| ----------------------------------------------------------------------- | ----------------------------- |
+| `subscribeSessionEvents({ sessionId, interest?, onEvent, onError? })`   | Managed session event stream  |
+| `subscribeViewportEvents({ viewportId, interest?, onEvent, onError? })` | Managed viewport event stream |
+
+These helpers wrap the raw server-stream subscriptions and own the repetitive parts of integration:
+
+- building the subscription request
+- attaching `data` and `error` handlers
+- ignoring expected cancel/reset shutdown noise
+- routing callback failures through `onError`
+- exposing a simple `cancel()` handle for teardown
+
+Use them instead of wiring raw gRPC streams by hand in application code.
 
 ### Editing
 

@@ -399,10 +399,12 @@ The table below are the session-level events that will generate a callback if th
 | SESSION_EVT_CREATE_CHECKPOINT | Occurs when the session has successfully created a checkpoint | _not used_ |
 | SESSION_EVT_DESTROY_CHECKPOINT | Occurs when the session has successfully destroyed a checkpoint | _not used_ |
 | SESSION_EVT_SAVE | Occurs when the session has been successfully saved to file | const char * |
-| SESSION_EVT_CHANGES_PAUSED | Occurs when the session changes have been paused | _not used_ |
-| SESSION_EVT_CHANGES_RESUMED | Occurs when the session changes have been resumed | _not used_ |
+| SESSION_EVT_CHANGES_PAUSED | Occurs when the session has been placed into an explicit no-edits state | _not used_ |
+| SESSION_EVT_CHANGES_RESUMED | Occurs when an explicitly paused session has resumed accepting edits | _not used_ |
 | SESSION_EVT_CREATE_VIEWPORT | Occurs when the session has successfully created a viewport | omega_viewport_t |
 | SESSION_EVT_DESTROY_VIEWPORT | Occurs when the session has successfully destroyed a viewport | omega_viewport_t |
+| SESSION_EVT_TRANSACTION_STARTED | Occurs when a session transaction has been opened | _not used_ |
+| SESSION_EVT_TRANSACTION_ENDED | Occurs when an open session transaction has been ended | _not used_ |
 
 ### Viewports
 
@@ -585,6 +587,8 @@ int64_t omega_session_get_num_undone_change_transactions(const omega_session_t *
 ```
 
 To bundle a series of edit operations together so that they can be undone / redone in a single undo or redo operation, call `omega_session_begin_transaction` before issuing the series of edit operations, then call `omega_session_end_transaction` to complete the transaction. The single edits will still behave the same way as they do outside of a transaction, with the data being updated, events being generated and so on. The number of transactions define the number of undos and redos available. Individual changes outside of declared transactions are implicit transactions containing the single change. If no transactions were used, the numbers returned from `omega_session_get_num_change_transactions` and `omega_session_get_num_undone_change_transactions` will be the number of changes in their respective stacks. If there are transactions that bundle two or more changes, then `omega_session_get_num_change_transactions` and `omega_session_get_num_undone_change_transactions` will have counts that will be less than the change counts for their respective stacks. Use transactions when a series of changes need to be undone and redone atomically (e.g., replace operations where the length of the data being replaced is different than the length of the replacement, so use a transaction containing a delete of the data being replaced, followed by an insert of the replacement data so that an undo undoes those 2 operations with a single undo call).
+
+Transactions should be scoped to a bounded unit of work and opened and closed in the same function. They are not intended to be long-lived session state held open across unrelated client activity.
 
 ## Checkpoints
 
@@ -815,6 +819,18 @@ The Ωedit™ RPC services are efficiently implemented using gRPC ([https://grpc
 #### Event Streams
 
 gRPC uses HTTP/2, which among other benefits, provides single and bidirectional streaming. Ωedit™ uses two single directional streams to stream session, and viewport event information, from the server to the client.
+
+These event streams are the authoritative mechanism for keeping clients synchronized with session and viewport state.
+
+- `SubscribeToSessionEvents` should be used to track computed file size and other session-derived state.
+- `SubscribeToSessionEvents` also carries transaction lifecycle signals such as `TRANSACTION_STARTED` and `TRANSACTION_ENDED`, so clients can observe session-wide transactional activity without polling.
+- Session `EDIT` / `UNDO` notifications for grouped transactional work are coalesced to the final post-transaction state rather than emitted once per internal step.
+- `SubscribeToViewportEvents` should be used to track viewport invalidation and refresh timing.
+- `@omega-edit/client` provides `subscribeSessionEvents(...)` and `subscribeViewportEvents(...)` so integrations can consume those streams without reimplementing the same boilerplate.
+- `@omega-edit/client` also applies per-session mutation backpressure so new client-side edits wait behind an in-flight transaction instead of racing into it.
+- Heartbeat is the only expected polling loop, because the server needs periodic liveness confirmation so abandoned sessions can be reaped safely.
+
+If a client is polling session or viewport state outside of heartbeat, that is not the intended OmegaEdit design. Treat it as a design insufficiency and fix the integration to consume the appropriate subscription stream instead of busy polling.
 
 ## Testing
 

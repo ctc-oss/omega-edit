@@ -184,6 +184,17 @@ service EditorService {
   // reverse search, with optional offset/length bounds and a match limit.
   rpc SearchSession(SearchSessionRequest) returns (SearchSessionResponse);
 
+  // Replace all non-overlapping matches in a session range by streaming the
+  // rewritten content into a checkpoint-backed model. Returns the number of
+  // replacements performed.
+  rpc ReplaceSessionCheckpointed(ReplaceSessionCheckpointedRequest)
+      returns (ReplaceSessionCheckpointedResponse);
+
+  // Revert the most recent checkpoint-backed rewrite by destroying the last
+  // checkpoint model and exposing the previous model again.
+  rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest)
+      returns (DestroyLastCheckpointResponse);
+
   // Compute a byte-frequency histogram (256 buckets, one per byte value) over
   // a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.
   rpc GetByteFrequencyProfile(GetByteFrequencyProfileRequest) returns (GetByteFrequencyProfileResponse);
@@ -277,6 +288,10 @@ enum SessionEventKind {
   SESSION_EVENT_KIND_CREATE_VIEWPORT = 1024;
   // A viewport was destroyed on this session.
   SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
+  // A transaction was opened on this session.
+  SESSION_EVENT_KIND_TRANSACTION_STARTED = 4096;
+  // An open transaction was ended on this session.
+  SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
 }
 
 // Viewport-level event kinds.  Values are powers of two so they can be OR'd
@@ -829,6 +844,38 @@ message SearchSessionResponse {
   int64 offset = 5;                // Starting offset of the search range.
   int64 length = 6;                // Length of the search range.
   repeated int64 match_offset = 7; // Byte offsets of each match.
+}
+
+// Request to replace all non-overlapping matches by checkpointed streaming.
+message ReplaceSessionCheckpointedRequest {
+  string session_id = 1;                 // Session to edit.
+  bytes pattern = 2;                     // Byte pattern to replace.
+  bytes replacement = 3;                 // Replacement bytes.
+  optional bool is_case_insensitive = 4; // When true, perform case-insensitive matching.
+  optional int64 offset = 5;             // Starting byte offset of the replace-all range.
+  optional int64 length = 6;             // Number of bytes to process within the session.
+}
+
+// Result of a checkpointed replace-all operation.
+message ReplaceSessionCheckpointedResponse {
+  string session_id = 1;         // Session that was edited.
+  bytes pattern = 2;             // The pattern that was replaced.
+  bytes replacement = 3;         // The replacement bytes that were written.
+  bool is_case_insensitive = 4;  // Whether the match was case-insensitive.
+  int64 offset = 5;              // Starting offset of the processed range.
+  int64 length = 6;              // Length of the processed range.
+  int64 replacement_count = 7;   // Number of replacements performed.
+}
+
+// Request to remove the most recent checkpoint model from a session.
+message DestroyLastCheckpointRequest {
+  string session_id = 1; // Session to revert.
+}
+
+// Result of removing the most recent checkpoint model.
+message DestroyLastCheckpointResponse {
+  string session_id = 1;             // Session that was reverted.
+  int64 remaining_checkpoints = 2;   // Remaining checkpoint count after revert.
 }
 
 // Request to compute a byte-frequency histogram.

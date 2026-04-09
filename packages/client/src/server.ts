@@ -1246,6 +1246,20 @@ export interface IServerHeartbeat {
   serverPeakResidentMemoryBytes?: number // peak resident memory in bytes
 }
 
+export interface ServerHeartbeatLoopOptions {
+  intervalMs?: number
+  getSessionIds(): string[] | Promise<string[]>
+  getHeartbeat?(sessionIds: string[]): Promise<IServerHeartbeat>
+  onHeartbeat?(heartbeat: IServerHeartbeat): void | Promise<void>
+  onError?(error: Error): void | Promise<void>
+  immediate?: boolean
+}
+
+export interface ServerHeartbeatLoop {
+  stop(): void
+  tick(): Promise<void>
+}
+
 /**
  * Get the server heartbeat
  * @param activeSessions list of active sessions
@@ -1329,4 +1343,94 @@ export async function getServerHeartbeat(
       }
     )
   })
+}
+
+export function startServerHeartbeatLoop(
+  options: ServerHeartbeatLoopOptions
+): ServerHeartbeatLoop {
+  const intervalMs = options.intervalMs ?? 5000
+  if (!Number.isInteger(intervalMs) || intervalMs <= 0) {
+    throw new Error('heartbeat intervalMs must be a positive integer')
+  }
+
+  const log = getLogger()
+  const logMetadata = { fn: 'startServerHeartbeatLoop' }
+  const getHeartbeat = options.getHeartbeat ?? getServerHeartbeat
+  let stopped = false
+  let heartbeatTask: Promise<void> | undefined
+
+  const invokeErrorHandler = async (error: Error): Promise<void> => {
+    if (!options.onError) {
+      log.warn({
+        ...logMetadata,
+        err: {
+          msg: error.message,
+          stack: error.stack,
+        },
+      })
+      return
+    }
+
+    try {
+      await options.onError(error)
+    } catch (callbackError) {
+      log.error({
+        ...logMetadata,
+        err: {
+          msg:
+            callbackError instanceof Error
+              ? callbackError.message
+              : String(callbackError),
+          stack:
+            callbackError instanceof Error ? callbackError.stack : undefined,
+        },
+      })
+    }
+  }
+
+  const runHeartbeat = async (): Promise<void> => {
+    if (stopped || heartbeatTask) {
+      return heartbeatTask
+    }
+
+    heartbeatTask = (async () => {
+      try {
+        const sessionIds = [...(await options.getSessionIds())]
+        const heartbeat = await getHeartbeat(sessionIds)
+        if (stopped) {
+          return
+        }
+        await options.onHeartbeat?.(heartbeat)
+      } catch (error) {
+        if (stopped) {
+          return
+        }
+        await invokeErrorHandler(
+          error instanceof Error ? error : new Error(String(error))
+        )
+      } finally {
+        heartbeatTask = undefined
+      }
+    })()
+
+    return heartbeatTask
+  }
+
+  if (options.immediate !== false) {
+    void runHeartbeat()
+  }
+
+  const timer = setInterval(() => {
+    void runHeartbeat()
+  }, intervalMs)
+
+  return {
+    stop() {
+      stopped = true
+      clearInterval(timer)
+    },
+    async tick() {
+      await runHeartbeat()
+    },
+  }
 }

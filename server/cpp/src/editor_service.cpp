@@ -264,6 +264,27 @@ static grpc::Status validate_change_payload_size(const ::omega_edit::v1::SubmitC
                             std::to_string(max_change_bytes) + " bytes");
 }
 
+static grpc::Status validate_replace_checkpointed_payload_sizes(
+        const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request, int64_t max_change_bytes) {
+    if (max_change_bytes <= 0) {
+        return grpc::Status::OK;
+    }
+
+    if (request->pattern().size() > static_cast<size_t>(max_change_bytes)) {
+        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "checkpointed replace pattern exceeds configured limit of " +
+                                    std::to_string(max_change_bytes) + " bytes");
+    }
+
+    if (request->replacement().size() > static_cast<size_t>(max_change_bytes)) {
+        return grpc::Status(grpc::StatusCode::RESOURCE_EXHAUSTED,
+                            "checkpointed replace replacement exceeds configured limit of " +
+                                    std::to_string(max_change_bytes) + " bytes");
+    }
+
+    return grpc::Status::OK;
+}
+
 EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                      std::function<void()> shutdown_callback)
     : session_manager_(resource_limits), start_time_(std::chrono::steady_clock::now()),
@@ -1166,6 +1187,98 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
         omega_search_destroy_context(ctx);
     }
 
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
+        ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) {
+    auto *session = session_manager_.get_session(request->session_id());
+    if (!session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+
+    session_manager_.touch_session(request->session_id());
+    const bool case_insensitive =
+            request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
+    const int64_t offset = request->has_offset() ? request->offset() : 0;
+    const int64_t length = request->has_length() ? request->length() : 0;
+
+    if (offset < 0 || length < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "checkpointed replace offset and length must be non-negative");
+    }
+
+    const auto session_size = omega_session_get_computed_file_size(session);
+    if (offset > session_size) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "checkpointed replace offset " + std::to_string(offset) +
+                                    " exceeds session size " + std::to_string(session_size) +
+                                    " for session: " + request->session_id());
+    }
+
+    const auto payload_status =
+            validate_replace_checkpointed_payload_sizes(request, resource_limits_.max_change_bytes);
+    if (!payload_status.ok()) {
+        return payload_status;
+    }
+
+    if (request->pattern().empty()) {
+        response->set_session_id(request->session_id());
+        response->set_pattern(request->pattern());
+        response->set_replacement(request->replacement());
+        response->set_is_case_insensitive(case_insensitive);
+        response->set_offset(offset);
+        response->set_length(length);
+        response->set_replacement_count(0);
+        return grpc::Status::OK;
+    }
+
+    if (omega_session_changes_paused(session) != 0) {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                            "checkpointed replace requires active session changes for session: " +
+                                    request->session_id());
+    }
+
+    int64_t replacement_count = 0;
+    const auto rc = omega_edit_replace_all_bytes(
+            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+            static_cast<int64_t>(request->pattern().size()),
+            reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, offset, length,
+            &replacement_count);
+    if (rc != 0) {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            "checkpointed replace failed for session: " + request->session_id());
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_pattern(request->pattern());
+    response->set_replacement(request->replacement());
+    response->set_is_case_insensitive(case_insensitive);
+    response->set_offset(offset);
+    response->set_length(length);
+    response->set_replacement_count(replacement_count);
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
+        ::omega_edit::v1::DestroyLastCheckpointResponse *response) {
+    auto *session = session_manager_.get_session(request->session_id());
+    if (!session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+
+    session_manager_.touch_session(request->session_id());
+    if (0 != omega_edit_destroy_last_checkpoint(session)) {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "no checkpoint available to destroy");
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_remaining_checkpoints(omega_session_get_num_checkpoints(session));
     return grpc::Status::OK;
 }
 

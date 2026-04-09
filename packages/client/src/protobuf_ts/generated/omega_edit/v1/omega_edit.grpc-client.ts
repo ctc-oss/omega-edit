@@ -35,6 +35,10 @@ import type { GetCharacterCountsResponse } from './omega_edit'
 import type { GetCharacterCountsRequest } from './omega_edit'
 import type { GetByteFrequencyProfileResponse } from './omega_edit'
 import type { GetByteFrequencyProfileRequest } from './omega_edit'
+import type { DestroyLastCheckpointResponse } from './omega_edit'
+import type { DestroyLastCheckpointRequest } from './omega_edit'
+import type { ReplaceSessionCheckpointedResponse } from './omega_edit'
+import type { ReplaceSessionCheckpointedRequest } from './omega_edit'
 import type { SearchSessionResponse } from './omega_edit'
 import type { SearchSessionRequest } from './omega_edit'
 import type { GetSegmentResponse } from './omega_edit'
@@ -1308,6 +1312,83 @@ export interface IEditorServiceClient {
     callback: (
       err: grpc.ServiceError | null,
       value?: SearchSessionResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Replace all non-overlapping matches in a session range by streaming the
+   * rewritten content into a checkpoint-backed model. Returns the number of
+   * replacements performed.
+   *
+   * @generated from protobuf rpc: ReplaceSessionCheckpointed
+   */
+  replaceSessionCheckpointed(
+    input: ReplaceSessionCheckpointedRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ReplaceSessionCheckpointedResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  replaceSessionCheckpointed(
+    input: ReplaceSessionCheckpointedRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ReplaceSessionCheckpointedResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  replaceSessionCheckpointed(
+    input: ReplaceSessionCheckpointedRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ReplaceSessionCheckpointedResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  replaceSessionCheckpointed(
+    input: ReplaceSessionCheckpointedRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ReplaceSessionCheckpointedResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Revert the most recent checkpoint-backed rewrite by destroying the last
+   * checkpoint model and exposing the previous model again.
+   *
+   * @generated from protobuf rpc: DestroyLastCheckpoint
+   */
+  destroyLastCheckpoint(
+    input: DestroyLastCheckpointRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  destroyLastCheckpoint(
+    input: DestroyLastCheckpointRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  destroyLastCheckpoint(
+    input: DestroyLastCheckpointRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  destroyLastCheckpoint(
+    input: DestroyLastCheckpointRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: DestroyLastCheckpointResponse
     ) => void
   ): grpc.ClientUnaryCall
   /**
@@ -2837,6 +2918,91 @@ export class EditorServiceClient
     )
   }
   /**
+   * Replace all non-overlapping matches in a session range by streaming the
+   * rewritten content into a checkpoint-backed model. Returns the number of
+   * replacements performed.
+   *
+   * @generated from protobuf rpc: ReplaceSessionCheckpointed
+   */
+  replaceSessionCheckpointed(
+    input: ReplaceSessionCheckpointedRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ReplaceSessionCheckpointedResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ReplaceSessionCheckpointedResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: ReplaceSessionCheckpointedResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[31]
+    return this.makeUnaryRequest<
+      ReplaceSessionCheckpointedRequest,
+      ReplaceSessionCheckpointedResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: ReplaceSessionCheckpointedRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): ReplaceSessionCheckpointedResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
+   * Revert the most recent checkpoint-backed rewrite by destroying the last
+   * checkpoint model and exposing the previous model again.
+   *
+   * @generated from protobuf rpc: DestroyLastCheckpoint
+   */
+  destroyLastCheckpoint(
+    input: DestroyLastCheckpointRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: DestroyLastCheckpointResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: DestroyLastCheckpointResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[32]
+    return this.makeUnaryRequest<
+      DestroyLastCheckpointRequest,
+      DestroyLastCheckpointResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: DestroyLastCheckpointRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): DestroyLastCheckpointResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
    * Compute a byte-frequency histogram (256 buckets, one per byte value) over
    * a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.
    *
@@ -2862,7 +3028,7 @@ export class EditorServiceClient
       value?: GetByteFrequencyProfileResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[31]
+    const method = EditorService.methods[33]
     return this.makeUnaryRequest<
       GetByteFrequencyProfileRequest,
       GetByteFrequencyProfileResponse
@@ -2904,7 +3070,7 @@ export class EditorServiceClient
       value?: GetCharacterCountsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[32]
+    const method = EditorService.methods[34]
     return this.makeUnaryRequest<
       GetCharacterCountsRequest,
       GetCharacterCountsResponse
@@ -2949,7 +3115,7 @@ export class EditorServiceClient
       value?: ServerControlResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[33]
+    const method = EditorService.methods[35]
     return this.makeUnaryRequest<ServerControlRequest, ServerControlResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ServerControlRequest): Buffer =>
@@ -2982,7 +3148,7 @@ export class EditorServiceClient
       value?: GetHeartbeatResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[34]
+    const method = EditorService.methods[36]
     return this.makeUnaryRequest<GetHeartbeatRequest, GetHeartbeatResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetHeartbeatRequest): Buffer =>
@@ -3011,7 +3177,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> {
-    const method = EditorService.methods[35]
+    const method = EditorService.methods[37]
     return this.makeServerStreamRequest<
       SubscribeToSessionEventsRequest,
       SubscribeToSessionEventsResponse
@@ -3037,7 +3203,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> {
-    const method = EditorService.methods[36]
+    const method = EditorService.methods[38]
     return this.makeServerStreamRequest<
       SubscribeToViewportEventsRequest,
       SubscribeToViewportEventsResponse
@@ -3077,7 +3243,7 @@ export class EditorServiceClient
       value?: UnsubscribeToSessionEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[37]
+    const method = EditorService.methods[39]
     return this.makeUnaryRequest<
       UnsubscribeToSessionEventsRequest,
       UnsubscribeToSessionEventsResponse
@@ -3118,7 +3284,7 @@ export class EditorServiceClient
       value?: UnsubscribeToViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[38]
+    const method = EditorService.methods[40]
     return this.makeUnaryRequest<
       UnsubscribeToViewportEventsRequest,
       UnsubscribeToViewportEventsResponse

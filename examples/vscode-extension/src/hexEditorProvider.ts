@@ -32,26 +32,30 @@ import {
   createSession,
   createViewport,
   del,
+  destroyLastCheckpoint,
   destroySession,
   destroyViewport,
-  EventSubscriptionRequest,
   editSimple,
-  getClient,
   getClientVersion,
   getComputedFileSize,
   getSegment,
-  getServerHeartbeat,
   getServerInfo,
   getViewportData,
   IOFlags,
+  type IServerInfo,
   insert,
   modifyViewport,
   overwrite,
+  replaceSessionCheckpointed,
   replaceSession,
   redo,
   SessionEventKind,
   saveSession,
   searchSession,
+  subscribeSessionEvents,
+  subscribeViewportEvents,
+  startServerHeartbeatLoop,
+  type ServerHeartbeatLoop,
   undo,
   ViewportEventKind,
 } from '@omega-edit/client'
@@ -63,6 +67,8 @@ interface EditorSession {
   sessionId: string
   viewportId: string
   fileSize: number
+  changeCount: number
+  sessionSyncVersion: number
   offset: number
   visibleRows: number
   capacity: number
@@ -71,14 +77,28 @@ interface EditorSession {
   panel: vscode.WebviewPanel
   changeLog: ChangeRecord[]
   undoneChangeLog: ChangeRecord[]
+  transactionLog: TransactionRecord[]
+  undoneTransactionLog: TransactionRecord[]
   disposed: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
   viewportStream?: { cancel(): void }
   sessionStream?: { cancel(): void }
+  sessionSyncWaiters: SessionSyncWaiter[]
+  preserveSearchState?: boolean
 }
 
 type ChangeRecordKind = 'INSERT' | 'DELETE' | 'OVERWRITE' | 'REPLACE'
+
+type TransactionRecord =
+  | { kind: 'LOCAL' }
+  | {
+      kind: 'CHECKPOINT_REPLACE_ALL'
+      query: string
+      isHex: boolean
+      caseInsensitive: boolean
+      data: string
+    }
 
 interface ChangeRecord {
   serial: number
@@ -98,11 +118,19 @@ interface ServerHealthState {
   metrics: Array<{ label: string; value: string }>
 }
 
+interface SessionSyncWaiter {
+  minimumVersion: number
+  resolve(): void
+  reject(error: Error): void
+  timeout: ReturnType<typeof setTimeout>
+}
+
 const SESSION_SYNC_TIMEOUT_MS = 2000
-const SESSION_SYNC_POLL_MS = 25
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
+const SEARCH_WINDOW_LIMIT = 1000
+const SEARCH_WINDOW_PROBE_LIMIT = SEARCH_WINDOW_LIMIT + 1
 
 function classifyServerHealthLatency(
   latencyMs: number
@@ -141,13 +169,13 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   /** The editor that last had focus (for goToOffset command routing) */
   private activeSession: EditorSession | undefined
 
-  private heartbeatTimer: ReturnType<typeof setInterval> | undefined
+  private heartbeatLoop: ServerHeartbeatLoop | undefined
 
-  private heartbeatInFlight = false
+  private serverInfo: IServerInfo | undefined
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly port: number
+    _port: number
   ) {}
 
   private getViewportCapacity(bytesPerRow: number): number {
@@ -225,6 +253,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       sessionId,
       viewportId,
       fileSize,
+      changeCount: 0,
+      sessionSyncVersion: 0,
       offset: 0,
       visibleRows: 32,
       capacity,
@@ -233,7 +263,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       panel: webviewPanel,
       changeLog: [],
       undoneChangeLog: [],
+      transactionLog: [],
+      undoneTransactionLog: [],
       disposed: false,
+      sessionSyncWaiters: [],
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
@@ -248,8 +281,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     this.startHealthPolling()
 
     // --- Subscribe to viewport events for live updates ---
-    this.subscribeToViewportEvents(session)
-    this.subscribeToSessionEvents(session)
+    await Promise.all([
+      this.subscribeToViewportEvents(session),
+      this.subscribeToSessionEvents(session),
+    ])
 
     // --- Handle messages FROM the webview ---
     webviewPanel.webview.onDidReceiveMessage(
@@ -268,6 +303,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     // --- Cleanup on close ---
     webviewPanel.onDidDispose(async () => {
       session.disposed = true
+      this.rejectSessionSyncWaiters(
+        session,
+        new Error('Session disposed before sync completed')
+      )
       this.sessions.delete(uri.toString())
       if (this.activeSession === session) {
         this.activeSession = undefined
@@ -378,14 +417,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private async subscribeToViewportEvents(
     session: EditorSession
   ): Promise<void> {
-    const client = await getClient(this.port)
-    const request = new EventSubscriptionRequest()
-      .setId(session.viewportId)
-      .setInterest(ALL_EVENTS)
-
-    const vpStream = client
-      .subscribeToViewportEvents(request)
-      .on('data', async (event) => {
+    session.viewportStream = await subscribeViewportEvents({
+      viewportId: session.viewportId,
+      interest: ALL_EVENTS,
+      onEvent: async (event) => {
         const kind = event.getViewportEventKind()
         if (
           kind === ViewportEventKind.EDIT ||
@@ -396,11 +431,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         ) {
           await this.sendViewportData(session)
         }
-      })
-      .on('error', () => {
-        // Stream closed â€” expected during shutdown
-      })
-    session.viewportStream = vpStream
+      },
+      onError: () => {
+        // Stream closed - expected during shutdown
+      },
+    })
   }
 
   /**
@@ -409,29 +444,36 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private async subscribeToSessionEvents(
     session: EditorSession
   ): Promise<void> {
-    const client = await getClient(this.port)
-    const request = new EventSubscriptionRequest()
-      .setId(session.sessionId)
-      .setInterest(ALL_EVENTS)
-
-    const sesStream = client
-      .subscribeToSessionEvents(request)
-      .on('data', async (event) => {
+    session.sessionStream = await subscribeSessionEvents({
+      sessionId: session.sessionId,
+      interest: ALL_EVENTS,
+      onEvent: (event) => {
         const kind = event.getSessionEventKind()
         if (
           kind === SessionEventKind.EDIT ||
           kind === SessionEventKind.UNDO ||
-          kind === SessionEventKind.CLEAR
+          kind === SessionEventKind.CLEAR ||
+          kind === SessionEventKind.TRANSFORM
         ) {
-          session.fileSize = await getComputedFileSize(session.sessionId)
-          session.panel.webview.postMessage({
-            type: 'fileSizeChanged',
-            fileSize: session.fileSize,
-          })
+          this.applySessionStateUpdate(
+            session,
+            event.getComputedFileSize(),
+            event.getChangeCount()
+          )
+          if (!session.preserveSearchState) {
+            this.clearSearchState(session)
+          }
         }
-      })
-      .on('error', () => {})
-    session.sessionStream = sesStream
+      },
+      onError: () => {
+        if (!session.disposed) {
+          this.rejectSessionSyncWaiters(
+            session,
+            new Error('Session event stream closed before sync completed')
+          )
+        }
+      },
+    })
   }
 
   // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -483,8 +525,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private postEditState(session: EditorSession): void {
-    const undoCount = this.getTransactionCount(session.changeLog)
-    const redoCount = this.getTransactionCount(session.undoneChangeLog)
+    const undoCount = session.transactionLog.length
+    const redoCount = session.undoneTransactionLog.length
     session.panel.webview.postMessage({
       type: 'editState',
       canUndo: undoCount > 0,
@@ -496,40 +538,83 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     })
   }
 
-  private async refreshSessionFileSize(
+  private applySessionStateUpdate(
     session: EditorSession,
-    expectedFileSize?: number
-  ): Promise<void> {
-    let nextFileSize = session.fileSize
-    const deadline = Date.now() + SESSION_SYNC_TIMEOUT_MS
-
-    while (Date.now() <= deadline) {
-      nextFileSize = await getComputedFileSize(session.sessionId)
-      if (
-        expectedFileSize === undefined
-          ? nextFileSize !== session.fileSize
-          : nextFileSize === expectedFileSize
-      ) {
-        break
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, SESSION_SYNC_POLL_MS))
-    }
-
-    if (expectedFileSize !== undefined && nextFileSize !== expectedFileSize) {
-      throw new Error(
-        `Timed out waiting for session size ${expectedFileSize}; last size was ${nextFileSize}`
-      )
-    }
-
-    if (nextFileSize === session.fileSize) {
-      return
-    }
-
+    nextFileSize: number,
+    nextChangeCount: number
+  ): void {
     session.fileSize = nextFileSize
+    session.changeCount = nextChangeCount
+    session.sessionSyncVersion += 1
     session.panel.webview.postMessage({
       type: 'fileSizeChanged',
       fileSize: nextFileSize,
+    })
+    this.resolveSessionSyncWaiters(session)
+  }
+
+  private resolveSessionSyncWaiters(session: EditorSession): void {
+    const remainingWaiters: SessionSyncWaiter[] = []
+
+    for (const waiter of session.sessionSyncWaiters) {
+      if (session.sessionSyncVersion > waiter.minimumVersion) {
+        clearTimeout(waiter.timeout)
+        waiter.resolve()
+        continue
+      }
+
+      remainingWaiters.push(waiter)
+    }
+
+    session.sessionSyncWaiters = remainingWaiters
+  }
+
+  private rejectSessionSyncWaiters(session: EditorSession, error: Error): void {
+    const waiters = session.sessionSyncWaiters
+    session.sessionSyncWaiters = []
+    for (const waiter of waiters) {
+      clearTimeout(waiter.timeout)
+      waiter.reject(error)
+    }
+  }
+
+  private waitForSessionSync(
+    session: EditorSession,
+    minimumVersion: number,
+    timeoutMs: number = SESSION_SYNC_TIMEOUT_MS
+  ): Promise<void> {
+    if (session.sessionSyncVersion > minimumVersion) {
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let waiter: SessionSyncWaiter
+      const removeWaiter = () => {
+        session.sessionSyncWaiters = session.sessionSyncWaiters.filter(
+          (pendingWaiter) => pendingWaiter !== waiter
+        )
+      }
+
+      waiter = {
+        minimumVersion,
+        resolve: () => {
+          removeWaiter()
+          resolve()
+        },
+        reject: (error) => {
+          removeWaiter()
+          reject(error)
+        },
+        timeout: setTimeout(() => {
+          waiter.reject(
+            new Error(
+              `Timed out waiting for session sync; version=${session.sessionSyncVersion} changeCount=${session.changeCount} fileSize=${session.fileSize}`
+            )
+          )
+        }, timeoutMs),
+      }
+
+      session.sessionSyncWaiters.push(waiter)
     })
   }
 
@@ -544,26 +629,99 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
     session.changeLog.push(...changes)
     session.undoneChangeLog = []
+    this.recordTransaction(session, { kind: 'LOCAL' })
+  }
+
+  private recordTransaction(
+    session: EditorSession,
+    transaction: TransactionRecord
+  ): void {
+    session.transactionLog.push(transaction)
+    session.undoneTransactionLog = []
     this.postEditState(session)
   }
 
-  private getTransactionCount(changes: ChangeRecord[]): number {
-    let count = 0
-    let previousGroupId: string | undefined
+  private clearSearchState(session: EditorSession): void {
+    session.panel.webview.postMessage({ type: 'searchStateCleared' })
+  }
 
-    for (const change of changes) {
-      if (change.groupId) {
-        if (change.groupId !== previousGroupId) {
-          count += 1
+  private async findAdjacentMatch(
+    session: EditorSession,
+    pattern: Uint8Array,
+    caseInsensitive: boolean,
+    direction: 'forward' | 'backward',
+    anchorOffset: number
+  ): Promise<number> {
+    if (session.fileSize <= 0) {
+      return -1
+    }
+
+    const clampedAnchor =
+      Number.isSafeInteger(anchorOffset) && anchorOffset >= 0
+        ? Math.min(anchorOffset, Math.max(0, session.fileSize - 1))
+        : -1
+
+    if (direction === 'forward') {
+      if (clampedAnchor >= 0 && clampedAnchor + 1 < session.fileSize) {
+        const matches = await searchSession(
+          session.sessionId,
+          pattern,
+          caseInsensitive,
+          false,
+          clampedAnchor + 1,
+          0,
+          1
+        )
+        if (matches.length > 0) {
+          return matches[0]
         }
-        previousGroupId = change.groupId
-      } else {
-        count += 1
-        previousGroupId = undefined
+      }
+
+      const wrappedMatches = await searchSession(
+        session.sessionId,
+        pattern,
+        caseInsensitive,
+        false,
+        0,
+        clampedAnchor > 0 ? clampedAnchor : 0,
+        1
+      )
+      return wrappedMatches[0] ?? -1
+    }
+
+    if (clampedAnchor > 0) {
+      const matches = await searchSession(
+        session.sessionId,
+        pattern,
+        caseInsensitive,
+        true,
+        0,
+        clampedAnchor,
+        1
+      )
+      if (matches.length > 0) {
+        return matches[0]
       }
     }
 
-    return count
+    const wrappedMatches = await searchSession(
+      session.sessionId,
+      pattern,
+      caseInsensitive,
+      true,
+      clampedAnchor >= 0 ? clampedAnchor + 1 : 0,
+      0,
+      1
+    )
+    return wrappedMatches[0] ?? -1
+  }
+
+  private markCheckpointedReplaceAll(
+    session: EditorSession,
+    transaction: Extract<TransactionRecord, { kind: 'CHECKPOINT_REPLACE_ALL' }>
+  ): void {
+    session.undoneChangeLog = []
+    this.recordTransaction(session, transaction)
   }
 
   private moveLastTransaction(
@@ -587,36 +745,54 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private startHealthPolling(): void {
-    if (this.heartbeatTimer) {
+    if (this.heartbeatLoop) {
       return
     }
 
-    void this.publishServerHealth()
-    this.heartbeatTimer = setInterval(() => {
-      void this.publishServerHealth()
-    }, 5000)
+    this.heartbeatLoop = startServerHeartbeatLoop({
+      intervalMs: 5000,
+      getSessionIds: () =>
+        Array.from(this.sessions.values(), (session) => session.sessionId),
+      onHeartbeat: async (heartbeat) => {
+        await this.publishServerHealth(heartbeat)
+      },
+      onError: (error) => {
+        this.serverInfo = undefined
+        this.broadcastServerHealth({
+          type: 'serverHealth',
+          ok: false,
+          summary: 'Ωedit™ unavailable',
+          detail: error.message,
+          severity: 'down',
+          metrics: [{ label: 'Error', value: error.message }],
+        })
+      },
+    })
   }
 
   private stopHealthPolling(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = undefined
-    }
+    this.heartbeatLoop?.stop()
+    this.heartbeatLoop = undefined
+    this.serverInfo = undefined
   }
 
-  private async publishServerHealth(): Promise<void> {
-    if (this.heartbeatInFlight || this.sessions.size === 0) {
+  private async publishServerHealth(heartbeat: {
+    latency: number
+    sessionCount: number
+    serverUptime: number
+    serverCpuCount: number
+    serverCpuLoadAverage?: number
+    serverResidentMemoryBytes?: number
+    serverVirtualMemoryBytes?: number
+    serverPeakResidentMemoryBytes?: number
+  }): Promise<void> {
+    if (this.sessions.size === 0) {
       return
     }
 
-    this.heartbeatInFlight = true
     try {
-      const [serverInfo, heartbeat] = await Promise.all([
-        getServerInfo(),
-        getServerHeartbeat(
-          Array.from(this.sessions.values(), (session) => session.sessionId)
-        ),
-      ])
+      this.serverInfo ??= await getServerInfo()
+      const serverInfo = this.serverInfo
 
       const uptimeSeconds = Math.max(
         0,
@@ -736,8 +912,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         severity: 'down',
         metrics: [{ label: 'Error', value: message }],
       })
-    } finally {
-      this.heartbeatInFlight = false
     }
   }
 
@@ -752,10 +926,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     changes: ChangeRecord[]
   ): Promise<void> {
     for (const change of changes) {
-      const expectedFileSize = this.getExpectedFileSizeAfterRecord(
-        session.fileSize,
-        change
-      )
+      const sessionSyncVersion = session.sessionSyncVersion
+      let shouldWaitForSync = true
       switch (change.kind) {
         case 'INSERT': {
           const serial = await insert(
@@ -803,7 +975,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           break
         }
         case 'REPLACE':
-          await this.applyReplace(
+          shouldWaitForSync = await this.applyReplace(
             session,
             change.offset,
             change.length,
@@ -812,24 +984,9 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           )
           break
       }
-      await this.refreshSessionFileSize(session, expectedFileSize)
-    }
-  }
-
-  private getExpectedFileSizeAfterRecord(
-    currentFileSize: number,
-    change: Pick<ChangeRecord, 'kind' | 'length' | 'data'>
-  ): number {
-    const insertedLength = change.data.length / 2
-    switch (change.kind) {
-      case 'INSERT':
-        return currentFileSize + insertedLength
-      case 'DELETE':
-        return Math.max(0, currentFileSize - change.length)
-      case 'OVERWRITE':
-        return currentFileSize
-      case 'REPLACE':
-        return Math.max(0, currentFileSize - change.length + insertedLength)
+      if (shouldWaitForSync) {
+        await this.waitForSessionSync(session, sessionSyncVersion)
+      }
     }
   }
 
@@ -875,7 +1032,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   ): Promise<void> {
     await saveSession(session.sessionId, filePath, IOFlags.OVERWRITE)
     if (markClean) {
-      session.savedChangeDepth = this.getTransactionCount(session.changeLog)
+      session.savedChangeDepth = session.transactionLog.length
       this.postEditState(session)
     }
     vscode.window.showInformationMessage(successMessage)
@@ -1030,8 +1187,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
         // --- Editing ---
         case 'insert': {
+          const sessionSyncVersion = session.sessionSyncVersion
           const data = Buffer.from(msg.data, 'hex')
-          const expectedFileSize = session.fileSize + data.length
           const serial = await insert(session.sessionId, msg.offset, data)
           this.pushChange(session, {
             serial,
@@ -1040,12 +1197,13 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: 0,
             data: msg.data,
           })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
           break
         }
 
         case 'delete': {
-          const expectedFileSize = Math.max(0, session.fileSize - msg.length)
+          const sessionSyncVersion = session.sessionSyncVersion
           const serial = await del(session.sessionId, msg.offset, msg.length)
           this.pushChange(session, {
             serial,
@@ -1054,11 +1212,13 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: msg.length,
             data: '',
           })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
           break
         }
 
         case 'overwrite': {
+          const sessionSyncVersion = session.sessionSyncVersion
           const serial = await overwrite(
             session.sessionId,
             msg.offset,
@@ -1071,27 +1231,35 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: msg.data.length / 2,
             data: msg.data,
           })
-          await this.refreshSessionFileSize(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
           break
         }
 
         case 'replace': {
-          const expectedFileSize = this.getExpectedFileSizeAfterRecord(
-            session.fileSize,
-            { kind: 'REPLACE', length: msg.length, data: msg.data }
-          )
-          const changed = await this.applyReplace(
-            session,
-            msg.offset,
-            msg.length,
-            msg.data
-          )
-          session.panel.webview.postMessage({
-            type: 'replaceComplete',
-            selectionOffset: changed && msg.data.length > 0 ? msg.offset : -1,
-            replacedCount: changed ? 1 : 0,
-          })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          const sessionSyncVersion = session.sessionSyncVersion
+          session.preserveSearchState = true
+          try {
+            const changed = await this.applyReplace(
+              session,
+              msg.offset,
+              msg.length,
+              msg.data
+            )
+            session.panel.webview.postMessage({
+              type: 'replaceComplete',
+              scope: 'single',
+              replacedOffset: msg.offset,
+              offsetDelta: Buffer.from(msg.data, 'hex').length - msg.length,
+              selectionOffset: changed && msg.data.length > 0 ? msg.offset : -1,
+              replacedCount: changed ? 1 : 0,
+            })
+            if (changed) {
+              await this.waitForSessionSync(session, sessionSyncVersion)
+            }
+          } finally {
+            session.preserveSearchState = false
+          }
           break
         }
 
@@ -1100,66 +1268,154 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             ? Buffer.from(msg.query, 'hex')
             : Buffer.from(msg.query, 'utf8')
           const replacement = Buffer.from(msg.data, 'hex')
-          const orderedOffsets = [...msg.offsets].sort((a, b) => a - b)
-          const replacedCount = await replaceSession(
-            session.sessionId,
-            pattern,
-            replacement,
-            msg.caseInsensitive ?? false,
-            msg.isReverse ?? false,
-            0,
-            0,
-            orderedOffsets.length
-          )
-
-          if (replacedCount > 0) {
-            const expectedFileSize =
-              session.fileSize +
-              replacedCount * (replacement.length - msg.length)
-            const groupId = `replace-all-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
-            this.pushChanges(
-              session,
-              orderedOffsets.slice(0, replacedCount).map((offset, index) => ({
-                serial: index + 1,
-                kind: 'REPLACE' as const,
-                offset,
-                length: msg.length,
-                data: msg.data,
-                groupId,
-              }))
+          session.preserveSearchState = true
+          try {
+            // Probe one past the bounded window so we can switch to large-mode
+            // navigation without materializing an unbounded match list.
+            const searchProbe = await searchSession(
+              session.sessionId,
+              pattern,
+              msg.caseInsensitive ?? false,
+              msg.isReverse ?? false,
+              0,
+              0,
+              SEARCH_WINDOW_PROBE_LIMIT
             )
-            await this.refreshSessionFileSize(session, expectedFileSize)
+            const firstOffset =
+              searchProbe.length > 0
+                ? [...searchProbe].sort((a, b) => a - b)[0]
+                : -1
+            const replacedCount =
+              searchProbe.length > SEARCH_WINDOW_LIMIT
+                ? await replaceSessionCheckpointed(
+                    session.sessionId,
+                    pattern,
+                    replacement,
+                    msg.caseInsensitive ?? false,
+                    0,
+                    0
+                  )
+                : await replaceSession(
+                    session.sessionId,
+                    pattern,
+                    replacement,
+                    msg.caseInsensitive ?? false,
+                    msg.isReverse ?? false,
+                    0,
+                    0,
+                    searchProbe.length
+                  )
+
+            if (replacedCount > 0) {
+              if (searchProbe.length > SEARCH_WINDOW_LIMIT) {
+                this.markCheckpointedReplaceAll(session, {
+                  kind: 'CHECKPOINT_REPLACE_ALL',
+                  query: msg.query,
+                  isHex: msg.isHex,
+                  caseInsensitive: msg.caseInsensitive ?? false,
+                  data: msg.data,
+                })
+              } else {
+                const orderedOffsets = [...searchProbe].sort((a, b) => a - b)
+                const groupId = `replace-all-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
+                this.pushChanges(
+                  session,
+                  orderedOffsets
+                    .slice(0, replacedCount)
+                    .map((offset, index) => ({
+                      serial: index + 1,
+                      kind: 'REPLACE' as const,
+                      offset,
+                      length: msg.length,
+                      data: msg.data,
+                      groupId,
+                    }))
+                )
+              }
+            }
+
+            session.panel.webview.postMessage({
+              type: 'replaceComplete',
+              scope: 'all',
+              selectionOffset:
+                replacedCount > 0 && msg.data.length > 0 ? firstOffset : -1,
+              replacedCount,
+            })
+          } finally {
+            session.preserveSearchState = false
           }
-          session.panel.webview.postMessage({
-            type: 'replaceComplete',
-            selectionOffset:
-              replacedCount > 0 && msg.data.length > 0 ? orderedOffsets[0] : -1,
-            replacedCount,
-          })
           break
         }
 
         // --- Undo / Redo ---
         case 'undo': {
-          if (session.changeLog.length === 0) {
+          if (session.transactionLog.length === 0) {
             this.postEditState(session)
             break
           }
-          await undo(session.sessionId)
-          this.moveLastTransaction(session.changeLog, session.undoneChangeLog)
-          await this.refreshSessionFileSize(session)
+          const transaction =
+            session.transactionLog[session.transactionLog.length - 1]
+          const sessionSyncVersion = session.sessionSyncVersion
+          if (transaction.kind === 'LOCAL') {
+            await undo(session.sessionId)
+            if (session.changeLog.length > 0) {
+              this.moveLastTransaction(
+                session.changeLog,
+                session.undoneChangeLog
+              )
+            }
+          } else {
+            await destroyLastCheckpoint(session.sessionId)
+          }
+          const undoneTransaction = session.transactionLog.pop()
+          if (!undoneTransaction) {
+            break
+          }
+          session.undoneTransactionLog.push(undoneTransaction)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
           this.postEditState(session)
           break
         }
 
         case 'redo': {
-          if (session.undoneChangeLog.length === 0) {
+          if (session.undoneTransactionLog.length === 0) {
             this.postEditState(session)
             break
           }
-          await redo(session.sessionId)
-          this.moveLastTransaction(session.undoneChangeLog, session.changeLog)
-          await this.refreshSessionFileSize(session)
+          const transaction =
+            session.undoneTransactionLog[
+              session.undoneTransactionLog.length - 1
+            ]
+          const sessionSyncVersion = session.sessionSyncVersion
+          if (transaction.kind === 'LOCAL') {
+            await redo(session.sessionId)
+            if (session.undoneChangeLog.length > 0) {
+              this.moveLastTransaction(
+                session.undoneChangeLog,
+                session.changeLog
+              )
+            }
+          } else {
+            const pattern = transaction.isHex
+              ? Buffer.from(transaction.query, 'hex')
+              : Buffer.from(transaction.query, 'utf8')
+            await replaceSessionCheckpointed(
+              session.sessionId,
+              pattern,
+              Buffer.from(transaction.data, 'hex'),
+              transaction.caseInsensitive,
+              0,
+              0
+            )
+          }
+          const redoneTransaction = session.undoneTransactionLog.pop()
+          if (!redoneTransaction) {
+            break
+          }
+          session.transactionLog.push(redoneTransaction)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
           this.postEditState(session)
           break
         }
@@ -1202,6 +1458,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           const pattern = msg.isHex
             ? Buffer.from(normalizedQuery, 'hex')
             : Buffer.from(normalizedQuery, 'utf8')
+          // Large-mode vs bounded-mode is decided only when the user runs an
+          // explicit search. Replacement operations preserve the current mode
+          // for that search session even if the remaining match count crosses
+          // back under the 1000-match window.
           const matches = await searchSession(
             session.sessionId,
             pattern,
@@ -1209,15 +1469,24 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             msg.isReverse ?? false,
             0,
             0,
-            1000 // reasonable limit
+            SEARCH_WINDOW_PROBE_LIMIT
           )
           session.panel.webview.postMessage({
             type: 'searchResults',
-            matches,
+            mode: matches.length > SEARCH_WINDOW_LIMIT ? 'large' : 'bounded',
+            matches: matches.length > SEARCH_WINDOW_LIMIT ? [] : matches,
+            currentOffset:
+              matches.length > SEARCH_WINDOW_LIMIT ? (matches[0] ?? -1) : -1,
             patternLength: pattern.length,
+            windowLimit: SEARCH_WINDOW_LIMIT,
           })
           // Jump to first match if any
-          if (matches.length > 0) {
+          if (
+            matches.length > SEARCH_WINDOW_LIMIT &&
+            matches[0] !== undefined
+          ) {
+            await this.scrollTo(session, matches[0])
+          } else if (matches.length > 0) {
             await this.scrollTo(session, matches[0])
           }
           break
@@ -1225,6 +1494,28 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
         case 'goToMatch': {
           await this.scrollTo(session, msg.offset)
+          break
+        }
+
+        case 'findAdjacentMatch': {
+          const pattern = msg.isHex
+            ? Buffer.from(msg.query, 'hex')
+            : Buffer.from(msg.query, 'utf8')
+          const offset = await this.findAdjacentMatch(
+            session,
+            pattern,
+            msg.caseInsensitive ?? false,
+            msg.direction,
+            msg.offset
+          )
+          session.panel.webview.postMessage({
+            type: 'searchNavigationResult',
+            offset,
+            patternLength: pattern.length,
+          })
+          if (offset >= 0) {
+            await this.scrollTo(session, offset)
+          }
           break
         }
       }
@@ -1248,7 +1539,7 @@ type WebviewMessage =
   | { type: 'replace'; offset: number; length: number; data: string }
   | {
       type: 'replaceAllMatches'
-      offsets: number[]
+      offsets?: number[]
       query: string
       isHex: boolean
       caseInsensitive?: boolean
@@ -1268,3 +1559,11 @@ type WebviewMessage =
       isReverse?: boolean
     }
   | { type: 'goToMatch'; offset: number }
+  | {
+      type: 'findAdjacentMatch'
+      query: string
+      isHex: boolean
+      caseInsensitive?: boolean
+      direction: 'forward' | 'backward'
+      offset: number
+    }

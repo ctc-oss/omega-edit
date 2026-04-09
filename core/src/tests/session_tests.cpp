@@ -21,6 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_contains.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
+#include <vector>
 
 using Catch::Matchers::Contains;
 using Catch::Matchers::EndsWith;
@@ -40,6 +41,12 @@ void session_save_test_session_cbk(const omega_session_t *session_ptr, omega_ses
     auto count_ptr = reinterpret_cast<int *>(omega_session_get_user_data_ptr(session_ptr));
     std::clog << "Session Event: " << session_event << std::endl;
     ++*count_ptr;
+}
+
+void record_session_event_cbk(const omega_session_t *session_ptr, omega_session_event_t session_event, const void *) {
+    auto *events = reinterpret_cast<std::vector<omega_session_event_t> *>(omega_session_get_user_data_ptr(session_ptr));
+    if (!events) { return; }
+    events->push_back(session_event);
 }
 
 void session_save_test_viewport_cbk(const omega_viewport_t *viewport_ptr, omega_viewport_event_t viewport_event,
@@ -333,38 +340,40 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(1 == omega_session_get_num_change_transactions(session_ptr));
     REQUIRE(0 == omega_session_begin_transaction(session_ptr));
     REQUIRE(1 == omega_session_get_transaction_state(session_ptr));
+    REQUIRE(4 == session_events_count);// SESSION_EVT_TRANSACTION_STARTED
     change_id = omega_edit_insert_string(session_ptr, 0, "abcdefghijklmnopqrstuvwxyz");
     REQUIRE(2 == omega_session_get_transaction_state(session_ptr));
-    REQUIRE(4 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(4 == session_events_count);// transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(3 == viewport_events_count);// VIEWPORT_EVT_EDIT
     change_ptr = omega_session_get_change(session_ptr, change_id);
     REQUIRE(transaction_bit != omega_change_get_transaction_bit(change_ptr));
     transaction_bit = omega_change_get_transaction_bit(change_ptr);
     omega_edit_insert_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     REQUIRE(2 == omega_session_get_transaction_state(session_ptr));
-    REQUIRE(5 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(4 == session_events_count);// transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(4 == viewport_events_count);// VIEWPORT_EVT_EDIT
     REQUIRE(transaction_bit == omega_change_get_transaction_bit(change_ptr));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(3 == omega_session_get_num_changes(session_ptr));
     REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
-    REQUIRE(5 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(6 == session_events_count);// SESSION_EVT_EDIT + SESSION_EVT_TRANSACTION_ENDED
     REQUIRE(4 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_edit_insert_string(session_ptr, 0, "0123456789");
-    REQUIRE(6 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(7 == session_events_count);// SESSION_EVT_EDIT
     REQUIRE(5 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_session_begin_transaction(session_ptr);
+    REQUIRE(8 == session_events_count);// SESSION_EVT_TRANSACTION_STARTED
     omega_edit_insert_string(session_ptr, 0, "abcdefghijklmnopqrstuvwxyz");
-    REQUIRE(7 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(8 == session_events_count);// transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(6 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_edit_overwrite_string(session_ptr, 0, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    REQUIRE(8 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(8 == session_events_count);// transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(7 == viewport_events_count);// VIEWPORT_EVT_EDIT
     omega_edit_delete(session_ptr, 0, 10);
-    REQUIRE(9 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(8 == session_events_count);// transactional SESSION_EVT_EDIT deferred until end
     REQUIRE(8 == viewport_events_count);// VIEWPORT_EVT_EDIT
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
-    REQUIRE(9 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(10 == session_events_count);// SESSION_EVT_EDIT + SESSION_EVT_TRANSACTION_ENDED
     REQUIRE(8 == viewport_events_count);// VIEWPORT_EVT_EDIT
     REQUIRE(7 == omega_session_get_num_changes(session_ptr));
     REQUIRE(4 == omega_session_get_num_change_transactions(session_ptr));
@@ -374,11 +383,12 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(3 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(3 == omega_session_get_num_change_transactions(session_ptr));
     REQUIRE(1 == omega_session_get_num_undone_change_transactions(session_ptr));
-    REQUIRE(12 == session_events_count);// SESSION_EVT_EDIT
+    REQUIRE(11 == session_events_count);// SESSION_EVT_UNDO
     REQUIRE(7 == omega_edit_redo_last_undo(session_ptr));
     REQUIRE(7 == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(4 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(12 == session_events_count);// SESSION_EVT_EDIT
 
     // Negative testing
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
@@ -388,6 +398,33 @@ TEST_CASE("Transactions", "[TransactionTests]") {
     REQUIRE(0 != omega_session_begin_transaction(session_ptr));
     REQUIRE(0 == omega_session_end_transaction(session_ptr));
     REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+}
+
+TEST_CASE("Transaction Lifecycle Events", "[TransactionTests]") {
+    std::vector<omega_session_event_t> events;
+    auto session_ptr = omega_edit_create_session(nullptr, record_session_event_cbk, &events, ALL_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(events == std::vector<omega_session_event_t>{SESSION_EVT_CREATE});
+
+    REQUIRE(0 == omega_session_begin_transaction(session_ptr));
+    REQUIRE(1 == omega_session_get_transaction_state(session_ptr));
+    REQUIRE(events.back() == SESSION_EVT_TRANSACTION_STARTED);
+
+    REQUIRE(0 != omega_session_begin_transaction(session_ptr));
+    REQUIRE(events.back() == SESSION_EVT_TRANSACTION_STARTED);
+
+    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, "abc"));
+    REQUIRE(events.back() == SESSION_EVT_TRANSACTION_STARTED);
+
+    REQUIRE(0 == omega_session_end_transaction(session_ptr));
+    REQUIRE(0 == omega_session_get_transaction_state(session_ptr));
+    REQUIRE(events.back() == SESSION_EVT_TRANSACTION_ENDED);
+    REQUIRE(events[2] == SESSION_EVT_EDIT);
+
+    REQUIRE(0 != omega_session_end_transaction(session_ptr));
+    REQUIRE(events.back() == SESSION_EVT_TRANSACTION_ENDED);
+
+    omega_edit_destroy_session(session_ptr);
 }
 
 TEST_CASE("Large Transaction Undo/Redo", "[TransactionTests]") {
@@ -419,6 +456,49 @@ TEST_CASE("Large Transaction Undo/Redo", "[TransactionTests]") {
     REQUIRE(num_changes_in_transaction == omega_session_get_num_changes(session_ptr));
     REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
     REQUIRE(num_changes_in_transaction == omega_session_get_computed_file_size(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Large Replace-Style Transaction Undo/Redo", "[TransactionTests]") {
+    auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    constexpr int match_count = 1000;
+    const std::string original_token = "PDF\n";
+    const std::string replacement = "Everybody Wang Chung Tonight";
+    std::string original_content;
+    original_content.reserve(match_count * static_cast<int>(original_token.size()));
+    for (int i = 0; i < match_count; ++i) { original_content += original_token; }
+
+    REQUIRE(0 != omega_edit_insert_string(session_ptr, 0, original_content));
+    REQUIRE(static_cast<int64_t>(original_content.size()) == omega_session_get_computed_file_size(session_ptr));
+
+    REQUIRE(0 == omega_session_begin_transaction(session_ptr));
+    for (int i = match_count - 1; i >= 0; --i) {
+        REQUIRE(0 != omega_edit_replace(session_ptr, static_cast<int64_t>(i) * original_token.size(),
+                                        static_cast<int64_t>(original_token.size()) - 1, replacement.c_str(), 0));
+    }
+    REQUIRE(0 == omega_session_end_transaction(session_ptr));
+    REQUIRE(2 == omega_session_get_num_change_transactions(session_ptr));
+    REQUIRE(match_count * 2 + 1 == omega_session_get_num_changes(session_ptr));
+
+    const auto expanded_size =
+            static_cast<int64_t>(original_content.size()) + match_count * (static_cast<int64_t>(replacement.size()) - 3);
+    REQUIRE(expanded_size == omega_session_get_computed_file_size(session_ptr));
+
+    const auto undo_result = omega_edit_undo_last_change(session_ptr);
+    REQUIRE(undo_result < 0);
+    REQUIRE(1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(match_count * 2 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(static_cast<int64_t>(original_content.size()) == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(original_content == omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const auto redo_result = omega_edit_redo_last_undo(session_ptr);
+    REQUIRE(redo_result > 0);
+    REQUIRE(match_count * 2 + 1 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_session_get_num_undone_changes(session_ptr));
+    REQUIRE(expanded_size == omega_session_get_computed_file_size(session_ptr));
 
     omega_edit_destroy_session(session_ptr);
 }

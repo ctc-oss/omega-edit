@@ -39,8 +39,11 @@ import {
   insert,
   overwrite,
   removeCommonSuffix,
+  redo,
+  runSessionTransaction,
   SessionEventKind,
   unsubscribeSession,
+  undo,
 } from '@omega-edit/client'
 import {
   checkCallbackCount,
@@ -219,6 +222,174 @@ describe('Editing', () => {
         editStream.cancel()
         clearStream.cancel()
         allExceptEditStream.cancel()
+        await delay(50)
+      }
+    })
+
+    it('should stream transaction lifecycle events', async () => {
+      const client = await getClient()
+      const transactionEvents: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const stream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(
+            SessionEventKind.TRANSACTION_STARTED |
+              SessionEventKind.TRANSACTION_ENDED
+          )
+      )
+
+      stream.on('data', (event) => {
+        transactionEvents.push(event.getSessionEventKind())
+      })
+      stream.on('error', (error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      })
+
+      try {
+        await delay(200)
+
+        await runSessionTransaction(session_id, async () => {
+          await insert(session_id, 0, Buffer.from('A'))
+        })
+
+        await waitForAssertion(() => {
+          expect(transactionEvents).to.deep.equal([
+            SessionEventKind.TRANSACTION_STARTED,
+            SessionEventKind.TRANSACTION_ENDED,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        stream.cancel()
+        await delay(50)
+      }
+    })
+
+    it('should apply backpressure while a transaction is in flight', async () => {
+      const transactionalEdit = runSessionTransaction(session_id, async () => {
+        await delay(50)
+        await insert(session_id, 0, Buffer.from('A'))
+      })
+      await delay(5)
+      const concurrentEdit = insert(session_id, 0, Buffer.from('B'))
+
+      await Promise.all([transactionalEdit, concurrentEdit])
+
+      expect(await getChangeTransactionCount(session_id)).to.equal(2)
+      expect(
+        await getSegment(session_id, 0, await getComputedFileSize(session_id))
+      ).to.deep.equal(Buffer.from('BA'))
+    })
+
+    it('should close a scoped transaction when the work throws', async () => {
+      const client = await getClient()
+      const transactionEvents: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+      const stream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(
+            SessionEventKind.TRANSACTION_STARTED |
+              SessionEventKind.TRANSACTION_ENDED
+          )
+      )
+
+      stream.on('data', (event) => {
+        transactionEvents.push(event.getSessionEventKind())
+      })
+      stream.on('error', (error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      })
+
+      try {
+        await delay(200)
+
+        try {
+          await runSessionTransaction(session_id, async () => {
+            throw new Error('boom')
+          })
+          expect.fail('runSessionTransaction should reject when work throws')
+        } catch (error) {
+          expect((error as Error).message).to.equal('boom')
+        }
+
+        await runSessionTransaction(session_id, async () => {
+          await insert(session_id, 0, Buffer.from('A'))
+        })
+
+        await waitForAssertion(() => {
+          expect(transactionEvents).to.deep.equal([
+            SessionEventKind.TRANSACTION_STARTED,
+            SessionEventKind.TRANSACTION_ENDED,
+            SessionEventKind.TRANSACTION_STARTED,
+            SessionEventKind.TRANSACTION_ENDED,
+          ])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        stream.cancel()
+        await delay(50)
+      }
+    })
+
+    it('should coalesce transactional session size updates', async () => {
+      const client = await getClient()
+      const eventKinds: number[] = []
+      const computedSizes: number[] = []
+      const unexpectedStreamErrors: Error[] = []
+
+      const stream = client.subscribeToSessionEvents(
+        new EventSubscriptionRequest()
+          .setId(session_id)
+          .setInterest(
+            SessionEventKind.TRANSACTION_STARTED |
+              SessionEventKind.TRANSACTION_ENDED |
+              SessionEventKind.EDIT |
+              SessionEventKind.UNDO
+          )
+      )
+
+      stream.on('data', (event) => {
+        eventKinds.push(event.getSessionEventKind())
+        computedSizes.push(event.getComputedFileSize())
+      })
+      stream.on('error', (error) => {
+        if (!isExpectedStreamCancellation(error)) {
+          unexpectedStreamErrors.push(error)
+        }
+      })
+
+      try {
+        await delay(200)
+
+        await runSessionTransaction(session_id, async () => {
+          await insert(session_id, 0, Buffer.from('AA'))
+          await insert(session_id, 2, Buffer.from('BBB'))
+          await insert(session_id, 5, Buffer.from('CCCC'))
+        })
+
+        await undo(session_id)
+        await redo(session_id)
+
+        await waitForAssertion(() => {
+          expect(eventKinds).to.deep.equal([
+            SessionEventKind.TRANSACTION_STARTED,
+            SessionEventKind.EDIT,
+            SessionEventKind.TRANSACTION_ENDED,
+            SessionEventKind.UNDO,
+            SessionEventKind.EDIT,
+          ])
+          expect(computedSizes).to.deep.equal([0, 9, 9, 0, 9])
+        })
+        expect(unexpectedStreamErrors).to.deep.equal([])
+      } finally {
+        stream.cancel()
         await delay(50)
       }
     })

@@ -60,6 +60,11 @@ foreach (test_src ${omega_test_srcs})
                 DEPENDS ${testname})
     endif ()
 
+    if (testname STREQUAL "undo_benchmark")
+        message(STATUS "Skipping default CTest registration for benchmark target ${testname}")
+        continue()
+    endif ()
+
     # On Windows with shared libraries, we need to ensure the DLL is available
     # for test discovery. Since catch_discover_tests runs immediately after build,
     # we use a different approach for Windows shared builds.

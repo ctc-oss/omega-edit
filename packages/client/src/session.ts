@@ -26,6 +26,7 @@ import {
   beginSessionTransaction as rawBeginSessionTransaction,
   countCharacters as rawCountCharacters,
   createSession as rawCreateSession,
+  destroyLastCheckpoint as rawDestroyLastCheckpoint,
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
@@ -37,6 +38,7 @@ import {
   notifyChangedViewports as rawNotifyChangedViewports,
   pauseSessionChanges as rawPauseSessionChanges,
   profileSession as rawProfileSession,
+  replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
   searchSession as rawSearchSession,
@@ -65,6 +67,8 @@ import {
   requireSafeIntegerInput,
   requireSafeIntegerOutput,
 } from './safe_int'
+import { enqueueSessionMutation } from './mutation_queue'
+import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 export enum SaveStatus {
   SUCCESS = 0,
@@ -92,6 +96,8 @@ export const SessionEventKind = {
   CHANGES_RESUMED: RawProtoSessionEventKind.CHANGES_RESUMED,
   CREATE_VIEWPORT: RawProtoSessionEventKind.CREATE_VIEWPORT,
   DESTROY_VIEWPORT: RawProtoSessionEventKind.DESTROY_VIEWPORT,
+  TRANSACTION_STARTED: RawProtoSessionEventKind.TRANSACTION_STARTED,
+  TRANSACTION_ENDED: RawProtoSessionEventKind.TRANSACTION_ENDED,
 } as const
 export type SessionEventKind =
   (typeof SessionEventKind)[keyof typeof SessionEventKind]
@@ -140,6 +146,18 @@ export function destroySession(session_id: string): Promise<string> {
   return rawDestroySession(session_id)
 }
 
+export async function destroyLastCheckpoint(
+  session_id: string
+): Promise<number> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawDestroyLastCheckpoint(session_id)
+    return requireSafeIntegerOutput(
+      'remaining checkpoints',
+      response.remainingCheckpoints
+    )
+  })
+}
+
 export async function saveSession(
   session_id: string,
   file_path: string,
@@ -147,15 +165,17 @@ export async function saveSession(
   offset: number = 0,
   length: number = 0
 ): Promise<SaveSessionResponse> {
-  return wrapSaveSessionResponse(
-    await rawSaveSession(
-      session_id,
-      file_path,
-      flags,
-      requireSafeIntegerInput('saveSession offset', offset),
-      requireSafeIntegerInput('saveSession length', length)
+  return await enqueueSessionMutation(session_id, async () => {
+    return wrapSaveSessionResponse(
+      await rawSaveSession(
+        session_id,
+        file_path,
+        flags,
+        requireSafeIntegerInput('saveSession offset', offset),
+        requireSafeIntegerInput('saveSession length', length)
+      )
     )
-  )
+  })
 }
 
 export function getComputedFileSize(session_id: string): Promise<number> {
@@ -176,11 +196,29 @@ export function pauseSessionChanges(session_id: string): Promise<string> {
 }
 
 export function beginSessionTransaction(session_id: string): Promise<string> {
-  return rawBeginSessionTransaction(session_id)
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawBeginSessionTransaction(session_id)
+  })
 }
 
 export function endSessionTransaction(session_id: string): Promise<string> {
-  return rawEndSessionTransaction(session_id)
+  return enqueueSessionMutation(session_id, async () => {
+    return await rawEndSessionTransaction(session_id)
+  })
+}
+
+export async function runSessionTransaction<T>(
+  session_id: string,
+  work: () => Promise<T>
+): Promise<T> {
+  return await enqueueSessionMutation(session_id, async () => {
+    await rawBeginSessionTransaction(session_id)
+    try {
+      return await work()
+    } finally {
+      await rawEndSessionTransaction(session_id)
+    }
+  })
 }
 
 export function resumeSessionChanges(session_id: string): Promise<string> {
@@ -344,74 +382,118 @@ export async function replaceSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
-  const safeOffset = requireSafeIntegerInput('replaceSession offset', offset)
-  const safeLength = requireSafeIntegerInput('replaceSession length', length)
-  const safeLimit = requireSafeIntegerInput('replaceSession limit', limit)
-  const foundLocations = await searchSession(
-    session_id,
-    pattern,
-    is_case_insensitive,
-    is_reverse,
-    safeOffset,
-    safeLength,
-    safeLimit
-  )
-  const patternArray =
-    typeof pattern == 'string' ? Buffer.from(pattern) : pattern
-  const replacementArray =
-    typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-  if (foundLocations.length === 0) {
-    return 0
-  }
+  return await enqueueSessionMutation(session_id, async () => {
+    const safeOffset = requireSafeIntegerInput('replaceSession offset', offset)
+    const safeLength = requireSafeIntegerInput('replaceSession length', length)
+    const safeLimit = requireSafeIntegerInput('replaceSession limit', limit)
+    const foundLocations = await searchSession(
+      session_id,
+      pattern,
+      is_case_insensitive,
+      is_reverse,
+      safeOffset,
+      safeLength,
+      safeLimit
+    )
+    const patternArray =
+      typeof pattern == 'string' ? Buffer.from(pattern) : pattern
+    const replacementArray =
+      typeof replacement == 'string' ? Buffer.from(replacement) : replacement
+    if (foundLocations.length === 0) {
+      return 0
+    }
 
-  const orderedLocations = [...foundLocations].sort((a, b) =>
-    front_to_back ? a - b : b - a
-  )
+    const orderedLocations = [...foundLocations].sort((a, b) =>
+      front_to_back ? a - b : b - a
+    )
 
-  await beginSessionTransaction(session_id)
-  try {
-    if (front_to_back) {
-      if (overwrite_only) {
-        for (const foundLocation of orderedLocations) {
-          await overwrite(session_id, foundLocation, replacementArray, stats)
-        }
-      } else {
-        const adjustment = replacementArray.length - patternArray.length
-        for (let i = 0; i < orderedLocations.length; ++i) {
-          await editSimple(
-            session_id,
-            requireSafeIntegerOutput(
-              'replaceSession offset',
-              adjustment * i + orderedLocations[i]
-            ),
-            patternArray,
-            replacementArray,
-            stats,
-            false
-          )
-        }
-      }
-    } else {
-      for (const foundLocation of orderedLocations) {
-        if (overwrite_only) {
-          await overwrite(session_id, foundLocation, replacementArray, stats)
+    let viewportEventsPaused = false
+    try {
+      await runSessionTransaction(session_id, async () => {
+        await pauseViewportEvents(session_id)
+        viewportEventsPaused = true
+
+        if (front_to_back) {
+          if (overwrite_only) {
+            for (const foundLocation of orderedLocations) {
+              await overwrite(
+                session_id,
+                foundLocation,
+                replacementArray,
+                stats
+              )
+            }
+          } else {
+            const adjustment = replacementArray.length - patternArray.length
+            for (let i = 0; i < orderedLocations.length; ++i) {
+              await editSimple(
+                session_id,
+                requireSafeIntegerOutput(
+                  'replaceSession offset',
+                  adjustment * i + orderedLocations[i]
+                ),
+                patternArray,
+                replacementArray,
+                stats,
+                false
+              )
+            }
+          }
         } else {
-          await editSimple(
-            session_id,
-            foundLocation,
-            patternArray,
-            replacementArray,
-            stats,
-            false
-          )
+          for (const foundLocation of orderedLocations) {
+            if (overwrite_only) {
+              await overwrite(
+                session_id,
+                foundLocation,
+                replacementArray,
+                stats
+              )
+            } else {
+              await editSimple(
+                session_id,
+                foundLocation,
+                patternArray,
+                replacementArray,
+                stats,
+                false
+              )
+            }
+          }
         }
+      })
+    } finally {
+      if (viewportEventsPaused) {
+        await resumeViewportEvents(session_id)
+        await notifyChangedViewports(session_id)
       }
     }
-  } finally {
-    await endSessionTransaction(session_id)
-  }
 
-  return requireSafeIntegerOutput('replacement count', foundLocations.length)
+    return requireSafeIntegerOutput('replacement count', foundLocations.length)
+  })
+}
+
+export async function replaceSessionCheckpointed(
+  session_id: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  is_case_insensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0
+): Promise<number> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawReplaceSessionCheckpointed(
+      session_id,
+      pattern,
+      replacement,
+      is_case_insensitive,
+      requireSafeIntegerInput('replaceSessionCheckpointed offset', offset),
+      requireSafeIntegerInput('replaceSessionCheckpointed length', length)
+    )
+    return requireSafeIntegerOutput(
+      'replacement count',
+      response.replacementCount
+    )
+  })
 }
 
 export async function replaceOneSession(
@@ -425,37 +507,45 @@ export async function replaceOneSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
-  const safeOffset = requireSafeIntegerInput('replaceOneSession offset', offset)
-  const safeLength = requireSafeIntegerInput('replaceOneSession length', length)
-  const patternArray =
-    typeof pattern == 'string' ? Buffer.from(pattern) : pattern
-  const replacementArray =
-    typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-  const foundLocations = await searchSession(
-    session_id,
-    patternArray,
-    is_case_insensitive,
-    is_reverse,
-    safeOffset,
-    safeLength,
-    1
-  )
-  if (foundLocations.length > 0) {
-    if (overwrite_only) {
-      await overwrite(session_id, foundLocations[0], replacementArray, stats)
-    } else {
-      await editSimple(
-        session_id,
-        foundLocations[0],
-        patternArray,
-        replacementArray,
-        stats
+  return await enqueueSessionMutation(session_id, async () => {
+    const safeOffset = requireSafeIntegerInput(
+      'replaceOneSession offset',
+      offset
+    )
+    const safeLength = requireSafeIntegerInput(
+      'replaceOneSession length',
+      length
+    )
+    const patternArray =
+      typeof pattern == 'string' ? Buffer.from(pattern) : pattern
+    const replacementArray =
+      typeof replacement == 'string' ? Buffer.from(replacement) : replacement
+    const foundLocations = await searchSession(
+      session_id,
+      patternArray,
+      is_case_insensitive,
+      is_reverse,
+      safeOffset,
+      safeLength,
+      1
+    )
+    if (foundLocations.length > 0) {
+      if (overwrite_only) {
+        await overwrite(session_id, foundLocations[0], replacementArray, stats)
+      } else {
+        await editSimple(
+          session_id,
+          foundLocations[0],
+          patternArray,
+          replacementArray,
+          stats
+        )
+      }
+      return requireSafeIntegerOutput(
+        'replacement end offset',
+        foundLocations[0] + replacementArray.length
       )
     }
-    return requireSafeIntegerOutput(
-      'replacement end offset',
-      foundLocations[0] + replacementArray.length
-    )
-  }
-  return -1
+    return -1
+  })
 }
