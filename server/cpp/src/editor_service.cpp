@@ -1260,11 +1260,8 @@ grpc::Status EditorServiceImpl::ReplaceSession(grpc::ServerContext * /*context*/
     response->set_overwrite_only(overwrite_only);
 
     if (request->pattern().empty()) {
-        response->set_replacement_count(0);
-        response->set_delete_count(0);
-        response->set_insert_count(0);
-        response->set_overwrite_count(0);
-        return grpc::Status::OK;
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "replace pattern must not be empty for session: " + request->session_id());
     }
 
     if (omega_session_changes_paused(session) != 0) {

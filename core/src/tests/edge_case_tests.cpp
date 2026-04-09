@@ -690,6 +690,37 @@ TEST_CASE("Transactional Replace Matches Honors Reverse Limits And Lowered Stats
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Transactional Replace Matches OverwriteOnly FrontToBack Uses Zero Offset Delta",
+          "[EdgeCase][ReplaceMatches]") {
+    // When overwrite_only=true the file size never changes, so the per-replacement offset
+    // adjustment must be zero even when pattern and replacement have different lengths.
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    // "aabbaabb" – two 'aa' matches at offsets 0 and 4
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "aabbaabb"));
+
+    int64_t replacement_count = -1;
+    int64_t delete_count = -1;
+    int64_t insert_count = -1;
+    int64_t overwrite_count = -1;
+    // Overwrite 'aa' (2 bytes) with 'x' (1 byte), overwrite_only=1, front_to_back=1.
+    // Without the fix, match[1] would be adjusted by -1 and land at offset 3 instead of 4.
+    REQUIRE(0 == omega_edit_replace_matches(session_ptr, "aa", 0, "x", 0, 0, 0, 0, 0, 0, 1, 1,
+                                            &replacement_count, &delete_count, &insert_count, &overwrite_count));
+    REQUIRE(2 == replacement_count);
+    REQUIRE(0 == delete_count);
+    REQUIRE(0 == insert_count);
+    REQUIRE(2 == overwrite_count);
+    // File size is unchanged; each overwrite writes one 'x' byte at the match start offset.
+    // Without the fix, match[1] would land at offset 3 instead of 4 (wrong byte overwritten).
+    REQUIRE(omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)) ==
+            "xabbxabb");
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
 TEST_CASE("Save Segment Partial File", "[EdgeCase][SaveSegment]") {
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
     REQUIRE(session_ptr);

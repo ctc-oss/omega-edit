@@ -232,6 +232,10 @@ export class ScopedEditorSessionHandle {
     try {
       await this.subscriptions?.setViewportId(nextViewportId)
     } catch (error) {
+      // setViewportId cancelled the old subscription before attempting the new one, so if the
+      // new subscription fails we are left with no active viewport stream.  Destroy the new
+      // viewport (best-effort) and re-throw; the session remains valid but viewport events will
+      // no longer be received until the caller recreates the viewport again.
       await this.destroyViewportFn(nextViewportId).catch(() => {
         // Best-effort cleanup for a failed viewport swap.
       })

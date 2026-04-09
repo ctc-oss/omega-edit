@@ -1311,7 +1311,9 @@ int omega_edit_replace_matches_bytes(omega_session_t *session_ptr, const omega_b
     std::vector<omega_edit_script_op_t> ops;
     ops.reserve(match_offsets.size());
     replace_match_stats_t stats;
-    const auto replacement_delta = replacement_length - pattern_length;
+    // overwrite_only emits a pure OVERWRITE so the file size never changes; its effective per-replacement
+    // offset delta is always zero regardless of the difference in pattern/replacement lengths.
+    const auto replacement_delta = (overwrite_only != 0) ? 0LL : (replacement_length - pattern_length);
     for (size_t i = 0; i < match_offsets.size(); ++i) {
         const auto base_offset = front_to_back ? match_offsets[i] + replacement_delta * static_cast<int64_t>(i)
                                                : match_offsets[i];

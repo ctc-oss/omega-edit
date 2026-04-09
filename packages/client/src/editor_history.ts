@@ -137,6 +137,7 @@ export class EditorHistoryController {
     const groupId = `replace-all-${this.nextSyntheticGroupId++}`
     this.recordLocalChanges(
       offsets.map((offset, index) => ({
+        // serial is a within-group 1-based index, not a server-assigned change serial.
         serial: index + 1,
         kind: 'REPLACE' as const,
         offset,

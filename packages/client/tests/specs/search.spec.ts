@@ -983,6 +983,30 @@ describe('Searching', () => {
     ).deep.equals(Buffer.from('bbb'))
   })
 
+  it('Should apply overwrite_only replacements at correct offsets when front_to_back and lengths differ', async () => {
+    // Regression: when overwrite_only=true the file size never changes, so the per-replacement
+    // offset delta must be 0 even when pattern and replacement have different lengths.
+    await overwrite(session_id, 0, Buffer.from('aabbaabb'))
+
+    const count = await replaceSession(
+      session_id,
+      'aa',
+      'x',
+      false,
+      false,
+      0,
+      0,
+      0,
+      true, // front_to_back
+      true  // overwrite_only
+    )
+    expect(count).to.equal(2)
+    // Each match start is overwritten with 'x'; file size and surrounding bytes are unchanged.
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('xabbxabb'))
+  })
+
   it('Should serialize replaceSession behind other queued session mutations even when no matches are found', async () => {
     await overwrite(session_id, 0, Buffer.from('abcdef'))
 

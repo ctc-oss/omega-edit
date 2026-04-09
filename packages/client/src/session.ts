@@ -412,38 +412,44 @@ export async function replaceSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
-  return await enqueueSessionMutation(session_id, async () => {
-    const response = await rawReplaceSession(
-      session_id,
-      pattern,
-      replacement,
-      is_case_insensitive,
-      is_reverse,
-      requireSafeIntegerInput('replaceSession offset', offset),
-      requireSafeIntegerInput('replaceSession length', length),
-      requireSafeIntegerInput('replaceSession limit', limit),
-      front_to_back,
-      overwrite_only
-    )
-    if (stats) {
-      stats.delete_count += requireSafeIntegerOutput(
-        'replaceSession delete_count',
-        response.deleteCount
+  // Use withViewportBatch (transactional:false) so that the N individual viewport events fired by
+  // omega_edit_apply_script are coalesced into a single viewport refresh on the client side.
+  return await withViewportBatch(
+    session_id,
+    async () => {
+      const response = await rawReplaceSession(
+        session_id,
+        pattern,
+        replacement,
+        is_case_insensitive,
+        is_reverse,
+        requireSafeIntegerInput('replaceSession offset', offset),
+        requireSafeIntegerInput('replaceSession length', length),
+        requireSafeIntegerInput('replaceSession limit', limit),
+        front_to_back,
+        overwrite_only
       )
-      stats.insert_count += requireSafeIntegerOutput(
-        'replaceSession insert_count',
-        response.insertCount
+      if (stats) {
+        stats.delete_count += requireSafeIntegerOutput(
+          'replaceSession delete_count',
+          response.deleteCount
+        )
+        stats.insert_count += requireSafeIntegerOutput(
+          'replaceSession insert_count',
+          response.insertCount
+        )
+        stats.overwrite_count += requireSafeIntegerOutput(
+          'replaceSession overwrite_count',
+          response.overwriteCount
+        )
+      }
+      return requireSafeIntegerOutput(
+        'replacement count',
+        response.replacementCount
       )
-      stats.overwrite_count += requireSafeIntegerOutput(
-        'replaceSession overwrite_count',
-        response.overwriteCount
-      )
-    }
-    return requireSafeIntegerOutput(
-      'replacement count',
-      response.replacementCount
-    )
-  })
+    },
+    { transactional: false }
+  )
 }
 
 export async function replaceSessionCheckpointed(

@@ -306,6 +306,10 @@ export class EditorSearchController {
       }
     }
 
+    // Note: the probe search and the replace run in separate session-mutation slots so another
+    // mutation could theoretically interleave.  Passing searchProbe.length as the limit caps
+    // replacements to what was visible at probe time, which is the correct "replace what you saw"
+    // semantic for this UI operation.
     const replacedCount = await this.replaceSession(
       this.sessionId,
       pattern,
