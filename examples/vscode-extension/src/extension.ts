@@ -67,12 +67,12 @@ export async function activate(
     serverPid = await startServer(port)
     if (serverPid && !isTestRuntime()) {
       void vscode.window.showInformationMessage(
-        `OmegaEdit server started on port ${port} (pid ${serverPid})`
+        `Ωedit™ server started on port ${port} (pid ${serverPid})`
       )
     }
   } catch (err) {
     reportActivationError(
-      `Failed to start OmegaEdit server: ${err instanceof Error ? err.message : String(err)}`
+      `Failed to start Ωedit™ server: ${err instanceof Error ? err.message : String(err)}`
     )
     return
   }
@@ -80,7 +80,7 @@ export async function activate(
   try {
     await getClient(port)
   } catch {
-    reportActivationError('OmegaEdit server started but is not reachable')
+    reportActivationError('Ωedit™ server started but is not reachable')
     return
   }
 

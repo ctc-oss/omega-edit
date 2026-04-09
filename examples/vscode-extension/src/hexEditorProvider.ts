@@ -663,14 +663,14 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         { label: 'Sessions', value: String(heartbeat.sessionCount) },
         { label: 'Uptime', value: `${uptimeSeconds}s` },
         { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
-        {
-          label: 'Load',
-          value:
-            heartbeat.serverCpuLoadAverage === undefined
-              ? 'n/a'
-              : heartbeat.serverCpuLoadAverage.toFixed(2),
-        },
       ]
+
+      if (heartbeat.serverCpuLoadAverage !== undefined) {
+        metrics.push({
+          label: 'Load Avg',
+          value: heartbeat.serverCpuLoadAverage.toFixed(2),
+        })
+      }
 
       if (availableProcessors !== undefined) {
         metrics.push({
@@ -719,7 +719,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `Î©editâ„¢ ${heartbeat.latency} ms`,
+        summary: `Ωedit™ ${heartbeat.latency} ms`,
         detail: metrics
           .map((metric) => `${metric.label}: ${metric.value}`)
           .join('\n'),
@@ -731,7 +731,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'Î©editâ„¢ unavailable',
+        summary: 'Ωedit™ unavailable',
         detail: message,
         severity: 'down',
         metrics: [{ label: 'Error', value: message }],
