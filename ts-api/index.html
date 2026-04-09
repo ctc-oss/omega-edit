@@ -66,6 +66,10 @@
 <td><code>getServerHeartbeat(sessions)</code></td>
 <td>Heartbeat and process health</td>
 </tr>
+<tr>
+<td><code>startServerHeartbeatLoop(options)</code></td>
+<td>Managed liveness heartbeat loop</td>
+</tr>
 </tbody>
 </table>
 <p>Shutdown migration note:</p>
@@ -80,6 +84,12 @@
 <p><code>getServerInfo()</code> and <code>getServerHeartbeat()</code> now expose native-runtime metadata instead of JVM-shaped placeholders.
 The client-facing TypeScript API is renamed, while the protobuf layer keeps the
 legacy fields for wire compatibility.</p>
+<p>Design rule:</p>
+<ul>
+<li>Heartbeat is the only expected polling loop in a healthy OmegaEdit client.</li>
+<li>Use <code>SubscribeToSessionEvents</code> and <code>SubscribeToViewportEvents</code> to keep UI state, computed file size, and viewport contents current.</li>
+<li>If you are polling session or viewport state in steady-state operation, you are working around the design incorrectly and should fix the integration to consume subscriptions instead.</li>
+</ul>
 <p>Current <code>getServerInfo()</code> fields:</p>
 <ul>
 <li><code>serverHostname</code></li>
@@ -105,6 +115,7 @@ legacy fields for wire compatibility.</p>
 <li><code>serverVirtualMemoryBytes?</code></li>
 <li><code>serverPeakResidentMemoryBytes?</code></li>
 </ul>
+<p><code>startServerHeartbeatLoop()</code> builds the sanctioned recurring heartbeat pattern on top of <code>getServerHeartbeat(sessionIds)</code>: it starts immediately by default, skips overlapping heartbeats, and routes results and errors through callbacks so integrations do not need to hand-roll their own timer logic.</p>
 <p>Migration notes:</p>
 <ul>
 <li><code>getServerHeartbeat()</code> is now strictly <code>getServerHeartbeat(sessionIds)</code>. The old extra hostname / PID / interval-style arguments are removed in 2.x.</li>
@@ -182,11 +193,51 @@ legacy fields for wire compatibility.</p>
 <td>Pause/resume change tracking</td>
 </tr>
 <tr>
+<td><code>runSessionTransaction(sessionId, work)</code></td>
+<td>Run scoped atomic edit work</td>
+</tr>
+<tr>
 <td><code>beginSessionTransaction(sessionId)</code> / <code>endSessionTransaction(sessionId)</code></td>
 <td>Group edits atomically</td>
 </tr>
 </tbody>
 </table>
+<p>Subscription-first guidance:</p>
+<ul>
+<li><code>getComputedFileSize(sessionId)</code> is a direct snapshot RPC, not a steady-state synchronization mechanism.</li>
+<li>Long-lived clients should treat <code>subscribeSessionEvents(...)</code> as the authoritative source for computed file size and other session-derived state.</li>
+<li>Long-lived viewport consumers should treat <code>subscribeViewportEvents(...)</code> as the authoritative source for viewport invalidation and refresh timing.</li>
+<li>Prefer <code>runSessionTransaction(...)</code> over hand-managed <code>beginSessionTransaction(...)</code> / <code>endSessionTransaction(...)</code> pairs so transaction scope is enforced in one function.</li>
+<li>Outside of heartbeat, polling is a design smell. If a consumer needs repeated polling to stay correct, the right fix is to expose or consume the relevant event stream.</li>
+</ul>
+<h3 id="subscriptions" class="tsd-anchor-link">Subscriptions<a href="#subscriptions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>subscribeSessionEvents({ sessionId, interest?, onEvent, onError? })</code></td>
+<td>Managed session event stream</td>
+</tr>
+<tr>
+<td><code>subscribeViewportEvents({ viewportId, interest?, onEvent, onError? })</code></td>
+<td>Managed viewport event stream</td>
+</tr>
+</tbody>
+</table>
+<p>These helpers wrap the raw server-stream subscriptions and own the repetitive parts of integration:</p>
+<ul>
+<li>building the subscription request</li>
+<li>attaching <code>data</code> and <code>error</code> handlers</li>
+<li>ignoring expected cancel/reset shutdown noise</li>
+<li>routing callback failures through <code>onError</code></li>
+<li>exposing a simple <code>cancel()</code> handle for teardown</li>
+</ul>
+<p>Use them instead of wiring raw gRPC streams by hand in application code.</p>
 <h3 id="editing" class="tsd-anchor-link">Editing<a href="#editing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <table>
 <thead>
@@ -346,4 +397,4 @@ legacy fields for wire compatibility.</p>
 <h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Apache 2.0 - see <a href="https://github.com/ctc-oss/omega-edit/blob/main/LICENSE.txt">LICENSE.txt</a>.</p>
 <p><a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_large"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=large" alt="FOSSA Status"></a></p>
-</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#install"><span>Install</span></a><a href="#quick-start"><span>Quick <wbr/>Start</span></a><a href="#api-overview"><span>API <wbr/>Overview</span></a><ul><li><a href="#server-lifecycle"><span>Server <wbr/>Lifecycle</span></a></li><li><a href="#server-health-api-migration"><span>Server <wbr/>Health <wbr/>API <wbr/>Migration</span></a></li><li><a href="#client-connection"><span>Client <wbr/>Connection</span></a></li><li><a href="#sessions"><span>Sessions</span></a></li><li><a href="#editing"><span>Editing</span></a></li><li><a href="#viewports"><span>Viewports</span></a></li><li><a href="#search-profile"><span>Search &amp; <wbr/>Profile</span></a></li><li><a href="#logging"><span>Logging</span></a></li></ul><a href="#package-format"><span>Package <wbr/>Format</span></a><a href="#environment-variables"><span>Environment <wbr/>Variables</span></a><a href="#examples"><span>Examples</span></a><a href="#development"><span>Development</span></a><a href="#documentation"><span>Documentation</span></a><a href="#versioning"><span>Versioning</span></a><a href="#license"><span>License</span></a></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">Ωedit TypeScript Client Documentation</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>
+</div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#install"><span>Install</span></a><a href="#quick-start"><span>Quick <wbr/>Start</span></a><a href="#api-overview"><span>API <wbr/>Overview</span></a><ul><li><a href="#server-lifecycle"><span>Server <wbr/>Lifecycle</span></a></li><li><a href="#server-health-api-migration"><span>Server <wbr/>Health <wbr/>API <wbr/>Migration</span></a></li><li><a href="#client-connection"><span>Client <wbr/>Connection</span></a></li><li><a href="#sessions"><span>Sessions</span></a></li><li><a href="#subscriptions"><span>Subscriptions</span></a></li><li><a href="#editing"><span>Editing</span></a></li><li><a href="#viewports"><span>Viewports</span></a></li><li><a href="#search-profile"><span>Search &amp; <wbr/>Profile</span></a></li><li><a href="#logging"><span>Logging</span></a></li></ul><a href="#package-format"><span>Package <wbr/>Format</span></a><a href="#environment-variables"><span>Environment <wbr/>Variables</span></a><a href="#examples"><span>Examples</span></a><a href="#development"><span>Development</span></a><a href="#documentation"><span>Documentation</span></a><a href="#versioning"><span>Versioning</span></a><a href="#license"><span>License</span></a></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">Ωedit TypeScript Client Documentation</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

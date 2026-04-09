@@ -112,6 +112,8 @@
 <li><a class="reference internal" href="#_CPPv420omega_edit_overwriteP15omega_session_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_overwrite()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv424omega_edit_replace_bytesP15omega_session_t7int64_t7int64_tPK12omega_byte_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv418omega_edit_replaceP15omega_session_t7int64_t7int64_tPKc7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv428omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all_bytes()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv422omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_script()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_create_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_checkpoint()</span></code></a></li>
@@ -181,6 +183,8 @@
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CHANGES_RESUMEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CHANGES_RESUMED</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t27SESSION_EVT_CREATE_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_CREATE_VIEWPORT</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_DESTROY_VIEWPORT</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t31SESSION_EVT_TRANSACTION_STARTEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSACTION_STARTED</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_TRANSACTION_ENDEDE"><code class="docutils literal notranslate"><span class="pre">SESSION_EVT_TRANSACTION_ENDED</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#_CPPv422omega_viewport_event_t"><code class="docutils literal notranslate"><span class="pre">omega_viewport_event_t</span></code></a><ul>
@@ -1018,6 +1022,68 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv428omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t">
+<span id="_CPPv328omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t"></span><span id="_CPPv228omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t"></span><span id="omega_edit_replace_all_bytes__omega_session_tP.omega_byte_tCP.int64_t.omega_byte_tCP.int64_t.i.int64_t.int64_t.int64_tP"></span><span class="target" id="edit_8h_1ae5509d3f48628fb529fb2d9653ebafd7"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_all_bytes</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">pattern</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pattern_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">replacement_length</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">case_insensitive</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement_count_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv428omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace all non-overlapping matches of a byte pattern within a session range using a streamed checkpoint rewrite.</p>
+<p>The current session content is read once in forward order and rewritten into a new checkpoint file. Bytes outside the target range are copied through unchanged; bytes inside the range are copied unchanged except where they match the pattern, in which case the replacement bytes are written instead. Matching is performed against the original session bytes, not against already-written replacement output.</p>
+<p>If no matches are found, the session is left unchanged and <code class="docutils literal notranslate"><span class="pre">replacement_count_out</span></code> receives 0. If matches are found, the newly written checkpoint becomes the active model and the session emits the same checkpoint/transform notifications used by omega_edit_apply_transform.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Matches are replaced in forward order and are non-overlapping. After a match is consumed, searching resumes immediately after the matched bytes in the original session content. </p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This byte-oriented API never infers a length from strlen. Use omega_edit_replace_all for null-terminated C strings. </p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to edit </p></li>
+<li><p><strong>pattern</strong> – pattern bytes to search for </p></li>
+<li><p><strong>pattern_length</strong> – explicit number of bytes in pattern </p></li>
+<li><p><strong>replacement</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">replacement_length</span></code> is zero </p></li>
+<li><p><strong>replacement_length</strong> – explicit number of bytes in replacement </p></li>
+<li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
+<li><p><strong>offset</strong> – starting byte offset of the replace-all range </p></li>
+<li><p><strong>length</strong> – number of bytes in the replace-all range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
+<li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of replacements performed </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv422omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t">
+<span id="_CPPv322omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t"></span><span id="_CPPv222omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t"></span><span id="omega_edit_replace_all__omega_session_tP.cCP.int64_t.cCP.int64_t.i.int64_t.int64_t.int64_tP"></span><span class="target" id="edit_8h_1a53478d3e0a6721cbf12e8afe643e5684"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_replace_all</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">pattern</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">pattern_length</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><span class="kt"><span class="pre">char</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">replacement_length</span></span>, <span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">case_insensitive</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">replacement_count_out</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv422omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Replace all non-overlapping matches of a C-string pattern within a session range using a streamed checkpoint rewrite. </p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls, use omega_edit_replace_all_bytes and pass explicit byte lengths. </p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to edit </p></li>
+<li><p><strong>pattern</strong> – pattern C string to search for </p></li>
+<li><p><strong>pattern_length</strong> – length of the pattern string (if 0, strlen will be used for null-terminated text) </p></li>
+<li><p><strong>replacement</strong> – replacement C string, or null if <code class="docutils literal notranslate"><span class="pre">replacement_length</span></code> is zero </p></li>
+<li><p><strong>replacement_length</strong> – length of the replacement string (if 0, strlen will be used for null-terminated text) </p></li>
+<li><p><strong>case_insensitive</strong> – zero for case-sensitive matching and non-zero for case-insensitive matching </p></li>
+<li><p><strong>offset</strong> – starting byte offset of the replace-all range </p></li>
+<li><p><strong>length</strong> – number of bytes in the replace-all range, or zero to search from <code class="docutils literal notranslate"><span class="pre">offset</span></code> to end of session </p></li>
+<li><p><strong>replacement_count_out</strong> – optional out-parameter that receives the number of replacements performed </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success and non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t">
 <span id="_CPPv323omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"></span><span id="_CPPv223omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"></span><span id="omega_edit_apply_script__omega_session_tP.omega_edit_script_op_tCP.s"></span><span class="target" id="edit_8h_1a0bb0d4cbfb6037c37ee71dbc11c4b2c4"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_apply_script</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <span class="k"><span class="pre">const</span></span><span class="w"> </span><a class="reference internal" href="#_CPPv422omega_edit_script_op_t" title="omega_edit_script_op_t"><span class="n"><span class="pre">omega_edit_script_op_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">ops</span></span>, <span class="n"><span class="pre">size_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">op_count</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Apply an array of edit script operations sequentially to the given session.</p>
@@ -1647,6 +1713,16 @@
 <dl class="cpp enumerator">
 <dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE">
 <span id="_CPPv3N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span id="_CPPv2N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a7a5a07510446f4b30d2be498209680b9"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_DESTROY_VIEWPORT</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t28SESSION_EVT_DESTROY_VIEWPORTE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t31SESSION_EVT_TRANSACTION_STARTEDE">
+<span id="_CPPv3N21omega_session_event_t31SESSION_EVT_TRANSACTION_STARTEDE"></span><span id="_CPPv2N21omega_session_event_t31SESSION_EVT_TRANSACTION_STARTEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a85e7be39b09e92a18adb30359b12f6b4"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_TRANSACTION_STARTED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t31SESSION_EVT_TRANSACTION_STARTEDE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N21omega_session_event_t29SESSION_EVT_TRANSACTION_ENDEDE">
+<span id="_CPPv3N21omega_session_event_t29SESSION_EVT_TRANSACTION_ENDEDE"></span><span id="_CPPv2N21omega_session_event_t29SESSION_EVT_TRANSACTION_ENDEDE"></span><span class="target" id="fwd__defs_8h_1a8888e0eb94bb6f32496c4ebf23ab37e7a600358181fb605626d5a8446ac481eab"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">SESSION_EVT_TRANSACTION_ENDED</span></span></span><a class="headerlink" href="#_CPPv4N21omega_session_event_t29SESSION_EVT_TRANSACTION_ENDEDE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </dd></dl>
