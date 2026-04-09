@@ -985,7 +985,9 @@ export async function replaceSessionCheckpointed(
       sessionId,
       pattern: typeof pattern === 'string' ? Buffer.from(pattern) : pattern,
       replacement:
-        typeof replacement === 'string' ? Buffer.from(replacement) : replacement,
+        typeof replacement === 'string'
+          ? Buffer.from(replacement)
+          : replacement,
       isCaseInsensitive,
       offset,
       length,

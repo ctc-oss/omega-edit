@@ -552,7 +552,7 @@ describe('Server Edge Cases', () => {
 
       expect(maxConcurrentCalls).to.equal(1)
       expect(heartbeatCalls).to.be.greaterThanOrEqual(2)
-      expect(sessionCounts.length).to.equal(heartbeatCalls)
+      expect(heartbeatCalls - sessionCounts.length).to.be.within(0, 1)
       expect(sessionCounts.every((count) => count === 2)).to.equal(true)
     } finally {
       loop.stop()

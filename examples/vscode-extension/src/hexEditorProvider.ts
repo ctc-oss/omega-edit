@@ -724,25 +724,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     this.recordTransaction(session, transaction)
   }
 
-  private getTransactionCount(changes: ChangeRecord[]): number {
-    let count = 0
-    let previousGroupId: string | undefined
-
-    for (const change of changes) {
-      if (change.groupId) {
-        if (change.groupId !== previousGroupId) {
-          count += 1
-        }
-        previousGroupId = change.groupId
-      } else {
-        count += 1
-        previousGroupId = undefined
-      }
-    }
-
-    return count
-  }
-
   private moveLastTransaction(
     source: ChangeRecord[],
     target: ChangeRecord[]
@@ -1337,14 +1318,16 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 const groupId = `replace-all-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
                 this.pushChanges(
                   session,
-                  orderedOffsets.slice(0, replacedCount).map((offset, index) => ({
-                    serial: index + 1,
-                    kind: 'REPLACE' as const,
-                    offset,
-                    length: msg.length,
-                    data: msg.data,
-                    groupId,
-                  }))
+                  orderedOffsets
+                    .slice(0, replacedCount)
+                    .map((offset, index) => ({
+                      serial: index + 1,
+                      kind: 'REPLACE' as const,
+                      offset,
+                      length: msg.length,
+                      data: msg.data,
+                      groupId,
+                    }))
                 )
               }
             }
@@ -1374,12 +1357,19 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           if (transaction.kind === 'LOCAL') {
             await undo(session.sessionId)
             if (session.changeLog.length > 0) {
-              this.moveLastTransaction(session.changeLog, session.undoneChangeLog)
+              this.moveLastTransaction(
+                session.changeLog,
+                session.undoneChangeLog
+              )
             }
           } else {
             await destroyLastCheckpoint(session.sessionId)
           }
-          session.undoneTransactionLog.push(session.transactionLog.pop()!)
+          const undoneTransaction = session.transactionLog.pop()
+          if (!undoneTransaction) {
+            break
+          }
+          session.undoneTransactionLog.push(undoneTransaction)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
           this.postEditState(session)
@@ -1392,12 +1382,17 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             break
           }
           const transaction =
-            session.undoneTransactionLog[session.undoneTransactionLog.length - 1]
+            session.undoneTransactionLog[
+              session.undoneTransactionLog.length - 1
+            ]
           const sessionSyncVersion = session.sessionSyncVersion
           if (transaction.kind === 'LOCAL') {
             await redo(session.sessionId)
             if (session.undoneChangeLog.length > 0) {
-              this.moveLastTransaction(session.undoneChangeLog, session.changeLog)
+              this.moveLastTransaction(
+                session.undoneChangeLog,
+                session.changeLog
+              )
             }
           } else {
             const pattern = transaction.isHex
@@ -1412,7 +1407,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
               0
             )
           }
-          session.transactionLog.push(session.undoneTransactionLog.pop()!)
+          const redoneTransaction = session.undoneTransactionLog.pop()
+          if (!redoneTransaction) {
+            break
+          }
+          session.transactionLog.push(redoneTransaction)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
           this.postEditState(session)
@@ -1468,8 +1467,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           )
           session.panel.webview.postMessage({
             type: 'searchResults',
-            mode:
-              matches.length > SEARCH_WINDOW_LIMIT ? 'large' : 'bounded',
+            mode: matches.length > SEARCH_WINDOW_LIMIT ? 'large' : 'bounded',
             matches: matches.length > SEARCH_WINDOW_LIMIT ? [] : matches,
             currentOffset:
               matches.length > SEARCH_WINDOW_LIMIT ? (matches[0] ?? -1) : -1,
@@ -1477,7 +1475,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             windowLimit: SEARCH_WINDOW_LIMIT,
           })
           // Jump to first match if any
-          if (matches.length > SEARCH_WINDOW_LIMIT && matches[0] !== undefined) {
+          if (
+            matches.length > SEARCH_WINDOW_LIMIT &&
+            matches[0] !== undefined
+          ) {
             await this.scrollTo(session, matches[0])
           } else if (matches.length > 0) {
             await this.scrollTo(session, matches[0])
