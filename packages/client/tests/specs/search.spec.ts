@@ -998,7 +998,7 @@ describe('Searching', () => {
       0,
       0,
       true, // front_to_back
-      true  // overwrite_only
+      true // overwrite_only
     )
     expect(count).to.equal(2)
     // Each match start is overwritten with 'x'; file size and surrounding bytes are unchanged.
@@ -1109,6 +1109,71 @@ describe('Searching', () => {
       caseInsensitive: false,
       data: Buffer.from('PDF', 'utf8').toString('hex'),
     })
+  })
+
+  it('Should return correct orderedOffsets for bounded replaceAll with overlapping search matches', async () => {
+    // Pattern 'aa' in 'aaaaaa': raw search finds overlapping matches at 0,1,2,3,4
+    // but replaceSession uses non-overlapping semantics → only offsets 0, 2, 4 are replaced.
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+    const result = await controller.replaceAll({
+      query: 'aa',
+      isHex: false,
+      caseInsensitive: false,
+      length: 2,
+      replacement: Buffer.from('b', 'utf8'),
+    })
+
+    expect(result.strategy).to.equal('bounded')
+    expect(result.replacedCount).to.equal(3)
+    // orderedOffsets must reflect the non-overlapping set actually replaced.
+    expect(result.orderedOffsets).to.deep.equal([0, 2, 4])
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('bbb'))
+  })
+
+  it('Should serialize controller replaceAll search+replace against concurrent mutations', async () => {
+    await overwrite(session_id, 0, Buffer.from('abcabc'))
+
+    let releaseMutation!: () => void
+    const heldMutation = new Promise<void>((resolve) => {
+      releaseMutation = resolve
+    })
+    const activeMutation = runSessionTransaction(session_id, async () => {
+      await heldMutation
+    })
+
+    let settled = false
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+    const replacePromise = controller
+      .replaceAll({
+        query: 'abc',
+        isHex: false,
+        caseInsensitive: false,
+        length: 3,
+        replacement: Buffer.from('xyz', 'utf8'),
+      })
+      .then((r) => {
+        settled = true
+        return r
+      })
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(settled).to.equal(
+      false,
+      'replaceAll should wait behind held mutation'
+    )
+
+    releaseMutation()
+    await activeMutation
+    const result = await replacePromise
+    expect(result.replacedCount).to.equal(2)
   })
 
   it('Should treat empty checkpointed replace patterns as a no-op over the raw RPC', async () => {

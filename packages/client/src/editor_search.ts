@@ -18,6 +18,7 @@
  */
 
 import { type EditorCheckpointReplaceAllTransaction } from './editor_history'
+import { enqueueSessionMutation } from './mutation_queue'
 import {
   replaceSession as defaultReplaceSession,
   replaceSessionCheckpointed as defaultReplaceSessionCheckpointed,
@@ -84,6 +85,37 @@ interface ActiveSearchState {
 
 function toPatternBytes(query: string, isHex: boolean): Uint8Array {
   return isHex ? Buffer.from(query, 'hex') : Buffer.from(query, 'utf8')
+}
+
+/**
+ * Replicates the non-overlapping match selection used by `replaceSession` (C++
+ * `omega_edit_replace_matches_bytes`).  Matches are iterated in search order
+ * (ascending when !isReverse, descending when isReverse) and any match that
+ * overlaps the previously accepted match is discarded.  The returned array is
+ * in the same order as the iteration, so callers that need ascending order
+ * should sort the result separately.
+ */
+function filterNonOverlapping(
+  offsets: number[],
+  patternLength: number,
+  isReverse: boolean
+): number[] {
+  if (offsets.length === 0 || patternLength <= 0) return offsets.slice()
+  const sorted = [...offsets].sort((a, b) => (isReverse ? b - a : a - b))
+  const result: number[] = []
+  let lastAccepted = -1
+  for (const offset of sorted) {
+    const overlaps =
+      lastAccepted >= 0 &&
+      (isReverse
+        ? offset + patternLength > lastAccepted
+        : offset < lastAccepted + patternLength)
+    if (!overlaps) {
+      result.push(offset)
+      lastAccepted = offset
+    }
+  }
+  return result
 }
 
 export class EditorSearchController {
@@ -253,80 +285,89 @@ export class EditorSearchController {
   public async replaceAll(
     request: EditorReplaceAllRequest
   ): Promise<EditorReplaceAllResult> {
-    const normalizedQuery = request.query.trim()
-    const pattern = toPatternBytes(normalizedQuery, request.isHex)
-    if (!normalizedQuery || pattern.length === 0) {
-      return {
-        strategy: 'bounded',
-        replacedCount: 0,
-        selectionOffset: -1,
-        orderedOffsets: [],
+    return enqueueSessionMutation(this.sessionId, async () => {
+      const normalizedQuery = request.query.trim()
+      const pattern = toPatternBytes(normalizedQuery, request.isHex)
+      if (!normalizedQuery || pattern.length === 0) {
+        return {
+          strategy: 'bounded',
+          replacedCount: 0,
+          selectionOffset: -1,
+          orderedOffsets: [],
+        }
       }
-    }
 
-    const searchProbe = await this.searchSession(
-      this.sessionId,
-      pattern,
-      request.caseInsensitive ?? false,
-      request.isReverse ?? false,
-      0,
-      0,
-      this.windowLimit + 1
-    )
-    const orderedOffsets = [...searchProbe].sort((a, b) => a - b)
-    const firstOffset = orderedOffsets[0] ?? -1
+      const searchProbe = await this.searchSession(
+        this.sessionId,
+        pattern,
+        request.caseInsensitive ?? false,
+        request.isReverse ?? false,
+        0,
+        0,
+        this.windowLimit + 1
+      )
+      // Filter to the same non-overlapping set that replaceSession uses so that
+      // orderedOffsets and the limit passed to replaceSession are consistent.
+      const nonOverlappingOffsets = filterNonOverlapping(
+        searchProbe,
+        pattern.length,
+        request.isReverse ?? false
+      )
+      const orderedOffsets = [...nonOverlappingOffsets].sort((a, b) => a - b)
+      const firstOffset = orderedOffsets[0] ?? -1
 
-    if (searchProbe.length > this.windowLimit) {
-      const replacedCount = await this.replaceSessionCheckpointed(
+      if (searchProbe.length > this.windowLimit) {
+        const replacedCount = await this.replaceSessionCheckpointed(
+          this.sessionId,
+          pattern,
+          request.replacement,
+          request.caseInsensitive ?? false,
+          0,
+          0
+        )
+        return {
+          strategy: 'checkpointed',
+          replacedCount,
+          selectionOffset:
+            replacedCount > 0 && request.replacement.length > 0
+              ? firstOffset
+              : -1,
+          orderedOffsets: [],
+          checkpointTransaction:
+            replacedCount > 0 && request.replacementData !== undefined
+              ? {
+                  kind: 'CHECKPOINT_REPLACE_ALL',
+                  query: normalizedQuery,
+                  isHex: request.isHex,
+                  caseInsensitive: request.caseInsensitive ?? false,
+                  data: request.replacementData,
+                }
+              : undefined,
+        }
+      }
+
+      // The search and replace run inside the same enqueueSessionMutation slot
+      // so no other mutation can interleave and invalidate the match list.
+      const replacedCount = await this.replaceSession(
         this.sessionId,
         pattern,
         request.replacement,
         request.caseInsensitive ?? false,
+        request.isReverse ?? false,
         0,
-        0
+        0,
+        nonOverlappingOffsets.length
       )
+
       return {
-        strategy: 'checkpointed',
+        strategy: 'bounded',
         replacedCount,
         selectionOffset:
           replacedCount > 0 && request.replacement.length > 0
             ? firstOffset
             : -1,
-        orderedOffsets: [],
-        checkpointTransaction:
-          replacedCount > 0 && request.replacementData !== undefined
-            ? {
-                kind: 'CHECKPOINT_REPLACE_ALL',
-                query: normalizedQuery,
-                isHex: request.isHex,
-                caseInsensitive: request.caseInsensitive ?? false,
-                data: request.replacementData,
-              }
-            : undefined,
+        orderedOffsets: orderedOffsets.slice(0, replacedCount),
       }
-    }
-
-    // Note: the probe search and the replace run in separate session-mutation slots so another
-    // mutation could theoretically interleave.  Passing searchProbe.length as the limit caps
-    // replacements to what was visible at probe time, which is the correct "replace what you saw"
-    // semantic for this UI operation.
-    const replacedCount = await this.replaceSession(
-      this.sessionId,
-      pattern,
-      request.replacement,
-      request.caseInsensitive ?? false,
-      request.isReverse ?? false,
-      0,
-      0,
-      searchProbe.length
-    )
-
-    return {
-      strategy: 'bounded',
-      replacedCount,
-      selectionOffset:
-        replacedCount > 0 && request.replacement.length > 0 ? firstOffset : -1,
-      orderedOffsets: orderedOffsets.slice(0, replacedCount),
-    }
+    })
   }
 }
