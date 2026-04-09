@@ -12,7 +12,7 @@
 -->
 <div align="center">
 <p>
-    <img alt="Ωedit™ Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
+    <img alt="OmegaEdit Logo" src="https://raw.githubusercontent.com/ctc-oss/omega-edit/main/images/OmegaEditLogo.png" width=120>
 </p>
 <h1>@omega-edit/client</h1>
 <p><a href="https://www.npmjs.com/package/@omega-edit/client"><img src="https://img.shields.io/npm/v/@omega-edit/client" alt="npm"></a>
@@ -20,16 +20,16 @@
 <img src="https://github.com/ctc-oss/omega-edit/workflows/Unit%20Tests/badge.svg" alt="Build Status">
 <a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_shield"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=shield" alt="FOSSA Status"></a></p>
 </div>
-<p>TypeScript/Node.js client for <a href="https://github.com/ctc-oss/omega-edit">Ωedit™</a> — a library for building editors that can handle massive files with multiple viewports, full undo/redo, and byte-level precision.</p>
+<p>TypeScript/Node.js client for <a href="https://github.com/ctc-oss/omega-edit">OmegaEdit</a> - a library for building editors that can handle massive files with multiple viewports, full undo/redo, and byte-level precision.</p>
 <blockquote>
-<p><strong>Batteries included</strong> — this package bundles the native gRPC server via its dependency on <code>@omega-edit/server</code>. No separate server install is needed.</p>
+<p><strong>Batteries included</strong> - this package bundles the native gRPC server via its dependency on <code>@omega-edit/server</code>. No separate server install is needed.</p>
 </blockquote>
 <h2 id="install" class="tsd-anchor-link">Install<a href="#install" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">@omega-edit/client</span><br/><span class="hl-3"># or</span><br/><span class="hl-0">yarn</span><span class="hl-1"> </span><span class="hl-2">add</span><span class="hl-1"> </span><span class="hl-2">@omega-edit/client</span>
 </code><button type="button">Copy</button></pre>
 
 <h2 id="quick-start" class="tsd-anchor-link">Quick Start<a href="#quick-start" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">startServer</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">getClient</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">createSession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">insert</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">saveSession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">destroySession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">stopServerGraceful</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">IOFlags</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@omega-edit/client&#39;</span><br/><br/><span class="hl-3">// 1. Start the bundled gRPC server</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">pid</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">startServer</span><span class="hl-1">(</span><span class="hl-8">9000</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 2. Connect a client</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">client</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">getClient</span><span class="hl-1">(</span><span class="hl-8">9000</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 3. Create a session (optionally backed by an existing file)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">sessionResp</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">createSession</span><span class="hl-1">()</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">sessionId</span><span class="hl-1"> = </span><span class="hl-5">sessionResp</span><span class="hl-1">.</span><span class="hl-0">getSessionId</span><span class="hl-1">()</span><br/><br/><span class="hl-3">// 4. Make edits</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">insert</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">TextEncoder</span><span class="hl-1">().</span><span class="hl-0">encode</span><span class="hl-1">(</span><span class="hl-2">&#39;Hello, Ωedit™!&#39;</span><span class="hl-1">))</span><br/><br/><span class="hl-3">// 5. Save to disk</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">saveSession</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">, </span><span class="hl-2">&#39;/tmp/hello.txt&#39;</span><span class="hl-1">, </span><span class="hl-5">IOFlags</span><span class="hl-1">.</span><span class="hl-7">IO_FLG_OVERWRITE</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 6. Clean up</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">destroySession</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">stopServerGraceful</span><span class="hl-1">()</span>
+<pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">startServer</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">getClient</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">createSession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">insert</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">saveSession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">destroySession</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">stopServerGraceful</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">IOFlags</span><span class="hl-1">,</span><br/><span class="hl-1">} </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@omega-edit/client&#39;</span><br/><br/><span class="hl-3">// 1. Start the bundled gRPC server</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">pid</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">startServer</span><span class="hl-1">(</span><span class="hl-8">9000</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 2. Connect a client</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">client</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">getClient</span><span class="hl-1">(</span><span class="hl-8">9000</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 3. Create a session (optionally backed by an existing file)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">sessionResp</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">createSession</span><span class="hl-1">()</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-7">sessionId</span><span class="hl-1"> = </span><span class="hl-5">sessionResp</span><span class="hl-1">.</span><span class="hl-0">getSessionId</span><span class="hl-1">()</span><br/><br/><span class="hl-3">// 4. Make edits</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">insert</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">, </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-6">new</span><span class="hl-1"> </span><span class="hl-0">TextEncoder</span><span class="hl-1">().</span><span class="hl-0">encode</span><span class="hl-1">(</span><span class="hl-2">&#39;Hello, OmegaEdit!&#39;</span><span class="hl-1">))</span><br/><br/><span class="hl-3">// 5. Save to disk</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">saveSession</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">, </span><span class="hl-2">&#39;/tmp/hello.txt&#39;</span><span class="hl-1">, </span><span class="hl-5">IOFlags</span><span class="hl-1">.</span><span class="hl-7">OVERWRITE</span><span class="hl-1">)</span><br/><br/><span class="hl-3">// 6. Clean up</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">destroySession</span><span class="hl-1">(</span><span class="hl-5">sessionId</span><span class="hl-1">)</span><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">stopServerGraceful</span><span class="hl-1">()</span>
 </code><button type="button">Copy</button></pre>
 
 <h2 id="api-overview" class="tsd-anchor-link">API Overview<a href="#api-overview" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
@@ -52,22 +52,30 @@
 </tr>
 <tr>
 <td><code>stopServerGraceful()</code></td>
-<td>Graceful shutdown</td>
+<td>Graceful shutdown, returning status info</td>
 </tr>
 <tr>
 <td><code>stopServerImmediate()</code></td>
-<td>Immediate shutdown</td>
+<td>Immediate shutdown, returning status info</td>
 </tr>
 <tr>
 <td><code>getServerInfo()</code></td>
 <td>Runtime metadata for the native server</td>
 </tr>
 <tr>
-<td><code>getServerHeartbeat(sessions, interval?)</code></td>
+<td><code>getServerHeartbeat(sessions)</code></td>
 <td>Heartbeat and process health</td>
 </tr>
 </tbody>
 </table>
+<p>Shutdown migration note:</p>
+<ul>
+<li>In the 2.x line, <code>stopServerGraceful()</code> and <code>stopServerImmediate()</code> return a structured result object with <code>responseCode</code>, <code>serverProcessId</code>, and <code>status</code> instead of returning only a numeric response code.</li>
+<li>In the 2.x line, <code>@omega-edit/client</code> treats all <code>int64</code>-backed public values as JavaScript safe integers. Unsafe inputs are rejected before RPCs are sent, and unsafe outputs are rejected instead of being silently rounded.</li>
+<li>In the 2.x line, autogenerated IDs are opaque. New sessions get <code>sess_&lt;uuidv7&gt;</code> IDs, autogenerated viewports get <code>&lt;sessionId&gt;:vp_&lt;uuidv7&gt;</code> IDs, and applications should treat both as server-issued handles rather than decoding semantics from the string value.</li>
+<li>In the 2.x line, <code>ChangeKind</code> only exposes <code>UNSPECIFIED</code>, <code>DELETE</code>, <code>INSERT</code>, and <code>OVERWRITE</code>. The old <code>CHANGE_*</code> and <code>CHANGE_KIND_*</code> aliases were removed.</li>
+<li>In the 2.x line, top-level enum exports use one short-name style only. Use names like <code>IOFlags.OVERWRITE</code>, <code>CountKind.VIEWPORTS</code>, <code>ServerControlKind.GRACEFUL_SHUTDOWN</code>, <code>ServerControlStatus.COMPLETED</code>, <code>SessionEventKind.EDIT</code>, and <code>ViewportEventKind.EDIT</code>; the older prefixed aliases were removed.</li>
+</ul>
 <h3 id="server-health-api-migration" class="tsd-anchor-link">Server Health API Migration<a href="#server-health-api-migration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p><code>getServerInfo()</code> and <code>getServerHeartbeat()</code> now expose native-runtime metadata instead of JVM-shaped placeholders.
 The client-facing TypeScript API is renamed, while the protobuf layer keeps the
@@ -99,6 +107,7 @@ legacy fields for wire compatibility.</p>
 </ul>
 <p>Migration notes:</p>
 <ul>
+<li><code>getServerHeartbeat()</code> is now strictly <code>getServerHeartbeat(sessionIds)</code>. The old extra hostname / PID / interval-style arguments are removed in 2.x.</li>
 <li><code>jvmVersion</code>, <code>jvmVendor</code>, and <code>jvmPath</code> were removed from the client-facing TypeScript API. Use <code>runtimeKind</code>, <code>runtimeName</code>, <code>platform</code>, and <code>compiler</code> instead.</li>
 <li><code>serverMaxMemory</code>, <code>serverCommittedMemory</code>, and <code>serverUsedMemory</code> were removed from the client-facing TypeScript API. They were JVM-heap concepts and are now replaced with process-memory metrics.</li>
 <li>Optional heartbeat fields may be <code>undefined</code> when the host platform cannot report them. Treat missing values as &quot;unavailable&quot;, not zero.</li>
@@ -257,11 +266,10 @@ legacy fields for wire compatibility.</p>
 </tbody>
 </table>
 <h3 id="search-profile" class="tsd-anchor-link">Search &amp; Profile<a href="#search-profile" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<p>Search and data profiling are accessed through the session module:</p>
 <ul>
-<li><code>searchSession(...)</code> — forward and reverse byte-pattern search</li>
-<li><code>replaceSession(...)</code> — search-and-replace across the session</li>
-<li><code>profileSession(...)</code> — byte-frequency profiling and line-ending detection</li>
+<li><code>searchSession(...)</code> - forward and reverse byte-pattern search</li>
+<li><code>replaceSession(...)</code> - search-and-replace across the session</li>
+<li><code>profileSession(...)</code> - byte-frequency profiling and line-ending detection</li>
 </ul>
 <h3 id="logging" class="tsd-anchor-link">Logging<a href="#logging" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">createSimpleFileLogger</span><span class="hl-1">, </span><span class="hl-5">setLogger</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;@omega-edit/client&#39;</span><br/><br/><span class="hl-0">setLogger</span><span class="hl-1">(</span><span class="hl-0">createSimpleFileLogger</span><span class="hl-1">(</span><span class="hl-2">&#39;/tmp/omega-edit.log&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;debug&#39;</span><span class="hl-1">))</span>
@@ -322,7 +330,7 @@ legacy fields for wire compatibility.</p>
 </tr>
 <tr>
 <td><code>OMEGA_EDIT_CLIENT_LOG_LEVEL</code></td>
-<td>—</td>
+<td>-</td>
 <td>Client-side log level</td>
 </tr>
 </tbody>
@@ -334,8 +342,8 @@ legacy fields for wire compatibility.</p>
 <h2 id="documentation" class="tsd-anchor-link">Documentation<a href="#documentation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Full documentation is published at <a href="https://ctc-oss.github.io/omega-edit/">https://ctc-oss.github.io/omega-edit/</a>.</p>
 <h2 id="versioning" class="tsd-anchor-link">Versioning<a href="#versioning" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>Ωedit™ follows <a href="http://semver.org/">Semantic Versioning</a>.</p>
+<p>OmegaEdit follows <a href="http://semver.org/">Semantic Versioning</a>.</p>
 <h2 id="license" class="tsd-anchor-link">License<a href="#license" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p>Apache 2.0 — see <a href="https://github.com/ctc-oss/omega-edit/blob/main/LICENSE.txt">LICENSE.txt</a>.</p>
+<p>Apache 2.0 - see <a href="https://github.com/ctc-oss/omega-edit/blob/main/LICENSE.txt">LICENSE.txt</a>.</p>
 <p><a href="https://app.fossa.com/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit?ref=badge_large"><img src="https://app.fossa.com/api/projects/git%2Bgithub.com%2Fctc-oss%2Fomega-edit.svg?type=large" alt="FOSSA Status"></a></p>
 </div></div><div class="col-sidebar"><div class="page-menu"><div class="tsd-navigation settings"><details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>Settings</h3></summary><div class="tsd-accordion-details"><div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span><ul id="tsd-filter-options"><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-protected" name="protected"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Protected</span></label></li><li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li></ul></div><div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div><details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="assets/icons.svg#icon-chevronDown"></use></svg><h3>On This Page</h3></summary><div class="tsd-accordion-details"><a href="#install"><span>Install</span></a><a href="#quick-start"><span>Quick <wbr/>Start</span></a><a href="#api-overview"><span>API <wbr/>Overview</span></a><ul><li><a href="#server-lifecycle"><span>Server <wbr/>Lifecycle</span></a></li><li><a href="#server-health-api-migration"><span>Server <wbr/>Health <wbr/>API <wbr/>Migration</span></a></li><li><a href="#client-connection"><span>Client <wbr/>Connection</span></a></li><li><a href="#sessions"><span>Sessions</span></a></li><li><a href="#editing"><span>Editing</span></a></li><li><a href="#viewports"><span>Viewports</span></a></li><li><a href="#search-profile"><span>Search &amp; <wbr/>Profile</span></a></li><li><a href="#logging"><span>Logging</span></a></li></ul><a href="#package-format"><span>Package <wbr/>Format</span></a><a href="#environment-variables"><span>Environment <wbr/>Variables</span></a><a href="#examples"><span>Examples</span></a><a href="#development"><span>Development</span></a><a href="#documentation"><span>Documentation</span></a><a href="#versioning"><span>Versioning</span></a><a href="#license"><span>License</span></a></div></details></div><div class="site-menu"><nav class="tsd-navigation"><a href="modules.html">Ωedit TypeScript Client Documentation</a><ul class="tsd-small-nested-navigation" id="tsd-nav-container"><li>Loading...</li></ul></nav></div></div></div><footer><p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer><div class="overlay"></div></body></html>

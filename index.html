@@ -879,7 +879,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid arguments </p>
 </dd>
 </dl>
 </dd></dl>
@@ -890,7 +890,7 @@
 <dd><p>Insert a number of bytes at the given offset </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+<p>This byte-oriented API never infers a length from strlen. Use omega_edit_insert for null-terminated C strings. Passing length 0 is treated as a no-op. </p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -898,11 +898,11 @@
 <li><p><strong>session_ptr</strong> – session to make the change in </p></li>
 <li><p><strong>offset</strong> – location offset to make the change </p></li>
 <li><p><strong>bytes</strong> – bytes to insert at the given offset </p></li>
-<li><p><strong>length</strong> – number of bytes to insert (if 0, strlen will be used to calculate the length of null-terminated bytes) </p></li>
+<li><p><strong>length</strong> – explicit number of bytes to insert </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success, 0 for a no-op when length is 0 or when the request is rejected without error, or -1 for invalid arguments </p>
 </dd>
 </dl>
 </dd></dl>
@@ -913,7 +913,7 @@
 <dd><p>Insert a C string at the given offset </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+<p>This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls, use omega_edit_insert_bytes and pass an explicit byte length. </p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -925,7 +925,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid arguments </p>
 </dd>
 </dl>
 </dd></dl>
@@ -936,7 +936,7 @@
 <dd><p>Overwrite bytes at the given offset with the given new bytes </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+<p>This byte-oriented API never infers a length from strlen. Use omega_edit_overwrite for null-terminated C strings. Passing length 0 is treated as a no-op. </p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -944,11 +944,11 @@
 <li><p><strong>session_ptr</strong> – session to make the change in </p></li>
 <li><p><strong>offset</strong> – location offset to make the change </p></li>
 <li><p><strong>bytes</strong> – new bytes to overwrite the old bytes with </p></li>
-<li><p><strong>length</strong> – number of new bytes (if 0, strlen will be used to calculate the length of null-terminated bytes) </p></li>
+<li><p><strong>length</strong> – explicit number of new bytes </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success, 0 for a no-op when length is 0 or when the request is rejected without error, or -1 for invalid arguments </p>
 </dd>
 </dl>
 </dd></dl>
@@ -959,7 +959,7 @@
 <dd><p>Overwrite bytes at the given offset with the given new C string </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If editing data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+<p>This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls, use omega_edit_overwrite_bytes and pass an explicit byte length. </p>
 </div>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -971,7 +971,7 @@
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success, 0 when the request is rejected without error, or -1 for invalid arguments </p>
 </dd>
 </dl>
 </dd></dl>
@@ -988,11 +988,11 @@
 <li><p><strong>offset</strong> – location offset to make the change </p></li>
 <li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
 <li><p><strong>bytes</strong> – replacement bytes, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
-<li><p><strong>insert_length</strong> – number of replacement bytes to insert </p></li>
+<li><p><strong>insert_length</strong> – explicit number of replacement bytes to insert </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success; 0 if the request is rejected without error or results in no change; -1 if the arguments are invalid (for example, <code class="docutils literal notranslate"><span class="pre">session_ptr</span></code> is null or <code class="docutils literal notranslate"><span class="pre">bytes</span></code> is null while <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is greater than zero) </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1008,11 +1008,11 @@
 <li><p><strong>offset</strong> – location offset to make the change </p></li>
 <li><p><strong>delete_length</strong> – number of original bytes to remove </p></li>
 <li><p><strong>cstr</strong> – replacement C string, or null if <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is zero </p></li>
-<li><p><strong>insert_length</strong> – length of the replacement string (if 0, strlen will be used) </p></li>
+<li><p><strong>insert_length</strong> – length of the replacement string (if 0, strlen will be used for null-terminated text) </p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>positive change serial number on success, zero otherwise </p>
+<dd class="field-even"><p>positive change serial number on success; 0 if the request is rejected without error or results in no change; -1 if the arguments are invalid (for example, <code class="docutils literal notranslate"><span class="pre">session_ptr</span></code> is null, a length is negative, or <code class="docutils literal notranslate"><span class="pre">cstr</span></code> is null while <code class="docutils literal notranslate"><span class="pre">insert_length</span></code> is greater than zero) </p>
 </dd>
 </dl>
 </dd></dl>
@@ -1819,7 +1819,7 @@
 <dd><p>Create a search context </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing pattern length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the pattern length. </p>
+<p>This byte-oriented API never infers a pattern length from strlen. Use omega_search_create_context for null-terminated C strings. Passing pattern_length 0 is invalid and returns null. </p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -1830,7 +1830,7 @@
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>session_ptr</strong> – session to find patterns in </p></li>
 <li><p><strong>pattern</strong> – pointer to the pattern to find (as a sequence of bytes) </p></li>
-<li><p><strong>pattern_length</strong> – length of the pattern (if 0, strlen will be used to calculate the length of null-terminated bytes) </p></li>
+<li><p><strong>pattern_length</strong> – explicit length of the pattern in bytes </p></li>
 <li><p><strong>session_offset</strong> – start searching at this offset within the session </p></li>
 <li><p><strong>session_length</strong> – search from the starting offset within the session up to this many bytes, if set to zero, it will track the computed session length </p></li>
 <li><p><strong>case_insensitive</strong> – zero for case sensitive match and non-zero otherwise </p></li>
@@ -1849,7 +1849,7 @@
 <dd><p>Create a search context </p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p>If searching for pattern data that could have embedded nulls, do not rely on setting the length to 0 and have this function compute the length using strlen, because it will be wrong. Passing length 0 is a convenience for testing and should not be used in production code. In production code, explicitly pass in the length. </p>
+<p>This helper is for null-terminated text patterns. For binary data or patterns that may contain embedded nulls, use omega_search_create_context_bytes and pass an explicit pattern_length. </p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
