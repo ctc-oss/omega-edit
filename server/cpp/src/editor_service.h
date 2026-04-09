@@ -156,6 +156,10 @@ public:
                                const ::omega_edit::v1::SearchSessionRequest *request,
                                ::omega_edit::v1::SearchSessionResponse *response) override;
 
+    grpc::Status ReplaceSession(grpc::ServerContext *context,
+                                const ::omega_edit::v1::ReplaceSessionRequest *request,
+                                ::omega_edit::v1::ReplaceSessionResponse *response) override;
+
     grpc::Status ReplaceSessionCheckpointed(
         grpc::ServerContext *context,
         const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,

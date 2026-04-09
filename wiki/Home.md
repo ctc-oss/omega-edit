@@ -135,6 +135,8 @@ A complete, runnable reference extension lives at [`examples/vscode-extension/`]
 - Insert, delete, overwrite, undo, redo, search
 - Extension settings (port, log level, bytes per row)
 
+The current reference implementation also uses the higher-level `@omega-edit/client` editor helpers for session lifecycle, live session state, undo/save-state bookkeeping, and bounded-vs-large search behavior instead of hand-rolling that glue in the provider.
+
 ```bash
 cd examples/vscode-extension
 npm install

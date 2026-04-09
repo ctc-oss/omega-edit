@@ -184,6 +184,11 @@ service EditorService {
   // reverse search, with optional offset/length bounds and a match limit.
   rpc SearchSession(SearchSessionRequest) returns (SearchSessionResponse);
 
+  // Replace non-overlapping matches in a session range by applying a native
+  // transactional edit script. Returns the number of matches selected and the
+  // lowered edit-operation counts.
+  rpc ReplaceSession(ReplaceSessionRequest) returns (ReplaceSessionResponse);
+
   // Replace all non-overlapping matches in a session range by streaming the
   // rewritten content into a checkpoint-backed model. Returns the number of
   // replacements performed.
@@ -844,6 +849,38 @@ message SearchSessionResponse {
   int64 offset = 5;                // Starting offset of the search range.
   int64 length = 6;                // Length of the search range.
   repeated int64 match_offset = 7; // Byte offsets of each match.
+}
+
+// Request to replace non-overlapping matches in a session range transactionally.
+message ReplaceSessionRequest {
+  string session_id = 1;                 // Session to edit.
+  bytes pattern = 2;                     // Byte pattern to replace.
+  bytes replacement = 3;                 // Replacement bytes.
+  optional bool is_case_insensitive = 4; // When true, perform case-insensitive matching.
+  optional bool is_reverse = 5;          // When true, search backward before selecting matches.
+  optional int64 offset = 6;             // Starting byte offset of the replace range.
+  optional int64 length = 7;             // Number of bytes to process within the session.
+  optional int64 limit = 8;              // Maximum number of matches to replace (0 = unlimited).
+  optional bool front_to_back = 9;       // When true, apply replacements from low offsets to high offsets.
+  optional bool overwrite_only = 10;     // When true, overwrite replacement bytes in place.
+}
+
+// Result of a transactional replace operation.
+message ReplaceSessionResponse {
+  string session_id = 1;         // Session that was edited.
+  bytes pattern = 2;             // Pattern that was replaced.
+  bytes replacement = 3;         // Replacement bytes that were written.
+  bool is_case_insensitive = 4;  // Whether the match was case-insensitive.
+  bool is_reverse = 5;           // Whether the search that selected matches was reversed.
+  int64 offset = 6;              // Starting offset of the processed range.
+  int64 length = 7;              // Length of the processed range.
+  int64 limit = 8;               // Maximum number of matches requested.
+  bool front_to_back = 9;        // Whether replacements were applied from low offsets to high offsets.
+  bool overwrite_only = 10;      // Whether replacement bytes were applied as raw overwrites.
+  int64 replacement_count = 11;  // Number of matches selected for replacement.
+  int64 delete_count = 12;       // Number of lowered delete ops applied.
+  int64 insert_count = 13;       // Number of lowered insert ops applied.
+  int64 overwrite_count = 14;    // Number of lowered overwrite ops applied.
 }
 
 // Request to replace all non-overlapping matches by checkpointed streaming.

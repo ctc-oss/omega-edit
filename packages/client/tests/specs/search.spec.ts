@@ -20,6 +20,7 @@
 import {
   clear,
   destroyLastCheckpoint,
+  EditorSearchController,
   edit,
   editOptimizer,
   EditStats,
@@ -44,6 +45,7 @@ import {
   expect,
   testPort,
 } from './common.js'
+import { runSessionTransaction } from '../../dist/esm/session.js'
 
 describe('Searching', () => {
   let session_id = ''
@@ -952,6 +954,226 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('aaaaaa'))
+  })
+
+  it('Should replace repeated matches with non-overlapping semantics', async () => {
+    const stats = new EditStats()
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    expect(
+      await replaceSession(
+        session_id,
+        'aa',
+        'b',
+        false,
+        false,
+        0,
+        0,
+        0,
+        true,
+        false,
+        stats
+      )
+    ).to.equal(3)
+    expect(stats.delete_count).to.equal(3)
+    expect(stats.insert_count).to.equal(3)
+    expect(stats.overwrite_count).to.equal(0)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('bbb'))
+  })
+
+  it('Should apply overwrite_only replacements at correct offsets when front_to_back and lengths differ', async () => {
+    // Regression: when overwrite_only=true the file size never changes, so the per-replacement
+    // offset delta must be 0 even when pattern and replacement have different lengths.
+    await overwrite(session_id, 0, Buffer.from('aabbaabb'))
+
+    const count = await replaceSession(
+      session_id,
+      'aa',
+      'x',
+      false,
+      false,
+      0,
+      0,
+      0,
+      true, // front_to_back
+      true // overwrite_only
+    )
+    expect(count).to.equal(2)
+    // Each match start is overwritten with 'x'; file size and surrounding bytes are unchanged.
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('xabbxabb'))
+  })
+
+  it('Should serialize replaceSession behind other queued session mutations even when no matches are found', async () => {
+    await overwrite(session_id, 0, Buffer.from('abcdef'))
+
+    let releaseMutation!: () => void
+    const heldMutation = new Promise<void>((resolve) => {
+      releaseMutation = resolve
+    })
+    const activeMutation = runSessionTransaction(session_id, async () => {
+      await heldMutation
+    })
+
+    let settled = false
+    const replacePromise = replaceSession(
+      session_id,
+      'needle',
+      'item',
+      false,
+      false,
+      0,
+      0,
+      0
+    ).then((result) => {
+      settled = true
+      return result
+    })
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(settled).to.equal(false)
+
+    releaseMutation()
+    await activeMutation
+    expect(await replacePromise).to.equal(0)
+  })
+
+  it('Should support controller-driven large search and checkpointed replace-all', async () => {
+    const matchCount = 1205
+    const original = Array.from({ length: matchCount }, () => 'PD').join('|')
+    const replaced = Array.from({ length: matchCount }, () => 'PDF').join('|')
+    await overwrite(session_id, 0, Buffer.from(original, 'utf8'))
+
+    const controller = new EditorSearchController(session_id)
+    const searchResult = await controller.search({
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+    })
+
+    expect(searchResult.mode).to.equal('large')
+    expect(searchResult.matches).to.deep.equal([])
+    expect(searchResult.currentOffset).to.equal(0)
+
+    const replaceResult = await controller.replaceAll({
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+      length: 2,
+      replacement: Buffer.from('PDF', 'utf8'),
+      replacementData: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+
+    expect(replaceResult.strategy).to.equal('checkpointed')
+    expect(replaceResult.replacedCount).to.equal(matchCount)
+    expect(replaceResult.selectionOffset).to.equal(0)
+    expect(replaceResult.checkpointTransaction).to.deep.equal({
+      kind: 'CHECKPOINT_REPLACE_ALL',
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+      data: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from(replaced, 'utf8'))
+    expect(await destroyLastCheckpoint(session_id)).to.equal(0)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from(original, 'utf8'))
+  })
+
+  it('Should record the normalized query in checkpoint transactions for large replace-all', async () => {
+    const matchCount = 1205
+    const original = Array.from({ length: matchCount }, () => 'PD').join('|')
+    await overwrite(session_id, 0, Buffer.from(original, 'utf8'))
+
+    const controller = new EditorSearchController(session_id)
+    const replaceResult = await controller.replaceAll({
+      query: ' PD ',
+      isHex: false,
+      caseInsensitive: false,
+      length: 2,
+      replacement: Buffer.from('PDF', 'utf8'),
+      replacementData: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+
+    expect(replaceResult.strategy).to.equal('checkpointed')
+    expect(replaceResult.checkpointTransaction).to.deep.equal({
+      kind: 'CHECKPOINT_REPLACE_ALL',
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+      data: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+  })
+
+  it('Should return correct orderedOffsets for bounded replaceAll with overlapping search matches', async () => {
+    // Pattern 'aa' in 'aaaaaa': raw search finds overlapping matches at 0,1,2,3,4
+    // but replaceSession uses non-overlapping semantics → only offsets 0, 2, 4 are replaced.
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+    const result = await controller.replaceAll({
+      query: 'aa',
+      isHex: false,
+      caseInsensitive: false,
+      length: 2,
+      replacement: Buffer.from('b', 'utf8'),
+    })
+
+    expect(result.strategy).to.equal('bounded')
+    expect(result.replacedCount).to.equal(3)
+    // orderedOffsets must reflect the non-overlapping set actually replaced.
+    expect(result.orderedOffsets).to.deep.equal([0, 2, 4])
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('bbb'))
+  })
+
+  it('Should serialize controller replaceAll search+replace against concurrent mutations', async () => {
+    await overwrite(session_id, 0, Buffer.from('abcabc'))
+
+    let releaseMutation!: () => void
+    const heldMutation = new Promise<void>((resolve) => {
+      releaseMutation = resolve
+    })
+    const activeMutation = runSessionTransaction(session_id, async () => {
+      await heldMutation
+    })
+
+    let settled = false
+    const controller = new EditorSearchController(session_id, {
+      windowLimit: 100,
+    })
+    const replacePromise = controller
+      .replaceAll({
+        query: 'abc',
+        isHex: false,
+        caseInsensitive: false,
+        length: 3,
+        replacement: Buffer.from('xyz', 'utf8'),
+      })
+      .then((r) => {
+        settled = true
+        return r
+      })
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+    expect(settled).to.equal(
+      false,
+      'replaceAll should wait behind held mutation'
+    )
+
+    releaseMutation()
+    await activeMutation
+    const result = await replacePromise
+    expect(result.replacedCount).to.equal(2)
   })
 
   it('Should treat empty checkpointed replace patterns as a no-op over the raw RPC', async () => {

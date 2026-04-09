@@ -23,6 +23,17 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 | Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
 | Extension settings                                        | [package.json](package.json)                                                        |
 
+## Client Helpers Used Here
+
+The example now leans on higher-level editor-facing helpers from `@omega-edit/client` instead of rolling its own integration glue:
+
+| Helper                      | Role in the extension                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| `ScopedEditorSessionHandle` | Opens a session, creates or recreates the active viewport, owns subscriptions, cleans up |
+| `EditorSessionModel`        | Tracks computed file size, change count, viewport identity, and sync waiters        |
+| `EditorHistoryController`   | Tracks local vs checkpoint-backed undo/redo and save-state semantics                |
+| `EditorSearchController`    | Owns bounded vs large search mode and routes replace-all to bounded or checkpointed flows |
+
 ## Quick Start
 
 ### Prerequisites
@@ -33,6 +44,8 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 The current VS Code floor is `1.110` because that is the oldest version exercised in CI and it matches the `@types/vscode` version used to compile the example. If the support range is widened later, the CI matrix should be widened with it.
 
 This reference extension intentionally depends on the in-repo `@omega-edit/client` package through a local `file:` dependency. That keeps the example and CI aligned with the current Ωedit™ 2.x client implementation in this checkout instead of a separately published npm version.
+
+If you rebuild `packages/client` while iterating on the extension, run `npm install` in `examples/vscode-extension` again so the local installed `file:` dependency picks up the refreshed `dist/` artifacts.
 
 ### Run With F5
 
@@ -50,6 +63,13 @@ In the new window:
 - Or right-click a file in the Explorer and choose `Ωedit™: Open in Hex Editor`
 
 ## What Happens Under The Hood
+
+Current implementation note:
+
+- The example no longer hand-rolls session lifecycle and editor bookkeeping in the provider.
+- `ScopedEditorSessionHandle` owns session creation, viewport recreation, subscriptions, and cleanup.
+- `EditorSessionModel` owns live session metadata and sync waiters.
+- `EditorHistoryController` and `EditorSearchController` own the reusable undo/save-state and large-search behavior.
 
 1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
 2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
@@ -150,6 +170,10 @@ The repository's tagged release workflow also builds this extension and uploads 
 |  - server info / heartbeat                                   |
 +--------------------------------------------------------------+
 ```
+
+Current implementation note:
+
+- The architecture diagram above is still directionally correct, but the provider now reaches the lower-level session and subscription APIs through the client helpers listed above rather than wiring all of that behavior directly inside the example.
 
 Subscription rule:
 

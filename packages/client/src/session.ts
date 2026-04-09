@@ -38,6 +38,7 @@ import {
   notifyChangedViewports as rawNotifyChangedViewports,
   pauseSessionChanges as rawPauseSessionChanges,
   profileSession as rawProfileSession,
+  replaceSession as rawReplaceSession,
   replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
@@ -221,6 +222,35 @@ export async function runSessionTransaction<T>(
   })
 }
 
+export async function withViewportBatch<T>(
+  session_id: string,
+  work: () => Promise<T>,
+  options: {
+    transactional?: boolean
+    notifyChangedViewports?: boolean
+  } = {}
+): Promise<T> {
+  return await enqueueSessionMutation(session_id, async () => {
+    let viewportEventsPaused = false
+    await pauseViewportEvents(session_id)
+    viewportEventsPaused = true
+
+    try {
+      if (options.transactional ?? true) {
+        return await runSessionTransaction(session_id, work)
+      }
+      return await work()
+    } finally {
+      if (viewportEventsPaused) {
+        await resumeViewportEvents(session_id)
+        if (options.notifyChangedViewports ?? true) {
+          await notifyChangedViewports(session_id)
+        }
+      }
+    }
+  })
+}
+
 export function resumeSessionChanges(session_id: string): Promise<string> {
   return rawResumeSessionChanges(session_id)
 }
@@ -382,94 +412,44 @@ export async function replaceSession(
   overwrite_only: boolean = false,
   stats?: IEditStats
 ): Promise<number> {
-  return await enqueueSessionMutation(session_id, async () => {
-    const safeOffset = requireSafeIntegerInput('replaceSession offset', offset)
-    const safeLength = requireSafeIntegerInput('replaceSession length', length)
-    const safeLimit = requireSafeIntegerInput('replaceSession limit', limit)
-    const foundLocations = await searchSession(
-      session_id,
-      pattern,
-      is_case_insensitive,
-      is_reverse,
-      safeOffset,
-      safeLength,
-      safeLimit
-    )
-    const patternArray =
-      typeof pattern == 'string' ? Buffer.from(pattern) : pattern
-    const replacementArray =
-      typeof replacement == 'string' ? Buffer.from(replacement) : replacement
-    if (foundLocations.length === 0) {
-      return 0
-    }
-
-    const orderedLocations = [...foundLocations].sort((a, b) =>
-      front_to_back ? a - b : b - a
-    )
-
-    let viewportEventsPaused = false
-    try {
-      await runSessionTransaction(session_id, async () => {
-        await pauseViewportEvents(session_id)
-        viewportEventsPaused = true
-
-        if (front_to_back) {
-          if (overwrite_only) {
-            for (const foundLocation of orderedLocations) {
-              await overwrite(
-                session_id,
-                foundLocation,
-                replacementArray,
-                stats
-              )
-            }
-          } else {
-            const adjustment = replacementArray.length - patternArray.length
-            for (let i = 0; i < orderedLocations.length; ++i) {
-              await editSimple(
-                session_id,
-                requireSafeIntegerOutput(
-                  'replaceSession offset',
-                  adjustment * i + orderedLocations[i]
-                ),
-                patternArray,
-                replacementArray,
-                stats,
-                false
-              )
-            }
-          }
-        } else {
-          for (const foundLocation of orderedLocations) {
-            if (overwrite_only) {
-              await overwrite(
-                session_id,
-                foundLocation,
-                replacementArray,
-                stats
-              )
-            } else {
-              await editSimple(
-                session_id,
-                foundLocation,
-                patternArray,
-                replacementArray,
-                stats,
-                false
-              )
-            }
-          }
-        }
-      })
-    } finally {
-      if (viewportEventsPaused) {
-        await resumeViewportEvents(session_id)
-        await notifyChangedViewports(session_id)
+  // Use withViewportBatch (transactional:false) so that the N individual viewport events fired by
+  // omega_edit_apply_script are coalesced into a single viewport refresh on the client side.
+  return await withViewportBatch(
+    session_id,
+    async () => {
+      const response = await rawReplaceSession(
+        session_id,
+        pattern,
+        replacement,
+        is_case_insensitive,
+        is_reverse,
+        requireSafeIntegerInput('replaceSession offset', offset),
+        requireSafeIntegerInput('replaceSession length', length),
+        requireSafeIntegerInput('replaceSession limit', limit),
+        front_to_back,
+        overwrite_only
+      )
+      if (stats) {
+        stats.delete_count += requireSafeIntegerOutput(
+          'replaceSession delete_count',
+          response.deleteCount
+        )
+        stats.insert_count += requireSafeIntegerOutput(
+          'replaceSession insert_count',
+          response.insertCount
+        )
+        stats.overwrite_count += requireSafeIntegerOutput(
+          'replaceSession overwrite_count',
+          response.overwriteCount
+        )
       }
-    }
-
-    return requireSafeIntegerOutput('replacement count', foundLocations.length)
-  })
+      return requireSafeIntegerOutput(
+        'replacement count',
+        response.replacementCount
+      )
+    },
+    { transactional: false }
+  )
 }
 
 export async function replaceSessionCheckpointed(

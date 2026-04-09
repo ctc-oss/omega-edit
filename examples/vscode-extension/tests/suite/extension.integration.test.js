@@ -359,7 +359,7 @@ suite('OmegaEdit VS Code extension', () => {
       isDirty: true,
       savedChangeDepth: 0,
     })
-    assert.equal(session.changeLog.length, 4)
+    assert.equal(session.history.getChangeLog().length, 4)
 
     await provider.dispatchWebviewMessageForTesting(document.uri, {
       type: 'save',

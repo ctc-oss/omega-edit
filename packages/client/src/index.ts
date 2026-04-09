@@ -19,6 +19,10 @@
 
 export * from './change'
 export * from './client'
+export * from './editor_history'
+export * from './editor_scoped_session'
+export * from './editor_search'
+export * from './editor_session_model'
 export * from './logger'
 export * from './server'
 export * from './session'

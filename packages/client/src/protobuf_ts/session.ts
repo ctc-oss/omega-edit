@@ -32,6 +32,8 @@ import {
   type GetSessionCountResponse,
   type NotifyChangedViewportsResponse,
   type DestroyLastCheckpointResponse,
+  type ReplaceSessionRequest,
+  type ReplaceSessionResponse,
   type ReplaceSessionCheckpointedRequest,
   type ReplaceSessionCheckpointedResponse,
   type SaveSessionRequest,
@@ -1040,6 +1042,100 @@ export async function replaceSessionCheckpointed(
         return resolve(required)
       } catch (error) {
         return reject(makeWrappedError('replaceSessionCheckpointed', error))
+      }
+    })
+  })
+}
+
+export async function replaceSession(
+  sessionId: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  isCaseInsensitive: boolean = false,
+  isReverse: boolean = false,
+  offset: number = 0,
+  length: number = 0,
+  limit: number = 0,
+  frontToBack: boolean = true,
+  overwriteOnly: boolean = false
+): Promise<ReplaceSessionResponse> {
+  const log = getLogger()
+
+  if (pattern.length === 0) {
+    log.warn({
+      fn: 'protobufTs.replaceSession',
+      err: { msg: 'empty pattern given' },
+    })
+    return {
+      sessionId,
+      pattern: typeof pattern === 'string' ? Buffer.from(pattern) : pattern,
+      replacement:
+        typeof replacement === 'string'
+          ? Buffer.from(replacement)
+          : replacement,
+      isCaseInsensitive,
+      isReverse,
+      offset,
+      length,
+      limit,
+      frontToBack,
+      overwriteOnly,
+      replacementCount: 0,
+      deleteCount: 0,
+      insertCount: 0,
+      overwriteCount: 0,
+    }
+  }
+
+  const request: ReplaceSessionRequest = {
+    sessionId,
+    pattern: typeof pattern === 'string' ? Buffer.from(pattern) : pattern,
+    replacement:
+      typeof replacement === 'string' ? Buffer.from(replacement) : replacement,
+    offset,
+  }
+
+  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (isReverse) request.isReverse = true
+  if (length > 0) request.length = length
+  if (limit > 0) request.limit = limit
+  if (!frontToBack) request.frontToBack = false
+  if (overwriteOnly) request.overwriteOnly = true
+
+  debugLog(log, () => ({
+    fn: 'protobufTs.replaceSession',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<ReplaceSessionResponse>((resolve, reject) => {
+    client.replaceSession(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.replaceSession',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('replaceSession', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as ReplaceSessionResponse | undefined,
+          'replaceSession'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.replaceSession',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('replaceSession', error))
       }
     })
   })

@@ -1285,6 +1285,116 @@ export interface SearchSessionResponse {
   matchOffset: number[] // Byte offsets of each match.
 }
 /**
+ * Request to replace non-overlapping matches in a session range transactionally.
+ *
+ * @generated from protobuf message omega_edit.v1.ReplaceSessionRequest
+ */
+export interface ReplaceSessionRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to edit.
+  /**
+   * @generated from protobuf field: bytes pattern = 2
+   */
+  pattern: Uint8Array // Byte pattern to replace.
+  /**
+   * @generated from protobuf field: bytes replacement = 3
+   */
+  replacement: Uint8Array // Replacement bytes.
+  /**
+   * @generated from protobuf field: optional bool is_case_insensitive = 4
+   */
+  isCaseInsensitive?: boolean // When true, perform case-insensitive matching.
+  /**
+   * @generated from protobuf field: optional bool is_reverse = 5
+   */
+  isReverse?: boolean // When true, search backward before selecting matches.
+  /**
+   * @generated from protobuf field: optional int64 offset = 6
+   */
+  offset?: number // Starting byte offset of the replace range.
+  /**
+   * @generated from protobuf field: optional int64 length = 7
+   */
+  length?: number // Number of bytes to process within the session.
+  /**
+   * @generated from protobuf field: optional int64 limit = 8
+   */
+  limit?: number // Maximum number of matches to replace (0 = unlimited).
+  /**
+   * @generated from protobuf field: optional bool front_to_back = 9
+   */
+  frontToBack?: boolean // When true, apply replacements from low offsets to high offsets.
+  /**
+   * @generated from protobuf field: optional bool overwrite_only = 10
+   */
+  overwriteOnly?: boolean // When true, overwrite replacement bytes in place.
+}
+/**
+ * Result of a transactional replace operation.
+ *
+ * @generated from protobuf message omega_edit.v1.ReplaceSessionResponse
+ */
+export interface ReplaceSessionResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was edited.
+  /**
+   * @generated from protobuf field: bytes pattern = 2
+   */
+  pattern: Uint8Array // Pattern that was replaced.
+  /**
+   * @generated from protobuf field: bytes replacement = 3
+   */
+  replacement: Uint8Array // Replacement bytes that were written.
+  /**
+   * @generated from protobuf field: bool is_case_insensitive = 4
+   */
+  isCaseInsensitive: boolean // Whether the match was case-insensitive.
+  /**
+   * @generated from protobuf field: bool is_reverse = 5
+   */
+  isReverse: boolean // Whether the search that selected matches was reversed.
+  /**
+   * @generated from protobuf field: int64 offset = 6
+   */
+  offset: number // Starting offset of the processed range.
+  /**
+   * @generated from protobuf field: int64 length = 7
+   */
+  length: number // Length of the processed range.
+  /**
+   * @generated from protobuf field: int64 limit = 8
+   */
+  limit: number // Maximum number of matches requested.
+  /**
+   * @generated from protobuf field: bool front_to_back = 9
+   */
+  frontToBack: boolean // Whether replacements were applied from low offsets to high offsets.
+  /**
+   * @generated from protobuf field: bool overwrite_only = 10
+   */
+  overwriteOnly: boolean // Whether replacement bytes were applied as raw overwrites.
+  /**
+   * @generated from protobuf field: int64 replacement_count = 11
+   */
+  replacementCount: number // Number of matches selected for replacement.
+  /**
+   * @generated from protobuf field: int64 delete_count = 12
+   */
+  deleteCount: number // Number of lowered delete ops applied.
+  /**
+   * @generated from protobuf field: int64 insert_count = 13
+   */
+  insertCount: number // Number of lowered insert ops applied.
+  /**
+   * @generated from protobuf field: int64 overwrite_count = 14
+   */
+  overwriteCount: number // Number of lowered overwrite ops applied.
+}
+/**
  * Request to replace all non-overlapping matches by checkpointed streaming.
  *
  * @generated from protobuf message omega_edit.v1.ReplaceSessionCheckpointedRequest
@@ -8269,6 +8379,426 @@ class SearchSessionResponse$Type extends MessageType<SearchSessionResponse> {
  */
 export const SearchSessionResponse = new SearchSessionResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class ReplaceSessionRequest$Type extends MessageType<ReplaceSessionRequest> {
+  constructor() {
+    super('omega_edit.v1.ReplaceSessionRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      {
+        no: 3,
+        name: 'replacement',
+        kind: 'scalar',
+        T: 12 /*ScalarType.BYTES*/,
+      },
+      {
+        no: 4,
+        name: 'is_case_insensitive',
+        kind: 'scalar',
+        opt: true,
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 5,
+        name: 'is_reverse',
+        kind: 'scalar',
+        opt: true,
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 6,
+        name: 'offset',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 7,
+        name: 'length',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 8,
+        name: 'limit',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 9,
+        name: 'front_to_back',
+        kind: 'scalar',
+        opt: true,
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 10,
+        name: 'overwrite_only',
+        kind: 'scalar',
+        opt: true,
+        T: 8 /*ScalarType.BOOL*/,
+      },
+    ])
+  }
+  create(value?: PartialMessage<ReplaceSessionRequest>): ReplaceSessionRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pattern = new Uint8Array(0)
+    message.replacement = new Uint8Array(0)
+    if (value !== undefined)
+      reflectionMergePartial<ReplaceSessionRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ReplaceSessionRequest
+  ): ReplaceSessionRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bytes pattern */ 2:
+          message.pattern = reader.bytes()
+          break
+        case /* bytes replacement */ 3:
+          message.replacement = reader.bytes()
+          break
+        case /* optional bool is_case_insensitive */ 4:
+          message.isCaseInsensitive = reader.bool()
+          break
+        case /* optional bool is_reverse */ 5:
+          message.isReverse = reader.bool()
+          break
+        case /* optional int64 offset */ 6:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* optional int64 length */ 7:
+          message.length = reader.int64().toNumber()
+          break
+        case /* optional int64 limit */ 8:
+          message.limit = reader.int64().toNumber()
+          break
+        case /* optional bool front_to_back */ 9:
+          message.frontToBack = reader.bool()
+          break
+        case /* optional bool overwrite_only */ 10:
+          message.overwriteOnly = reader.bool()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ReplaceSessionRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bytes pattern = 2; */
+    if (message.pattern.length)
+      writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
+    /* bytes replacement = 3; */
+    if (message.replacement.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
+    /* optional bool is_case_insensitive = 4; */
+    if (message.isCaseInsensitive !== undefined)
+      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* optional bool is_reverse = 5; */
+    if (message.isReverse !== undefined)
+      writer.tag(5, WireType.Varint).bool(message.isReverse)
+    /* optional int64 offset = 6; */
+    if (message.offset !== undefined)
+      writer.tag(6, WireType.Varint).int64(message.offset)
+    /* optional int64 length = 7; */
+    if (message.length !== undefined)
+      writer.tag(7, WireType.Varint).int64(message.length)
+    /* optional int64 limit = 8; */
+    if (message.limit !== undefined)
+      writer.tag(8, WireType.Varint).int64(message.limit)
+    /* optional bool front_to_back = 9; */
+    if (message.frontToBack !== undefined)
+      writer.tag(9, WireType.Varint).bool(message.frontToBack)
+    /* optional bool overwrite_only = 10; */
+    if (message.overwriteOnly !== undefined)
+      writer.tag(10, WireType.Varint).bool(message.overwriteOnly)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ReplaceSessionRequest
+ */
+export const ReplaceSessionRequest = new ReplaceSessionRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ReplaceSessionResponse$Type extends MessageType<ReplaceSessionResponse> {
+  constructor() {
+    super('omega_edit.v1.ReplaceSessionResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'pattern', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+      {
+        no: 3,
+        name: 'replacement',
+        kind: 'scalar',
+        T: 12 /*ScalarType.BYTES*/,
+      },
+      {
+        no: 4,
+        name: 'is_case_insensitive',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      { no: 5, name: 'is_reverse', kind: 'scalar', T: 8 /*ScalarType.BOOL*/ },
+      {
+        no: 6,
+        name: 'offset',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 7,
+        name: 'length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 8,
+        name: 'limit',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 9,
+        name: 'front_to_back',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 10,
+        name: 'overwrite_only',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 11,
+        name: 'replacement_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 12,
+        name: 'delete_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 13,
+        name: 'insert_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 14,
+        name: 'overwrite_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ReplaceSessionResponse>
+  ): ReplaceSessionResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pattern = new Uint8Array(0)
+    message.replacement = new Uint8Array(0)
+    message.isCaseInsensitive = false
+    message.isReverse = false
+    message.offset = 0
+    message.length = 0
+    message.limit = 0
+    message.frontToBack = false
+    message.overwriteOnly = false
+    message.replacementCount = 0
+    message.deleteCount = 0
+    message.insertCount = 0
+    message.overwriteCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<ReplaceSessionResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ReplaceSessionResponse
+  ): ReplaceSessionResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* bytes pattern */ 2:
+          message.pattern = reader.bytes()
+          break
+        case /* bytes replacement */ 3:
+          message.replacement = reader.bytes()
+          break
+        case /* bool is_case_insensitive */ 4:
+          message.isCaseInsensitive = reader.bool()
+          break
+        case /* bool is_reverse */ 5:
+          message.isReverse = reader.bool()
+          break
+        case /* int64 offset */ 6:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* int64 length */ 7:
+          message.length = reader.int64().toNumber()
+          break
+        case /* int64 limit */ 8:
+          message.limit = reader.int64().toNumber()
+          break
+        case /* bool front_to_back */ 9:
+          message.frontToBack = reader.bool()
+          break
+        case /* bool overwrite_only */ 10:
+          message.overwriteOnly = reader.bool()
+          break
+        case /* int64 replacement_count */ 11:
+          message.replacementCount = reader.int64().toNumber()
+          break
+        case /* int64 delete_count */ 12:
+          message.deleteCount = reader.int64().toNumber()
+          break
+        case /* int64 insert_count */ 13:
+          message.insertCount = reader.int64().toNumber()
+          break
+        case /* int64 overwrite_count */ 14:
+          message.overwriteCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ReplaceSessionResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* bytes pattern = 2; */
+    if (message.pattern.length)
+      writer.tag(2, WireType.LengthDelimited).bytes(message.pattern)
+    /* bytes replacement = 3; */
+    if (message.replacement.length)
+      writer.tag(3, WireType.LengthDelimited).bytes(message.replacement)
+    /* bool is_case_insensitive = 4; */
+    if (message.isCaseInsensitive !== false)
+      writer.tag(4, WireType.Varint).bool(message.isCaseInsensitive)
+    /* bool is_reverse = 5; */
+    if (message.isReverse !== false)
+      writer.tag(5, WireType.Varint).bool(message.isReverse)
+    /* int64 offset = 6; */
+    if (message.offset !== 0)
+      writer.tag(6, WireType.Varint).int64(message.offset)
+    /* int64 length = 7; */
+    if (message.length !== 0)
+      writer.tag(7, WireType.Varint).int64(message.length)
+    /* int64 limit = 8; */
+    if (message.limit !== 0) writer.tag(8, WireType.Varint).int64(message.limit)
+    /* bool front_to_back = 9; */
+    if (message.frontToBack !== false)
+      writer.tag(9, WireType.Varint).bool(message.frontToBack)
+    /* bool overwrite_only = 10; */
+    if (message.overwriteOnly !== false)
+      writer.tag(10, WireType.Varint).bool(message.overwriteOnly)
+    /* int64 replacement_count = 11; */
+    if (message.replacementCount !== 0)
+      writer.tag(11, WireType.Varint).int64(message.replacementCount)
+    /* int64 delete_count = 12; */
+    if (message.deleteCount !== 0)
+      writer.tag(12, WireType.Varint).int64(message.deleteCount)
+    /* int64 insert_count = 13; */
+    if (message.insertCount !== 0)
+      writer.tag(13, WireType.Varint).int64(message.insertCount)
+    /* int64 overwrite_count = 14; */
+    if (message.overwriteCount !== 0)
+      writer.tag(14, WireType.Varint).int64(message.overwriteCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ReplaceSessionResponse
+ */
+export const ReplaceSessionResponse = new ReplaceSessionResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class ReplaceSessionCheckpointedRequest$Type extends MessageType<ReplaceSessionCheckpointedRequest> {
   constructor() {
     super('omega_edit.v1.ReplaceSessionCheckpointedRequest', [
@@ -10234,6 +10764,12 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: SearchSessionRequest,
     O: SearchSessionResponse,
+  },
+  {
+    name: 'ReplaceSession',
+    options: {},
+    I: ReplaceSessionRequest,
+    O: ReplaceSessionResponse,
   },
   {
     name: 'ReplaceSessionCheckpointed',

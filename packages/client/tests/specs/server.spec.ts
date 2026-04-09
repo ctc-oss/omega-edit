@@ -32,6 +32,7 @@ import {
   insert,
   overwrite,
   pidIsRunning,
+  replaceSession,
   replaceSessionCheckpointed,
   resetClient,
   setLogger,
@@ -640,6 +641,51 @@ describe('Server Resource Limits', () => {
     }
   })
 
+  it(`on port ${serverTestPort} should return 0 replacements for an empty pattern`, async () => {
+    // The client guard in protobuf_ts/session.ts short-circuits empty patterns before they
+    // reach the server (which now returns INVALID_ARGUMENT for defense-in-depth against direct
+    // gRPC callers).  Verify the client-guard fast-path returns a zero-count success.
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    const count = await replaceSession(
+      session_id,
+      Uint8Array.from([]),
+      Uint8Array.from([0x42]),
+      false,
+      false,
+      0,
+      0,
+      0,
+      true,
+      false
+    )
+    expect(count).to.equal(0)
+  })
+
+  it(`on port ${serverTestPort} should reject replace patterns larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await replaceSession(
+        session_id,
+        Uint8Array.from([0x41, 0x42]),
+        Uint8Array.from([0x43]),
+        false,
+        false,
+        0,
+        0,
+        0,
+        true,
+        false
+      )
+      expect.fail(
+        'replaceSession should reject patterns larger than maxChangeBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
   it(`on port ${serverTestPort} should reject checkpointed replace replacements larger than the configured limit`, async () => {
     await insert(session_id, 0, Uint8Array.from([0x41]))
 
@@ -654,6 +700,30 @@ describe('Server Resource Limits', () => {
       )
       expect.fail(
         'replaceSessionCheckpointed should reject replacements larger than maxChangeBytes'
+      )
+    } catch (err) {
+      expectResourceExhausted(err, 'configured limit of 1 bytes')
+    }
+  })
+
+  it(`on port ${serverTestPort} should reject replace replacements larger than the configured limit`, async () => {
+    await insert(session_id, 0, Uint8Array.from([0x41]))
+
+    try {
+      await replaceSession(
+        session_id,
+        Uint8Array.from([0x41]),
+        Uint8Array.from([0x42, 0x43]),
+        false,
+        false,
+        0,
+        0,
+        0,
+        true,
+        false
+      )
+      expect.fail(
+        'replaceSession should reject replacements larger than maxChangeBytes'
       )
     } catch (err) {
       expectResourceExhausted(err, 'configured limit of 1 bytes')
