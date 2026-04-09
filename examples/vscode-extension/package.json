@@ -128,7 +128,7 @@
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
-    "@omega-edit/client": "^1.0.1"
+    "@omega-edit/client": "file:../../packages/client"
   },
   "overrides": {
     "mocha": {

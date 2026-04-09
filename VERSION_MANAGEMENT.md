@@ -31,7 +31,7 @@ This will automatically update:
 - Client-server and AI-client dependency versions
 - VS Code extension version metadata
 
-For prerelease versions such as `2.0.0-rc1`, the sync script intentionally leaves the VS Code example's `@omega-edit/client` npm dependency pinned to the latest published release so `npm ci` continues to work before the prerelease packages are published.
+The VS Code extension example intentionally depends on the local workspace client via `file:../../packages/client` so CI and local development exercise the in-repo client implementation directly.
 
 ## Build System Integration
 

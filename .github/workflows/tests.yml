@@ -50,10 +50,6 @@ jobs:
         run: npm ci
         working-directory: examples/vscode-extension
 
-      - name: Use local OmegaEdit client in the VS Code extension example
-        run: npm install ../../packages/client --no-save
-        working-directory: examples/vscode-extension
-
       - name: Run Biome, compile, and unit tests for the VS Code extension
         run: npm run lint && npm run compile && npm run test:unit
         working-directory: examples/vscode-extension

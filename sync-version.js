@@ -84,11 +84,11 @@ const vscodeExtensionPackageJson = JSON.parse(
 )
 vscodeExtensionPackageJson.version = version
 if (
-  !isPrerelease &&
   vscodeExtensionPackageJson.dependencies &&
   vscodeExtensionPackageJson.dependencies['@omega-edit/client']
 ) {
-  vscodeExtensionPackageJson.dependencies['@omega-edit/client'] = `^${version}`
+  vscodeExtensionPackageJson.dependencies['@omega-edit/client'] =
+    'file:../../packages/client'
 }
 fs.writeFileSync(
   vscodeExtensionPackageJsonPath,
@@ -110,14 +110,13 @@ if (fs.existsSync(vscodeExtensionPackageLockPath)) {
   if (vscodeExtensionPackageLock.packages?.['']) {
     vscodeExtensionPackageLock.packages[''].version = version
     if (
-      !isPrerelease &&
       vscodeExtensionPackageLock.packages[''].dependencies?.[
         '@omega-edit/client'
       ]
     ) {
       vscodeExtensionPackageLock.packages[''].dependencies[
         '@omega-edit/client'
-      ] = `^${version}`
+      ] = 'file:../../packages/client'
     }
   }
   fs.writeFileSync(
@@ -127,8 +126,6 @@ if (fs.existsSync(vscodeExtensionPackageLockPath)) {
 }
 
 console.log(`Updated repo versioned packages to ${version}`)
-if (isPrerelease) {
-  console.log(
-    'Left the VS Code example client dependency pinned to the latest published npm release for prerelease builds.'
-  )
-}
+console.log(
+  'Set the VS Code example client dependency to the local workspace path.'
+)

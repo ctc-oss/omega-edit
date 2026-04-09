@@ -9,10 +9,10 @@ async function main() {
   const extensionTestsPath = path.resolve(__dirname, 'suite', 'index.js')
   const version = process.env.VSCODE_VERSION || undefined
   const versionTag = sanitizeVersionTag(version ?? 'stable')
-  const profileRoot = path.join(
-    extensionDevelopmentPath,
-    '.vscode-test',
-    `profile-${versionTag}`
+  const vscodeTestRoot = path.join(extensionDevelopmentPath, '.vscode-test')
+  fs.mkdirSync(vscodeTestRoot, { recursive: true })
+  const profileRoot = fs.mkdtempSync(
+    path.join(vscodeTestRoot, `profile-${versionTag}-`)
   )
   const extensionsDir = path.join(profileRoot, 'extensions')
   const userDataDir = path.join(profileRoot, 'user-data')
@@ -22,7 +22,6 @@ async function main() {
       version ? { version } : undefined
     )
     const serverPort = await reserveServerPort()
-    fs.rmSync(profileRoot, { recursive: true, force: true })
     const args = [
       '--no-sandbox',
       '--disable-gpu-sandbox',
@@ -45,6 +44,12 @@ async function main() {
     console.error('Failed to run VS Code integration tests')
     console.error(error)
     process.exit(1)
+  } finally {
+    try {
+      fs.rmSync(profileRoot, { recursive: true, force: true })
+    } catch {
+      // Ignore local cleanup failures; each run uses a fresh temp profile.
+    }
   }
 }
 
