@@ -53,7 +53,7 @@ const main = async () => {
   const s = await createSession()      // empty session
   const id = s.getSessionId()
   await insert(id, 0, Buffer.from('Hello, Ωedit™!'))
-  await saveSession(id, 'output.dat', IOFlags.IO_FLAGS_OVERWRITE)
+  await saveSession(id, 'output.dat', IOFlags.OVERWRITE)
   await destroySession(id)
   await stopServerGraceful()
 }
@@ -61,6 +61,22 @@ main().catch(console.error)
 ```
 
 See the [Quick Start guide in the wiki](https://github.com/ctc-oss/omega-edit/wiki#quick-start) for C/C++ and VS Code extension paths, plus links to all examples.
+
+## Naming Conventions
+
+Use these naming rules in user-facing documentation:
+
+- **`Ωedit™`** is the project and product name in prose, headings, release notes, and other user-facing text.
+- **`omega-edit`** is the repository name, URL slug, release-asset stem, and Docker image stem.
+- **`@omega-edit/...`** is the npm package scope.
+- **`omega_edit`** is the C/C++ and protobuf identifier form used in symbols, include paths, and proto namespaces.
+
+Examples:
+
+- say "Build a VS Code extension powered by Ωedit™"
+- use `https://github.com/ctc-oss/omega-edit`
+- import `@omega-edit/client`
+- include `omega_edit/edit.h`
 
 ## AI Tooling
 
@@ -186,7 +202,7 @@ cmake -S . -B _build -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCS=NO -DBUILD_EXAMPLES=N
 
 #### Embedding the core library in another CMake project:
 
-If you want to consume Ωedit as a subproject, enable embed mode to automatically disable tests,
+If you want to consume Ωedit™ as a subproject, enable embed mode to automatically disable tests,
 documentation, examples, coverage instrumentation, and packaging:
 
 ```bash
