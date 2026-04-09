@@ -684,6 +684,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   let activePane = 'hex'
   let hoveredColumn = -1
   let hoveredRowIndex = -1
+  let replaceSummaryActive = false
 
   // ── DOM Refs ────────────────────────────────────────
   const hexContainer = document.getElementById('hexContainer')
@@ -917,8 +918,15 @@ export function getWebviewContent(bytesPerRow: number): string {
     saveBtn.disabled = !isDirty
   }
 
-  function updateActionStatus(message = '') {
+  function updateActionStatus(message = '', source = 'generic') {
     statusAction.textContent = message
+    replaceSummaryActive = source === 'replace-summary' && message.length > 0
+  }
+
+  function clearReplaceSummaryActionStatus() {
+    if (replaceSummaryActive) {
+      updateActionStatus('')
+    }
   }
 
   function formatServerHealthSeverity(severity) {
@@ -1349,6 +1357,7 @@ export function getWebviewContent(bytesPerRow: number): string {
 
     const target = getPasteTarget()
     if (target.type === 'replace') {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'replace',
         offset: target.offset,
@@ -1356,6 +1365,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         data: pasteHex,
       })
     } else {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'insert',
         offset: target.offset,
@@ -1471,6 +1481,16 @@ export function getWebviewContent(bytesPerRow: number): string {
       : null
   }
 
+  function normalizeSearchQuery(query, isHex) {
+    return isHex ? normalizedHexQuery(query) : query
+  }
+
+  function getSearchPatternByteLength(query, isHex) {
+    return isHex
+      ? query.length / 2
+      : new TextEncoder().encode(query).length
+  }
+
   function utf8ToHex(text) {
     return Array.from(new TextEncoder().encode(text))
       .map((value) => value.toString(16).toUpperCase().padStart(2, '0'))
@@ -1499,6 +1519,38 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
 
     matchedByteOffsets = offsets
+  }
+
+  function applySingleReplaceToSearchMatches(replacedOffset, offsetDelta) {
+    if (searchMatches.length === 0 || searchMatchIndex < 0) {
+      clearSearchResults()
+      return null
+    }
+
+    searchMatches.splice(searchMatchIndex, 1)
+
+    if (searchMatches.length === 0) {
+      clearSearchResults()
+      return null
+    }
+
+    if (searchMatchIndex >= searchMatches.length) {
+      searchMatchIndex = searchMatches.length - 1
+    }
+
+    if (offsetDelta !== 0) {
+      searchMatches = searchMatches.map((matchOffset) =>
+        matchOffset > replacedOffset ? matchOffset + offsetDelta : matchOffset
+      )
+    }
+
+    const nextMatchOffset = searchMatches[searchMatchIndex]
+    selectOffset(nextMatchOffset)
+    rebuildMatchedByteOffsets()
+    updateMatchNav()
+    render()
+    vscode.postMessage({ type: 'goToMatch', offset: nextMatchOffset })
+    return nextMatchOffset
   }
 
   function isMatchByte(absOffset) {
@@ -1597,9 +1649,7 @@ export function getWebviewContent(bytesPerRow: number): string {
           selectOffset(searchMatches[0])
         }
         updateMatchNav()
-        if (searchMatches.length === 0) {
-          render()
-        }
+        render()
         break
 
       case 'editState':
@@ -1617,12 +1667,32 @@ export function getWebviewContent(bytesPerRow: number): string {
         updateActionStatus(
           (msg.replacedCount ?? 0) === 1
             ? 'Replaced 1 match'
-            : 'Replaced ' + (msg.replacedCount ?? 0) + ' matches'
+            : 'Replaced ' + (msg.replacedCount ?? 0) + ' matches',
+          'replace-summary'
         )
-        if (typeof msg.selectionOffset === 'number' && msg.selectionOffset >= 0) {
+        let nextMatchOffset = null
+        if (
+          msg.scope === 'single' &&
+          (msg.replacedCount ?? 0) > 0 &&
+          typeof msg.replacedOffset === 'number'
+        ) {
+          nextMatchOffset = applySingleReplaceToSearchMatches(
+            msg.replacedOffset,
+            typeof msg.offsetDelta === 'number' ? msg.offsetDelta : 0
+          )
+        } else if (msg.scope === 'single' && (msg.replacedCount ?? 0) === 0) {
+          updateMatchNav()
+          render()
+        } else {
+          clearSearchResults()
+        }
+        if (
+          nextMatchOffset === null &&
+          typeof msg.selectionOffset === 'number' &&
+          msg.selectionOffset >= 0
+        ) {
           selectOffset(msg.selectionOffset)
         }
-        doSearch()
         break
 
       case 'serverHealth':
@@ -1811,6 +1881,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       if (hasSelection() && fileSize > 0) {
         e.preventDefault()
         const selectionStart = getSelectionStart()
+        clearReplaceSummaryActionStatus()
         vscode.postMessage({
           type: 'delete',
           offset: selectionStart,
@@ -1863,6 +1934,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     e.preventDefault()
     const selectionStart = getSelectionStart()
     const selectionLength = getSelectionLength()
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'delete',
       offset: selectionStart,
@@ -1893,12 +1965,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
     const isHex = searchHex.checked
-    const normalizedQuery = isHex ? normalizedHexQuery(query) : query
+    const normalizedQuery = normalizeSearchQuery(query, isHex)
     if (normalizedQuery === null) {
       clearSearchResults('Invalid hex')
       return
     }
-    searchPatternLength = isHex ? normalizedQuery.length / 2 : query.length
+    searchPatternLength = getSearchPatternByteLength(normalizedQuery, isHex)
     vscode.postMessage({
       type: 'search',
       query: normalizedQuery,
@@ -1917,6 +1989,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       matchNav.textContent = 'Invalid replacement hex'
       return
     }
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'replace',
       offset: searchMatches[searchMatchIndex],
@@ -1929,9 +2002,9 @@ export function getWebviewContent(bytesPerRow: number): string {
     if (searchMatches.length === 0 || searchPatternLength <= 0) {
       return
     }
-    const query = searchInput.value
+    const query = searchInput.value.trim()
     const isHex = searchHex.checked
-    const normalized = normalizedQuery(query)
+    const normalized = normalizeSearchQuery(query, isHex)
     if (normalized === null) {
       matchNav.textContent = 'Invalid search hex'
       return
@@ -1941,9 +2014,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       matchNav.textContent = 'Invalid replacement hex'
       return
     }
+    const offsets = searchMatches.slice()
+    clearSearchResults()
+    clearReplaceSummaryActionStatus()
     vscode.postMessage({
       type: 'replaceAllMatches',
-      offsets: searchMatches.slice(),
+      offsets,
       query: normalized,
       isHex: isHex,
       caseInsensitive: !isHex && searchCase.checked,
@@ -2038,6 +2114,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     if (editMode === 'delete') {
       const len = parseInt(editLength.value, 10)
       if (isNaN(len) || len < 1) return
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'delete', offset: offset, length: len })
     } else {
       const hex = editData.value.replace(/\\s/g, '')
@@ -2046,6 +2123,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         return
       }
       editData.style.borderColor = ''
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: editMode, offset: offset, data: hex })
     }
     closeEditDialog()
@@ -2073,11 +2151,13 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   undoBtn.addEventListener('click', () => {
     if (!undoBtn.disabled) {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'undo' })
     }
   })
   redoBtn.addEventListener('click', () => {
     if (!redoBtn.disabled) {
+      clearReplaceSummaryActionStatus()
       vscode.postMessage({ type: 'redo' })
     }
   })

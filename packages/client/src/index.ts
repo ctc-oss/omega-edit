@@ -22,6 +22,7 @@ export * from './client'
 export * from './logger'
 export * from './server'
 export * from './session'
+export * from './subscriptions'
 export * from './version'
 export * from './viewport'
 

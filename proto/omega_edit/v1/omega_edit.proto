@@ -277,6 +277,10 @@ enum SessionEventKind {
   SESSION_EVENT_KIND_CREATE_VIEWPORT = 1024;
   // A viewport was destroyed on this session.
   SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
+  // A transaction was opened on this session.
+  SESSION_EVENT_KIND_TRANSACTION_STARTED = 4096;
+  // An open transaction was ended on this session.
+  SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
 }
 
 // Viewport-level event kinds.  Values are powers of two so they can be OR'd

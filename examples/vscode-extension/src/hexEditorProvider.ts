@@ -34,16 +34,14 @@ import {
   del,
   destroySession,
   destroyViewport,
-  EventSubscriptionRequest,
   editSimple,
-  getClient,
   getClientVersion,
   getComputedFileSize,
   getSegment,
-  getServerHeartbeat,
   getServerInfo,
   getViewportData,
   IOFlags,
+  type IServerInfo,
   insert,
   modifyViewport,
   overwrite,
@@ -52,6 +50,10 @@ import {
   SessionEventKind,
   saveSession,
   searchSession,
+  subscribeSessionEvents,
+  subscribeViewportEvents,
+  startServerHeartbeatLoop,
+  type ServerHeartbeatLoop,
   undo,
   ViewportEventKind,
 } from '@omega-edit/client'
@@ -63,6 +65,8 @@ interface EditorSession {
   sessionId: string
   viewportId: string
   fileSize: number
+  changeCount: number
+  sessionSyncVersion: number
   offset: number
   visibleRows: number
   capacity: number
@@ -76,6 +80,7 @@ interface EditorSession {
   scrollTask?: Promise<void>
   viewportStream?: { cancel(): void }
   sessionStream?: { cancel(): void }
+  sessionSyncWaiters: SessionSyncWaiter[]
 }
 
 type ChangeRecordKind = 'INSERT' | 'DELETE' | 'OVERWRITE' | 'REPLACE'
@@ -98,8 +103,14 @@ interface ServerHealthState {
   metrics: Array<{ label: string; value: string }>
 }
 
+interface SessionSyncWaiter {
+  minimumVersion: number
+  resolve(): void
+  reject(error: Error): void
+  timeout: ReturnType<typeof setTimeout>
+}
+
 const SESSION_SYNC_TIMEOUT_MS = 2000
-const SESSION_SYNC_POLL_MS = 25
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
@@ -141,9 +152,9 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   /** The editor that last had focus (for goToOffset command routing) */
   private activeSession: EditorSession | undefined
 
-  private heartbeatTimer: ReturnType<typeof setInterval> | undefined
+  private heartbeatLoop: ServerHeartbeatLoop | undefined
 
-  private heartbeatInFlight = false
+  private serverInfo: IServerInfo | undefined
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -225,6 +236,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       sessionId,
       viewportId,
       fileSize,
+      changeCount: 0,
+      sessionSyncVersion: 0,
       offset: 0,
       visibleRows: 32,
       capacity,
@@ -234,6 +247,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       changeLog: [],
       undoneChangeLog: [],
       disposed: false,
+      sessionSyncWaiters: [],
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
@@ -248,8 +262,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     this.startHealthPolling()
 
     // --- Subscribe to viewport events for live updates ---
-    this.subscribeToViewportEvents(session)
-    this.subscribeToSessionEvents(session)
+    await Promise.all([
+      this.subscribeToViewportEvents(session),
+      this.subscribeToSessionEvents(session),
+    ])
 
     // --- Handle messages FROM the webview ---
     webviewPanel.webview.onDidReceiveMessage(
@@ -268,6 +284,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     // --- Cleanup on close ---
     webviewPanel.onDidDispose(async () => {
       session.disposed = true
+      this.rejectSessionSyncWaiters(
+        session,
+        new Error('Session disposed before sync completed')
+      )
       this.sessions.delete(uri.toString())
       if (this.activeSession === session) {
         this.activeSession = undefined
@@ -378,14 +398,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private async subscribeToViewportEvents(
     session: EditorSession
   ): Promise<void> {
-    const client = await getClient(this.port)
-    const request = new EventSubscriptionRequest()
-      .setId(session.viewportId)
-      .setInterest(ALL_EVENTS)
-
-    const vpStream = client
-      .subscribeToViewportEvents(request)
-      .on('data', async (event) => {
+    session.viewportStream = await subscribeViewportEvents({
+      viewportId: session.viewportId,
+      interest: ALL_EVENTS,
+      onEvent: async (event) => {
         const kind = event.getViewportEventKind()
         if (
           kind === ViewportEventKind.EDIT ||
@@ -396,11 +412,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         ) {
           await this.sendViewportData(session)
         }
-      })
-      .on('error', () => {
+      },
+      onError: () => {
         // Stream closed â€” expected during shutdown
-      })
-    session.viewportStream = vpStream
+      },
+    })
   }
 
   /**
@@ -409,29 +425,32 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   private async subscribeToSessionEvents(
     session: EditorSession
   ): Promise<void> {
-    const client = await getClient(this.port)
-    const request = new EventSubscriptionRequest()
-      .setId(session.sessionId)
-      .setInterest(ALL_EVENTS)
-
-    const sesStream = client
-      .subscribeToSessionEvents(request)
-      .on('data', async (event) => {
+    session.sessionStream = await subscribeSessionEvents({
+      sessionId: session.sessionId,
+      interest: ALL_EVENTS,
+      onEvent: (event) => {
         const kind = event.getSessionEventKind()
         if (
           kind === SessionEventKind.EDIT ||
           kind === SessionEventKind.UNDO ||
           kind === SessionEventKind.CLEAR
         ) {
-          session.fileSize = await getComputedFileSize(session.sessionId)
-          session.panel.webview.postMessage({
-            type: 'fileSizeChanged',
-            fileSize: session.fileSize,
-          })
+          this.applySessionStateUpdate(
+            session,
+            event.getComputedFileSize(),
+            event.getChangeCount()
+          )
         }
-      })
-      .on('error', () => {})
-    session.sessionStream = sesStream
+      },
+      onError: () => {
+        if (!session.disposed) {
+          this.rejectSessionSyncWaiters(
+            session,
+            new Error('Session event stream closed before sync completed')
+          )
+        }
+      },
+    })
   }
 
   // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -496,40 +515,86 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     })
   }
 
-  private async refreshSessionFileSize(
+  private applySessionStateUpdate(
     session: EditorSession,
-    expectedFileSize?: number
-  ): Promise<void> {
-    let nextFileSize = session.fileSize
-    const deadline = Date.now() + SESSION_SYNC_TIMEOUT_MS
-
-    while (Date.now() <= deadline) {
-      nextFileSize = await getComputedFileSize(session.sessionId)
-      if (
-        expectedFileSize === undefined
-          ? nextFileSize !== session.fileSize
-          : nextFileSize === expectedFileSize
-      ) {
-        break
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, SESSION_SYNC_POLL_MS))
-    }
-
-    if (expectedFileSize !== undefined && nextFileSize !== expectedFileSize) {
-      throw new Error(
-        `Timed out waiting for session size ${expectedFileSize}; last size was ${nextFileSize}`
-      )
-    }
-
-    if (nextFileSize === session.fileSize) {
-      return
-    }
-
+    nextFileSize: number,
+    nextChangeCount: number
+  ): void {
     session.fileSize = nextFileSize
+    session.changeCount = nextChangeCount
+    session.sessionSyncVersion += 1
     session.panel.webview.postMessage({
       type: 'fileSizeChanged',
       fileSize: nextFileSize,
+    })
+    this.resolveSessionSyncWaiters(session)
+  }
+
+  private resolveSessionSyncWaiters(session: EditorSession): void {
+    const remainingWaiters: SessionSyncWaiter[] = []
+
+    for (const waiter of session.sessionSyncWaiters) {
+      if (session.sessionSyncVersion > waiter.minimumVersion) {
+        clearTimeout(waiter.timeout)
+        waiter.resolve()
+        continue
+      }
+
+      remainingWaiters.push(waiter)
+    }
+
+    session.sessionSyncWaiters = remainingWaiters
+  }
+
+  private rejectSessionSyncWaiters(
+    session: EditorSession,
+    error: Error
+  ): void {
+    const waiters = session.sessionSyncWaiters
+    session.sessionSyncWaiters = []
+    for (const waiter of waiters) {
+      clearTimeout(waiter.timeout)
+      waiter.reject(error)
+    }
+  }
+
+  private waitForSessionSync(
+    session: EditorSession,
+    minimumVersion: number,
+    timeoutMs: number = SESSION_SYNC_TIMEOUT_MS
+  ): Promise<void> {
+    if (session.sessionSyncVersion > minimumVersion) {
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      let waiter: SessionSyncWaiter
+      const removeWaiter = () => {
+        session.sessionSyncWaiters = session.sessionSyncWaiters.filter(
+          (pendingWaiter) => pendingWaiter !== waiter
+        )
+      }
+
+      waiter = {
+        minimumVersion,
+        resolve: () => {
+          removeWaiter()
+          resolve()
+        },
+        reject: (error) => {
+          removeWaiter()
+          reject(error)
+        },
+        timeout: setTimeout(() => {
+          waiter.reject(
+            new Error(
+              `Timed out waiting for session sync; version=${session.sessionSyncVersion} changeCount=${session.changeCount} fileSize=${session.fileSize}`
+            )
+          )
+        }, timeoutMs),
+      }
+
+      session.sessionSyncWaiters.push(waiter)
     })
   }
 
@@ -587,36 +652,54 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private startHealthPolling(): void {
-    if (this.heartbeatTimer) {
+    if (this.heartbeatLoop) {
       return
     }
 
-    void this.publishServerHealth()
-    this.heartbeatTimer = setInterval(() => {
-      void this.publishServerHealth()
-    }, 5000)
+    this.heartbeatLoop = startServerHeartbeatLoop({
+      intervalMs: 5000,
+      getSessionIds: () =>
+        Array.from(this.sessions.values(), (session) => session.sessionId),
+      onHeartbeat: async (heartbeat) => {
+        await this.publishServerHealth(heartbeat)
+      },
+      onError: (error) => {
+        this.serverInfo = undefined
+        this.broadcastServerHealth({
+          type: 'serverHealth',
+          ok: false,
+          summary: 'Î©editâ„¢ unavailable',
+          detail: error.message,
+          severity: 'down',
+          metrics: [{ label: 'Error', value: error.message }],
+        })
+      },
+    })
   }
 
   private stopHealthPolling(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = undefined
-    }
+    this.heartbeatLoop?.stop()
+    this.heartbeatLoop = undefined
+    this.serverInfo = undefined
   }
 
-  private async publishServerHealth(): Promise<void> {
-    if (this.heartbeatInFlight || this.sessions.size === 0) {
+  private async publishServerHealth(heartbeat: {
+    latency: number
+    sessionCount: number
+    serverUptime: number
+    serverCpuCount: number
+    serverCpuLoadAverage?: number
+    serverResidentMemoryBytes?: number
+    serverVirtualMemoryBytes?: number
+    serverPeakResidentMemoryBytes?: number
+  }): Promise<void> {
+    if (this.sessions.size === 0) {
       return
     }
 
-    this.heartbeatInFlight = true
     try {
-      const [serverInfo, heartbeat] = await Promise.all([
-        getServerInfo(),
-        getServerHeartbeat(
-          Array.from(this.sessions.values(), (session) => session.sessionId)
-        ),
-      ])
+      this.serverInfo ??= await getServerInfo()
+      const serverInfo = this.serverInfo
 
       const uptimeSeconds = Math.max(
         0,
@@ -736,8 +819,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         severity: 'down',
         metrics: [{ label: 'Error', value: message }],
       })
-    } finally {
-      this.heartbeatInFlight = false
     }
   }
 
@@ -752,10 +833,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     changes: ChangeRecord[]
   ): Promise<void> {
     for (const change of changes) {
-      const expectedFileSize = this.getExpectedFileSizeAfterRecord(
-        session.fileSize,
-        change
-      )
+      const sessionSyncVersion = session.sessionSyncVersion
+      let shouldWaitForSync = true
       switch (change.kind) {
         case 'INSERT': {
           const serial = await insert(
@@ -803,7 +882,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           break
         }
         case 'REPLACE':
-          await this.applyReplace(
+          shouldWaitForSync = await this.applyReplace(
             session,
             change.offset,
             change.length,
@@ -812,24 +891,9 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           )
           break
       }
-      await this.refreshSessionFileSize(session, expectedFileSize)
-    }
-  }
-
-  private getExpectedFileSizeAfterRecord(
-    currentFileSize: number,
-    change: Pick<ChangeRecord, 'kind' | 'length' | 'data'>
-  ): number {
-    const insertedLength = change.data.length / 2
-    switch (change.kind) {
-      case 'INSERT':
-        return currentFileSize + insertedLength
-      case 'DELETE':
-        return Math.max(0, currentFileSize - change.length)
-      case 'OVERWRITE':
-        return currentFileSize
-      case 'REPLACE':
-        return Math.max(0, currentFileSize - change.length + insertedLength)
+      if (shouldWaitForSync) {
+        await this.waitForSessionSync(session, sessionSyncVersion)
+      }
     }
   }
 
@@ -1030,8 +1094,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
         // --- Editing ---
         case 'insert': {
+          const sessionSyncVersion = session.sessionSyncVersion
           const data = Buffer.from(msg.data, 'hex')
-          const expectedFileSize = session.fileSize + data.length
           const serial = await insert(session.sessionId, msg.offset, data)
           this.pushChange(session, {
             serial,
@@ -1040,12 +1104,12 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: 0,
             data: msg.data,
           })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          await this.waitForSessionSync(session, sessionSyncVersion)
           break
         }
 
         case 'delete': {
-          const expectedFileSize = Math.max(0, session.fileSize - msg.length)
+          const sessionSyncVersion = session.sessionSyncVersion
           const serial = await del(session.sessionId, msg.offset, msg.length)
           this.pushChange(session, {
             serial,
@@ -1054,11 +1118,12 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: msg.length,
             data: '',
           })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          await this.waitForSessionSync(session, sessionSyncVersion)
           break
         }
 
         case 'overwrite': {
+          const sessionSyncVersion = session.sessionSyncVersion
           const serial = await overwrite(
             session.sessionId,
             msg.offset,
@@ -1071,15 +1136,12 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             length: msg.data.length / 2,
             data: msg.data,
           })
-          await this.refreshSessionFileSize(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
           break
         }
 
         case 'replace': {
-          const expectedFileSize = this.getExpectedFileSizeAfterRecord(
-            session.fileSize,
-            { kind: 'REPLACE', length: msg.length, data: msg.data }
-          )
+          const sessionSyncVersion = session.sessionSyncVersion
           const changed = await this.applyReplace(
             session,
             msg.offset,
@@ -1088,10 +1150,15 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           )
           session.panel.webview.postMessage({
             type: 'replaceComplete',
+            scope: 'single',
+            replacedOffset: msg.offset,
+            offsetDelta: Buffer.from(msg.data, 'hex').length - msg.length,
             selectionOffset: changed && msg.data.length > 0 ? msg.offset : -1,
             replacedCount: changed ? 1 : 0,
           })
-          await this.refreshSessionFileSize(session, expectedFileSize)
+          if (changed) {
+            await this.waitForSessionSync(session, sessionSyncVersion)
+          }
           break
         }
 
@@ -1113,9 +1180,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           )
 
           if (replacedCount > 0) {
-            const expectedFileSize =
-              session.fileSize +
-              replacedCount * (replacement.length - msg.length)
             const groupId = `replace-all-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`
             this.pushChanges(
               session,
@@ -1128,10 +1192,13 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 groupId,
               }))
             )
-            await this.refreshSessionFileSize(session, expectedFileSize)
           }
+          // replaceSession() completes after the server-side bulk edit finishes.
+          // Session and viewport subscriptions stream the resulting state changes
+          // without needing an extra extension-side sync barrier here.
           session.panel.webview.postMessage({
             type: 'replaceComplete',
+            scope: 'all',
             selectionOffset:
               replacedCount > 0 && msg.data.length > 0 ? orderedOffsets[0] : -1,
             replacedCount,
@@ -1145,9 +1212,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             this.postEditState(session)
             break
           }
+          const sessionSyncVersion = session.sessionSyncVersion
           await undo(session.sessionId)
           this.moveLastTransaction(session.changeLog, session.undoneChangeLog)
-          await this.refreshSessionFileSize(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
           this.postEditState(session)
           break
         }
@@ -1157,9 +1225,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             this.postEditState(session)
             break
           }
+          const sessionSyncVersion = session.sessionSyncVersion
           await redo(session.sessionId)
           this.moveLastTransaction(session.undoneChangeLog, session.changeLog)
-          await this.refreshSessionFileSize(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
           this.postEditState(session)
           break
         }

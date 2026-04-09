@@ -65,7 +65,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /editSimple/)
   assert.match(providerJs, /getSegment/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
-  assert.match(providerJs, /getServerHeartbeat/)
+  assert.match(providerJs, /startServerHeartbeatLoop/)
   assert.match(providerJs, /getServerInfo/)
 })
 
@@ -177,6 +177,33 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /type: 'saveAs'/)
   assert.match(html, /function replaceCurrentMatch\(\)/)
   assert.match(html, /function replaceAllMatches\(\)/)
+  assert.match(html, /function applySingleReplaceToSearchMatches\(replacedOffset, offsetDelta\)/)
+  assert.match(
+    html,
+    /matchOffset > replacedOffset \? matchOffset \+ offsetDelta : matchOffset/
+  )
+  assert.match(html, /const nextMatchOffset = searchMatches\[searchMatchIndex\]/)
+  assert.match(html, /vscode\.postMessage\({ type: 'goToMatch', offset: nextMatchOffset }\)/)
+  assert.match(html, /function normalizeSearchQuery\(query, isHex\)/)
+  assert.match(html, /function getSearchPatternByteLength\(query, isHex\)/)
+  assert.match(
+    html,
+    /const normalizedQuery = normalizeSearchQuery\(query, isHex\)/
+  )
+  assert.match(
+    html,
+    /searchPatternLength = getSearchPatternByteLength\(normalizedQuery, isHex\)/
+  )
+  assert.match(
+    html,
+    /const normalized = normalizeSearchQuery\(query, isHex\)/
+  )
+  assert.match(html, /const offsets = searchMatches\.slice\(\)/)
+  assert.match(
+    html,
+    /const offsets = searchMatches\.slice\(\)[\s\S]*clearSearchResults\(\)[\s\S]*type: 'replaceAllMatches'[\s\S]*offsets,/
+  )
+  assert.doesNotMatch(html, /normalizedQuery\(query\)/)
   assert.match(html, /document\.addEventListener\('copy'/)
   assert.match(html, /document\.addEventListener\('cut'/)
   assert.match(html, /document\.addEventListener\('paste'/)
@@ -233,4 +260,11 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /msg\.undoCount \?\? 0/)
   assert.match(html, /msg\.redoCount \?\? 0/)
   assert.match(html, /case 'replaceComplete'/)
+  assert.match(html, /replaceSummaryActive/)
+  assert.match(html, /function clearReplaceSummaryActionStatus\(\)/)
+  assert.match(
+    html,
+    /case 'replaceComplete'[\s\S]*'replace-summary'[\s\S]*let nextMatchOffset = null[\s\S]*applySingleReplaceToSearchMatches\([\s\S]*nextMatchOffset === null[\s\S]*msg\.selectionOffset/
+  )
+  assert.match(html, /undoBtn\.addEventListener\('click', \(\) => \{[\s\S]*clearReplaceSummaryActionStatus\(\)[\s\S]*type: 'undo'/)
 })

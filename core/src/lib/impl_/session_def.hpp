@@ -44,10 +44,15 @@ struct omega_session_struct {
     int64_t num_changes_adjustment_{};         ///< Number of changes in checkpoints
     int64_t undo_snapshot_interval_{100};      ///< Undo model snapshot interval (0 = disabled, default 100)
     int8_t session_flags_{};                   ///< Internal state flags
+    omega_session_event_t batched_session_event_kind_{SESSION_EVT_UNDEFINED};///< Event kind currently being batched
+    omega_session_event_t pending_session_event_kind_{SESSION_EVT_UNDEFINED};///< Deferred event to flush at batch end
+    const void *pending_session_event_ptr_{};  ///< Deferred event payload to flush at batch end
     std::string checkpoint_directory_{};       ///< Path to checkpoint directory
     std::string checkpoint_file_name_{};       ///< Name of session checkpoint file
 };
 
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr);
+void omega_session_begin_event_batch_(omega_session_t *session_ptr, omega_session_event_t session_event);
+void omega_session_end_event_batch_(omega_session_t *session_ptr);
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

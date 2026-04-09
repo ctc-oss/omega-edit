@@ -2,6 +2,17 @@
 
 This document covers building, testing, and contributing to the `@omega-edit/client` package.
 
+## Design Rule: Subscriptions Over Polling
+
+OmegaEdit is designed around server-pushed session and viewport subscriptions.
+
+- `SubscribeToSessionEvents` is the normal way to keep computed file size and other session-derived state current.
+- `SubscribeToViewportEvents` is the normal way to keep rendered viewport state current.
+- `subscribeSessionEvents(...)` and `subscribeViewportEvents(...)` are the preferred client helpers for consuming those streams correctly.
+- Heartbeat is the only polling loop that should exist in a well-designed client, because the server needs positive liveness signals to reap abandoned sessions safely.
+
+If you find yourself adding any other recurring poll against session or viewport state, treat that as a design insufficiency to be fixed rather than an acceptable integration pattern.
+
 ## Prerequisites
 
 - Node.js 16+
@@ -71,6 +82,7 @@ When making changes:
 - update `src/protobuf_ts/` if the underlying RPC behavior or protobuf-ts usage is changing
 - update the top-level `src/` wrappers if the public API contract or compatibility behavior is changing
 - regenerate `src/protobuf_ts/generated/` via `yarn compile-src` when the `.proto` schema changes
+- prefer exposing or consuming subscription data over adding snapshot polling loops; snapshot RPCs are for point-in-time reads, not steady-state synchronization
 
 As the last build step, the repo also runs [`scripts/write-dist-package-jsons.js`](../../scripts/write-dist-package-jsons.js). That helper writes nested `package.json` files into `dist/esm` and `dist/cjs`, rewrites ESM-relative imports to include `.js`, and generates the client's protobuf ESM bridge files. We need that extra step because `tsc` alone does not produce a Node-ready dual-package layout for the published artifacts.
 

@@ -1691,6 +1691,18 @@ export enum SessionEventKind {
    * @generated from protobuf enum value: SESSION_EVENT_KIND_DESTROY_VIEWPORT = 2048;
    */
   DESTROY_VIEWPORT = 2048,
+  /**
+   * A transaction was opened on this session.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSACTION_STARTED = 4096;
+   */
+  TRANSACTION_STARTED = 4096,
+  /**
+   * An open transaction was ended on this session.
+   *
+   * @generated from protobuf enum value: SESSION_EVENT_KIND_TRANSACTION_ENDED = 8192;
+   */
+  TRANSACTION_ENDED = 8192,
 }
 /**
  * Viewport-level event kinds.  Values are powers of two so they can be OR'd

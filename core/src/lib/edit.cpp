@@ -266,6 +266,46 @@ namespace {
         if (notify_changed_viewports) { omega_session_notify_changed_viewports(session_ptr); }
     }
 
+    class scoped_transaction_t {
+    public:
+        explicit scoped_transaction_t(omega_session_t *session_ptr): session_ptr_(session_ptr) {
+            if (!session_ptr_) {
+                begin_result_ = -1;
+                return;
+            }
+            if (omega_session_get_transaction_state(session_ptr_) == 0) {
+                begin_result_ = omega_session_begin_transaction(session_ptr_);
+                owns_transaction_ = (begin_result_ == 0);
+            }
+        }
+
+        ~scoped_transaction_t() {
+            if (owns_transaction_) { omega_session_end_transaction(session_ptr_); }
+        }
+
+        bool ok() const { return begin_result_ == 0; }
+
+    private:
+        omega_session_t *session_ptr_{};
+        int begin_result_{0};
+        bool owns_transaction_{false};
+    };
+
+    class scoped_session_event_batch_t {
+    public:
+        scoped_session_event_batch_t(omega_session_t *session_ptr, omega_session_event_t session_event)
+            : session_ptr_(session_ptr) {
+            omega_session_begin_event_batch_(session_ptr_, session_event);
+        }
+
+        ~scoped_session_event_batch_t() {
+            omega_session_end_event_batch_(session_ptr_);
+        }
+
+    private:
+        omega_session_t *session_ptr_{};
+    };
+
     auto replace_bytes_impl_(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                              const omega_byte_t *bytes, int64_t insert_length) -> int64_t {
         if (!session_ptr) { return -1; }
@@ -279,9 +319,8 @@ namespace {
         const auto callbacks_were_paused = omega_session_viewport_event_callbacks_paused(session_ptr) != 0;
         if (!callbacks_were_paused) { omega_session_pause_viewport_event_callbacks(session_ptr); }
 
-        const auto transaction_state = omega_session_get_transaction_state(session_ptr);
-        const auto started_transaction = (transaction_state == 0) && (0 == omega_session_begin_transaction(session_ptr));
-        if ((transaction_state == 0) && !started_transaction) {
+        const scoped_transaction_t transaction_scope(session_ptr);
+        if (!transaction_scope.ok()) {
             restore_viewport_callbacks_(session_ptr, callbacks_were_paused, false);
             return -1;
         }
@@ -307,7 +346,6 @@ namespace {
             success = true;
         } while (false);
 
-        if (started_transaction) { omega_session_end_transaction(session_ptr); }
         restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
         return success ? last_serial : 0;
     }
@@ -948,8 +986,8 @@ int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_scrip
     if (!callbacks_were_paused) { omega_session_pause_viewport_event_callbacks(session_ptr); }
 
     const auto transaction_state = omega_session_get_transaction_state(session_ptr);
-    const auto started_transaction = (transaction_state == 0) && (0 == omega_session_begin_transaction(session_ptr));
-    if ((transaction_state == 0) && !started_transaction) {
+    const scoped_transaction_t transaction_scope(session_ptr);
+    if ((transaction_state == 0) && !transaction_scope.ok()) {
         restore_viewport_callbacks_(session_ptr, callbacks_were_paused, false);
         return -1;
     }
@@ -974,7 +1012,6 @@ int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_scrip
         if (serial > 0) { changed = true; }
     }
 
-    if (started_transaction) { omega_session_end_transaction(session_ptr); }
     restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
     return rc;
 }
@@ -1298,6 +1335,7 @@ int omega_edit_clear_changes(omega_session_t *session_ptr) {
 int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t result = 0;
+    const scoped_session_event_batch_t event_batch(session_ptr, SESSION_EVT_UNDO);
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes.back();
         session_ptr->models_.back()->changes.pop_back();
@@ -1360,6 +1398,7 @@ int64_t omega_edit_undo_last_change(omega_session_t *session_ptr) {
 int64_t omega_edit_redo_last_undo(omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     int64_t rc = 0;
+    const scoped_session_event_batch_t event_batch(session_ptr, SESSION_EVT_EDIT);
     while ((omega_session_changes_paused(session_ptr) == 0) && !session_ptr->models_.back()->changes_undone.empty()) {
         const auto change_ptr = session_ptr->models_.back()->changes_undone.back();
         rc = update_(session_ptr, change_ptr);

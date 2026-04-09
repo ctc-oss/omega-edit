@@ -182,6 +182,7 @@ int omega_session_begin_transaction(omega_session_t *session_ptr) {
     // If a transaction is already open or in progress, then indicate failure
     if (omega_session_get_transaction_state(session_ptr)) { return -1; }
     session_ptr->session_flags_ |= SESSION_FLAGS_SESSION_TRANSACTION_OPENED;
+    omega_session_notify(session_ptr, SESSION_EVT_TRANSACTION_STARTED, nullptr);
     return 0;
 }
 
@@ -191,6 +192,8 @@ int omega_session_end_transaction(omega_session_t *session_ptr) {
     if (!omega_session_get_transaction_state(session_ptr)) { return -1; }
     session_ptr->session_flags_ &=
             ~(SESSION_FLAGS_SESSION_TRANSACTION_OPENED | SESSION_FLAGS_SESSION_TRANSACTION_IN_PROGRESS);
+    omega_session_end_event_batch_(session_ptr);
+    omega_session_notify(session_ptr, SESSION_EVT_TRANSACTION_ENDED, nullptr);
     return 0;
 }
 
@@ -262,9 +265,39 @@ int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
+void omega_session_begin_event_batch_(omega_session_t *session_ptr, omega_session_event_t session_event) {
+    if (!session_ptr) { return; }
+    session_ptr->batched_session_event_kind_ = session_event;
+    session_ptr->pending_session_event_kind_ = SESSION_EVT_UNDEFINED;
+    session_ptr->pending_session_event_ptr_ = nullptr;
+}
+
+void omega_session_end_event_batch_(omega_session_t *session_ptr) {
+    if (!session_ptr) { return; }
+    const auto pending_event = session_ptr->pending_session_event_kind_;
+    const auto pending_ptr = session_ptr->pending_session_event_ptr_;
+    session_ptr->batched_session_event_kind_ = SESSION_EVT_UNDEFINED;
+    session_ptr->pending_session_event_kind_ = SESSION_EVT_UNDEFINED;
+    session_ptr->pending_session_event_ptr_ = nullptr;
+    if (pending_event != SESSION_EVT_UNDEFINED) {
+        omega_session_notify(session_ptr, pending_event, pending_ptr);
+    }
+}
+
 void omega_session_notify(const omega_session_t *session_ptr, omega_session_event_t session_event,
                           const void *event_ptr) {
     if (!session_ptr) { return; }
+    auto *mutable_session_ptr = const_cast<omega_session_t *>(session_ptr);
+    const auto should_batch_transaction_edit =
+            session_event == SESSION_EVT_EDIT && omega_session_get_transaction_state(session_ptr) != 0;
+    const auto should_batch_explicit_event =
+            session_event == mutable_session_ptr->batched_session_event_kind_ &&
+            mutable_session_ptr->batched_session_event_kind_ != SESSION_EVT_UNDEFINED;
+    if (should_batch_transaction_edit || should_batch_explicit_event) {
+        mutable_session_ptr->pending_session_event_kind_ = session_event;
+        mutable_session_ptr->pending_session_event_ptr_ = event_ptr;
+        return;
+    }
     if (session_ptr->event_handler && (session_event & session_ptr->event_interest_)) {
         (*session_ptr->event_handler)(session_ptr, session_event, event_ptr);
     }

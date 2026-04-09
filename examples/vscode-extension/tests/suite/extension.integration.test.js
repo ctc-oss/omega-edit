@@ -344,6 +344,7 @@ suite('OmegaEdit VS Code extension', () => {
     const replaceComplete = lastMessageOfType(panel.messages, 'replaceComplete')
     assert.deepEqual(replaceComplete, {
       type: 'replaceComplete',
+      scope: 'all',
       selectionOffset: 0,
       replacedCount: 4,
     })
