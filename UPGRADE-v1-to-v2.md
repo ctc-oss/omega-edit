@@ -1,4 +1,4 @@
-# v1 to v2 Upgrade Guide
+# Ωedit™ v1 to v2 Upgrade Guide
 
 ## Why upgrade
 
@@ -9,7 +9,7 @@
 
 ## What changes
 
-- The protobuf import path remains `omega_edit/v1`; OmegaEdit 2.0 still includes intentional schema breaks where they materially simplify the API, and those breaks are documented here instead of through a package rename.
+- The protobuf import path remains `omega_edit/v1`; Ωedit™ 2.0 still includes intentional schema breaks where they materially simplify the API, and those breaks are documented here instead of through a package rename.
 - Most TypeScript consumers can upgrade by bumping package versions and rerunning their normal regression tests.
 - If you relied on the old Scala server scripts or deployment model, switch to the packaged C++ server (`@omega-edit/server` or `server/cpp`).
 - Server info and heartbeat responses now expose native-runtime metadata, while legacy JVM-shaped compatibility fields remain deprecated in the schema.

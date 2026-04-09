@@ -6,6 +6,15 @@
 
 Ωedit™ has a native library (written in C/C++), a native C++ gRPC server, and a TypeScript RPC client that uses HTTP/2 over TCP. Ωedit™ handles the editing bookkeeping and file I/O allowing the front-end to focus on presentation details. The front-end application creates one or more viewports that are subscribed to. Desired changes are then sent to the local Ωedit™ client, which communicates changes to the server, which then sends them into the library. Changes that affect the subscribed viewport(s) are communicated to the server, then to the client, and finally to the front-end which renders the data in the affected viewports. These round trips are fast and efficient (thousands of changes per second). This architecture allows for efficient (in both time and space) editing of very large files. Ωedit™ does not load the file being edited in memory, instead it keeps track of the changes, and can compute the changes for any given data segment or viewport on demand. This allows paging through the data with the edits applied, or have several viewports into the data all being kept up to date with all affecting changes being made.
 
+## Naming Conventions
+
+Use these naming rules in user-facing Ωedit™ documentation:
+
+- **`Ωedit™`** for the project and product name in prose, headings, and UI-facing explanations
+- **`omega-edit`** for repository names, URLs, release assets, and Docker image names
+- **`@omega-edit/...`** for npm package names
+- **`omega_edit`** for C/C++ identifiers, include paths, and protobuf namespaces
+
 ## Quick Start
 
 Choose the path that matches your use case. All five get you to a working edit in under five minutes.
@@ -42,7 +51,7 @@ async function main() {
   console.log(`Session size: ${size} bytes`)
 
   // 4. Save to disk
-  await saveSession(sessionId, 'hello-output.dat', IOFlags.IO_FLAGS_OVERWRITE)
+  await saveSession(sessionId, 'hello-output.dat', IOFlags.OVERWRITE)
   console.log('Saved to hello-output.dat')
 
   // 5. Clean up
@@ -87,7 +96,7 @@ FetchContent_MakeAvailable(omega_edit)
 target_link_libraries(my_app PRIVATE omega_edit::omega_edit)
 ```
 
-For a downstream-native integration guide covering subproject patterns, installed-package consumption, shared vs static tradeoffs, Windows DLL placement, and "use OmegaEdit as a backend" workflows, see [Embedding OmegaEdit Core](Embedding-OmegaEdit-Core).
+For a downstream-native integration guide covering subproject patterns, installed-package consumption, shared vs static tradeoffs, Windows DLL placement, and "use Ωedit™ as a backend" workflows, see [Embedding Ωedit™ Core](Embedding-OmegaEdit-Core).
 
 Minimal C example — open a file, insert bytes, save:
 
@@ -104,7 +113,7 @@ int main() {
 }
 ```
 
-> **Next steps:** See [`core/src/examples/`](https://github.com/ctc-oss/omega-edit/tree/main/core/src/examples) for 15+ C/C++ examples covering search, viewports, profiling, transforms, and record/replay. For embedding and deployment guidance, see [Embedding OmegaEdit Core](Embedding-OmegaEdit-Core).
+> **Next steps:** See [`core/src/examples/`](https://github.com/ctc-oss/omega-edit/tree/main/core/src/examples) for 15+ C/C++ examples covering search, viewports, profiling, transforms, and record/replay. For embedding and deployment guidance, see [Embedding Ωedit™ Core](Embedding-OmegaEdit-Core).
 
 ### Path 3 — VS Code Extension
 
@@ -113,7 +122,7 @@ Build a data/hex editor extension with a single npm dependency:
 ```json
 {
   "dependencies": {
-    "@omega-edit/client": "^1.0.1"
+    "@omega-edit/client": "^2.0.0"
   }
 }
 ```
@@ -133,6 +142,8 @@ npm install
 ```
 
 > **See also:** The [Apache Daffodil™ VS Code Extension](https://marketplace.visualstudio.com/items?itemName=asf.apache-daffodil-vscode) uses Ωedit™ as its data editor in production.
+
+> **Note:** The in-repo reference extension now depends on the local workspace client package so it always exercises the current Ωedit™ 2.x implementation in this repository. External extensions should consume the published `@omega-edit/client` package.
 
 ### Path 4 — Docker (zero-install server)
 

@@ -1,14 +1,14 @@
-# Embedding OmegaEdit Core
+# Embedding Ωedit™ Core
 
-OmegaEdit core is already structured to be embedded directly into another native project. This page documents the three supported integration patterns and the runtime tradeoffs to think through before you ship.
+Ωedit™ core is already structured to be embedded directly into another native project. This page documents the three supported integration patterns and the runtime tradeoffs to think through before you ship.
 
 ## Choose an Integration Pattern
 
-Use one of these patterns depending on how much of the OmegaEdit repository you want to bring into your build:
+Use one of these patterns depending on how much of the Ωedit™ repository you want to bring into your build:
 
 1. `add_subdirectory(<omega-edit-repo>)`
 
-   Best when you vendor the full repository and want OmegaEdit to behave like a lean subproject.
+   Best when you vendor the full repository and want Ωedit™ to behave like a lean subproject.
 
 2. `add_subdirectory(<omega-edit-repo>/core)`
 
@@ -16,7 +16,7 @@ Use one of these patterns depending on how much of the OmegaEdit repository you 
 
 3. `find_package(omega_edit CONFIG REQUIRED)`
 
-   Best when OmegaEdit has already been installed to a prefix and you want consumers to link against the installed package.
+   Best when Ωedit™ has already been installed to a prefix and you want consumers to link against the installed package.
 
 In all three cases, the primary target is the same:
 
@@ -46,7 +46,7 @@ target_link_libraries(my_app PRIVATE omega_edit::omega_edit)
 
 Why this mode exists:
 
-- disables OmegaEdit tests
+- disables Ωedit™ tests
 - disables docs generation
 - disables examples
 - disables coverage instrumentation
@@ -70,13 +70,13 @@ This is the smallest CMake integration path. `core/CMakeLists.txt` intentionally
 
 Good fit for:
 
-- embedding OmegaEdit beneath another native engine
+- embedding Ωedit™ beneath another native engine
 - monorepos that already own their packaging story
 - projects that do not want the repo-root packaging/install targets
 
 ## Pattern 3: Link Against an Installed Package
 
-If OmegaEdit has already been installed to a prefix, use the exported package config:
+If Ωedit™ has already been installed to a prefix, use the exported package config:
 
 ```cmake
 find_package(omega_edit CONFIG REQUIRED)
@@ -93,7 +93,7 @@ find_package(omega_edit CONFIG REQUIRED COMPONENTS shared)
 target_link_libraries(my_app PRIVATE omega_edit::omega_edit)
 ```
 
-OmegaEdit's installed package config understands `static` and `shared` components and loads the matching exported target file for you.
+Ωedit™'s installed package config understands `static` and `shared` components and loads the matching exported target file for you.
 
 Typical install flow from this repo:
 
@@ -107,14 +107,14 @@ Then point your downstream project at that prefix using `CMAKE_PREFIX_PATH` or y
 
 ## Shared vs Static Linking
 
-OmegaEdit supports both shared and static builds. The right choice depends mostly on deployment constraints, not on API shape.
+Ωedit™ supports both shared and static builds. The right choice depends mostly on deployment constraints, not on API shape.
 
 ### Static linking
 
 Best when you want:
 
 - the simplest runtime deployment
-- no separate OmegaEdit DLL / `.so` / `.dylib`
+- no separate Ωedit™ DLL / `.so` / `.dylib`
 - easier shipping inside a single native executable or tightly controlled plugin package
 
 Tradeoffs:
@@ -128,7 +128,7 @@ Tradeoffs:
 Best when you want:
 
 - smaller application binaries
-- a separable OmegaEdit runtime artifact
+- a separable Ωedit™ runtime artifact
 - easier replacement of the core library without relinking the embedding app
 
 Tradeoffs:
@@ -138,7 +138,7 @@ Tradeoffs:
 
 ## Windows DLL and Runtime Placement
 
-If you build OmegaEdit as a shared library on Windows, make sure `omega_edit.dll` is deployed beside your executable, or otherwise available on `PATH`.
+If you build Ωedit™ as a shared library on Windows, make sure `omega_edit.dll` is deployed beside your executable, or otherwise available on `PATH`.
 
 The usual "works everywhere" rule is:
 
@@ -167,8 +167,8 @@ add_custom_command(TARGET my_app POST_BUILD
 
 Notes:
 
-- when OmegaEdit is built statically, no separate OmegaEdit DLL is needed at runtime
-- your C/C++ runtime deployment still follows your toolchain choice (`/MD` vs `/MT`, vcpkg triplet, etc.); OmegaEdit does not add a separate runtime policy beyond the one your build already uses
+- when Ωedit™ is built statically, no separate Ωedit™ DLL is needed at runtime
+- your C/C++ runtime deployment still follows your toolchain choice (`/MD` vs `/MT`, vcpkg triplet, etc.); Ωedit™ does not add a separate runtime policy beyond the one your build already uses
 
 ## Minimal Required Targets and Includes
 
@@ -188,12 +188,12 @@ Typical headers:
 - `omega_edit/search.h` if you want direct search contexts
 - `omega_edit/viewport.h` if your host application wants viewport-style reads
 
-## Using OmegaEdit as an Edit Backend
+## Using Ωedit™ as an Edit Backend
 
-OmegaEdit works well underneath another workflow engine, parser, editor shell, or rewrite system. A common pattern looks like this:
+Ωedit™ works well underneath another workflow engine, parser, editor shell, or rewrite system. A common pattern looks like this:
 
 1. Open a session from a file or in-memory bytes.
-2. Translate your engine's logical operations into OmegaEdit inserts, deletes, and overwrites.
+2. Translate your engine's logical operations into Ωedit™ inserts, deletes, and overwrites.
 3. Read computed data back through `omega_session_get_segment` when you need materialized bytes.
 4. Save to disk with `omega_edit_save` or keep working in-memory until your host decides to persist.
 5. Destroy the session when the workflow is complete.
@@ -228,8 +228,8 @@ int main(void) {
 
 Why this pattern is useful:
 
-- OmegaEdit gives your host system undo/redo, checkpointing, and large-file-safe edits without forcing you to design those primitives yourself.
-- Your application can keep its own higher-level transaction or workflow model while delegating byte-accurate edit bookkeeping to OmegaEdit.
+- Ωedit™ gives your host system undo/redo, checkpointing, and large-file-safe edits without forcing you to design those primitives yourself.
+- Your application can keep its own higher-level transaction or workflow model while delegating byte-accurate edit bookkeeping to Ωedit™.
 - You can adopt only the core session/edit APIs first and add search, viewports, profiling, or transforms later.
 
 ## Practical Recommendations
@@ -240,7 +240,7 @@ If you are choosing quickly:
 - use `core/` directly when you only want the native library as a subproject
 - use `find_package(omega_edit CONFIG REQUIRED COMPONENTS static)` when you want the simplest installed-package deployment story
 - prefer static linking first for embedded tools, plugins, and internal engines unless you have a strong reason to ship a shared runtime
-- prefer shared linking when multiple packaged components need to reuse the same OmegaEdit binary or when swapping the runtime independently matters
+- prefer shared linking when multiple packaged components need to reuse the same Ωedit™ binary or when swapping the runtime independently matters
 
 ## See Also
 
