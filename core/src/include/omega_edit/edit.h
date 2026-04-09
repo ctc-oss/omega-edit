@@ -297,6 +297,56 @@ int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t
                            int64_t insert_length);
 
 /**
+ * Replace all non-overlapping matches of a byte pattern within a session range using a streamed checkpoint rewrite.
+ *
+ * The current session content is read once in forward order and rewritten into a new checkpoint file. Bytes outside the
+ * target range are copied through unchanged; bytes inside the range are copied unchanged except where they match the
+ * pattern, in which case the replacement bytes are written instead. Matching is performed against the original session
+ * bytes, not against already-written replacement output.
+ *
+ * If no matches are found, the session is left unchanged and `replacement_count_out` receives 0. If matches are found,
+ * the newly written checkpoint becomes the active model and the session emits the same checkpoint/transform notifications
+ * used by omega_edit_apply_transform.
+ *
+ * @param session_ptr session to edit
+ * @param pattern pattern bytes to search for
+ * @param pattern_length explicit number of bytes in pattern
+ * @param replacement replacement bytes, or null if `replacement_length` is zero
+ * @param replacement_length explicit number of bytes in replacement
+ * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param offset starting byte offset of the replace-all range
+ * @param length number of bytes in the replace-all range, or zero to search from `offset` to end of session
+ * @param replacement_count_out optional out-parameter that receives the number of replacements performed
+ * @return zero on success and non-zero otherwise
+ * @warning Matches are replaced in forward order and are non-overlapping. After a match is consumed, searching resumes
+ * immediately after the matched bytes in the original session content.
+ * @warning This byte-oriented API never infers a length from strlen. Use omega_edit_replace_all for null-terminated C
+ * strings.
+ */
+int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                 const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+                                 int64_t offset, int64_t length, int64_t *replacement_count_out);
+
+/**
+ * Replace all non-overlapping matches of a C-string pattern within a session range using a streamed checkpoint rewrite.
+ * @param session_ptr session to edit
+ * @param pattern pattern C string to search for
+ * @param pattern_length length of the pattern string (if 0, strlen will be used for null-terminated text)
+ * @param replacement replacement C string, or null if `replacement_length` is zero
+ * @param replacement_length length of the replacement string (if 0, strlen will be used for null-terminated text)
+ * @param case_insensitive zero for case-sensitive matching and non-zero for case-insensitive matching
+ * @param offset starting byte offset of the replace-all range
+ * @param length number of bytes in the replace-all range, or zero to search from `offset` to end of session
+ * @param replacement_count_out optional out-parameter that receives the number of replacements performed
+ * @return zero on success and non-zero otherwise
+ * @warning This helper is for null-terminated text inputs. For binary data or buffers that may contain embedded nulls,
+ * use omega_edit_replace_all_bytes and pass explicit byte lengths.
+ */
+int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                           const char *replacement, int64_t replacement_length, int case_insensitive, int64_t offset,
+                           int64_t length, int64_t *replacement_count_out);
+
+/**
  * Apply an array of edit script operations sequentially to the given session.
  *
  * Operations are applied in the order given. The function does not roll back already-applied

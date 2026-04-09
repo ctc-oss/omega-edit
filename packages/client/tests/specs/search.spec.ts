@@ -19,6 +19,7 @@
 
 import {
   clear,
+  destroyLastCheckpoint,
   edit,
   editOptimizer,
   EditStats,
@@ -31,6 +32,7 @@ import {
   redo,
   replace,
   replaceOneSession,
+  replaceSessionCheckpointed,
   replaceSession,
   searchSession,
   undo,
@@ -904,6 +906,21 @@ describe('Searching', () => {
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('x|x|x'))
     expect(await getChangeTransactionCount(session_id)).to.equal(2)
+  })
+
+  it('Should checkpoint-replace large repeated matches efficiently', async () => {
+    await overwrite(session_id, 0, Buffer.from('aaaaaa'))
+
+    expect(
+      await replaceSessionCheckpointed(session_id, 'aa', 'b', false, 0, 0)
+    ).to.equal(3)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('bbb'))
+    expect(await destroyLastCheckpoint(session_id)).to.equal(0)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from('aaaaaa'))
   })
 
   it('Should work with replace on binary data', async () => {

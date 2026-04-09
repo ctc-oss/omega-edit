@@ -306,6 +306,16 @@ namespace {
         omega_session_t *session_ptr_{};
     };
 
+    struct session_stream_cursor_t {
+        const omega_session_t *session_ptr{};
+        omega_model_segments_t::const_iterator segment_iter{};
+        omega_model_segments_t::const_iterator segment_end{};
+        int64_t offset{};
+    };
+
+    int64_t write_file_segment_(FILE *from_file_ptr, int64_t offset, int64_t byte_count, FILE *to_file_ptr,
+                                omega_byte_t *io_buf);
+
     auto replace_bytes_impl_(omega_session_t *session_ptr, int64_t offset, int64_t delete_length,
                              const omega_byte_t *bytes, int64_t insert_length) -> int64_t {
         if (!session_ptr) { return -1; }
@@ -656,6 +666,140 @@ namespace {
                 ABORT(LOG_ERROR("Invalid transaction state"););
                 return false;
         }
+    }
+
+    auto create_checkpoint_file_(omega_session_t *session_ptr, char *checkpoint_filename,
+                                 size_t checkpoint_filename_size) -> int {
+        if (!session_ptr || !checkpoint_filename || checkpoint_filename_size == 0) { return -1; }
+        const auto *const checkpoint_directory = omega_session_get_checkpoint_directory(session_ptr);
+        if (omega_util_directory_exists(checkpoint_directory) == 0) {
+            LOG_ERROR("checkpoint directory '" << checkpoint_directory << "' does not exist");
+            return -1;
+        }
+        const auto snprintf_result =
+                snprintf(checkpoint_filename, checkpoint_filename_size, "%s%c.OmegaEdit-chk.%zu.XXXXXX",
+                         checkpoint_directory, omega_util_directory_separator(), session_ptr->models_.size());
+        if (snprintf_result < 0 || static_cast<size_t>(snprintf_result) >= checkpoint_filename_size) {
+            LOG_ERROR("failed to create checkpoint filename template");
+            return -1;
+        }
+        const auto checkpoint_fd = omega_util_mkstemp(checkpoint_filename, 0600);// S_IRUSR | S_IWUSR
+        if (checkpoint_fd < 0) {
+            LOG_ERROR("omega_util_mkstemp failed for checkpoint file '" << checkpoint_filename << "'");
+            return -1;
+        }
+        close(checkpoint_fd);
+        return 0;
+    }
+
+    auto promote_checkpoint_file_(omega_session_t *session_ptr, const char *checkpoint_filename, int64_t file_size,
+                                  bool notify_transform) -> int {
+        if (!session_ptr || !checkpoint_filename) { return -1; }
+        session_ptr->num_changes_adjustment_ = omega_session_get_num_changes(session_ptr);
+        session_ptr->models_.push_back(std::make_unique<omega_model_t>());
+        session_ptr->models_.back()->file_ptr = FOPEN(checkpoint_filename, "rb");
+        session_ptr->models_.back()->file_path = checkpoint_filename;
+        if (session_ptr->models_.back()->file_ptr == nullptr) {
+            LOG_ERROR("failed to open checkpoint file '" << checkpoint_filename << "'");
+            session_ptr->models_.pop_back();
+            omega_util_remove_file(checkpoint_filename);
+            return -1;
+        }
+        initialize_model_segments_(session_ptr->models_.back()->model_segments, file_size);
+        omega_session_notify(session_ptr, SESSION_EVT_CREATE_CHECKPOINT, nullptr);
+
+        if (notify_transform) {
+            for (const auto &viewport_ptr: session_ptr->viewports_) {
+                viewport_ptr->data_segment.capacity =
+                        -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+                omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
+            }
+            omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
+        }
+        return 0;
+    }
+
+    auto initialize_session_stream_cursor_(const omega_session_t *session_ptr, int64_t offset,
+                                           session_stream_cursor_t &cursor) -> bool {
+        if (!session_ptr || offset < 0) { return false; }
+        const auto &segments = session_ptr->models_.back()->model_segments;
+        cursor.session_ptr = session_ptr;
+        cursor.segment_end = segments.cend();
+        cursor.offset = offset;
+        cursor.segment_iter = std::upper_bound(
+                segments.cbegin(), segments.cend(), offset,
+                [](int64_t logical_offset, const omega_model_segment_ptr_t &segment) {
+                    return logical_offset < segment->computed_offset;
+                });
+        if (cursor.segment_iter != segments.cbegin()) { --cursor.segment_iter; }
+        while (cursor.segment_iter != cursor.segment_end &&
+               (*cursor.segment_iter)->computed_offset + (*cursor.segment_iter)->computed_length <= offset) {
+            ++cursor.segment_iter;
+        }
+        return true;
+    }
+
+    auto stream_session_range_(session_stream_cursor_t &cursor, int64_t end_offset, FILE *to_file_ptr,
+                               omega_byte_t *io_buf) -> int64_t {
+        if (!cursor.session_ptr || end_offset < cursor.offset) { return -1; }
+        int64_t processed = 0;
+        while (cursor.offset < end_offset) {
+            if (cursor.segment_iter == cursor.segment_end) { return -1; }
+            const auto &segment = *cursor.segment_iter;
+            if (segment->computed_offset + segment->computed_length <= cursor.offset) {
+                ++cursor.segment_iter;
+                continue;
+            }
+            if (segment->computed_offset > cursor.offset) {
+                ABORT(LOG_ERROR("break in model continuity, expected at most: " << cursor.offset
+                                                                                << ", got: " << segment->computed_offset););
+                return -1;
+            }
+
+            const auto segment_start = std::max(cursor.offset - segment->computed_offset, int64_t(0));
+            const auto segment_length = std::min(end_offset - cursor.offset, segment->computed_length - segment_start);
+            if (to_file_ptr != nullptr) {
+                switch (omega_model_segment_get_kind(segment.get())) {
+                    case model_segment_kind_t::SEGMENT_READ: {
+                        if (cursor.session_ptr->models_.back()->file_ptr == nullptr) {
+                            ABORT(LOG_ERROR("attempt to read segment from null file pointer"););
+                            return -1;
+                        }
+                        if (write_file_segment_(cursor.session_ptr->models_.back()->file_ptr,
+                                                segment->change_offset + segment_start, segment_length, to_file_ptr,
+                                                io_buf) != segment_length) {
+                            LOG_ERROR("write_file_segment_ failed");
+                            return -1;
+                        }
+                        break;
+                    }
+                    case model_segment_kind_t::SEGMENT_INSERT: {
+                        if (static_cast<int64_t>(fwrite(omega_change_get_bytes(segment->change_ptr.get()) +
+                                                        segment->change_offset + segment_start,
+                                                        sizeof(omega_byte_t), segment_length,
+                                                        to_file_ptr)) != segment_length) {
+                            LOG_ERROR("fwrite failed");
+                            return -1;
+                        }
+                        break;
+                    }
+                    default:
+                        ABORT(LOG_ERROR("Unhandled segment kind"););
+                        return -1;
+                }
+            }
+
+            cursor.offset += segment_length;
+            processed += segment_length;
+            if (segment_start + segment_length >= segment->computed_length) { ++cursor.segment_iter; }
+        }
+        return processed;
+    }
+
+    auto write_bytes_to_file_(FILE *file_ptr, const omega_byte_t *bytes, int64_t length) -> int64_t {
+        if (!file_ptr || length < 0 || (!bytes && length > 0)) { return -1; }
+        if (length == 0) { return 0; }
+        return static_cast<int64_t>(fwrite(bytes, sizeof(omega_byte_t), length, file_ptr)) == length ? length : -1;
     }
 
     // Write a file segment to the output file using the larger I/O buffer
@@ -1013,6 +1157,138 @@ int64_t omega_edit_replace(omega_session_t *session_ptr, int64_t offset, int64_t
     }
     const auto cstr_length = (insert_length == 0) ? static_cast<int64_t>(strlen(cstr)) : insert_length;
     return omega_edit_replace_bytes(session_ptr, offset, delete_length, (const omega_byte_t *) cstr, cstr_length);
+}
+
+int omega_edit_replace_all_bytes(omega_session_t *session_ptr, const omega_byte_t *pattern, int64_t pattern_length,
+                                 const omega_byte_t *replacement, int64_t replacement_length, int case_insensitive,
+                                 int64_t offset, int64_t length, int64_t *replacement_count_out) {
+    if (replacement_count_out != nullptr) { *replacement_count_out = 0; }
+    if (!session_ptr || !pattern || pattern_length <= 0 || offset < 0 || length < 0 || replacement_length < 0) {
+        return -1;
+    }
+    if (!replacement && replacement_length > 0) { return -1; }
+    if (omega_session_changes_paused(session_ptr) != 0) { return -1; }
+
+    const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+    const auto adjusted_length = length <= 0 ? computed_file_size - offset : std::min(length, computed_file_size - offset);
+    if (adjusted_length < 0) { return -1; }
+    if (pattern_length > adjusted_length) { return 0; }
+
+    auto *const search_context =
+            omega_search_create_context_bytes(session_ptr, pattern, pattern_length, offset, adjusted_length,
+                                              case_insensitive, 0);
+    if (!search_context) { return -1; }
+
+    if (omega_search_next_match(search_context, pattern_length) == 0) {
+        omega_search_destroy_context(search_context);
+        return 0;
+    }
+
+    char checkpoint_filename[FILENAME_MAX + 1];
+    if (0 != create_checkpoint_file_(session_ptr, checkpoint_filename, sizeof(checkpoint_filename))) {
+        omega_search_destroy_context(search_context);
+        return -1;
+    }
+
+    auto *checkpoint_fptr = FOPEN(checkpoint_filename, "wb");
+    if (checkpoint_fptr == nullptr) {
+        omega_search_destroy_context(search_context);
+        omega_util_remove_file(checkpoint_filename);
+        return -1;
+    }
+
+    session_stream_cursor_t cursor;
+    if (!initialize_session_stream_cursor_(session_ptr, 0, cursor)) {
+        FCLOSE(checkpoint_fptr);
+        omega_search_destroy_context(search_context);
+        omega_util_remove_file(checkpoint_filename);
+        return -1;
+    }
+
+    auto io_buf = std::make_unique<omega_byte_t[]>(OMEGA_IO_BUFFER_SIZE);
+    const auto replace_end = offset + adjusted_length;
+    int64_t replacement_count = 0;
+    auto rc = 0;
+
+    do {
+        const auto prefix_length = offset - cursor.offset;
+        if (stream_session_range_(cursor, offset, checkpoint_fptr, io_buf.get()) != prefix_length) {
+            rc = -1;
+            break;
+        }
+
+        do {
+            const auto match_offset = omega_search_context_get_match_offset(search_context);
+            if (match_offset < cursor.offset) {
+                rc = -1;
+                break;
+            }
+            const auto bytes_before_match = match_offset - cursor.offset;
+            if (stream_session_range_(cursor, match_offset, checkpoint_fptr, io_buf.get()) != bytes_before_match) {
+                rc = -1;
+                break;
+            }
+            if (write_bytes_to_file_(checkpoint_fptr, replacement, replacement_length) != replacement_length) {
+                rc = -1;
+                break;
+            }
+            if (stream_session_range_(cursor, match_offset + pattern_length, nullptr, io_buf.get()) != pattern_length) {
+                rc = -1;
+                break;
+            }
+            ++replacement_count;
+        } while (omega_search_next_match(search_context, pattern_length) > 0);
+
+        if (rc != 0) { break; }
+
+        const auto remaining_replace_range = replace_end - cursor.offset;
+        if (stream_session_range_(cursor, replace_end, checkpoint_fptr, io_buf.get()) != remaining_replace_range) {
+            rc = -1;
+            break;
+        }
+
+        const auto remaining_suffix = computed_file_size - cursor.offset;
+        if (stream_session_range_(cursor, computed_file_size, checkpoint_fptr, io_buf.get()) != remaining_suffix) {
+            rc = -1;
+            break;
+        }
+    } while (false);
+
+    omega_search_destroy_context(search_context);
+    FCLOSE(checkpoint_fptr);
+
+    if (rc != 0) {
+        omega_util_remove_file(checkpoint_filename);
+        return rc;
+    }
+
+    const auto checkpoint_file_size = omega_util_file_size(checkpoint_filename);
+    if (checkpoint_file_size < 0) {
+        omega_util_remove_file(checkpoint_filename);
+        return -1;
+    }
+    if (0 != promote_checkpoint_file_(session_ptr, checkpoint_filename, checkpoint_file_size, true)) { return -1; }
+    if (replacement_count_out != nullptr) { *replacement_count_out = replacement_count; }
+    return 0;
+}
+
+int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, int64_t pattern_length,
+                           const char *replacement, int64_t replacement_length, int case_insensitive, int64_t offset,
+                           int64_t length, int64_t *replacement_count_out) {
+    if (!pattern) { return -1; }
+    const auto resolved_pattern_length = pattern_length ? pattern_length : static_cast<int64_t>(strlen(pattern));
+    if (!replacement) {
+        if (replacement_length > 0) { return -1; }
+        return omega_edit_replace_all_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
+                                            resolved_pattern_length, nullptr, 0, case_insensitive, offset, length,
+                                            replacement_count_out);
+    }
+    const auto resolved_replacement_length =
+            replacement_length ? replacement_length : static_cast<int64_t>(strlen(replacement));
+    return omega_edit_replace_all_bytes(session_ptr, reinterpret_cast<const omega_byte_t *>(pattern),
+                                        resolved_pattern_length, reinterpret_cast<const omega_byte_t *>(replacement),
+                                        resolved_replacement_length, case_insensitive, offset, length,
+                                        replacement_count_out);
 }
 
 int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_script_op_t *ops, size_t op_count) {
@@ -1474,6 +1750,12 @@ int omega_edit_destroy_last_checkpoint(omega_session_t *session_ptr) {
         session_ptr->num_changes_adjustment_ -= (int64_t) session_ptr->models_.back()->changes.size();
         session_ptr->models_.pop_back();
         omega_session_notify(session_ptr, SESSION_EVT_DESTROY_CHECKPOINT, nullptr);
+        for (const auto &viewport_ptr: session_ptr->viewports_) {
+            viewport_ptr->data_segment.capacity =
+                    -1 * std::abs(viewport_ptr->data_segment.capacity);// indicate dirty read
+            omega_viewport_notify(viewport_ptr.get(), VIEWPORT_EVT_TRANSFORM, nullptr);
+        }
+        omega_session_notify(session_ptr, SESSION_EVT_TRANSFORM, nullptr);
         return 0;
     }
     return -1;

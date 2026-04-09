@@ -31,6 +31,9 @@ import {
   type GetSegmentResponse,
   type GetSessionCountResponse,
   type NotifyChangedViewportsResponse,
+  type DestroyLastCheckpointResponse,
+  type ReplaceSessionCheckpointedRequest,
+  type ReplaceSessionCheckpointedResponse,
   type SaveSessionRequest,
   type SaveSessionResponse,
   type SearchSessionRequest,
@@ -126,6 +129,50 @@ export async function destroySession(sessionId: string): Promise<string> {
         return resolve(id)
       } catch (error) {
         return reject(makeWrappedError('destroySession', error))
+      }
+    })
+  })
+}
+
+export async function destroyLastCheckpoint(
+  sessionId: string
+): Promise<DestroyLastCheckpointResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({
+    fn: 'protobufTs.destroyLastCheckpoint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<DestroyLastCheckpointResponse>((resolve, reject) => {
+    client.destroyLastCheckpoint(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.destroyLastCheckpoint',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('destroyLastCheckpoint', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as DestroyLastCheckpointResponse | undefined,
+          'destroyLastCheckpoint'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.destroyLastCheckpoint',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('destroyLastCheckpoint', error))
       }
     })
   })
@@ -914,6 +961,83 @@ export async function searchSession(
         return resolve(required.matchOffset)
       } catch (error) {
         return reject(makeWrappedError('searchSession', error))
+      }
+    })
+  })
+}
+
+export async function replaceSessionCheckpointed(
+  sessionId: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  isCaseInsensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0
+): Promise<ReplaceSessionCheckpointedResponse> {
+  const log = getLogger()
+
+  if (pattern.length === 0) {
+    log.warn({
+      fn: 'protobufTs.replaceSessionCheckpointed',
+      err: { msg: 'empty pattern given' },
+    })
+    return {
+      sessionId,
+      pattern: typeof pattern === 'string' ? Buffer.from(pattern) : pattern,
+      replacement:
+        typeof replacement === 'string' ? Buffer.from(replacement) : replacement,
+      isCaseInsensitive,
+      offset,
+      length,
+      replacementCount: 0,
+    }
+  }
+
+  const request: ReplaceSessionCheckpointedRequest = {
+    sessionId,
+    pattern: typeof pattern === 'string' ? Buffer.from(pattern) : pattern,
+    replacement:
+      typeof replacement === 'string' ? Buffer.from(replacement) : replacement,
+    offset,
+  }
+
+  if (isCaseInsensitive) request.isCaseInsensitive = true
+  if (length > 0) request.length = length
+
+  debugLog(log, () => ({
+    fn: 'protobufTs.replaceSessionCheckpointed',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<ReplaceSessionCheckpointedResponse>((resolve, reject) => {
+    client.replaceSessionCheckpointed(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.replaceSessionCheckpointed',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('replaceSessionCheckpointed', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as ReplaceSessionCheckpointedResponse | undefined,
+          'replaceSessionCheckpointed'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.replaceSessionCheckpointed',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('replaceSessionCheckpointed', error))
       }
     })
   })

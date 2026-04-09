@@ -156,6 +156,16 @@ public:
                                const ::omega_edit::v1::SearchSessionRequest *request,
                                ::omega_edit::v1::SearchSessionResponse *response) override;
 
+    grpc::Status ReplaceSessionCheckpointed(
+        grpc::ServerContext *context,
+        const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
+        ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) override;
+
+    grpc::Status DestroyLastCheckpoint(
+        grpc::ServerContext *context,
+        const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
+        ::omega_edit::v1::DestroyLastCheckpointResponse *response) override;
+
     grpc::Status GetByteFrequencyProfile(grpc::ServerContext *context,
                                          const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
                                          ::omega_edit::v1::GetByteFrequencyProfileResponse *response) override;

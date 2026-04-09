@@ -26,6 +26,7 @@ import {
   beginSessionTransaction as rawBeginSessionTransaction,
   countCharacters as rawCountCharacters,
   createSession as rawCreateSession,
+  destroyLastCheckpoint as rawDestroyLastCheckpoint,
   destroySession as rawDestroySession,
   getByteOrderMark as rawGetByteOrderMark,
   getComputedFileSize as rawGetComputedFileSize,
@@ -37,6 +38,7 @@ import {
   notifyChangedViewports as rawNotifyChangedViewports,
   pauseSessionChanges as rawPauseSessionChanges,
   profileSession as rawProfileSession,
+  replaceSessionCheckpointed as rawReplaceSessionCheckpointed,
   resumeSessionChanges as rawResumeSessionChanges,
   saveSession as rawSaveSession,
   searchSession as rawSearchSession,
@@ -142,6 +144,18 @@ export async function createSessionFromBytes(
 
 export function destroySession(session_id: string): Promise<string> {
   return rawDestroySession(session_id)
+}
+
+export async function destroyLastCheckpoint(
+  session_id: string
+): Promise<number> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawDestroyLastCheckpoint(session_id)
+    return requireSafeIntegerOutput(
+      'remaining checkpoints',
+      response.remainingCheckpoints
+    )
+  })
 }
 
 export async function saveSession(
@@ -455,6 +469,30 @@ export async function replaceSession(
     }
 
     return requireSafeIntegerOutput('replacement count', foundLocations.length)
+  })
+}
+
+export async function replaceSessionCheckpointed(
+  session_id: string,
+  pattern: string | Uint8Array,
+  replacement: string | Uint8Array,
+  is_case_insensitive: boolean = false,
+  offset: number = 0,
+  length: number = 0
+): Promise<number> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawReplaceSessionCheckpointed(
+      session_id,
+      pattern,
+      replacement,
+      is_case_insensitive,
+      requireSafeIntegerInput('replaceSessionCheckpointed offset', offset),
+      requireSafeIntegerInput('replaceSessionCheckpointed length', length)
+    )
+    return requireSafeIntegerOutput(
+      'replacement count',
+      response.replacementCount
+    )
   })
 }
 

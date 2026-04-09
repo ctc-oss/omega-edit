@@ -1169,6 +1169,61 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
     return grpc::Status::OK;
 }
 
+grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
+        ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) {
+    auto *session = session_manager_.get_session(request->session_id());
+    if (!session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+
+    session_manager_.touch_session(request->session_id());
+    const bool case_insensitive =
+            request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
+    const int64_t offset = request->has_offset() ? request->offset() : 0;
+    const int64_t length = request->has_length() ? request->length() : 0;
+
+    int64_t replacement_count = 0;
+    const auto rc = omega_edit_replace_all_bytes(
+            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+            static_cast<int64_t>(request->pattern().size()),
+            reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, offset, length,
+            &replacement_count);
+    if (rc != 0) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "checkpointed replace failed");
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_pattern(request->pattern());
+    response->set_replacement(request->replacement());
+    response->set_is_case_insensitive(case_insensitive);
+    response->set_offset(offset);
+    response->set_length(length);
+    response->set_replacement_count(replacement_count);
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
+        ::omega_edit::v1::DestroyLastCheckpointResponse *response) {
+    auto *session = session_manager_.get_session(request->session_id());
+    if (!session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+
+    session_manager_.touch_session(request->session_id());
+    if (0 != omega_edit_destroy_last_checkpoint(session)) {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "no checkpoint available to destroy");
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_remaining_checkpoints(omega_session_get_num_checkpoints(session));
+    return grpc::Status::OK;
+}
+
 // ---------- Byte Frequency Profile ----------
 
 grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*context*/,

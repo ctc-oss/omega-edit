@@ -382,6 +382,126 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('tracks save-state semantics after checkpointed replace-all followed by more edits', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-checkpoint-save-')
+    )
+    const samplePath = path.join(tmpDir, 'checkpoint-save.bin')
+    const matchCount = 1205
+    const original = Array.from({ length: matchCount }, () => 'PD').join('|')
+    const replaced = Array.from({ length: matchCount }, () => 'PDF').join('|')
+    await fs.writeFile(samplePath, Buffer.from(original, 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(
+      session,
+      'Expected a live session for the checkpoint save-state test'
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'replaceAllMatches',
+      query: 'PD',
+      isHex: false,
+      length: 2,
+      data: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, replaced)
+
+    let editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'insert',
+      offset: 0,
+      data: Buffer.from('!', 'utf8').toString('hex'),
+    })
+    await assertSessionText(session.sessionId, `!${replaced}`)
+
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'save',
+    })
+
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+      isDirty: false,
+      savedChangeDepth: 2,
+    })
+    assert.equal(await fs.readFile(samplePath, 'utf8'), `!${replaced}`)
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, replaced)
+
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: true,
+      undoCount: 1,
+      redoCount: 1,
+      isDirty: true,
+      savedChangeDepth: 2,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, `!${replaced}`)
+
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 2,
+      redoCount: 0,
+      isDirty: false,
+      savedChangeDepth: 2,
+    })
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('shows a live custom-editor demo when observation mode is enabled', async function () {
     if (!OBSERVE_MODE) {
       this.skip()

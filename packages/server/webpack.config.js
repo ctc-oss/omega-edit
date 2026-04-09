@@ -56,11 +56,15 @@ function findSharedLibrary() {
       : ['libomega_edit.so']
 
   for (const pattern of libPatterns) {
-    const libPath = path.join(oeLibDir, pattern)
-    if (fs.existsSync(libPath)) return libPath
-    // Also check lib subdirectory
-    const libSubPath = path.join(oeLibDir, 'lib', pattern)
-    if (fs.existsSync(libSubPath)) return libSubPath
+    const searchPaths = [
+      path.join(oeLibDir, pattern),
+      path.join(oeLibDir, 'lib', pattern),
+      path.join(oeLibDir, 'bin', pattern),
+    ]
+
+    for (const libPath of searchPaths) {
+      if (fs.existsSync(libPath)) return libPath
+    }
   }
   return null
 }
