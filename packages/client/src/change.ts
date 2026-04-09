@@ -39,10 +39,7 @@ import {
   type ChangeDetailsResponse,
 } from './omega_edit_pb'
 import { enqueueSessionMutation } from './mutation_queue'
-import {
-  notifyChangedViewports,
-  runSessionTransaction,
-} from './session'
+import { notifyChangedViewports, runSessionTransaction } from './session'
 import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
 import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 

@@ -28,8 +28,14 @@ import {
 type SubscribableEvent = SessionEvent | ViewportEvent
 
 interface SubscriptionStream<TEvent extends SubscribableEvent> {
-  on(event: 'data', listener: (event: TEvent) => void): SubscriptionStream<TEvent>
-  on(event: 'error', listener: (error: Error) => void): SubscriptionStream<TEvent>
+  on(
+    event: 'data',
+    listener: (event: TEvent) => void
+  ): SubscriptionStream<TEvent>
+  on(
+    event: 'error',
+    listener: (error: Error) => void
+  ): SubscriptionStream<TEvent>
   cancel(): void
 }
 

@@ -24,8 +24,12 @@ import { getModuleCompat } from './moduleCompat.js'
 const { require } = getModuleCompat(import.meta.url)
 const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
-const { SessionEvent, ViewportEvent, subscribeSessionEvents, subscribeViewportEvents } =
-  clientPackage
+const {
+  SessionEvent,
+  ViewportEvent,
+  subscribeSessionEvents,
+  subscribeViewportEvents,
+} = clientPackage
 
 class FakeReadableStream<TEvent> extends EventEmitter {
   cancelCount = 0
@@ -128,9 +132,6 @@ describe('Managed Subscriptions', () => {
     stream.emit('error', new Error('viewport stream failed'))
     await flushAsyncCallbacks()
 
-    expect(errors).to.deep.equal([
-      'handler failed',
-      'viewport stream failed',
-    ])
+    expect(errors).to.deep.equal(['handler failed', 'viewport stream failed'])
   })
 })

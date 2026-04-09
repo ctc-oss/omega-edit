@@ -398,7 +398,12 @@ export async function replaceSession(
         if (front_to_back) {
           if (overwrite_only) {
             for (const foundLocation of orderedLocations) {
-              await overwrite(session_id, foundLocation, replacementArray, stats)
+              await overwrite(
+                session_id,
+                foundLocation,
+                replacementArray,
+                stats
+              )
             }
           } else {
             const adjustment = replacementArray.length - patternArray.length
@@ -419,7 +424,12 @@ export async function replaceSession(
         } else {
           for (const foundLocation of orderedLocations) {
             if (overwrite_only) {
-              await overwrite(session_id, foundLocation, replacementArray, stats)
+              await overwrite(
+                session_id,
+                foundLocation,
+                replacementArray,
+                stats
+              )
             } else {
               await editSimple(
                 session_id,

@@ -177,13 +177,22 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /type: 'saveAs'/)
   assert.match(html, /function replaceCurrentMatch\(\)/)
   assert.match(html, /function replaceAllMatches\(\)/)
-  assert.match(html, /function applySingleReplaceToSearchMatches\(replacedOffset, offsetDelta\)/)
+  assert.match(
+    html,
+    /function applySingleReplaceToSearchMatches\(replacedOffset, offsetDelta\)/
+  )
   assert.match(
     html,
     /matchOffset > replacedOffset \? matchOffset \+ offsetDelta : matchOffset/
   )
-  assert.match(html, /const nextMatchOffset = searchMatches\[searchMatchIndex\]/)
-  assert.match(html, /vscode\.postMessage\({ type: 'goToMatch', offset: nextMatchOffset }\)/)
+  assert.match(
+    html,
+    /const nextMatchOffset = searchMatches\[searchMatchIndex\]/
+  )
+  assert.match(
+    html,
+    /vscode\.postMessage\({ type: 'goToMatch', offset: nextMatchOffset }\)/
+  )
   assert.match(html, /function normalizeSearchQuery\(query, isHex\)/)
   assert.match(html, /function getSearchPatternByteLength\(query, isHex\)/)
   assert.match(
@@ -194,10 +203,7 @@ test('webview HTML includes core controls and configured row width', () => {
     html,
     /searchPatternLength = getSearchPatternByteLength\(normalizedQuery, isHex\)/
   )
-  assert.match(
-    html,
-    /const normalized = normalizeSearchQuery\(query, isHex\)/
-  )
+  assert.match(html, /const normalized = normalizeSearchQuery\(query, isHex\)/)
   assert.match(html, /const offsets = searchMatches\.slice\(\)/)
   assert.match(
     html,
@@ -266,5 +272,8 @@ test('webview HTML includes core controls and configured row width', () => {
     html,
     /case 'replaceComplete'[\s\S]*'replace-summary'[\s\S]*let nextMatchOffset = null[\s\S]*applySingleReplaceToSearchMatches\([\s\S]*nextMatchOffset === null[\s\S]*msg\.selectionOffset/
   )
-  assert.match(html, /undoBtn\.addEventListener\('click', \(\) => \{[\s\S]*clearReplaceSummaryActionStatus\(\)[\s\S]*type: 'undo'/)
+  assert.match(
+    html,
+    /undoBtn\.addEventListener\('click', \(\) => \{[\s\S]*clearReplaceSummaryActionStatus\(\)[\s\S]*type: 'undo'/
+  )
 })

@@ -158,7 +158,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-    private readonly port: number
+    _port: number
   ) {}
 
   private getViewportCapacity(bytesPerRow: number): number {
@@ -546,10 +546,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     session.sessionSyncWaiters = remainingWaiters
   }
 
-  private rejectSessionSyncWaiters(
-    session: EditorSession,
-    error: Error
-  ): void {
+  private rejectSessionSyncWaiters(session: EditorSession, error: Error): void {
     const waiters = session.sessionSyncWaiters
     session.sessionSyncWaiters = []
     for (const waiter of waiters) {
