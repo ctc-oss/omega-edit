@@ -39,9 +39,8 @@ import {
   type ChangeDetailsResponse,
 } from './omega_edit_pb'
 import { enqueueSessionMutation } from './mutation_queue'
-import { notifyChangedViewports, runSessionTransaction } from './session'
+import { runSessionTransaction, withViewportBatch } from './session'
 import { requireSafeIntegerInput, requireSafeIntegerOutput } from './safe_int'
-import { pauseViewportEvents, resumeViewportEvents } from './viewport'
 
 export const ChangeKind = {
   UNSPECIFIED: RawProtoChangeKind.UNSPECIFIED,
@@ -639,17 +638,9 @@ export async function edit(
       }
 
       if (useTransaction) {
-        await pauseViewportEvents(session_id)
-        try {
-          await runSessionTransaction(session_id, applyEdits)
-        } finally {
-          await resumeViewportEvents(session_id)
-        }
+        await withViewportBatch(session_id, applyEdits)
       } else {
         await applyEdits()
-      }
-      if (useTransaction) {
-        await notifyChangedViewports(session_id)
       }
     }
     return result

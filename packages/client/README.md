@@ -190,6 +190,19 @@ These helpers wrap the raw server-stream subscriptions and own the repetitive pa
 
 Use them instead of wiring raw gRPC streams by hand in application code.
 
+### Editor Integration Helpers
+
+These higher-level helpers sit on top of the session, viewport, and subscription primitives for editor-style applications:
+
+| Helper                      | Description                                                                  |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| `EditorHistoryController`   | Tracks local vs checkpoint-backed undo/redo and save-state semantics        |
+| `EditorSearchController`    | Owns bounded-vs-large search mode and routes replace-all strategies         |
+| `EditorSessionModel`        | Tracks computed file size, change count, viewport identity, and sync waiters |
+| `ScopedEditorSessionHandle` | Opens a session, owns viewport lifecycle and subscriptions, and cleans up   |
+
+These are especially useful for front-ends such as VS Code extensions that want to stay subscription-first without rebuilding the same session/search/history bookkeeping in each integration.
+
 ### Editing
 
 | Function                                                | Description                       |

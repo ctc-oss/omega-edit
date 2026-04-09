@@ -20,6 +20,7 @@
 import {
   clear,
   destroyLastCheckpoint,
+  EditorSearchController,
   edit,
   editOptimizer,
   EditStats,
@@ -952,6 +953,51 @@ describe('Searching', () => {
     expect(
       await getSegment(session_id, 0, await getComputedFileSize(session_id))
     ).deep.equals(Buffer.from('aaaaaa'))
+  })
+
+  it('Should support controller-driven large search and checkpointed replace-all', async () => {
+    const matchCount = 1205
+    const original = Array.from({ length: matchCount }, () => 'PD').join('|')
+    const replaced = Array.from({ length: matchCount }, () => 'PDF').join('|')
+    await overwrite(session_id, 0, Buffer.from(original, 'utf8'))
+
+    const controller = new EditorSearchController(session_id)
+    const searchResult = await controller.search({
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+    })
+
+    expect(searchResult.mode).to.equal('large')
+    expect(searchResult.matches).to.deep.equal([])
+    expect(searchResult.currentOffset).to.equal(0)
+
+    const replaceResult = await controller.replaceAll({
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+      length: 2,
+      replacement: Buffer.from('PDF', 'utf8'),
+      replacementData: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+
+    expect(replaceResult.strategy).to.equal('checkpointed')
+    expect(replaceResult.replacedCount).to.equal(matchCount)
+    expect(replaceResult.selectionOffset).to.equal(0)
+    expect(replaceResult.checkpointTransaction).to.deep.equal({
+      kind: 'CHECKPOINT_REPLACE_ALL',
+      query: 'PD',
+      isHex: false,
+      caseInsensitive: false,
+      data: Buffer.from('PDF', 'utf8').toString('hex'),
+    })
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from(replaced, 'utf8'))
+    expect(await destroyLastCheckpoint(session_id)).to.equal(0)
+    expect(
+      await getSegment(session_id, 0, await getComputedFileSize(session_id))
+    ).deep.equals(Buffer.from(original, 'utf8'))
   })
 
   it('Should treat empty checkpointed replace patterns as a no-op over the raw RPC', async () => {
