@@ -607,6 +607,46 @@ describe('Server Edge Cases', () => {
     }
   })
 
+  it('should suppress in-flight heartbeat callbacks after stop()', async () => {
+    let releaseHeartbeat!: () => void
+    const heartbeats: number[] = []
+    const errors: string[] = []
+
+    const loop = startServerHeartbeatLoop({
+      intervalMs: 1000,
+      immediate: false,
+      getSessionIds: () => ['sid-1'],
+      getHeartbeat: async (sessionIds) => {
+        await new Promise<void>((resolve) => {
+          releaseHeartbeat = resolve
+        })
+        return {
+          latency: 1,
+          sessionCount: sessionIds.length,
+          serverTimestamp: 1,
+          serverUptime: 1,
+          serverCpuCount: 4,
+        }
+      },
+      onHeartbeat: (heartbeat) => {
+        heartbeats.push(heartbeat.sessionCount)
+      },
+      onError: (error) => {
+        errors.push(error.message)
+      },
+    })
+
+    const inFlightTick = loop.tick()
+    await delay(0)
+    loop.stop()
+    releaseHeartbeat()
+    await inFlightTick
+    await delay(10)
+
+    expect(heartbeats).to.deep.equal([])
+    expect(errors).to.deep.equal([])
+  })
+
   it('should return an error code when server shutdown RPCs fail', async () => {
     let errorMessage = 'Call cancelled'
     const restoreGetClient = overrideProperty(

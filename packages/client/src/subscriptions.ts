@@ -145,6 +145,10 @@ async function subscribeToEvents<TEvent extends SubscribableEvent>(
   let cancelled = false
 
   stream.on('data', (event: TEvent) => {
+    if (cancelled) {
+      return
+    }
+
     void Promise.resolve()
       .then(async () => await options.onEvent(event))
       .catch(async (error) => {

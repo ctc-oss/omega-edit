@@ -134,4 +134,39 @@ describe('Managed Subscriptions', () => {
 
     expect(errors).to.deep.equal(['handler failed', 'viewport stream failed'])
   })
+
+  it('should ignore late data events after cancellation', async () => {
+    const stream = new FakeReadableStream<InstanceType<typeof SessionEvent>>()
+    const serials: number[] = []
+    const errors: string[] = []
+
+    const subscription = await subscribeSessionEvents({
+      sessionId: 'session-id',
+      onEvent: (event) => {
+        serials.push(event.getSerial())
+        throw new Error('late event should not run')
+      },
+      onError: (error) => {
+        errors.push(error.message)
+      },
+      subscribe: async () => stream,
+    })
+
+    subscription.cancel()
+    stream.emit(
+      'data',
+      new SessionEvent({
+        sessionId: 'session-id',
+        sessionEventKind: 2,
+        computedFileSize: 10,
+        changeCount: 1,
+        undoCount: 0,
+        serial: 8,
+      })
+    )
+    await flushAsyncCallbacks()
+
+    expect(serials).to.deep.equal([])
+    expect(errors).to.deep.equal([])
+  })
 })

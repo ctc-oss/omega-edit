@@ -1397,8 +1397,14 @@ export function startServerHeartbeatLoop(
       try {
         const sessionIds = [...(await options.getSessionIds())]
         const heartbeat = await getHeartbeat(sessionIds)
+        if (stopped) {
+          return
+        }
         await options.onHeartbeat?.(heartbeat)
       } catch (error) {
+        if (stopped) {
+          return
+        }
         await invokeErrorHandler(
           error instanceof Error ? error : new Error(String(error))
         )
