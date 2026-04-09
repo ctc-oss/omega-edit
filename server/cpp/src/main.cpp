@@ -436,10 +436,10 @@ int main(int argc, char **argv) {
                 bool has_explicit_log_file = false;
                 bool has_explicit_log_level = false;
                 for (int j = 1; j < argc; ++j) {
-                    const std::string a = argv[j];
-                    if (a == "--log-file" || a.rfind("--log-file=", 0) == 0) {
+                    const char *a = argv[j];
+                    if (std::strcmp(a, "--log-file") == 0 || std::strncmp(a, "--log-file=", 11) == 0) {
                         has_explicit_log_file = true;
-                    } else if (a == "--log-level" || a.rfind("--log-level=", 0) == 0) {
+                    } else if (std::strcmp(a, "--log-level") == 0 || std::strncmp(a, "--log-level=", 12) == 0) {
                         has_explicit_log_level = true;
                     }
                 }
