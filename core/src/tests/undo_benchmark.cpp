@@ -27,7 +27,7 @@
 #include <vector>
 
 namespace {
-    using clock_t = std::chrono::steady_clock;
+    using benchmark_clock_t = std::chrono::steady_clock;
 
     std::string repeat_token(const std::string_view token, int count) {
         std::string result;
@@ -54,7 +54,7 @@ namespace {
         return last_serial;
     }
 
-    double millis_between(const clock_t::time_point &begin, const clock_t::time_point &end) {
+    double millis_between(const benchmark_clock_t::time_point &begin, const benchmark_clock_t::time_point &end) {
         return std::chrono::duration<double, std::milli>(end - begin).count();
     }
 }// namespace
@@ -81,9 +81,9 @@ TEST_CASE("Benchmark stacked replace-style transaction undo latency", "[UndoBenc
     std::vector<double> undo_latencies_ms;
     undo_latencies_ms.reserve(transaction_rounds);
     for (int round = 0; round < transaction_rounds; ++round) {
-        const auto begin = clock_t::now();
+        const auto begin = benchmark_clock_t::now();
         const auto undo_serial = omega_edit_undo_last_change(session_ptr);
-        const auto end = clock_t::now();
+        const auto end = benchmark_clock_t::now();
 
         REQUIRE(undo_serial < 0);
         undo_latencies_ms.push_back(millis_between(begin, end));
