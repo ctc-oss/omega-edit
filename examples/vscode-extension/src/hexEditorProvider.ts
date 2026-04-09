@@ -1270,6 +1270,8 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           const replacement = Buffer.from(msg.data, 'hex')
           session.preserveSearchState = true
           try {
+            // Probe one past the bounded window so we can switch to large-mode
+            // navigation without materializing an unbounded match list.
             const searchProbe = await searchSession(
               session.sessionId,
               pattern,
@@ -1456,6 +1458,10 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           const pattern = msg.isHex
             ? Buffer.from(normalizedQuery, 'hex')
             : Buffer.from(normalizedQuery, 'utf8')
+          // Large-mode vs bounded-mode is decided only when the user runs an
+          // explicit search. Replacement operations preserve the current mode
+          // for that search session even if the remaining match count crosses
+          // back under the 1000-match window.
           const matches = await searchSession(
             session.sessionId,
             pattern,

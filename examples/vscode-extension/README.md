@@ -57,6 +57,15 @@ In the new window:
 4. The webview drives edits, navigation, search, replace, save, and replay through the provider, and the provider pushes back reactive state updates for the viewport, undo/redo counts, dirty state, replace counts, and server health.
 5. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
 
+### Large Search Mode
+
+The example extension uses a bounded search window of `1000` matches. It probes for `1001` matches so it can distinguish between:
+
+- `bounded` mode, where the full match list is kept in memory because the result set fits in the window
+- `large` mode, where match navigation switches to on-demand forward/backward search from the current cursor instead of storing every match offset
+
+This mode decision is made only when the user runs an explicit search. If a replace operation changes the remaining match count across the `1000` threshold, the extension keeps the current mode until the next explicit search. For example, a search that starts in `large` mode with exactly `1001` matches stays in `large` mode after one single replacement leaves `1000` remaining matches.
+
 ## Extension Settings
 
 | Setting                 | Default | Description                                                                |

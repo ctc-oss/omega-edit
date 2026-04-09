@@ -204,10 +204,9 @@ test('webview HTML includes core controls and configured row width', () => {
     /searchPatternLength = getSearchPatternByteLength\(normalizedQuery, isHex\)/
   )
   assert.match(html, /const normalized = normalizeSearchQuery\(query, isHex\)/)
-  assert.match(html, /const offsets = searchMatches\.slice\(\)/)
   assert.match(
     html,
-    /const offsets = searchMatches\.slice\(\)[\s\S]*clearSearchResults\(\)[\s\S]*type: 'replaceAllMatches'[\s\S]*offsets,/
+    /offsets: searchMode === 'large' \? undefined : searchMatches\.slice\(\)/
   )
   assert.doesNotMatch(html, /normalizedQuery\(query\)/)
   assert.match(html, /document\.addEventListener\('copy'/)

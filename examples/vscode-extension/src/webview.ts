@@ -1755,6 +1755,9 @@ export function getWebviewContent(bytesPerRow: number): string {
           typeof msg.replacedOffset === 'number'
         ) {
           if (searchMode === 'large') {
+            // Stay in large mode until the user explicitly runs search again.
+            // That keeps single-step replace/navigation on the on-demand path
+            // even if the remaining matches fall back to the bounded window.
             searchCurrentOffset =
               typeof msg.selectionOffset === 'number' ? msg.selectionOffset : -1
             rebuildMatchedByteOffsets()
