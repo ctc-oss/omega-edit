@@ -1173,7 +1173,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         case 'saveAs': {
           const saveUri = await vscode.window.showSaveDialog({
             defaultUri: vscode.Uri.file(session.filePath),
-            title: 'Save OmegaEdit contents as',
+            title: 'Save Ωedit™ contents as',
           })
           if (!saveUri) {
             break

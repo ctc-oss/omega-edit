@@ -46,8 +46,8 @@ Then open this folder in VS Code and press `F5`. A new Extension Development Hos
 
 In the new window:
 
-- Run `OmegaEdit: Open in Hex Editor` from the Command Palette to pick any file directly
-- Or right-click a file in the Explorer and choose `OmegaEdit: Open in Hex Editor`
+- Run `Ωedit™: Open in Hex Editor` from the Command Palette to pick any file directly
+- Or right-click a file in the Explorer and choose `Ωedit™: Open in Hex Editor`
 
 ## What Happens Under The Hood
 

@@ -110,8 +110,8 @@ export async function activate(
               canSelectMany: false,
               canSelectFiles: true,
               canSelectFolders: false,
-              openLabel: 'Open in OmegaEdit Hex Editor',
-              title: 'Select a file to open in OmegaEdit Hex Editor',
+              openLabel: 'Open in Ωedit™ Hex Editor',
+              title: 'Select a file to open in Ωedit™ Hex Editor',
             })
           )?.[0]
         }

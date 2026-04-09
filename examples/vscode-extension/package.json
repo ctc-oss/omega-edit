@@ -1,7 +1,7 @@
 {
   "name": "omega-edit-hex-editor",
-  "displayName": "OmegaEdit Hex Editor",
-  "description": "A minimal reference hex/data editor VS Code extension powered by OmegaEdit",
+  "displayName": "Ωedit™ Hex Editor",
+  "description": "A minimal reference hex/data editor VS Code extension powered by Ωedit™",
   "version": "2.0.0-rc1",
   "publisher": "omega-edit-example",
   "license": "Apache-2.0",
@@ -31,7 +31,7 @@
     "customEditors": [
       {
         "viewType": "omegaEdit.hexEditor",
-        "displayName": "OmegaEdit Hex Editor",
+        "displayName": "Ωedit™ Hex Editor",
         "selector": [
           {
             "filenamePattern": "*"
@@ -41,7 +41,7 @@
       }
     ],
     "configuration": {
-      "title": "OmegaEdit Hex Editor",
+      "title": "Ωedit™ Hex Editor",
       "properties": {
         "omegaEdit.serverPort": {
           "type": "number",
@@ -76,19 +76,19 @@
     "commands": [
       {
         "command": "omegaEdit.openInHexEditor",
-        "title": "OmegaEdit: Open in Hex Editor"
+        "title": "Ωedit™: Open in Hex Editor"
       },
       {
         "command": "omegaEdit.goToOffset",
-        "title": "OmegaEdit: Go to Offset"
+        "title": "Ωedit™: Go to Offset"
       },
       {
         "command": "omegaEdit.exportChangeScript",
-        "title": "OmegaEdit: Export Change Script"
+        "title": "Ωedit™: Export Change Script"
       },
       {
         "command": "omegaEdit.replayChangeScript",
-        "title": "OmegaEdit: Replay Change Script"
+        "title": "Ωedit™: Replay Change Script"
       }
     ],
     "menus": {
