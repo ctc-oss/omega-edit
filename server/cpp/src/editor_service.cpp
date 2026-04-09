@@ -1210,6 +1210,14 @@ grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
                             "checkpointed replace offset and length must be non-negative");
     }
 
+    const auto session_size = omega_session_get_computed_file_size(session);
+    if (offset > session_size) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "checkpointed replace offset " + std::to_string(offset) +
+                                    " exceeds session size " + std::to_string(session_size) +
+                                    " for session: " + request->session_id());
+    }
+
     const auto payload_status =
             validate_replace_checkpointed_payload_sizes(request, resource_limits_.max_change_bytes);
     if (!payload_status.ok()) {
