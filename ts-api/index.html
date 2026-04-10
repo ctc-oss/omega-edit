@@ -72,6 +72,7 @@
 </tr>
 </tbody>
 </table>
+<p><code>startServer(..., heartbeat)</code> and <code>startServerUnixSocket(..., heartbeat)</code> accept the same <code>HeartbeatOptions</code> bag exported from <code>@omega-edit/server</code>, including native logging fields such as <code>logFile</code>, <code>logLevel</code>, and <code>logConfigFile</code>.</p>
 <p>Shutdown migration note:</p>
 <ul>
 <li>In the 2.x line, <code>stopServerGraceful()</code> and <code>stopServerImmediate()</code> return a structured result object with <code>responseCode</code>, <code>serverProcessId</code>, and <code>status</code> instead of returning only a numeric response code.</li>
@@ -407,6 +408,21 @@ legacy fields for wire compatibility.</p>
 <td><code>OMEGA_EDIT_SERVER_PORT</code></td>
 <td><code>9000</code></td>
 <td>Server port</td>
+</tr>
+<tr>
+<td><code>OMEGA_EDIT_SERVER_LOG_CONFIG</code></td>
+<td>-</td>
+<td>Native server logback-style XML config</td>
+</tr>
+<tr>
+<td><code>OMEGA_EDIT_SERVER_LOG_FILE</code></td>
+<td>-</td>
+<td>Native server log file</td>
+</tr>
+<tr>
+<td><code>OMEGA_EDIT_SERVER_LOG_LEVEL</code></td>
+<td>-</td>
+<td>Native server log level</td>
 </tr>
 <tr>
 <td><code>OMEGA_EDIT_CLIENT_LOG_LEVEL</code></td>
