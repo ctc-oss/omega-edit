@@ -130,29 +130,29 @@ jobs:
 
       - name: Quality Gate
         if: |
-          steps.rat-check.outputs.conclusion != 'success' ||
-          steps.ts-format.outputs.conclusion != 'success' ||
-          steps.vscode-ubuntu-floor.outputs.conclusion != 'success' ||
-          steps.vscode-ubuntu-stable.outputs.conclusion != 'success' ||
-          steps.vscode-windows-floor.outputs.conclusion != 'success' ||
-          steps.vscode-windows-stable.outputs.conclusion != 'success' ||
-          steps.macos15-tests.outputs.conclusion != 'success' ||
-          steps.macos14-tests.outputs.conclusion != 'success' ||
-          steps.ubuntu-tests.outputs.conclusion != 'success' ||
-          steps.ubuntu-arm64-native.outputs.conclusion != 'success' ||
-          steps.windows-tests.outputs.conclusion != 'success'
+          steps.rat-check.outcome != 'success' ||
+          steps.ts-format.outcome != 'success' ||
+          steps.vscode-ubuntu-floor.outcome != 'success' ||
+          steps.vscode-ubuntu-stable.outcome != 'success' ||
+          steps.vscode-windows-floor.outcome != 'success' ||
+          steps.vscode-windows-stable.outcome != 'success' ||
+          steps.macos15-tests.outcome != 'success' ||
+          steps.macos14-tests.outcome != 'success' ||
+          steps.ubuntu-tests.outcome != 'success' ||
+          steps.ubuntu-arm64-native.outcome != 'success' ||
+          steps.windows-tests.outcome != 'success'
         run: |
-          echo "Rat Check Status: ${{ steps.rat-check.outputs.conclusion }}"
-          echo "Typescript Format Status: ${{ steps.ts-format.outputs.conclusion }}"
-          echo "VS Code Ubuntu 1.110.0 Status: ${{ steps.vscode-ubuntu-floor.outputs.conclusion }}"
-          echo "VS Code Ubuntu stable Status: ${{ steps.vscode-ubuntu-stable.outputs.conclusion }}"
-          echo "VS Code Windows 1.110.0 Status: ${{ steps.vscode-windows-floor.outputs.conclusion }}"
-          echo "VS Code Windows stable Status: ${{ steps.vscode-windows-stable.outputs.conclusion }}"
-          echo "MacOS 15 Test Status: ${{ steps.macos15-tests.outputs.conclusion }}"
-          echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outputs.conclusion }}"
-          echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.outputs.conclusion }}"
-          echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.outputs.conclusion }}"
-          echo "Windows Test Status: ${{ steps.windows-tests.outputs.conclusion }}"
+          echo "Rat Check Status: ${{ steps.rat-check.outcome }}"
+          echo "Typescript Format Status: ${{ steps.ts-format.outcome }}"
+          echo "VS Code Ubuntu 1.110.0 Status: ${{ steps.vscode-ubuntu-floor.outcome }}"
+          echo "VS Code Ubuntu stable Status: ${{ steps.vscode-ubuntu-stable.outcome }}"
+          echo "VS Code Windows 1.110.0 Status: ${{ steps.vscode-windows-floor.outcome }}"
+          echo "VS Code Windows stable Status: ${{ steps.vscode-windows-stable.outcome }}"
+          echo "MacOS 15 Test Status: ${{ steps.macos15-tests.outcome }}"
+          echo "MacOS 14 Test Status: ${{ steps.macos14-tests.outcome }}"
+          echo "Ubuntu Test Status: ${{ steps.ubuntu-tests.outcome }}"
+          echo "Ubuntu ARM64 Native Status: ${{ steps.ubuntu-arm64-native.outcome }}"
+          echo "Windows Test Status: ${{ steps.windows-tests.outcome }}"
           false
 
   create-release:
