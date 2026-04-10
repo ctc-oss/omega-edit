@@ -554,20 +554,20 @@ int main(int argc, char **argv) {
         }
         std::string unix_addr = "unix:" + unix_socket;
         builder.AddListeningPort(unix_addr, grpc::InsecureServerCredentials());
-        std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << " bound to " << unix_addr
-                  << ": ready..." << std::endl;
+        log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
+                                         std::to_string(pid) + " bound to " + unix_addr + ": ready...");
 #endif
     } else {
         std::string server_address = interface_addr + ":" + std::to_string(port);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-        std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << " bound to "
-                  << server_address << ": ready..." << std::endl;
+        log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
+                                         std::to_string(pid) + " bound to " + server_address + ": ready...");
 
 #ifndef _WIN32
         if (!unix_socket.empty()) {
             std::string unix_addr = "unix:" + unix_socket;
             builder.AddListeningPort(unix_addr, grpc::InsecureServerCredentials());
-            std::cerr << "Ωedit gRPC server additionally exposed via " << unix_addr << std::endl;
+            log_message(LogLevel::Info, "Ωedit gRPC server additionally exposed via " + unix_addr);
         }
 #endif
     }
