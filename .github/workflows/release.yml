@@ -239,7 +239,7 @@ jobs:
           src="${{ env.CPP_SERVER_BINARY }}"
           ext=""
           if [[ "${{ matrix.runner-os }}" == "Windows" ]]; then ext=".exe"; fi
-          dest="$(dirname "$src")/omega-edit-grpc-server-${{ matrix.platform }}${ext}"
+          dest="server/cpp/build/omega-edit-grpc-server-${{ matrix.platform }}${ext}"
           cp "$src" "$dest"
           echo "PLATFORM_BINARY=$dest" >> $GITHUB_ENV
 
@@ -410,6 +410,13 @@ jobs:
           node-version: ${{ env.node_version }}
           cache: 'npm'
           cache-dependency-path: examples/vscode-extension/package-lock.json
+
+      - name: Build local OmegaEdit middleware for the example
+        uses: ./.github/workflows/build-middleware
+        with:
+          runner-os: Linux
+          os-name: ubuntu-22.04
+          skip-tests: 'true'
 
       - name: Install extension dependencies
         working-directory: examples/vscode-extension
