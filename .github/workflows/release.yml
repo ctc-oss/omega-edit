@@ -209,7 +209,7 @@ jobs:
           - os: ubuntu-24.04-arm
             runner-os: Linux
             platform: linux-arm64
-          - os: macos-13
+          - os: macos-15
             runner-os: macOS
             platform: macos-x64
           - os: macos-14
@@ -418,13 +418,21 @@ jobs:
           os-name: ubuntu-22.04
           skip-tests: 'true'
 
-      - name: Install extension dependencies
-        working-directory: examples/vscode-extension
-        run: npm ci
+      - name: Build local client release tarball
+        run: yarn workspace @omega-edit/client package
 
-      - name: Build VS Code extension package
-        working-directory: examples/vscode-extension
-        run: npm run package:vsix
+      - name: Stage and package VS Code extension
+        shell: bash
+        run: |
+          STAGE_DIR="$(mktemp -d)"
+          cp -R examples/vscode-extension/. "$STAGE_DIR"
+          cd "$STAGE_DIR"
+          npm pkg set "dependencies.@omega-edit/client=${PKG_VERSION}"
+          npm install --no-save \
+            "${GITHUB_WORKSPACE}/packages/server/omega-edit-node-server-v${PKG_VERSION}.tgz" \
+            "${GITHUB_WORKSPACE}/packages/client/omega-edit-node-client-v${PKG_VERSION}.tgz"
+          npm run package:vsix
+          echo "VSIX_PATH=$STAGE_DIR/omega-edit-hex-editor.vsix" >> "$GITHUB_ENV"
 
       - name: Upload VS Code extension release asset
         uses: actions/upload-release-asset@v1
@@ -432,7 +440,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ env.UPLOAD_URL }}
-          asset_path: ./examples/vscode-extension/omega-edit-hex-editor.vsix
+          asset_path: ${{ env.VSIX_PATH }}
           asset_name: omega-edit-hex-editor-v${{ env.VSCODE_EXTENSION_VERSION }}.vsix
           asset_content_type: application/vsix
 
