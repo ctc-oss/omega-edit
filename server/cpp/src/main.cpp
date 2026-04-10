@@ -25,9 +25,17 @@
 #include <cstdio>
 #include <cstdlib>
 #include <atomic>
+#include <chrono>
+#include <cctype>
+#include <ctime>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
+#include <mutex>
+#include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -42,9 +50,135 @@
 static std::unique_ptr<grpc::Server> g_server;
 static std::atomic<bool> g_shutdown_requested{false};
 
+enum class LogLevel {
+    Debug = 0,
+    Info = 1,
+    Warn = 2,
+    Error = 3,
+};
+
+static std::mutex g_log_mutex;
+static LogLevel g_log_level = LogLevel::Info;
+static std::ofstream g_log_file_stream;
+static std::ostream *g_log_stream = &std::cerr;
+
 // Signal handler — only sets an atomic flag (async-signal-safe).
 // The main thread polls this flag and performs the actual shutdown.
 static void signal_handler(int /*signum*/) { g_shutdown_requested.store(true, std::memory_order_relaxed); }
+
+static const char *log_level_name(LogLevel level) {
+    switch (level) {
+        case LogLevel::Debug: return "DEBUG";
+        case LogLevel::Info: return "INFO";
+        case LogLevel::Warn: return "WARN";
+        case LogLevel::Error: return "ERROR";
+    }
+    return "INFO";
+}
+
+static bool try_parse_log_level(const std::string &value, LogLevel &out) {
+    std::string normalized;
+    normalized.reserve(value.size());
+    for (char ch : value) {
+        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+    if (normalized == "trace" || normalized == "debug") {
+        out = LogLevel::Debug;
+        return true;
+    }
+    if (normalized == "info") {
+        out = LogLevel::Info;
+        return true;
+    }
+    if (normalized == "warn" || normalized == "warning") {
+        out = LogLevel::Warn;
+        return true;
+    }
+    if (normalized == "error" || normalized == "fatal" || normalized == "critical") {
+        out = LogLevel::Error;
+        return true;
+    }
+    return false;
+}
+
+static bool parse_log_level(const std::string &value, const std::string &name, LogLevel &out) {
+    if (!try_parse_log_level(value, out)) {
+        std::cerr << "Error: " << name
+                  << " must be one of trace, debug, info, warn, warning, error, fatal, critical; got: "
+                  << value << "\n";
+        return false;
+    }
+    return true;
+}
+
+static std::string current_timestamp() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+    std::tm tm_snapshot{};
+#ifdef _WIN32
+    localtime_s(&tm_snapshot, &now_time);
+#else
+    localtime_r(&now_time, &tm_snapshot);
+#endif
+    std::ostringstream stream;
+    stream << std::put_time(&tm_snapshot, "%Y-%m-%d %H:%M:%S");
+    return stream.str();
+}
+
+static void log_message(LogLevel level, const std::string &message) {
+    if (static_cast<int>(level) < static_cast<int>(g_log_level)) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_log_mutex);
+    (*g_log_stream) << "[" << current_timestamp() << "] "
+                    << "[" << log_level_name(level) << "] "
+                    << message << std::endl;
+}
+
+static bool configure_log_output(const std::string &log_file) {
+    if (log_file.empty()) {
+        g_log_stream = &std::cerr;
+        return true;
+    }
+
+    g_log_file_stream.open(log_file, std::ios::out | std::ios::app);
+    if (!g_log_file_stream.is_open()) {
+        std::cerr << "Error: could not open log file: " << log_file << "\n";
+        return false;
+    }
+    g_log_stream = &g_log_file_stream;
+    return true;
+}
+
+static bool apply_log_config_file(const std::string &config_path, std::string &log_file, LogLevel &log_level) {
+    std::ifstream file(config_path);
+    if (!file.is_open()) {
+        std::cerr << "Error: could not open log config file: " << config_path << "\n";
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string contents = buffer.str();
+
+    const std::regex file_regex(R"OMEGA(<file>\s*([^<]+?)\s*</file>)OMEGA", std::regex::icase);
+    const std::regex root_level_regex(R"OMEGA(<root[^>]*level\s*=\s*"([^"]+)")OMEGA", std::regex::icase);
+    std::smatch match;
+
+    if (std::regex_search(contents, match, file_regex)) {
+        log_file = match[1].str();
+    }
+    if (std::regex_search(contents, match, root_level_regex)) {
+        LogLevel parsed_level;
+        if (!parse_log_level(match[1].str(), "--log-config root level", parsed_level)) {
+            return false;
+        }
+        log_level = parsed_level;
+    }
+
+    return true;
+}
 
 /// Parse a string as an integer in [min_val, max_val], writing the result to out.
 /// Returns true on success; on failure prints a message to stderr and returns false.
@@ -126,6 +260,10 @@ static void print_usage(const char *progname) {
               << "  -f, --pidfile <path>             Write PID to file\n"
               << "  -u, --unix-socket <path>         Unix domain socket path (Linux/macOS only)\n"
               << "      --unix-socket-only           Bind only to Unix domain socket\n"
+              << "\nLogging options:\n"
+              << "      --log-file <path>            Append native server logs to file\n"
+              << "      --log-level <level>          Native log level (debug, info, warn, error)\n"
+              << "      --log-config <path>          Compatibility shim: read log file/level from logback-style XML\n"
               << "\nHeartbeat / session-reaping options:\n"
               << "      --session-timeout <ms>       Idle session timeout in milliseconds (0 = disabled)\n"
               << "      --cleanup-interval <ms>      Reaper sweep interval in milliseconds (0 = disabled)\n"
@@ -148,7 +286,10 @@ int main(int argc, char **argv) {
     int port = 9000;
     std::string pidfile;
     std::string unix_socket;
+    std::string log_file;
+    std::string log_config_file;
     bool unix_socket_only = false;
+    LogLevel log_level = LogLevel::Info;
 
     // Heartbeat / session-reaping defaults (0 = disabled)
     int session_timeout_ms = 0;
@@ -177,6 +318,18 @@ int main(int argc, char **argv) {
     }
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_PIDFILE")) {
         pidfile = env;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_CONFIG")) {
+        log_config_file = env;
+        if (!apply_log_config_file(log_config_file, log_file, log_level)) return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_FILE")) {
+        log_file = env;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_SERVER_LOG_LEVEL")) {
+        if (!parse_log_level(env, "OMEGA_EDIT_SERVER_LOG_LEVEL", log_level)) return 1;
+    } else if (const char *env = std::getenv("OMEGA_EDIT_LOG_LEVEL")) {
+        if (!parse_log_level(env, "OMEGA_EDIT_LOG_LEVEL", log_level)) return 1;
     }
 
     // Native heartbeat environment variables
@@ -260,6 +413,45 @@ int main(int argc, char **argv) {
                     return 1;
                 }
                 unix_socket = value;
+            } else if (key == "--log-file") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                log_file = value;
+            } else if (key == "--log-level") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                if (!parse_log_level(value, "--log-level", log_level)) return 1;
+            } else if (key == "--log-config") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                log_config_file = value;
+                // Pre-scan for explicit --log-file / --log-level flags so that they
+                // always win over the config file regardless of argument order.
+                bool has_explicit_log_file = false;
+                bool has_explicit_log_level = false;
+                for (int j = 1; j < argc; ++j) {
+                    const char *a = argv[j];
+                    if (std::strcmp(a, "--log-file") == 0 || std::strncmp(a, "--log-file=", 11) == 0) {
+                        has_explicit_log_file = true;
+                    } else if (std::strcmp(a, "--log-level") == 0 || std::strncmp(a, "--log-level=", 12) == 0) {
+                        has_explicit_log_level = true;
+                    }
+                }
+                std::string config_log_file = log_file;
+                LogLevel config_log_level = log_level;
+                if (!apply_log_config_file(log_config_file, config_log_file, config_log_level)) return 1;
+                if (!has_explicit_log_file) {
+                    log_file = config_log_file;
+                }
+                if (!has_explicit_log_level) {
+                    log_level = config_log_level;
+                }
             } else if (key == "--session-timeout") {
                 if (value.empty()) {
                     std::cerr << "Error: " << key << " requires a value\n";
@@ -305,6 +497,12 @@ int main(int argc, char **argv) {
         }
     }
 
+    g_log_level = log_level;
+    if (!configure_log_output(log_file)) return 1;
+    if (!log_file.empty()) {
+        log_message(LogLevel::Info, "native server logging redirected to " + log_file);
+    }
+
     // Write PID file
     int pid = getpid();
     if (!pidfile.empty()) {
@@ -313,7 +511,7 @@ int main(int argc, char **argv) {
             pf << pid;
             pf.close();
         } else {
-            std::cerr << "Warning: could not write pidfile: " << pidfile << std::endl;
+            log_message(LogLevel::Warn, "could not write pidfile: " + pidfile);
         }
     }
 
@@ -347,29 +545,29 @@ int main(int argc, char **argv) {
 
     if (unix_socket_only) {
 #ifdef _WIN32
-        std::cerr << "Unix domain sockets are not supported on Windows" << std::endl;
+        log_message(LogLevel::Error, "Unix domain sockets are not supported on Windows");
         return 1;
 #else
         if (unix_socket.empty()) {
-            std::cerr << "--unix-socket-only requires --unix-socket" << std::endl;
+            log_message(LogLevel::Error, "--unix-socket-only requires --unix-socket");
             return 1;
         }
         std::string unix_addr = "unix:" + unix_socket;
         builder.AddListeningPort(unix_addr, grpc::InsecureServerCredentials());
-        std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << " bound to " << unix_addr
-                  << ": ready..." << std::endl;
+        log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
+                                         std::to_string(pid) + " bound to " + unix_addr + ": ready...");
 #endif
     } else {
         std::string server_address = interface_addr + ":" + std::to_string(port);
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-        std::cerr << "Ωedit gRPC server (v" << SERVER_VERSION << ") with PID " << pid << " bound to "
-                  << server_address << ": ready..." << std::endl;
+        log_message(LogLevel::Info, std::string("Ωedit gRPC server (v") + SERVER_VERSION + ") with PID " +
+                                         std::to_string(pid) + " bound to " + server_address + ": ready...");
 
 #ifndef _WIN32
         if (!unix_socket.empty()) {
             std::string unix_addr = "unix:" + unix_socket;
             builder.AddListeningPort(unix_addr, grpc::InsecureServerCredentials());
-            std::cerr << "Ωedit gRPC server additionally exposed via " << unix_addr << std::endl;
+            log_message(LogLevel::Info, "Ωedit gRPC server additionally exposed via " + unix_addr);
         }
 #endif
     }
