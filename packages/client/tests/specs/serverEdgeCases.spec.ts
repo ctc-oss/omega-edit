@@ -30,6 +30,7 @@ const clientPackage =
   require('../../dist/cjs/index.js') as typeof import('../../src/index')
 let clientModule: typeof import('../../src/client')
 let serverModule: typeof import('../../src/server')
+let nativeServerModule: typeof import('../../../server/src/index')
 const {
   delay,
   findFirstAvailablePort,
@@ -60,6 +61,8 @@ describe('Server Edge Cases', () => {
       require('../../dist/cjs/client.js') as typeof import('../../src/client')
     serverModule =
       require('../../dist/cjs/server.js') as typeof import('../../src/server')
+    nativeServerModule =
+      require('../../../server/out/index.js') as typeof import('../../../server/src/index')
   })
 
   beforeEach(() => {
@@ -197,6 +200,36 @@ describe('Server Edge Cases', () => {
       expect.fail('startServer should reject invalid pid file contents')
     } catch (err) {
       expect((err as Error).message).to.equal(`Invalid PID in ${pidFile}`)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('should resolve nested node_modules server bin directories without stripping parent segments', () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'omega-edit-nested-node-modules-')
+    )
+    const nestedNodeModulesDir = path.join(
+      tempDir,
+      'wrapper',
+      'node_modules',
+      '@omega-edit',
+      'client',
+      'node_modules'
+    )
+    const expectedBinDir = path.join(
+      nestedNodeModulesDir,
+      '@omega-edit',
+      'server',
+      'out',
+      'bin'
+    )
+    fs.mkdirSync(expectedBinDir, { recursive: true })
+
+    try {
+      const binFolderPath =
+        nativeServerModule.getBinFolderPath(nestedNodeModulesDir)
+      expect(binFolderPath).to.equal(path.resolve(expectedBinDir))
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }

@@ -31,6 +31,7 @@ const clientPackage =
 const clientModule =
   require('../../dist/cjs/client.js') as typeof import('../../src/client')
 const grpcModule = require('@grpc/grpc-js') as typeof import('@grpc/grpc-js')
+const pinoModule = require('pino') as typeof import('pino')
 const grpcClientModule = require('../../dist/cjs/omega_edit_grpc_pb.js') as {
   EditorClient: new (...args: any[]) => any
 }
@@ -615,6 +616,30 @@ describe('Client Utilities', () => {
       )
     } finally {
       await removeDirWithRetry(tempDir)
+    }
+  })
+
+  it('should initialize the default logger without using pino transports', () => {
+    const loggerModulePath = require.resolve('../../dist/cjs/logger.js')
+    const restoreTransport = overrideProperty(
+      pinoModule as Record<string, any>,
+      'transport',
+      () => {
+        throw new Error('pino transport should not be used')
+      }
+    )
+
+    try {
+      delete require.cache[loggerModulePath]
+      const loggerModule =
+        require('../../dist/cjs/logger.js') as typeof import('../../src/logger')
+      const logger = loggerModule.getLogger()
+
+      expect(logger).to.not.equal(undefined)
+      expect(logger.isLevelEnabled('info')).to.equal(true)
+    } finally {
+      restoreTransport()
+      delete require.cache[loggerModulePath]
     }
   })
 })

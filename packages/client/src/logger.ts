@@ -91,18 +91,7 @@ export function createSimpleFileLogger(
  */
 export function getLogger(): Logger {
   if (!logger_) {
-    setLogger(
-      buildLogger(
-        pino.transport({
-          targets: [
-            {
-              target: 'pino/file',
-              options: { destination: 2 }, // use 1 for stdout and 2 for stderr
-            },
-          ],
-        })
-      )
-    )
+    setLogger(buildLogger(process.stderr))
     getLogger().debug({ fn: 'getLogger', msg: 'logger initialized' })
   }
   return logger_

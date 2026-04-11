@@ -87,7 +87,13 @@ const checkForBinPath = (baseDir: string): string => {
  *    OR
  *    - recursively calls itself till path is found
  */
-const getBinFolderPath = (baseDir: string): string => {
+function stripNodeModulesSuffix(baseDir: string): string {
+  return baseDir.endsWith('node_modules')
+    ? baseDir.slice(0, -'node_modules'.length)
+    : baseDir
+}
+
+export const getBinFolderPath = (baseDir: string): string => {
   if (!baseDir.endsWith('node_modules')) {
     if (fs.readdirSync(baseDir).includes('node_modules')) {
       return checkForBinPath(baseDir)
@@ -95,7 +101,7 @@ const getBinFolderPath = (baseDir: string): string => {
       return getBinFolderPath(path.join(baseDir, '..'))
     }
   } else {
-    return checkForBinPath(baseDir.replace('node_modules', ''))
+    return checkForBinPath(stripNodeModulesSuffix(baseDir))
   }
 }
 

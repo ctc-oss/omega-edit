@@ -1,6 +1,6 @@
 {
   "name": "@omega-edit/client",
-  "version": "2.0.0-rc1",
+  "version": "2.0.0",
   "description": "OmegaEdit gRPC Client",
   "publisher": "ctc-oss",
   "main": "./dist/cjs/index.js",
@@ -70,7 +70,7 @@
   },
   "dependencies": {
     "@grpc/grpc-js": "1.12.2",
-    "@omega-edit/server": "2.0.0-rc1",
+    "@omega-edit/server": "2.0.0",
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
     "pino": "10.3.1",
