@@ -257,6 +257,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -335,12 +336,18 @@ jobs:
           asset_name: omega-edit-node-server-v${{ env.PKG_VERSION }}.tgz
           asset_content_type: application/tar+gzip
 
+      - name: Publish node server package to npm
+        run: npm publish --access public --provenance ./packages/server/omega-edit-node-server-v${{ env.PKG_VERSION }}.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   node-client-release:
     name: Node Client Release
     needs: [create-release]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -380,6 +387,11 @@ jobs:
           asset_path: ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_name: omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
           asset_content_type: application/tar+gzip
+
+      - name: Publish node client package to npm
+        run: npm publish --access public --provenance ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   vscode-extension-release:
     name: VS Code Extension Release
@@ -450,6 +462,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -492,3 +505,8 @@ jobs:
           asset_path: ./packages/ai/omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
           asset_name: omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
           asset_content_type: application/tar+gzip
+
+      - name: Publish node AI package to npm
+        run: npm publish --access public --provenance ./packages/ai/omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
