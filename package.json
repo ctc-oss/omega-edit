@@ -36,7 +36,7 @@
     "ts-loader": "^9.5.7",
     "typedoc": "^0.28.18",
     "typescript": "^6.0.2",
-    "webpack": "^5.105.4",
+    "webpack": "^5.106.1",
     "webpack-cli": "^7.0.2"
   },
   "resolutions": {
