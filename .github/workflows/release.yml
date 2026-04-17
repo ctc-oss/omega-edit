@@ -337,7 +337,7 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Publish node server package to npm
-        run: npm publish --access public ./packages/server/omega-edit-node-server-v${{ env.PKG_VERSION }}.tgz
+        run: npm publish --access public --provenance ./packages/server/omega-edit-node-server-v${{ env.PKG_VERSION }}.tgz
 
   node-client-release:
     name: Node Client Release
@@ -387,7 +387,7 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Publish node client package to npm
-        run: npm publish --access public ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
+        run: npm publish --access public --provenance ./packages/client/omega-edit-node-client-v${{ env.PKG_VERSION }}.tgz
 
   vscode-extension-release:
     name: VS Code Extension Release
@@ -503,4 +503,4 @@ jobs:
           asset_content_type: application/tar+gzip
 
       - name: Publish node AI package to npm
-        run: npm publish --access public ./packages/ai/omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
+        run: npm publish --access public --provenance ./packages/ai/omega-edit-node-ai-v${{ env.PKG_VERSION }}.tgz
