@@ -174,10 +174,12 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
         // Stride size is how far we can slide the search window after the previous window has been searched.
         const auto stride_size = 1 + data_segment.capacity - search_context_ptr->pattern_length;
 
-        // Reuse scratch buffer if available and large enough
+        // Reuse scratch buffer if available and large enough.
         if (search_context_ptr->scratch_capacity < data_segment.capacity) {
+            omega_data_t scratch_buffer{};
+            omega_data_create_(&scratch_buffer, data_segment.capacity);
             omega_data_destroy_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity);
-            omega_data_create_(&search_context_ptr->scratch_buffer, data_segment.capacity);
+            search_context_ptr->scratch_buffer = scratch_buffer;
             search_context_ptr->scratch_capacity = data_segment.capacity;
         }
         data_segment.data = search_context_ptr->scratch_buffer;
@@ -241,8 +243,8 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
                 break;
             }
 
-                } while (MAX_SEGMENT_LENGTH == data_segment.length);
- 
+        } while (MAX_SEGMENT_LENGTH == data_segment.length);
+
         // Scratch buffer is managed by the context and destroyed in omega_search_destroy_context.
     }
 
@@ -251,7 +253,6 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
 
     return 0;
 }
-
 
 void omega_search_destroy_context(omega_search_context_t *const search_context_ptr) {
     if (search_context_ptr) {
