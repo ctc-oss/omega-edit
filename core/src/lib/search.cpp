@@ -174,8 +174,13 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
         // Stride size is how far we can slide the search window after the previous window has been searched.
         const auto stride_size = 1 + data_segment.capacity - search_context_ptr->pattern_length;
 
-        // Initialize the data segment to search.
-        omega_data_create_(&data_segment.data, data_segment.capacity);
+        // Reuse scratch buffer if available and large enough
+        if (search_context_ptr->scratch_capacity < data_segment.capacity) {
+            omega_data_destroy_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity);
+            omega_data_create_(&search_context_ptr->scratch_buffer, data_segment.capacity);
+            search_context_ptr->scratch_capacity = data_segment.capacity;
+        }
+        data_segment.data = search_context_ptr->scratch_buffer;
 
         // Determine the offset to start the search from. It depends on the direction of the search and
         // whether we are beginning a new search or continuing an old one.
@@ -224,13 +229,11 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
             // Try to find the pattern in the current segment.
             if (auto *found = omega_find(segment_data_ptr, data_segment.length, search_context_ptr->skip_table_ptr,
                                          pattern, search_context_ptr->pattern_length)) {
-                // If a match is found, destroy the data segment and update the match offset in the search context.
+                // If a match is found, update the match offset in the search context.
                 const auto found_offset = static_cast<int64_t>(found - segment_data_ptr);
                 if (!safe_add_int64_(data_segment.offset, found_offset, search_context_ptr->match_offset)) {
-                    omega_data_destroy_(&data_segment.data, data_segment.capacity);
                     return 0;
                 }
-                omega_data_destroy_(&data_segment.data, data_segment.capacity);
                 return 1;
             }
 
@@ -241,10 +244,9 @@ int omega_search_next_match(omega_search_context_t *search_context_ptr, int64_t 
                 break;
             }
 
-        } while (MAX_SEGMENT_LENGTH == data_segment.length);
-
-        // Destroy the data segment if no match was found.
-        omega_data_destroy_(&data_segment.data, data_segment.capacity);
+                } while (MAX_SEGMENT_LENGTH == data_segment.length);
+ 
+        // Scratch buffer is managed by the context and destroyed in omega_search_destroy_context.
     }
 
     // If no match was found after searching the entire length, set the match offset to the last offset.
@@ -264,6 +266,7 @@ void omega_search_destroy_context(omega_search_context_t *const search_context_p
                     omega_find_destroy_skip_table(search_context_ptr->skip_table_ptr);
                     search_context_ptr->skip_table_ptr = nullptr;
                 }
+                omega_data_destroy_(&search_context_ptr->scratch_buffer, search_context_ptr->scratch_capacity);
                 search_context_ptr->session_ptr->search_contexts_.erase(std::next(iter).base());
                 break;
             }
