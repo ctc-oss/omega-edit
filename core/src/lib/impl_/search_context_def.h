@@ -27,6 +27,8 @@ struct omega_search_context_struct {
     int64_t match_offset{};
     omega_util_byte_transform_t byte_transform{};
     omega_data_t pattern{};
+    omega_data_t scratch_buffer{};
+    int64_t scratch_capacity{};
 };
 
 #endif//OMEGA_EDIT_SEARCH_CONTEXT_DEF_H
