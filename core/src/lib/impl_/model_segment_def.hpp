@@ -18,9 +18,13 @@
 #include "../../include/omega_edit/change.h"
 #include "internal_fwd_defs.hpp"
 
+namespace omega_edit::internal {
+
 enum class model_segment_kind_t {
     SEGMENT_READ, SEGMENT_INSERT
 };
+
+}// namespace omega_edit::internal
 
 // NOTE: omega_model_segment_struct is used in internal_fwd_defs.hpp despite what sonarlint says
 struct omega_model_segment_struct {
@@ -30,12 +34,14 @@ struct omega_model_segment_struct {
     const_omega_change_ptr_t change_ptr{};///< Reference to parent change
 };
 
-inline model_segment_kind_t omega_model_segment_get_kind(const omega_model_segment_t *model_segment_ptr) {
+namespace omega_edit::internal {
+
+inline model_segment_kind_t omega_model_segment_get_kind_(const omega_model_segment_t *model_segment_ptr) {
     return (0 == omega_change_get_serial(model_segment_ptr->change_ptr.get())) ? model_segment_kind_t::SEGMENT_READ
                                                                                : model_segment_kind_t::SEGMENT_INSERT;
 }
 
-inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_kind) {
+inline char omega_model_segment_kind_as_char_(const model_segment_kind_t segment_kind) {
     switch (segment_kind) {
         case model_segment_kind_t::SEGMENT_READ:
             return 'R';
@@ -45,5 +51,7 @@ inline char omega_model_segment_kind_as_char(const model_segment_kind_t segment_
             return '?';
     }
 }
+
+}// namespace omega_edit::internal
 
 #endif//OMEGA_EDIT_MODEL_SEGMENT_DEF_HPP

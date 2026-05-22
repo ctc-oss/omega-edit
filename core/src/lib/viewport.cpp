@@ -16,10 +16,16 @@
 #include "../include/omega_edit/segment.h"
 #include "../include/omega_edit/session.h"
 #include "impl_/internal_fun.hpp"
+#include "impl_/safe_math.hpp"
 #include "impl_/session_def.hpp"
 #include "impl_/viewport_def.hpp"
 #include <cassert>
 #include <cstdlib>
+
+using omega_edit::internal::omega_data_create_;
+using omega_edit::internal::omega_data_destroy_;
+using omega_edit::internal::populate_data_segment_;
+using omega_edit::internal::safe_add_int64_;
 
 const omega_session_t *omega_viewport_get_session(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return nullptr; }
@@ -37,16 +43,22 @@ int64_t omega_viewport_get_length(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return 0; }
     if (0 == omega_viewport_has_changes(viewport_ptr)) { return viewport_ptr->data_segment.length; }
     auto const capacity = omega_viewport_get_capacity(viewport_ptr);
-    auto const remaining_file_size =
-            std::max(omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
-                     omega_viewport_get_offset(viewport_ptr),
-                     static_cast<int64_t>(0));
+    auto const viewport_offset = omega_viewport_get_offset(viewport_ptr);
+    if (viewport_offset < 0) { return 0; }
+    auto const computed_file_size = omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr));
+    if (computed_file_size < 0) { return 0; }
+    int64_t remaining_file_size = 0;
+    if (!safe_add_int64_(computed_file_size, -viewport_offset, remaining_file_size)) { return 0; }
+    remaining_file_size = std::max(remaining_file_size, static_cast<int64_t>(0));
     return capacity < remaining_file_size ? capacity : remaining_file_size;
 }
 
 int64_t omega_viewport_get_offset(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return -1; }
-    return viewport_ptr->data_segment.offset + viewport_ptr->data_segment.offset_adjustment;
+    int64_t offset = 0;
+    return safe_add_int64_(viewport_ptr->data_segment.offset, viewport_ptr->data_segment.offset_adjustment, offset)
+           ? offset
+           : -1;
 }
 
 void *omega_viewport_get_user_data_ptr(const omega_viewport_t *viewport_ptr) {
@@ -77,22 +89,33 @@ int omega_viewport_is_floating(const omega_viewport_t *viewport_ptr) {
 
 int64_t omega_viewport_get_following_byte_count(const omega_viewport_t *viewport_ptr) {
     if (!viewport_ptr) { return 0; }
-    return omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr)) -
-           (omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_length(viewport_ptr));
+    const auto viewport_offset = omega_viewport_get_offset(viewport_ptr);
+    if (viewport_offset < 0) { return 0; }
+    int64_t viewport_end = 0;
+    if (!safe_add_int64_(viewport_offset, omega_viewport_get_length(viewport_ptr), viewport_end)) {
+        return 0;
+    }
+    if (viewport_end < 0) { return 0; }
+    const auto computed_file_size = omega_session_get_computed_file_size(omega_viewport_get_session(viewport_ptr));
+    if (computed_file_size < 0) { return 0; }
+    // Negative result is intentional when viewport_end > computed_file_size (viewport past EOF).
+    return computed_file_size - viewport_end;
 }
 
 int omega_viewport_modify(omega_viewport_t *viewport_ptr, int64_t offset, int64_t capacity, int is_floating) {
     if (!viewport_ptr) { return -1; }
-    if (capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT) {
+    int64_t viewport_end = 0;
+    if (offset >= 0 && capacity > 0 && capacity <= OMEGA_VIEWPORT_CAPACITY_LIMIT &&
+        safe_add_int64_(offset, capacity, viewport_end)) {
         // only change settings if they are different
         if (viewport_ptr->data_segment.offset != offset || omega_viewport_get_capacity(viewport_ptr) != capacity ||
             viewport_ptr->data_segment.is_floating != (bool) is_floating) {
-            omega_data_destroy(&viewport_ptr->data_segment.data, omega_viewport_get_capacity(viewport_ptr));
+            omega_data_destroy_(&viewport_ptr->data_segment.data, omega_viewport_get_capacity(viewport_ptr));
             viewport_ptr->data_segment.offset = offset;
             viewport_ptr->data_segment.is_floating = (bool) is_floating;
             viewport_ptr->data_segment.offset_adjustment = 0;
             viewport_ptr->data_segment.capacity = -1 * capacity;// Negative capacity indicates dirty read
-            omega_data_create(&viewport_ptr->data_segment.data, capacity);
+            omega_data_create_(&viewport_ptr->data_segment.data, capacity);
             omega_viewport_notify(viewport_ptr, VIEWPORT_EVT_MODIFY, nullptr);
         }
         return 0;
@@ -120,8 +143,15 @@ int omega_viewport_has_changes(const omega_viewport_t *viewport_ptr) {
 }
 
 int omega_viewport_in_segment(const omega_viewport_t *viewport_ptr, int64_t offset, int64_t length) {
-    return (offset + length) >= omega_viewport_get_offset(viewport_ptr) &&
-           offset <= omega_viewport_get_offset(viewport_ptr) + omega_viewport_get_capacity(viewport_ptr)
+    if (!viewport_ptr) { return 0; }
+    const auto viewport_offset = omega_viewport_get_offset(viewport_ptr);
+    if (viewport_offset < 0) { return 0; }
+    int64_t segment_end = 0;
+    int64_t viewport_end = 0;
+    return safe_add_int64_(offset, length, segment_end) &&
+           safe_add_int64_(viewport_offset, omega_viewport_get_capacity(viewport_ptr), viewport_end) &&
+           segment_end >= viewport_offset &&
+           offset <= viewport_end
            ? 1
            : 0;
 }

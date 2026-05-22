@@ -13,9 +13,14 @@
  **********************************************************************************************************************/
 
 #include "omega_edit.h"
+#include "omega_edit/character_counts.h"
 #include "omega_edit/check.h"
 #include "omega_edit/stl_string_adaptor.hpp"
 #include "omega_edit/utility.h"
+#include "../lib/impl_/safe_math.hpp"
+#include "../lib/impl_/data_def.hpp"
+#include "../lib/impl_/session_def.hpp"
+#include "../lib/impl_/viewport_def.hpp"
 
 #include <test_util.hpp>
 
@@ -25,6 +30,8 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <limits>
+#include <new>
 #include <string>
 
 using namespace std;
@@ -503,6 +510,218 @@ TEST_CASE("Negative Edit Parameters Are Rejected", "[EdgeCase][InvalidInput]") {
 }
 
 // ─── Viewport Notify ─────────────────────────────────────────────────────────
+
+TEST_CASE("Safe Int64 Math Helpers Detect Boundary Overflow", "[EdgeCase][Overflow]") {
+    const auto max = (std::numeric_limits<int64_t>::max)();
+    const auto min = (std::numeric_limits<int64_t>::min)();
+    int64_t result = 0;
+
+    REQUIRE_FALSE(omega_edit::internal::add_overflows_int64_(40, 2));
+    REQUIRE(omega_edit::internal::add_overflows_int64_(max, 1));
+    REQUIRE(omega_edit::internal::add_overflows_int64_(min, -1));
+
+    REQUIRE(omega_edit::internal::safe_add_int64_(40, 2, result));
+    REQUIRE(42 == result);
+    REQUIRE_FALSE(omega_edit::internal::safe_add_int64_(max, 1, result));
+    REQUIRE_FALSE(omega_edit::internal::safe_add_int64_(min, -1, result));
+
+    REQUIRE(omega_edit::internal::valid_nonnegative_range_(0, max));
+    REQUIRE_FALSE(omega_edit::internal::valid_nonnegative_range_(-1, 1));
+    REQUIRE_FALSE(omega_edit::internal::valid_nonnegative_range_(1, -1));
+    REQUIRE_FALSE(omega_edit::internal::valid_nonnegative_range_(max, 1));
+}
+
+TEST_CASE("Overflow Sized Edit Ranges Are Rejected Without Mutating Session", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const auto max = (std::numeric_limits<int64_t>::max)();
+    const omega_byte_t byte = 'x';
+
+    REQUIRE(-1 == omega_edit_delete(session_ptr, max, 1));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, max, &byte, 1));
+    REQUIRE(-1 == omega_edit_insert_bytes(session_ptr, 0, &byte, max));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, max, &byte, 1));
+    REQUIRE(-1 == omega_edit_overwrite_bytes(session_ptr, 0, &byte, max));
+
+    REQUIRE(0 == omega_session_get_computed_file_size(session_ptr));
+    REQUIRE(0 == omega_session_get_num_changes(session_ptr));
+    REQUIRE(0 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Computed File Size Returns -1 On Segment Overflow", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+    REQUIRE(3 == omega_session_get_computed_file_size(session_ptr));
+
+    // Directly corrupt the last segment so computed_offset + computed_length overflows int64.
+    auto &seg = session_ptr->models_.back()->model_segments.back();
+    seg->computed_offset = (std::numeric_limits<int64_t>::max)();
+    seg->computed_length = 1;
+
+    REQUIRE(-1 == omega_session_get_computed_file_size(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Viewport Offset Overflow Returns Safe Sentinels", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    auto *vp = omega_edit_create_viewport(session_ptr, 0, 3, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(vp);
+    // Viewport is created dirty (capacity < 0). Force offset + offset_adjustment to overflow int64.
+    vp->data_segment.offset = (std::numeric_limits<int64_t>::max)();
+    vp->data_segment.offset_adjustment = 1;
+    vp->data_segment.capacity = -omega_viewport_get_capacity(vp);
+
+    REQUIRE(-1 == omega_viewport_get_offset(vp));
+    // omega_viewport_get_length detects viewport_offset < 0 and returns 0.
+    REQUIRE(0 == omega_viewport_get_length(vp));
+
+    omega_edit_destroy_viewport(vp);
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Viewport Negative Offset Sentinels Do Not Overflow Range Helpers", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    auto *vp = omega_edit_create_viewport(session_ptr, 0, 3, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(vp);
+    vp->data_segment.offset = (std::numeric_limits<int64_t>::min)();
+    vp->data_segment.offset_adjustment = 0;
+    vp->data_segment.capacity = -omega_viewport_get_capacity(vp);
+
+    REQUIRE((std::numeric_limits<int64_t>::min)() == omega_viewport_get_offset(vp));
+    REQUIRE(0 == omega_viewport_get_length(vp));
+    REQUIRE(0 == omega_viewport_get_following_byte_count(vp));
+    REQUIRE_FALSE(omega_viewport_in_segment(vp, 0, 1));
+
+    omega_edit_destroy_viewport(vp);
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Data Segment Allocation Rejects Unrepresentable Null Terminator Capacity", "[EdgeCase][Overflow]") {
+    omega_data_t data{};
+
+    REQUIRE_THROWS_AS(omega_edit::internal::omega_data_create_(
+                              &data, (std::numeric_limits<int64_t>::max)()),
+                      std::bad_array_new_length);
+}
+
+TEST_CASE("Segment Allocation Rejects Unrepresentable Null Terminator Capacity", "[EdgeCase][Overflow]") {
+    REQUIRE(nullptr == omega_segment_create((std::numeric_limits<int64_t>::max)()));
+}
+
+TEST_CASE("Negative Segment Offsets Are Rejected Before Population", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    auto *segment_ptr = omega_segment_create(2);
+    REQUIRE(segment_ptr);
+
+    REQUIRE(-1 == omega_session_get_segment(session_ptr, segment_ptr, -1));
+    REQUIRE(-1 == omega_segment_get_offset(segment_ptr));
+    REQUIRE(0 == omega_segment_get_length(segment_ptr));
+
+    omega_segment_destroy(segment_ptr);
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Viewport Creation And Modification Reject Invalid Ranges", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    const auto max = (std::numeric_limits<int64_t>::max)();
+    REQUIRE(nullptr == omega_edit_create_viewport(nullptr, 0, 1, 0, nullptr, nullptr, NO_EVENTS));
+    REQUIRE(nullptr == omega_edit_create_viewport(session_ptr, -1, 1, 0, nullptr, nullptr, NO_EVENTS));
+    REQUIRE(nullptr == omega_edit_create_viewport(session_ptr, max, 1, 0, nullptr, nullptr, NO_EVENTS));
+
+    auto *viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 2, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(viewport_ptr);
+    REQUIRE(-1 == omega_viewport_modify(viewport_ptr, -1, 2, 0));
+    REQUIRE(-1 == omega_viewport_modify(viewport_ptr, max, 1, 0));
+
+    omega_edit_destroy_viewport(viewport_ptr);
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Floating Viewport Adjustment Overflow Is Rejected Without Undefined Arithmetic", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+
+    auto *viewport_ptr = omega_edit_create_viewport(
+            session_ptr, (std::numeric_limits<int64_t>::max)() - 1, 1, 1, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(viewport_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "x"));
+    REQUIRE((std::numeric_limits<int64_t>::max)() == omega_viewport_get_offset(viewport_ptr));
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "y"));
+    REQUIRE((std::numeric_limits<int64_t>::max)() == omega_viewport_get_offset(viewport_ptr));
+
+    omega_edit_destroy_viewport(viewport_ptr);
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Model Check Rejects Arithmetic Overflow In Segment Bounds", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    auto &seg = session_ptr->models_.back()->model_segments.back();
+    seg->change_offset = (std::numeric_limits<int64_t>::max)();
+    seg->computed_length = 1;
+
+    REQUIRE(-1 == omega_check_model(session_ptr));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Transform Rejects Negative Offsets Before Range Arithmetic", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    REQUIRE(-1 == omega_edit_apply_transform(session_ptr, to_upper, nullptr,
+                                             (std::numeric_limits<int64_t>::min)(), 0));
+    REQUIRE("abc" == omega_session_get_segment_string(session_ptr, 0, 3));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Overflow Sized Read Ranges Are Rejected", "[EdgeCase][Overflow]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, 0, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "abc"));
+
+    const auto max = (std::numeric_limits<int64_t>::max)();
+
+    REQUIRE(nullptr == omega_search_create_context_string(session_ptr, "b", 1, max, false, false));
+
+    omega_byte_frequency_profile_t profile;
+    REQUIRE(-1 == omega_session_byte_frequency_profile(session_ptr, &profile, 1, max));
+
+    auto *counts = omega_character_counts_create();
+    REQUIRE(counts);
+    REQUIRE(-1 == omega_session_character_counts(session_ptr, counts, 1, max, BOM_NONE));
+    omega_character_counts_destroy(counts);
+
+    auto *viewport_ptr = omega_edit_create_viewport(session_ptr, 0, 2, 0, nullptr, nullptr, NO_EVENTS);
+    REQUIRE(viewport_ptr);
+    REQUIRE(0 == omega_viewport_in_segment(viewport_ptr, max, 1));
+    REQUIRE(0 == omega_viewport_in_segment(viewport_ptr, 1, max));
+    omega_edit_destroy_viewport(viewport_ptr);
+
+    REQUIRE(0 == omega_check_model(session_ptr));
+    omega_edit_destroy_session(session_ptr);
+}
 
 static int viewport_notify_count = 0;
 

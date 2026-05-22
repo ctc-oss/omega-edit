@@ -23,9 +23,11 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <thread>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -306,6 +308,19 @@ static grpc::Status validate_replace_payload_sizes(const std::string &pattern, c
     return grpc::Status::OK;
 }
 
+static grpc::Status validate_viewport_range(int64_t offset, int64_t capacity) {
+    if (offset < 0 || capacity <= 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "viewport offset must be non-negative and capacity must be positive");
+    }
+    if (capacity > OMEGA_VIEWPORT_CAPACITY_LIMIT ||
+        offset > (std::numeric_limits<int64_t>::max)() - capacity) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "viewport range is invalid or exceeds configured capacity limit");
+    }
+    return grpc::Status::OK;
+}
+
 EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
                                      std::function<void()> shutdown_callback)
     : session_manager_(resource_limits), start_time_(std::chrono::steady_clock::now()),
@@ -405,10 +420,11 @@ template <typename T>
 grpc::Status EditorServiceImpl::fill_viewport_data(const std::string &session_id, const std::string &viewport_id,
                                                     const std::string &fqid,
                                                     T *response) {
-    auto *vp = session_manager_.get_viewport(session_id, viewport_id);
-    if (!vp) {
+    auto locked_viewport = session_manager_.lock_viewport(session_id, viewport_id);
+    if (!locked_viewport) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + fqid);
     }
+    auto *vp = locked_viewport.viewport();
     const auto *data = omega_viewport_get_data(vp);
     auto length = omega_viewport_get_length(vp);
 
@@ -519,12 +535,12 @@ grpc::Status EditorServiceImpl::CreateSession(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::SaveSession(grpc::ServerContext * /*context*/,
                                              const ::omega_edit::v1::SaveSessionRequest *request,
                                              ::omega_edit::v1::SaveSessionResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     char saved_file_path[FILENAME_MAX] = {};
     int64_t offset = request->has_offset() ? request->offset() : 0;
     int64_t length = request->has_length() ? request->length() : 0;
@@ -568,12 +584,12 @@ grpc::Status EditorServiceImpl::DestroySession(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::SubmitChangeRequest *request,
                                               ::omega_edit::v1::SubmitChangeResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     const grpc::Status payload_status =
         validate_change_payload_size(request, resource_limits_.max_change_bytes);
     if (!payload_status.ok()) {
@@ -627,17 +643,17 @@ grpc::Status EditorServiceImpl::SubmitChange(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::UndoLastChangeRequest *request,
                                                 ::omega_edit::v1::UndoLastChangeResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     int64_t serial = omega_edit_undo_last_change(session);
     if (serial == 0) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "undo failed or nothing to undo");
     }
 
-    session_manager_.touch_session(request->id());
     response->set_session_id(request->id());
     response->set_serial(serial);
     return grpc::Status::OK;
@@ -646,17 +662,17 @@ grpc::Status EditorServiceImpl::UndoLastChange(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::RedoLastUndoRequest *request,
                                               ::omega_edit::v1::RedoLastUndoResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     int64_t serial = omega_edit_redo_last_undo(session);
     if (serial == 0) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "redo failed or nothing to redo");
     }
 
-    session_manager_.touch_session(request->id());
     response->set_session_id(request->id());
     response->set_serial(serial);
     return grpc::Status::OK;
@@ -665,17 +681,17 @@ grpc::Status EditorServiceImpl::RedoLastUndo(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
                                               const ::omega_edit::v1::ClearChangesRequest *request,
                                               ::omega_edit::v1::ClearChangesResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     int result = omega_edit_clear_changes(session);
     if (result != 0) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "clear changes failed");
     }
 
-    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -685,10 +701,11 @@ grpc::Status EditorServiceImpl::ClearChanges(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::PauseSessionChangesRequest *request,
                                                      ::omega_edit::v1::PauseSessionChangesResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     omega_session_pause_changes(session);
     response->set_id(request->id());
@@ -698,10 +715,11 @@ grpc::Status EditorServiceImpl::PauseSessionChanges(grpc::ServerContext * /*cont
 grpc::Status EditorServiceImpl::ResumeSessionChanges(grpc::ServerContext * /*context*/,
                                                       const ::omega_edit::v1::ResumeSessionChangesRequest *request,
                                                       ::omega_edit::v1::ResumeSessionChangesResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     omega_session_resume_changes(session);
     response->set_id(request->id());
@@ -711,10 +729,11 @@ grpc::Status EditorServiceImpl::ResumeSessionChanges(grpc::ServerContext * /*con
 grpc::Status EditorServiceImpl::PauseViewportEvents(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::PauseViewportEventsRequest *request,
                                                      ::omega_edit::v1::PauseViewportEventsResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     omega_session_pause_viewport_event_callbacks(session);
     response->set_id(request->id());
@@ -724,10 +743,11 @@ grpc::Status EditorServiceImpl::PauseViewportEvents(grpc::ServerContext * /*cont
 grpc::Status EditorServiceImpl::ResumeViewportEvents(grpc::ServerContext * /*context*/,
                                                       const ::omega_edit::v1::ResumeViewportEventsRequest *request,
                                                       ::omega_edit::v1::ResumeViewportEventsResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     omega_session_resume_viewport_event_callbacks(session);
     response->set_id(request->id());
@@ -737,10 +757,11 @@ grpc::Status EditorServiceImpl::ResumeViewportEvents(grpc::ServerContext * /*con
 grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*context*/,
                                                          const ::omega_edit::v1::SessionBeginTransactionRequest *request,
                                                          ::omega_edit::v1::SessionBeginTransactionResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     // Tolerate nested begin-transaction calls (no-op if already in a transaction)
     // to match the server behaviour used by the TypeScript client's
@@ -748,7 +769,6 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
     // outer transaction is already open.
     omega_session_begin_transaction(session);
 
-    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -756,15 +776,15 @@ grpc::Status EditorServiceImpl::SessionBeginTransaction(grpc::ServerContext * /*
 grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*context*/,
                                                        const ::omega_edit::v1::SessionEndTransactionRequest *request,
                                                        ::omega_edit::v1::SessionEndTransactionResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     // Tolerate end-transaction when no transaction is open (no-op).
     omega_session_end_transaction(session);
 
-    session_manager_.touch_session(request->id());
     response->set_id(request->id());
     return grpc::Status::OK;
 }
@@ -772,10 +792,11 @@ grpc::Status EditorServiceImpl::SessionEndTransaction(grpc::ServerContext * /*co
 grpc::Status EditorServiceImpl::NotifyChangedViewports(grpc::ServerContext * /*context*/,
                                                         const ::omega_edit::v1::NotifyChangedViewportsRequest *request,
                                                         ::omega_edit::v1::NotifyChangedViewportsResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
     int count = omega_session_notify_changed_viewports(session);
     response->set_count(count);
@@ -787,6 +808,9 @@ grpc::Status EditorServiceImpl::NotifyChangedViewports(grpc::ServerContext * /*c
 grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::CreateViewportRequest *request,
                                                 ::omega_edit::v1::CreateViewportResponse *response) {
+    auto viewport_status = validate_viewport_range(request->offset(), request->capacity());
+    if (!viewport_status.ok()) { return viewport_status; }
+
     std::string desired_vp_id;
     if (request->has_viewport_id_desired()) {
         desired_vp_id = request->viewport_id_desired();
@@ -827,23 +851,37 @@ grpc::Status EditorServiceImpl::CreateViewport(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::ModifyViewport(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::ModifyViewportRequest *request,
                                                 ::omega_edit::v1::ModifyViewportResponse *response) {
+    auto viewport_status = validate_viewport_range(request->offset(), request->capacity());
+    if (!viewport_status.ok()) { return viewport_status; }
+
     std::string sid, vid;
     if (!parse_viewport_id(request->viewport_id(), sid, vid)) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->viewport_id());
     }
 
-    auto *vp = session_manager_.get_viewport(sid, vid);
-    if (!vp) {
+    auto locked_viewport = session_manager_.lock_viewport(sid, vid);
+    if (!locked_viewport) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->viewport_id());
     }
+    auto *vp = locked_viewport.viewport();
 
     int result = omega_viewport_modify(vp, request->offset(), request->capacity(), request->is_floating() ? 1 : 0);
     if (result != 0) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "modify viewport failed");
     }
 
-    session_manager_.touch_session(sid);
-    return fill_viewport_data(sid, vid, request->viewport_id(), response);
+    // Keep the existing core lock while returning the refreshed viewport data. Calling fill_viewport_data here would
+    // attempt to acquire the same per-session lock again.
+    const auto *data = omega_viewport_get_data(vp);
+    auto length = omega_viewport_get_length(vp);
+    response->set_viewport_id(request->viewport_id());
+    response->set_offset(omega_viewport_get_offset(vp));
+    response->set_length(length);
+    if (data && length > 0) {
+        response->set_data(data, static_cast<size_t>(length));
+    }
+    response->set_following_byte_count(omega_viewport_get_following_byte_count(vp));
+    return grpc::Status::OK;
 }
 
 grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*context*/,
@@ -854,13 +892,13 @@ grpc::Status EditorServiceImpl::ViewportHasChanges(grpc::ServerContext * /*conte
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "malformed viewport id: " + request->id());
     }
 
-    auto *vp = session_manager_.get_viewport(sid, vid);
-    if (!vp) {
+    auto locked_viewport = session_manager_.lock_viewport(sid, vid);
+    if (!locked_viewport) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "viewport not found: " + request->id());
     }
+    auto *vp = locked_viewport.viewport();
 
     response->set_result(omega_viewport_has_changes(vp) != 0);
-    session_manager_.touch_session(sid);
     return grpc::Status::OK;
 }
 
@@ -901,12 +939,12 @@ grpc::Status EditorServiceImpl::GetChangeDetails(grpc::ServerContext * /*context
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "change serial id required");
     }
 
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     const auto *change = omega_session_get_change(session, request->serial());
     if (!change) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "change not found");
@@ -919,12 +957,12 @@ grpc::Status EditorServiceImpl::GetChangeDetails(grpc::ServerContext * /*context
 grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::GetLastChangeRequest *request,
                                                ::omega_edit::v1::GetLastChangeResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->id());
     const auto *change = omega_session_get_last_change(session);
     if (!change) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "no changes available");
@@ -937,12 +975,12 @@ grpc::Status EditorServiceImpl::GetLastChange(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
                                              const ::omega_edit::v1::GetLastUndoRequest *request,
                                              ::omega_edit::v1::GetLastUndoResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->id());
     const auto *change = omega_session_get_last_undo(session);
     if (!change) {
         return grpc::Status(grpc::StatusCode::UNKNOWN, "no undone changes available");
@@ -957,14 +995,18 @@ grpc::Status EditorServiceImpl::GetLastUndo(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::GetComputedFileSize(grpc::ServerContext * /*context*/,
                                                      const ::omega_edit::v1::GetComputedFileSizeRequest *request,
                                                      ::omega_edit::v1::GetComputedFileSizeResponse *response) {
-    auto *session = session_manager_.get_session(request->id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->id());
+    const auto computed_file_size = omega_session_get_computed_file_size(session);
+    if (computed_file_size < 0) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "computed file size overflow");
+    }
     response->set_session_id(request->id());
-    response->set_computed_file_size(omega_session_get_computed_file_size(session));
+    response->set_computed_file_size(computed_file_size);
     return grpc::Status::OK;
 }
 
@@ -973,12 +1015,12 @@ grpc::Status EditorServiceImpl::GetComputedFileSize(grpc::ServerContext * /*cont
 grpc::Status EditorServiceImpl::GetByteOrderMark(grpc::ServerContext * /*context*/,
                                                   const ::omega_edit::v1::GetByteOrderMarkRequest *request,
                                                   ::omega_edit::v1::GetByteOrderMarkResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     omega_bom_t bom = omega_session_detect_BOM(session, request->offset());
     const char *bom_str = omega_util_BOM_to_cstring(bom);
     auto bom_size = static_cast<int64_t>(omega_util_BOM_size(bom));
@@ -993,12 +1035,16 @@ grpc::Status EditorServiceImpl::GetByteOrderMark(grpc::ServerContext * /*context
 grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/,
                                                 const ::omega_edit::v1::GetContentTypeRequest *request,
                                                 ::omega_edit::v1::GetContentTypeResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    if (request->offset() < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
     }
 
-    session_manager_.touch_session(request->session_id());
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
     if (request->length() <= 0) {
         response->set_session_id(request->session_id());
         response->set_offset(request->offset());
@@ -1033,12 +1079,16 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
 grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
                                              const ::omega_edit::v1::GetLanguageRequest *request,
                                              ::omega_edit::v1::GetLanguageResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    if (request->offset() < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
     }
 
-    session_manager_.touch_session(request->session_id());
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
     if (request->length() <= 0) {
         response->set_session_id(request->session_id());
         response->set_offset(request->offset());
@@ -1076,12 +1126,12 @@ grpc::Status EditorServiceImpl::GetLanguage(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
                                           const ::omega_edit::v1::GetCountRequest *request,
                                           ::omega_edit::v1::GetCountResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     response->set_session_id(request->session_id());
 
     for (int i = 0; i < request->kind_size(); ++i) {
@@ -1090,6 +1140,9 @@ grpc::Status EditorServiceImpl::GetCount(grpc::ServerContext * /*context*/,
         switch (kind) {
             case ::omega_edit::v1::COUNT_KIND_COMPUTED_FILE_SIZE:
                 count_value = omega_session_get_computed_file_size(session);
+                if (count_value < 0) {
+                    return grpc::Status(grpc::StatusCode::INTERNAL, "computed file size overflow");
+                }
                 break;
             case ::omega_edit::v1::COUNT_KIND_CHANGES:
                 count_value = omega_session_get_num_changes(session);
@@ -1135,12 +1188,16 @@ grpc::Status EditorServiceImpl::GetSessionCount(grpc::ServerContext * /*context*
 grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
                                             const ::omega_edit::v1::GetSegmentRequest *request,
                                             ::omega_edit::v1::GetSegmentResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    if (request->offset() < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "offset must be non-negative");
     }
 
-    session_manager_.touch_session(request->session_id());
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
     if (request->length() <= 0) {
         response->set_session_id(request->session_id());
         response->set_offset(request->offset());
@@ -1175,22 +1232,34 @@ grpc::Status EditorServiceImpl::GetSegment(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::SearchSessionRequest *request,
                                                ::omega_edit::v1::SearchSessionResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-    }
-
-    session_manager_.touch_session(request->session_id());
     bool case_insensitive = request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
     bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
     int64_t offset = request->has_offset() ? request->offset() : 0;
     int64_t length = request->has_length() ? request->length() : 0;
     int64_t limit = request->has_limit() ? request->limit() : 0; // 0 = no limit
+    std::vector<int64_t> match_offsets;
 
-    auto *ctx = omega_search_create_context_bytes(
-        session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-        static_cast<int64_t>(request->pattern().size()), offset, length, case_insensitive ? 1 : 0,
-        is_reverse ? 1 : 0);
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
+        auto *session = locked_session.session();
+
+        auto *ctx = omega_search_create_context_bytes(
+            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+            static_cast<int64_t>(request->pattern().size()), offset, length, case_insensitive ? 1 : 0,
+            is_reverse ? 1 : 0);
+
+        if (ctx) {
+            int64_t num_matches = 0;
+            while ((limit <= 0 || num_matches < limit) && omega_search_next_match(ctx, 1) > 0) {
+                match_offsets.push_back(omega_search_context_get_match_offset(ctx));
+                ++num_matches;
+            }
+            omega_search_destroy_context(ctx);
+        }
+    }
 
     response->set_session_id(request->session_id());
     response->set_pattern(request->pattern());
@@ -1198,14 +1267,8 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
     response->set_is_reverse(is_reverse);
     response->set_offset(offset);
     response->set_length(length);
-
-    if (ctx) {
-        int64_t num_matches = 0;
-        while ((limit <= 0 || num_matches < limit) && omega_search_next_match(ctx, 1) > 0) {
-            response->add_match_offset(omega_search_context_get_match_offset(ctx));
-            ++num_matches;
-        }
-        omega_search_destroy_context(ctx);
+    for (const auto match_offset : match_offsets) {
+        response->add_match_offset(match_offset);
     }
 
     return grpc::Status::OK;
@@ -1214,12 +1277,16 @@ grpc::Status EditorServiceImpl::SearchSession(grpc::ServerContext * /*context*/,
 grpc::Status EditorServiceImpl::ReplaceSession(grpc::ServerContext * /*context*/,
                                                const ::omega_edit::v1::ReplaceSessionRequest *request,
                                                ::omega_edit::v1::ReplaceSessionResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
     }
+    // Lock released intentionally: validation runs without holding core_mutex to avoid blocking other
+    // handlers during potentially long payload and size checks. The second lock_session below
+    // re-acquires for mutation and returns NOT_FOUND if the session was destroyed in this window.
 
-    session_manager_.touch_session(request->session_id());
     const bool case_insensitive =
             request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
     const bool is_reverse = request->has_is_reverse() ? request->is_reverse() : false;
@@ -1232,14 +1299,6 @@ grpc::Status EditorServiceImpl::ReplaceSession(grpc::ServerContext * /*context*/
     if (offset < 0 || length < 0 || limit < 0) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
                             "replace offset, length, and limit must be non-negative");
-    }
-
-    const auto session_size = omega_session_get_computed_file_size(session);
-    if (offset > session_size) {
-        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                            "replace offset " + std::to_string(offset) +
-                                    " exceeds session size " + std::to_string(session_size) +
-                                    " for session: " + request->session_id());
     }
 
     const auto payload_status = validate_replace_payload_sizes(request->pattern(), request->replacement(),
@@ -1264,25 +1323,46 @@ grpc::Status EditorServiceImpl::ReplaceSession(grpc::ServerContext * /*context*/
                             "replace pattern must not be empty for session: " + request->session_id());
     }
 
-    if (omega_session_changes_paused(session) != 0) {
-        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                            "replace requires active session changes for session: " + request->session_id());
-    }
-
     int64_t replacement_count = 0;
     int64_t delete_count = 0;
     int64_t insert_count = 0;
     int64_t overwrite_count = 0;
-    const auto rc = omega_edit_replace_matches_bytes(
-            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-            static_cast<int64_t>(request->pattern().size()),
-            reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
-            is_reverse ? 1 : 0, offset, length, limit, front_to_back ? 1 : 0, overwrite_only ? 1 : 0,
-            &replacement_count, &delete_count, &insert_count, &overwrite_count);
-    if (rc != 0) {
-        return grpc::Status(grpc::StatusCode::INTERNAL,
-                            "replace failed for session: " + request->session_id());
+
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
+        auto *session = locked_session.session();
+
+        const auto session_size = omega_session_get_computed_file_size(session);
+        if (session_size < 0) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "failed to compute session size for session: " + request->session_id());
+        }
+        if (offset > session_size) {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "replace offset " + std::to_string(offset) +
+                                        " exceeds session size " + std::to_string(session_size) +
+                                        " for session: " + request->session_id());
+        }
+
+        if (omega_session_changes_paused(session) != 0) {
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                "replace requires active session changes for session: " + request->session_id());
+        }
+
+        const auto rc = omega_edit_replace_matches_bytes(
+                session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+                static_cast<int64_t>(request->pattern().size()),
+                reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+                static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0,
+                is_reverse ? 1 : 0, offset, length, limit, front_to_back ? 1 : 0, overwrite_only ? 1 : 0,
+                &replacement_count, &delete_count, &insert_count, &overwrite_count);
+        if (rc != 0) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "replace failed for session: " + request->session_id());
+        }
     }
 
     response->set_replacement_count(replacement_count);
@@ -1296,12 +1376,16 @@ grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
         ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
     }
+    // Lock released intentionally: validation runs without holding core_mutex to avoid blocking other
+    // handlers during potentially long payload and size checks. The second lock_session below
+    // re-acquires for mutation and returns NOT_FOUND if the session was destroyed in this window.
 
-    session_manager_.touch_session(request->session_id());
     const bool case_insensitive =
             request->has_is_case_insensitive() ? request->is_case_insensitive() : false;
     const int64_t offset = request->has_offset() ? request->offset() : 0;
@@ -1312,47 +1396,59 @@ grpc::Status EditorServiceImpl::ReplaceSessionCheckpointed(
                             "checkpointed replace offset and length must be non-negative");
     }
 
-    const auto session_size = omega_session_get_computed_file_size(session);
-    if (offset > session_size) {
-        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                            "checkpointed replace offset " + std::to_string(offset) +
-                                    " exceeds session size " + std::to_string(session_size) +
-                                    " for session: " + request->session_id());
-    }
-
     const auto payload_status =
             validate_replace_checkpointed_payload_sizes(request, resource_limits_.max_change_bytes);
     if (!payload_status.ok()) {
         return payload_status;
     }
 
-    if (request->pattern().empty()) {
-        response->set_session_id(request->session_id());
-        response->set_pattern(request->pattern());
-        response->set_replacement(request->replacement());
-        response->set_is_case_insensitive(case_insensitive);
-        response->set_offset(offset);
-        response->set_length(length);
-        response->set_replacement_count(0);
-        return grpc::Status::OK;
-    }
-
-    if (omega_session_changes_paused(session) != 0) {
-        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
-                            "checkpointed replace requires active session changes for session: " +
-                                    request->session_id());
-    }
-
     int64_t replacement_count = 0;
-    const auto rc = omega_edit_replace_all_bytes(
-            session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
-            static_cast<int64_t>(request->pattern().size()),
-            reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
-            static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, offset, length,
-            &replacement_count);
-    if (rc != 0) {
-        return grpc::Status(grpc::StatusCode::INTERNAL,
-                            "checkpointed replace failed for session: " + request->session_id());
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
+        auto *session = locked_session.session();
+
+        const auto session_size = omega_session_get_computed_file_size(session);
+        if (session_size < 0) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "failed to compute session size for session: " + request->session_id());
+        }
+        if (offset > session_size) {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "checkpointed replace offset " + std::to_string(offset) +
+                                        " exceeds session size " + std::to_string(session_size) +
+                                        " for session: " + request->session_id());
+        }
+
+        if (request->pattern().empty()) {
+            response->set_session_id(request->session_id());
+            response->set_pattern(request->pattern());
+            response->set_replacement(request->replacement());
+            response->set_is_case_insensitive(case_insensitive);
+            response->set_offset(offset);
+            response->set_length(length);
+            response->set_replacement_count(0);
+            return grpc::Status::OK;
+        }
+
+        if (omega_session_changes_paused(session) != 0) {
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                                "checkpointed replace requires active session changes for session: " +
+                                        request->session_id());
+        }
+
+        const auto rc = omega_edit_replace_all_bytes(
+                session, reinterpret_cast<const omega_byte_t *>(request->pattern().data()),
+                static_cast<int64_t>(request->pattern().size()),
+                reinterpret_cast<const omega_byte_t *>(request->replacement().data()),
+                static_cast<int64_t>(request->replacement().size()), case_insensitive ? 1 : 0, offset, length,
+                &replacement_count);
+        if (rc != 0) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "checkpointed replace failed for session: " + request->session_id());
+        }
     }
 
     response->set_session_id(request->session_id());
@@ -1369,12 +1465,12 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
         ::omega_edit::v1::DestroyLastCheckpointResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
     }
+    auto *session = locked_session.session();
 
-    session_manager_.touch_session(request->session_id());
     if (0 != omega_edit_destroy_last_checkpoint(session)) {
         return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "no checkpoint available to destroy");
     }
@@ -1389,19 +1485,21 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
 grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*context*/,
                                                          const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
                                                          ::omega_edit::v1::GetByteFrequencyProfileResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-    }
-
-    session_manager_.touch_session(request->session_id());
     omega_byte_frequency_profile_t profile;
     std::memset(profile, 0, sizeof(profile));
 
-    int result = omega_session_byte_frequency_profile(session, &profile, request->offset(), request->length());
-    if (result != 0) {
-        return grpc::Status(grpc::StatusCode::UNKNOWN,
-                            "Profile function failed with error code: " + std::to_string(result));
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
+        auto *session = locked_session.session();
+
+        int result = omega_session_byte_frequency_profile(session, &profile, request->offset(), request->length());
+        if (result != 0) {
+            return grpc::Status(grpc::StatusCode::UNKNOWN,
+                                "Profile function failed with error code: " + std::to_string(result));
+        }
     }
 
     response->set_session_id(request->session_id());
@@ -1420,21 +1518,24 @@ grpc::Status EditorServiceImpl::GetByteFrequencyProfile(grpc::ServerContext * /*
 grpc::Status EditorServiceImpl::GetCharacterCounts(grpc::ServerContext * /*context*/,
                                                     const ::omega_edit::v1::GetCharacterCountsRequest *request,
                                                     ::omega_edit::v1::GetCharacterCountsResponse *response) {
-    auto *session = session_manager_.get_session(request->session_id());
-    if (!session) {
-        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
-    }
-
-    session_manager_.touch_session(request->session_id());
     omega_bom_t bom = omega_util_cstring_to_BOM(request->byte_order_mark().c_str());
     auto *counts = omega_character_counts_create();
     omega_character_counts_set_BOM(counts, bom);
 
-    int result = omega_session_character_counts(session, counts, request->offset(), request->length(), bom);
-    if (result != 0) {
-        omega_character_counts_destroy(counts);
-        return grpc::Status(grpc::StatusCode::UNKNOWN,
-                            "CharCount function failed with error code: " + std::to_string(result));
+    {
+        auto locked_session = session_manager_.lock_session(request->session_id());
+        if (!locked_session) {
+            omega_character_counts_destroy(counts);
+            return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+        }
+        auto *session = locked_session.session();
+
+        int result = omega_session_character_counts(session, counts, request->offset(), request->length(), bom);
+        if (result != 0) {
+            omega_character_counts_destroy(counts);
+            return grpc::Status(grpc::StatusCode::UNKNOWN,
+                                "CharCount function failed with error code: " + std::to_string(result));
+        }
     }
 
     response->set_session_id(request->session_id());

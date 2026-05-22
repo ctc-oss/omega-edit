@@ -19,10 +19,13 @@
 #include "macros.h"
 #include "model_def.hpp"
 #include "model_segment_def.hpp"
+#include "safe_math.hpp"
 #include "session_def.hpp"
 #include "viewport_def.hpp"
 #include <algorithm>
 #include <cassert>
+
+namespace omega_edit::internal {
 
 /**********************************************************************************************************************
  * Data segment functions
@@ -47,7 +50,11 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     if (model_ptr->model_segments.empty()) { return 0; }
     assert(0 <= data_segment_ptr->capacity);
     const auto data_segment_capacity = data_segment_ptr->capacity;
-    const auto data_segment_offset = data_segment_ptr->offset + data_segment_ptr->offset_adjustment;
+    int64_t data_segment_offset = 0;
+    if (!safe_add_int64_(data_segment_ptr->offset, data_segment_ptr->offset_adjustment, data_segment_offset)) {
+        return -1;
+    }
+    if (data_segment_offset < 0) { return -1; }
     // Binary search for the first segment that could contain data_segment_offset.
     // Segments are contiguous and sorted by computed_offset, so upper_bound finds the first segment
     // with computed_offset > data_segment_offset, and we step back one to get the containing segment.
@@ -57,7 +64,11 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
     if (iter != model_ptr->model_segments.cbegin()) { --iter; }
 
     // Verify the found segment contains the target offset
-    if (data_segment_offset > (*iter)->computed_offset + (*iter)->computed_length) { return -1; }
+    int64_t segment_end = 0;
+    if (!safe_add_int64_((*iter)->computed_offset, (*iter)->computed_length, segment_end) ||
+        data_segment_offset < (*iter)->computed_offset || data_segment_offset > segment_end) {
+        return -1;
+    }
 
     auto delta = data_segment_offset - (*iter)->computed_offset;
     const auto data_segment_buffer = omega_segment_get_data(data_segment_ptr);
@@ -66,17 +77,19 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
         const auto remaining_capacity = data_segment_capacity - data_segment_ptr->length;
         auto amount = (*iter)->computed_length - delta;
         amount = (amount > remaining_capacity) ? remaining_capacity : amount;
-        switch (omega_model_segment_get_kind(iter->get())) {
+        switch (omega_model_segment_get_kind_(iter->get())) {
             case model_segment_kind_t::SEGMENT_READ: {
                 // For read segments, we're reading a segment, or portion thereof, from the input file and
                 // writing it into the data segment.
                 // Coalesce with consecutive READ segments that are contiguous in the source file to reduce
                 // the number of fread system calls.
-                auto file_offset = (*iter)->change_offset + delta;
+                int64_t file_offset = 0;
+                if (!safe_add_int64_((*iter)->change_offset, delta, file_offset)) { return -1; }
                 auto coalesced = amount;
                 auto peek = iter;
                 while (coalesced < remaining_capacity && ++peek != model_ptr->model_segments.end() &&
-                       omega_model_segment_get_kind(peek->get()) == model_segment_kind_t::SEGMENT_READ &&
+                       omega_model_segment_get_kind_(peek->get()) == model_segment_kind_t::SEGMENT_READ &&
+                       !add_overflows_int64_(file_offset, coalesced) &&
                        (*peek)->change_offset == file_offset + coalesced) {
                     const auto peek_amount = (std::min)(remaining_capacity - coalesced, (*peek)->computed_length);
                     coalesced += peek_amount;
@@ -95,18 +108,21 @@ int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *
                 amount = coalesced;
                 break;
             }
-            case model_segment_kind_t::SEGMENT_INSERT:
+            case model_segment_kind_t::SEGMENT_INSERT: {
                 // For insert segments, we're writing the change byte buffer, or portion thereof, into the data
                 // segment
+                int64_t change_offset = 0;
+                if (!safe_add_int64_((*iter)->change_offset, delta, change_offset)) { return -1; }
                 memcpy(data_segment_buffer + data_segment_ptr->length,
-                       omega_change_get_bytes((*iter)->change_ptr.get()) + (*iter)->change_offset + delta,
+                       omega_change_get_bytes((*iter)->change_ptr.get()) + change_offset,
                        amount);
                 break;
+            }
             default:
                 ABORT(LOG_ERROR("Unhandled model segment kind"););
         }
         // Add the amount written to the data segment length
-        data_segment_ptr->length += amount;
+        if (!safe_add_int64_(data_segment_ptr->length, amount, data_segment_ptr->length)) { return -1; }
         // After the first segment is written, the delta should be zero from that point on
         delta = 0;
         // Keep writing segments until we run out of viewport capacity or run out of segments
@@ -135,7 +151,7 @@ static inline void print_change_(const omega_change_t *change_ptr, std::ostream 
 
 static inline void print_model_segment_(const omega_model_segment_ptr_t &segment_ptr,
                                         std::ostream &out_stream) noexcept {
-    out_stream << R"({"kind": ")" << omega_model_segment_kind_as_char(omega_model_segment_get_kind(segment_ptr.get()))
+    out_stream << R"({"kind": ")" << omega_model_segment_kind_as_char_(omega_model_segment_get_kind_(segment_ptr.get()))
                << R"(", "computed_offset": )" << segment_ptr->computed_offset << R"(, "computed_length": )"
                << segment_ptr->computed_length << R"(, "change_offset": )" << segment_ptr->change_offset
                << R"(, "change": )";
@@ -147,3 +163,5 @@ void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_str
     assert(model_ptr);
     for (const auto &segment: model_ptr->model_segments) { print_model_segment_(segment, out_stream); }
 }
+
+}// namespace omega_edit::internal

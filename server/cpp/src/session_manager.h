@@ -147,7 +147,7 @@ struct SessionEventSubscriptionInfo {
 
 /// Information about a viewport managed by the session manager
 struct ViewportInfo {
-    omega_viewport_t *viewport;
+    omega_viewport_t *viewport{};
     std::string session_id;
     std::string viewport_id;
     std::shared_ptr<EventQueue<ViewportEventData>> event_queue;
@@ -156,7 +156,7 @@ struct ViewportInfo {
 
 /// Information about a session managed by the session manager
 struct SessionInfo {
-    omega_session_t *session;
+    omega_session_t *session{};
     std::string session_id;
     std::string canonical_file_path;
     std::string checkpoint_directory;
@@ -165,9 +165,28 @@ struct SessionInfo {
     // after the last attachment detaches.
     size_t attachment_count{0};
     std::map<std::string, std::shared_ptr<ViewportInfo>> viewports;
+    // Serializes all access to the underlying non-thread-safe omega_session_t and its viewports.
+    std::mutex core_mutex;
     std::mutex session_subscription_mutex;
     std::vector<SessionEventSubscriptionInfo> session_subscriptions;
     std::chrono::steady_clock::time_point last_activity;
+};
+
+struct LockedSession {
+    std::shared_ptr<SessionInfo> info;
+    std::unique_lock<std::mutex> lock;
+
+    omega_session_t *session() const { return info ? info->session : nullptr; }
+    explicit operator bool() const { return session() != nullptr; }
+};
+
+struct LockedViewport {
+    std::shared_ptr<SessionInfo> info;
+    std::shared_ptr<ViewportInfo> viewport_info;
+    std::unique_lock<std::mutex> lock;
+
+    omega_viewport_t *viewport() const { return viewport_info ? viewport_info->viewport : nullptr; }
+    explicit operator bool() const { return viewport() != nullptr; }
 };
 
 /// Error codes returned by SessionManager::create_session
@@ -203,6 +222,7 @@ public:
     bool destroy_session(const std::string &session_id);
     bool detach_session(const std::string &session_id);
     omega_session_t *get_session(const std::string &session_id);
+    LockedSession lock_session(const std::string &session_id);
     int64_t session_count() const;
 
     // Viewport lifecycle
@@ -211,6 +231,7 @@ public:
                                 ViewportCreateError *error_out = nullptr);
     bool destroy_viewport(const std::string &session_id, const std::string &viewport_id);
     omega_viewport_t *get_viewport(const std::string &session_id, const std::string &viewport_id);
+    LockedViewport lock_viewport(const std::string &session_id, const std::string &viewport_id);
 
     // Event subscription
     std::shared_ptr<EventQueue<SessionEventData>> subscribe_session_events(const std::string &session_id,

@@ -16,7 +16,10 @@
 #define OMEGA_EDIT_DATA_DEF_HPP
 
 #include "../../include/omega_edit/byte.h"
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <new>
 
 #define DATA_T_SIZE (8)
 
@@ -32,31 +35,39 @@ using omega_data_t = union omega_data_union {
 
 static_assert(DATA_T_SIZE == sizeof(omega_data_t), "size of omega_data_t is expected to be 8 bytes");
 
-inline omega_byte_t *omega_data_get_data(omega_data_t *data_ptr, int64_t capacity) {
+namespace omega_edit::internal {
+
+inline omega_byte_t *omega_data_get_data_(omega_data_t *data_ptr, int64_t capacity) {
     return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
 }
 
-inline const omega_byte_t *omega_data_get_data_const(const omega_data_t *data_ptr, int64_t capacity) {
+inline const omega_byte_t *omega_data_get_data_const_(const omega_data_t *data_ptr, int64_t capacity) {
     return (capacity < static_cast<int64_t>(sizeof(omega_data_t))) ? data_ptr->sm_bytes : data_ptr->bytes_ptr;
 }
 
-inline void omega_data_create(omega_data_t *data_ptr, int64_t capacity) {
+inline void omega_data_create_(omega_data_t *data_ptr, int64_t capacity) {
+    if (capacity < 0 || capacity == (std::numeric_limits<int64_t>::max)() ||
+        static_cast<uint64_t>(capacity) > static_cast<uint64_t>((std::numeric_limits<size_t>::max)() - 1U)) {
+        throw std::bad_array_new_length();
+    }
     if (static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
         // allocate space for the data segment
-        data_ptr->bytes_ptr = new omega_byte_t[capacity + 1];
+        data_ptr->bytes_ptr = new omega_byte_t[static_cast<size_t>(capacity) + 1U];
     } else {
         // data segment is small enough to fit in the 8 byte union
         data_ptr->bytes_ptr = nullptr;
     }
     // data segment allocation is its capacity plus one, so we can null-terminate it
-    omega_data_get_data(data_ptr, capacity)[capacity] = '\0';
+    omega_data_get_data_(data_ptr, capacity)[capacity] = '\0';
 }
 
-inline void omega_data_destroy(omega_data_t *data_ptr, int64_t capacity) {
+inline void omega_data_destroy_(omega_data_t *data_ptr, int64_t capacity) {
     if (data_ptr->bytes_ptr && static_cast<int64_t>(sizeof(omega_data_t)) - 1 < capacity) {
         delete[] data_ptr->bytes_ptr;
     }
     data_ptr->bytes_ptr = nullptr;
 }
+
+}// namespace omega_edit::internal
 
 #endif//OMEGA_EDIT_DATA_DEF_HPP

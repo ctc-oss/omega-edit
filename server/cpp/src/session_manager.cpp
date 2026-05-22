@@ -495,9 +495,15 @@ std::string SessionManager::create_session(const std::string &file_path, const s
                 file_sessions_by_path_.erase(existing_file_session);
             } else if (checkpoint_directory.empty() || checkpoint_directory == existing->second->checkpoint_directory) {
                 auto &info = existing->second;
+                std::lock_guard<std::mutex> core_lock(info->core_mutex);
+                const auto computed_size = info->session ? omega_session_get_computed_file_size(info->session) : 0;
+                if (computed_size < 0) {
+                    if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+                    return "";
+                }
                 ++info->attachment_count;
                 info->last_activity = std::chrono::steady_clock::now();
-                file_size_out = omega_session_get_computed_file_size(info->session);
+                file_size_out = computed_size;
                 checkpoint_dir_out = info->checkpoint_directory;
                 return info->session_id;
             } else {
@@ -571,6 +577,17 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
     info->session = session;
     file_size_out = omega_session_get_computed_file_size(session);
+    if (file_size_out < 0) {
+        omega_edit_destroy_session(session);
+        info->session = nullptr;
+        if (info->owns_checkpoint_directory) {
+            cleanup_directory_best_effort(info->checkpoint_directory);
+        }
+        sessions_.erase(session_id);
+        cleanup_managed_server_root_if_empty();
+        if (error_out) { *error_out = SessionCreateError::CORE_ERROR; }
+        return "";
+    }
 
     const char *chkpt = omega_session_get_checkpoint_directory(session);
     checkpoint_dir_out = chkpt ? chkpt : "";
@@ -587,6 +604,7 @@ std::string SessionManager::create_session(const std::string &file_path, const s
 
 bool SessionManager::destroy_session_locked(const std::map<std::string, std::shared_ptr<SessionInfo>>::iterator &it) {
     auto &info = it->second;
+    std::lock_guard<std::mutex> core_lock(info->core_mutex);
 
     // Close event queues
     {
@@ -604,11 +622,15 @@ bool SessionManager::destroy_session_locked(const std::map<std::string, std::sha
         if (vp.second->event_queue) {
             vp.second->event_queue->close();
         }
+        vp.second->viewport = nullptr;
         // Viewports are destroyed when session is destroyed
     }
 
     // Destroy the session (this also destroys all viewports)
-    omega_edit_destroy_session(info->session);
+    if (info->session) {
+        omega_edit_destroy_session(info->session);
+        info->session = nullptr;
+    }
     if (info->owns_checkpoint_directory) {
         cleanup_directory_best_effort(info->checkpoint_directory);
     }
@@ -655,6 +677,21 @@ omega_session_t *SessionManager::get_session(const std::string &session_id) {
     return (it != sessions_.end()) ? it->second->session : nullptr;
 }
 
+LockedSession SessionManager::lock_session(const std::string &session_id) {
+    std::shared_ptr<SessionInfo> info;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto it = sessions_.find(session_id);
+        if (it == sessions_.end()) { return {}; }
+        info = it->second;
+        info->last_activity = std::chrono::steady_clock::now();
+    }
+
+    std::unique_lock<std::mutex> core_lock(info->core_mutex);
+    if (info->session == nullptr) { return {}; }
+    return LockedSession{std::move(info), std::move(core_lock)};
+}
+
 int64_t SessionManager::session_count() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return static_cast<int64_t>(sessions_.size());
@@ -679,6 +716,7 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
     }
 
     auto &session_info = sit->second;
+    session_info->last_activity = std::chrono::steady_clock::now();
     std::string viewport_id = desired_viewport_id;
     if (viewport_id.empty()) {
         do {
@@ -706,9 +744,16 @@ std::string SessionManager::create_viewport(const std::string &session_id, int64
         "viewport subscription '" + make_viewport_fqid(session_id, viewport_id) + "'");
     vp_info->event_interest = 0;
 
-    // Store first so callback has access
+    // Store first so the viewport CREATE callback can find its queue. lock_viewport treats a null viewport as missing
+    // until omega_edit_create_viewport publishes the core pointer below.
     session_info->viewports[viewport_id] = vp_info;
 
+    std::lock_guard<std::mutex> core_lock(session_info->core_mutex);
+    if (session_info->session == nullptr) {
+        session_info->viewports.erase(viewport_id);
+        if (error_out) *error_out = ViewportCreateError::SESSION_NOT_FOUND;
+        return "";
+    }
     omega_viewport_t *viewport = omega_edit_create_viewport(session_info->session, offset, capacity,
                                                             is_floating ? 1 : 0, viewport_event_callback,
                                                             vp_info.get(), 0);
@@ -731,15 +776,18 @@ bool SessionManager::destroy_viewport(const std::string &session_id, const std::
     if (sit == sessions_.end()) return false;
 
     auto &session_info = sit->second;
+    session_info->last_activity = std::chrono::steady_clock::now();
     auto vit = session_info->viewports.find(viewport_id);
     if (vit == session_info->viewports.end()) return false;
 
     auto &vp_info = vit->second;
+    std::lock_guard<std::mutex> core_lock(session_info->core_mutex);
     if (vp_info->event_queue) {
         vp_info->event_queue->close();
     }
 
-    omega_edit_destroy_viewport(vp_info->viewport);
+    if (vp_info->viewport) { omega_edit_destroy_viewport(vp_info->viewport); }
+    vp_info->viewport = nullptr;
     session_info->viewports.erase(vit);
     return true;
 }
@@ -755,6 +803,27 @@ omega_viewport_t *SessionManager::get_viewport(const std::string &session_id, co
 }
 
 // ── Event subscription ───────────────────────────────────────────────────────
+LockedViewport SessionManager::lock_viewport(const std::string &session_id, const std::string &viewport_id) {
+    std::shared_ptr<SessionInfo> info;
+    std::shared_ptr<ViewportInfo> viewport_info;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto sit = sessions_.find(session_id);
+        if (sit == sessions_.end()) { return {}; }
+
+        auto vit = sit->second->viewports.find(viewport_id);
+        if (vit == sit->second->viewports.end()) { return {}; }
+
+        info = sit->second;
+        viewport_info = vit->second;
+        info->last_activity = std::chrono::steady_clock::now();
+    }
+
+    std::unique_lock<std::mutex> core_lock(info->core_mutex);
+    if (info->session == nullptr || viewport_info->viewport == nullptr) { return {}; }
+    return LockedViewport{std::move(info), std::move(viewport_info), std::move(core_lock)};
+}
+
 std::shared_ptr<EventQueue<SessionEventData>>
 SessionManager::subscribe_session_events(const std::string &session_id, int32_t interest) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -766,11 +835,14 @@ SessionManager::subscribe_session_events(const std::string &session_id, int32_t 
     auto queue = std::make_shared<EventQueue<SessionEventData>>(
         limits_.session_event_queue_capacity,
         "session subscription '" + session_id + "#" + generate_subscription_id() + "'");
+    int32_t combined_interest = 0;
     {
         std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
         info->session_subscriptions.push_back({queue, interest});
-        omega_session_set_event_interest(info->session, combine_session_event_interest(info->session_subscriptions));
+        combined_interest = combine_session_event_interest(info->session_subscriptions);
     }
+    std::lock_guard<std::mutex> core_lock(info->core_mutex);
+    if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
     return queue;
 }
 
@@ -790,8 +862,9 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id) {
             }
         }
         info->session_subscriptions.clear();
-        omega_session_set_event_interest(info->session, 0);
     }
+    std::lock_guard<std::mutex> core_lock(info->core_mutex);
+    if (info->session) { omega_session_set_event_interest(info->session, 0); }
 
     for (const auto &queue : removed_queues) {
         queue->clear();
@@ -808,6 +881,7 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id,
 
     auto &info = it->second;
     bool removed = false;
+    int32_t combined_interest = 0;
     {
         std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
         auto &subscriptions = info->session_subscriptions;
@@ -816,10 +890,12 @@ void SessionManager::unsubscribe_session_events(const std::string &session_id,
                                                const bool matches = subscription.event_queue == queue;
                                                removed = removed || matches;
                                                return matches;
-                                           }),
+                                            }),
                             subscriptions.end());
-        omega_session_set_event_interest(info->session, combine_session_event_interest(subscriptions));
+        combined_interest = combine_session_event_interest(subscriptions);
     }
+    std::lock_guard<std::mutex> core_lock(info->core_mutex);
+    if (info->session) { omega_session_set_event_interest(info->session, combined_interest); }
 
     if (removed) {
         queue->clear();
@@ -840,7 +916,8 @@ SessionManager::subscribe_viewport_events(const std::string &session_id, const s
 
     auto &vp_info = vit->second;
     vp_info->event_interest = interest;
-    omega_viewport_set_event_interest(vp_info->viewport, interest);
+    std::lock_guard<std::mutex> core_lock(sit->second->core_mutex);
+    if (vp_info->viewport) { omega_viewport_set_event_interest(vp_info->viewport, interest); }
     return vp_info->event_queue;
 }
 
@@ -855,7 +932,8 @@ void SessionManager::unsubscribe_viewport_events(const std::string &session_id, 
 
     auto &vp_info = vit->second;
     vp_info->event_interest = 0;
-    omega_viewport_set_event_interest(vp_info->viewport, 0);
+    std::lock_guard<std::mutex> core_lock(sit->second->core_mutex);
+    if (vp_info->viewport) { omega_viewport_set_event_interest(vp_info->viewport, 0); }
     if (vp_info->event_queue) {
         vp_info->event_queue->clear();
     }
@@ -866,6 +944,7 @@ void SessionManager::destroy_all() {
 
     for (auto &pair : sessions_) {
         auto &info = pair.second;
+        std::lock_guard<std::mutex> core_lock(info->core_mutex);
         {
             std::lock_guard<std::mutex> subscription_lock(info->session_subscription_mutex);
             for (auto &subscription : info->session_subscriptions) {
@@ -875,8 +954,12 @@ void SessionManager::destroy_all() {
         }
         for (auto &vp : info->viewports) {
             if (vp.second->event_queue) vp.second->event_queue->close();
+            vp.second->viewport = nullptr;
         }
-        omega_edit_destroy_session(info->session);
+        if (info->session) {
+            omega_edit_destroy_session(info->session);
+            info->session = nullptr;
+        }
         if (info->owns_checkpoint_directory) {
             cleanup_directory_best_effort(info->checkpoint_directory);
         }

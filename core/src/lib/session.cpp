@@ -17,6 +17,7 @@
 #include "impl_/character_counts_def.h"
 #include "impl_/internal_fun.hpp"
 #include "impl_/model_def.hpp"
+#include "impl_/safe_math.hpp"
 #include "impl_/segment_def.hpp"
 #include "impl_/session_def.hpp"
 #include "omega_edit/character_counts.h"
@@ -26,6 +27,10 @@
 #include <cassert>
 #include <cstring>
 
+using omega_edit::internal::omega_change_get_transaction_bit_;
+using omega_edit::internal::omega_session_end_event_batch_;
+using omega_edit::internal::populate_data_segment_;
+using omega_edit::internal::safe_add_int64_;
 
 int omega_session_byte_frequency_profile_size() { return OMEGA_EDIT_BYTE_FREQUENCY_PROFILE_SIZE; }
 
@@ -37,7 +42,7 @@ void *omega_session_get_user_data_ptr(const omega_session_t *session_ptr) {
 }
 
 int omega_session_get_segment(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr, int64_t offset) {
-    if (!session_ptr || !data_segment_ptr) { return -1; }
+    if (!session_ptr || !data_segment_ptr || offset < 0 || data_segment_ptr->capacity < 0) { return -1; }
     data_segment_ptr->offset = offset;
     return populate_data_segment_(session_ptr, data_segment_ptr);
 }
@@ -55,12 +60,17 @@ int64_t omega_session_get_num_search_contexts(const omega_session_t *session_ptr
 int64_t omega_session_get_computed_file_size(const omega_session_t *session_ptr) {
     if (!session_ptr) { return 0; }
     assert(session_ptr->models_.back());
+    int64_t last_segment_end = 0;
+    if (!session_ptr->models_.back()->model_segments.empty() &&
+        !safe_add_int64_(session_ptr->models_.back()->model_segments.back()->computed_offset,
+                         session_ptr->models_.back()->model_segments.back()->computed_length,
+                         last_segment_end)) {
+        return -1;
+    }
     const auto computed_file_size =
             session_ptr->models_.back()->model_segments.empty()
                 ? 0
-                : session_ptr->models_.back()->model_segments.back()->computed_offset +
-                  session_ptr->models_.back()->model_segments.back()->computed_length;
-    assert(0 <= computed_file_size);
+                : last_segment_end;
     return computed_file_size;
 }
 
@@ -265,14 +275,15 @@ int64_t omega_session_get_num_checkpoints(const omega_session_t *session_ptr) {
     return static_cast<int64_t>(session_ptr->models_.size()) - 1;
 }
 
-void omega_session_begin_event_batch_(omega_session_t *session_ptr, omega_session_event_t session_event) {
+void omega_edit::internal::omega_session_begin_event_batch_(omega_session_t *session_ptr,
+                                                           omega_session_event_t session_event) {
     if (!session_ptr) { return; }
     session_ptr->batched_session_event_kind_ = session_event;
     session_ptr->pending_session_event_kind_ = SESSION_EVT_UNDEFINED;
     session_ptr->pending_session_event_ptr_ = nullptr;
 }
 
-void omega_session_end_event_batch_(omega_session_t *session_ptr) {
+void omega_edit::internal::omega_session_end_event_batch_(omega_session_t *session_ptr) {
     if (!session_ptr) { return; }
     const auto pending_event = session_ptr->pending_session_event_kind_;
     const auto pending_ptr = session_ptr->pending_session_event_ptr_;
@@ -320,7 +331,11 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                                          omega_byte_frequency_profile_t *profile_ptr, int64_t offset, int64_t length) {
     if (!session_ptr || !profile_ptr || offset < 0) { return -1; }
     length = 0 == length ? omega_session_get_computed_file_size(session_ptr) - offset : length;
-    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
+    int64_t end_offset = 0;
+    if (length < 0 || !safe_add_int64_(offset, length, end_offset) ||
+        end_offset > omega_session_get_computed_file_size(session_ptr)) {
+        return -1;
+    }
     memset(profile_ptr, 0, sizeof(omega_byte_frequency_profile_t));
     if (0 < length) {
         const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
@@ -335,7 +350,10 @@ int omega_session_byte_frequency_profile(const omega_session_t *session_ptr,
                 if (last_profiled_byte == '\r' && segment_data[i] == '\n') { ++dos_eol_count; }
                 ++(*profile_ptr)[last_profiled_byte = segment_data[i]];
             }
-            offset += profile_length;
+            if (!safe_add_int64_(offset, profile_length, offset)) {
+                omega_segment_destroy(segment_ptr);
+                return -1;
+            }
             length -= profile_length;
         }
         omega_segment_destroy(segment_ptr);
@@ -348,7 +366,11 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
                                    int64_t offset, int64_t length, omega_bom_t bom) {
     if (!session_ptr || !counts_ptr || offset < 0) { return -1; }
     length = length ? length : omega_session_get_computed_file_size(session_ptr) - offset;
-    if (length < 0 || offset + length > omega_session_get_computed_file_size(session_ptr)) { return -1; }
+    int64_t end_offset = 0;
+    if (length < 0 || !safe_add_int64_(offset, length, end_offset) ||
+        end_offset > omega_session_get_computed_file_size(session_ptr)) {
+        return -1;
+    }
     omega_character_counts_set_BOM(omega_character_counts_reset(counts_ptr), bom);
     const auto segment_ptr = omega_segment_create(std::min(length, static_cast<int64_t>(BUFSIZ)));
     while (length) {
@@ -357,7 +379,10 @@ int omega_session_character_counts(const omega_session_t *session_ptr, omega_cha
         const auto segment_data = omega_segment_get_data(segment_ptr);
         const auto count_length = std::min(length, omega_segment_get_length(segment_ptr));
         omega_util_count_characters(segment_data, count_length, counts_ptr);
-        offset += count_length;
+        if (!safe_add_int64_(offset, count_length, offset)) {
+            omega_segment_destroy(segment_ptr);
+            return -1;
+        }
         length -= count_length;
     }
     omega_segment_destroy(segment_ptr);
@@ -385,7 +410,7 @@ int64_t omega_session_set_undo_snapshot_interval(omega_session_t *session_ptr, i
     return session_ptr->undo_snapshot_interval_;
 }
 
-bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
+bool omega_edit::internal::omega_session_get_transaction_bit_(const omega_session_t *session_ptr) {
     return (session_ptr->models_.back()->changes.empty()) ||
            omega_change_get_transaction_bit_(session_ptr->models_.back()->changes.back().get());
 }
