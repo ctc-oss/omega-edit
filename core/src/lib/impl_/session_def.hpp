@@ -51,8 +51,12 @@ struct omega_session_struct {
     std::string checkpoint_file_name_{};       ///< Name of session checkpoint file
 };
 
+namespace omega_edit::internal {
+
 bool omega_session_get_transaction_bit_(const omega_session_t *session_ptr);
 void omega_session_begin_event_batch_(omega_session_t *session_ptr, omega_session_event_t session_event);
 void omega_session_end_event_batch_(omega_session_t *session_ptr);
+
+}// namespace omega_edit::internal
 
 #endif//OMEGA_EDIT_SESSION_DEF_HPP

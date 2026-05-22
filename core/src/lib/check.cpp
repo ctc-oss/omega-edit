@@ -17,8 +17,12 @@
 #include "impl_/change_def.hpp"
 #include "impl_/internal_fun.hpp"
 #include "impl_/macros.h"
+#include "impl_/safe_math.hpp"
 #include "impl_/session_def.hpp"
 #include <cassert>
+
+using omega_edit::internal::print_model_segments_;
+using omega_edit::internal::safe_add_int64_;
 
 int omega_check_model(const omega_session_t *session_ptr) {
     if (!session_ptr) { return -1; }
@@ -52,7 +56,9 @@ int omega_check_model(const omega_session_t *session_ptr) {
             }
 
             // Segment must not extend beyond its parent change data
-            if (segment->change_offset + segment->computed_length > segment->change_ptr->length) {
+            int64_t change_end = 0;
+            if (!safe_add_int64_(segment->change_offset, segment->computed_length, change_end) ||
+                change_end > segment->change_ptr->length) {
                 print_model_segments_(model_ptr.get(), CLOG);
                 return -1;
             }
@@ -63,7 +69,10 @@ int omega_check_model(const omega_session_t *session_ptr) {
                 return -1;
             }
 
-            expected_offset += segment->computed_length;
+            if (!safe_add_int64_(expected_offset, segment->computed_length, expected_offset)) {
+                print_model_segments_(model_ptr.get(), CLOG);
+                return -1;
+            }
         }
 
         // Checkpoint models (index > 0) must have a backing file
@@ -72,11 +81,15 @@ int omega_check_model(const omega_session_t *session_ptr) {
 
     // Cross-check: the back model's total segment length must match the session's computed file size
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
+    if (computed_file_size < 0) { return -1; }
     const auto &back_model = session_ptr->models_.back();
-    const int64_t model_total_length = back_model->model_segments.empty()
-                                               ? 0
-                                               : back_model->model_segments.back()->computed_offset +
-                                                         back_model->model_segments.back()->computed_length;
+    int64_t model_total_length = 0;
+    if (!back_model->model_segments.empty() &&
+        !safe_add_int64_(back_model->model_segments.back()->computed_offset,
+                         back_model->model_segments.back()->computed_length,
+                         model_total_length)) {
+        return -1;
+    }
     if (model_total_length != computed_file_size) { return -1; }
 
     return 0;

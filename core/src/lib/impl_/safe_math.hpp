@@ -12,26 +12,30 @@
  *                                                                                                                    *
  **********************************************************************************************************************/
 
-#ifndef OMEGA_EDIT_INTERNAL_FUN_HPP
-#define OMEGA_EDIT_INTERNAL_FUN_HPP
+#ifndef OMEGA_EDIT_SAFE_MATH_HPP
+#define OMEGA_EDIT_SAFE_MATH_HPP
 
-#include "../../include/omega_edit/byte.h"
-#include "../../include/omega_edit/fwd_defs.h"
-#include "internal_fwd_defs.hpp"
-#include <iosfwd>
+#include <cstdint>
+#include <limits>
 
 namespace omega_edit::internal {
 
-// Data segment functions
-int populate_data_segment_(const omega_session_t *session_ptr, omega_segment_t *data_segment_ptr)
+inline bool add_overflows_int64_(int64_t lhs, int64_t rhs) {
+    return (rhs > 0 && lhs > (std::numeric_limits<int64_t>::max)() - rhs) ||
+           (rhs < 0 && lhs < (std::numeric_limits<int64_t>::min)() - rhs);
+}
 
-noexcept;
+inline bool safe_add_int64_(int64_t lhs, int64_t rhs, int64_t &result) {
+    if (add_overflows_int64_(lhs, rhs)) { return false; }
+    result = lhs + rhs;
+    return true;
+}
 
-// Model segment functions
-void print_model_segments_(const omega_model_t *model_ptr, std::ostream &out_stream)
-
-noexcept;
+inline bool valid_nonnegative_range_(int64_t offset, int64_t length) {
+    int64_t end = 0;
+    return offset >= 0 && length >= 0 && safe_add_int64_(offset, length, end);
+}
 
 }// namespace omega_edit::internal
 
-#endif//OMEGA_EDIT_INTERNAL_FUN_HPP
+#endif//OMEGA_EDIT_SAFE_MATH_HPP
