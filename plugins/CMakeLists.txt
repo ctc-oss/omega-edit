@@ -11,6 +11,10 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+if (POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(OMEGA_EDIT_PLUGINS_VERSION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../VERSION")
     if (NOT EXISTS "${OMEGA_EDIT_PLUGINS_VERSION_FILE}")
@@ -43,6 +47,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT MINGW)
     set(FILESYSTEM_LIB stdc++fs)
+endif()
+
+if (BUILD_COVERAGE AND (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang"))
+    add_compile_options(--coverage -fprofile-arcs -ftest-coverage)
+    add_link_options(--coverage)
 endif()
 
 if (NOT TARGET omega_edit::omega_edit)

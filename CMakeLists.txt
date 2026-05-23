@@ -11,6 +11,10 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+if (POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 # Read version from VERSION file. CMake project() only accepts numeric
 # major.minor.patch values, so we parse prerelease/build metadata separately.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" OMEGA_EDIT_VERSION)
