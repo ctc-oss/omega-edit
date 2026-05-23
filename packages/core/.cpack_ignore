@@ -11,4 +11,5 @@ build-*
 build/
 cmake-build*
 docker/
+plugins/
 venv/

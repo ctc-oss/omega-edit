@@ -45,6 +45,9 @@ for objtype in shared static; do
   cmake -G "$generator" -S . -B "build-${objtype}-$type" $cmake_extra_args -DBUILD_SHARED_LIBS="$build_shared_libs" -DBUILD_DOCS="$build_docs" -DCMAKE_BUILD_TYPE="$type"
   cmake --build "build-${objtype}-$type" --config "$type"
   ctest -C "$type" --test-dir "build-${objtype}-${type}/core" --output-on-failure
+  if [[ -d "build-${objtype}-${type}/plugins" ]]; then
+    ctest -C "$type" --test-dir "build-${objtype}-${type}/plugins" --output-on-failure
+  fi
   cmake --install "build-${objtype}-${type}/packages/core" --prefix "${install_dir}-${objtype}-$type" --config "$type"
   cpack --config "build-${objtype}-${type}/CPackSourceConfig.cmake"
   cpack --config "build-${objtype}-${type}/CPackConfig.cmake" -C "$type"
@@ -76,4 +79,3 @@ yarn lint
 yarn workspace @omega-edit/client test
 
 echo "✔ Done! ✨"
-

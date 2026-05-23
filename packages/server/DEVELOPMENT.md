@@ -47,7 +47,7 @@ The native server can register transform plugins from one or more directories us
 
 Developer-facing ABI, SDK, layout, and exemplar plugin documentation lives in the
 [Transform Plugins wiki page](../../wiki/Transform-Plugins.md). Keep that page,
-`packages/server/README.md`, and the exemplar sources under `core/src/plugins/`
+`packages/server/README.md`, and the exemplar sources under `plugins/src/`
 in sync when changing plugin loading or adding release plugins.
 
 ## How the Binary is Bundled

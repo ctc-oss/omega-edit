@@ -98,41 +98,6 @@ if (BUILD_EXAMPLES)
     endforeach ()
 endif ()
 
-if (BUILD_EXAMPLES OR BUILD_TESTS)
-    set(OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/src/tests/plugins")
-    set(OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS)
-    foreach (plugin_src
-            src/plugins/base64_decode.c
-            src/plugins/base64_encode.c
-            src/plugins/fnv1a64.c
-            src/plugins/zlib_compress.c
-            src/plugins/zlib_decompress.c
-            src/plugins/xor.c
-            src/plugins/repeat.c
-            src/plugins/checksum8.c)
-        get_filename_component(plugin_name ${plugin_src} NAME_WE)
-        set(plugin_target "omega_transform_${plugin_name}")
-        add_library(${plugin_target} MODULE ${plugin_src})
-        target_include_directories(${plugin_target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/include")
-        set_target_properties(
-                ${plugin_target} PROPERTIES
-                PREFIX ""
-                RUNTIME_OUTPUT_DIRECTORY "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-                LIBRARY_OUTPUT_DIRECTORY "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-                RUNTIME_OUTPUT_DIRECTORY_DEBUG "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-                LIBRARY_OUTPUT_DIRECTORY_DEBUG "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-                RUNTIME_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-                LIBRARY_OUTPUT_DIRECTORY_RELEASE "${OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR}"
-        )
-        list(APPEND OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS ${plugin_target})
-    endforeach ()
-    add_custom_target(omega_edit_transform_plugins DEPENDS ${OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS})
-
-    add_executable(omega-transform-plugin-harness src/tools/transform_plugin_harness.cpp)
-    target_link_libraries(omega-transform-plugin-harness PRIVATE omega_edit::omega_edit ${FILESYSTEM_LIB})
-    add_dependencies(omega-transform-plugin-harness omega_edit_transform_plugins)
-endif ()
-
 # Tests
 if (BUILD_TESTS)
     enable_testing()

@@ -157,8 +157,8 @@ jobs:
       - name: Setup cmake
         uses: lukka/get-cmake@latest
 
-      - name: Install lcov
-        run: sudo apt-get update && sudo apt-get install -y lcov
+      - name: Install lcov and transform plugin dependencies
+        run: sudo apt-get update && sudo apt-get install -y lcov zlib1g-dev
 
       - name: Build with coverage instrumentation
         run: |
@@ -166,7 +166,9 @@ jobs:
           cmake --build --preset ci-coverage --config Debug
 
       - name: Run C/C++ tests
-        run: ctest -C Debug --test-dir build-coverage/core --output-on-failure
+        run: |
+          ctest -C Debug --test-dir build-coverage/core --output-on-failure
+          ctest -C Debug --test-dir build-coverage/plugins --output-on-failure
 
       - name: Collect C/C++ coverage with lcov
         run: |
@@ -226,7 +228,7 @@ jobs:
             -DBUILD_TESTS=OFF
           cmake --build _build_core --config Release
           cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
-          echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/packages/core/src/tests/plugins" >> $GITHUB_ENV
+          echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/core/src/tests/plugins" >> $GITHUB_ENV
           export OE_LIB_DIR="$(pwd)/_install_core/lib"
           export OE_PREFIX="$(pwd)/_install_core"
           cd server/cpp

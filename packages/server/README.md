@@ -151,10 +151,8 @@ The native binary supports:
 Transform plugin directories can also be supplied with `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`.
 Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
 See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
-SDK helpers, plugin directory layout, and exemplar plugins, including base64
-encode/decode, zlib stored-block compress/decompress, and inspect-only hash examples.
-The zlib examples intentionally cover the stored-block subset so they remain
-self-contained fixtures.
+SDK helpers, plugin package layout, and exemplar plugins, including base64
+encode/decode, zlib compress/decompress, and inspect-only hash examples.
 
 ## Platform Support
 

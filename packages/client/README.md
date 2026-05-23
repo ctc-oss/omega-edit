@@ -242,10 +242,8 @@ These are especially useful for front-ends such as VS Code extensions that want 
 Start the server with `transformPluginDirectories` or `--transform-plugin-dir`
 before listing or applying plugins. See the
 [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins)
-for ABI, SDK, directory layout, and exemplar plugin details, including base64
-encode/decode, zlib stored-block compress/decompress, and inspect-only hash examples.
-The zlib examples intentionally cover the stored-block subset so they remain
-self-contained fixtures.
+for ABI, SDK, plugin package layout, and exemplar plugin details, including base64
+encode/decode, zlib compress/decompress, and inspect-only hash examples.
 
 ### Logging
 

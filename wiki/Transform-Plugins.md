@@ -156,19 +156,24 @@ omega_transform_plugin_apply(
 
 ## Building Plugins
 
-Plugins are CMake `MODULE` libraries in this repository. The exemplar plugins are
-built when either `BUILD_EXAMPLES=ON` or `BUILD_TESTS=ON`:
+Plugins are CMake `MODULE` libraries in the standalone top-level `plugins/`
+package. The repository root build also includes that package so tests and local
+development can use the exemplars:
 
 ```bash
 cmake -S . -B _build -DCMAKE_BUILD_TYPE=Release -DBUILD_EXAMPLES=ON
 cmake --build _build --config Release --target omega_edit_transform_plugins
 ```
 
-The current in-repo output directory is:
+The current repository-root test output directory is:
 
 ```text
-_build/packages/core/src/tests/plugins/
+_build/core/src/tests/plugins/
 ```
+
+To build and package only the transform plugins, install the core package first,
+then configure `plugins/` with its Conan-generated toolchain and the installed
+core prefix on `CMAKE_PREFIX_PATH`.
 
 The filename does not determine the plugin ID. The plugin ID comes from
 `omega_transform_plugin_get_info`.
@@ -290,28 +295,22 @@ MCP tools:
 
 ## Exemplar Plugins
 
-The repository ships small examples in `core/src/plugins/`:
+The repository ships small examples in `plugins/src/`:
 
 | Plugin ID | Source | Operation | Demonstrates |
 | --- | --- | --- | --- |
 | `omega.example.base64_encode` | `base64_encode.c` | Replace | Expansion by encoding arbitrary bytes as base64 text. |
 | `omega.example.base64_decode` | `base64_decode.c` | Replace | Shrinking text content back to decoded bytes, with validation. ASCII whitespace is tolerated; other invalid bytes fail. |
 | `omega.example.fnv1a64` | `fnv1a64.c` | Inspect | 64-bit hash calculation without changing session content. |
-| `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Valid zlib streams using stored DEFLATE blocks, without a required external dependency. |
-| `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Shrinking stored-block zlib streams back to the original bytes, with header and checksum validation. |
+| `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Compression with zlib, supplied by the plugin package toolchain. |
+| `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Decompression with zlib, supplied by the plugin package toolchain. |
 | `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe byte transform. Accepts options JSON like `{"byte":"0x42"}`; defaults to `0xFF`. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 | `omega.example.checksum8` | `checksum8.c` | Inspect | Text result without changing session content. |
 
 These examples are intentionally small so they can serve as test fixtures and copyable
-developer starting points.
-
-The zlib examples intentionally avoid a required external compression dependency:
-`omega.example.zlib_compress` emits valid zlib streams with stored DEFLATE blocks,
-and `omega.example.zlib_decompress` accepts that stored-block subset with zlib header
-and Adler-32 validation. Because stored blocks have no compression level, the exemplar
-compressor intentionally ignores `options_json`; a production compression plugin can use
-that field for settings such as compression level.
+developer starting points. Third-party dependencies belong to the plugin package,
+not the core ABI/loader package; the zlib exemplars use `plugins/conanfile.py`.
 
 ## Release Notes for Plugin Authors
 
@@ -326,9 +325,9 @@ When changing the ABI:
 
 When adding release plugins:
 
-1. Put source under `core/src/plugins/`.
-2. Add the source file to the plugin target list in `core/CMakeLists.txt`.
-3. Add native registry/harness coverage.
+1. Put source under `plugins/src/`.
+2. Add the source file to the plugin target list in `plugins/CMakeLists.txt`.
+3. Add native registry/harness coverage under `plugins/tests/`.
 4. Add client or AI coverage if the plugin exercises new behavior.
 5. Document the plugin ID, operation, options JSON, and result format.
 
@@ -336,5 +335,5 @@ When adding release plugins:
 
 - [Home](Home)
 - [Embedding OmegaEdit Core](Embedding-OmegaEdit-Core)
-- [`core/src/plugins/`](https://github.com/ctc-oss/omega-edit/tree/main/core/src/plugins)
-- [`core/src/tools/transform_plugin_harness.cpp`](https://github.com/ctc-oss/omega-edit/blob/main/core/src/tools/transform_plugin_harness.cpp)
+- [`plugins/src/`](https://github.com/ctc-oss/omega-edit/tree/main/plugins/src)
+- [`plugins/tools/transform_plugin_harness.cpp`](https://github.com/ctc-oss/omega-edit/blob/main/plugins/tools/transform_plugin_harness.cpp)
