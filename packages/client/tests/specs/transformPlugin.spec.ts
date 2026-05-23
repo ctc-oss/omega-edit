@@ -59,14 +59,7 @@ function directoryHasTransformPlugin(directory: string): boolean {
 function findTransformPluginDirectory(): string | undefined {
   const candidates = [
     process.env.OMEGA_EDIT_TEST_PLUGIN_DIR || '',
-    path.join(
-      repoRoot,
-      '_build_core',
-      'core',
-      'src',
-      'tests',
-      'plugins'
-    ),
+    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
     path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
     path.join(repoRoot, '_build', 'plugins', 'plugins'),
     path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
