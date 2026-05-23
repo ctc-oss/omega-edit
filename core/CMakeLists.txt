@@ -107,7 +107,7 @@ if (BUILD_EXAMPLES OR BUILD_TESTS)
             src/plugins/fnv1a64.c
             src/plugins/zlib_compress.c
             src/plugins/zlib_decompress.c
-            src/plugins/xor_ff.c
+            src/plugins/xor.c
             src/plugins/repeat.c
             src/plugins/checksum8.c)
         get_filename_component(plugin_name ${plugin_src} NAME_WE)

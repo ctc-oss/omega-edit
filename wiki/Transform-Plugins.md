@@ -122,9 +122,9 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int
 omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) return -1;
     info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
-    info_ptr->id = "com.example.xor_ff";
-    info_ptr->name = "XOR 0xFF";
-    info_ptr->description = "Invert every byte in the selected range.";
+    info_ptr->id = "com.example.xor";
+    info_ptr->name = "XOR";
+    info_ptr->description = "XOR every byte in the selected range.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags =
         OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE |
@@ -184,7 +184,7 @@ plugins/
 |- omega_transform_fnv1a64.dll
 |- omega_transform_zlib_compress.dll
 |- omega_transform_zlib_decompress.dll
-|- omega_transform_xor_ff.dll
+|- omega_transform_xor.dll
 |- omega_transform_repeat.dll
 `- omega_transform_checksum8.dll
 ```
@@ -299,7 +299,7 @@ The repository ships small examples in `core/src/plugins/`:
 | `omega.example.fnv1a64` | `fnv1a64.c` | Inspect | 64-bit hash calculation without changing session content. |
 | `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Valid zlib streams using stored DEFLATE blocks, without a required external dependency. |
 | `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Shrinking stored-block zlib streams back to the original bytes, with header and checksum validation. |
-| `omega.example.xor_ff` | `xor_ff.c` | Replace | One-for-one binary-safe byte transform. |
+| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe byte transform. Accepts options JSON like `{"byte":"0x42"}`; defaults to `0xFF`. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 | `omega.example.checksum8` | `checksum8.c` | Inspect | Text result without changing session content. |
 

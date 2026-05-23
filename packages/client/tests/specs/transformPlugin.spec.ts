@@ -125,7 +125,7 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.fnv1a64',
         'omega.example.zlib_compress',
         'omega.example.zlib_decompress',
-        'omega.example.xor_ff',
+        'omega.example.xor',
         'omega.example.repeat',
         'omega.example.checksum8',
       ])
@@ -247,7 +247,7 @@ describe('Transform plugin gRPC integration', () => {
 
       const xorResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.xor_ff',
+        'omega.example.xor',
         0,
         1
       )
@@ -256,6 +256,22 @@ describe('Transform plugin gRPC integration', () => {
       expect(xorResponse.replacementLength).to.equal(1)
       expect(Array.from(await getSegment(sessionId, 0, 1))).to.deep.equal([
         'a'.charCodeAt(0) ^ 0xff,
+      ])
+
+      const xorOptionsResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.xor',
+        1,
+        1,
+        JSON.stringify({ byte: '0x42' })
+      )
+      expect(xorOptionsResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(xorOptionsResponse.contentChanged).to.equal(true)
+      expect(xorOptionsResponse.replacementLength).to.equal(1)
+      expect(Array.from(await getSegment(sessionId, 1, 1))).to.deep.equal([
+        'b'.charCodeAt(0) ^ 0x42,
       ])
     } finally {
       if (sessionId) {
