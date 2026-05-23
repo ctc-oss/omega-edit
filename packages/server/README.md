@@ -65,6 +65,7 @@ const proc = await runServer(9000, '127.0.0.1', '/tmp/server.pid', {
   maxViewportsPerSession: 64,
   logFile: '/tmp/omega-edit-server.log',
   logLevel: 'info',
+  transformPluginDirectories: ['./plugins'],
 })
 
 // Or pass raw CLI arguments
@@ -118,6 +119,7 @@ interface HeartbeatOptions {
   logFile?: string               // Append native server lifecycle logs to this file
   logLevel?: string              // Native log level: debug, info, warn, error
   logConfigFile?: string         // Compatibility shim for logback-style XML config
+  transformPluginDirectories?: string[] // Directories containing transform plugin shared libraries
 }
 ```
 
@@ -144,6 +146,15 @@ The native binary supports:
 | `--log-file` | Append native server logs to a file |
 | `--log-level` | Set native server log verbosity |
 | `--log-config` | Read log file/level from a logback-style XML config |
+| `--transform-plugin-dir` | Register transform plugins from a directory; repeat for multiple directories |
+
+Transform plugin directories can also be supplied with `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`.
+Use the platform path-list separator (`:` on Unix-like systems, `;` on Windows).
+See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the native ABI,
+SDK helpers, plugin directory layout, and exemplar plugins, including base64
+encode/decode, zlib stored-block compress/decompress, and inspect-only hash examples.
+The zlib examples intentionally cover the stored-block subset so they remain
+self-contained fixtures.
 
 ## Platform Support
 

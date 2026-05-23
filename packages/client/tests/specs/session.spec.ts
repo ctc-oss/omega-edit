@@ -19,6 +19,7 @@
 
 import { expect, expectOpaqueId, opaqueIdPattern, testPort } from './common.js'
 import {
+  applyTransformPlugin,
   del,
   countCharacters,
   createSession,
@@ -39,6 +40,7 @@ import {
   getViewportCount,
   insert,
   IOFlags,
+  listTransformPlugins,
   notifyChangedViewports,
   profileSession,
   saveSession,
@@ -1270,6 +1272,24 @@ describe('Sessions', () => {
           `viewport already exists: ${desiredViewportId}`
         )
       }
+    } finally {
+      await destroySession(sessionId)
+    }
+  })
+
+  it('Should expose transform plugin discovery and missing-plugin errors', async () => {
+    const plugins = await listTransformPlugins()
+    expect(plugins).to.be.an('array')
+
+    const session = await createSessionFromBytes(Buffer.from('abc'))
+    const sessionId = session.getSessionId()
+
+    try {
+      await applyTransformPlugin(sessionId, 'omega.example.missing')
+      expect.fail('applyTransformPlugin should reject unknown plugin IDs')
+    } catch (err) {
+      expect((err as Error).message).to.include('NOT_FOUND')
+      expect((err as Error).message).to.include('omega.example.missing')
     } finally {
       await destroySession(sessionId)
     }

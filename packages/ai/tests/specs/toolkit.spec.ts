@@ -51,6 +51,28 @@ describe('@omega-edit/ai toolkit', function () {
       assert.equal(initialRange.actualLength, 6)
       assert.equal(initialRange.data.utf8, 'abcdef')
 
+      const plugins = await toolkit.listTransformPlugins()
+      assert.ok(Array.isArray(plugins))
+
+      await assert.rejects(
+        () =>
+          toolkit.applyTransformPlugin({
+            sessionId: createdSessionId,
+            pluginId: 'omega.example.missing',
+          }),
+        /omega\.example\.missing/
+      )
+
+      await assert.rejects(
+        () =>
+          toolkit.applyTransformPlugin({
+            sessionId: createdSessionId,
+            pluginId: 'omega.example.missing',
+            offset: Number.NaN,
+          }),
+        /offset must be a non-negative integer/
+      )
+
       const searchResult = await toolkit.search({
         sessionId: createdSessionId,
         pattern: parseInputData('cd', 'utf8'),

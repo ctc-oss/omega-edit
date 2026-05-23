@@ -199,6 +199,27 @@ typedef struct {
 } omega_edit_script_op_t;
 
 /**
+ * Built-in byte transform kinds.
+ */
+typedef enum {
+    OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER = 1,
+    OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER = 2,
+    OMEGA_EDIT_TRANSFORM_BITWISE_AND = 3,
+    OMEGA_EDIT_TRANSFORM_BITWISE_OR = 4,
+    OMEGA_EDIT_TRANSFORM_BITWISE_XOR = 5
+} omega_edit_transform_kind_t;
+
+/**
+ * A built-in byte transform description.
+ *
+ * `operand` is used by bitwise transform kinds and ignored by ASCII case transform kinds.
+ */
+typedef struct {
+    omega_edit_transform_kind_t kind;
+    omega_byte_t operand;
+} omega_edit_transform_t;
+
+/**
  * Delete a number of bytes at the given offset
  * @param session_ptr session to make the change in
  * @param offset location offset to make the change
@@ -422,6 +443,21 @@ int omega_edit_replace_all(omega_session_t *session_ptr, const char *pattern, in
  * @return zero on success and non-zero otherwise
  */
 int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_script_op_t *ops, size_t op_count);
+
+/**
+ * Checkpoint and apply a built-in transform to bytes starting at the given offset up to the given length.
+ *
+ * This is a stable C API layer for common transform operations that higher-level clients and services can expose
+ * without requiring process-local callback functions. Use omega_edit_apply_transform for custom callback transforms.
+ *
+ * @param session_ptr session to transform
+ * @param transform built-in transform descriptor
+ * @param offset location offset to begin transforming bytes
+ * @param length number of bytes from the given offset to transform, or zero to transform through the end of session
+ * @return zero on success, non-zero otherwise
+ */
+int omega_edit_apply_builtin_transform(omega_session_t *session_ptr, omega_edit_transform_t transform, int64_t offset,
+                                       int64_t length);
 
 /**
  * Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given

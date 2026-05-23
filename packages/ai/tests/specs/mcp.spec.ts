@@ -127,6 +127,14 @@ describe('@omega-edit/ai mcp server', function () {
         tools.some((tool) => tool.name === 'omega_edit_replace_session'),
         'expected omega_edit_replace_session in tool list'
       )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_list_transform_plugins'),
+        'expected omega_edit_list_transform_plugins in tool list'
+      )
+      assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_apply_transform_plugin'),
+        'expected omega_edit_apply_transform_plugin in tool list'
+      )
 
       const createSessionResponse = await sendRequest('tools/call', {
         name: 'omega_edit_create_session',
@@ -139,6 +147,31 @@ describe('@omega-edit/ai mcp server', function () {
       ).structuredContent as Record<string, unknown>) || { sessionId: '' }
       createdSessionId = createStructured.sessionId as string
       assert.ok(createdSessionId.length > 0)
+
+      const listPluginsResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_list_transform_plugins',
+        arguments: {},
+      })
+      const listPluginsStructured = ((
+        listPluginsResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || { plugins: [] }
+      assert.ok(Array.isArray(listPluginsStructured.plugins))
+
+      const missingPluginResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_apply_transform_plugin',
+        arguments: {
+          sessionId: createdSessionId,
+          pluginId: 'omega.example.missing',
+        },
+      })
+      const missingPluginResult =
+        (missingPluginResponse.result as Record<string, unknown>) || {}
+      assert.equal(missingPluginResult.isError, true)
+      assert.match(
+        ((missingPluginResult.structuredContent as Record<string, unknown>)
+          .error as string) || '',
+        /omega\.example\.missing/
+      )
 
       const readRangeResponse = await sendRequest('tools/call', {
         name: 'omega_edit_read_range',

@@ -39,6 +39,17 @@ yarn package
 
 This refreshes the native server executable, builds the Node.js wrapper, and produces a tarball named `omega-edit-node-server-v${version}.tgz`.
 
+## Transform Plugin Development
+
+The native server can register transform plugins from one or more directories using
+`--transform-plugin-dir`, `OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS`, or the TypeScript
+`transformPluginDirectories` launcher option.
+
+Developer-facing ABI, SDK, layout, and exemplar plugin documentation lives in the
+[Transform Plugins wiki page](../../wiki/Transform-Plugins.md). Keep that page,
+`packages/server/README.md`, and the exemplar sources under `core/src/plugins/`
+in sync when changing plugin loading or adding release plugins.
+
 ## How the Binary is Bundled
 
 The server package locates its native binary through a search algorithm:
