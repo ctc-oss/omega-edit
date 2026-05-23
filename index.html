@@ -93,6 +93,14 @@
 <li><a class="reference internal" href="#_CPPv4N27omega_edit_script_op_kind_t25OMEGA_EDIT_SCRIPT_REPLACEE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_SCRIPT_REPLACE</span></code></a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#_CPPv427omega_edit_transform_kind_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_transform_kind_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPERE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWERE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_ANDE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_AND</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_transform_kind_t31OMEGA_EDIT_TRANSFORM_BITWISE_ORE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_OR</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_XORE"><code class="docutils literal notranslate"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_XOR</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#_CPPv425omega_edit_create_sessionPKc25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv436omega_edit_create_session_from_bytesPK12omega_byte_t7int64_t25omega_session_event_cbk_tPv7int32_tPKc"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_session_from_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_destroy_sessionP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_session()</span></code></a></li>
@@ -117,6 +125,7 @@
 <li><a class="reference internal" href="#_CPPv428omega_edit_replace_all_bytesP15omega_session_tPK12omega_byte_t7int64_tPK12omega_byte_t7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all_bytes()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv422omega_edit_replace_allP15omega_session_tPKc7int64_tPKc7int64_ti7int64_t7int64_tP7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_replace_all()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv423omega_edit_apply_scriptP15omega_session_tPK22omega_edit_script_op_t6size_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_script()</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv434omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_builtin_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_apply_transform()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv428omega_edit_create_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_create_checkpoint()</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv434omega_edit_destroy_last_checkpointP15omega_session_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_destroy_last_checkpoint()</span></code></a></li>
@@ -126,6 +135,11 @@
 <li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t4kindE"><code class="docutils literal notranslate"><span class="pre">kind</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t5bytesE"><code class="docutils literal notranslate"><span class="pre">bytes</span></code></a></li>
 <li><a class="reference internal" href="#_CPPv4N22omega_edit_script_op_t12bytes_lengthE"><code class="docutils literal notranslate"><span class="pre">bytes_length</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#_CPPv422omega_edit_transform_t"><code class="docutils literal notranslate"><span class="pre">omega_edit_transform_t</span></code></a><ul>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_transform_t4kindE"><code class="docutils literal notranslate"><span class="pre">kind</span></code></a></li>
+<li><a class="reference internal" href="#_CPPv4N22omega_edit_transform_t7operandE"><code class="docutils literal notranslate"><span class="pre">operand</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -664,6 +678,38 @@
 
 </dd></dl>
 
+<dl class="cpp enum">
+<dt class="sig sig-object cpp" id="_CPPv427omega_edit_transform_kind_t">
+<span id="_CPPv327omega_edit_transform_kind_t"></span><span id="_CPPv227omega_edit_transform_kind_t"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50"></span><span class="k"><span class="pre">enum</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_transform_kind_t</span></span></span><a class="headerlink" href="#_CPPv427omega_edit_transform_kind_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Built-in byte transform kinds. </p>
+<p><em>Values:</em></p>
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPERE">
+<span id="_CPPv3N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPERE"></span><span id="_CPPv2N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPERE"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50ae3f40c63c42ada3f4a89d652b99f40bc"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPERE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWERE">
+<span id="_CPPv3N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWERE"></span><span id="_CPPv2N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWERE"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50a97f70fc688bd59bb33ce3943575185d2"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_transform_kind_t35OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWERE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_ANDE">
+<span id="_CPPv3N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_ANDE"></span><span id="_CPPv2N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_ANDE"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50a9fa9a735bbda07748018e966faa21149"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_AND</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_ANDE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_transform_kind_t31OMEGA_EDIT_TRANSFORM_BITWISE_ORE">
+<span id="_CPPv3N27omega_edit_transform_kind_t31OMEGA_EDIT_TRANSFORM_BITWISE_ORE"></span><span id="_CPPv2N27omega_edit_transform_kind_t31OMEGA_EDIT_TRANSFORM_BITWISE_ORE"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50ab093b738c33244545252c3abeb46b921"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_OR</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_transform_kind_t31OMEGA_EDIT_TRANSFORM_BITWISE_ORE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp enumerator">
+<dt class="sig sig-object cpp" id="_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_XORE">
+<span id="_CPPv3N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_XORE"></span><span id="_CPPv2N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_XORE"></span><span class="target" id="edit_8h_1a325d3f833dfebb424e28b275bdacbb50a567fb6c62aa37079d7a84954def8d172"></span><span class="k"><span class="pre">enumerator</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">OMEGA_EDIT_TRANSFORM_BITWISE_XOR</span></span></span><a class="headerlink" href="#_CPPv4N27omega_edit_transform_kind_t32OMEGA_EDIT_TRANSFORM_BITWISE_XORE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
 </div>
 <div class="breathe-sectiondef docutils container">
 <p class="breathe-sectiondef-title rubric" id="breathe-section-title-functions">Functions</p>
@@ -1169,6 +1215,26 @@
 </dd></dl>
 
 <dl class="cpp function">
+<dt class="sig sig-object cpp" id="_CPPv434omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t">
+<span id="_CPPv334omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t"></span><span id="_CPPv234omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t"></span><span id="omega_edit_apply_builtin_transform__omega_session_tP.omega_edit_transform_t.int64_t.int64_t"></span><span class="target" id="edit_8h_1a32edbf8d377ace3f9dacc0fbe73c7da6"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_apply_builtin_transform</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv422omega_edit_transform_t" title="omega_edit_transform_t"><span class="n"><span class="pre">omega_edit_transform_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">transform</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv434omega_edit_apply_builtin_transformP15omega_session_t22omega_edit_transform_t7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
+<dd><p>Checkpoint and apply a built-in transform to bytes starting at the given offset up to the given length.</p>
+<p>This is a stable C API layer for common transform operations that higher-level clients and services can expose without requiring process-local callback functions. Use omega_edit_apply_transform for custom callback transforms.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>session_ptr</strong> – session to transform </p></li>
+<li><p><strong>transform</strong> – built-in transform descriptor </p></li>
+<li><p><strong>offset</strong> – location offset to begin transforming bytes </p></li>
+<li><p><strong>length</strong> – number of bytes from the given offset to transform, or zero to transform through the end of session </p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>zero on success, non-zero otherwise </p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="cpp function">
 <dt class="sig sig-object cpp" id="_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t">
 <span id="_CPPv326omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"></span><span id="_CPPv226omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t"></span><span id="omega_edit_apply_transform__omega_session_tP.omega_util_byte_transform_t.voidP.int64_t.int64_t"></span><span class="target" id="edit_8h_1aa84f4999e7dd28b6079670c4407afead"></span><span class="kt"><span class="pre">int</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_apply_transform</span></span></span><span class="sig-paren">(</span><a class="reference internal" href="#_CPPv415omega_session_t" title="omega_session_t"><span class="n"><span class="pre">omega_session_t</span></span></a><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">session_ptr</span></span>, <a class="reference internal" href="#_CPPv427omega_util_byte_transform_t" title="omega_util_byte_transform_t"><span class="n"><span class="pre">omega_util_byte_transform_t</span></span></a><span class="w"> </span><span class="n sig-param"><span class="pre">transform</span></span>, <span class="kt"><span class="pre">void</span></span><span class="w"> </span><span class="p"><span class="pre">*</span></span><span class="n sig-param"><span class="pre">user_data_ptr</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">offset</span></span>, <span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="n sig-param"><span class="pre">length</span></span><span class="sig-paren">)</span><a class="headerlink" href="#_CPPv426omega_edit_apply_transformP15omega_session_t27omega_util_byte_transform_tPv7int64_t7int64_t" title="Link to this definition"></a><br /></dt>
 <dd><p>Checkpoint and apply the given mask of the given mask type to the bytes starting at the given offset up to the given length </p>
@@ -1255,6 +1321,28 @@
 <dl class="cpp var">
 <dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_script_op_t12bytes_lengthE">
 <span id="_CPPv3N22omega_edit_script_op_t12bytes_lengthE"></span><span id="_CPPv2N22omega_edit_script_op_t12bytes_lengthE"></span><span id="omega_edit_script_op_t::bytes_length__int64_t"></span><span class="target" id="structomega__edit__script__op__t_1af4a77365c95a75e4d37b593f0978e93e"></span><span class="n"><span class="pre">int64_t</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">bytes_length</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_script_op_t12bytes_lengthE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+</div>
+</dd></dl>
+
+<dl class="cpp struct">
+<dt class="sig sig-object cpp" id="_CPPv422omega_edit_transform_t">
+<span id="_CPPv322omega_edit_transform_t"></span><span id="_CPPv222omega_edit_transform_t"></span><span id="omega_edit_transform_t"></span><span class="target" id="structomega__edit__transform__t"></span><span class="k"><span class="pre">struct</span></span><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">omega_edit_transform_t</span></span></span><a class="headerlink" href="#_CPPv422omega_edit_transform_t" title="Link to this definition"></a><br /></dt>
+<dd><div class="docutils container">
+<em>#include &lt;edit.h&gt;</em></div>
+<p>A built-in byte transform description.</p>
+<p><code class="docutils literal notranslate"><span class="pre">operand</span></code> is used by bitwise transform kinds and ignored by ASCII case transform kinds. </p>
+<div class="breathe-sectiondef docutils container">
+<p class="breathe-sectiondef-title rubric" id="breathe-section-title-public-members">Public Members</p>
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_transform_t4kindE">
+<span id="_CPPv3N22omega_edit_transform_t4kindE"></span><span id="_CPPv2N22omega_edit_transform_t4kindE"></span><span id="omega_edit_transform_t::kind__omega_edit_transform_kind_t"></span><span class="target" id="structomega__edit__transform__t_1ad93c92600da2e4fccb8cb1f929a035a7"></span><a class="reference internal" href="#_CPPv427omega_edit_transform_kind_t" title="omega_edit_transform_kind_t"><span class="n"><span class="pre">omega_edit_transform_kind_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">kind</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_transform_t4kindE" title="Link to this definition"></a><br /></dt>
+<dd></dd></dl>
+
+<dl class="cpp var">
+<dt class="sig sig-object cpp" id="_CPPv4N22omega_edit_transform_t7operandE">
+<span id="_CPPv3N22omega_edit_transform_t7operandE"></span><span id="_CPPv2N22omega_edit_transform_t7operandE"></span><span id="omega_edit_transform_t::operand__omega_byte_t"></span><span class="target" id="structomega__edit__transform__t_1a39b684d4dc8cff15c11d3c517dee4941"></span><a class="reference internal" href="#_CPPv412omega_byte_t" title="omega_byte_t"><span class="n"><span class="pre">omega_byte_t</span></span></a><span class="w"> </span><span class="sig-name descname"><span class="n"><span class="pre">operand</span></span></span><a class="headerlink" href="#_CPPv4N22omega_edit_transform_t7operandE" title="Link to this definition"></a><br /></dt>
 <dd></dd></dl>
 
 </div>
