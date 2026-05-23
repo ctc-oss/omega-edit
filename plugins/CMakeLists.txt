@@ -112,7 +112,6 @@ if (BUILD_TESTS)
     endif()
 
     include(CTest)
-    include(Catch)
 
     set(OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
     configure_file(
@@ -138,13 +137,10 @@ if (BUILD_TESTS)
                 DEPENDS omega_edit
         )
         add_dependencies(omega_transform_plugin_tests omega_edit_transform_plugin_test_runtime)
-        add_test(NAME omega_transform_plugin_tests COMMAND omega_transform_plugin_tests)
-        set_tests_properties(omega_transform_plugin_tests PROPERTIES
-                WORKING_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
-    else()
-        catch_discover_tests(omega_transform_plugin_tests
-                WORKING_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
     endif()
+    add_test(NAME omega_transform_plugin_tests COMMAND omega_transform_plugin_tests)
+    set_tests_properties(omega_transform_plugin_tests PROPERTIES
+            WORKING_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
 endif()
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)

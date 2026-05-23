@@ -13,6 +13,7 @@
  **********************************************************************************************************************/
 
 #include "omega_edit.h"
+#include "omega_edit/stl_string_adaptor.hpp"
 
 #include <test_util.hpp>
 
