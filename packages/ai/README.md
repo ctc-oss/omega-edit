@@ -47,6 +47,12 @@ oe search --session <session-id> --hex 89504E47 --limit 10
 oe patch --session <session-id> --offset 8 --hex 0000000d --dry-run
 oe patch --session <session-id> --offset 8 --hex 0000000d
 
+# Discover and run native transform plugins
+oe list-transform-plugins
+oe apply-transform-plugin --session <session-id> --plugin omega.example.checksum8 --offset 0 --length 128
+oe apply-transform-plugin --session <session-id> --plugin omega.example.base64_encode --offset 0 --length 128
+oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib_compress --offset 0 --length 128
+
 # Save or export a slice
 oe save-session --session <session-id> --output ./patched.bin --overwrite
 oe export-range --session <session-id> --offset 0 --length 128 --output ./header.bin --overwrite
@@ -54,6 +60,10 @@ oe export-range --session <session-id> --offset 0 --length 128 --output ./header
 # Undo if needed
 oe undo --session <session-id>
 ```
+
+Transform plugins are registered when the native server starts. See the
+[Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins)
+for the ABI, SDK helpers, plugin directory layout, and exemplar plugin IDs.
 
 All CLI commands emit JSON to stdout and return non-zero exit codes on failure.
 
@@ -96,6 +106,9 @@ Available tools:
 - `omega_edit_session_status`
 - `omega_edit_read_range`
 - `omega_edit_search`
+- `omega_edit_replace_session`
+- `omega_edit_list_transform_plugins`
+- `omega_edit_apply_transform_plugin`
 - `omega_edit_preview_patch`
 - `omega_edit_apply_patch`
 - `omega_edit_undo`

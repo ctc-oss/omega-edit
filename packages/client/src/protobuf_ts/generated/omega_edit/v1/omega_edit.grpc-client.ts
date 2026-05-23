@@ -35,6 +35,10 @@ import type { GetCharacterCountsResponse } from './omega_edit'
 import type { GetCharacterCountsRequest } from './omega_edit'
 import type { GetByteFrequencyProfileResponse } from './omega_edit'
 import type { GetByteFrequencyProfileRequest } from './omega_edit'
+import type { ApplyTransformPluginResponse } from './omega_edit'
+import type { ApplyTransformPluginRequest } from './omega_edit'
+import type { ListTransformPluginsResponse } from './omega_edit'
+import type { ListTransformPluginsRequest } from './omega_edit'
 import type { DestroyLastCheckpointResponse } from './omega_edit'
 import type { DestroyLastCheckpointRequest } from './omega_edit'
 import type { ReplaceSessionCheckpointedResponse } from './omega_edit'
@@ -1430,6 +1434,81 @@ export interface IEditorServiceClient {
     callback: (
       err: grpc.ServiceError | null,
       value?: DestroyLastCheckpointResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * List transform plugins registered with the native server.
+   *
+   * @generated from protobuf rpc: ListTransformPlugins
+   */
+  listTransformPlugins(
+    input: ListTransformPluginsRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ListTransformPluginsResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  listTransformPlugins(
+    input: ListTransformPluginsRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ListTransformPluginsResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  listTransformPlugins(
+    input: ListTransformPluginsRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ListTransformPluginsResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  listTransformPlugins(
+    input: ListTransformPluginsRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ListTransformPluginsResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  /**
+   * Apply a transform plugin to a session range. Plugins may replace content,
+   * inspect content and return derived bytes, or do both.
+   *
+   * @generated from protobuf rpc: ApplyTransformPlugin
+   */
+  applyTransformPlugin(
+    input: ApplyTransformPluginRequest,
+    metadata: grpc.Metadata,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ApplyTransformPluginResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  applyTransformPlugin(
+    input: ApplyTransformPluginRequest,
+    metadata: grpc.Metadata,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ApplyTransformPluginResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  applyTransformPlugin(
+    input: ApplyTransformPluginRequest,
+    options: grpc.CallOptions,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ApplyTransformPluginResponse
+    ) => void
+  ): grpc.ClientUnaryCall
+  applyTransformPlugin(
+    input: ApplyTransformPluginRequest,
+    callback: (
+      err: grpc.ServiceError | null,
+      value?: ApplyTransformPluginResponse
     ) => void
   ): grpc.ClientUnaryCall
   /**
@@ -3084,6 +3163,89 @@ export class EditorServiceClient
     )
   }
   /**
+   * List transform plugins registered with the native server.
+   *
+   * @generated from protobuf rpc: ListTransformPlugins
+   */
+  listTransformPlugins(
+    input: ListTransformPluginsRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ListTransformPluginsResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ListTransformPluginsResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: ListTransformPluginsResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[34]
+    return this.makeUnaryRequest<
+      ListTransformPluginsRequest,
+      ListTransformPluginsResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: ListTransformPluginsRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): ListTransformPluginsResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
+   * Apply a transform plugin to a session range. Plugins may replace content,
+   * inspect content and return derived bytes, or do both.
+   *
+   * @generated from protobuf rpc: ApplyTransformPlugin
+   */
+  applyTransformPlugin(
+    input: ApplyTransformPluginRequest,
+    metadata:
+      | grpc.Metadata
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ApplyTransformPluginResponse
+        ) => void),
+    options?:
+      | grpc.CallOptions
+      | ((
+          err: grpc.ServiceError | null,
+          value?: ApplyTransformPluginResponse
+        ) => void),
+    callback?: (
+      err: grpc.ServiceError | null,
+      value?: ApplyTransformPluginResponse
+    ) => void
+  ): grpc.ClientUnaryCall {
+    const method = EditorService.methods[35]
+    return this.makeUnaryRequest<
+      ApplyTransformPluginRequest,
+      ApplyTransformPluginResponse
+    >(
+      `/${EditorService.typeName}/${method.name}`,
+      (value: ApplyTransformPluginRequest): Buffer =>
+        Buffer.from(method.I.toBinary(value, this._binaryOptions)),
+      (value: Buffer): ApplyTransformPluginResponse =>
+        method.O.fromBinary(value, this._binaryOptions),
+      input,
+      metadata as any,
+      options as any,
+      callback as any
+    )
+  }
+  /**
    * Compute a byte-frequency histogram (256 buckets, one per byte value) over
    * a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.
    *
@@ -3109,7 +3271,7 @@ export class EditorServiceClient
       value?: GetByteFrequencyProfileResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[34]
+    const method = EditorService.methods[36]
     return this.makeUnaryRequest<
       GetByteFrequencyProfileRequest,
       GetByteFrequencyProfileResponse
@@ -3151,7 +3313,7 @@ export class EditorServiceClient
       value?: GetCharacterCountsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[35]
+    const method = EditorService.methods[37]
     return this.makeUnaryRequest<
       GetCharacterCountsRequest,
       GetCharacterCountsResponse
@@ -3196,7 +3358,7 @@ export class EditorServiceClient
       value?: ServerControlResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[36]
+    const method = EditorService.methods[38]
     return this.makeUnaryRequest<ServerControlRequest, ServerControlResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: ServerControlRequest): Buffer =>
@@ -3229,7 +3391,7 @@ export class EditorServiceClient
       value?: GetHeartbeatResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[37]
+    const method = EditorService.methods[39]
     return this.makeUnaryRequest<GetHeartbeatRequest, GetHeartbeatResponse>(
       `/${EditorService.typeName}/${method.name}`,
       (value: GetHeartbeatRequest): Buffer =>
@@ -3258,7 +3420,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToSessionEventsResponse> {
-    const method = EditorService.methods[38]
+    const method = EditorService.methods[40]
     return this.makeServerStreamRequest<
       SubscribeToSessionEventsRequest,
       SubscribeToSessionEventsResponse
@@ -3284,7 +3446,7 @@ export class EditorServiceClient
     metadata?: grpc.Metadata | grpc.CallOptions,
     options?: grpc.CallOptions
   ): grpc.ClientReadableStream<SubscribeToViewportEventsResponse> {
-    const method = EditorService.methods[39]
+    const method = EditorService.methods[41]
     return this.makeServerStreamRequest<
       SubscribeToViewportEventsRequest,
       SubscribeToViewportEventsResponse
@@ -3324,7 +3486,7 @@ export class EditorServiceClient
       value?: UnsubscribeToSessionEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[40]
+    const method = EditorService.methods[42]
     return this.makeUnaryRequest<
       UnsubscribeToSessionEventsRequest,
       UnsubscribeToSessionEventsResponse
@@ -3365,7 +3527,7 @@ export class EditorServiceClient
       value?: UnsubscribeToViewportEventsResponse
     ) => void
   ): grpc.ClientUnaryCall {
-    const method = EditorService.methods[41]
+    const method = EditorService.methods[43]
     return this.makeUnaryRequest<
       UnsubscribeToViewportEventsRequest,
       UnsubscribeToViewportEventsResponse

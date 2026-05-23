@@ -53,6 +53,8 @@ export interface HeartbeatOptions {
   logLevel?: string
   /** Compatibility shim: read native log file/level from a logback-style XML config. */
   logConfigFile?: string
+  /** Register transform plugins from these directories. */
+  transformPluginDirectories?: string[]
 }
 
 /**
@@ -212,6 +214,9 @@ function heartbeatToArgs(opts?: HeartbeatOptions): string[] {
   }
   if (opts.logLevel !== undefined) {
     args.push(`--log-level=${opts.logLevel}`)
+  }
+  for (const directory of opts.transformPluginDirectories ?? []) {
+    args.push(`--transform-plugin-dir=${directory}`)
   }
   return args
 }

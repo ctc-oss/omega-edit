@@ -223,6 +223,8 @@ namespace {
     }
 
     inline auto del_(int64_t serial, int64_t offset, int64_t length, bool transaction_bit) -> const_omega_change_ptr_t {
+        // serial == 0 is used internally while decomposing OVERWRITE into DELETE+INSERT model updates.
+        // Public delete entry points validate serial/range before creating DELETE changes.
         const auto change_ptr = std::make_shared<omega_change_t>();
         change_ptr->serial = serial;
         change_ptr->kind =
@@ -396,6 +398,37 @@ namespace {
                 return replace_bytes_impl_(session_ptr, op.offset, op.length, op.bytes, op.bytes_length);
             default:
                 return -1;
+        }
+    }
+
+    auto is_builtin_transform_kind_(omega_edit_transform_kind_t kind) -> bool {
+        switch (kind) {
+            case OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER:
+            case OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER:
+            case OMEGA_EDIT_TRANSFORM_BITWISE_AND:
+            case OMEGA_EDIT_TRANSFORM_BITWISE_OR:
+            case OMEGA_EDIT_TRANSFORM_BITWISE_XOR:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    omega_byte_t apply_builtin_transform_(omega_byte_t byte, void *user_data_ptr) {
+        const auto *const transform_ptr = reinterpret_cast<const omega_edit_transform_t *>(user_data_ptr);
+        switch (transform_ptr->kind) {
+            case OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER:
+                return (byte >= 'a' && byte <= 'z') ? static_cast<omega_byte_t>(byte - ('a' - 'A')) : byte;
+            case OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER:
+                return (byte >= 'A' && byte <= 'Z') ? static_cast<omega_byte_t>(byte + ('a' - 'A')) : byte;
+            case OMEGA_EDIT_TRANSFORM_BITWISE_AND:
+                return omega_util_mask_byte(byte, transform_ptr->operand, MASK_AND);
+            case OMEGA_EDIT_TRANSFORM_BITWISE_OR:
+                return omega_util_mask_byte(byte, transform_ptr->operand, MASK_OR);
+            case OMEGA_EDIT_TRANSFORM_BITWISE_XOR:
+                return omega_util_mask_byte(byte, transform_ptr->operand, MASK_XOR);
+            default:
+                return byte;
         }
     }
 
@@ -1568,6 +1601,12 @@ int omega_edit_apply_script(omega_session_t *session_ptr, const omega_edit_scrip
 
     restore_viewport_callbacks_(session_ptr, callbacks_were_paused, changed);
     return rc;
+}
+
+int omega_edit_apply_builtin_transform(omega_session_t *session_ptr, omega_edit_transform_t transform, int64_t offset,
+                                       int64_t length) {
+    if (!is_builtin_transform_kind_(transform.kind)) { return -1; }
+    return omega_edit_apply_transform(session_ptr, apply_builtin_transform_, &transform, offset, length);
 }
 
 int omega_edit_apply_transform(omega_session_t *session_ptr, omega_util_byte_transform_t transform, void *user_data_ptr,

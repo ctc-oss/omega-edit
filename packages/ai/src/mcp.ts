@@ -380,6 +380,45 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
+      name: 'omega_edit_list_transform_plugins',
+      description:
+        'List transform plugins registered with the OmegaEdit server.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      run: async () => {
+        return {
+          plugins: await toolkit.listTransformPlugins(),
+        }
+      },
+    },
+    {
+      name: 'omega_edit_apply_transform_plugin',
+      description:
+        'Apply a registered transform plugin to a session range and return replacement/inspection metadata.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          pluginId: { type: 'string' },
+          offset: { type: 'integer' },
+          length: { type: 'integer' },
+          optionsJson: { type: 'string' },
+        },
+        required: ['sessionId', 'pluginId'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.applyTransformPlugin({
+          sessionId: getString(argumentsObject, 'sessionId', true)!,
+          pluginId: getString(argumentsObject, 'pluginId', true)!,
+          offset: getNumber(argumentsObject, 'offset', false, 0),
+          length: getNumber(argumentsObject, 'length', false, 0),
+          optionsJson: getString(argumentsObject, 'optionsJson'),
+        })
+      },
+    },
+    {
       name: 'omega_edit_preview_patch',
       description:
         'Preview an insert, overwrite, delete, or replace operation before applying it.',

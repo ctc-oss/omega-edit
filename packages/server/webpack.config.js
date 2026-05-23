@@ -30,14 +30,14 @@ const serverBinaryName = isWin
 // Look for the C++ server binary in several possible locations
 function findServerBinary() {
   const searchPaths = [
+    // Environment variable override
+    process.env.CPP_SERVER_BINARY || '',
     path.resolve('../../server/cpp/build', serverBinaryName),
     path.resolve('../../server/cpp/build/Release', serverBinaryName),
     path.resolve('../../server/cpp/build/Debug', serverBinaryName),
     path.resolve('../../_build/server/cpp', serverBinaryName),
     path.resolve('../../build/server/cpp', serverBinaryName),
     path.resolve('../../build/server/cpp/Release', serverBinaryName),
-    // Environment variable override
-    process.env.CPP_SERVER_BINARY || '',
   ].filter(Boolean)
 
   for (const p of searchPaths) {

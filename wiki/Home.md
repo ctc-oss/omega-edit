@@ -210,6 +210,10 @@ npx oe patch --session <session-id> --offset 8 --hex 0000000d
 
 This AI tooling is a distinguishing feature of Ωedit™: it exposes the editing engine as stable, machine-readable tools instead of forcing agents to rely on terminal scraping, ad hoc Python, or whole-file rewrites. The implementation lives in `packages/ai/`, and the end-to-end tests are in `packages/ai/tests/specs/toolkit.spec.ts` and `packages/ai/tests/specs/mcp.spec.ts`.
 
+## Transform Plugins
+
+OmegaEdit can load native `.so`, `.dylib`, and `.dll` transform plugins from registered plugin directories. Plugins can replace a selected byte range, expand or shrink content, or inspect a range and return results such as checksums and hashes. The shipped examples include one-for-one transforms, base64 encode/decode, zlib stored-block compress/decompress, expansion/shrink behavior, and inspect-only results. See [Transform Plugins](Transform-Plugins) for the ABI, SDK helpers, plugin directory layout, server registration options, and exemplar plugins.
+
 ## Comparison with Other Editing Engines
 
 Most text and binary editors use one of a small number of well-known buffer data structures. The table below compares the most common approaches with Ωedit™'s segment-based change-tracking model. `vi` / Vim is included as a familiar reference point, though it is primarily an end-user editor rather than an embeddable editing engine.
