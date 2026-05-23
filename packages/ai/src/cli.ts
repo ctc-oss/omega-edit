@@ -38,6 +38,8 @@ function usage(): string {
     '  search --session <id> (--text <value> | --hex <value> | --base64 <value>) [--limit <n>]',
     '  patch --session <id> --offset <n> [--operation <insert|overwrite|delete|replace>]',
     '        [--text <value> | --hex <value> | --base64 <value>] [--delete-length <n>] [--dry-run]',
+    '  list-transform-plugins',
+    '  apply-transform-plugin --session <id> --plugin <id> [--offset <n>] [--length <n>] [--options-json <json>]',
     '  undo --session <id>',
     '  redo --session <id>',
     '  save-session --session <id> --output <path> [--overwrite]',
@@ -351,6 +353,49 @@ async function runCommand(
           64
         ),
         dryRun: Boolean(parsed.values['dry-run']),
+      })
+    }
+    case 'list-transform-plugins': {
+      const parsed = parseArgs({
+        args,
+        options: commonOptions,
+        allowPositionals: false,
+      })
+      return { plugins: await getToolkit(parsed.values).listTransformPlugins() }
+    }
+    case 'apply-transform-plugin': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          plugin: { type: 'string' as const },
+          offset: { type: 'string' as const },
+          length: { type: 'string' as const },
+          'options-json': { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).applyTransformPlugin({
+        sessionId: requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        pluginId: requireStringOption(
+          parsed.values.plugin as string | undefined,
+          'plugin'
+        ),
+        offset: parseIntegerOption(
+          parsed.values.offset as string | undefined,
+          'offset',
+          0
+        ),
+        length: parseIntegerOption(
+          parsed.values.length as string | undefined,
+          'length',
+          0
+        ),
+        optionsJson: parsed.values['options-json'] as string | undefined,
       })
     }
     case 'undo': {

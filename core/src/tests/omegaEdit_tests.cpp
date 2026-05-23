@@ -109,6 +109,153 @@ TEST_CASE("Apply Script", "[EditScript]") {
     omega_edit_destroy_session(session_ptr);
 }
 
+TEST_CASE("Apply Builtin Transform", "[EditTransform]") {
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "Abc xyz 09!"));
+
+    const omega_edit_transform_t lower_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_LOWER, 0};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, lower_transform, 0, 3));
+    REQUIRE("abc xyz 09!" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const omega_edit_transform_t upper_transform{OMEGA_EDIT_TRANSFORM_ASCII_TO_UPPER, 0};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, upper_transform, 4, 3));
+    REQUIRE("abc XYZ 09!" ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const omega_edit_transform_t invalid_transform{static_cast<omega_edit_transform_kind_t>(999), 0};
+    REQUIRE(-1 == omega_edit_apply_builtin_transform(session_ptr, invalid_transform, 0, 0));
+    REQUIRE(-1 == omega_edit_apply_builtin_transform(nullptr, upper_transform, 0, 0));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Apply Builtin Bitwise Transform", "[EditTransform]") {
+    const omega_byte_t input[] = {0x0F, 0xF0, 0x55};
+    const auto session_ptr =
+            omega_edit_create_session_from_bytes(input, static_cast<int64_t>(sizeof(input)), nullptr, nullptr,
+                                                 NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+
+    const omega_edit_transform_t xor_transform{OMEGA_EDIT_TRANSFORM_BITWISE_XOR, 0xFF};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, xor_transform, 0, 2));
+    REQUIRE(std::string({static_cast<char>(0xF0), static_cast<char>(0x0F), static_cast<char>(0x55)}) ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const omega_edit_transform_t and_transform{OMEGA_EDIT_TRANSFORM_BITWISE_AND, 0x0F};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, and_transform, 0, 0));
+    REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0x0F), static_cast<char>(0x05)}) ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    const omega_edit_transform_t or_transform{OMEGA_EDIT_TRANSFORM_BITWISE_OR, 0xA0};
+    REQUIRE(0 == omega_edit_apply_builtin_transform(session_ptr, or_transform, 1, 2));
+    REQUIRE(std::string({static_cast<char>(0x00), static_cast<char>(0xAF), static_cast<char>(0xA5)}) ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+
+    omega_edit_destroy_session(session_ptr);
+}
+
+TEST_CASE("Transform Plugin Registry", "[EditTransform][Plugin]") {
+    const auto registry_ptr = omega_transform_plugin_registry_create();
+    REQUIRE(registry_ptr);
+    REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
+    REQUIRE(8 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_decode"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_encode"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.fnv1a64"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_decompress"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor_ff"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.checksum8"));
+
+    const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(session_ptr, 0, "ABCD"));
+
+    omega_transform_plugin_response_t response{};
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.repeat", session_ptr,
+                                                                  1, 2, nullptr, &response));
+    REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
+                                                         omega_session_get_computed_file_size(session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.checksum8", session_ptr,
+                                                                  0, 0, nullptr, &response));
+    REQUIRE(4 == response.result_length);
+    REQUIRE("0x8F" == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                  static_cast<size_t>(response.result_length)));
+    REQUIRE("checksum8" == std::string(response.result_label));
+    REQUIRE("ABCBCD" == omega_session_get_segment_string(session_ptr, 0,
+                                                         omega_session_get_computed_file_size(session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.xor_ff", session_ptr,
+                                                                  0, 1, nullptr, &response));
+    REQUIRE(std::string({static_cast<char>(0xBE), 'B', 'C', 'B', 'C', 'D'}) ==
+            omega_session_get_segment_string(session_ptr, 0, omega_session_get_computed_file_size(session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+
+    const auto codec_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(codec_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(codec_session_ptr, 0, "hello"));
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_encode",
+                                                                  codec_session_ptr, 0, 5, nullptr, &response));
+    REQUIRE("aGVsbG8=" == omega_session_get_segment_string(codec_session_ptr, 0,
+                                                          omega_session_get_computed_file_size(codec_session_ptr)));
+    REQUIRE(8 == response.replacement_length);
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_decode",
+                                                                  codec_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE("hello" == omega_session_get_segment_string(codec_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(codec_session_ptr)));
+    REQUIRE(5 == response.replacement_length);
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.fnv1a64",
+                                                                  codec_session_ptr, 0, 5, nullptr, &response));
+    REQUIRE(18 == response.result_length);
+    REQUIRE("0xA430D84680AABD0B" == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                               static_cast<size_t>(response.result_length)));
+    REQUIRE("fnv1a64" == std::string(response.result_label));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
+                                                                  codec_session_ptr, 0, 5, nullptr, &response));
+    REQUIRE(16 == response.replacement_length);
+    {
+        const auto compressed = omega_session_get_segment_string(codec_session_ptr, 0,
+                                                                omega_session_get_computed_file_size(codec_session_ptr));
+        REQUIRE(16 == compressed.size());
+        REQUIRE(static_cast<char>(0x78) == compressed[0]);
+        REQUIRE(static_cast<char>(0x01) == compressed[1]);
+    }
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_decompress",
+                                                                  codec_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE("hello" == omega_session_get_segment_string(codec_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(codec_session_ptr)));
+    REQUIRE(5 == response.replacement_length);
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 < omega_edit_insert_string(codec_session_ptr, omega_session_get_computed_file_size(codec_session_ptr),
+                                         "!"));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_decode",
+                                                                   codec_session_ptr, 0, 0, nullptr, &response));
+    omega_edit_destroy_session(codec_session_ptr);
+
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.missing", session_ptr,
+                                                                   0, 0, nullptr, nullptr));
+
+    omega_edit_destroy_session(session_ptr);
+    omega_transform_plugin_registry_destroy(registry_ptr);
+}
+
 TEST_CASE("Model Tests", "[ModelTests]") {
     file_info_t file_info;
     file_info.num_changes = 0;

@@ -23,6 +23,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <sstream>
@@ -75,6 +76,15 @@ struct process_memory_metrics {
     std::optional<int64_t> resident_memory_bytes;
     std::optional<int64_t> virtual_memory_bytes;
     std::optional<int64_t> peak_resident_memory_bytes;
+};
+
+struct transform_plugin_response_guard {
+    omega_transform_plugin_response_t response{};
+
+    transform_plugin_response_guard() = default;
+    transform_plugin_response_guard(const transform_plugin_response_guard &) = delete;
+    auto operator=(const transform_plugin_response_guard &) -> transform_plugin_response_guard & = delete;
+    ~transform_plugin_response_guard() { omega_transform_plugin_response_clear(&response); }
 };
 
 static const std::string &get_runtime_kind() {
@@ -308,6 +318,33 @@ static grpc::Status validate_replace_payload_sizes(const std::string &pattern, c
     return grpc::Status::OK;
 }
 
+static ::omega_edit::v1::TransformPluginOperation to_proto_transform_plugin_operation(
+        omega_transform_plugin_operation_t operation) {
+    switch (operation) {
+        case OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE:
+            return ::omega_edit::v1::TRANSFORM_PLUGIN_OPERATION_REPLACE;
+        case OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT:
+            return ::omega_edit::v1::TRANSFORM_PLUGIN_OPERATION_INSPECT;
+        case OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT:
+            return ::omega_edit::v1::TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT;
+        default:
+            return ::omega_edit::v1::TRANSFORM_PLUGIN_OPERATION_UNSPECIFIED;
+    }
+}
+
+static void fill_transform_plugin_info(const omega_transform_plugin_info_t *info,
+                                       ::omega_edit::v1::TransformPluginInfo *response) {
+    if (!info || !response) {
+        return;
+    }
+    response->set_id(info->id ? info->id : "");
+    response->set_name(info->name ? info->name : "");
+    response->set_description(info->description ? info->description : "");
+    response->set_operation(to_proto_transform_plugin_operation(info->operation));
+    response->set_flags(info->flags);
+    response->set_abi_version(info->abi_version);
+}
+
 static grpc::Status validate_viewport_range(int64_t offset, int64_t capacity) {
     if (offset < 0 || capacity <= 0) {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
@@ -322,12 +359,28 @@ static grpc::Status validate_viewport_range(int64_t offset, int64_t capacity) {
 }
 
 EditorServiceImpl::EditorServiceImpl(HeartbeatConfig heartbeat_config, ResourceLimits resource_limits,
-                                     std::function<void()> shutdown_callback)
-    : session_manager_(resource_limits), start_time_(std::chrono::steady_clock::now()),
-      heartbeat_config_(heartbeat_config), resource_limits_(resource_limits),
-      shutdown_callback_(std::move(shutdown_callback)),
+                                     std::function<void()> shutdown_callback,
+                                     std::vector<std::string> transform_plugin_directories)
+    : session_manager_(resource_limits),
       content_type_detector_(create_default_content_type_detector()),
-      language_detector_(create_default_language_detector()) {
+      language_detector_(create_default_language_detector()),
+      transform_plugin_registry_(omega_transform_plugin_registry_create()),
+      start_time_(std::chrono::steady_clock::now()),
+      heartbeat_config_(heartbeat_config), resource_limits_(resource_limits),
+      shutdown_callback_(std::move(shutdown_callback)) {
+    for (const auto &plugin_directory: transform_plugin_directories) {
+        if (plugin_directory.empty()) {
+            continue;
+        }
+        const auto loaded_count = omega_transform_plugin_registry_register_directory(
+                transform_plugin_registry_, plugin_directory.c_str());
+        if (loaded_count < 0) {
+            std::cerr << "Warning: could not register transform plugin directory: " << plugin_directory << "\n";
+        } else {
+            std::cerr << "Registered " << loaded_count << " transform plugin(s) from " << plugin_directory << "\n";
+        }
+    }
+
     if (heartbeat_config_.session_timeout.count() > 0 && heartbeat_config_.cleanup_interval.count() > 0) {
         reaper_thread_ = std::thread(&EditorServiceImpl::reaper_loop, this);
     }
@@ -343,6 +396,8 @@ EditorServiceImpl::~EditorServiceImpl() {
         reaper_thread_.join();
     }
     session_manager_.destroy_all();
+    omega_transform_plugin_registry_destroy(transform_plugin_registry_);
+    transform_plugin_registry_ = nullptr;
 }
 
 void EditorServiceImpl::reaper_loop() {
@@ -1477,6 +1532,101 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
 
     response->set_session_id(request->session_id());
     response->set_remaining_checkpoints(omega_session_get_num_checkpoints(session));
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::ListTransformPlugins(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::ListTransformPluginsRequest * /*request*/,
+        ::omega_edit::v1::ListTransformPluginsResponse *response) {
+    std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+    const auto count = omega_transform_plugin_registry_get_count(transform_plugin_registry_);
+    for (int64_t i = 0; i < count; ++i) {
+        fill_transform_plugin_info(omega_transform_plugin_registry_get_info(transform_plugin_registry_, i),
+                                   response->add_plugins());
+    }
+    return grpc::Status::OK;
+}
+
+grpc::Status EditorServiceImpl::ApplyTransformPlugin(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::ApplyTransformPluginRequest *request,
+        ::omega_edit::v1::ApplyTransformPluginResponse *response) {
+    if (request->plugin_id().empty()) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "plugin_id is required");
+    }
+
+    const int64_t offset = request->has_offset() ? request->offset() : 0;
+    const int64_t length = request->has_length() ? request->length() : 0;
+    if (offset < 0 || length < 0) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "transform offset and length must be non-negative");
+    }
+
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
+    const auto file_size_before = omega_session_get_computed_file_size(session);
+    if (file_size_before < 0 || offset > file_size_before) {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "transform range offset is outside the session");
+    }
+    const auto remaining = file_size_before - offset;
+    const auto effective_length = (length == 0 || length > remaining) ? remaining : length;
+
+    omega_transform_plugin_operation_t operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
+    transform_plugin_response_guard plugin_response;
+    {
+        // Serializes registry/plugin-library access while the session lock above serializes
+        // access to the non-thread-safe omega_session_t.
+        std::lock_guard<std::mutex> plugin_lock(transform_plugin_mutex_);
+        const auto *plugin_info = omega_transform_plugin_registry_find_info(transform_plugin_registry_,
+                                                                           request->plugin_id().c_str());
+        if (!plugin_info) {
+            return grpc::Status(grpc::StatusCode::NOT_FOUND,
+                                "transform plugin not found: " + request->plugin_id());
+        }
+
+        operation = plugin_info->operation;
+        const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
+        if (0 != omega_transform_plugin_registry_apply_to_session(transform_plugin_registry_,
+                                                                  request->plugin_id().c_str(), session,
+                                                                  offset, length, options_json,
+                                                                  &plugin_response.response)) {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                                "transform plugin failed: " + request->plugin_id());
+        }
+    }
+
+    if (plugin_response.response.result_length < 0 ||
+        (plugin_response.response.result_length > 0 && plugin_response.response.result_bytes == nullptr)) {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            "transform plugin returned an invalid inspection result");
+    }
+
+    const bool operation_replaces = operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
+                                    operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT;
+    response->set_session_id(request->session_id());
+    response->set_plugin_id(request->plugin_id());
+    response->set_offset(offset);
+    response->set_length(effective_length);
+    response->set_operation(to_proto_transform_plugin_operation(operation));
+    response->set_content_changed(operation_replaces &&
+                                  (effective_length > 0 || plugin_response.response.replacement_length > 0));
+    response->set_computed_file_size(omega_session_get_computed_file_size(session));
+    response->set_replacement_length(plugin_response.response.replacement_length);
+    if (plugin_response.response.result_label) {
+        response->set_result_label(plugin_response.response.result_label);
+    }
+    if (plugin_response.response.result_mime_type) {
+        response->set_result_mime_type(plugin_response.response.result_mime_type);
+    }
+    if (plugin_response.response.result_length > 0) {
+        response->set_result(reinterpret_cast<const char *>(plugin_response.response.result_bytes),
+                             static_cast<size_t>(plugin_response.response.result_length));
+    }
     return grpc::Status::OK;
 }
 

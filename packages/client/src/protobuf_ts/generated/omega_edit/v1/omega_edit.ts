@@ -1487,6 +1487,132 @@ export interface DestroyLastCheckpointResponse {
   remainingCheckpoints: number // Remaining checkpoint count after revert.
 }
 /**
+ * Metadata advertised by a registered transform plugin.
+ *
+ * @generated from protobuf message omega_edit.v1.TransformPluginInfo
+ */
+export interface TransformPluginInfo {
+  /**
+   * @generated from protobuf field: string id = 1
+   */
+  id: string
+  /**
+   * @generated from protobuf field: string name = 2
+   */
+  name: string
+  /**
+   * @generated from protobuf field: string description = 3
+   */
+  description: string
+  /**
+   * @generated from protobuf field: omega_edit.v1.TransformPluginOperation operation = 4
+   */
+  operation: TransformPluginOperation
+  /**
+   * @generated from protobuf field: uint32 flags = 5
+   */
+  flags: number
+  /**
+   * @generated from protobuf field: uint32 abi_version = 6
+   */
+  abiVersion: number
+}
+/**
+ * Request registered transform plugin metadata.
+ *
+ * @generated from protobuf message omega_edit.v1.ListTransformPluginsRequest
+ */
+export interface ListTransformPluginsRequest {}
+/**
+ * Registered transform plugin metadata.
+ *
+ * @generated from protobuf message omega_edit.v1.ListTransformPluginsResponse
+ */
+export interface ListTransformPluginsResponse {
+  /**
+   * @generated from protobuf field: repeated omega_edit.v1.TransformPluginInfo plugins = 1
+   */
+  plugins: TransformPluginInfo[]
+}
+/**
+ * Request applying a transform plugin to a session range.
+ *
+ * @generated from protobuf message omega_edit.v1.ApplyTransformPluginRequest
+ */
+export interface ApplyTransformPluginRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to transform.
+  /**
+   * @generated from protobuf field: string plugin_id = 2
+   */
+  pluginId: string // Registered plugin identifier.
+  /**
+   * @generated from protobuf field: optional int64 offset = 3
+   */
+  offset?: number // Starting byte offset (default: 0).
+  /**
+   * @generated from protobuf field: optional int64 length = 4
+   */
+  length?: number // Number of bytes to transform (0/default = through EOF).
+  /**
+   * @generated from protobuf field: optional string options_json = 5
+   */
+  optionsJson?: string // Plugin-specific options.
+}
+/**
+ * Result of applying a transform plugin.
+ *
+ * @generated from protobuf message omega_edit.v1.ApplyTransformPluginResponse
+ */
+export interface ApplyTransformPluginResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was transformed.
+  /**
+   * @generated from protobuf field: string plugin_id = 2
+   */
+  pluginId: string // Plugin that was applied.
+  /**
+   * @generated from protobuf field: int64 offset = 3
+   */
+  offset: number // Starting offset of the processed range.
+  /**
+   * @generated from protobuf field: int64 length = 4
+   */
+  length: number // Length of the processed range.
+  /**
+   * @generated from protobuf field: omega_edit.v1.TransformPluginOperation operation = 5
+   */
+  operation: TransformPluginOperation // Plugin operation mode.
+  /**
+   * @generated from protobuf field: bool content_changed = 6
+   */
+  contentChanged: boolean // True when the plugin replaced content.
+  /**
+   * @generated from protobuf field: int64 computed_file_size = 7
+   */
+  computedFileSize: number // Session size after the transform.
+  /**
+   * @generated from protobuf field: int64 replacement_length = 8
+   */
+  replacementLength: number // Replacement bytes produced by the plugin.
+  /**
+   * @generated from protobuf field: optional string result_label = 9
+   */
+  resultLabel?: string // Plugin-provided result label.
+  /**
+   * @generated from protobuf field: optional string result_mime_type = 10
+   */
+  resultMimeType?: string // Plugin-provided result MIME type.
+  /**
+   * @generated from protobuf field: bytes result = 11
+   */
+  result: Uint8Array // Plugin-provided inspection bytes.
+}
+/**
  * Request to compute a byte-frequency histogram.
  *
  * @generated from protobuf message omega_edit.v1.GetByteFrequencyProfileRequest
@@ -2066,6 +2192,29 @@ export enum ServerControlStatus {
    * @generated from protobuf enum value: SERVER_CONTROL_STATUS_DRAINING = 2;
    */
   DRAINING = 2,
+}
+/**
+ * Transform plugin operation mode.
+ *
+ * @generated from protobuf enum omega_edit.v1.TransformPluginOperation
+ */
+export enum TransformPluginOperation {
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_OPERATION_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_OPERATION_REPLACE = 1;
+   */
+  REPLACE = 1,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_OPERATION_INSPECT = 2;
+   */
+  INSPECT = 2,
+  /**
+   * @generated from protobuf enum value: TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT = 3;
+   */
+  REPLACE_AND_INSPECT = 3,
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class GetServerInfoRequest$Type extends MessageType<GetServerInfoRequest> {
@@ -9251,6 +9400,606 @@ class DestroyLastCheckpointResponse$Type extends MessageType<DestroyLastCheckpoi
 export const DestroyLastCheckpointResponse =
   new DestroyLastCheckpointResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
+  constructor() {
+    super('omega_edit.v1.TransformPluginInfo', [
+      { no: 1, name: 'id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'name', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'description',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 4,
+        name: 'operation',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.TransformPluginOperation',
+          TransformPluginOperation,
+          'TRANSFORM_PLUGIN_OPERATION_',
+        ],
+      },
+      { no: 5, name: 'flags', kind: 'scalar', T: 13 /*ScalarType.UINT32*/ },
+      {
+        no: 6,
+        name: 'abi_version',
+        kind: 'scalar',
+        T: 13 /*ScalarType.UINT32*/,
+      },
+    ])
+  }
+  create(value?: PartialMessage<TransformPluginInfo>): TransformPluginInfo {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.id = ''
+    message.name = ''
+    message.description = ''
+    message.operation = 0
+    message.flags = 0
+    message.abiVersion = 0
+    if (value !== undefined)
+      reflectionMergePartial<TransformPluginInfo>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: TransformPluginInfo
+  ): TransformPluginInfo {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string id */ 1:
+          message.id = reader.string()
+          break
+        case /* string name */ 2:
+          message.name = reader.string()
+          break
+        case /* string description */ 3:
+          message.description = reader.string()
+          break
+        case /* omega_edit.v1.TransformPluginOperation operation */ 4:
+          message.operation = reader.int32()
+          break
+        case /* uint32 flags */ 5:
+          message.flags = reader.uint32()
+          break
+        case /* uint32 abi_version */ 6:
+          message.abiVersion = reader.uint32()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: TransformPluginInfo,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string id = 1; */
+    if (message.id !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.id)
+    /* string name = 2; */
+    if (message.name !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.name)
+    /* string description = 3; */
+    if (message.description !== '')
+      writer.tag(3, WireType.LengthDelimited).string(message.description)
+    /* omega_edit.v1.TransformPluginOperation operation = 4; */
+    if (message.operation !== 0)
+      writer.tag(4, WireType.Varint).int32(message.operation)
+    /* uint32 flags = 5; */
+    if (message.flags !== 0)
+      writer.tag(5, WireType.Varint).uint32(message.flags)
+    /* uint32 abi_version = 6; */
+    if (message.abiVersion !== 0)
+      writer.tag(6, WireType.Varint).uint32(message.abiVersion)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.TransformPluginInfo
+ */
+export const TransformPluginInfo = new TransformPluginInfo$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTransformPluginsRequest$Type extends MessageType<ListTransformPluginsRequest> {
+  constructor() {
+    super('omega_edit.v1.ListTransformPluginsRequest', [])
+  }
+  create(
+    value?: PartialMessage<ListTransformPluginsRequest>
+  ): ListTransformPluginsRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    if (value !== undefined)
+      reflectionMergePartial<ListTransformPluginsRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ListTransformPluginsRequest
+  ): ListTransformPluginsRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ListTransformPluginsRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ListTransformPluginsRequest
+ */
+export const ListTransformPluginsRequest =
+  new ListTransformPluginsRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ListTransformPluginsResponse$Type extends MessageType<ListTransformPluginsResponse> {
+  constructor() {
+    super('omega_edit.v1.ListTransformPluginsResponse', [
+      {
+        no: 1,
+        name: 'plugins',
+        kind: 'message',
+        repeat: 2 /*RepeatType.UNPACKED*/,
+        T: () => TransformPluginInfo,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ListTransformPluginsResponse>
+  ): ListTransformPluginsResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.plugins = []
+    if (value !== undefined)
+      reflectionMergePartial<ListTransformPluginsResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ListTransformPluginsResponse
+  ): ListTransformPluginsResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* repeated omega_edit.v1.TransformPluginInfo plugins */ 1:
+          message.plugins.push(
+            TransformPluginInfo.internalBinaryRead(
+              reader,
+              reader.uint32(),
+              options
+            )
+          )
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ListTransformPluginsResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* repeated omega_edit.v1.TransformPluginInfo plugins = 1; */
+    for (let i = 0; i < message.plugins.length; i++)
+      TransformPluginInfo.internalBinaryWrite(
+        message.plugins[i],
+        writer.tag(1, WireType.LengthDelimited).fork(),
+        options
+      ).join()
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ListTransformPluginsResponse
+ */
+export const ListTransformPluginsResponse =
+  new ListTransformPluginsResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ApplyTransformPluginRequest$Type extends MessageType<ApplyTransformPluginRequest> {
+  constructor() {
+    super('omega_edit.v1.ApplyTransformPluginRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'plugin_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'offset',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'length',
+        kind: 'scalar',
+        opt: true,
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'options_json',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<ApplyTransformPluginRequest>
+  ): ApplyTransformPluginRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pluginId = ''
+    if (value !== undefined)
+      reflectionMergePartial<ApplyTransformPluginRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ApplyTransformPluginRequest
+  ): ApplyTransformPluginRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* string plugin_id */ 2:
+          message.pluginId = reader.string()
+          break
+        case /* optional int64 offset */ 3:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* optional int64 length */ 4:
+          message.length = reader.int64().toNumber()
+          break
+        case /* optional string options_json */ 5:
+          message.optionsJson = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ApplyTransformPluginRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* string plugin_id = 2; */
+    if (message.pluginId !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.pluginId)
+    /* optional int64 offset = 3; */
+    if (message.offset !== undefined)
+      writer.tag(3, WireType.Varint).int64(message.offset)
+    /* optional int64 length = 4; */
+    if (message.length !== undefined)
+      writer.tag(4, WireType.Varint).int64(message.length)
+    /* optional string options_json = 5; */
+    if (message.optionsJson !== undefined)
+      writer.tag(5, WireType.LengthDelimited).string(message.optionsJson)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ApplyTransformPluginRequest
+ */
+export const ApplyTransformPluginRequest =
+  new ApplyTransformPluginRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class ApplyTransformPluginResponse$Type extends MessageType<ApplyTransformPluginResponse> {
+  constructor() {
+    super('omega_edit.v1.ApplyTransformPluginResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 2, name: 'plugin_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 3,
+        name: 'offset',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 4,
+        name: 'length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 5,
+        name: 'operation',
+        kind: 'enum',
+        T: () => [
+          'omega_edit.v1.TransformPluginOperation',
+          TransformPluginOperation,
+          'TRANSFORM_PLUGIN_OPERATION_',
+        ],
+      },
+      {
+        no: 6,
+        name: 'content_changed',
+        kind: 'scalar',
+        T: 8 /*ScalarType.BOOL*/,
+      },
+      {
+        no: 7,
+        name: 'computed_file_size',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 8,
+        name: 'replacement_length',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+      {
+        no: 9,
+        name: 'result_label',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 10,
+        name: 'result_mime_type',
+        kind: 'scalar',
+        opt: true,
+        T: 9 /*ScalarType.STRING*/,
+      },
+      { no: 11, name: 'result', kind: 'scalar', T: 12 /*ScalarType.BYTES*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<ApplyTransformPluginResponse>
+  ): ApplyTransformPluginResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.pluginId = ''
+    message.offset = 0
+    message.length = 0
+    message.operation = 0
+    message.contentChanged = false
+    message.computedFileSize = 0
+    message.replacementLength = 0
+    message.result = new Uint8Array(0)
+    if (value !== undefined)
+      reflectionMergePartial<ApplyTransformPluginResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: ApplyTransformPluginResponse
+  ): ApplyTransformPluginResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* string plugin_id */ 2:
+          message.pluginId = reader.string()
+          break
+        case /* int64 offset */ 3:
+          message.offset = reader.int64().toNumber()
+          break
+        case /* int64 length */ 4:
+          message.length = reader.int64().toNumber()
+          break
+        case /* omega_edit.v1.TransformPluginOperation operation */ 5:
+          message.operation = reader.int32()
+          break
+        case /* bool content_changed */ 6:
+          message.contentChanged = reader.bool()
+          break
+        case /* int64 computed_file_size */ 7:
+          message.computedFileSize = reader.int64().toNumber()
+          break
+        case /* int64 replacement_length */ 8:
+          message.replacementLength = reader.int64().toNumber()
+          break
+        case /* optional string result_label */ 9:
+          message.resultLabel = reader.string()
+          break
+        case /* optional string result_mime_type */ 10:
+          message.resultMimeType = reader.string()
+          break
+        case /* bytes result */ 11:
+          message.result = reader.bytes()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: ApplyTransformPluginResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* string plugin_id = 2; */
+    if (message.pluginId !== '')
+      writer.tag(2, WireType.LengthDelimited).string(message.pluginId)
+    /* int64 offset = 3; */
+    if (message.offset !== 0)
+      writer.tag(3, WireType.Varint).int64(message.offset)
+    /* int64 length = 4; */
+    if (message.length !== 0)
+      writer.tag(4, WireType.Varint).int64(message.length)
+    /* omega_edit.v1.TransformPluginOperation operation = 5; */
+    if (message.operation !== 0)
+      writer.tag(5, WireType.Varint).int32(message.operation)
+    /* bool content_changed = 6; */
+    if (message.contentChanged !== false)
+      writer.tag(6, WireType.Varint).bool(message.contentChanged)
+    /* int64 computed_file_size = 7; */
+    if (message.computedFileSize !== 0)
+      writer.tag(7, WireType.Varint).int64(message.computedFileSize)
+    /* int64 replacement_length = 8; */
+    if (message.replacementLength !== 0)
+      writer.tag(8, WireType.Varint).int64(message.replacementLength)
+    /* optional string result_label = 9; */
+    if (message.resultLabel !== undefined)
+      writer.tag(9, WireType.LengthDelimited).string(message.resultLabel)
+    /* optional string result_mime_type = 10; */
+    if (message.resultMimeType !== undefined)
+      writer.tag(10, WireType.LengthDelimited).string(message.resultMimeType)
+    /* bytes result = 11; */
+    if (message.result.length)
+      writer.tag(11, WireType.LengthDelimited).bytes(message.result)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.ApplyTransformPluginResponse
+ */
+export const ApplyTransformPluginResponse =
+  new ApplyTransformPluginResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class GetByteFrequencyProfileRequest$Type extends MessageType<GetByteFrequencyProfileRequest> {
   constructor() {
     super('omega_edit.v1.GetByteFrequencyProfileRequest', [
@@ -10782,6 +11531,18 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: DestroyLastCheckpointRequest,
     O: DestroyLastCheckpointResponse,
+  },
+  {
+    name: 'ListTransformPlugins',
+    options: {},
+    I: ListTransformPluginsRequest,
+    O: ListTransformPluginsResponse,
+  },
+  {
+    name: 'ApplyTransformPlugin',
+    options: {},
+    I: ApplyTransformPluginRequest,
+    O: ApplyTransformPluginResponse,
   },
   {
     name: 'GetByteFrequencyProfile',

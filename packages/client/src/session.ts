@@ -18,11 +18,15 @@
  */
 
 import {
+  TransformPluginOperation as RawProtoTransformPluginOperation,
   IOFlags as ProtoIOFlags,
   SessionEventKind as RawProtoSessionEventKind,
   ViewportEventKind as RawProtoViewportEventKind,
+  type ApplyTransformPluginResponse as RawApplyTransformPluginResponse,
+  type TransformPluginInfo as RawTransformPluginInfo,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
 import {
+  applyTransformPlugin as rawApplyTransformPlugin,
   beginSessionTransaction as rawBeginSessionTransaction,
   countCharacters as rawCountCharacters,
   createSession as rawCreateSession,
@@ -35,6 +39,7 @@ import {
   getLanguage as rawGetLanguage,
   getSegment as rawGetSegment,
   getSessionCount as rawGetSessionCount,
+  listTransformPlugins as rawListTransformPlugins,
   notifyChangedViewports as rawNotifyChangedViewports,
   pauseSessionChanges as rawPauseSessionChanges,
   profileSession as rawProfileSession,
@@ -115,6 +120,18 @@ export const ViewportEventKind = {
 } as const
 export type ViewportEventKind =
   (typeof ViewportEventKind)[keyof typeof ViewportEventKind]
+
+export const TransformPluginOperation = {
+  UNSPECIFIED: RawProtoTransformPluginOperation.UNSPECIFIED,
+  REPLACE: RawProtoTransformPluginOperation.REPLACE,
+  INSPECT: RawProtoTransformPluginOperation.INSPECT,
+  REPLACE_AND_INSPECT: RawProtoTransformPluginOperation.REPLACE_AND_INSPECT,
+} as const
+export type TransformPluginOperation =
+  (typeof TransformPluginOperation)[keyof typeof TransformPluginOperation]
+
+export type TransformPluginInfo = RawTransformPluginInfo
+export type ApplyTransformPluginResponse = RawApplyTransformPluginResponse
 
 export const PROFILE_DOS_EOL = 256
 
@@ -298,6 +315,39 @@ export function notifyChangedViewports(session_id: string): Promise<number> {
   return rawNotifyChangedViewports(session_id).then((count) =>
     requireSafeIntegerOutput('changed viewport count', count)
   )
+}
+
+export function listTransformPlugins(): Promise<TransformPluginInfo[]> {
+  return rawListTransformPlugins()
+}
+
+export async function applyTransformPlugin(
+  session_id: string,
+  plugin_id: string,
+  offset: number = 0,
+  length: number = 0,
+  options_json?: string
+): Promise<ApplyTransformPluginResponse> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawApplyTransformPlugin(
+      session_id,
+      plugin_id,
+      requireSafeIntegerInput('applyTransformPlugin offset', offset),
+      requireSafeIntegerInput('applyTransformPlugin length', length),
+      options_json
+    )
+    requireSafeIntegerOutput('applyTransformPlugin offset', response.offset)
+    requireSafeIntegerOutput('applyTransformPlugin length', response.length)
+    requireSafeIntegerOutput(
+      'applyTransformPlugin computed file size',
+      response.computedFileSize
+    )
+    requireSafeIntegerOutput(
+      'applyTransformPlugin replacement length',
+      response.replacementLength
+    )
+    return response
+  })
 }
 
 export function profileSession(

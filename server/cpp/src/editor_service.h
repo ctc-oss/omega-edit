@@ -21,6 +21,7 @@
 #include <grpcpp/grpcpp.h>
 #include <omega_edit/v1/omega_edit.grpc.pb.h>
 #include <omega_edit/fwd_defs.h>
+#include <omega_edit/transform.h>
 
 #include <atomic>
 #include <chrono>
@@ -28,7 +29,9 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <vector>
 
 namespace omega_edit {
 namespace grpc_server {
@@ -44,7 +47,8 @@ class EditorServiceImpl final : public ::omega_edit::v1::EditorService::Service 
 public:
     /// Construct with optional heartbeat config, resource limits, and shutdown callback
     explicit EditorServiceImpl(HeartbeatConfig heartbeat_config = {}, ResourceLimits resource_limits = {},
-                               std::function<void()> shutdown_callback = nullptr);
+                               std::function<void()> shutdown_callback = nullptr,
+                               std::vector<std::string> transform_plugin_directories = {});
     ~EditorServiceImpl() override;
 
     grpc::Status GetServerInfo(grpc::ServerContext *context, const ::omega_edit::v1::GetServerInfoRequest *request,
@@ -170,6 +174,14 @@ public:
         const ::omega_edit::v1::DestroyLastCheckpointRequest *request,
         ::omega_edit::v1::DestroyLastCheckpointResponse *response) override;
 
+    grpc::Status ListTransformPlugins(grpc::ServerContext *context,
+                                      const ::omega_edit::v1::ListTransformPluginsRequest *request,
+                                      ::omega_edit::v1::ListTransformPluginsResponse *response) override;
+
+    grpc::Status ApplyTransformPlugin(grpc::ServerContext *context,
+                                      const ::omega_edit::v1::ApplyTransformPluginRequest *request,
+                                      ::omega_edit::v1::ApplyTransformPluginResponse *response) override;
+
     grpc::Status GetByteFrequencyProfile(grpc::ServerContext *context,
                                          const ::omega_edit::v1::GetByteFrequencyProfileRequest *request,
                                          ::omega_edit::v1::GetByteFrequencyProfileResponse *response) override;
@@ -214,6 +226,8 @@ private:
     SessionManager session_manager_;
     std::unique_ptr<IContentTypeDetector> content_type_detector_;
     std::unique_ptr<ILanguageDetector> language_detector_;
+    omega_transform_plugin_registry_t *transform_plugin_registry_{nullptr};
+    std::mutex transform_plugin_mutex_;
     std::chrono::steady_clock::time_point start_time_;
     std::atomic<bool> graceful_shutdown_{false};
 

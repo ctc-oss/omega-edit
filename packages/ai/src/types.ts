@@ -83,6 +83,39 @@ export interface ReplaceSessionResult {
   overwriteOnly: boolean
 }
 
+export interface TransformPluginInfoResult {
+  id: string
+  name: string
+  description: string
+  operation: number
+  operationName: string
+  flags: number
+  abiVersion: number
+}
+
+export interface ApplyTransformPluginRequest {
+  sessionId: string
+  pluginId: string
+  offset?: number
+  length?: number
+  optionsJson?: string
+}
+
+export interface ApplyTransformPluginResult {
+  sessionId: string
+  pluginId: string
+  offset: number
+  length: number
+  operation: number
+  operationName: string
+  contentChanged: boolean
+  computedFileSize: number
+  replacementLength: number
+  resultLabel?: string
+  resultMimeType?: string
+  result: EncodedData
+}
+
 export interface PatchRequest {
   sessionId: string
   kind: PatchKind

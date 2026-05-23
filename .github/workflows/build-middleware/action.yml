@@ -50,12 +50,13 @@ runs:
           -DCMAKE_BUILD_TYPE=Release \
           -DBUILD_SHARED_LIBS=OFF \
           -DBUILD_DOCS=OFF \
-          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_EXAMPLES=ON \
           -DBUILD_TESTS=OFF
         cmake --build _build_core --config Release
         cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
         echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
         echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
+        echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/packages/core/src/tests/plugins" >> $GITHUB_ENV
 
     - name: Setup Python 🐍
       uses: actions/setup-python@v5

@@ -200,6 +200,13 @@ service EditorService {
   rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest)
       returns (DestroyLastCheckpointResponse);
 
+  // List transform plugins registered with the native server.
+  rpc ListTransformPlugins(ListTransformPluginsRequest) returns (ListTransformPluginsResponse);
+
+  // Apply a transform plugin to a session range. Plugins may replace content,
+  // inspect content and return derived bytes, or do both.
+  rpc ApplyTransformPlugin(ApplyTransformPluginRequest) returns (ApplyTransformPluginResponse);
+
   // Compute a byte-frequency histogram (256 buckets, one per byte value) over
   // a range of session data.  Bucket 256 counts DOS-style CR+LF line endings.
   rpc GetByteFrequencyProfile(GetByteFrequencyProfileRequest) returns (GetByteFrequencyProfileResponse);
@@ -913,6 +920,56 @@ message DestroyLastCheckpointRequest {
 message DestroyLastCheckpointResponse {
   string session_id = 1;             // Session that was reverted.
   int64 remaining_checkpoints = 2;   // Remaining checkpoint count after revert.
+}
+
+// Transform plugin operation mode.
+enum TransformPluginOperation {
+  TRANSFORM_PLUGIN_OPERATION_UNSPECIFIED = 0;
+  TRANSFORM_PLUGIN_OPERATION_REPLACE = 1;
+  TRANSFORM_PLUGIN_OPERATION_INSPECT = 2;
+  TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT = 3;
+}
+
+// Metadata advertised by a registered transform plugin.
+message TransformPluginInfo {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  TransformPluginOperation operation = 4;
+  uint32 flags = 5;
+  uint32 abi_version = 6;
+}
+
+// Request registered transform plugin metadata.
+message ListTransformPluginsRequest {}
+
+// Registered transform plugin metadata.
+message ListTransformPluginsResponse {
+  repeated TransformPluginInfo plugins = 1;
+}
+
+// Request applying a transform plugin to a session range.
+message ApplyTransformPluginRequest {
+  string session_id = 1;             // Session to transform.
+  string plugin_id = 2;              // Registered plugin identifier.
+  optional int64 offset = 3;         // Starting byte offset (default: 0).
+  optional int64 length = 4;         // Number of bytes to transform (0/default = through EOF).
+  optional string options_json = 5;  // Plugin-specific options.
+}
+
+// Result of applying a transform plugin.
+message ApplyTransformPluginResponse {
+  string session_id = 1;                     // Session that was transformed.
+  string plugin_id = 2;                      // Plugin that was applied.
+  int64 offset = 3;                          // Starting offset of the processed range.
+  int64 length = 4;                          // Length of the processed range.
+  TransformPluginOperation operation = 5;    // Plugin operation mode.
+  bool content_changed = 6;                  // True when the plugin replaced content.
+  int64 computed_file_size = 7;              // Session size after the transform.
+  int64 replacement_length = 8;              // Replacement bytes produced by the plugin.
+  optional string result_label = 9;          // Plugin-provided result label.
+  optional string result_mime_type = 10;     // Plugin-provided result MIME type.
+  bytes result = 11;                         // Plugin-provided inspection bytes.
 }
 
 // Request to compute a byte-frequency histogram.

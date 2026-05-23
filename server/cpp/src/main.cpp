@@ -39,6 +39,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 #ifdef _WIN32
 #include <process.h>
@@ -251,6 +252,22 @@ static bool parse_size_t(const std::string &str, const std::string &name, size_t
     }
 }
 
+static void append_transform_plugin_directories(const std::string &directories, std::vector<std::string> &out) {
+#ifdef _WIN32
+    constexpr char delimiter = ';';
+#else
+    constexpr char delimiter = ':';
+#endif
+
+    std::stringstream stream(directories);
+    std::string directory;
+    while (std::getline(stream, directory, delimiter)) {
+        if (!directory.empty()) {
+            out.push_back(directory);
+        }
+    }
+}
+
 static void print_usage(const char *progname) {
     std::cerr << "Ωedit gRPC server (C++ middleware)\n"
               << "Usage: " << progname << " [OPTIONS]\n"
@@ -276,6 +293,9 @@ static void print_usage(const char *progname) {
               << "      --max-change-bytes <bytes>   Limit insert/overwrite payload size (0 = unbounded)\n"
               << "      --max-viewports-per-session <count>\n"
               << "                                   Limit concurrently open viewports per session (0 = unbounded)\n"
+              << "\nTransform plugin options:\n"
+              << "      --transform-plugin-dir <dir>\n"
+              << "                                   Register transform plugins from a directory (repeatable)\n"
               << "\nGeneral:\n"
               << "  -h, --help                       Show this help\n"
               << "  -v, --version                    Show version\n";
@@ -300,6 +320,7 @@ int main(int argc, char **argv) {
     size_t viewport_event_queue_capacity = resource_limits.viewport_event_queue_capacity;
     int64_t max_change_bytes = resource_limits.max_change_bytes;
     size_t max_viewports_per_session = resource_limits.max_viewports_per_session;
+    std::vector<std::string> transform_plugin_directories;
     // Environment variable defaults
     if (const char *env = std::getenv("OMEGA_EDIT_SERVER_HOST")) {
         interface_addr = env;
@@ -358,6 +379,9 @@ int main(int argc, char **argv) {
     if (const char *env = std::getenv("OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION")) {
         if (!parse_size_t(env, "OMEGA_EDIT_MAX_VIEWPORTS_PER_SESSION", 0, std::numeric_limits<size_t>::max(),
                        max_viewports_per_session)) return 1;
+    }
+    if (const char *env = std::getenv("OMEGA_EDIT_TRANSFORM_PLUGIN_DIRS")) {
+        append_transform_plugin_directories(env, transform_plugin_directories);
     }
 
     // Parse command line arguments
@@ -492,6 +516,12 @@ int main(int argc, char **argv) {
                 }
                 if (!parse_size_t(value, "--max-viewports-per-session", 0, std::numeric_limits<size_t>::max(),
                                max_viewports_per_session)) return 1;
+            } else if (key == "--transform-plugin-dir") {
+                if (value.empty()) {
+                    std::cerr << "Error: " << key << " requires a value\n";
+                    return 1;
+                }
+                transform_plugin_directories.push_back(value);
             }
             // Silently ignore unknown options.
         }
@@ -534,7 +564,8 @@ int main(int argc, char **argv) {
         // Set the shutdown flag so the monitor thread exits cleanly and shuts down the server
         g_shutdown_requested.store(true, std::memory_order_relaxed);
     };
-    omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, resource_limits, shutdown_callback);
+    omega_edit::grpc_server::EditorServiceImpl service(heartbeat_config, resource_limits, shutdown_callback,
+                                                       transform_plugin_directories);
 
     grpc::EnableDefaultHealthCheckService(true);
 #ifdef HAS_GRPC_REFLECTION

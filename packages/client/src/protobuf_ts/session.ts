@@ -19,6 +19,7 @@
 
 import {
   CountKind,
+  type ApplyTransformPluginResponse,
   type CreateSessionRequest,
   type CreateSessionResponse,
   type GetByteFrequencyProfileResponse,
@@ -30,6 +31,7 @@ import {
   type GetLanguageResponse,
   type GetSegmentResponse,
   type GetSessionCountResponse,
+  type ListTransformPluginsResponse,
   type NotifyChangedViewportsResponse,
   type DestroyLastCheckpointResponse,
   type ReplaceSessionRequest,
@@ -41,6 +43,7 @@ import {
   type SearchSessionRequest,
   type SearchSessionResponse,
   type SingleCount,
+  type TransformPluginInfo,
 } from './generated/omega_edit/v1/omega_edit'
 import { debugLog, getLogger } from '../logger'
 import { getClient } from '../client'
@@ -656,6 +659,97 @@ export async function notifyChangedViewports(
         return resolve(required.count)
       } catch (error) {
         return reject(makeWrappedError('notifyChangedViewports', error))
+      }
+    })
+  })
+}
+
+export async function listTransformPlugins(): Promise<TransformPluginInfo[]> {
+  const log = getLogger()
+  log.debug({ fn: 'protobufTs.listTransformPlugins' })
+  const client = await getClient()
+
+  return new Promise<TransformPluginInfo[]>((resolve, reject) => {
+    client.listTransformPlugins({}, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.listTransformPlugins',
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('listTransformPlugins', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as ListTransformPluginsResponse | undefined,
+          'listTransformPlugins'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.listTransformPlugins',
+          resp: required,
+        }))
+        return resolve(required.plugins)
+      } catch (error) {
+        return reject(makeWrappedError('listTransformPlugins', error))
+      }
+    })
+  })
+}
+
+export async function applyTransformPlugin(
+  sessionId: string,
+  pluginId: string,
+  offset: number = 0,
+  length: number = 0,
+  optionsJson?: string
+): Promise<ApplyTransformPluginResponse> {
+  const log = getLogger()
+  const request = {
+    sessionId,
+    pluginId,
+    offset,
+    length,
+    optionsJson,
+  }
+  debugLog(log, () => ({
+    fn: 'protobufTs.applyTransformPlugin',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<ApplyTransformPluginResponse>((resolve, reject) => {
+    client.applyTransformPlugin(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.applyTransformPlugin',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('applyTransformPlugin', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as ApplyTransformPluginResponse | undefined,
+          'applyTransformPlugin'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.applyTransformPlugin',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('applyTransformPlugin', error))
       }
     })
   })

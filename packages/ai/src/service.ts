@@ -3,6 +3,8 @@ import {
   delay,
   type IServerControlResult,
   IOFlags,
+  TransformPluginOperation,
+  applyTransformPlugin as applyClientTransformPlugin,
   createSession,
   del,
   destroySession,
@@ -16,6 +18,7 @@ import {
   getUndoCount,
   getViewportCount,
   insert,
+  listTransformPlugins as listClientTransformPlugins,
   overwrite,
   redo,
   replace,
@@ -37,6 +40,8 @@ import {
 } from './constants'
 import { concatBytes, encodeData, parseInputData } from './codec'
 import {
+  ApplyTransformPluginRequest,
+  ApplyTransformPluginResult,
   PatchPreview,
   PatchRequest,
   PatchResult,
@@ -47,10 +52,17 @@ import {
   SearchResult,
   SessionStatus,
   ToolkitOptions,
+  TransformPluginInfoResult,
 } from './types'
 
 const changeKindNames = new Map<number, string>(
   Object.entries(ChangeKind)
+    .filter(([, value]) => typeof value === 'number')
+    .map(([name, value]) => [value as number, name])
+)
+
+const transformPluginOperationNames = new Map<number, string>(
+  Object.entries(TransformPluginOperation)
     .filter(([, value]) => typeof value === 'number')
     .map(([name, value]) => [value as number, name])
 )
@@ -264,9 +276,9 @@ export class OmegaEditToolkit {
   }
 
   async search(request: SearchRequest): Promise<SearchResult> {
-    const offset = request.offset || 0
-    const length = request.length || 0
-    const requestedLimit = request.limit || 100
+    const offset = request.offset ?? 0
+    const length = request.length ?? 0
+    const requestedLimit = request.limit ?? 100
 
     assertNonNegativeInteger('offset', offset)
     assertNonNegativeInteger('length', length)
@@ -311,9 +323,9 @@ export class OmegaEditToolkit {
   async replaceSession(
     request: ReplaceSessionRequest
   ): Promise<ReplaceSessionResult> {
-    const offset = request.offset || 0
-    const length = request.length || 0
-    const requestedLimit = request.limit || 0
+    const offset = request.offset ?? 0
+    const length = request.length ?? 0
+    const requestedLimit = request.limit ?? 0
     const frontToBack = request.frontToBack !== false
     const overwriteOnly = request.overwriteOnly || false
 
@@ -368,6 +380,63 @@ export class OmegaEditToolkit {
       replacedCount,
       frontToBack,
       overwriteOnly,
+    }
+  }
+
+  async listTransformPlugins(): Promise<TransformPluginInfoResult[]> {
+    await this.ensureServerRunning()
+
+    return (await listClientTransformPlugins()).map((plugin) => ({
+      id: plugin.id,
+      name: plugin.name,
+      description: plugin.description,
+      operation: plugin.operation,
+      operationName:
+        transformPluginOperationNames.get(plugin.operation) ||
+        `${plugin.operation}`,
+      flags: plugin.flags,
+      abiVersion: plugin.abiVersion,
+    }))
+  }
+
+  async applyTransformPlugin(
+    request: ApplyTransformPluginRequest
+  ): Promise<ApplyTransformPluginResult> {
+    const offset = request.offset ?? 0
+    const length = request.length ?? 0
+
+    assertNonNegativeInteger('offset', offset)
+    assertNonNegativeInteger('length', length)
+
+    if (!request.pluginId) {
+      throw new Error('pluginId is required')
+    }
+
+    await this.ensureServerRunning()
+
+    const response = await applyClientTransformPlugin(
+      request.sessionId,
+      request.pluginId,
+      offset,
+      length,
+      request.optionsJson
+    )
+
+    return {
+      sessionId: response.sessionId,
+      pluginId: response.pluginId,
+      offset: response.offset,
+      length: response.length,
+      operation: response.operation,
+      operationName:
+        transformPluginOperationNames.get(response.operation) ||
+        `${response.operation}`,
+      contentChanged: response.contentChanged,
+      computedFileSize: response.computedFileSize,
+      replacementLength: response.replacementLength,
+      resultLabel: response.resultLabel,
+      resultMimeType: response.resultMimeType,
+      result: encodeData(response.result),
     }
   }
 

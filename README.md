@@ -112,6 +112,10 @@ For an installed package instead of a source checkout, use the Codex MCP format 
 - machine-readable CLI and MCP responses are easier for agents to consume than terminal scraping
 - the same primitives work for both human-operated scripts and agent-hosted tool calls
 
+## Transform Plugins
+
+OmegaEdit can discover native transform plugins from `.so`, `.dylib`, and `.dll` files. Plugins can replace a selected range, expand or shrink content, or inspect a range and return a result such as a checksum or hash. The shipped examples include one-for-one transforms, base64 encode/decode, zlib stored-block compress/decompress, expansion/shrink behavior, and inspect-only results. See the [Transform Plugins guide](https://github.com/ctc-oss/omega-edit/wiki/Transform-Plugins) for the ABI, SDK helpers, plugin directory layout, server registration options, and exemplar plugins.
+
 ## User documentation
 
 User documentation is published to https://ctc-oss.github.io/omega-edit/.

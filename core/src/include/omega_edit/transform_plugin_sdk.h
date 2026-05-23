@@ -1,0 +1,87 @@
+/**********************************************************************************************************************
+ * Copyright (c) 2021 Concurrent Technologies Corporation.                                                            *
+ *                                                                                                                    *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance     *
+ * with the License.  You may obtain a copy of the License at                                                         *
+ *                                                                                                                    *
+ *     http://www.apache.org/licenses/LICENSE-2.0                                                                     *
+ *                                                                                                                    *
+ * Unless required by applicable law or agreed to in writing, software is distributed on an "AS IS" BASIS, WITHOUT    *
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the License for the specific language         *
+ * governing permissions and limitations under the License.                                                           *
+ *                                                                                                                    *
+ **********************************************************************************************************************/
+
+/**
+ * @file transform_plugin_sdk.h
+ * @brief Helper macros and allocation helpers for Omega Edit transform plugins.
+ */
+
+#ifndef OMEGA_EDIT_TRANSFORM_PLUGIN_SDK_H
+#define OMEGA_EDIT_TRANSFORM_PLUGIN_SDK_H
+
+#include "transform.h"
+
+#include <string.h>
+
+#ifdef _WIN32
+#define OMEGA_TRANSFORM_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define OMEGA_TRANSFORM_PLUGIN_EXPORT __attribute__((visibility("default")))
+#endif
+
+static inline void *omega_transform_plugin_sdk_alloc(const omega_transform_plugin_request_t *request_ptr, size_t size) {
+    if (!request_ptr || !request_ptr->alloc) { return NULL; }
+    return request_ptr->alloc(size == 0 ? 1 : size, request_ptr->allocator_user_data_ptr);
+}
+
+static inline omega_byte_t *omega_transform_plugin_sdk_copy_bytes(
+        const omega_transform_plugin_request_t *request_ptr, const omega_byte_t *bytes, int64_t length) {
+    if (!request_ptr || length < 0 || (length > 0 && !bytes)) { return NULL; }
+    omega_byte_t *copy = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, (size_t) length);
+    if (!copy) { return NULL; }
+    if (length > 0) { memcpy(copy, bytes, (size_t) length); }
+    return copy;
+}
+
+static inline char *omega_transform_plugin_sdk_copy_cstring(const omega_transform_plugin_request_t *request_ptr,
+                                                           const char *value) {
+    if (!value) { return NULL; }
+    const size_t length = strlen(value);
+    char *copy = (char *) omega_transform_plugin_sdk_alloc(request_ptr, length + 1);
+    if (!copy) { return NULL; }
+    memcpy(copy, value, length + 1);
+    return copy;
+}
+
+static inline int omega_transform_plugin_sdk_set_replacement(
+        const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
+        const omega_byte_t *bytes, int64_t length) {
+    if (!request_ptr || !response_ptr || length < 0 || (length > 0 && !bytes)) { return -1; }
+    response_ptr->replacement_length = length;
+    if (length == 0) { return 0; }
+    response_ptr->replacement_bytes = omega_transform_plugin_sdk_copy_bytes(request_ptr, bytes, length);
+    return response_ptr->replacement_bytes ? 0 : -1;
+}
+
+static inline int omega_transform_plugin_sdk_set_text_result(
+        const omega_transform_plugin_request_t *request_ptr, omega_transform_plugin_response_t *response_ptr,
+        const char *label, const char *value, const char *mime_type) {
+    if (!request_ptr || !response_ptr || !value) { return -1; }
+    const size_t value_length = strlen(value);
+    response_ptr->result_bytes = (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, value_length);
+    if (!response_ptr->result_bytes) { return -1; }
+    memcpy(response_ptr->result_bytes, value, value_length);
+    response_ptr->result_length = (int64_t) value_length;
+    if (label) {
+        response_ptr->result_label = omega_transform_plugin_sdk_copy_cstring(request_ptr, label);
+        if (!response_ptr->result_label) { return -1; }
+    }
+    if (mime_type) {
+        response_ptr->result_mime_type = omega_transform_plugin_sdk_copy_cstring(request_ptr, mime_type);
+        if (!response_ptr->result_mime_type) { return -1; }
+    }
+    return 0;
+}
+
+#endif//OMEGA_EDIT_TRANSFORM_PLUGIN_SDK_H
