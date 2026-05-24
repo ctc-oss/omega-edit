@@ -184,9 +184,11 @@ At runtime, put one or more plugin shared libraries in a directory:
 
 ```text
 plugins/
+|- omega_transform_and.dll
 |- omega_transform_base64_decode.dll
 |- omega_transform_base64_encode.dll
 |- omega_transform_fnv1a64.dll
+|- omega_transform_or.dll
 |- omega_transform_zlib_compress.dll
 |- omega_transform_zlib_decompress.dll
 |- omega_transform_xor.dll
@@ -299,12 +301,14 @@ The repository ships small examples in `plugins/src/`:
 
 | Plugin ID | Source | Operation | Demonstrates |
 | --- | --- | --- | --- |
+| `omega.example.and` | `and.c` | Replace | One-for-one binary-safe AND transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence like `{"bytes":["0x0F","0xF0"]}`; defaults to `0xFF`. |
 | `omega.example.base64_encode` | `base64_encode.c` | Replace | Expansion by encoding arbitrary bytes as base64 text. |
 | `omega.example.base64_decode` | `base64_decode.c` | Replace | Shrinking text content back to decoded bytes, with validation. ASCII whitespace is tolerated; other invalid bytes fail. |
 | `omega.example.fnv1a64` | `fnv1a64.c` | Inspect | 64-bit hash calculation without changing session content. |
+| `omega.example.or` | `or.c` | Replace | One-for-one binary-safe OR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence like `{"mask":["0x01","0x02"]}`; defaults to `0x00`. |
 | `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Compression with zlib, supplied by the plugin package toolchain. |
 | `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Decompression with zlib, supplied by the plugin package toolchain. |
-| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe byte transform. Accepts options JSON like `{"byte":"0x42"}`; defaults to `0xFF`. |
+| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe XOR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence like `{"bytes":["0x42","0x24"]}`; defaults to `0xFF`. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 | `omega.example.checksum8` | `checksum8.c` | Inspect | Text result without changing session content. |
 

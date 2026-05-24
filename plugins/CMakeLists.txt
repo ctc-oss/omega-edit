@@ -67,9 +67,11 @@ endif()
 
 set(OMEGA_EDIT_TRANSFORM_PLUGIN_TARGETS)
 foreach (plugin_src
+        src/and.c
         src/base64_decode.c
         src/base64_encode.c
         src/fnv1a64.c
+        src/or.c
         src/zlib_compress.c
         src/zlib_decompress.c
         src/xor.c

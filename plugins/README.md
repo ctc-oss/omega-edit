@@ -6,6 +6,10 @@ The plugins consume the Omega Edit transform plugin ABI and SDK from the core
 package. Third-party transform dependencies, such as zlib, are owned here rather
 than by the core library.
 
+The bitwise exemplars accept options JSON with a single byte or a repeating
+byte sequence, for example `{"byte":"0x42"}` or
+`{"bytes":["0x0F","0xF0"]}`. The same sequence form is accepted as `mask`.
+
 ## Build
 
 Install dependencies with Conan, then configure this directory with the generated

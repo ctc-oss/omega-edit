@@ -114,9 +114,11 @@ describe('Transform plugin gRPC integration', () => {
 
       const plugins = await listTransformPlugins()
       expect(plugins.map((plugin) => plugin.id)).to.include.members([
+        'omega.example.and',
         'omega.example.base64_decode',
         'omega.example.base64_encode',
         'omega.example.fnv1a64',
+        'omega.example.or',
         'omega.example.zlib_compress',
         'omega.example.zlib_decompress',
         'omega.example.xor',
@@ -267,6 +269,53 @@ describe('Transform plugin gRPC integration', () => {
       expect(xorOptionsResponse.replacementLength).to.equal(1)
       expect(Array.from(await getSegment(sessionId, 1, 1))).to.deep.equal([
         'b'.charCodeAt(0) ^ 0x42,
+      ])
+
+      const xorBytesResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.xor',
+        2,
+        2,
+        JSON.stringify({ bytes: ['0x01', '0x02'] })
+      )
+      expect(xorBytesResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(xorBytesResponse.contentChanged).to.equal(true)
+      expect(xorBytesResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 2, 2))).to.deep.equal([
+        'c'.charCodeAt(0) ^ 0x01,
+        'b'.charCodeAt(0) ^ 0x02,
+      ])
+
+      const andResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.and',
+        2,
+        2,
+        JSON.stringify({ mask: ['0x0F', '0xF0'] })
+      )
+      expect(andResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(andResponse.contentChanged).to.equal(true)
+      expect(andResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 2, 2))).to.deep.equal([
+        ('c'.charCodeAt(0) ^ 0x01) & 0x0f,
+        ('b'.charCodeAt(0) ^ 0x02) & 0xf0,
+      ])
+
+      const orResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.or',
+        3,
+        2,
+        JSON.stringify({ bytes: ['0x01', '0x04'] })
+      )
+      expect(orResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(orResponse.contentChanged).to.equal(true)
+      expect(orResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 3, 2))).to.deep.equal([
+        (('b'.charCodeAt(0) ^ 0x02) & 0xf0) | 0x01,
+        'c'.charCodeAt(0) | 0x04,
       ])
     } finally {
       if (sessionId) {
