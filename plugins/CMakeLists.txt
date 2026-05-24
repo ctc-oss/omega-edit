@@ -139,14 +139,23 @@ if (BUILD_TESTS)
             RUNTIME_OUTPUT_DIRECTORY ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR})
     add_dependencies(omega_transform_plugin_tests omega_edit_transform_plugins)
 
-    if (WIN32 AND BUILD_SHARED_LIBS AND TARGET omega_edit)
+    if (WIN32 AND BUILD_SHARED_LIBS)
+        set(OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET "")
+        if (TARGET omega_edit)
+            set(OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET omega_edit)
+        elseif (TARGET omega_edit::omega_edit)
+            set(OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET omega_edit::omega_edit)
+        endif()
+    endif()
+
+    if (OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET)
         add_custom_target(
                 omega_edit_transform_plugin_test_runtime
                 COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_FILE:omega_edit>
+                $<TARGET_FILE:${OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET}>
                 ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR}
                 COMMENT "Copying omega_edit.dll to transform plugin test runtime directory"
-                DEPENDS omega_edit
+                DEPENDS ${OMEGA_EDIT_TRANSFORM_PLUGIN_RUNTIME_TARGET}
         )
         add_dependencies(omega_transform_plugin_tests omega_edit_transform_plugin_test_runtime)
     endif()

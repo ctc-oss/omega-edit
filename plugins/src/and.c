@@ -21,7 +21,8 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->name = "AND";
     info_ptr->description =
             "AND every byte in the selected range. Options JSON may supply {\"byte\":\"0x42\"} or "
-            "{\"bytes\":[\"0x0F\",\"0xF0\"]}; default byte is 0xFF.";
+            "{\"bytes\":[\"0x0F\",\"0xF0\"]}; the sequence may also be supplied as mask. "
+            "Default byte is 0xFF.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     return 0;

@@ -228,7 +228,7 @@ jobs:
             -DBUILD_TESTS=OFF
           cmake --build _build_core --config Release
           cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
-          echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/core/src/tests/plugins" >> $GITHUB_ENV
+          echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/plugins/plugins" >> $GITHUB_ENV
           export OE_LIB_DIR="$(pwd)/_install_core/lib"
           export OE_PREFIX="$(pwd)/_install_core"
           cd server/cpp

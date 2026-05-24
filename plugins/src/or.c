@@ -21,7 +21,8 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->name = "OR";
     info_ptr->description =
             "OR every byte in the selected range. Options JSON may supply {\"byte\":\"0x42\"} or "
-            "{\"bytes\":[\"0x01\",\"0x02\"]}; default byte is 0x00.";
+            "{\"bytes\":[\"0x01\",\"0x02\"]}; the sequence may also be supplied as mask. "
+            "Default byte is 0x00.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
     return 0;

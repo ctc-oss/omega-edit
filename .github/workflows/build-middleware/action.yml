@@ -98,7 +98,7 @@ runs:
         cmake --install _build_core/packages/core --prefix "$(pwd)/_install_core" --config Release
         echo "OE_LIB_DIR=$(pwd)/_install_core/lib" >> $GITHUB_ENV
         echo "OE_PREFIX=$(pwd)/_install_core" >> $GITHUB_ENV
-        echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/core/src/tests/plugins" >> $GITHUB_ENV
+        echo "OMEGA_EDIT_TEST_PLUGIN_DIR=$(pwd)/_build_core/plugins/plugins" >> $GITHUB_ENV
 
     - name: Install server dependencies via Conan
       shell: bash
