@@ -123,6 +123,7 @@ if (BUILD_TESTS)
     include(CTest)
 
     set(OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests)
+    file(MAKE_DIRECTORY "${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR}")
     configure_file(
             tests/test_util.hpp.in
             ${OMEGA_EDIT_TRANSFORM_PLUGIN_TEST_BINARY_DIR}/test_util.hpp
