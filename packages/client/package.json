@@ -69,7 +69,7 @@
     "tsconfig-paths": "^4.2.0"
   },
   "dependencies": {
-    "@grpc/grpc-js": "1.12.2",
+    "@grpc/grpc-js": "1.14.4",
     "@omega-edit/server": "2.0.0",
     "@protobuf-ts/runtime": "^2.11.1",
     "@protobuf-ts/runtime-rpc": "^2.11.1",
