@@ -46,6 +46,9 @@ if (OMEGA_EDIT_EMBED_MODE)
     set(BUILD_COVERAGE OFF CACHE BOOL "" FORCE)
 endif()
 
+# Include the core CMakeLists.txt
+add_subdirectory(core)
+
 if (NOT DEFINED BUILD_TRANSFORM_PLUGINS)
     if (BUILD_TESTS OR BUILD_EXAMPLES)
         set(BUILD_TRANSFORM_PLUGINS ON CACHE BOOL "build packaged transform plugins")
@@ -53,9 +56,6 @@ if (NOT DEFINED BUILD_TRANSFORM_PLUGINS)
         set(BUILD_TRANSFORM_PLUGINS OFF CACHE BOOL "build packaged transform plugins")
     endif()
 endif()
-
-# Include the core CMakeLists.txt
-add_subdirectory(core)
 
 if (NOT OMEGA_EDIT_EMBED_MODE AND BUILD_TRANSFORM_PLUGINS)
     if (BUILD_TESTS AND NOT DEFINED OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR)
