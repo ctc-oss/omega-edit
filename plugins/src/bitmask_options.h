@@ -113,17 +113,29 @@ static int omega_bitmask_skip_json_value(const char **cursor) {
     if (**cursor == '"') { return omega_bitmask_skip_json_string(cursor); }
 
     if (**cursor == '{' || **cursor == '[') {
-        const char open = **cursor;
-        const char close = open == '{' ? '}' : ']';
-        int depth = 1;
+        char nesting[OMEGA_BITMASK_MAX_BYTES];
+        size_t depth = 0;
+
+        nesting[depth++] = **cursor;
         ++(*cursor);
         while (**cursor && depth > 0) {
             if (**cursor == '"') {
                 if (omega_bitmask_skip_json_string(cursor) != 0) { return -1; }
                 continue;
             }
-            if (**cursor == open) { ++depth; }
-            if (**cursor == close) { --depth; }
+            if (**cursor == '{' || **cursor == '[') {
+                if (depth >= OMEGA_BITMASK_MAX_BYTES) { return -1; }
+                nesting[depth++] = **cursor;
+                ++(*cursor);
+                continue;
+            }
+            if (**cursor == '}' || **cursor == ']') {
+                const char expected = nesting[depth - 1] == '{' ? '}' : ']';
+                if (**cursor != expected) { return -1; }
+                --depth;
+                ++(*cursor);
+                continue;
+            }
             ++(*cursor);
         }
         return depth == 0 ? 0 : -1;
