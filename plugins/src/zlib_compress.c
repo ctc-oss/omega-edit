@@ -48,20 +48,17 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
     uLongf output_length = compressBound(input_length);
     if ((uint64_t) output_length > INT64_MAX) { return -1; }
 
-    omega_byte_t *output = (omega_byte_t *) malloc((size_t) output_length);
-    if (!output) { return -1; }
+    response_ptr->replacement_length = (int64_t) output_length;
+    response_ptr->replacement_bytes =
+            (omega_byte_t *) omega_transform_plugin_sdk_alloc(request_ptr, response_ptr->replacement_length);
+    if (!response_ptr->replacement_bytes && response_ptr->replacement_length != 0) { return -1; }
 
     static const omega_byte_t empty_input = 0;
     const Bytef *input = request_ptr->input_length == 0 ? &empty_input : request_ptr->input_bytes;
-    const int rc = compress2((Bytef *) output, &output_length, input, input_length, Z_DEFAULT_COMPRESSION);
-    if (rc != Z_OK || (uint64_t) output_length > INT64_MAX) {
-        free(output);
-        return -1;
-    }
+    const int rc = compress2((Bytef *) response_ptr->replacement_bytes, &output_length, input, input_length,
+                             Z_DEFAULT_COMPRESSION);
+    if (rc != Z_OK || (uint64_t) output_length > INT64_MAX) { return -1; }
 
     response_ptr->replacement_length = (int64_t) output_length;
-    response_ptr->replacement_bytes =
-            omega_transform_plugin_sdk_copy_bytes(request_ptr, output, response_ptr->replacement_length);
-    free(output);
-    return response_ptr->replacement_bytes || response_ptr->replacement_length == 0 ? 0 : -1;
+    return 0;
 }
