@@ -526,6 +526,26 @@ export function getWebviewContent(bytesPerRow: number): string {
   .frequency-bar.high-bit {
     background: var(--vscode-terminal-ansiMagenta, #c586c0);
   }
+  .frequency-tooltip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: none;
+    padding: 5px 7px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--toolbar-bg);
+    color: var(--fg);
+    font-size: 10px;
+    line-height: 1.35;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    z-index: 4;
+    white-space: nowrap;
+  }
+  .frequency-tooltip.active {
+    display: block;
+  }
   .analysis-note {
     color: var(--offset-fg);
     font-size: 11px;
@@ -1197,7 +1217,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     const maxCount = Math.max(0, ...counts)
     if (total <= 0 || maxCount <= 0) {
       profileFrequencyChart.innerHTML =
-        '<div class="analysis-note">No profile data in scope.</div>'
+        '<div class="analysis-note">No profile data in scope.</div>' +
+        '<div class="frequency-tooltip" id="profileFrequencyTooltip"></div>'
       return
     }
 
@@ -1219,11 +1240,72 @@ export function getWebviewContent(bytesPerRow: number): string {
           frequencyBarClass(byte, count) +
           '" style="--bar-height: ' +
           percent.toFixed(1) +
-          '%" title="' +
+          '%" data-byte="' +
+          byte +
+          '" data-count="' +
+          count +
+          '" data-percent="' +
+          formatPercent((count / total) * 100) +
+          '" title="' +
           escapeHtml(title) +
           '"></span>'
       })
-      .join('')
+      .join('') +
+      '<div class="frequency-tooltip" id="profileFrequencyTooltip"></div>'
+  }
+
+  function updateFrequencyTooltip(event) {
+    const target = event.target.closest('.frequency-bar')
+    const tooltip = document.getElementById('profileFrequencyTooltip')
+    if (!target || !tooltip) {
+      hideFrequencyTooltip()
+      return
+    }
+
+    const byte = parseInt(target.dataset.byte, 10)
+    const count = parseInt(target.dataset.count, 10)
+    const percent = target.dataset.percent || '0.0%'
+    if (Number.isNaN(byte) || Number.isNaN(count)) {
+      hideFrequencyTooltip()
+      return
+    }
+
+    const printable = isPrintable(byte)
+      ? " | '" + escapeHtml(String.fromCharCode(byte)) + "'"
+      : ''
+    tooltip.innerHTML =
+      'Byte 0x' +
+      toHex2(byte) +
+      ' (' +
+      byte.toLocaleString() +
+      ')' +
+      printable +
+      '<br>Count ' +
+      count.toLocaleString() +
+      ' | ' +
+      escapeHtml(percent)
+
+    tooltip.classList.add('active')
+    const chartRect = profileFrequencyChart.getBoundingClientRect()
+    const tooltipRect = tooltip.getBoundingClientRect()
+    const x = clamp(
+      4,
+      event.clientX - chartRect.left + 10,
+      Math.max(4, chartRect.width - tooltipRect.width - 4)
+    )
+    const y = clamp(
+      4,
+      event.clientY - chartRect.top - tooltipRect.height - 10,
+      Math.max(4, chartRect.height - tooltipRect.height - 4)
+    )
+    tooltip.style.transform = 'translate(' + x + 'px, ' + y + 'px)'
+  }
+
+  function hideFrequencyTooltip() {
+    const tooltip = document.getElementById('profileFrequencyTooltip')
+    if (tooltip) {
+      tooltip.classList.remove('active')
+    }
   }
 
   function updateAnalysisTabs() {
@@ -2894,6 +2976,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     frequencyScale = frequencyScale === 'log' ? 'linear' : 'log'
     updateProfileAnalysis()
   })
+  profileFrequencyChart.addEventListener('pointermove', updateFrequencyTooltip)
+  profileFrequencyChart.addEventListener('pointerleave', hideFrequencyTooltip)
   bytesPerRowSelect.addEventListener('change', () => {
     const nextBytesPerRow = parseInt(bytesPerRowSelect.value, 10)
     if ([8, 16, 32].includes(nextBytesPerRow)) {

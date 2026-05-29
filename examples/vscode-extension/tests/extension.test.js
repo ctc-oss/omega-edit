@@ -111,6 +111,7 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="profileDataMetrics"/)
   assert.match(html, /id="profileScaleBtn"/)
   assert.match(html, /id="profileFrequencyChart"/)
+  assert.match(html, /id="profileFrequencyTooltip"/)
   assert.match(html, /id="profileLimitNote"/)
   assert.match(html, /id="profileByteBars"/)
   assert.match(html, /id="structureMetrics"/)
@@ -268,6 +269,8 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function updateStructureAnalysis\(\)/)
   assert.match(html, /function analyzeBytes\(bytes\)/)
   assert.match(html, /function renderFrequencyChart\(profile, total\)/)
+  assert.match(html, /function updateFrequencyTooltip\(event\)/)
+  assert.match(html, /function hideFrequencyTooltip\(\)/)
   assert.match(html, /const MAX_PROFILE_BYTES = 64 \* 1024/)
   assert.match(html, /function requestAnalysisProfile\(force = false\)/)
   assert.match(html, /if \(analysisMode !== 'profile'\)/)
@@ -283,6 +286,14 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /profileTab\.addEventListener\('click'/)
   assert.match(html, /structureTab\.addEventListener\('click'/)
   assert.match(html, /profileScaleBtn\.addEventListener\('click'/)
+  assert.match(
+    html,
+    /profileFrequencyChart\.addEventListener\('pointermove', updateFrequencyTooltip\)/
+  )
+  assert.match(
+    html,
+    /profileFrequencyChart\.addEventListener\('pointerleave', hideFrequencyTooltip\)/
+  )
   assert.match(html, /function formatServerHealthSeverity\(severity\)/)
   assert.match(
     html,
