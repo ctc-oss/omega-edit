@@ -1564,6 +1564,10 @@ export function getWebviewContent(bytesPerRow: number): string {
       .filter((entry) => entry.count > 0)
       .sort((a, b) => b.count - a.count || a.byte - b.byte)
       .slice(0, 5)
+    const topProfileMaxCount = Math.max(
+      1,
+      ...topProfileBytes.map((entry) => entry.count)
+    )
 
     renderMetricRows(profileDataMetrics, [
       { label: 'Scope', value: latestDataProfile.scopeLabel },
@@ -1593,8 +1597,11 @@ export function getWebviewContent(bytesPerRow: number): string {
       profileByteBars,
       topProfileBytes.map((entry) => ({
         label: '0x' + toHex2(entry.byte),
-        percent: byteTotal > 0 ? (entry.count / byteTotal) * 100 : 0,
-        value: entry.count.toLocaleString(),
+        percent: (entry.count / topProfileMaxCount) * 100,
+        value:
+          entry.count.toLocaleString() +
+          ' | ' +
+          formatPercent(byteTotal > 0 ? (entry.count / byteTotal) * 100 : 0),
       }))
     )
   }

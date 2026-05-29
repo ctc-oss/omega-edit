@@ -271,6 +271,8 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function renderFrequencyChart\(profile, total\)/)
   assert.match(html, /function updateFrequencyTooltip\(event\)/)
   assert.match(html, /function hideFrequencyTooltip\(\)/)
+  assert.match(html, /const topProfileMaxCount = Math\.max/)
+  assert.match(html, /entry\.count \/ topProfileMaxCount/)
   assert.match(html, /const MAX_PROFILE_BYTES = 64 \* 1024/)
   assert.match(html, /function requestAnalysisProfile\(force = false\)/)
   assert.match(html, /if \(analysisMode !== 'profile'\)/)
