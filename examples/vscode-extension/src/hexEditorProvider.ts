@@ -33,6 +33,7 @@ import {
   destroyLastCheckpoint,
   editSimple,
   type EditorChangeRecord as ChangeRecord,
+  type EditorHistoryExecutor,
   EditorHistoryController,
   EditorSearchController,
   ScopedEditorSessionHandle,
@@ -72,6 +73,7 @@ interface EditorSession {
   scope: ScopedEditorSessionHandle
   history: EditorHistoryController
   search: EditorSearchController
+  restoredFromBackup?: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
 }
@@ -190,6 +192,25 @@ export class HexEditorProvider
       throw new Error(`No session found for ${uri.toString()}`)
     }
 
+    // Intercept operations that would normally route through VS Code commands
+    // in production; invoke session logic directly in the test context where
+    // no real VS Code custom-editor edit stack is registered.
+    switch (msg.type) {
+      case 'undo':
+        await this.performUndoOnSession(session)
+        return
+      case 'redo':
+        await this.performRedoOnSession(session)
+        return
+      case 'save':
+      case 'saveAs':
+        await this.saveCustomDocument(
+          session.document,
+          new vscode.CancellationTokenSource().token
+        )
+        return
+    }
+
     await this.handleWebviewMessage(session, msg)
   }
 
@@ -224,6 +245,7 @@ export class HexEditorProvider
     // --- Create a viewport starting at offset 0 ---
     // If VS Code supplies a backup id (crash-recovery), open from the backup so
     // unsaved edits are restored; save still targets the original filePath.
+    const wasRestoredFromBackup = !!document.backupId
     const restoreFromPath = document.backupId
       ? vscode.Uri.parse(document.backupId).fsPath
       : filePath
@@ -259,6 +281,7 @@ export class HexEditorProvider
       scope,
       history: new EditorHistoryController(),
       search: new EditorSearchController(scope.sessionId),
+      restoredFromBackup: wasRestoredFromBackup || undefined,
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
@@ -313,6 +336,7 @@ export class HexEditorProvider
       return
     }
     await saveSession(session.sessionId, session.filePath, IOFlags.OVERWRITE)
+    session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
     vscode.window.showInformationMessage('File saved')
@@ -328,6 +352,7 @@ export class HexEditorProvider
       return
     }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
+    session.restoredFromBackup = false
     vscode.window.showInformationMessage(`File saved as ${destination.fsPath}`)
   }
 
@@ -355,6 +380,7 @@ export class HexEditorProvider
     )
 
     session.scope = newScope
+    session.restoredFromBackup = false
     session.history = new EditorHistoryController()
     session.search = new EditorSearchController(session.sessionId)
     session.offset = 0
@@ -544,9 +570,11 @@ export class HexEditorProvider
   }
 
   private postEditState(session: EditorSession): void {
+    const editState = session.history.getEditState()
     session.panel.webview.postMessage({
       type: 'editState',
-      ...session.history.getEditState(),
+      ...editState,
+      isDirty: editState.isDirty || !!session.restoredFromBackup,
     })
   }
 
@@ -741,73 +769,62 @@ export class HexEditorProvider
     }
   }
 
+  private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
+    return {
+      async undoLocal() {
+        await undo(session.sessionId)
+      },
+      async redoLocal() {
+        await redo(session.sessionId)
+      },
+      async undoCheckpoint() {
+        await destroyLastCheckpoint(session.sessionId)
+      },
+      async redoCheckpoint(transaction) {
+        const pattern = transaction.isHex
+          ? Buffer.from(transaction.query, 'hex')
+          : Buffer.from(transaction.query, 'utf8')
+        await replaceSessionCheckpointed(
+          session.sessionId,
+          pattern,
+          Buffer.from(transaction.data, 'hex'),
+          transaction.caseInsensitive,
+          0,
+          0
+        )
+      },
+    }
+  }
+
+  private async performUndoOnSession(session: EditorSession): Promise<void> {
+    const sessionSyncVersion = session.sessionSyncVersion
+    const didUndo = await session.history.undo(
+      this.makeHistoryExecutor(session)
+    )
+    if (didUndo) {
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      this.clearSearchState(session)
+    }
+    this.postEditState(session)
+  }
+
+  private async performRedoOnSession(session: EditorSession): Promise<void> {
+    const sessionSyncVersion = session.sessionSyncVersion
+    const didRedo = await session.history.redo(
+      this.makeHistoryExecutor(session)
+    )
+    if (didRedo) {
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      this.clearSearchState(session)
+    }
+    this.postEditState(session)
+  }
+
   private notifyDocumentChanged(session: EditorSession): void {
     this._onDidChangeCustomDocument.fire({
       document: session.document,
-      undo: async () => {
-        const sessionSyncVersion = session.sessionSyncVersion
-        const didUndo = await session.history.undo({
-          async undoLocal() {
-            await undo(session.sessionId)
-          },
-          async redoLocal() {
-            await redo(session.sessionId)
-          },
-          async undoCheckpoint() {
-            await destroyLastCheckpoint(session.sessionId)
-          },
-          async redoCheckpoint(transaction) {
-            const pattern = transaction.isHex
-              ? Buffer.from(transaction.query, 'hex')
-              : Buffer.from(transaction.query, 'utf8')
-            await replaceSessionCheckpointed(
-              session.sessionId,
-              pattern,
-              Buffer.from(transaction.data, 'hex'),
-              transaction.caseInsensitive,
-              0,
-              0
-            )
-          },
-        })
-        if (didUndo) {
-          await this.waitForSessionSync(session, sessionSyncVersion)
-          this.clearSearchState(session)
-        }
-        this.postEditState(session)
-      },
-      redo: async () => {
-        const sessionSyncVersion = session.sessionSyncVersion
-        const didRedo = await session.history.redo({
-          async undoLocal() {
-            await undo(session.sessionId)
-          },
-          async redoLocal() {
-            await redo(session.sessionId)
-          },
-          async undoCheckpoint() {
-            await destroyLastCheckpoint(session.sessionId)
-          },
-          async redoCheckpoint(transaction) {
-            const pattern = transaction.isHex
-              ? Buffer.from(transaction.query, 'hex')
-              : Buffer.from(transaction.query, 'utf8')
-            await replaceSessionCheckpointed(
-              session.sessionId,
-              pattern,
-              Buffer.from(transaction.data, 'hex'),
-              transaction.caseInsensitive,
-              0,
-              0
-            )
-          },
-        })
-        if (didRedo) {
-          await this.waitForSessionSync(session, sessionSyncVersion)
-          this.clearSearchState(session)
-        }
-        this.postEditState(session)
-      },
+      undo: () => this.performUndoOnSession(session),
+      redo: () => this.performRedoOnSession(session),
     })
   }
 
