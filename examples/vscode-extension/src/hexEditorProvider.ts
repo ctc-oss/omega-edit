@@ -281,7 +281,7 @@ export class HexEditorProvider
       scope,
       history: new EditorHistoryController(),
       search: new EditorSearchController(scope.sessionId),
-      restoredFromBackup: wasRestoredFromBackup || undefined,
+      restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
