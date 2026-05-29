@@ -59,15 +59,9 @@ function directoryHasTransformPlugin(directory: string): boolean {
 function findTransformPluginDirectory(): string | undefined {
   const candidates = [
     process.env.OMEGA_EDIT_TEST_PLUGIN_DIR || '',
-    path.join(
-      repoRoot,
-      '_build_core',
-      'packages',
-      'core',
-      'src',
-      'tests',
-      'plugins'
-    ),
+    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
+    path.join(repoRoot, '_build', 'plugins', 'plugins'),
     path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
     path.join(repoRoot, 'build-coverage', 'core', 'src', 'tests', 'plugins'),
   ].filter(Boolean)
@@ -120,12 +114,14 @@ describe('Transform plugin gRPC integration', () => {
 
       const plugins = await listTransformPlugins()
       expect(plugins.map((plugin) => plugin.id)).to.include.members([
+        'omega.example.and',
         'omega.example.base64_decode',
         'omega.example.base64_encode',
         'omega.example.fnv1a64',
+        'omega.example.or',
         'omega.example.zlib_compress',
         'omega.example.zlib_decompress',
-        'omega.example.xor_ff',
+        'omega.example.xor',
         'omega.example.repeat',
         'omega.example.checksum8',
       ])
@@ -175,17 +171,18 @@ describe('Transform plugin gRPC integration', () => {
         TransformPluginOperation.REPLACE
       )
       expect(compressResponse.contentChanged).to.equal(true)
-      expect(compressResponse.replacementLength).to.equal(14)
-      expect(compressResponse.computedFileSize).to.equal(14)
-      expect(Array.from(await getSegment(sessionId, 0, 2))).to.deep.equal([
-        0x78, 0x01,
-      ])
+      expect(compressResponse.replacementLength).to.be.greaterThan(0)
+      expect(compressResponse.computedFileSize).to.equal(
+        compressResponse.replacementLength
+      )
+      const compressedHeader = await getSegment(sessionId, 0, 2)
+      expect(compressedHeader[0] & 0x0f).to.equal(8)
 
       const decompressResponse = await applyTransformPlugin(
         sessionId,
         'omega.example.zlib_decompress',
         0,
-        14
+        compressResponse.replacementLength
       )
       expect(decompressResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -247,7 +244,7 @@ describe('Transform plugin gRPC integration', () => {
 
       const xorResponse = await applyTransformPlugin(
         sessionId,
-        'omega.example.xor_ff',
+        'omega.example.xor',
         0,
         1
       )
@@ -256,6 +253,69 @@ describe('Transform plugin gRPC integration', () => {
       expect(xorResponse.replacementLength).to.equal(1)
       expect(Array.from(await getSegment(sessionId, 0, 1))).to.deep.equal([
         'a'.charCodeAt(0) ^ 0xff,
+      ])
+
+      const xorOptionsResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.xor',
+        1,
+        1,
+        JSON.stringify({ byte: '0x42' })
+      )
+      expect(xorOptionsResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(xorOptionsResponse.contentChanged).to.equal(true)
+      expect(xorOptionsResponse.replacementLength).to.equal(1)
+      expect(Array.from(await getSegment(sessionId, 1, 1))).to.deep.equal([
+        'b'.charCodeAt(0) ^ 0x42,
+      ])
+
+      const xorBytesResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.xor',
+        2,
+        2,
+        JSON.stringify({ bytes: ['0x01', '0x02'] })
+      )
+      expect(xorBytesResponse.operation).to.equal(
+        TransformPluginOperation.REPLACE
+      )
+      expect(xorBytesResponse.contentChanged).to.equal(true)
+      expect(xorBytesResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 2, 2))).to.deep.equal([
+        'c'.charCodeAt(0) ^ 0x01,
+        'b'.charCodeAt(0) ^ 0x02,
+      ])
+
+      const andResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.and',
+        2,
+        2,
+        JSON.stringify({ mask: ['0x0F', '0xF0'] })
+      )
+      expect(andResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(andResponse.contentChanged).to.equal(true)
+      expect(andResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 2, 2))).to.deep.equal([
+        ('c'.charCodeAt(0) ^ 0x01) & 0x0f,
+        ('b'.charCodeAt(0) ^ 0x02) & 0xf0,
+      ])
+
+      const orResponse = await applyTransformPlugin(
+        sessionId,
+        'omega.example.or',
+        3,
+        2,
+        JSON.stringify({ bytes: ['0x01', '0x04'] })
+      )
+      expect(orResponse.operation).to.equal(TransformPluginOperation.REPLACE)
+      expect(orResponse.contentChanged).to.equal(true)
+      expect(orResponse.replacementLength).to.equal(2)
+      expect(Array.from(await getSegment(sessionId, 3, 2))).to.deep.equal([
+        (('b'.charCodeAt(0) ^ 0x02) & 0xf0) | 0x01,
+        'c'.charCodeAt(0) | 0x04,
       ])
     } finally {
       if (sessionId) {

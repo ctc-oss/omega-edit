@@ -11,6 +11,10 @@
 
 cmake_minimum_required(VERSION 3.13)
 
+if (POLICY CMP0091)
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 # Read version from VERSION file. CMake project() only accepts numeric
 # major.minor.patch values, so we parse prerelease/build metadata separately.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" OMEGA_EDIT_VERSION)
@@ -44,6 +48,22 @@ endif()
 
 # Include the core CMakeLists.txt
 add_subdirectory(core)
+
+if (NOT DEFINED BUILD_TRANSFORM_PLUGINS)
+    if (BUILD_TESTS OR BUILD_EXAMPLES)
+        set(BUILD_TRANSFORM_PLUGINS ON CACHE BOOL "build packaged transform plugins")
+    else()
+        set(BUILD_TRANSFORM_PLUGINS OFF CACHE BOOL "build packaged transform plugins")
+    endif()
+endif()
+
+if (NOT OMEGA_EDIT_EMBED_MODE AND BUILD_TRANSFORM_PLUGINS)
+    if (BUILD_TESTS AND NOT DEFINED OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR)
+        set(OMEGA_EDIT_TRANSFORM_PLUGIN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/core/src/tests/plugins" CACHE PATH
+                "Output directory for transform plugin modules")
+    endif()
+    add_subdirectory(plugins)
+endif()
 
 # Packaging rules
 if (NOT OMEGA_EDIT_EMBED_MODE)

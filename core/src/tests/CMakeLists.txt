@@ -5,7 +5,6 @@ include(Catch)
 
 set(OMEGA_EDIT_TEST_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(OMEGA_EDIT_TEST_DATA_DIR ${OMEGA_EDIT_TEST_BINARY_DIR}/data)
-set(OMEGA_EDIT_TEST_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins)
 
 file(COPY ./data DESTINATION ${CMAKE_CURRENT_BINARY_DIR} USE_SOURCE_PERMISSIONS)
 configure_file(
@@ -82,7 +81,4 @@ foreach (test_src ${omega_test_srcs})
         message(STATUS "Using catch_discover_tests for ${testname}")
         catch_discover_tests(${testname} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     endif()
-    if (TARGET omega_edit_transform_plugins)
-        add_dependencies(${testname} omega_edit_transform_plugins)
-    endif ()
 endforeach ()

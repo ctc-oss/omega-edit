@@ -32,10 +32,8 @@ using file_info_t = struct file_info_struct {
 
 // The template parameter is replaced by cmake at configure time with the appropriate value for the platform.
 static const std::filesystem::path DATA_DIR = "@OMEGA_EDIT_TEST_DATA_DIR@";
-static const std::filesystem::path PLUGIN_DIR = "@OMEGA_EDIT_TEST_PLUGIN_DIR@";
 
 #define MAKE_PATH(path) (DATA_DIR / (path)).string().c_str()
-#define MAKE_PLUGIN_PATH(path) (PLUGIN_DIR / (path)).string().c_str()
 
 static inline FILE *fill_file(const char *f1, int64_t file_size, const char *fill, int64_t fill_length) {
     const auto f1_ptr = FOPEN(f1, "w+");

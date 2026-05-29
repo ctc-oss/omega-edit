@@ -1,13 +1,13 @@
 # Copyright (c) 2021 Concurrent Technologies Corporation.
-#                                                                                                               
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at                                                    
-#                                                                                                               
-#     http://www.apache.org/licenses/LICENSE-2.0                                                                
-#                                                                                                               
-# Unless required by applicable law or agreed to in writing, software is distributed under the License is       
-# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or              
-# implied.  See the License for the specific language governing permissions and limitations under the License.  
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software is distributed under the License is
+# distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.  See the License for the specific language governing permissions and limitations under the License.
 
 ---
 name: Build Native
@@ -22,33 +22,79 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Enable Developer Command Prompt 💻
+    - name: Enable Developer Command Prompt
       if: inputs.runner-os == 'Windows'
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Setup cmake 🔧
+    - name: Setup cmake
       uses: lukka/get-cmake@latest
 
-    - name: Set install path 🔧
+    - name: Setup Python for plugin dependencies
+      if: inputs.runner-os == 'Windows'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Conan for plugin dependencies
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: pip install conan
+
+    - name: Detect Conan profile for plugin dependencies
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: conan profile detect --force
+
+    - name: Cache transform plugin Conan packages
+      if: inputs.runner-os == 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: ~/.conan2
+        key: plugin-conan-${{ inputs.os-name }}-${{ hashFiles('plugins/conanfile.py') }}
+        restore-keys: |
+          plugin-conan-${{ inputs.os-name }}-
+
+    - name: Install transform plugin dependencies via Conan
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: |
+        conan install plugins --output-folder=build/plugin-conan \
+          --build=missing \
+          -s build_type=Release \
+          -c tools.cmake.cmaketoolchain:generator=Ninja
+
+    - name: Install transform plugin system dependencies
+      if: inputs.runner-os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zlib1g-dev
+
+    - name: Set install path
       shell: bash
       run: |
           mkdir -p _install
           echo "install_path=$(pwd)/_install" >> $GITHUB_ENV
           echo "install_rel_path=_install" >> $GITHUB_ENV
 
-    - name: Prepare, Build, Test, and Install Ωedit™ native library 🦙
+    - name: Prepare, Build, Test, and Install Omega Edit native library
       shell: bash
       run: |
+        cmake_args=()
+        if [ "${{ inputs.runner-os }}" == "Windows" ]; then
+          cmake_args+=("-DCMAKE_TOOLCHAIN_FILE=$(pwd)/build/plugin-conan/conan_toolchain.cmake")
+        fi
         if [ "${{ inputs.runner-os }}" == "macOS" ]; then
-          cmake --preset ci -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+          cmake --preset ci -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" "${cmake_args[@]}"
         else
-          cmake --preset ci
+          cmake --preset ci "${cmake_args[@]}"
         fi
         cmake --build --preset ci --config Release
         ctest -C Release --test-dir build/core --output-on-failure
+        ctest -C Release --test-dir build/plugins --output-on-failure
         cmake --install build/packages/core --prefix "${{ env.install_path }}" --config Release
 
-    - name: Find Library For ${{ inputs.runner-os }} 📖
+    - name: Find Library For ${{ inputs.runner-os }}
       shell: bash
       run: |
         if [ "${{ inputs.runner-os }}" == "Windows" ]; then
@@ -90,7 +136,7 @@ runs:
         echo "libname=${libname}" >> $GITHUB_ENV
         echo "libpath=${libpath}" >> $GITHUB_ENV
 
-    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }}) 🔺
+    - name: Upload Native Library (${{ inputs.os-name }}-${{ env.libname }})
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.os-name }}-${{ env.libname }}
