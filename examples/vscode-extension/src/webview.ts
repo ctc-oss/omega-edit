@@ -474,9 +474,9 @@ export function getWebviewContent(bytesPerRow: number): string {
   .frequency-chart {
     position: relative;
     display: grid;
-    grid-template-columns: repeat(256, minmax(1px, 1fr));
+    grid-template-columns: repeat(256, minmax(0, 1fr));
     align-items: end;
-    gap: 1px;
+    gap: 0;
     height: 150px;
     padding: 8px 4px 18px;
     border: 1px solid var(--border);
@@ -509,7 +509,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     right: 4px;
   }
   .frequency-bar {
-    min-width: 1px;
+    width: 100%;
+    min-width: 0;
     height: var(--bar-height, 1px);
     border-radius: 1px 1px 0 0;
     background: var(--offset-column-fg);

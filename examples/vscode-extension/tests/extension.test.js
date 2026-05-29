@@ -114,6 +114,8 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="profileFrequencyTooltip"/)
   assert.match(html, /id="profileLimitNote"/)
   assert.match(html, /id="profileByteBars"/)
+  assert.match(html, /grid-template-columns: repeat\(256, minmax\(0, 1fr\)\);/)
+  assert.match(html, /\.frequency-bar \{[\s\S]*min-width: 0;/)
   assert.match(html, /id="structureMetrics"/)
   assert.match(html, /id="structureClassBars"/)
   assert.match(html, /id="structureTopBytes"/)
