@@ -118,6 +118,7 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="structureClassBars"/)
   assert.match(html, /id="structureTopBytes"/)
   assert.match(html, /id="statusProgress"/)
+  assert.match(html, /\.analysis-bar-fill \{[\s\S]*display: block;/)
   assert.match(html, /title="Undo \(Ctrl\+Z\)">Undo<\/button>/)
   assert.match(html, /title="Redo \(Ctrl\+Y\)">Redo<\/button>/)
   assert.match(html, /grid-template-columns: repeat\(32, 1ch\);/)

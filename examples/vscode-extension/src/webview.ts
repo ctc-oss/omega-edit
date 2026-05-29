@@ -443,6 +443,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     overflow: hidden;
   }
   .analysis-bar-fill {
+    display: block;
+    width: 0;
     height: 100%;
     min-width: 1px;
     border-radius: 999px;
