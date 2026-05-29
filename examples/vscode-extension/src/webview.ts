@@ -346,6 +346,120 @@ export function getWebviewContent(bytesPerRow: number): string {
     background: transparent;
   }
 
+  /* ── Analysis Pane ─────────────────────────────────── */
+  .analysis-pane {
+    width: clamp(260px, 28vw, 360px);
+    flex: 0 0 clamp(260px, 28vw, 360px);
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border);
+    background: color-mix(in srgb, var(--toolbar-bg) 74%, var(--bg) 26%);
+    min-height: 0;
+  }
+  .analysis-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .analysis-title {
+    font-size: 11px;
+    color: var(--offset-fg);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .analysis-tabs {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .analysis-tab {
+    background: transparent;
+    color: var(--offset-fg);
+    border: 0;
+    border-radius: 0;
+    padding: 3px 8px;
+  }
+  .analysis-tab.active {
+    background: var(--button-bg);
+    color: var(--button-fg);
+  }
+  .analysis-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 10px;
+  }
+  .analysis-panel {
+    display: none;
+  }
+  .analysis-panel.active {
+    display: block;
+  }
+  .analysis-section + .analysis-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .analysis-section-title {
+    color: var(--fg);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .analysis-metrics {
+    display: grid;
+    grid-template-columns: minmax(86px, auto) minmax(0, 1fr);
+    gap: 6px 12px;
+  }
+  .analysis-label {
+    color: var(--offset-fg);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .analysis-value {
+    color: var(--fg);
+    text-align: right;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+  }
+  .analysis-bars {
+    display: grid;
+    gap: 7px;
+  }
+  .analysis-bar-row {
+    display: grid;
+    grid-template-columns: 78px minmax(56px, 1fr) 52px;
+    gap: 8px;
+    align-items: center;
+  }
+  .analysis-bar-track {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--offset-fg) 18%, transparent);
+    overflow: hidden;
+  }
+  .analysis-bar-fill {
+    height: 100%;
+    min-width: 1px;
+    border-radius: 999px;
+    background: var(--offset-column-fg);
+  }
+  .analysis-note {
+    color: var(--offset-fg);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  @media (max-width: 900px) {
+    .analysis-pane {
+      display: none;
+    }
+  }
+
   /* ── Status Bar ──────────────────────────────────── */
   .status-bar {
     display: flex;
@@ -596,6 +710,49 @@ export function getWebviewContent(bytesPerRow: number): string {
       <div class="scrollbar-thumb" id="scrollbarThumb" title="Current viewport"></div>
     </div>
   </div>
+  <aside class="analysis-pane" id="analysisPane">
+    <div class="analysis-header">
+      <span class="analysis-title">Analysis</span>
+      <span class="analysis-tabs" role="tablist" aria-label="Analysis views">
+        <button class="analysis-tab active" id="profileTab" role="tab" aria-selected="true">Profile</button>
+        <button class="analysis-tab" id="structureTab" role="tab" aria-selected="false">Structure</button>
+      </span>
+    </div>
+    <div class="analysis-body">
+      <section class="analysis-panel active" id="profilePanel" role="tabpanel" aria-labelledby="profileTab">
+        <div class="analysis-section">
+          <div class="analysis-section-title">Viewport</div>
+          <div class="analysis-metrics" id="profileViewportMetrics"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">Timing</div>
+          <div class="analysis-metrics" id="profileTimingMetrics"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">Data Profile</div>
+          <div class="analysis-metrics" id="profileDataMetrics"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">Frequency</div>
+          <div class="analysis-bars" id="profileByteBars"></div>
+        </div>
+      </section>
+      <section class="analysis-panel" id="structurePanel" role="tabpanel" aria-labelledby="structureTab">
+        <div class="analysis-section">
+          <div class="analysis-section-title" id="structureScopeTitle">Visible Bytes</div>
+          <div class="analysis-metrics" id="structureMetrics"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">Byte Classes</div>
+          <div class="analysis-bars" id="structureClassBars"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">Top Bytes</div>
+          <div class="analysis-bars" id="structureTopBytes"></div>
+        </div>
+      </section>
+    </div>
+  </aside>
 </div>
 
 <!-- ── Status Bar ───────────────────────────────────── -->
@@ -688,6 +845,15 @@ export function getWebviewContent(bytesPerRow: number): string {
   let hoveredColumn = -1
   let hoveredRowIndex = -1
   let replaceSummaryActive = false
+  let analysisMode = 'profile'
+  let viewportSequence = 0
+  let lastRenderDurationMs = 0
+  let lastRenderAt = 0
+  let lastViewportMessageAt = 0
+  let latestProfile = null
+  let latestDataProfile = null
+  let pendingAnalysisProfileKey = ''
+  const renderSamples = []
 
   // ── DOM Refs ────────────────────────────────────────
   const hexContainer = document.getElementById('hexContainer')
@@ -736,9 +902,46 @@ export function getWebviewContent(bytesPerRow: number): string {
   const editData = document.getElementById('editData')
   const editLengthField = document.getElementById('editLengthField')
   const editDataField = document.getElementById('editDataField')
+  const profileTab = document.getElementById('profileTab')
+  const structureTab = document.getElementById('structureTab')
+  const profilePanel = document.getElementById('profilePanel')
+  const structurePanel = document.getElementById('structurePanel')
+  const profileViewportMetrics = document.getElementById('profileViewportMetrics')
+  const profileTimingMetrics = document.getElementById('profileTimingMetrics')
+  const profileDataMetrics = document.getElementById('profileDataMetrics')
+  const profileByteBars = document.getElementById('profileByteBars')
+  const structureScopeTitle = document.getElementById('structureScopeTitle')
+  const structureMetrics = document.getElementById('structureMetrics')
+  const structureClassBars = document.getElementById('structureClassBars')
+  const structureTopBytes = document.getElementById('structureTopBytes')
 
   function clamp(min, value, max) {
     return Math.max(min, Math.min(value, max))
+  }
+
+  function formatByteSize(bytes) {
+    if (!Number.isFinite(bytes) || bytes <= 0) {
+      return '0 B'
+    }
+    if (bytes < 1024) {
+      return bytes.toLocaleString() + ' B'
+    }
+    if (bytes < 1024 * 1024) {
+      return (bytes / 1024).toFixed(1) + ' KiB'
+    }
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MiB'
+  }
+
+  function formatDuration(ms) {
+    return typeof ms === 'number' && Number.isFinite(ms)
+      ? ms.toFixed(ms < 10 ? 2 : 1) + ' ms'
+      : '-'
+  }
+
+  function formatPercent(value) {
+    return typeof value === 'number' && Number.isFinite(value)
+      ? value.toFixed(1) + '%'
+      : '-'
   }
 
   // ── Render ──────────────────────────────────────────
@@ -855,6 +1058,331 @@ export function getWebviewContent(bytesPerRow: number): string {
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
+  }
+
+  function renderMetricRows(target, rows) {
+    target.innerHTML = rows
+      .map((row) =>
+        '<span class="analysis-label">' + escapeHtml(row.label) + '</span>' +
+        '<span class="analysis-value">' + escapeHtml(String(row.value)) + '</span>'
+      )
+      .join('')
+  }
+
+  function renderBarRows(target, rows) {
+    if (rows.length === 0) {
+      target.innerHTML = '<div class="analysis-note">No bytes in scope.</div>'
+      return
+    }
+
+    target.innerHTML = rows
+      .map((row) =>
+        '<div class="analysis-bar-row">' +
+          '<span class="analysis-label">' + escapeHtml(row.label) + '</span>' +
+          '<span class="analysis-bar-track">' +
+            '<span class="analysis-bar-fill" style="width: ' +
+              clamp(0, row.percent, 100).toFixed(1) +
+              '%"></span>' +
+          '</span>' +
+          '<span class="analysis-value">' + escapeHtml(row.value) + '</span>' +
+        '</div>'
+      )
+      .join('')
+  }
+
+  function updateAnalysisTabs() {
+    const profileActive = analysisMode === 'profile'
+    profileTab.classList.toggle('active', profileActive)
+    structureTab.classList.toggle('active', !profileActive)
+    profileTab.setAttribute('aria-selected', profileActive ? 'true' : 'false')
+    structureTab.setAttribute('aria-selected', profileActive ? 'false' : 'true')
+    profilePanel.classList.toggle('active', profileActive)
+    structurePanel.classList.toggle('active', !profileActive)
+  }
+
+  function setAnalysisMode(mode) {
+    analysisMode = mode === 'structure' ? 'structure' : 'profile'
+    updateAnalysisTabs()
+    updateAnalysisPanels()
+  }
+
+  function pushRenderSample(durationMs) {
+    renderSamples.push(durationMs)
+    if (renderSamples.length > 20) {
+      renderSamples.shift()
+    }
+  }
+
+  function averageRenderDuration() {
+    if (renderSamples.length === 0) {
+      return null
+    }
+    return renderSamples.reduce((sum, value) => sum + value, 0) / renderSamples.length
+  }
+
+  function byteClass(byte) {
+    if (byte === 0x00) {
+      return 'Null'
+    }
+    if (byte === 0xff) {
+      return 'FF'
+    }
+    if (byte >= 0x20 && byte <= 0x7e) {
+      return 'Printable'
+    }
+    if (byte < 0x20 || byte === 0x7f) {
+      return 'Control'
+    }
+    return 'High-bit'
+  }
+
+  function analyzeBytes(bytes) {
+    const counts = new Array(256).fill(0)
+    const classes = {
+      Printable: 0,
+      Control: 0,
+      'High-bit': 0,
+      Null: 0,
+      FF: 0,
+    }
+    let longestRunByte = null
+    let longestRunLength = 0
+    let currentRunByte = null
+    let currentRunLength = 0
+
+    for (const byte of bytes) {
+      counts[byte] += 1
+      classes[byteClass(byte)] += 1
+
+      if (byte === currentRunByte) {
+        currentRunLength += 1
+      } else {
+        currentRunByte = byte
+        currentRunLength = 1
+      }
+
+      if (currentRunLength > longestRunLength) {
+        longestRunLength = currentRunLength
+        longestRunByte = byte
+      }
+    }
+
+    let entropy = 0
+    for (const count of counts) {
+      if (count === 0) {
+        continue
+      }
+      const probability = count / Math.max(1, bytes.length)
+      entropy -= probability * Math.log2(probability)
+    }
+
+    const topBytes = counts
+      .map((count, byte) => ({ byte, count }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.byte - b.byte)
+      .slice(0, 5)
+
+    return {
+      count: bytes.length,
+      unique: counts.filter((count) => count > 0).length,
+      entropy,
+      classes,
+      longestRunByte,
+      longestRunLength,
+      topBytes,
+    }
+  }
+
+  function getVisibleBytes() {
+    const startIndex = Math.max(0, visibleOffset - bufferOffset)
+    return viewportData.slice(
+      startIndex,
+      Math.min(startIndex + currentVisibleByteCount(), viewportLength)
+    )
+  }
+
+  function getAnalysisProfileScope() {
+    if (hasSelection() && getSelectionLength() > 1) {
+      return {
+        label: 'Selection',
+        offset: getSelectionStart(),
+        length: getSelectionLength(),
+      }
+    }
+
+    return {
+      label: 'Visible',
+      offset: visibleOffset,
+      length: currentVisibleByteCount(),
+    }
+  }
+
+  function requestAnalysisProfile(force = false) {
+    const scope = getAnalysisProfileScope()
+    if (scope.length <= 0 || fileSize <= 0) {
+      return
+    }
+
+    const key =
+      scope.offset +
+      ':' +
+      scope.length +
+      ':' +
+      fileSize +
+      ':' +
+      (latestProfile?.changeCount ?? 0)
+    if (!force && key === pendingAnalysisProfileKey) {
+      return
+    }
+
+    pendingAnalysisProfileKey = key
+    vscode.postMessage({
+      type: 'requestAnalysisProfile',
+      offset: scope.offset,
+      length: scope.length,
+    })
+  }
+
+  function updateProfileAnalysis() {
+    const averageRenderMs = averageRenderDuration()
+    const profile = latestProfile ?? {}
+    const visibleByteCount = currentVisibleByteCount()
+    const bufferCoverage = fileSize > 0
+      ? (viewportLength / fileSize) * 100
+      : 0
+    const visibleCoverage = fileSize > 0
+      ? (visibleByteCount / fileSize) * 100
+      : 0
+    const hostToWebviewMs = typeof profile.hostToWebviewMs === 'number'
+      ? profile.hostToWebviewMs
+      : null
+
+    renderMetricRows(profileViewportMetrics, [
+      { label: 'Sequence', value: viewportSequence || '-' },
+      { label: 'Offset', value: formatOffsetDisplay(visibleOffset) },
+      { label: 'Buffered', value: formatByteSize(viewportLength) },
+      { label: 'Visible', value: formatByteSize(visibleByteCount) },
+      { label: 'Rows', value: visibleRows().toLocaleString() },
+      { label: 'Capacity', value: formatByteSize(profile.capacity ?? 0) },
+      {
+        label: 'Coverage',
+        value: formatPercent(bufferCoverage) + ' buffer / ' + formatPercent(visibleCoverage) + ' visible',
+      },
+      { label: 'Following', value: formatByteSize(profile.followingByteCount ?? 0) },
+      { label: 'Changes', value: (profile.changeCount ?? 0).toLocaleString() },
+      { label: 'Sync', value: profile.sessionSyncVersion ?? '-' },
+    ])
+
+    renderMetricRows(profileTimingMetrics, [
+      { label: 'Fetch', value: formatDuration(profile.fetchDurationMs) },
+      { label: 'Bridge', value: formatDuration(hostToWebviewMs) },
+      { label: 'Render', value: formatDuration(lastRenderDurationMs) },
+      { label: 'Avg Render', value: averageRenderMs === null ? '-' : formatDuration(averageRenderMs) },
+      { label: 'Updated', value: lastRenderAt ? new Date(lastRenderAt).toLocaleTimeString() : '-' },
+      { label: 'Message', value: lastViewportMessageAt ? new Date(lastViewportMessageAt).toLocaleTimeString() : '-' },
+    ])
+
+    if (!latestDataProfile) {
+      renderMetricRows(profileDataMetrics, [
+        { label: 'Scope', value: '-' },
+        { label: 'Bytes', value: '-' },
+        { label: 'ASCII', value: '-' },
+        { label: 'Content', value: '-' },
+        { label: 'Language', value: '-' },
+        { label: 'BOM', value: '-' },
+      ])
+      renderBarRows(profileByteBars, [])
+      return
+    }
+
+    const byteTotal = latestDataProfile.byteProfile
+      .slice(0, 256)
+      .reduce((sum, value) => sum + value, 0)
+    const asciiPercent = byteTotal > 0
+      ? (latestDataProfile.numAscii / byteTotal) * 100
+      : 0
+    const characterCount = latestDataProfile.characterCount ?? {}
+    const topProfileBytes = latestDataProfile.byteProfile
+      .slice(0, 256)
+      .map((count, byte) => ({ byte, count }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.byte - b.byte)
+      .slice(0, 5)
+
+    renderMetricRows(profileDataMetrics, [
+      { label: 'Scope', value: latestDataProfile.scopeLabel },
+      { label: 'Bytes', value: byteTotal.toLocaleString() },
+      { label: 'ASCII', value: latestDataProfile.numAscii.toLocaleString() + ' / ' + formatPercent(asciiPercent) },
+      { label: 'Content', value: latestDataProfile.contentType || '-' },
+      { label: 'Language', value: latestDataProfile.language || '-' },
+      { label: 'BOM', value: characterCount.byteOrderMark || '-' },
+      { label: 'Invalid', value: (characterCount.invalidBytes ?? 0).toLocaleString() },
+      { label: 'Profile', value: formatDuration(latestDataProfile.durationMs) },
+    ])
+
+    renderBarRows(
+      profileByteBars,
+      topProfileBytes.map((entry) => ({
+        label: '0x' + toHex2(entry.byte),
+        percent: byteTotal > 0 ? (entry.count / byteTotal) * 100 : 0,
+        value: entry.count.toLocaleString(),
+      }))
+    )
+  }
+
+  function updateStructureAnalysis() {
+    const selectedBytes = getSelectedBytes()
+    const bytes = selectedBytes && selectedBytes.length > 1
+      ? selectedBytes
+      : getVisibleBytes()
+    const scopeLabel = selectedBytes && selectedBytes.length > 1
+      ? 'Selection'
+      : 'Visible Bytes'
+    const analysis = analyzeBytes(bytes)
+    const printablePercent = analysis.count > 0
+      ? (analysis.classes.Printable / analysis.count) * 100
+      : 0
+    const density = analysis.count > 0
+      ? (analysis.unique / 256) * 100
+      : 0
+
+    structureScopeTitle.textContent = scopeLabel
+    renderMetricRows(structureMetrics, [
+      { label: 'Bytes', value: analysis.count.toLocaleString() },
+      { label: 'Unique', value: analysis.unique.toLocaleString() + ' / 256' },
+      { label: 'Density', value: formatPercent(density) },
+      { label: 'Entropy', value: analysis.count === 0 ? '-' : analysis.entropy.toFixed(2) + ' bits' },
+      { label: 'Printable', value: formatPercent(printablePercent) },
+      {
+        label: 'Longest Run',
+        value: analysis.longestRunByte === null
+          ? '-'
+          : '0x' + toHex2(analysis.longestRunByte) + ' x ' + analysis.longestRunLength.toLocaleString(),
+      },
+    ])
+
+    renderBarRows(
+      structureClassBars,
+      Object.entries(analysis.classes).map(([label, count]) => ({
+        label,
+        percent: analysis.count > 0 ? (count / analysis.count) * 100 : 0,
+        value: count.toLocaleString(),
+      }))
+    )
+
+    renderBarRows(
+      structureTopBytes,
+      analysis.topBytes.map((entry) => ({
+        label: '0x' + toHex2(entry.byte),
+        percent: analysis.count > 0 ? (entry.count / analysis.count) * 100 : 0,
+        value: entry.count.toLocaleString(),
+      }))
+    )
+  }
+
+  function updateAnalysisPanels() {
+    updateProfileAnalysis()
+    updateStructureAnalysis()
   }
 
   function clearSearchResults(message = '') {
@@ -1255,6 +1783,8 @@ export function getWebviewContent(bytesPerRow: number): string {
       selectionAnchor = -1
       updateSelectedStatus()
       updateRenderedSelection()
+      updateAnalysisPanels()
+      requestAnalysisProfile()
       return
     }
 
@@ -1271,6 +1801,8 @@ export function getWebviewContent(bytesPerRow: number): string {
 
     updateSelectedStatus()
     updateRenderedSelection()
+    updateAnalysisPanels()
+    requestAnalysisProfile()
   }
 
   function getSelectedBytes() {
@@ -1622,6 +2154,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function render() {
+    const renderStartedAt = performance.now()
     if (selectedOffset >= fileSize || selectionAnchor >= fileSize) {
       selectOffset(fileSize > 0 ? fileSize - 1 : -1)
     }
@@ -1677,6 +2210,11 @@ export function getWebviewContent(bytesPerRow: number): string {
     updateProgressStatus()
     updateInspectorStatus()
     updateScrollbar()
+    lastRenderDurationMs = performance.now() - renderStartedAt
+    lastRenderAt = Date.now()
+    pushRenderSample(lastRenderDurationMs)
+    updateAnalysisPanels()
+    requestAnalysisProfile()
   }
 
   // ── Message Handling ────────────────────────────────
@@ -1685,6 +2223,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     const msg = event.data
     switch (msg.type) {
       case 'viewportData':
+        viewportSequence += 1
+        lastViewportMessageAt = Date.now()
         bufferOffset = msg.offset
         visibleOffset =
           typeof msg.visibleOffset === 'number' ? msg.visibleOffset : pendingVisibleOffset
@@ -1692,6 +2232,14 @@ export function getWebviewContent(bytesPerRow: number): string {
         viewportData = msg.data
         viewportLength = msg.length
         fileSize = msg.fileSize
+        latestProfile = {
+          ...(msg.profile ?? {}),
+          followingByteCount: msg.followingByteCount ?? 0,
+          hostToWebviewMs:
+            msg.profile && typeof msg.profile.sentAt === 'number'
+              ? Math.max(0, lastViewportMessageAt - msg.profile.sentAt)
+              : null,
+        }
         render()
         break
 
@@ -1805,6 +2353,20 @@ export function getWebviewContent(bytesPerRow: number): string {
 
       case 'serverHealth':
         updateServerHealthStatus(msg)
+        break
+
+      case 'analysisProfile':
+        latestDataProfile = {
+          ...msg,
+          scopeLabel:
+            hasSelection() &&
+            getSelectionLength() > 1 &&
+            msg.offset === getSelectionStart() &&
+            msg.length === getSelectionLength()
+              ? 'Selection'
+              : 'Visible',
+        }
+        updateAnalysisPanels()
         break
     }
   })
@@ -2139,6 +2701,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   searchBtn.addEventListener('click', doSearch)
   replaceBtn.addEventListener('click', replaceCurrentMatch)
   replaceAllBtn.addEventListener('click', replaceAllMatches)
+  profileTab.addEventListener('click', () => setAnalysisMode('profile'))
+  structureTab.addEventListener('click', () => setAnalysisMode('structure'))
   bytesPerRowSelect.addEventListener('change', () => {
     const nextBytesPerRow = parseInt(bytesPerRowSelect.value, 10)
     if ([8, 16, 32].includes(nextBytesPerRow)) {
@@ -2296,6 +2860,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   updateOffsetStatus()
   updateSelectedStatus()
   updateProgressStatus()
+  updateAnalysisTabs()
+  updateAnalysisPanels()
   renderColumnHeader()
   reportViewportMetrics()
 })()

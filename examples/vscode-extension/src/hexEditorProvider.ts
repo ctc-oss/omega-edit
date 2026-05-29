@@ -29,6 +29,7 @@
 
 import {
   ALL_EVENTS,
+  countCharacters,
   del,
   destroyLastCheckpoint,
   editSimple,
@@ -37,7 +38,10 @@ import {
   EditorHistoryController,
   EditorSearchController,
   ScopedEditorSessionHandle,
+  getByteOrderMark,
   getClientVersion,
+  getContentType,
+  getLanguage,
   getSegment,
   getServerInfo,
   getViewportData,
@@ -45,7 +49,9 @@ import {
   type IServerInfo,
   insert,
   modifyViewport,
+  numAscii,
   overwrite,
+  profileSession,
   replaceSessionCheckpointed,
   redo,
   saveSession,
@@ -543,7 +549,9 @@ export class HexEditorProvider
 
   /** Fetch current viewport data and send it to the webview */
   private async sendViewportData(session: EditorSession): Promise<void> {
+    const fetchStartedAt = Date.now()
     const resp = await getViewportData(session.viewportId)
+    const fetchDurationMs = Date.now() - fetchStartedAt
     const data = resp.getData_asU8()
     session.panel.webview.postMessage({
       type: 'viewportData',
@@ -553,6 +561,15 @@ export class HexEditorProvider
       length: resp.getLength(),
       fileSize: session.fileSize,
       followingByteCount: resp.getFollowingByteCount(),
+      profile: {
+        fetchDurationMs,
+        sentAt: Date.now(),
+        payloadBytes: data.byteLength,
+        capacity: session.capacity,
+        visibleRows: session.visibleRows,
+        changeCount: session.changeCount,
+        sessionSyncVersion: session.sessionSyncVersion,
+      },
     })
   }
 
@@ -575,6 +592,51 @@ export class HexEditorProvider
       type: 'editState',
       ...editState,
       isDirty: editState.isDirty || !!session.restoredFromBackup,
+    })
+  }
+
+  private async postAnalysisProfile(
+    session: EditorSession,
+    offset: number,
+    length: number
+  ): Promise<void> {
+    const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
+    const clampedLength = Math.max(
+      0,
+      Math.min(length, Math.max(0, session.fileSize - clampedOffset))
+    )
+    const startedAt = Date.now()
+    const byteProfile = await profileSession(
+      session.sessionId,
+      clampedOffset,
+      clampedLength
+    )
+    const bom = await getByteOrderMark(session.sessionId, clampedOffset)
+    const bomName = bom.getByteOrderMark()
+    const [characterCount, contentType, language] = await Promise.all([
+      countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
+      getContentType(session.sessionId, clampedOffset, clampedLength),
+      getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
+    ])
+
+    session.panel.webview.postMessage({
+      type: 'analysisProfile',
+      offset: clampedOffset,
+      length: clampedLength,
+      durationMs: Date.now() - startedAt,
+      byteProfile,
+      numAscii: numAscii(byteProfile),
+      contentType: contentType.getContentType(),
+      language: language.getLanguage(),
+      characterCount: {
+        byteOrderMark: characterCount.getByteOrderMark(),
+        byteOrderMarkBytes: characterCount.getByteOrderMarkBytes(),
+        singleByteCount: characterCount.getSingleByteChars(),
+        doubleByteCount: characterCount.getDoubleByteChars(),
+        tripleByteCount: characterCount.getTripleByteChars(),
+        quadByteCount: characterCount.getQuadByteChars(),
+        invalidBytes: characterCount.getInvalidBytes(),
+      },
     })
   }
 
@@ -1086,6 +1148,11 @@ export class HexEditorProvider
           break
         }
 
+        case 'requestAnalysisProfile': {
+          await this.postAnalysisProfile(session, msg.offset, msg.length)
+          break
+        }
+
         // --- Editing ---
         case 'insert': {
           const sessionSyncVersion = session.sessionSyncVersion
@@ -1299,6 +1366,7 @@ type WebviewMessage =
   | { type: 'scrollTo'; offset: number }
   | { type: 'setViewportMetrics'; visibleRows: number }
   | { type: 'setBytesPerRow'; bytesPerRow: 8 | 16 | 32 }
+  | { type: 'requestAnalysisProfile'; offset: number; length: number }
   | { type: 'insert'; offset: number; data: string }
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }
