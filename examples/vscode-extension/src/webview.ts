@@ -450,6 +450,15 @@ export function getWebviewContent(bytesPerRow: number): string {
     border-radius: 999px;
     background: var(--offset-column-fg);
   }
+  .analysis-bar-fill.control {
+    background: var(--vscode-terminal-ansiBlue, #569cd6);
+  }
+  .analysis-bar-fill.printable {
+    background: var(--ascii-fg);
+  }
+  .analysis-bar-fill.high-bit {
+    background: var(--vscode-terminal-ansiMagenta, #c586c0);
+  }
   .analysis-section-heading {
     display: flex;
     align-items: center;
@@ -528,6 +537,12 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
   .frequency-bar.high-bit {
     background: var(--vscode-terminal-ansiMagenta, #c586c0);
+  }
+  .frequency-bar.hovered {
+    opacity: 1;
+    filter: brightness(1.4);
+    outline: 1px solid rgba(255, 255, 255, 0.3);
+    outline-offset: 0;
   }
   .frequency-tooltip {
     position: absolute;
@@ -953,6 +968,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   let hoveredRowIndex = -1
   let replaceSummaryActive = false
   let analysisMode = 'profile'
+  let hoveredFrequencyBar = null
   let viewportSequence = 0
   let lastRenderDurationMs = 0
   let lastRenderAt = 0
@@ -1192,7 +1208,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         '<div class="analysis-bar-row">' +
           '<span class="analysis-label">' + escapeHtml(row.label) + '</span>' +
           '<span class="analysis-bar-track">' +
-            '<span class="analysis-bar-fill" style="width: ' +
+            '<span class="analysis-bar-fill' + (row.colorClass ? ' ' + row.colorClass : '') + '" style="width: ' +
               clamp(0, row.percent, 100).toFixed(1) +
               '%"></span>' +
           '</span>' +
@@ -1232,13 +1248,6 @@ export function getWebviewContent(bytesPerRow: number): string {
           ? Math.log2(count + 1) / Math.max(1, maxLog)
           : count / maxCount
         const percent = count === 0 ? 0 : clamp(2, ratio * 100, 100)
-        const title =
-          '0x' +
-          toHex2(byte) +
-          ' | ' +
-          count.toLocaleString() +
-          ' | ' +
-          formatPercent((count / total) * 100)
         return '<span class="frequency-bar' +
           frequencyBarClass(byte, count) +
           '" style="--bar-height: ' +
@@ -1249,19 +1258,40 @@ export function getWebviewContent(bytesPerRow: number): string {
           count +
           '" data-percent="' +
           formatPercent((count / total) * 100) +
-          '" title="' +
-          escapeHtml(title) +
           '"></span>'
       })
       .join('') +
       '<div class="frequency-tooltip" id="profileFrequencyTooltip"></div>'
   }
 
+  function findFrequencyBarAtEvent(event) {
+    const chartRect = profileFrequencyChart.getBoundingClientRect()
+    const paddingLeft = 4
+    const innerWidth = chartRect.width - 8
+    if (innerWidth <= 0) return null
+    const x = event.clientX - chartRect.left - paddingLeft
+    const index = clamp(0, Math.floor((x / innerWidth) * 256), 255)
+    const bar = profileFrequencyChart.children[index]
+    return bar && bar.classList.contains('frequency-bar') ? bar : null
+  }
+
   function updateFrequencyTooltip(event) {
-    const target = event.target.closest('.frequency-bar')
     const tooltip = document.getElementById('profileFrequencyTooltip')
-    if (!target || !tooltip) {
+    if (!tooltip) {
       hideFrequencyTooltip()
+      return
+    }
+
+    const target = findFrequencyBarAtEvent(event)
+
+    if (hoveredFrequencyBar !== target) {
+      if (hoveredFrequencyBar) hoveredFrequencyBar.classList.remove('hovered')
+      hoveredFrequencyBar = target
+      if (hoveredFrequencyBar) hoveredFrequencyBar.classList.add('hovered')
+    }
+
+    if (!target) {
+      tooltip.classList.remove('active')
       return
     }
 
@@ -1269,7 +1299,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     const count = parseInt(target.dataset.count, 10)
     const percent = target.dataset.percent || '0.0%'
     if (Number.isNaN(byte) || Number.isNaN(count)) {
-      hideFrequencyTooltip()
+      tooltip.classList.remove('active')
       return
     }
 
@@ -1308,6 +1338,10 @@ export function getWebviewContent(bytesPerRow: number): string {
     const tooltip = document.getElementById('profileFrequencyTooltip')
     if (tooltip) {
       tooltip.classList.remove('active')
+    }
+    if (hoveredFrequencyBar) {
+      hoveredFrequencyBar.classList.remove('hovered')
+      hoveredFrequencyBar = null
     }
   }
 
@@ -1605,6 +1639,7 @@ export function getWebviewContent(bytesPerRow: number): string {
           entry.count.toLocaleString() +
           ' | ' +
           formatPercent(byteTotal > 0 ? (entry.count / byteTotal) * 100 : 0),
+        colorClass: frequencyBarClass(entry.byte, entry.count).trim(),
       }))
     )
   }
@@ -1655,6 +1690,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         label: '0x' + toHex2(entry.byte),
         percent: analysis.count > 0 ? (entry.count / analysis.count) * 100 : 0,
         value: entry.count.toLocaleString(),
+        colorClass: frequencyBarClass(entry.byte, entry.count).trim(),
       }))
     )
   }
