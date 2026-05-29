@@ -10,14 +10,16 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | Start Ωedit™ server on `activate()`                       | [extension.ts](src/extension.ts)                                                    |
 | Stop server on `deactivate()`                             | [extension.ts](src/extension.ts)                                                    |
-| `CustomReadonlyEditorProvider` wired to Ωedit™            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| `CustomEditorProvider` wired to Ωedit™ (dirty-doc integration) | [hexEditorProvider.ts](src/hexEditorProvider.ts)                               |
 | Direct open from command palette / explorer               | [extension.ts](src/extension.ts)                                                    |
 | Create session per opened file                            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | Viewport to webview data flow                             | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | Insert / delete / overwrite / replace from UI             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Search and replace with text/hex and direction controls   | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Undo / redo with stack counts                             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
-| Save / Save As / dirty tracking                           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| VS Code dirty-document tracking (`onDidChangeCustomDocument`) | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| VS Code-initiated save / save-as / revert / backup            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
+| Save / Save As / dirty tracking                               | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
 | Bytes-per-row and offset-radix controls                   | [webview.ts](src/webview.ts)                                                        |
 | Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
@@ -186,7 +188,6 @@ Subscription rule:
 
 This reference implementation is intentionally compact. A few natural next steps are:
 
-- Switch from `CustomReadonlyEditorProvider` to `CustomEditorProvider` for full VS Code dirty-document integration
 - Add multiple coordinated viewports or overview panels
 - Surface richer profiling / structure analysis views
 - Add bookmarks and richer navigation helpers

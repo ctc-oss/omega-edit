@@ -33,6 +33,7 @@ import {
   destroyLastCheckpoint,
   editSimple,
   type EditorChangeRecord as ChangeRecord,
+  type EditorHistoryExecutor,
   EditorHistoryController,
   EditorSearchController,
   ScopedEditorSessionHandle,
@@ -68,9 +69,11 @@ interface EditorSession {
   capacity: number
   filePath: string
   panel: vscode.WebviewPanel
+  document: HexDocument
   scope: ScopedEditorSessionHandle
   history: EditorHistoryController
   search: EditorSearchController
+  restoredFromBackup?: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
 }
@@ -117,8 +120,34 @@ function getOptionalNumberProperty(
   return typeof value === 'number' ? value : undefined
 }
 
-export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
+/**
+ * Represents a single file opened by the Hex Editor. VS Code tracks dirty
+ * state and initiates saves through this object.
+ */
+export class HexDocument implements vscode.CustomDocument {
+  readonly uri: vscode.Uri
+  backupId: string | undefined
+
+  constructor(uri: vscode.Uri, backupId?: string) {
+    this.uri = uri
+    this.backupId = backupId
+  }
+
+  dispose(): void {}
+}
+
+export class HexEditorProvider
+  implements vscode.CustomEditorProvider<HexDocument>
+{
   public static readonly viewType = OMEGA_EDIT_VIEW_TYPE
+
+  private readonly _onDidChangeCustomDocument = new vscode.EventEmitter<
+    vscode.CustomDocumentEditEvent<HexDocument>
+  >()
+  readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event
+
+  /** Open documents keyed by document URI string */
+  private documents = new Map<string, HexDocument>()
 
   /** Active editor sessions keyed by document URI string */
   private sessions = new Map<string, EditorSession>()
@@ -163,6 +192,25 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
       throw new Error(`No session found for ${uri.toString()}`)
     }
 
+    // Intercept operations that would normally route through VS Code commands
+    // in production; invoke session logic directly in the test context where
+    // no real VS Code custom-editor edit stack is registered.
+    switch (msg.type) {
+      case 'undo':
+        await this.performUndoOnSession(session)
+        return
+      case 'redo':
+        await this.performRedoOnSession(session)
+        return
+      case 'save':
+      case 'saveAs':
+        await this.saveCustomDocument(
+          session.document,
+          new vscode.CancellationTokenSource().token
+        )
+        return
+    }
+
     await this.handleWebviewMessage(session, msg)
   }
 
@@ -170,14 +218,16 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
   async openCustomDocument(
     uri: vscode.Uri,
-    _openContext: vscode.CustomDocumentOpenContext,
+    openContext: vscode.CustomDocumentOpenContext,
     _token: vscode.CancellationToken
-  ): Promise<vscode.CustomDocument> {
-    return { uri, dispose: () => {} }
+  ): Promise<HexDocument> {
+    const doc = new HexDocument(uri, openContext.backupId)
+    this.documents.set(uri.toString(), doc)
+    return doc
   }
 
   async resolveCustomEditor(
-    document: vscode.CustomDocument,
+    document: HexDocument,
     webviewPanel: vscode.WebviewPanel,
     _token: vscode.CancellationToken
   ): Promise<void> {
@@ -193,35 +243,45 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     const capacity = this.getViewportCapacity(bytesPerRow)
 
     // --- Create a viewport starting at offset 0 ---
-    const scope = await ScopedEditorSessionHandle.openFile(filePath, {
-      filePath,
+    // If VS Code supplies a backup id (crash-recovery), open from the backup so
+    // unsaved edits are restored; save still targets the original filePath.
+    const wasRestoredFromBackup = !!document.backupId
+    const restoreFromPath = document.backupId
+      ? vscode.Uri.parse(document.backupId).fsPath
+      : filePath
+    document.backupId = undefined // consume – do not re-use on subsequent resolves
+
+    const scope = await ScopedEditorSessionHandle.openFile(restoreFromPath, {
+      filePath: restoreFromPath,
       capacity,
     })
 
     const session: EditorSession = {
       get sessionId() {
-        return scope.sessionId
+        return this.scope.sessionId
       },
       get viewportId() {
-        return scope.viewportId
+        return this.scope.viewportId
       },
       get fileSize() {
-        return scope.model.fileSize
+        return this.scope.model.fileSize
       },
       get changeCount() {
-        return scope.model.changeCount
+        return this.scope.model.changeCount
       },
       get sessionSyncVersion() {
-        return scope.model.syncVersion
+        return this.scope.model.syncVersion
       },
       offset: 0,
       visibleRows: 32,
       capacity,
       filePath,
       panel: webviewPanel,
+      document,
       scope,
       history: new EditorHistoryController(),
       search: new EditorSearchController(scope.sessionId),
+      restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
@@ -235,6 +295,133 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     this.postEditState(session)
     this.startHealthPolling()
 
+    await this.startSessionSubscriptions(session)
+
+    // --- Handle messages FROM the webview ---
+    webviewPanel.webview.onDidReceiveMessage(
+      (msg) => this.handleWebviewMessage(session, msg),
+      undefined,
+      this.context.subscriptions
+    )
+
+    // Track which editor is active (for command routing)
+    webviewPanel.onDidChangeViewState(() => {
+      if (webviewPanel.active) {
+        this.activeSession = session
+      }
+    })
+
+    // --- Cleanup on close ---
+    webviewPanel.onDidDispose(async () => {
+      this.sessions.delete(uri.toString())
+      this.documents.delete(uri.toString())
+      if (this.activeSession === session) {
+        this.activeSession = undefined
+      }
+      if (this.sessions.size === 0) {
+        this.stopHealthPolling()
+      }
+      await session.scope.dispose()
+    })
+  }
+
+  // â"€â"€ CustomEditorProvider required methods â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+
+  async saveCustomDocument(
+    document: HexDocument,
+    _cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    const session = this.sessions.get(document.uri.toString())
+    if (!session) {
+      return
+    }
+    await saveSession(session.sessionId, session.filePath, IOFlags.OVERWRITE)
+    session.restoredFromBackup = false
+    session.history.markSaved()
+    this.postEditState(session)
+    vscode.window.showInformationMessage('File saved')
+  }
+
+  async saveCustomDocumentAs(
+    document: HexDocument,
+    destination: vscode.Uri,
+    _cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    const session = this.sessions.get(document.uri.toString())
+    if (!session) {
+      return
+    }
+    await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
+    session.restoredFromBackup = false
+    vscode.window.showInformationMessage(`File saved as ${destination.fsPath}`)
+  }
+
+  async revertCustomDocument(
+    document: HexDocument,
+    _cancellation: vscode.CancellationToken
+  ): Promise<void> {
+    const session = this.sessions.get(document.uri.toString())
+    if (!session || session.scope.isDisposed) {
+      return
+    }
+
+    await session.scope.dispose()
+
+    const config = vscode.workspace.getConfiguration('omegaEdit')
+    const bytesPerRow = config.get<number>('bytesPerRow', 16)
+    const capacity = this.getViewportCapacity(bytesPerRow)
+
+    const newScope = await ScopedEditorSessionHandle.openFile(
+      session.filePath,
+      {
+        filePath: session.filePath,
+        capacity,
+      }
+    )
+
+    session.scope = newScope
+    session.restoredFromBackup = false
+    session.history = new EditorHistoryController()
+    session.search = new EditorSearchController(session.sessionId)
+    session.offset = 0
+    session.capacity = capacity
+
+    await this.startSessionSubscriptions(session)
+    await this.sendViewportData(session)
+    this.postEditState(session)
+  }
+
+  async backupCustomDocument(
+    document: HexDocument,
+    context: vscode.CustomDocumentBackupContext,
+    _cancellation: vscode.CancellationToken
+  ): Promise<vscode.CustomDocumentBackup> {
+    const session = this.sessions.get(document.uri.toString())
+    if (session && !session.scope.isDisposed) {
+      await vscode.workspace.fs.createDirectory(
+        vscode.Uri.joinPath(context.destination, '..')
+      )
+      await saveSession(
+        session.sessionId,
+        context.destination.fsPath,
+        IOFlags.OVERWRITE
+      )
+    }
+    return {
+      id: context.destination.toString(),
+      delete: async () => {
+        try {
+          await vscode.workspace.fs.delete(context.destination)
+        } catch {
+          // Backup may not exist; ignore.
+        }
+      },
+    }
+  }
+
+  private async startSessionSubscriptions(
+    session: EditorSession
+  ): Promise<void> {
     await session.scope.startSubscriptions({
       sessionInterest: ALL_EVENTS,
       viewportInterest: ALL_EVENTS,
@@ -263,32 +450,6 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
           this.clearSearchState(session)
         }
       },
-    })
-
-    // --- Handle messages FROM the webview ---
-    webviewPanel.webview.onDidReceiveMessage(
-      (msg) => this.handleWebviewMessage(session, msg),
-      undefined,
-      this.context.subscriptions
-    )
-
-    // Track which editor is active (for command routing)
-    webviewPanel.onDidChangeViewState(() => {
-      if (webviewPanel.active) {
-        this.activeSession = session
-      }
-    })
-
-    // --- Cleanup on close ---
-    webviewPanel.onDidDispose(async () => {
-      this.sessions.delete(uri.toString())
-      if (this.activeSession === session) {
-        this.activeSession = undefined
-      }
-      if (this.sessions.size === 0) {
-        this.stopHealthPolling()
-      }
-      await session.scope.dispose()
     })
   }
 
@@ -409,9 +570,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
   }
 
   private postEditState(session: EditorSession): void {
+    const editState = session.history.getEditState()
     session.panel.webview.postMessage({
       type: 'editState',
-      ...session.history.getEditState(),
+      ...editState,
+      isDirty: editState.isDirty || !!session.restoredFromBackup,
     })
   }
 
@@ -606,6 +769,65 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
     }
   }
 
+  private makeHistoryExecutor(session: EditorSession): EditorHistoryExecutor {
+    return {
+      async undoLocal() {
+        await undo(session.sessionId)
+      },
+      async redoLocal() {
+        await redo(session.sessionId)
+      },
+      async undoCheckpoint() {
+        await destroyLastCheckpoint(session.sessionId)
+      },
+      async redoCheckpoint(transaction) {
+        const pattern = transaction.isHex
+          ? Buffer.from(transaction.query, 'hex')
+          : Buffer.from(transaction.query, 'utf8')
+        await replaceSessionCheckpointed(
+          session.sessionId,
+          pattern,
+          Buffer.from(transaction.data, 'hex'),
+          transaction.caseInsensitive,
+          0,
+          0
+        )
+      },
+    }
+  }
+
+  private async performUndoOnSession(session: EditorSession): Promise<void> {
+    const sessionSyncVersion = session.sessionSyncVersion
+    const didUndo = await session.history.undo(
+      this.makeHistoryExecutor(session)
+    )
+    if (didUndo) {
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      this.clearSearchState(session)
+    }
+    this.postEditState(session)
+  }
+
+  private async performRedoOnSession(session: EditorSession): Promise<void> {
+    const sessionSyncVersion = session.sessionSyncVersion
+    const didRedo = await session.history.redo(
+      this.makeHistoryExecutor(session)
+    )
+    if (didRedo) {
+      await this.waitForSessionSync(session, sessionSyncVersion)
+      this.clearSearchState(session)
+    }
+    this.postEditState(session)
+  }
+
+  private notifyDocumentChanged(session: EditorSession): void {
+    this._onDidChangeCustomDocument.fire({
+      document: session.document,
+      undo: () => this.performUndoOnSession(session),
+      redo: () => this.performRedoOnSession(session),
+    })
+  }
+
   private async replayChanges(
     session: EditorSession,
     changes: ChangeRecord[]
@@ -628,6 +850,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: change.data,
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           break
         }
         case 'DELETE': {
@@ -644,6 +867,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: '',
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           break
         }
         case 'OVERWRITE': {
@@ -660,6 +884,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: change.data,
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           break
         }
         case 'REPLACE':
@@ -707,24 +932,11 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
         groupId,
       })
       this.postEditState(session)
+      this.notifyDocumentChanged(session)
       return true
     }
 
     return false
-  }
-
-  private async saveToPath(
-    session: EditorSession,
-    filePath: string,
-    successMessage: string,
-    markClean: boolean
-  ): Promise<void> {
-    await saveSession(session.sessionId, filePath, IOFlags.OVERWRITE)
-    if (markClean) {
-      session.history.markSaved()
-      this.postEditState(session)
-    }
-    vscode.window.showInformationMessage(successMessage)
   }
 
   /** Scroll the viewport to a given offset, clamped to file bounds */
@@ -887,6 +1099,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: msg.data,
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
           break
@@ -903,6 +1116,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: '',
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
           break
@@ -923,6 +1137,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
             data: msg.data,
           })
           this.postEditState(session)
+          this.notifyDocumentChanged(session)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
           break
@@ -980,6 +1195,7 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
                 )
               }
               this.postEditState(session)
+              this.notifyDocumentChanged(session)
             }
 
             session.panel.webview.postMessage({
@@ -994,93 +1210,31 @@ export class HexEditorProvider implements vscode.CustomReadonlyEditorProvider {
 
         // --- Undo / Redo ---
         case 'undo': {
-          const sessionSyncVersion = session.sessionSyncVersion
-          const didUndo = await session.history.undo({
-            async undoLocal() {
-              await undo(session.sessionId)
-            },
-            async redoLocal() {
-              await redo(session.sessionId)
-            },
-            async undoCheckpoint() {
-              await destroyLastCheckpoint(session.sessionId)
-            },
-            async redoCheckpoint(transaction) {
-              const pattern = transaction.isHex
-                ? Buffer.from(transaction.query, 'hex')
-                : Buffer.from(transaction.query, 'utf8')
-              await replaceSessionCheckpointed(
-                session.sessionId,
-                pattern,
-                Buffer.from(transaction.data, 'hex'),
-                transaction.caseInsensitive,
-                0,
-                0
-              )
-            },
-          })
-          if (didUndo) {
-            await this.waitForSessionSync(session, sessionSyncVersion)
-            this.clearSearchState(session)
-          }
-          this.postEditState(session)
+          // Route through VS Code so it pops from its CustomDocumentEditEvent
+          // stack; VS Code then calls our registered undo() callback, which
+          // calls session.history.undo() and keeps VS Code's dirty state in
+          // sync (including clearing dirty when back at the saved baseline).
+          await vscode.commands.executeCommand('undo')
           break
         }
 
         case 'redo': {
-          const sessionSyncVersion = session.sessionSyncVersion
-          const didRedo = await session.history.redo({
-            async undoLocal() {
-              await undo(session.sessionId)
-            },
-            async redoLocal() {
-              await redo(session.sessionId)
-            },
-            async undoCheckpoint() {
-              await destroyLastCheckpoint(session.sessionId)
-            },
-            async redoCheckpoint(transaction) {
-              const pattern = transaction.isHex
-                ? Buffer.from(transaction.query, 'hex')
-                : Buffer.from(transaction.query, 'utf8')
-              await replaceSessionCheckpointed(
-                session.sessionId,
-                pattern,
-                Buffer.from(transaction.data, 'hex'),
-                transaction.caseInsensitive,
-                0,
-                0
-              )
-            },
-          })
-          if (didRedo) {
-            await this.waitForSessionSync(session, sessionSyncVersion)
-            this.clearSearchState(session)
-          }
-          this.postEditState(session)
+          await vscode.commands.executeCommand('redo')
           break
         }
 
         // --- Save ---
         case 'save': {
-          await this.saveToPath(session, session.filePath, 'File saved', true)
+          // Delegate to VS Code so it owns the save lifecycle and clears
+          // the dirty indicator.  VS Code will call saveCustomDocument().
+          await vscode.commands.executeCommand('workbench.action.files.save')
           break
         }
 
         case 'saveAs': {
-          const saveUri = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(session.filePath),
-            title: 'Save Ωedit™ contents as',
-          })
-          if (!saveUri) {
-            break
-          }
-          await this.saveToPath(
-            session,
-            saveUri.fsPath,
-            `File saved as ${saveUri.fsPath}`,
-            false
-          )
+          // Delegate to VS Code so it presents its own destination picker and
+          // then calls saveCustomDocumentAs(), clearing the dirty indicator.
+          await vscode.commands.executeCommand('workbench.action.files.saveAs')
           break
         }
 
