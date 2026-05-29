@@ -598,7 +598,11 @@ export class HexEditorProvider
   private async postAnalysisProfile(
     session: EditorSession,
     offset: number,
-    length: number
+    length: number,
+    requestKey: string,
+    scopeLabel: string,
+    requestedLength: number,
+    isCapped: boolean
   ): Promise<void> {
     const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
     const clampedLength = Math.max(
@@ -606,12 +610,10 @@ export class HexEditorProvider
       Math.min(length, Math.max(0, session.fileSize - clampedOffset))
     )
     const startedAt = Date.now()
-    const byteProfile = await profileSession(
-      session.sessionId,
-      clampedOffset,
-      clampedLength
-    )
-    const bom = await getByteOrderMark(session.sessionId, clampedOffset)
+    const [byteProfile, bom] = await Promise.all([
+      profileSession(session.sessionId, clampedOffset, clampedLength),
+      getByteOrderMark(session.sessionId, clampedOffset),
+    ])
     const bomName = bom.getByteOrderMark()
     const [characterCount, contentType, language] = await Promise.all([
       countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
@@ -621,8 +623,12 @@ export class HexEditorProvider
 
     session.panel.webview.postMessage({
       type: 'analysisProfile',
+      requestKey,
+      scopeLabel,
       offset: clampedOffset,
       length: clampedLength,
+      requestedLength,
+      isCapped,
       durationMs: Date.now() - startedAt,
       byteProfile,
       numAscii: numAscii(byteProfile),
@@ -1149,7 +1155,15 @@ export class HexEditorProvider
         }
 
         case 'requestAnalysisProfile': {
-          await this.postAnalysisProfile(session, msg.offset, msg.length)
+          await this.postAnalysisProfile(
+            session,
+            msg.offset,
+            msg.length,
+            msg.requestKey,
+            msg.scopeLabel,
+            msg.requestedLength,
+            msg.isCapped
+          )
           break
         }
 
@@ -1366,7 +1380,15 @@ type WebviewMessage =
   | { type: 'scrollTo'; offset: number }
   | { type: 'setViewportMetrics'; visibleRows: number }
   | { type: 'setBytesPerRow'; bytesPerRow: 8 | 16 | 32 }
-  | { type: 'requestAnalysisProfile'; offset: number; length: number }
+  | {
+      type: 'requestAnalysisProfile'
+      offset: number
+      length: number
+      requestKey: string
+      scopeLabel: string
+      requestedLength: number
+      isCapped: boolean
+    }
   | { type: 'insert'; offset: number; data: string }
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }
