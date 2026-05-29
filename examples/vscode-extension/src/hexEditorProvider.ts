@@ -1186,10 +1186,12 @@ export class HexEditorProvider
 
         // --- Save ---
         case 'save': {
-          await this.saveCustomDocument(
-            session.document,
-            new vscode.CancellationTokenSource().token
-          )
+          const cts = new vscode.CancellationTokenSource()
+          try {
+            await this.saveCustomDocument(session.document, cts.token)
+          } finally {
+            cts.dispose()
+          }
           break
         }
 
@@ -1201,11 +1203,16 @@ export class HexEditorProvider
           if (!saveUri) {
             break
           }
-          await this.saveCustomDocumentAs(
-            session.document,
-            saveUri,
-            new vscode.CancellationTokenSource().token
-          )
+          const cts = new vscode.CancellationTokenSource()
+          try {
+            await this.saveCustomDocumentAs(
+              session.document,
+              saveUri,
+              cts.token
+            )
+          } finally {
+            cts.dispose()
+          }
           break
         }
 
