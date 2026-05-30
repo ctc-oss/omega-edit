@@ -1267,6 +1267,38 @@ export function getWebviewContent(bytesPerRow: number): string {
     return "0x" + toHex2(byte) + " '" + String.fromCharCode(byte) + "'"
   }
 
+  function formatModeByte(entry, total) {
+    if (!entry || total <= 0) {
+      return '-'
+    }
+    return formatByteLabel(entry.byte) +
+      ' x ' +
+      entry.count.toLocaleString() +
+      ' (' +
+      formatPercent((entry.count / total) * 100) +
+      ')'
+  }
+
+  function computeFrequencySpread(counts, total) {
+    if (total <= 0) {
+      return 0
+    }
+    const expected = 1 / 256
+    const variance = counts.reduce((sum, count) => {
+      const probability = count / total
+      const delta = probability - expected
+      return sum + delta * delta
+    }, 0) / 256
+    return Math.sqrt(variance) * 100
+  }
+
+  function formatFrequencySpread(value, total) {
+    if (total <= 0) {
+      return '-'
+    }
+    return value.toFixed(value >= 10 ? 1 : 2) + ' pp'
+  }
+
   function renderFrequencyChart(profile, total) {
     const counts = profile.slice(0, 256)
     const maxCount = Math.max(0, ...counts)
@@ -1478,11 +1510,14 @@ export function getWebviewContent(bytesPerRow: number): string {
       .filter((entry) => entry.count > 0)
       .sort((a, b) => b.count - a.count || a.byte - b.byte)
       .slice(0, 5)
+    const modeByte = topBytes[0] ?? null
 
     return {
       count: bytes.length,
       unique: counts.filter((count) => count > 0).length,
       entropy,
+      frequencySpread: computeFrequencySpread(counts, bytes.length),
+      modeByte,
       classes,
       longestRunByte,
       longestRunLength,
@@ -1612,6 +1647,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       renderMetricRows(profileDataMetrics, [
         { label: 'Scope', value: '-' },
         { label: 'Bytes', value: '-' },
+        { label: 'Mode', value: '-' },
         { label: 'ASCII', value: '-' },
         { label: 'Content', value: '-' },
         { label: 'Language', value: '-' },
@@ -1641,10 +1677,12 @@ export function getWebviewContent(bytesPerRow: number): string {
       1,
       ...topProfileBytes.map((entry) => entry.count)
     )
+    const modeByte = topProfileBytes[0] ?? null
 
     renderMetricRows(profileDataMetrics, [
       { label: 'Scope', value: latestDataProfile.scopeLabel },
       { label: 'Bytes', value: byteTotal.toLocaleString() },
+      { label: 'Mode', value: formatModeByte(modeByte, byteTotal) },
       { label: 'ASCII', value: latestDataProfile.numAscii.toLocaleString() + ' / ' + formatPercent(asciiPercent) },
       { label: 'Content', value: latestDataProfile.contentType || '-' },
       { label: 'Language', value: latestDataProfile.language || '-' },
@@ -1702,6 +1740,8 @@ export function getWebviewContent(bytesPerRow: number): string {
       { label: 'Unique', value: analysis.unique.toLocaleString() + ' / 256' },
       { label: 'Density', value: formatPercent(density) },
       { label: 'Entropy', value: analysis.count === 0 ? '-' : analysis.entropy.toFixed(2) + ' bits' },
+      { label: 'Mode', value: formatModeByte(analysis.modeByte, analysis.count) },
+      { label: 'Freq Spread', value: formatFrequencySpread(analysis.frequencySpread, analysis.count) },
       { label: 'Printable', value: formatPercent(printablePercent) },
       {
         label: 'Longest Run',
@@ -1723,7 +1763,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     renderBarRows(
       structureTopBytes,
       analysis.topBytes.map((entry) => ({
-        label: '0x' + toHex2(entry.byte),
+        label: formatByteLabel(entry.byte),
         percent: analysis.count > 0 ? (entry.count / analysis.count) * 100 : 0,
         value: entry.count.toLocaleString(),
         colorClass: frequencyBarClass(entry.byte, entry.count).trim(),
