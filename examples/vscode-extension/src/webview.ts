@@ -296,8 +296,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     color: var(--ascii-muted-fg);
   }
   .ascii-char.non-printable.ascii-control {
-    color: var(--ascii-fg);
-    background: color-mix(in srgb, var(--ascii-fg) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue, #569cd6);
+    background: color-mix(in srgb, var(--vscode-terminal-ansiBlue, #569cd6) 18%, transparent);
     font-weight: 600;
     text-decoration: underline dotted;
     text-underline-offset: 2px;
@@ -857,8 +857,8 @@ export function getWebviewContent(bytesPerRow: number): string {
           <div class="analysis-metrics" id="profileViewportMetrics"></div>
         </div>
         <div class="analysis-section">
-          <div class="analysis-section-title">Timing</div>
-          <div class="analysis-metrics" id="profileTimingMetrics"></div>
+          <div class="analysis-section-title">Byte Classes</div>
+          <div class="analysis-bars" id="profileClassBars"></div>
         </div>
         <div class="analysis-section">
           <div class="analysis-section-title">Data Profile</div>
@@ -880,8 +880,8 @@ export function getWebviewContent(bytesPerRow: number): string {
           <div class="analysis-metrics" id="structureMetrics"></div>
         </div>
         <div class="analysis-section">
-          <div class="analysis-section-title">Byte Classes</div>
-          <div class="analysis-bars" id="structureClassBars"></div>
+          <div class="analysis-section-title">Timing</div>
+          <div class="analysis-metrics" id="profileTimingMetrics"></div>
         </div>
       </section>
     </div>
@@ -1045,6 +1045,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   const structurePanel = document.getElementById('structurePanel')
   const profileViewportMetrics = document.getElementById('profileViewportMetrics')
   const profileTimingMetrics = document.getElementById('profileTimingMetrics')
+  const profileClassBars = document.getElementById('profileClassBars')
   const profileDataMetrics = document.getElementById('profileDataMetrics')
   const profileScaleBtn = document.getElementById('profileScaleBtn')
   const profileFrequencyChart = document.getElementById('profileFrequencyChart')
@@ -1052,7 +1053,6 @@ export function getWebviewContent(bytesPerRow: number): string {
   const profileByteBars = document.getElementById('profileByteBars')
   const structureScopeTitle = document.getElementById('structureScopeTitle')
   const structureMetrics = document.getElementById('structureMetrics')
-  const structureClassBars = document.getElementById('structureClassBars')
 
   function clamp(min, value, max) {
     return Math.max(min, Math.min(value, max))
@@ -1229,6 +1229,23 @@ export function getWebviewContent(bytesPerRow: number): string {
       .join('')
   }
 
+  function renderTimingMetrics() {
+    const profile = latestProfile ?? {}
+    const averageRenderMs = averageRenderDuration()
+    const hostToWebviewMs = typeof profile.hostToWebviewMs === 'number'
+      ? profile.hostToWebviewMs
+      : null
+
+    renderMetricRows(profileTimingMetrics, [
+      { label: 'Fetch', value: formatDuration(profile.fetchDurationMs) },
+      { label: 'Bridge', value: formatDuration(hostToWebviewMs) },
+      { label: 'Render', value: formatDuration(lastRenderDurationMs) },
+      { label: 'Avg Render', value: averageRenderMs === null ? '-' : formatDuration(averageRenderMs) },
+      { label: 'Updated', value: lastRenderAt ? new Date(lastRenderAt).toLocaleTimeString() : '-' },
+      { label: 'Message', value: lastViewportMessageAt ? new Date(lastViewportMessageAt).toLocaleTimeString() : '-' },
+    ])
+  }
+
   function frequencyBarClass(byte, count) {
     if (count === 0) {
       return ' zero'
@@ -1292,6 +1309,44 @@ export function getWebviewContent(bytesPerRow: number): string {
       return '-'
     }
     return value.toFixed(value >= 10 ? 1 : 2) + ' pp'
+  }
+
+  function classColorClass(label) {
+    if (label === 'Printable') {
+      return 'printable'
+    }
+    if (label === 'Control' || label === 'Null') {
+      return 'control'
+    }
+    if (label === 'High-bit' || label === 'FF') {
+      return 'high-bit'
+    }
+    return ''
+  }
+
+  function classRowsFromCounts(counts, total) {
+    if (total <= 0) {
+      return []
+    }
+
+    const classes = {
+      Printable: 0,
+      Control: 0,
+      'High-bit': 0,
+      Null: 0,
+      FF: 0,
+    }
+
+    counts.slice(0, 256).forEach((count, byte) => {
+      classes[byteClass(byte)] += count
+    })
+
+    return Object.entries(classes).map(([label, count]) => ({
+      label,
+      percent: (count / total) * 100,
+      value: count.toLocaleString() + ' | ' + formatPercent((count / total) * 100),
+      colorClass: classColorClass(label),
+    }))
   }
 
   function renderFrequencyChart(profile, total) {
@@ -1597,7 +1652,6 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function updateProfileAnalysis() {
-    const averageRenderMs = averageRenderDuration()
     const profile = latestProfile ?? {}
     const visibleByteCount = currentVisibleByteCount()
     const bufferCoverage = fileSize > 0
@@ -1606,10 +1660,6 @@ export function getWebviewContent(bytesPerRow: number): string {
     const visibleCoverage = fileSize > 0
       ? (visibleByteCount / fileSize) * 100
       : 0
-    const hostToWebviewMs = typeof profile.hostToWebviewMs === 'number'
-      ? profile.hostToWebviewMs
-      : null
-
     renderMetricRows(profileViewportMetrics, [
       { label: 'Sequence', value: viewportSequence || '-' },
       { label: 'Offset', value: formatOffsetDisplay(visibleOffset) },
@@ -1625,15 +1675,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       { label: 'Changes', value: (profile.changeCount ?? 0).toLocaleString() },
       { label: 'Sync', value: profile.sessionSyncVersion ?? '-' },
     ])
-
-    renderMetricRows(profileTimingMetrics, [
-      { label: 'Fetch', value: formatDuration(profile.fetchDurationMs) },
-      { label: 'Bridge', value: formatDuration(hostToWebviewMs) },
-      { label: 'Render', value: formatDuration(lastRenderDurationMs) },
-      { label: 'Avg Render', value: averageRenderMs === null ? '-' : formatDuration(averageRenderMs) },
-      { label: 'Updated', value: lastRenderAt ? new Date(lastRenderAt).toLocaleTimeString() : '-' },
-      { label: 'Message', value: lastViewportMessageAt ? new Date(lastViewportMessageAt).toLocaleTimeString() : '-' },
-    ])
+    renderTimingMetrics()
 
     if (!latestDataProfile) {
       renderMetricRows(profileDataMetrics, [
@@ -1649,6 +1691,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       profileFrequencyChart.innerHTML =
         '<div class="analysis-note">No profile data in scope.</div>'
       renderBarRows(profileByteBars, [])
+      renderBarRows(profileClassBars, [])
       return
     }
 
@@ -1682,6 +1725,10 @@ export function getWebviewContent(bytesPerRow: number): string {
       { label: 'Invalid', value: (characterCount.invalidBytes ?? 0).toLocaleString() },
       { label: 'Profile', value: formatDuration(latestDataProfile.durationMs) },
     ])
+    renderBarRows(
+      profileClassBars,
+      classRowsFromCounts(latestDataProfile.byteProfile, byteTotal)
+    )
 
     profileLimitNote.textContent = latestDataProfile.isCapped
       ? 'Profile capped at ' +
@@ -1743,14 +1790,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       },
     ])
 
-    renderBarRows(
-      structureClassBars,
-      Object.entries(analysis.classes).map(([label, count]) => ({
-        label,
-        percent: analysis.count > 0 ? (count / analysis.count) * 100 : 0,
-        value: count.toLocaleString(),
-      }))
-    )
+    renderTimingMetrics()
   }
 
   function updateAnalysisPanels() {

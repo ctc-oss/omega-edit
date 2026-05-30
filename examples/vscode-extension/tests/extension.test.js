@@ -124,14 +124,18 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="profileFrequencyTooltip"/)
   assert.match(html, /id="profileLimitNote"/)
   assert.match(html, /id="profileByteBars"/)
+  assert.match(html, /id="profileClassBars"/)
   assert.match(html, /grid-template-columns: repeat\(256, minmax\(0, 1fr\)\);/)
   assert.match(html, /\.frequency-bar \{[\s\S]*min-width: 0;/)
   assert.match(html, /\.analysis-tab \{[\s\S]*opacity: 0\.68;/)
   assert.match(html, /\.analysis-tab\.active \{[\s\S]*box-shadow:/)
   assert.match(html, /\.ascii-char\.non-printable\.ascii-control/)
+  assert.match(
+    html,
+    /\.ascii-char\.non-printable\.ascii-control \{[\s\S]*ansiBlue/
+  )
   assert.match(html, /\.ascii-char\.non-printable\.high-bit/)
   assert.match(html, /id="structureMetrics"/)
-  assert.match(html, /id="structureClassBars"/)
   assert.doesNotMatch(html, /id="structureTopBytes"/)
   assert.match(html, /id="statusProgress"/)
   assert.match(html, /\.analysis-bar-fill \{[\s\S]*display: block;/)
