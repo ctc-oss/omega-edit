@@ -21,6 +21,53 @@ cmake --build server/cpp/build --target omega-edit-grpc-server
 
 This compiles the C++ gRPC server binary into `server/cpp/build/`.
 
+### Build native core and server on Windows with Conan
+
+When building from a fresh or stale workspace on Windows, use the repository
+virtual environment's Conan executable and run CMake inside the Visual Studio
+developer environment. From the repository root:
+
+```powershell
+$repo = (Get-Location).Path
+$repoCmake = $repo -replace '\\', '/'
+
+.\.venv\Scripts\conan.exe profile detect --force
+
+.\.venv\Scripts\conan.exe install plugins --output-folder=_build_core\plugin-conan `
+  --build=missing `
+  -s build_type=Release `
+  -c tools.cmake.cmaketoolchain:generator=Ninja
+
+$vcvars = 'C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat'
+$configureCore = '"' + $vcvars + '" && cmake -G Ninja -S . -B _build_core -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DBUILD_DOCS=OFF -DBUILD_EXAMPLES=ON -DBUILD_TESTS=OFF -DCMAKE_TOOLCHAIN_FILE="' + $repoCmake + '/_build_core/plugin-conan/conan_toolchain.cmake"'
+cmd.exe /d /s /c $configureCore
+
+$buildCore = '"' + $vcvars + '" && cmake --build _build_core --config Release'
+cmd.exe /d /s /c $buildCore
+
+$installCore = '"' + $vcvars + '" && cmake --install _build_core/packages/core --prefix "' + $repoCmake + '/_install_core" --config Release'
+cmd.exe /d /s /c $installCore
+
+Push-Location server\cpp
+..\..\.venv\Scripts\conan.exe install . --output-folder=build `
+  --build=missing `
+  -s build_type=Release `
+  -s compiler.cppstd=17 `
+  -c tools.cmake.cmaketoolchain:generator=Ninja
+
+$configureServer = '"' + $vcvars + '" && cmake --preset conan-release -DCMAKE_PREFIX_PATH="' + $repoCmake + '/_install_core"'
+cmd.exe /d /s /c $configureServer
+
+$buildServer = '"' + $vcvars + '" && cmake --build build --config Release --target omega-edit-grpc-server'
+cmd.exe /d /s /c $buildServer
+Pop-Location
+```
+
+The server executable is written to
+`server/cpp/build/omega-edit-grpc-server.exe`. If `server/cpp/build` already
+contains a stale CMake cache, remove `server/cpp/build/CMakeCache.txt` and
+`server/cpp/build/CMakeFiles/` before reconfiguring.
+
 ### Build the Node.js wrapper
 
 ```bash
