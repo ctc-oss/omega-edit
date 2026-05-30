@@ -132,7 +132,7 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /\.ascii-char\.non-printable\.high-bit/)
   assert.match(html, /id="structureMetrics"/)
   assert.match(html, /id="structureClassBars"/)
-  assert.match(html, /id="structureTopBytes"/)
+  assert.doesNotMatch(html, /id="structureTopBytes"/)
   assert.match(html, /id="statusProgress"/)
   assert.match(html, /\.analysis-bar-fill \{[\s\S]*display: block;/)
   assert.match(html, /title="Undo \(Ctrl\+Z\)">Undo<\/button>/)

@@ -883,10 +883,6 @@ export function getWebviewContent(bytesPerRow: number): string {
           <div class="analysis-section-title">Byte Classes</div>
           <div class="analysis-bars" id="structureClassBars"></div>
         </div>
-        <div class="analysis-section">
-          <div class="analysis-section-title">Top Bytes</div>
-          <div class="analysis-bars" id="structureTopBytes"></div>
-        </div>
       </section>
     </div>
   </aside>
@@ -1057,7 +1053,6 @@ export function getWebviewContent(bytesPerRow: number): string {
   const structureScopeTitle = document.getElementById('structureScopeTitle')
   const structureMetrics = document.getElementById('structureMetrics')
   const structureClassBars = document.getElementById('structureClassBars')
-  const structureTopBytes = document.getElementById('structureTopBytes')
 
   function clamp(min, value, max) {
     return Math.max(min, Math.min(value, max))
@@ -1505,12 +1500,10 @@ export function getWebviewContent(bytesPerRow: number): string {
       entropy -= probability * Math.log2(probability)
     }
 
-    const topBytes = counts
+    const modeByte = counts
       .map((count, byte) => ({ byte, count }))
       .filter((entry) => entry.count > 0)
-      .sort((a, b) => b.count - a.count || a.byte - b.byte)
-      .slice(0, 5)
-    const modeByte = topBytes[0] ?? null
+      .sort((a, b) => b.count - a.count || a.byte - b.byte)[0] ?? null
 
     return {
       count: bytes.length,
@@ -1521,7 +1514,6 @@ export function getWebviewContent(bytesPerRow: number): string {
       classes,
       longestRunByte,
       longestRunLength,
-      topBytes,
     }
   }
 
@@ -1757,16 +1749,6 @@ export function getWebviewContent(bytesPerRow: number): string {
         label,
         percent: analysis.count > 0 ? (count / analysis.count) * 100 : 0,
         value: count.toLocaleString(),
-      }))
-    )
-
-    renderBarRows(
-      structureTopBytes,
-      analysis.topBytes.map((entry) => ({
-        label: formatByteLabel(entry.byte),
-        percent: analysis.count > 0 ? (entry.count / analysis.count) * 100 : 0,
-        value: entry.count.toLocaleString(),
-        colorClass: frequencyBarClass(entry.byte, entry.count).trim(),
       }))
     )
   }
