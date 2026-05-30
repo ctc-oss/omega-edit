@@ -71,6 +71,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /countCharacters/)
   assert.match(providerJs, /getContentType/)
   assert.match(providerJs, /getLanguage/)
+  assert.match(providerJs, /enqueueAnalysisProfile/)
+  assert.match(providerJs, /processAnalysisProfileQueue/)
+  assert.match(providerJs, /clampedLength <= 0/)
 })
 
 test('webview HTML includes core controls and configured row width', () => {
@@ -106,6 +109,8 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="analysisPane"/)
   assert.match(html, /id="profileTab"/)
   assert.match(html, /id="structureTab"/)
+  assert.match(html, /aria-controls="profilePanel"/)
+  assert.match(html, /aria-controls="structurePanel"/)
   assert.match(html, /id="profileViewportMetrics"/)
   assert.match(html, /id="profileTimingMetrics"/)
   assert.match(html, /id="profileDataMetrics"/)
@@ -272,6 +277,7 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function updateStructureAnalysis\(\)/)
   assert.match(html, /function analyzeBytes\(bytes\)/)
   assert.match(html, /function renderFrequencyChart\(profile, total\)/)
+  assert.match(html, /escapeHtml\(String\(row\.value\)\)/)
   assert.match(html, /function updateFrequencyTooltip\(event\)/)
   assert.match(html, /function hideFrequencyTooltip\(\)/)
   assert.match(html, /const topProfileMaxCount = Math\.max/)

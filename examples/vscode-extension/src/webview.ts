@@ -830,8 +830,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     <div class="analysis-header">
       <span class="analysis-title">Analysis</span>
       <span class="analysis-tabs" role="tablist" aria-label="Analysis views">
-        <button class="analysis-tab active" id="profileTab" role="tab" aria-selected="true">Profile</button>
-        <button class="analysis-tab" id="structureTab" role="tab" aria-selected="false">Structure</button>
+        <button class="analysis-tab active" id="profileTab" role="tab" aria-selected="true" aria-controls="profilePanel">Profile</button>
+        <button class="analysis-tab" id="structureTab" role="tab" aria-selected="false" aria-controls="structurePanel">Structure</button>
       </span>
     </div>
     <div class="analysis-body">
@@ -1212,7 +1212,7 @@ export function getWebviewContent(bytesPerRow: number): string {
               clamp(0, row.percent, 100).toFixed(1) +
               '%"></span>' +
           '</span>' +
-          '<span class="analysis-value">' + escapeHtml(row.value) + '</span>' +
+          '<span class="analysis-value">' + escapeHtml(String(row.value)) + '</span>' +
         '</div>'
       )
       .join('')

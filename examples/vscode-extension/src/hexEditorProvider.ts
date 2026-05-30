@@ -82,6 +82,17 @@ interface EditorSession {
   restoredFromBackup?: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
+  pendingAnalysisProfile?: AnalysisProfileRequest
+  analysisProfileTask?: Promise<void>
+}
+
+interface AnalysisProfileRequest {
+  offset: number
+  length: number
+  requestKey: string
+  scopeLabel: string
+  requestedLength: number
+  isCapped: boolean
 }
 
 interface ServerHealthState {
@@ -597,38 +608,74 @@ export class HexEditorProvider
 
   private async postAnalysisProfile(
     session: EditorSession,
-    offset: number,
-    length: number,
-    requestKey: string,
-    scopeLabel: string,
-    requestedLength: number,
-    isCapped: boolean
+    request: AnalysisProfileRequest
   ): Promise<void> {
-    const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
+    const clampedOffset = Math.max(
+      0,
+      Math.min(request.offset, session.fileSize)
+    )
     const clampedLength = Math.max(
       0,
-      Math.min(length, Math.max(0, session.fileSize - clampedOffset))
+      Math.min(request.length, Math.max(0, session.fileSize - clampedOffset))
     )
     const startedAt = Date.now()
+
+    if (clampedLength <= 0) {
+      if (session.pendingAnalysisProfile) {
+        return
+      }
+      session.panel.webview.postMessage({
+        type: 'analysisProfile',
+        requestKey: request.requestKey,
+        scopeLabel: request.scopeLabel,
+        offset: clampedOffset,
+        length: 0,
+        requestedLength: request.requestedLength,
+        isCapped: request.isCapped,
+        durationMs: 0,
+        byteProfile: new Array(257).fill(0),
+        numAscii: 0,
+        contentType: '',
+        language: '',
+        characterCount: {
+          byteOrderMark: 'none',
+          byteOrderMarkBytes: 0,
+          singleByteCount: 0,
+          doubleByteCount: 0,
+          tripleByteCount: 0,
+          quadByteCount: 0,
+          invalidBytes: 0,
+        },
+      })
+      return
+    }
+
     const [byteProfile, bom] = await Promise.all([
       profileSession(session.sessionId, clampedOffset, clampedLength),
       getByteOrderMark(session.sessionId, clampedOffset),
     ])
+    if (session.pendingAnalysisProfile) {
+      return
+    }
+
     const bomName = bom.getByteOrderMark()
     const [characterCount, contentType, language] = await Promise.all([
       countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
       getContentType(session.sessionId, clampedOffset, clampedLength),
       getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
     ])
+    if (session.pendingAnalysisProfile) {
+      return
+    }
 
     session.panel.webview.postMessage({
       type: 'analysisProfile',
-      requestKey,
-      scopeLabel,
+      requestKey: request.requestKey,
+      scopeLabel: request.scopeLabel,
       offset: clampedOffset,
       length: clampedLength,
-      requestedLength,
-      isCapped,
+      requestedLength: request.requestedLength,
+      isCapped: request.isCapped,
       durationMs: Date.now() - startedAt,
       byteProfile,
       numAscii: numAscii(byteProfile),
@@ -644,6 +691,33 @@ export class HexEditorProvider
         invalidBytes: characterCount.getInvalidBytes(),
       },
     })
+  }
+
+  private enqueueAnalysisProfile(
+    session: EditorSession,
+    request: AnalysisProfileRequest
+  ): void {
+    session.pendingAnalysisProfile = request
+    if (!session.analysisProfileTask) {
+      session.analysisProfileTask = this.processAnalysisProfileQueue(session)
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err)
+          vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+        })
+        .finally(() => {
+          session.analysisProfileTask = undefined
+        })
+    }
+  }
+
+  private async processAnalysisProfileQueue(
+    session: EditorSession
+  ): Promise<void> {
+    while (session.pendingAnalysisProfile && !session.scope.isDisposed) {
+      const request = session.pendingAnalysisProfile
+      session.pendingAnalysisProfile = undefined
+      await this.postAnalysisProfile(session, request)
+    }
   }
 
   private waitForSessionSync(
@@ -1155,15 +1229,7 @@ export class HexEditorProvider
         }
 
         case 'requestAnalysisProfile': {
-          await this.postAnalysisProfile(
-            session,
-            msg.offset,
-            msg.length,
-            msg.requestKey,
-            msg.scopeLabel,
-            msg.requestedLength,
-            msg.isCapped
-          )
+          this.enqueueAnalysisProfile(session, msg)
           break
         }
 
