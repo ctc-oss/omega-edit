@@ -74,6 +74,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /enqueueAnalysisProfile/)
   assert.match(providerJs, /processAnalysisProfileQueue/)
   assert.match(providerJs, /clampedLength <= 0/)
+  assert.match(providerJs, /const contentTypeSampleLength = Math\.min/)
+  assert.match(
+    providerJs,
+    /getContentType\)\(session\.sessionId,\s*0,\s*contentTypeSampleLength\)/
+  )
 })
 
 test('webview HTML includes core controls and configured row width', () => {
@@ -121,6 +126,10 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="profileByteBars"/)
   assert.match(html, /grid-template-columns: repeat\(256, minmax\(0, 1fr\)\);/)
   assert.match(html, /\.frequency-bar \{[\s\S]*min-width: 0;/)
+  assert.match(html, /\.analysis-tab \{[\s\S]*opacity: 0\.68;/)
+  assert.match(html, /\.analysis-tab\.active \{[\s\S]*box-shadow:/)
+  assert.match(html, /\.ascii-char\.non-printable\.ascii-control/)
+  assert.match(html, /\.ascii-char\.non-printable\.high-bit/)
   assert.match(html, /id="structureMetrics"/)
   assert.match(html, /id="structureClassBars"/)
   assert.match(html, /id="structureTopBytes"/)
@@ -277,11 +286,15 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function updateStructureAnalysis\(\)/)
   assert.match(html, /function analyzeBytes\(bytes\)/)
   assert.match(html, /function renderFrequencyChart\(profile, total\)/)
+  assert.match(html, /function byteTextClass\(byte\)/)
+  assert.match(html, /function formatByteLabel\(byte\)/)
   assert.match(html, /escapeHtml\(String\(row\.value\)\)/)
   assert.match(html, /function updateFrequencyTooltip\(event\)/)
   assert.match(html, /function hideFrequencyTooltip\(\)/)
   assert.match(html, /const topProfileMaxCount = Math\.max/)
   assert.match(html, /entry\.count \/ topProfileMaxCount/)
+  assert.match(html, /label: formatByteLabel\(entry\.byte\)/)
+  assert.match(html, /byteTextClass\(b\)/)
   assert.match(html, /const MAX_PROFILE_BYTES = 64 \* 1024/)
   assert.match(html, /function requestAnalysisProfile\(force = false\)/)
   assert.match(html, /if \(analysisMode !== 'profile'\)/)

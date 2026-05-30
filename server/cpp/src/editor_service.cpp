@@ -1119,7 +1119,7 @@ grpc::Status EditorServiceImpl::GetContentType(grpc::ServerContext * /*context*/
     if (result == 0) {
         auto *data = omega_segment_get_data(segment.get());
         actual_length = omega_segment_get_length(segment.get());
-        content_type = content_type_detector_->detect(data, actual_length);
+        content_type = content_type_detector_->detect(data, actual_length, locked_session.info->canonical_file_path);
     } else {
         return grpc::Status(grpc::StatusCode::NOT_FOUND, "couldn't get segment");
     }

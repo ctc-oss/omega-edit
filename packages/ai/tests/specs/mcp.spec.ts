@@ -124,6 +124,10 @@ describe('@omega-edit/ai mcp server', function () {
         'expected omega_edit_read_range in tool list'
       )
       assert.ok(
+        tools.some((tool) => tool.name === 'omega_edit_profile_range'),
+        'expected omega_edit_profile_range in tool list'
+      )
+      assert.ok(
         tools.some((tool) => tool.name === 'omega_edit_replace_session'),
         'expected omega_edit_replace_session in tool list'
       )
@@ -189,6 +193,20 @@ describe('@omega-edit/ai mcp server', function () {
         ((readStructured.data as Record<string, unknown>).utf8 as string) || '',
         'hello'
       )
+
+      const profileRangeResponse = await sendRequest('tools/call', {
+        name: 'omega_edit_profile_range',
+        arguments: {
+          sessionId: createdSessionId,
+          offset: 0,
+          length: 5,
+        },
+      })
+      const profileStructured = ((
+        profileRangeResponse.result as Record<string, unknown>
+      ).structuredContent as Record<string, unknown>) || { totalBytes: 0 }
+      assert.equal((profileStructured.totalBytes as number) || 0, 5)
+      assert.ok(Array.isArray(profileStructured.topBytes))
 
       const previewPatchResponse = await sendRequest('tools/call', {
         name: 'omega_edit_preview_patch',

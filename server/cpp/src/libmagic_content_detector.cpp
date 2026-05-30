@@ -123,21 +123,27 @@ public:
     LibmagicContentTypeDetector(const LibmagicContentTypeDetector &) = delete;
     LibmagicContentTypeDetector &operator=(const LibmagicContentTypeDetector &) = delete;
 
-    std::string detect(const uint8_t *data, int64_t length) override {
+    std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) override {
         if (!data || length <= 0) {
             return "application/octet-stream";
         }
+        const std::string builtin = detect_builtin_content_type(data, length, file_path);
         if (!cookie_) {
-            return "application/octet-stream";
+            return builtin;
         }
 
         // libmagic is not thread-safe for a single cookie, so serialize access
         std::lock_guard<std::mutex> lock(mutex_);
         const char *mime = magic_buffer(cookie_, data, static_cast<size_t>(length));
         if (!mime) {
-            return "application/octet-stream";
+            return builtin;
         }
-        return std::string(mime);
+        std::string detected(mime);
+        if ((detected == "application/octet-stream" || detected == "text/plain") &&
+            builtin != "application/octet-stream" && builtin != detected) {
+            return builtin;
+        }
+        return detected;
     }
 
 private:

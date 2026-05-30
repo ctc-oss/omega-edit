@@ -13,8 +13,7 @@
  **********************************************************************************************************************/
 
 /// @file stub_content_detector.cpp
-/// Stub content-type detector used when libmagic is not available (e.g., Windows CI).
-/// Always returns "application/octet-stream".
+/// Built-in content-type detector used when libmagic is not available (e.g., Windows CI).
 
 #include "content_detection.h"
 
@@ -23,7 +22,9 @@ namespace grpc_server {
 
 class StubContentTypeDetector final : public IContentTypeDetector {
 public:
-    std::string detect(const uint8_t * /*data*/, int64_t /*length*/) override { return "application/octet-stream"; }
+    std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) override {
+        return detect_builtin_content_type(data, length, file_path);
+    }
 };
 
 std::unique_ptr<IContentTypeDetector> create_default_content_type_detector() {

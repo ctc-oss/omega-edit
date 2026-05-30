@@ -94,7 +94,7 @@ else()
         set(LIBMAGIC_TARGET libmagic::libmagic)
         set(HAS_LIBMAGIC TRUE)
     else()
-        message(STATUS "libmagic not found — content-type detection will use stub (octet-stream)")
+        message(STATUS "libmagic not found — content-type detection will use built-in heuristics")
         set(LIBMAGIC_TARGET "")
         set(HAS_LIBMAGIC FALSE)
     endif()
@@ -173,6 +173,7 @@ set(SERVER_SOURCES
     src/editor_service.h
     src/session_manager.cpp
     src/session_manager.h
+    src/content_detection.cpp
     src/content_detection.h
     src/cld3_language_detector.cpp
     ${PROTO_SRCS}

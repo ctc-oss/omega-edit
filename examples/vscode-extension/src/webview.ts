@@ -295,6 +295,16 @@ export function getWebviewContent(bytesPerRow: number): string {
   .ascii-char.non-printable {
     color: var(--ascii-muted-fg);
   }
+  .ascii-char.non-printable.ascii-control {
+    color: var(--ascii-fg);
+    background: color-mix(in srgb, var(--ascii-fg) 18%, transparent);
+    font-weight: 600;
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+  }
+  .ascii-char.non-printable.high-bit {
+    color: var(--vscode-terminal-ansiMagenta, #c586c0);
+  }
   .ascii-char.empty {
     color: transparent;
   }
@@ -382,10 +392,16 @@ export function getWebviewContent(bytesPerRow: number): string {
     border: 0;
     border-radius: 0;
     padding: 3px 8px;
+    opacity: 0.68;
   }
   .analysis-tab.active {
-    background: var(--button-bg);
-    color: var(--button-fg);
+    background: color-mix(in srgb, var(--button-bg) 34%, transparent);
+    color: var(--fg);
+    box-shadow:
+      inset 0 0 0 1px var(--button-bg),
+      inset 0 -3px 0 var(--button-bg);
+    font-weight: 600;
+    opacity: 1;
   }
   .analysis-body {
     flex: 1;
@@ -1231,6 +1247,26 @@ export function getWebviewContent(bytesPerRow: number): string {
     return ' high-bit'
   }
 
+  function byteTextClass(byte) {
+    if (isPrintable(byte)) {
+      return 'ascii-char'
+    }
+    if (byte < 0x80) {
+      return 'ascii-char non-printable ascii-control'
+    }
+    return 'ascii-char non-printable high-bit'
+  }
+
+  function formatByteLabel(byte) {
+    if (!isPrintable(byte)) {
+      return '0x' + toHex2(byte)
+    }
+    if (byte === 0x20) {
+      return '0x20 SP'
+    }
+    return "0x" + toHex2(byte) + " '" + String.fromCharCode(byte) + "'"
+  }
+
   function renderFrequencyChart(profile, total) {
     const counts = profile.slice(0, 256)
     const maxCount = Math.max(0, ...counts)
@@ -1633,7 +1669,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     renderBarRows(
       profileByteBars,
       topProfileBytes.map((entry) => ({
-        label: '0x' + toHex2(entry.byte),
+        label: formatByteLabel(entry.byte),
         percent: (entry.count / topProfileMaxCount) * 100,
         value:
           entry.count.toLocaleString() +
@@ -2501,7 +2537,7 @@ export function getWebviewContent(bytesPerRow: number): string {
           hexCells += '<span class="hex-byte' + sep + sel + mat +
             '" data-offset="' + absOff + '" data-pane="hex">' + toHex2(b) + '</span>'
           const printable = isPrintable(b)
-          const asciiClass = printable ? 'ascii-char' : 'ascii-char non-printable'
+          const asciiClass = byteTextClass(b)
           const ch = printable ? String.fromCharCode(b) : '?'
           asciiCells += '<span class="' + asciiClass + sel + mat +
             '" data-offset="' + absOff + '" data-pane="ascii">' + escapeHtml(ch) + '</span>'

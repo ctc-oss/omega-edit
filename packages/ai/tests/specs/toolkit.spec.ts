@@ -51,6 +51,19 @@ describe('@omega-edit/ai toolkit', function () {
       assert.equal(initialRange.actualLength, 6)
       assert.equal(initialRange.data.utf8, 'abcdef')
 
+      const profile = await toolkit.profileRange(createdSessionId, 1, 4)
+      assert.equal(profile.actualLength, 4)
+      assert.equal(profile.totalBytes, 4)
+      assert.equal(profile.asciiBytes, 4)
+      assert.equal(profile.frequency['b'.charCodeAt(0)], 1)
+      assert.equal(profile.frequency['e'.charCodeAt(0)], 1)
+      assert.deepEqual(
+        profile.topBytes.map((entry) => entry.hex),
+        ['0x62', '0x63', '0x64', '0x65']
+      )
+      assert.equal(profile.topBytes[0].printable, 'b')
+      assert.ok(typeof profile.contentType === 'string')
+
       const plugins = await toolkit.listTransformPlugins()
       assert.ok(Array.isArray(plugins))
 

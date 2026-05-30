@@ -659,9 +659,10 @@ export class HexEditorProvider
     }
 
     const bomName = bom.getByteOrderMark()
+    const contentTypeSampleLength = Math.min(session.fileSize, 16 * 1024)
     const [characterCount, contentType, language] = await Promise.all([
       countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
-      getContentType(session.sessionId, clampedOffset, clampedLength),
+      getContentType(session.sessionId, 0, contentTypeSampleLength),
       getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
     ])
     if (session.pendingAnalysisProfile || session.scope.isDisposed) {

@@ -11,6 +11,7 @@ import {
   getChangeCount,
   getClient,
   getComputedFileSize,
+  getContentType,
   getLastChange,
   getServerInfo,
   getSegment,
@@ -19,7 +20,10 @@ import {
   getViewportCount,
   insert,
   listTransformPlugins as listClientTransformPlugins,
+  numAscii,
   overwrite,
+  PROFILE_DOS_EOL,
+  profileSession,
   redo,
   replace,
   replaceSession as replaceWholeSession,
@@ -45,6 +49,7 @@ import {
   PatchPreview,
   PatchRequest,
   PatchResult,
+  ProfileRangeResult,
   ReadRangeResult,
   ReplaceSessionRequest,
   ReplaceSessionResult,
@@ -272,6 +277,82 @@ export class OmegaEditToolkit {
       requestedLength: length,
       actualLength,
       data: encodeData(data),
+    }
+  }
+
+  async profileRange(
+    sessionId: string,
+    offset: number,
+    length: number
+  ): Promise<ProfileRangeResult> {
+    assertNonNegativeInteger('offset', offset)
+    assertNonNegativeInteger('length', length)
+
+    if (length === 0) {
+      throw new Error('length must be greater than 0')
+    }
+    if (length > this.maxReadBytes) {
+      throw new Error(
+        `length exceeds configured maximum of ${this.maxReadBytes} bytes`
+      )
+    }
+
+    await this.ensureServerRunning()
+
+    const computedSize = await getComputedFileSize(sessionId)
+    if (offset > computedSize) {
+      throw new Error('offset is beyond the end of the session')
+    }
+
+    const actualLength = Math.min(length, Math.max(0, computedSize - offset))
+    let frequency: number[]
+    let contentTypeValue = 'application/octet-stream'
+    if (actualLength === 0) {
+      frequency = new Array(257).fill(0)
+    } else {
+      const [rangeProfile, contentType] = await Promise.all([
+        profileSession(sessionId, offset, actualLength),
+        getContentType(sessionId, offset, actualLength),
+      ])
+      frequency = rangeProfile
+      contentTypeValue = contentType.getContentType()
+    }
+
+    const totalBytes = frequency
+      .slice(0, 256)
+      .reduce((sum, count) => sum + count, 0)
+    const asciiBytes = numAscii(frequency)
+    const topBytes = frequency
+      .slice(0, 256)
+      .map((count, byte) => ({
+        byte,
+        hex: `0x${byte.toString(16).padStart(2, '0').toUpperCase()}`,
+        count,
+        percent: totalBytes > 0 ? (count / totalBytes) * 100 : 0,
+        printable:
+          byte >= 0x20 && byte <= 0x7e
+            ? byte === 0x20
+              ? 'SP'
+              : String.fromCharCode(byte)
+            : undefined,
+      }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.byte - b.byte)
+      .slice(0, 10)
+
+    return {
+      sessionId,
+      offset,
+      requestedLength: length,
+      actualLength,
+      totalBytes,
+      asciiBytes,
+      nonAsciiBytes: totalBytes - asciiBytes,
+      asciiPercent: totalBytes > 0 ? (asciiBytes / totalBytes) * 100 : 0,
+      dosLineEndings: frequency[PROFILE_DOS_EOL] || 0,
+      contentType: contentTypeValue,
+      frequency,
+      topBytes,
     }
   }
 

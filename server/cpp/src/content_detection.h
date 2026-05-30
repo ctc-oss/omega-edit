@@ -33,8 +33,9 @@ public:
     /// Detect the MIME type of a data buffer.
     /// @param data pointer to the raw bytes
     /// @param length number of bytes
+    /// @param file_path optional source path hint for extension-aware fallback detection
     /// @return MIME type string (e.g. "text/plain", "application/pdf")
-    virtual std::string detect(const uint8_t *data, int64_t length) = 0;
+    virtual std::string detect(const uint8_t *data, int64_t length, const std::string &file_path) = 0;
 };
 
 /// Abstract interface for language detection.
@@ -55,6 +56,10 @@ public:
 
 /// Create the default content-type detector (libmagic-backed).
 std::unique_ptr<IContentTypeDetector> create_default_content_type_detector();
+
+/// Lightweight built-in content-type detector used as a fallback when libmagic is unavailable
+/// or returns a generic result.
+std::string detect_builtin_content_type(const uint8_t *data, int64_t length, const std::string &file_path);
 
 /// Create the default language detector (CLD3-backed).
 std::unique_ptr<ILanguageDetector> create_default_language_detector();
