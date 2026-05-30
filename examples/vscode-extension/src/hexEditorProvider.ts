@@ -29,6 +29,7 @@
 
 import {
   ALL_EVENTS,
+  countCharacters,
   del,
   destroyLastCheckpoint,
   editSimple,
@@ -37,7 +38,10 @@ import {
   EditorHistoryController,
   EditorSearchController,
   ScopedEditorSessionHandle,
+  getByteOrderMark,
   getClientVersion,
+  getContentType,
+  getLanguage,
   getSegment,
   getServerInfo,
   getViewportData,
@@ -45,7 +49,9 @@ import {
   type IServerInfo,
   insert,
   modifyViewport,
+  numAscii,
   overwrite,
+  profileSession,
   replaceSessionCheckpointed,
   redo,
   saveSession,
@@ -76,6 +82,17 @@ interface EditorSession {
   restoredFromBackup?: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
+  pendingAnalysisProfile?: AnalysisProfileRequest
+  analysisProfileTask?: Promise<void>
+}
+
+interface AnalysisProfileRequest {
+  offset: number
+  length: number
+  requestKey: string
+  scopeLabel: string
+  requestedLength: number
+  isCapped: boolean
 }
 
 interface ServerHealthState {
@@ -543,7 +560,9 @@ export class HexEditorProvider
 
   /** Fetch current viewport data and send it to the webview */
   private async sendViewportData(session: EditorSession): Promise<void> {
+    const fetchStartedAt = Date.now()
     const resp = await getViewportData(session.viewportId)
+    const fetchDurationMs = Date.now() - fetchStartedAt
     const data = resp.getData_asU8()
     session.panel.webview.postMessage({
       type: 'viewportData',
@@ -553,6 +572,15 @@ export class HexEditorProvider
       length: resp.getLength(),
       fileSize: session.fileSize,
       followingByteCount: resp.getFollowingByteCount(),
+      profile: {
+        fetchDurationMs,
+        sentAt: Date.now(),
+        payloadBytes: data.byteLength,
+        capacity: session.capacity,
+        visibleRows: session.visibleRows,
+        changeCount: session.changeCount,
+        sessionSyncVersion: session.sessionSyncVersion,
+      },
     })
   }
 
@@ -576,6 +604,125 @@ export class HexEditorProvider
       ...editState,
       isDirty: editState.isDirty || !!session.restoredFromBackup,
     })
+  }
+
+  private async postAnalysisProfile(
+    session: EditorSession,
+    request: AnalysisProfileRequest
+  ): Promise<void> {
+    const clampedOffset = Math.max(
+      0,
+      Math.min(request.offset, session.fileSize)
+    )
+    const clampedLength = Math.max(
+      0,
+      Math.min(request.length, Math.max(0, session.fileSize - clampedOffset))
+    )
+    const startedAt = Date.now()
+
+    if (clampedLength <= 0) {
+      if (session.pendingAnalysisProfile) {
+        return
+      }
+      session.panel.webview.postMessage({
+        type: 'analysisProfile',
+        requestKey: request.requestKey,
+        scopeLabel: request.scopeLabel,
+        offset: clampedOffset,
+        length: 0,
+        requestedLength: request.requestedLength,
+        isCapped: request.isCapped,
+        durationMs: 0,
+        byteProfile: new Array(257).fill(0),
+        numAscii: 0,
+        contentType: '',
+        language: '',
+        characterCount: {
+          byteOrderMark: 'none',
+          byteOrderMarkBytes: 0,
+          singleByteCount: 0,
+          doubleByteCount: 0,
+          tripleByteCount: 0,
+          quadByteCount: 0,
+          invalidBytes: 0,
+        },
+      })
+      return
+    }
+
+    const [byteProfile, bom] = await Promise.all([
+      profileSession(session.sessionId, clampedOffset, clampedLength),
+      getByteOrderMark(session.sessionId, clampedOffset),
+    ])
+    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
+      return
+    }
+
+    const bomName = bom.getByteOrderMark()
+    const contentTypeSampleLength = Math.min(session.fileSize, 16 * 1024)
+    const [characterCount, contentType, language] = await Promise.all([
+      countCharacters(session.sessionId, clampedOffset, clampedLength, bomName),
+      getContentType(session.sessionId, 0, contentTypeSampleLength),
+      getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
+    ])
+    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
+      return
+    }
+
+    if (session.scope.isDisposed) {
+      return
+    }
+
+    session.panel.webview.postMessage({
+      type: 'analysisProfile',
+      requestKey: request.requestKey,
+      scopeLabel: request.scopeLabel,
+      offset: clampedOffset,
+      length: clampedLength,
+      requestedLength: request.requestedLength,
+      isCapped: request.isCapped,
+      durationMs: Date.now() - startedAt,
+      byteProfile,
+      numAscii: numAscii(byteProfile),
+      contentType: contentType.getContentType(),
+      language: language.getLanguage(),
+      characterCount: {
+        byteOrderMark: characterCount.getByteOrderMark(),
+        byteOrderMarkBytes: characterCount.getByteOrderMarkBytes(),
+        singleByteCount: characterCount.getSingleByteChars(),
+        doubleByteCount: characterCount.getDoubleByteChars(),
+        tripleByteCount: characterCount.getTripleByteChars(),
+        quadByteCount: characterCount.getQuadByteChars(),
+        invalidBytes: characterCount.getInvalidBytes(),
+      },
+    })
+  }
+
+  private enqueueAnalysisProfile(
+    session: EditorSession,
+    request: AnalysisProfileRequest
+  ): void {
+    session.pendingAnalysisProfile = request
+    if (!session.analysisProfileTask) {
+      session.analysisProfileTask = this.processAnalysisProfileQueue(session)
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : String(err)
+          vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+        })
+        .finally(() => {
+          session.analysisProfileTask = undefined
+        })
+    }
+  }
+
+  private async processAnalysisProfileQueue(
+    session: EditorSession
+  ): Promise<void> {
+    while (session.pendingAnalysisProfile && !session.scope.isDisposed) {
+      const request = session.pendingAnalysisProfile
+      session.pendingAnalysisProfile = undefined
+      await this.postAnalysisProfile(session, request)
+    }
   }
 
   private waitForSessionSync(
@@ -1086,6 +1233,11 @@ export class HexEditorProvider
           break
         }
 
+        case 'requestAnalysisProfile': {
+          this.enqueueAnalysisProfile(session, msg)
+          break
+        }
+
         // --- Editing ---
         case 'insert': {
           const sessionSyncVersion = session.sessionSyncVersion
@@ -1299,6 +1451,15 @@ type WebviewMessage =
   | { type: 'scrollTo'; offset: number }
   | { type: 'setViewportMetrics'; visibleRows: number }
   | { type: 'setBytesPerRow'; bytesPerRow: 8 | 16 | 32 }
+  | {
+      type: 'requestAnalysisProfile'
+      offset: number
+      length: number
+      requestKey: string
+      scopeLabel: string
+      requestedLength: number
+      isCapped: boolean
+    }
   | { type: 'insert'; offset: number; data: string }
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }

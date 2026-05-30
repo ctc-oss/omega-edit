@@ -40,6 +40,29 @@ export interface ReadRangeResult {
   data: EncodedData
 }
 
+export interface ByteFrequencyEntry {
+  byte: number
+  hex: string
+  count: number
+  percent: number
+  printable?: string
+}
+
+export interface ProfileRangeResult {
+  sessionId: string
+  offset: number
+  requestedLength: number
+  actualLength: number
+  totalBytes: number
+  asciiBytes: number
+  nonAsciiBytes: number
+  asciiPercent: number
+  dosLineEndings: number
+  contentType: string
+  frequency: number[]
+  topBytes: ByteFrequencyEntry[]
+}
+
 export interface SearchRequest {
   sessionId: string
   pattern: string | Uint8Array

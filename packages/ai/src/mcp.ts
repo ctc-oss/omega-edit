@@ -280,6 +280,27 @@ function buildTools(toolkit: OmegaEditToolkit): ToolDefinition[] {
       },
     },
     {
+      name: 'omega_edit_profile_range',
+      description:
+        'Profile a bounded byte range and return frequency bins, byte-class counts, top bytes, line endings, and content type.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sessionId: { type: 'string' },
+          offset: { type: 'integer' },
+          length: { type: 'integer' },
+        },
+        required: ['sessionId', 'offset', 'length'],
+      },
+      run: async (argumentsObject) => {
+        return await toolkit.profileRange(
+          getString(argumentsObject, 'sessionId', true)!,
+          getNumber(argumentsObject, 'offset', true),
+          getNumber(argumentsObject, 'length', true)
+        )
+      },
+    },
+    {
       name: 'omega_edit_search',
       description:
         'Search for text or bytes in a bounded session range and return matching offsets.',

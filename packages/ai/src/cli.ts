@@ -35,6 +35,7 @@ function usage(): string {
     '  session-status --session <id>',
     '  diff-session --session <id>',
     '  view --session <id> --offset <n> --length <n>',
+    '  profile-range --session <id> --offset <n> --length <n>',
     '  search --session <id> (--text <value> | --hex <value> | --base64 <value>) [--limit <n>]',
     '  patch --session <id> --offset <n> [--operation <insert|overwrite|delete|replace>]',
     '        [--text <value> | --hex <value> | --base64 <value>] [--delete-length <n>] [--dry-run]',
@@ -249,6 +250,29 @@ async function runCommand(
         allowPositionals: false,
       })
       return await getToolkit(parsed.values).readRange(
+        requireStringOption(
+          parsed.values.session as string | undefined,
+          'session'
+        ),
+        parseIntegerOption(
+          parsed.values.offset as string | undefined,
+          'offset'
+        ),
+        parseIntegerOption(parsed.values.length as string | undefined, 'length')
+      )
+    }
+    case 'profile-range': {
+      const parsed = parseArgs({
+        args,
+        options: {
+          ...commonOptions,
+          session: { type: 'string' as const },
+          offset: { type: 'string' as const },
+          length: { type: 'string' as const },
+        },
+        allowPositionals: false,
+      })
+      return await getToolkit(parsed.values).profileRange(
         requireStringOption(
           parsed.values.session as string | undefined,
           'session'

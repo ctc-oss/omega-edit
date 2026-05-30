@@ -23,6 +23,7 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 | Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
 | Bytes-per-row and offset-radix controls                   | [webview.ts](src/webview.ts)                                                        |
 | Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
+| Profiling and structure analysis side pane                | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Extension settings                                        | [package.json](package.json)                                                        |
 
 ## Client Helpers Used Here
@@ -77,7 +78,8 @@ Current implementation note:
 2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
 3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
 4. The webview drives edits, navigation, search, replace, save, and replay through the provider, and the provider pushes back reactive state updates for the viewport, undo/redo counts, dirty state, replace counts, and server health.
-5. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
+5. The analysis side pane profiles the current visible range or active multi-byte selection. The provider asks Ωedit™ for byte frequency, server-detected content type, language, and character-count data, while the webview renders a 256-bin frequency chart with linear/log scaling and derives local byte classes, mode, frequency-spread, top-byte summaries, entropy, and longest-run structure hints from the buffered data. Content type is sampled from the beginning of the session so file signatures and extension-aware server fallbacks remain useful even while inspecting a later range. Large selections are capped for profiling so exploratory range analysis does not monopolize the extension host.
+6. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
 
 ### Large Search Mode
 
@@ -159,6 +161,7 @@ The repository's tagged release workflow also builds this extension and uploads 
 |  webview.ts                                                  |
 |   -> hex + text rendering                                    |
 |   -> virtual navigation controls                             |
+|   -> profile / structure analysis side pane                  |
 |   -> toolbar / dialogs / status bar                          |
 +-----------------------------+--------------------------------+
                               |
@@ -189,7 +192,7 @@ Subscription rule:
 This reference implementation is intentionally compact. A few natural next steps are:
 
 - Add multiple coordinated viewports or overview panels
-- Surface richer profiling / structure analysis views
+- Add export actions for the analysis pane's profile and structure summaries
 - Add bookmarks and richer navigation helpers
 - Share session IDs across instances for collaborative or multi-tool workflows
 

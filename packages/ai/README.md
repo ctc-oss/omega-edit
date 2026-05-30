@@ -39,6 +39,9 @@ oe create-session --file ./sample.bin
 # Inspect a bounded range
 oe view --session <session-id> --offset 0 --length 64
 
+# Profile a bounded range
+oe profile-range --session <session-id> --offset 0 --length 4096
+
 # Search text or bytes
 oe search --session <session-id> --text PNG --limit 10
 oe search --session <session-id> --hex 89504E47 --limit 10
@@ -105,6 +108,7 @@ Available tools:
 - `omega_edit_destroy_session`
 - `omega_edit_session_status`
 - `omega_edit_read_range`
+- `omega_edit_profile_range`
 - `omega_edit_search`
 - `omega_edit_replace_session`
 - `omega_edit_list_transform_plugins`

@@ -253,6 +253,8 @@ async function executeServer(
     if (!err.message.includes('Call cancelled')) throw err
   })
 
+  serverProcess.unref()
+
   return serverProcess
 }
 
