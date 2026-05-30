@@ -28,6 +28,13 @@ typedef struct omega_bitmask_options_t {
     size_t length;
 } omega_bitmask_options_t;
 
+static const char OMEGA_BITMASK_OPTIONS_ARGS_SCHEMA[] =
+        "{\"type\":\"object\",\"properties\":{\"byte\":{\"oneOf\":["
+        "{\"type\":\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"},{\"type\":\"integer\",\"minimum\":0,"
+        "\"maximum\":255}]},\"mask\":{\"type\":\"array\",\"minItems\":1,\"items\":{\"oneOf\":[{\"type\":"
+        "\"string\",\"pattern\":\"^0x[0-9A-Fa-f]{1,2}$\"},{\"type\":\"integer\",\"minimum\":0,\"maximum\":"
+        "255}]}}},\"additionalProperties\":false,\"not\":{\"type\":\"object\",\"required\":[\"byte\",\"mask\"]}}";
+
 typedef enum omega_bitmask_operation_t {
     OMEGA_BITMASK_AND,
     OMEGA_BITMASK_OR,
@@ -207,7 +214,7 @@ static int omega_bitmask_parse_options(const char *options_json, omega_byte_t de
         ++cursor;
         omega_bitmask_skip_ws(&cursor);
 
-        if (strcmp(key, "byte") == 0 || strcmp(key, "bytes") == 0 || strcmp(key, "mask") == 0) {
+        if (strcmp(key, "byte") == 0 || strcmp(key, "mask") == 0) {
             if (omega_bitmask_parse_mask_value(&cursor, mask_out) != 0) { return -1; }
         } else {
             if (omega_bitmask_skip_json_value(&cursor) != 0) { return -1; }

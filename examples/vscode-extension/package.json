@@ -23,6 +23,8 @@
     "onCustomEditor:omegaEdit.hexEditor",
     "onCommand:omegaEdit.openInHexEditor",
     "onCommand:omegaEdit.goToOffset",
+    "onCommand:omegaEdit.undo",
+    "onCommand:omegaEdit.redo",
     "onCommand:omegaEdit.exportChangeScript",
     "onCommand:omegaEdit.replayChangeScript"
   ],
@@ -70,6 +72,14 @@
             32
           ],
           "description": "Number of bytes displayed per row in the hex view"
+        },
+        "omegaEdit.transformPluginDirectories": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Directories containing OmegaEdit transform plugin shared libraries"
         }
       }
     },
@@ -81,6 +91,16 @@
       {
         "command": "omegaEdit.goToOffset",
         "title": "Ωedit™: Go to Offset"
+      },
+      {
+        "command": "omegaEdit.undo",
+        "title": "OmegaEdit: Undo",
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canUndo"
+      },
+      {
+        "command": "omegaEdit.redo",
+        "title": "OmegaEdit: Redo",
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.canRedo"
       },
       {
         "command": "omegaEdit.exportChangeScript",
@@ -109,6 +129,14 @@
       "commandPalette": [
         {
           "command": "omegaEdit.openInHexEditor"
+        },
+        {
+          "command": "omegaEdit.undo",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.redo",
+          "when": "omegaEdit.hexEditorActive"
         }
       ]
     }

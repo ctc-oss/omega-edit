@@ -59,6 +59,14 @@ typedef struct {
     const char *description;
     omega_transform_plugin_operation_t operation;
     uint32_t flags;
+    /** Optional UI/help text for plugin-specific JSON arguments. */
+    const char *help;
+    /** Optional example JSON arguments. */
+    const char *example;
+    /** Optional default JSON arguments. */
+    const char *default_args;
+    /** Optional JSON Schema used to validate options_json before apply. */
+    const char *args_schema;
 } omega_transform_plugin_info_t;
 
 typedef void *(*omega_transform_plugin_alloc_t)(size_t size, void *user_data_ptr);
@@ -110,6 +118,8 @@ int omega_transform_plugin_registry_register_directory(omega_transform_plugin_re
                                                       const char *plugin_directory);
 
 int64_t omega_transform_plugin_registry_get_count(const omega_transform_plugin_registry_t *registry_ptr);
+
+int omega_transform_plugin_options_match_args_schema(const char *options_json, const char *args_schema);
 
 const omega_transform_plugin_info_t *omega_transform_plugin_registry_get_info(
         const omega_transform_plugin_registry_t *registry_ptr, int64_t index);

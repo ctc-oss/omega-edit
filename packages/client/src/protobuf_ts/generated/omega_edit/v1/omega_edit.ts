@@ -1516,6 +1516,22 @@ export interface TransformPluginInfo {
    * @generated from protobuf field: uint32 abi_version = 6
    */
   abiVersion: number
+  /**
+   * @generated from protobuf field: string help = 7
+   */
+  help: string // Human-readable help for plugin-specific JSON arguments.
+  /**
+   * @generated from protobuf field: string example = 8
+   */
+  example: string // Example JSON arguments.
+  /**
+   * @generated from protobuf field: string default_args = 9
+   */
+  defaultArgs: string // Default JSON arguments.
+  /**
+   * @generated from protobuf field: string args_schema = 10
+   */
+  argsSchema: string // JSON Schema for validating options_json before apply.
 }
 /**
  * Request registered transform plugin metadata.
@@ -9428,6 +9444,20 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
         kind: 'scalar',
         T: 13 /*ScalarType.UINT32*/,
       },
+      { no: 7, name: 'help', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      { no: 8, name: 'example', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 9,
+        name: 'default_args',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
+      {
+        no: 10,
+        name: 'args_schema',
+        kind: 'scalar',
+        T: 9 /*ScalarType.STRING*/,
+      },
     ])
   }
   create(value?: PartialMessage<TransformPluginInfo>): TransformPluginInfo {
@@ -9438,6 +9468,10 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
     message.operation = 0
     message.flags = 0
     message.abiVersion = 0
+    message.help = ''
+    message.example = ''
+    message.defaultArgs = ''
+    message.argsSchema = ''
     if (value !== undefined)
       reflectionMergePartial<TransformPluginInfo>(this, message, value)
     return message
@@ -9470,6 +9504,18 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
           break
         case /* uint32 abi_version */ 6:
           message.abiVersion = reader.uint32()
+          break
+        case /* string help */ 7:
+          message.help = reader.string()
+          break
+        case /* string example */ 8:
+          message.example = reader.string()
+          break
+        case /* string default_args */ 9:
+          message.defaultArgs = reader.string()
+          break
+        case /* string args_schema */ 10:
+          message.argsSchema = reader.string()
           break
         default:
           let u = options.readUnknownField
@@ -9513,6 +9559,18 @@ class TransformPluginInfo$Type extends MessageType<TransformPluginInfo> {
     /* uint32 abi_version = 6; */
     if (message.abiVersion !== 0)
       writer.tag(6, WireType.Varint).uint32(message.abiVersion)
+    /* string help = 7; */
+    if (message.help !== '')
+      writer.tag(7, WireType.LengthDelimited).string(message.help)
+    /* string example = 8; */
+    if (message.example !== '')
+      writer.tag(8, WireType.LengthDelimited).string(message.example)
+    /* string default_args = 9; */
+    if (message.defaultArgs !== '')
+      writer.tag(9, WireType.LengthDelimited).string(message.defaultArgs)
+    /* string args_schema = 10; */
+    if (message.argsSchema !== '')
+      writer.tag(10, WireType.LengthDelimited).string(message.argsSchema)
     let u = options.writeUnknownFields
     if (u !== false)
       (u == true ? UnknownFieldHandler.onWrite : u)(

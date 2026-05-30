@@ -6,9 +6,12 @@ The plugins consume the Omega Edit transform plugin ABI and SDK from the core
 package. Third-party transform dependencies, such as zlib, are owned here rather
 than by the core library.
 
-The bitwise exemplars accept options JSON with a single byte or a repeating
-byte sequence, for example `{"byte":"0x42"}` or
-`{"bytes":["0x0F","0xF0"]}`. The same sequence form is accepted as `mask`.
+Transform plugin metadata includes a description, help text, example arguments,
+default arguments, and an optional JSON Schema for validating options on both
+the client and native apply path. The bitwise exemplars accept options JSON with
+a single repeated byte or a repeating mask sequence, for example
+`{"byte":"0x42"}` or `{"mask":["0x0F","0xF0"]}`. The zlib compression
+exemplar accepts `{"level":9}`, with valid levels from `-1` through `9`.
 
 ## Build
 

@@ -32,13 +32,17 @@ static int grow_buffer(omega_byte_t **buffer_ptr, size_t *capacity_ptr) {
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
-    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     info_ptr->id = "omega.example.zlib_decompress";
     info_ptr->name = "Zlib Decompress";
     info_ptr->description = "Decompress zlib-compressed data.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK |
                       OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
+    info_ptr->help = "No JSON options are used.";
+    info_ptr->example = "";
+    info_ptr->default_args = "";
+    info_ptr->args_schema = OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA;
+    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }
 

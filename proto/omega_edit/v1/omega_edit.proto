@@ -938,6 +938,10 @@ message TransformPluginInfo {
   TransformPluginOperation operation = 4;
   uint32 flags = 5;
   uint32 abi_version = 6;
+  string help = 7;          // Human-readable help for plugin-specific JSON arguments.
+  string example = 8;       // Example JSON arguments.
+  string default_args = 9;  // Default JSON arguments.
+  string args_schema = 10;  // JSON Schema for validating options_json before apply.
 }
 
 // Request registered transform plugin metadata.

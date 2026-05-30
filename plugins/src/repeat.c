@@ -17,12 +17,16 @@
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
-    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     info_ptr->id = "omega.example.repeat";
     info_ptr->name = "Repeat Range";
     info_ptr->description = "Replace the selected range with two copies of itself.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
+    info_ptr->help = "No JSON options are used.";
+    info_ptr->example = "";
+    info_ptr->default_args = "";
+    info_ptr->args_schema = OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA;
+    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }
 

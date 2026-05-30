@@ -16,10 +16,10 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 | Viewport to webview data flow                             | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | Insert / delete / overwrite / replace from UI             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Search and replace with text/hex and direction controls   | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
-| Undo / redo with stack counts                             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Discover and apply byte range transform plugins           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| VS Code undo / redo with Structure-pane stack counts      | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | VS Code dirty-document tracking (`onDidChangeCustomDocument`) | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | VS Code-initiated save / save-as / revert / backup            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
-| Save / Save As / dirty tracking                               | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
 | Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
 | Bytes-per-row and offset-radix controls                   | [webview.ts](src/webview.ts)                                                        |
 | Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
@@ -36,6 +36,7 @@ The example now leans on higher-level editor-facing helpers from `@omega-edit/cl
 | `EditorSessionModel`        | Tracks computed file size, change count, viewport identity, and sync waiters        |
 | `EditorHistoryController`   | Tracks local vs checkpoint-backed undo/redo and save-state semantics                |
 | `EditorSearchController`    | Owns bounded vs large search mode and routes replace-all to bounded or checkpointed flows |
+| `listTransformPlugins()` / `applyTransformPlugin()` | Discovers native transform plugins, including option help/schema metadata, and applies them to the active byte selection |
 
 ## Quick Start
 
@@ -77,7 +78,7 @@ Current implementation note:
 1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
 2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
 3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
-4. The webview drives edits, navigation, search, replace, save, and replay through the provider, and the provider pushes back reactive state updates for the viewport, undo/redo counts, dirty state, replace counts, and server health.
+4. The webview drives edits, navigation, search, replace, and transforms through the provider, while native VS Code actions handle undo, redo, save, and save-as. The provider pushes back reactive state updates for the viewport, Structure-pane undo/redo counts, dirty state, replace counts, transform results, and server health. Transform option help, examples, defaults, and JSON Schema validation come from the plugin metadata rather than hardcoded webview logic.
 5. The analysis side pane profiles the current visible range or active multi-byte selection. The provider asks Ωedit™ for byte frequency, server-detected content type, language, and character-count data, while the webview renders a 256-bin frequency chart with linear/log scaling and derives local byte classes, mode, frequency-spread, top-byte summaries, entropy, and longest-run structure hints from the buffered data. Content type is sampled from the beginning of the session so file signatures and extension-aware server fallbacks remain useful even while inspecting a later range. Large selections are capped for profiling so exploratory range analysis does not monopolize the extension host.
 6. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
 
@@ -97,15 +98,16 @@ This mode decision is made only when the user runs an explicit search. If a repl
 | `omegaEdit.serverPort`  | `9000`  | gRPC server port                                                           |
 | `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
 | `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
+| `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |
 
 ## Keyboard Shortcuts
 
 | Key                      | Action                                                     |
 | ------------------------ | ---------------------------------------------------------- |
-| `Ctrl+Z`                 | Undo                                                       |
-| `Ctrl+Y`                 | Redo                                                       |
-| `Ctrl+S`                 | Save                                                       |
-| `Ctrl+Shift+S`           | Save As                                                    |
+| `Ctrl+Z`                 | Native VS Code undo                                       |
+| `Ctrl+Y`                 | Native VS Code redo                                       |
+| `Ctrl+S`                 | Native VS Code save                                       |
+| `Ctrl+Shift+S`           | Native VS Code save as                                    |
 | `Ctrl+F`                 | Focus search                                               |
 | Arrow keys               | Move selection, or scroll by line when nothing is selected |
 | `Page Up` / `Page Down`  | Scroll by 32 rows                                          |

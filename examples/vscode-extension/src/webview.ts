@@ -20,7 +20,7 @@
  *
  * Layout:
  *   ┌─────────────────────────────────────────────────────────┐
- *   │  Toolbar: [Search] [Insert/Delete/Overwrite] [Undo/Redo/Save]  │
+ *   │  Toolbar: [Search] [Insert/Delete/Overwrite] [Transforms]      │
  *   ├────────────┬─────────────────────────┬──────────────────┤
  *   │  Offset    │  Hex                    │  ASCII           │
  *   │  00000000  │  48 65 6C 6C 6F ...     │  Hello...        │
@@ -122,6 +122,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   .toolbar input:focus, .toolbar select:focus { outline: 1px solid var(--button-bg); }
   .toolbar input[type="text"] { width: 160px; }
   .toolbar input.narrow { width: 80px; }
+  .toolbar select.transform-select { width: 180px; }
   button {
     background: var(--button-bg);
     color: var(--button-fg);
@@ -622,6 +623,31 @@ export function getWebviewContent(bytesPerRow: number): string {
   .status-action {
     color: var(--vscode-terminal-ansiYellow, #dcdcaa);
   }
+  .status-action.flash {
+    animation: status-action-flash 1200ms ease-out;
+  }
+  @keyframes status-action-flash {
+    0% {
+      color: var(--vscode-editorWarning-foreground, #ffcc66);
+      background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #ffcc66) 26%, transparent);
+      box-shadow: 0 0 0 0 color-mix(in srgb, var(--vscode-editorWarning-foreground, #ffcc66) 48%, transparent);
+    }
+    35% {
+      color: var(--vscode-editorWarning-foreground, #ffcc66);
+      background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #ffcc66) 18%, transparent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--vscode-editorWarning-foreground, #ffcc66) 0%, transparent);
+    }
+    100% {
+      color: var(--vscode-terminal-ansiYellow, #dcdcaa);
+      background: transparent;
+      box-shadow: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .status-action.flash {
+      animation-duration: 1ms;
+    }
+  }
   .server-health {
     display: inline-flex;
     align-items: center;
@@ -759,6 +785,43 @@ export function getWebviewContent(bytesPerRow: number): string {
   .edit-dialog .field label { display: block; margin-bottom: 2px; font-size: 11px; }
   .edit-dialog .field input { width: 100%; }
   .edit-dialog .actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 12px; }
+  .edit-dialog .help-body {
+    color: var(--fg);
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 460px;
+  }
+  .edit-dialog .help-muted {
+    color: var(--offset-fg);
+    margin-bottom: 10px;
+  }
+  .edit-dialog .help-section-title {
+    color: var(--offset-fg);
+    font-size: 11px;
+    margin: 10px 0 4px;
+    text-transform: uppercase;
+  }
+  .edit-dialog .help-example {
+    display: block;
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 8px;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: left;
+    white-space: pre-wrap;
+    cursor: pointer;
+    user-select: text;
+  }
+  .edit-dialog .help-example:hover,
+  .edit-dialog .help-example:focus {
+    background: color-mix(in srgb, var(--button-bg) 22%, var(--input-bg));
+    outline: 1px solid var(--button-bg);
+  }
   .overlay {
     display: none;
     position: fixed;
@@ -820,10 +883,10 @@ export function getWebviewContent(bytesPerRow: number): string {
     <button class="secondary" id="deleteBtn" title="Delete bytes at selected offset">Del</button>
   </div>
   <div class="toolbar-group">
-    <button class="secondary" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
-    <button class="secondary" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
-    <button class="secondary" id="saveBtn" title="Save (Ctrl+S)">Save</button>
-    <button class="secondary" id="saveAsBtn" title="Save As (Ctrl+Shift+S)">Save As</button>
+    <label for="transformSelect">Transform:</label>
+    <select class="transform-select" id="transformSelect" title="Byte range transform">
+      <option value="">Loading transforms...</option>
+    </select>
   </div>
 </div>
 
@@ -878,6 +941,10 @@ export function getWebviewContent(bytesPerRow: number): string {
         <div class="analysis-section">
           <div class="analysis-section-title" id="structureScopeTitle">Visible Bytes</div>
           <div class="analysis-metrics" id="structureMetrics"></div>
+        </div>
+        <div class="analysis-section">
+          <div class="analysis-section-title">History</div>
+          <div class="analysis-metrics" id="structureHistoryMetrics"></div>
         </div>
         <div class="analysis-section">
           <div class="analysis-section-title">Timing</div>
@@ -938,6 +1005,19 @@ export function getWebviewContent(bytesPerRow: number): string {
   </div>
 </div>
 
+<div class="edit-dialog" id="transformOptionsDialog">
+  <h3 id="transformOptionsTitle">Transform Options</h3>
+  <div class="help-body" id="transformOptionsBody"></div>
+  <div class="field" id="transformOptionsField">
+    <label for="transformOptions">Options JSON:</label>
+    <input type="text" id="transformOptions" placeholder="options JSON" />
+  </div>
+  <div class="actions">
+    <button class="secondary" id="transformOptionsCancel">Cancel</button>
+    <button id="transformOptionsApply">Apply</button>
+  </div>
+</div>
+
 <script>
 (function () {
   // VS Code webview API
@@ -990,6 +1070,13 @@ export function getWebviewContent(bytesPerRow: number): string {
   let pendingAnalysisProfileKey = ''
   let analysisProfileRequestTimer = null
   let frequencyScale = 'linear'
+  let historyCanUndo = false
+  let historyCanRedo = false
+  let historyUndoCount = 0
+  let historyRedoCount = 0
+  let transformPlugins = []
+  let transformPluginsRequested = false
+  const transformOptionsByPluginId = new Map()
   const renderSamples = []
 
   // ── DOM Refs ────────────────────────────────────────
@@ -1027,10 +1114,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   const nextMatchBtn = document.getElementById('nextMatch')
   const topBtn = document.getElementById('topBtn')
   const bottomBtn = document.getElementById('bottomBtn')
-  const undoBtn = document.getElementById('undoBtn')
-  const redoBtn = document.getElementById('redoBtn')
-  const saveBtn = document.getElementById('saveBtn')
-  const saveAsBtn = document.getElementById('saveAsBtn')
+  const transformSelect = document.getElementById('transformSelect')
+  const transformOptions = document.getElementById('transformOptions')
   const editDialog = document.getElementById('editDialog')
   const overlay = document.getElementById('overlay')
   const editTitle = document.getElementById('editTitle')
@@ -1039,6 +1124,12 @@ export function getWebviewContent(bytesPerRow: number): string {
   const editData = document.getElementById('editData')
   const editLengthField = document.getElementById('editLengthField')
   const editDataField = document.getElementById('editDataField')
+  const transformOptionsDialog = document.getElementById('transformOptionsDialog')
+  const transformOptionsTitle = document.getElementById('transformOptionsTitle')
+  const transformOptionsBody = document.getElementById('transformOptionsBody')
+  const transformOptionsField = document.getElementById('transformOptionsField')
+  const transformOptionsApply = document.getElementById('transformOptionsApply')
+  const transformOptionsCancel = document.getElementById('transformOptionsCancel')
   const profileTab = document.getElementById('profileTab')
   const structureTab = document.getElementById('structureTab')
   const profilePanel = document.getElementById('profilePanel')
@@ -1053,6 +1144,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   const profileByteBars = document.getElementById('profileByteBars')
   const structureScopeTitle = document.getElementById('structureScopeTitle')
   const structureMetrics = document.getElementById('structureMetrics')
+  const structureHistoryMetrics = document.getElementById('structureHistoryMetrics')
 
   function clamp(min, value, max) {
     return Math.max(min, Math.min(value, max))
@@ -1790,7 +1882,17 @@ export function getWebviewContent(bytesPerRow: number): string {
       },
     ])
 
+    renderHistoryMetrics()
     renderTimingMetrics()
+  }
+
+  function renderHistoryMetrics() {
+    renderMetricRows(structureHistoryMetrics, [
+      { label: 'Undo', value: historyUndoCount.toLocaleString() },
+      { label: 'Redo', value: historyRedoCount.toLocaleString() },
+      { label: 'Can Undo', value: historyCanUndo ? 'Yes' : 'No' },
+      { label: 'Can Redo', value: historyCanRedo ? 'Yes' : 'No' },
+    ])
   }
 
   function updateAnalysisPanels() {
@@ -1881,7 +1983,6 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   function updateDirtyStatus(isDirty) {
     statusDirty.textContent = isDirty ? 'Dirty' : 'Saved'
-    saveBtn.disabled = !isDirty
   }
 
   function updateActionStatus(message = '', source = 'generic') {
@@ -1889,10 +1990,354 @@ export function getWebviewContent(bytesPerRow: number): string {
     replaceSummaryActive = source === 'replace-summary' && message.length > 0
   }
 
+  function flashActionStatus() {
+    statusAction.classList.remove('flash')
+    void statusAction.offsetWidth
+    statusAction.classList.add('flash')
+  }
+
   function clearReplaceSummaryActionStatus() {
     if (replaceSummaryActive) {
       updateActionStatus('')
     }
+  }
+
+  function transformOperationLabel(operation) {
+    switch (operation) {
+      case 1:
+        return 'replace'
+      case 2:
+        return 'inspect'
+      case 3:
+        return 'replace + inspect'
+      default:
+        return 'transform'
+    }
+  }
+
+  function selectedTransformPlugin() {
+    return transformPlugins.find((plugin) => plugin.id === transformSelect.value) ?? null
+  }
+
+  function advertisedTransformExamples(plugin) {
+    const examples = []
+    const addExample = (value) => {
+      const text = typeof value === 'string' ? value : JSON.stringify(value)
+      if (text && !examples.includes(text)) {
+        examples.push(text)
+      }
+    }
+    if (plugin?.example) {
+      try {
+        const parsed = JSON.parse(plugin.example)
+        if (Array.isArray(parsed)) {
+          for (const example of parsed) {
+            addExample(example)
+          }
+        } else {
+          addExample(plugin.example)
+        }
+      } catch {
+        addExample(plugin.example)
+      }
+    }
+    if (plugin?.defaultArgs) {
+      addExample(plugin.defaultArgs)
+    }
+    return examples
+  }
+
+  function getTransformOptionHelp(plugin) {
+    const description = plugin?.description || plugin?.name || plugin?.id || ''
+    const examples = advertisedTransformExamples(plugin)
+    return {
+      description: description || 'This transform did not advertise a description.',
+      help: plugin?.help || '',
+      examples,
+      defaultArgs: plugin?.defaultArgs || '',
+      argsSchema: plugin?.argsSchema || '',
+    }
+  }
+
+  function validateJsonSchemaValue(value, schema, path) {
+    if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
+      return null
+    }
+    if (Array.isArray(schema.oneOf)) {
+      const matches = schema.oneOf.filter((candidate) => validateJsonSchemaValue(value, candidate, path) === null)
+      return matches.length === 1 ? null : path + ' must match exactly one allowed shape'
+    }
+    if (schema.not && validateJsonSchemaValue(value, schema.not, path) === null) {
+      return path + ' uses a disallowed option combination'
+    }
+    if (schema.type === 'object') {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return path + ' must be an object'
+      }
+      const keys = Object.keys(value)
+      if (Array.isArray(schema.required)) {
+        const missing = schema.required.find((key) => !Object.prototype.hasOwnProperty.call(value, key))
+        if (missing) {
+          return path + ' is missing "' + missing + '"'
+        }
+      }
+      if (Number.isInteger(schema.maxProperties) && keys.length > schema.maxProperties) {
+        return path + ' has too many properties'
+      }
+      const properties = schema.properties && typeof schema.properties === 'object' ? schema.properties : {}
+      if (schema.additionalProperties === false) {
+        const unknown = keys.find((key) => !Object.prototype.hasOwnProperty.call(properties, key))
+        if (unknown) {
+          return path + ' has unknown option "' + unknown + '"'
+        }
+      }
+      for (const key of keys) {
+        if (properties[key]) {
+          const error = validateJsonSchemaValue(value[key], properties[key], path + '.' + key)
+          if (error) {
+            return error
+          }
+        }
+      }
+    }
+    if (schema.type === 'array') {
+      if (!Array.isArray(value)) {
+        return path + ' must be an array'
+      }
+      if (Number.isInteger(schema.minItems) && value.length < schema.minItems) {
+        return path + ' must contain at least ' + schema.minItems + ' item'
+      }
+      if (schema.items) {
+        for (let i = 0; i < value.length; i += 1) {
+          const error = validateJsonSchemaValue(value[i], schema.items, path + '[' + i + ']')
+          if (error) {
+            return error
+          }
+        }
+      }
+    }
+    if (schema.type === 'string') {
+      if (typeof value !== 'string') {
+        return path + ' must be a string'
+      }
+      if (schema.pattern && !(new RegExp(schema.pattern).test(value))) {
+        return path + ' does not match the expected format'
+      }
+    }
+    if (schema.type === 'integer') {
+      if (!Number.isInteger(value)) {
+        return path + ' must be an integer'
+      }
+      if (typeof schema.minimum === 'number' && value < schema.minimum) {
+        return path + ' must be at least ' + schema.minimum
+      }
+      if (typeof schema.maximum === 'number' && value > schema.maximum) {
+        return path + ' must be at most ' + schema.maximum
+      }
+    }
+    return null
+  }
+
+  function validateTransformOptions(plugin, optionsJson) {
+    if (optionsJson.length === 0) {
+      return null
+    }
+
+    let parsedOptions
+    try {
+      parsedOptions = JSON.parse(optionsJson)
+    } catch {
+      return 'Invalid transform options JSON'
+    }
+
+    if (!plugin?.argsSchema) {
+      return 'Selected transform did not advertise an options schema'
+    }
+
+    let schema
+    try {
+      schema = JSON.parse(plugin.argsSchema)
+    } catch {
+      return 'Selected transform advertised an invalid options schema'
+    }
+    return validateJsonSchemaValue(parsedOptions, schema, 'options')
+  }
+
+  function updateTransformControls() {
+    const hasRange = hasSelection() && getSelectionLength() > 0
+    transformSelect.disabled = !hasRange
+    transformSelect.title = !hasRange
+      ? 'Select one or more bytes to transform'
+      : transformPlugins.length === 0
+        ? 'No transform plugin is available'
+        : 'Choose a transform to apply to the selected bytes'
+  }
+
+  function requestTransformPlugins() {
+    if (transformPluginsRequested) {
+      return
+    }
+    transformPluginsRequested = true
+    vscode.postMessage({ type: 'requestTransformPlugins' })
+  }
+
+  function renderTransformOptionsDialog() {
+    const plugin = selectedTransformPlugin()
+    if (!plugin) {
+      updateActionStatus('No transform selected')
+      return
+    }
+
+    const help = getTransformOptionHelp(plugin)
+    const savedOptions = transformOptionsByPluginId.get(plugin.id)
+    const hasOptionsSchema = !!help.argsSchema
+    const selectionStart = getSelectionStart()
+    const selectionEnd = getSelectionEnd()
+    const selectionLength = getSelectionLength()
+    transformOptions.value = hasOptionsSchema ? (savedOptions ?? plugin.defaultArgs ?? '') : ''
+    transformOptions.placeholder = help.examples[0]
+      ? 'e.g. ' + help.examples[0]
+      : 'options JSON'
+    transformOptionsField.style.display = hasOptionsSchema ? 'block' : 'none'
+    transformOptionsTitle.textContent = plugin.name || plugin.id
+    const examplesHtml = help.examples.length > 0
+      ? '<div class="help-section-title">Examples</div>' +
+        help.examples
+          .map((example, index) =>
+            '<button type="button" class="help-example" data-example-index="' +
+            index +
+            '" title="Use this example">' +
+            escapeHtml(example) +
+            '</button>'
+          )
+          .join('')
+      : ''
+    transformOptionsBody.innerHTML =
+      '<div class="help-muted">' +
+      escapeHtml(plugin.id) +
+      ' | ' +
+      escapeHtml(transformOperationLabel(plugin.operation)) +
+      '</div>' +
+      '<div>' +
+      escapeHtml(help.description) +
+      '</div>' +
+      '<div class="help-section-title">Selected Range</div>' +
+      '<div class="analysis-metrics">' +
+      '<span class="analysis-label">Start</span>' +
+      '<span class="analysis-value">' +
+      escapeHtml(formatOffsetDisplay(selectionStart)) +
+      '</span>' +
+      '<span class="analysis-label">End</span>' +
+      '<span class="analysis-value">' +
+      escapeHtml(formatOffsetDisplay(selectionEnd)) +
+      '</span>' +
+      '<span class="analysis-label">Length</span>' +
+      '<span class="analysis-value">' +
+      selectionLength.toLocaleString() +
+      ' byte(s)</span>' +
+      '</div>' +
+      (help.help
+        ? '<div class="help-section-title">' +
+          (hasOptionsSchema ? 'Options JSON' : 'Help') +
+          '</div>' +
+          '<div>' +
+          escapeHtml(help.help) +
+          '</div>'
+        : '') +
+      examplesHtml
+    overlay.classList.add('active')
+    transformOptionsDialog.classList.add('active')
+    if (hasOptionsSchema) {
+      transformOptions.focus()
+    } else {
+      transformOptionsApply.focus()
+    }
+  }
+
+  function closeTransformOptionsDialog() {
+    if (transformOptionsDialog.contains(document.activeElement)) {
+      document.activeElement.blur()
+    }
+    transformOptionsDialog.classList.remove('active')
+    overlay.classList.remove('active')
+    transformSelect.value = ''
+    updateTransformControls()
+  }
+
+  function useTransformOptionExample(index) {
+    const help = getTransformOptionHelp(selectedTransformPlugin())
+    if (index < 0 || index >= help.examples.length) {
+      return
+    }
+    transformOptions.value = help.examples[index]
+    transformOptions.focus()
+  }
+
+  function setTransformPlugins(plugins) {
+    const previousPluginId = transformSelect.value
+    transformPlugins = Array.isArray(plugins) ? plugins : []
+    transformPluginsRequested = false
+
+    if (transformPlugins.length === 0) {
+      transformSelect.innerHTML = '<option value="">No transforms found</option>'
+      updateTransformControls()
+      return
+    }
+
+    transformSelect.innerHTML =
+      '<option value="">Select transform...</option>' +
+      transformPlugins
+      .map((plugin) => {
+        const label = escapeHtml(plugin.name || plugin.id)
+        const title = escapeHtml(
+          (plugin.description || plugin.id) +
+          ' (' + transformOperationLabel(plugin.operation) + ')'
+        )
+        return '<option value="' + escapeHtml(plugin.id) + '" title="' + title + '">' + label + '</option>'
+      })
+      .join('')
+
+    if (transformPlugins.some((plugin) => plugin.id === previousPluginId)) {
+      transformSelect.value = previousPluginId
+    }
+    updateTransformControls()
+  }
+
+  function applySelectedTransform() {
+    const plugin = selectedTransformPlugin()
+    if (!plugin) {
+      updateActionStatus('No transform selected')
+      return
+    }
+    if (!hasSelection()) {
+      updateActionStatus('Select one or more bytes to transform')
+      return
+    }
+
+    const optionsJson = transformOptions.value.trim()
+    const validationError = validateTransformOptions(plugin, optionsJson)
+    if (validationError) {
+      updateActionStatus(validationError)
+      return
+    }
+
+    const offset = getSelectionStart()
+    const length = getSelectionLength()
+    if (optionsJson) {
+      transformOptionsByPluginId.set(plugin.id, optionsJson)
+    } else {
+      transformOptionsByPluginId.delete(plugin.id)
+    }
+    closeTransformOptionsDialog()
+    clearReplaceSummaryActionStatus()
+    updateActionStatus('Applying ' + (plugin.name || plugin.id) + '...')
+    vscode.postMessage({
+      type: 'applyTransform',
+      pluginId: plugin.id,
+      offset,
+      length,
+      optionsJson: optionsJson || undefined,
+    })
   }
 
   function formatServerHealthSeverity(severity) {
@@ -2016,13 +2461,12 @@ export function getWebviewContent(bytesPerRow: number): string {
     replaceAllBtn.disabled = !hasMatches
   }
 
-  function updateEditButtons(canUndo, canRedo, undoCount = 0, redoCount = 0) {
-    undoBtn.disabled = !canUndo
-    redoBtn.disabled = !canRedo
-    undoBtn.textContent = 'Undo (' + undoCount + ')'
-    redoBtn.textContent = 'Redo (' + redoCount + ')'
-    undoBtn.title = 'Undo ' + undoCount + ' change(s) (Ctrl+Z)'
-    redoBtn.title = 'Redo ' + redoCount + ' change(s) (Ctrl+Y)'
+  function updateHistoryState(canUndo, canRedo, undoCount = 0, redoCount = 0) {
+    historyCanUndo = !!canUndo
+    historyCanRedo = !!canRedo
+    historyUndoCount = undoCount
+    historyRedoCount = redoCount
+    renderHistoryMetrics()
   }
 
   function totalRows() {
@@ -2200,6 +2644,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       updateSelectedStatus()
       updateRenderedSelection()
       updateAnalysisPanels()
+      updateTransformControls()
       requestAnalysisProfile()
       return
     }
@@ -2218,6 +2663,29 @@ export function getWebviewContent(bytesPerRow: number): string {
     updateSelectedStatus()
     updateRenderedSelection()
     updateAnalysisPanels()
+    updateTransformControls()
+    requestAnalysisProfile()
+  }
+
+  function selectRange(offset, length) {
+    if (offset < 0 || fileSize <= 0) {
+      selectOffset(-1)
+      return
+    }
+
+    if (length <= 1) {
+      selectOffset(offset)
+      return
+    }
+
+    const selectionStart = clampOffset(offset)
+    const selectionEnd = clampOffset(offset + length - 1)
+    selectionAnchor = selectionStart
+    selectedOffset = Math.max(selectionStart, selectionEnd)
+    updateSelectedStatus()
+    updateRenderedSelection()
+    updateAnalysisPanels()
+    updateTransformControls()
     requestAnalysisProfile()
   }
 
@@ -2695,7 +3163,7 @@ export function getWebviewContent(bytesPerRow: number): string {
         break
 
       case 'editState':
-        updateEditButtons(
+        updateHistoryState(
           msg.canUndo,
           msg.canRedo,
           msg.undoCount ?? 0,
@@ -2765,6 +3233,41 @@ export function getWebviewContent(bytesPerRow: number): string {
 
       case 'searchStateCleared':
         clearSearchResults()
+        break
+
+      case 'transformPlugins':
+        setTransformPlugins(msg.plugins ?? [])
+        if (msg.error) {
+          updateActionStatus('Transform plugins unavailable: ' + msg.error)
+        }
+        break
+
+      case 'transformComplete':
+        if (msg.contentChanged) {
+          clearSearchResults()
+        }
+        if (typeof msg.offset === 'number' && msg.offset >= 0) {
+          const transformedLength = msg.contentChanged
+            ? (msg.replacementLength ?? msg.length ?? 1)
+            : (msg.length ?? 1)
+          selectRange(msg.offset, transformedLength)
+        }
+        if (msg.resultText) {
+          updateActionStatus(
+            (msg.resultLabel || 'Result') + ': ' + msg.resultText
+          )
+          flashActionStatus()
+        } else if (msg.contentChanged) {
+          updateActionStatus(
+            'Transformed ' +
+            (msg.length ?? 0).toLocaleString() +
+            ' byte(s) into ' +
+            (msg.replacementLength ?? 0).toLocaleString() +
+            ' byte(s)'
+          )
+        } else {
+          updateActionStatus('Transform completed')
+        }
         break
 
       case 'serverHealth':
@@ -2925,24 +3428,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
 
-    if (e.ctrlKey && e.key === 'z') {
-      e.preventDefault()
-      if (!undoBtn.disabled) {
-        vscode.postMessage({ type: 'undo' })
-      }
-    } else if (e.ctrlKey && e.key === 'y') {
-      e.preventDefault()
-      if (!redoBtn.disabled) {
-        vscode.postMessage({ type: 'redo' })
-      }
-    } else if (e.ctrlKey && e.key === 's') {
-      e.preventDefault()
-      if (e.shiftKey) {
-        vscode.postMessage({ type: 'saveAs' })
-      } else if (!saveBtn.disabled) {
-        vscode.postMessage({ type: 'save' })
-      }
-    } else if (e.ctrlKey && e.key === 'f') {
+    if (e.ctrlKey && e.key === 'f') {
       e.preventDefault()
       searchInput.focus()
     } else if (e.ctrlKey && e.key === 'g') {
@@ -3150,6 +3636,27 @@ export function getWebviewContent(bytesPerRow: number): string {
     updateInspectorEndianLabel()
     updateInspectorStatus()
   })
+  transformSelect.addEventListener('pointerdown', () => {
+    if (!transformSelect.disabled) {
+      requestTransformPlugins()
+    }
+  })
+  transformSelect.addEventListener('focus', () => {
+    if (!transformSelect.disabled && !transformPluginsRequested) {
+      requestTransformPlugins()
+    }
+  })
+  transformSelect.addEventListener('change', () => {
+    updateTransformControls()
+    if (selectedTransformPlugin()) {
+      renderTransformOptionsDialog()
+    }
+  })
+  transformOptions.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !transformOptionsApply.disabled) {
+      applySelectedTransform()
+    }
+  })
 
   nextMatchBtn.addEventListener('click', () => {
     if (!hasSearchResults()) return
@@ -3205,6 +3712,11 @@ export function getWebviewContent(bytesPerRow: number): string {
     overlay.classList.remove('active')
   }
 
+  function closeDialogs() {
+    closeEditDialog()
+    closeTransformOptionsDialog()
+  }
+
   function submitEdit() {
     const offset = parseInt(editOffset.value, 16)
     if (isNaN(offset) || offset < 0) return
@@ -3238,43 +3750,33 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
   document.getElementById('editCancel').addEventListener('click', closeEditDialog)
   document.getElementById('editOk').addEventListener('click', submitEdit)
-  overlay.addEventListener('click', closeEditDialog)
+  overlay.addEventListener('click', closeDialogs)
+  transformOptionsCancel.addEventListener('click', closeTransformOptionsDialog)
+  transformOptionsApply.addEventListener('click', applySelectedTransform)
+  transformOptionsBody.addEventListener('click', (e) => {
+    const exampleButton = e.target.closest('.help-example[data-example-index]')
+    if (!exampleButton) {
+      return
+    }
+    const index = parseInt(exampleButton.dataset.exampleIndex, 10)
+    if (!Number.isNaN(index)) {
+      useTransformOptionExample(index)
+    }
+  })
 
   // Submit on Enter inside the edit dialog
   editData.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitEdit() })
   editLength.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitEdit() })
   editOffset.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitEdit() })
 
-  // ── Undo / Redo / Save Buttons ──────────────────────
-
-  undoBtn.addEventListener('click', () => {
-    if (!undoBtn.disabled) {
-      clearReplaceSummaryActionStatus()
-      vscode.postMessage({ type: 'undo' })
-    }
-  })
-  redoBtn.addEventListener('click', () => {
-    if (!redoBtn.disabled) {
-      clearReplaceSummaryActionStatus()
-      vscode.postMessage({ type: 'redo' })
-    }
-  })
-  saveBtn.addEventListener('click', () => {
-    if (!saveBtn.disabled) {
-      vscode.postMessage({ type: 'save' })
-    }
-  })
-  saveAsBtn.addEventListener('click', () => {
-    vscode.postMessage({ type: 'saveAs' })
-  })
-
   updateSearchButtons()
-  updateEditButtons(false, false)
+  updateHistoryState(false, false)
   syncSearchMode()
   updateDirtyStatus(false)
   updateActionStatus('')
   updateInspectorEndianLabel()
   updateInspectorStatus()
+  updateTransformControls()
   updateServerHealthStatus(null)
   updateOffsetStatus()
   updateSelectedStatus()
@@ -3283,6 +3785,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   updateAnalysisPanels()
   renderColumnHeader()
   reportViewportMetrics()
+  requestTransformPlugins()
 })()
 </script>
 </body>

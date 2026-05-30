@@ -29,6 +29,7 @@
 
 import {
   ALL_EVENTS,
+  applyTransformPlugin,
   countCharacters,
   del,
   destroyLastCheckpoint,
@@ -48,6 +49,7 @@ import {
   IOFlags,
   type IServerInfo,
   insert,
+  listTransformPlugins,
   modifyViewport,
   numAscii,
   overwrite,
@@ -56,6 +58,7 @@ import {
   redo,
   saveSession,
   startServerHeartbeatLoop,
+  type TransformPluginInfo,
   type ServerHeartbeatLoop,
   undo,
   ViewportEventKind,
@@ -108,6 +111,10 @@ const SESSION_SYNC_TIMEOUT_MS = 2000
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
+const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
+const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
+const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
+const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 
 function classifyServerHealthLatency(
   latencyMs: number
@@ -135,6 +142,54 @@ function getOptionalNumberProperty(
 ): number | undefined {
   const value = (source as Record<string, unknown>)[key]
   return typeof value === 'number' ? value : undefined
+}
+
+function truncateTransformResult(value: string): string {
+  if (value.length <= MAX_TRANSFORM_RESULT_TEXT_LENGTH) {
+    return value
+  }
+  return `${value.slice(0, MAX_TRANSFORM_RESULT_TEXT_LENGTH - 1)}...`
+}
+
+function transformResultToText(bytes: Uint8Array): string {
+  if (bytes.byteLength === 0) {
+    return ''
+  }
+
+  return truncateTransformResult(Buffer.from(bytes).toString('utf8'))
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  return (
+    left.byteLength === right.byteLength &&
+    Buffer.from(left).equals(Buffer.from(right))
+  )
+}
+
+function serializeTransformPlugin(plugin: TransformPluginInfo): {
+  id: string
+  name: string
+  description: string
+  operation: number
+  flags: number
+  abiVersion: number
+  help: string
+  example: string
+  defaultArgs: string
+  argsSchema: string
+} {
+  return {
+    id: plugin.id,
+    name: plugin.name,
+    description: plugin.description,
+    operation: plugin.operation,
+    flags: plugin.flags,
+    abiVersion: plugin.abiVersion,
+    help: plugin.help,
+    example: plugin.example,
+    defaultArgs: plugin.defaultArgs,
+    argsSchema: plugin.argsSchema,
+  }
 }
 
 /**
@@ -231,6 +286,20 @@ export class HexEditorProvider
     await this.handleWebviewMessage(session, msg)
   }
 
+  public async undoActive(): Promise<void> {
+    if (!this.activeSession) {
+      return
+    }
+    await vscode.commands.executeCommand('undo')
+  }
+
+  public async redoActive(): Promise<void> {
+    if (!this.activeSession) {
+      return
+    }
+    await vscode.commands.executeCommand('redo')
+  }
+
   // â”€â”€ VS Code Custom Editor API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async openCustomDocument(
@@ -302,6 +371,7 @@ export class HexEditorProvider
     }
     this.sessions.set(uri.toString(), session)
     this.activeSession = session
+    this.updateEditCommandContexts(session)
 
     // --- Configure the webview ---
     webviewPanel.webview.options = { enableScripts: true }
@@ -325,6 +395,10 @@ export class HexEditorProvider
     webviewPanel.onDidChangeViewState(() => {
       if (webviewPanel.active) {
         this.activeSession = session
+        this.updateEditCommandContexts(session)
+      } else if (this.activeSession === session) {
+        this.activeSession = undefined
+        this.updateEditCommandContexts(undefined)
       }
     })
 
@@ -334,6 +408,7 @@ export class HexEditorProvider
       this.documents.delete(uri.toString())
       if (this.activeSession === session) {
         this.activeSession = undefined
+        this.updateEditCommandContexts(undefined)
       }
       if (this.sessions.size === 0) {
         this.stopHealthPolling()
@@ -356,7 +431,6 @@ export class HexEditorProvider
     session.restoredFromBackup = false
     session.history.markSaved()
     this.postEditState(session)
-    vscode.window.showInformationMessage('File saved')
   }
 
   async saveCustomDocumentAs(
@@ -370,7 +444,6 @@ export class HexEditorProvider
     }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
     session.restoredFromBackup = false
-    vscode.window.showInformationMessage(`File saved as ${destination.fsPath}`)
   }
 
   async revertCustomDocument(
@@ -406,6 +479,7 @@ export class HexEditorProvider
     await this.startSessionSubscriptions(session)
     await this.sendViewportData(session)
     this.postEditState(session)
+    await this.sendTransformPlugins(session)
   }
 
   async backupCustomDocument(
@@ -599,10 +673,124 @@ export class HexEditorProvider
 
   private postEditState(session: EditorSession): void {
     const editState = session.history.getEditState()
+    if (this.activeSession === session) {
+      this.updateEditCommandContexts(session)
+    }
     session.panel.webview.postMessage({
       type: 'editState',
       ...editState,
       isDirty: editState.isDirty || !!session.restoredFromBackup,
+    })
+  }
+
+  private updateEditCommandContexts(session: EditorSession | undefined): void {
+    const editState = session?.history.getEditState()
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_HEX_EDITOR_ACTIVE,
+      !!session
+    )
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_CAN_UNDO,
+      !!editState?.canUndo
+    )
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_CAN_REDO,
+      !!editState?.canRedo
+    )
+  }
+
+  private async sendTransformPlugins(session: EditorSession): Promise<void> {
+    try {
+      const plugins = await listTransformPlugins()
+      session.panel.webview.postMessage({
+        type: 'transformPlugins',
+        plugins: plugins.map(serializeTransformPlugin),
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      session.panel.webview.postMessage({
+        type: 'transformPlugins',
+        plugins: [],
+        error: message,
+      })
+    }
+  }
+
+  private async applyTransformToRange(
+    session: EditorSession,
+    pluginId: string,
+    offset: number,
+    length: number,
+    optionsJson?: string
+  ): Promise<void> {
+    const clampedOffset = Math.max(0, Math.min(offset, session.fileSize))
+    const remainingLength = Math.max(0, session.fileSize - clampedOffset)
+    const originalLength =
+      length === 0 ? remainingLength : Math.min(length, remainingLength)
+    const originalBytes =
+      originalLength > 0
+        ? await getSegment(session.sessionId, clampedOffset, originalLength)
+        : new Uint8Array()
+    const sessionSyncVersion = session.sessionSyncVersion
+    const response = await applyTransformPlugin(
+      session.sessionId,
+      pluginId,
+      offset,
+      length,
+      optionsJson
+    )
+
+    let contentChanged = response.contentChanged
+    if (response.contentChanged) {
+      const replacement =
+        response.replacementLength > 0
+          ? await getSegment(
+              session.sessionId,
+              response.offset,
+              response.replacementLength
+            )
+          : new Uint8Array()
+      const isNoOpReplace =
+        response.offset === clampedOffset &&
+        response.length === originalLength &&
+        bytesEqual(originalBytes, replacement)
+
+      if (isNoOpReplace) {
+        await this.waitForSessionSync(session, sessionSyncVersion)
+        const undoSyncVersion = session.sessionSyncVersion
+        await undo(session.sessionId)
+        await this.waitForSessionSync(session, undoSyncVersion)
+        contentChanged = false
+      } else {
+        session.history.recordLocalChange({
+          serial: session.history.getChangeLog().length + 1,
+          kind: 'REPLACE',
+          offset: response.offset,
+          length: response.length,
+          data: Buffer.from(replacement).toString('hex'),
+        })
+        this.postEditState(session)
+        this.notifyDocumentChanged(session)
+        await this.waitForSessionSync(session, sessionSyncVersion)
+        this.clearSearchState(session)
+      }
+    }
+
+    session.panel.webview.postMessage({
+      type: 'transformComplete',
+      pluginId: response.pluginId,
+      offset: response.offset,
+      length: response.length,
+      operation: response.operation,
+      contentChanged,
+      replacementLength: response.replacementLength,
+      computedFileSize: response.computedFileSize,
+      resultLabel: response.resultLabel ?? '',
+      resultMimeType: response.resultMimeType ?? '',
+      resultText: transformResultToText(response.result),
     })
   }
 
@@ -1238,6 +1426,11 @@ export class HexEditorProvider
           break
         }
 
+        case 'requestTransformPlugins': {
+          await this.sendTransformPlugins(session)
+          break
+        }
+
         // --- Editing ---
         case 'insert': {
           const sessionSyncVersion = session.sessionSyncVersion
@@ -1360,6 +1553,19 @@ export class HexEditorProvider
           break
         }
 
+        case 'applyTransform': {
+          await session.search.preserveState(async () => {
+            await this.applyTransformToRange(
+              session,
+              msg.pluginId,
+              msg.offset,
+              msg.length,
+              msg.optionsJson?.trim() || undefined
+            )
+          })
+          break
+        }
+
         // --- Undo / Redo ---
         case 'undo': {
           // Route through VS Code so it pops from its CustomDocumentEditEvent
@@ -1460,10 +1666,18 @@ type WebviewMessage =
       requestedLength: number
       isCapped: boolean
     }
+  | { type: 'requestTransformPlugins' }
   | { type: 'insert'; offset: number; data: string }
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }
   | { type: 'replace'; offset: number; length: number; data: string }
+  | {
+      type: 'applyTransform'
+      pluginId: string
+      offset: number
+      length: number
+      optionsJson?: string
+    }
   | {
       type: 'replaceAllMatches'
       offsets?: number[]

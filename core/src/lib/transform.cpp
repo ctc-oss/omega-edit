@@ -18,11 +18,15 @@
 #include "../include/omega_edit/session.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <regex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #ifdef _WIN32
@@ -99,6 +103,323 @@ namespace {
         omega_transform_plugin_apply_fn apply{};
         std::string path;
     };
+
+    struct json_value_t {
+        enum class kind_t { null_value, object, array, string, number, boolean };
+
+        kind_t kind{kind_t::null_value};
+        std::map<std::string, json_value_t> object_value;
+        std::vector<json_value_t> array_value;
+        std::string string_value;
+        double number_value{};
+        bool bool_value{};
+    };
+
+    class json_parser_t {
+    public:
+        explicit json_parser_t(const char *input) : input_(input ? input : "") {}
+
+        auto parse(json_value_t &value) -> bool {
+            skip_ws();
+            if (!parse_value(value)) { return false; }
+            skip_ws();
+            return input_[pos_] == '\0';
+        }
+
+    private:
+        const char *input_;
+        size_t pos_{};
+
+        void skip_ws() {
+            while (std::isspace(static_cast<unsigned char>(input_[pos_]))) { ++pos_; }
+        }
+
+        auto consume(char expected) -> bool {
+            skip_ws();
+            if (input_[pos_] != expected) { return false; }
+            ++pos_;
+            return true;
+        }
+
+        auto parse_value(json_value_t &value) -> bool {
+            skip_ws();
+            switch (input_[pos_]) {
+                case '{':
+                    return parse_object(value);
+                case '[':
+                    return parse_array(value);
+                case '"':
+                    value.kind = json_value_t::kind_t::string;
+                    return parse_string(value.string_value);
+                case 't':
+                    return parse_literal("true", json_value_t::kind_t::boolean, value, true);
+                case 'f':
+                    return parse_literal("false", json_value_t::kind_t::boolean, value, false);
+                case 'n':
+                    return parse_literal("null", json_value_t::kind_t::null_value, value, false);
+                default:
+                    return parse_number(value);
+            }
+        }
+
+        auto parse_literal(const char *literal, json_value_t::kind_t kind, json_value_t &value, bool bool_value)
+                -> bool {
+            const auto length = std::strlen(literal);
+            if (std::strncmp(input_ + pos_, literal, length) != 0) { return false; }
+            pos_ += length;
+            value.kind = kind;
+            value.bool_value = bool_value;
+            return true;
+        }
+
+        auto parse_string(std::string &value) -> bool {
+            if (input_[pos_] != '"') { return false; }
+            ++pos_;
+            value.clear();
+            while (input_[pos_] != '\0') {
+                const char ch = input_[pos_++];
+                if (ch == '"') { return true; }
+                if (static_cast<unsigned char>(ch) < 0x20) { return false; }
+                if (ch != '\\') {
+                    value.push_back(ch);
+                    continue;
+                }
+                const char escaped = input_[pos_++];
+                switch (escaped) {
+                    case '"':
+                    case '\\':
+                    case '/':
+                        value.push_back(escaped);
+                        break;
+                    case 'b':
+                        value.push_back('\b');
+                        break;
+                    case 'f':
+                        value.push_back('\f');
+                        break;
+                    case 'n':
+                        value.push_back('\n');
+                        break;
+                    case 'r':
+                        value.push_back('\r');
+                        break;
+                    case 't':
+                        value.push_back('\t');
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return false;
+        }
+
+        auto parse_object(json_value_t &value) -> bool {
+            if (!consume('{')) { return false; }
+            value = {};
+            value.kind = json_value_t::kind_t::object;
+            skip_ws();
+            if (consume('}')) { return true; }
+            while (input_[pos_] != '\0') {
+                std::string key;
+                skip_ws();
+                if (!parse_string(key) || !consume(':')) { return false; }
+                json_value_t member;
+                if (!parse_value(member)) { return false; }
+                value.object_value[key] = std::move(member);
+                skip_ws();
+                if (consume('}')) { return true; }
+                if (!consume(',')) { return false; }
+            }
+            return false;
+        }
+
+        auto parse_array(json_value_t &value) -> bool {
+            if (!consume('[')) { return false; }
+            value = {};
+            value.kind = json_value_t::kind_t::array;
+            skip_ws();
+            if (consume(']')) { return true; }
+            while (input_[pos_] != '\0') {
+                json_value_t item;
+                if (!parse_value(item)) { return false; }
+                value.array_value.push_back(std::move(item));
+                skip_ws();
+                if (consume(']')) { return true; }
+                if (!consume(',')) { return false; }
+            }
+            return false;
+        }
+
+        auto parse_number(json_value_t &value) -> bool {
+            skip_ws();
+            const auto start = pos_;
+            if (input_[pos_] == '-') { ++pos_; }
+            if (!std::isdigit(static_cast<unsigned char>(input_[pos_]))) { return false; }
+            if (input_[pos_] == '0') {
+                ++pos_;
+            } else {
+                while (std::isdigit(static_cast<unsigned char>(input_[pos_]))) { ++pos_; }
+            }
+            if (input_[pos_] == '.') {
+                ++pos_;
+                if (!std::isdigit(static_cast<unsigned char>(input_[pos_]))) { return false; }
+                while (std::isdigit(static_cast<unsigned char>(input_[pos_]))) { ++pos_; }
+            }
+            if (input_[pos_] == 'e' || input_[pos_] == 'E') {
+                ++pos_;
+                if (input_[pos_] == '+' || input_[pos_] == '-') { ++pos_; }
+                if (!std::isdigit(static_cast<unsigned char>(input_[pos_]))) { return false; }
+                while (std::isdigit(static_cast<unsigned char>(input_[pos_]))) { ++pos_; }
+            }
+            char *end_ptr = nullptr;
+            const std::string token(input_ + start, pos_ - start);
+            value.kind = json_value_t::kind_t::number;
+            value.number_value = std::strtod(token.c_str(), &end_ptr);
+            return end_ptr && *end_ptr == '\0';
+        }
+    };
+
+    auto json_object_member_(const json_value_t &value, const char *key) -> const json_value_t * {
+        if (value.kind != json_value_t::kind_t::object) { return nullptr; }
+        const auto iter = value.object_value.find(key);
+        return iter == value.object_value.end() ? nullptr : &iter->second;
+    }
+
+    auto json_string_value_(const json_value_t &value, std::string &out) -> bool {
+        if (value.kind != json_value_t::kind_t::string) { return false; }
+        out = value.string_value;
+        return true;
+    }
+
+    auto json_boolean_value_(const json_value_t &value, bool &out) -> bool {
+        if (value.kind != json_value_t::kind_t::boolean) { return false; }
+        out = value.bool_value;
+        return true;
+    }
+
+    auto schema_number_(const json_value_t &schema, const char *key, double &out) -> bool {
+        const auto *member = json_object_member_(schema, key);
+        if (!member) { return false; }
+        if (member->kind != json_value_t::kind_t::number) { return false; }
+        out = member->number_value;
+        return true;
+    }
+
+    auto schema_integer_(const json_value_t &schema, const char *key, int64_t &out) -> bool {
+        double number = 0;
+        if (!schema_number_(schema, key, number)) { return false; }
+        out = static_cast<int64_t>(number);
+        return number == static_cast<double>(out);
+    }
+
+    auto validate_schema_value_(const json_value_t &value, const json_value_t &schema) -> bool {
+        if (schema.kind != json_value_t::kind_t::object) { return false; }
+
+        const auto *one_of = json_object_member_(schema, "oneOf");
+        if (one_of) {
+            if (one_of->kind != json_value_t::kind_t::array) { return false; }
+            auto matches = 0;
+            for (const auto &candidate: one_of->array_value) {
+                if (validate_schema_value_(value, candidate)) { ++matches; }
+            }
+            if (matches != 1) { return false; }
+        }
+
+        const auto *not_schema = json_object_member_(schema, "not");
+        if (not_schema && validate_schema_value_(value, *not_schema)) { return false; }
+
+        std::string type;
+        if (const auto *type_value = json_object_member_(schema, "type")) {
+            if (!json_string_value_(*type_value, type)) { return false; }
+            if (type == "object" && value.kind != json_value_t::kind_t::object) { return false; }
+            if (type == "array" && value.kind != json_value_t::kind_t::array) { return false; }
+            if (type == "string" && value.kind != json_value_t::kind_t::string) { return false; }
+            if (type == "integer") {
+                if (value.kind != json_value_t::kind_t::number) { return false; }
+                const auto integer_value = static_cast<int64_t>(value.number_value);
+                if (value.number_value != static_cast<double>(integer_value)) { return false; }
+            }
+            if (type != "object" && type != "array" && type != "string" && type != "integer") { return false; }
+        }
+
+        if (const auto *required = json_object_member_(schema, "required")) {
+            if (required->kind != json_value_t::kind_t::array) { return false; }
+            if (value.kind != json_value_t::kind_t::object) { return false; }
+            for (const auto &required_key: required->array_value) {
+                std::string key;
+                if (!json_string_value_(required_key, key) || value.object_value.find(key) == value.object_value.end()) {
+                    return false;
+                }
+            }
+        }
+
+        if (value.kind == json_value_t::kind_t::object) {
+            const auto *properties = json_object_member_(schema, "properties");
+            if (properties && properties->kind != json_value_t::kind_t::object) { return false; }
+
+            bool additional_properties = true;
+            if (const auto *additional = json_object_member_(schema, "additionalProperties")) {
+                if (!json_boolean_value_(*additional, additional_properties)) { return false; }
+            }
+
+            if (properties) {
+                for (const auto &[key, member]: value.object_value) {
+                    const auto property_iter = properties->object_value.find(key);
+                    if (property_iter == properties->object_value.end()) {
+                        if (!additional_properties) { return false; }
+                        continue;
+                    }
+                    if (!validate_schema_value_(member, property_iter->second)) { return false; }
+                }
+            } else if (!additional_properties && !value.object_value.empty()) {
+                return false;
+            }
+        }
+
+        if (value.kind == json_value_t::kind_t::array) {
+            int64_t min_items = 0;
+            if (schema_integer_(schema, "minItems", min_items) &&
+                static_cast<int64_t>(value.array_value.size()) < min_items) {
+                return false;
+            }
+            if (const auto *items = json_object_member_(schema, "items")) {
+                for (const auto &item: value.array_value) {
+                    if (!validate_schema_value_(item, *items)) { return false; }
+                }
+            }
+        }
+
+        if (value.kind == json_value_t::kind_t::string) {
+            if (const auto *pattern = json_object_member_(schema, "pattern")) {
+                std::string pattern_text;
+                if (!json_string_value_(*pattern, pattern_text)) { return false; }
+                try {
+                    if (!std::regex_match(value.string_value, std::regex(pattern_text))) { return false; }
+                } catch (const std::regex_error &) {
+                    return false;
+                }
+            }
+        }
+
+        if (type == "integer") {
+            double minimum = 0;
+            if (schema_number_(schema, "minimum", minimum) && value.number_value < minimum) { return false; }
+            double maximum = 0;
+            if (schema_number_(schema, "maximum", maximum) && value.number_value > maximum) { return false; }
+        }
+
+        return true;
+    }
+
+    auto options_match_args_schema_(const char *options_json, const char *args_schema) -> bool {
+        if (!options_json || !*options_json) { return true; }
+        if (!args_schema || !*args_schema) { return false; }
+        json_value_t options;
+        json_value_t schema;
+        if (!json_parser_t(options_json).parse(options)) { return false; }
+        if (!json_parser_t(args_schema).parse(schema)) { return false; }
+        return validate_schema_value_(options, schema);
+    }
 
     auto plugin_operation_is_valid_(omega_transform_plugin_operation_t operation) -> bool {
         return operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
@@ -224,6 +545,10 @@ int64_t omega_transform_plugin_registry_get_count(const omega_transform_plugin_r
     return static_cast<int64_t>(registry_ptr->plugins.size());
 }
 
+int omega_transform_plugin_options_match_args_schema(const char *options_json, const char *args_schema) {
+    return options_match_args_schema_(options_json, args_schema) ? 0 : -1;
+}
+
 const omega_transform_plugin_info_t *omega_transform_plugin_registry_get_info(
         const omega_transform_plugin_registry_t *registry_ptr, int64_t index) {
     if (!registry_ptr || index < 0 || index >= static_cast<int64_t>(registry_ptr->plugins.size())) { return nullptr; }
@@ -250,6 +575,7 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
     auto iter = std::find_if(registry_ptr->plugins.begin(), registry_ptr->plugins.end(),
                              [plugin_id](const auto &plugin) { return plugin->info.id == std::string(plugin_id); });
     if (iter == registry_ptr->plugins.end()) { return -1; }
+    if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
 
     std::vector<omega_byte_t> input_bytes;
     if (0 != read_session_range_(session_ptr, offset, length, input_bytes)) { return -1; }

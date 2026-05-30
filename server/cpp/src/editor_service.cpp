@@ -343,6 +343,10 @@ static void fill_transform_plugin_info(const omega_transform_plugin_info_t *info
     response->set_operation(to_proto_transform_plugin_operation(info->operation));
     response->set_flags(info->flags);
     response->set_abi_version(info->abi_version);
+    response->set_help(info->help ? info->help : "");
+    response->set_example(info->example ? info->example : "");
+    response->set_default_args(info->default_args ? info->default_args : "");
+    response->set_args_schema(info->args_schema ? info->args_schema : "");
 }
 
 static grpc::Status validate_viewport_range(int64_t offset, int64_t capacity) {
@@ -1591,6 +1595,10 @@ grpc::Status EditorServiceImpl::ApplyTransformPlugin(
 
         operation = plugin_info->operation;
         const char *options_json = request->has_options_json() ? request->options_json().c_str() : nullptr;
+        if (0 != omega_transform_plugin_options_match_args_schema(options_json, plugin_info->args_schema)) {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "transform options do not match schema: " + request->plugin_id());
+        }
         if (0 != omega_transform_plugin_registry_apply_to_session(transform_plugin_registry_,
                                                                   request->plugin_id().c_str(), session,
                                                                   offset, length, options_json,

@@ -308,6 +308,220 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('tracks transform edits through undo and redo', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-undo-')
+    )
+    const samplePath = path.join(tmpDir, 'transform.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a live session for the transform undo test')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64_encode',
+      offset: 0,
+      length: 3,
+    })
+
+    await assertSessionText(session.sessionId, 'YWJj')
+    let editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, 'abc')
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: false,
+      canRedo: true,
+      undoCount: 0,
+      redoCount: 1,
+      isDirty: false,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, 'YWJj')
+    editState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(editState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('does not record identity transform edits in undo history', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-identity-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-identity.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(
+      session,
+      'Expected a live session for the identity transform test'
+    )
+    const cleanEditState = lastMessageOfType(panel.messages, 'editState')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.and',
+      offset: 0,
+      length: 3,
+      optionsJson: JSON.stringify({ byte: '0xFF' }),
+    })
+
+    await assertSessionText(session.sessionId, 'abc')
+    let transformComplete = lastMessageOfType(
+      panel.messages,
+      'transformComplete'
+    )
+    assert.equal(transformComplete.contentChanged, false)
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      cleanEditState
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64_encode',
+      offset: 0,
+      length: 3,
+    })
+
+    await assertSessionText(session.sessionId, 'YWJj')
+    const transformedEditState = lastMessageOfType(panel.messages, 'editState')
+    assert.deepEqual(transformedEditState, {
+      type: 'editState',
+      canUndo: true,
+      canRedo: false,
+      undoCount: 1,
+      redoCount: 0,
+      isDirty: true,
+      savedChangeDepth: 0,
+    })
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.and',
+      offset: 0,
+      length: 4,
+      optionsJson: JSON.stringify({ byte: '0xFF' }),
+    })
+
+    await assertSessionText(session.sessionId, 'YWJj')
+    transformComplete = lastMessageOfType(panel.messages, 'transformComplete')
+    assert.equal(transformComplete.contentChanged, false)
+    assert.deepEqual(
+      lastMessageOfType(panel.messages, 'editState'),
+      transformedEditState
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'undo',
+    })
+    await assertSessionText(session.sessionId, 'abc')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'redo',
+    })
+    await assertSessionText(session.sessionId, 'YWJj')
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('routes VS Code undo and redo commands for transform edits', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-command-undo-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-command.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+    const uri = vscode.Uri.file(samplePath)
+
+    await vscode.commands.executeCommand(
+      'vscode.openWith',
+      uri,
+      OMEGA_EDIT_VIEW_TYPE
+    )
+    const session = await waitForSession(provider, uri)
+    assert.ok(session, 'Expected a live session for the command undo test')
+
+    await provider.dispatchWebviewMessageForTesting(uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64_encode',
+      offset: 0,
+      length: 3,
+    })
+
+    await assertSessionText(session.sessionId, 'YWJj')
+
+    await vscode.commands.executeCommand('undo')
+    await assertSessionText(session.sessionId, 'abc')
+
+    await vscode.commands.executeCommand('redo')
+    await assertSessionText(session.sessionId, 'YWJj')
+
+    await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('tracks optimized replace counts and clears dirty state on save', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-replace-')
