@@ -147,6 +147,53 @@ describe('@omega-edit/ai toolkit', function () {
     }
   })
 
+  it('reports server-detected content types through profileRange', async function () {
+    const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
+    assert.ok(port, 'expected an available port for OmegaEdit')
+
+    const toolkit = new OmegaEditToolkit({ port: port!, autoStart: true })
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'omega-edit-ai-'))
+    const pngPath = path.join(tempDir, 'image.png')
+    const markdownPath = path.join(tempDir, 'notes.md')
+
+    fs.writeFileSync(
+      pngPath,
+      Buffer.from([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+        0x49, 0x48, 0x44, 0x52,
+      ])
+    )
+    fs.writeFileSync(
+      markdownPath,
+      '# Heading\n\n- item\n- [link](https://example.com)\n\n```text\nhello\n```\n',
+      'utf8'
+    )
+
+    const sessionIds: string[] = []
+
+    try {
+      const pngSession = await toolkit.createSession(pngPath)
+      sessionIds.push(pngSession.sessionId)
+      const pngProfile = await toolkit.profileRange(pngSession.sessionId, 8, 8)
+      assert.equal(pngProfile.contentType, 'image/png')
+
+      const markdownSession = await toolkit.createSession(markdownPath)
+      sessionIds.push(markdownSession.sessionId)
+      const markdownProfile = await toolkit.profileRange(
+        markdownSession.sessionId,
+        0,
+        64
+      )
+      assert.equal(markdownProfile.contentType, 'text/markdown')
+    } finally {
+      for (const sessionId of sessionIds) {
+        await toolkit.destroySession(sessionId).catch(() => undefined)
+      }
+      await toolkit.stopServer().catch(() => undefined)
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
   it('normalizes patch input only once during applyPatch', async function () {
     const port = await omegaEditClient.findFirstAvailablePort(19000, 19999)
     assert.ok(port, 'expected an available port for OmegaEdit')

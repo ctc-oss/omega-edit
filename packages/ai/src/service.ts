@@ -310,9 +310,10 @@ export class OmegaEditToolkit {
     if (actualLength === 0) {
       frequency = new Array(257).fill(0)
     } else {
+      const contentTypeLength = Math.min(computedSize, 16 * 1024)
       const [rangeProfile, contentType] = await Promise.all([
         profileSession(sessionId, offset, actualLength),
-        getContentType(sessionId, offset, actualLength),
+        getContentType(sessionId, 0, contentTypeLength),
       ])
       frequency = rangeProfile
       contentTypeValue = contentType.getContentType()
