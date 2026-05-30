@@ -654,7 +654,7 @@ export class HexEditorProvider
       profileSession(session.sessionId, clampedOffset, clampedLength),
       getByteOrderMark(session.sessionId, clampedOffset),
     ])
-    if (session.pendingAnalysisProfile) {
+    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
       return
     }
 
@@ -664,7 +664,11 @@ export class HexEditorProvider
       getContentType(session.sessionId, clampedOffset, clampedLength),
       getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
     ])
-    if (session.pendingAnalysisProfile) {
+    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
+      return
+    }
+
+    if (session.scope.isDisposed) {
       return
     }
 
