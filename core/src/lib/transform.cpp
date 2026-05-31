@@ -206,6 +206,9 @@ namespace {
                     case 't':
                         value.push_back('\t');
                         break;
+                    case 'u':
+                        if (!parse_unicode_escape(value)) { return false; }
+                        break;
                     default:
                         return false;
                 }
@@ -276,6 +279,64 @@ namespace {
             value.kind = json_value_t::kind_t::number;
             value.number_value = std::strtod(token.c_str(), &end_ptr);
             return end_ptr && *end_ptr == '\0';
+        }
+
+        static auto hex_digit_value(char ch) -> int {
+            if (ch >= '0' && ch <= '9') { return ch - '0'; }
+            if (ch >= 'a' && ch <= 'f') { return 10 + ch - 'a'; }
+            if (ch >= 'A' && ch <= 'F') { return 10 + ch - 'A'; }
+            return -1;
+        }
+
+        auto parse_hex4(unsigned int &code_unit) -> bool {
+            code_unit = 0;
+            for (auto index = 0; index < 4; ++index) {
+                if (input_[pos_] == '\0') { return false; }
+                const auto digit = hex_digit_value(input_[pos_]);
+                if (digit < 0) { return false; }
+                ++pos_;
+                code_unit = (code_unit << 4U) | static_cast<unsigned int>(digit);
+            }
+            return true;
+        }
+
+        static void append_utf8(std::string &value, unsigned int code_point) {
+            if (code_point <= 0x7F) {
+                value.push_back(static_cast<char>(code_point));
+            } else if (code_point <= 0x7FF) {
+                value.push_back(static_cast<char>(0xC0U | (code_point >> 6U)));
+                value.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+            } else if (code_point <= 0xFFFF) {
+                value.push_back(static_cast<char>(0xE0U | (code_point >> 12U)));
+                value.push_back(static_cast<char>(0x80U | ((code_point >> 6U) & 0x3FU)));
+                value.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+            } else {
+                value.push_back(static_cast<char>(0xF0U | (code_point >> 18U)));
+                value.push_back(static_cast<char>(0x80U | ((code_point >> 12U) & 0x3FU)));
+                value.push_back(static_cast<char>(0x80U | ((code_point >> 6U) & 0x3FU)));
+                value.push_back(static_cast<char>(0x80U | (code_point & 0x3FU)));
+            }
+        }
+
+        auto parse_unicode_escape(std::string &value) -> bool {
+            unsigned int code_unit = 0;
+            if (!parse_hex4(code_unit)) { return false; }
+
+            if (code_unit >= 0xD800 && code_unit <= 0xDBFF) {
+                if (input_[pos_] != '\\') { return false; }
+                ++pos_;
+                if (input_[pos_] != 'u') { return false; }
+                ++pos_;
+                unsigned int low_surrogate = 0;
+                if (!parse_hex4(low_surrogate) || low_surrogate < 0xDC00 || low_surrogate > 0xDFFF) { return false; }
+                const auto code_point = 0x10000U + (((code_unit - 0xD800U) << 10U) | (low_surrogate - 0xDC00U));
+                append_utf8(value, code_point);
+                return true;
+            }
+
+            if (code_unit >= 0xDC00 && code_unit <= 0xDFFF) { return false; }
+            append_utf8(value, code_unit);
+            return true;
         }
     };
 

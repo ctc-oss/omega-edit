@@ -738,8 +738,8 @@ export class HexEditorProvider
     const response = await applyTransformPlugin(
       session.sessionId,
       pluginId,
-      offset,
-      length,
+      clampedOffset,
+      originalLength,
       optionsJson
     )
 

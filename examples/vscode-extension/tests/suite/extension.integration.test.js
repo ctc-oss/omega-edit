@@ -385,6 +385,47 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
+  test('clamps stale transform ranges before applying', async () => {
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-transform-clamp-')
+    )
+    const samplePath = path.join(tmpDir, 'transform-clamp.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+
+    const provider = new HexEditorProvider({ subscriptions: [] }, testPort)
+    const panel = createMockWebviewPanel()
+    const document = await provider.openCustomDocument(
+      vscode.Uri.file(samplePath),
+      { backupId: undefined, untitledDocumentData: undefined },
+      new vscode.CancellationTokenSource().token
+    )
+
+    await provider.resolveCustomEditor(
+      document,
+      panel,
+      new vscode.CancellationTokenSource().token
+    )
+
+    const session = provider.getSessionForTesting(document.uri)
+    assert.ok(session, 'Expected a live session for the transform clamp test')
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64_encode',
+      offset: 1,
+      length: 999,
+    })
+
+    await assertSessionText(session.sessionId, 'aYmM=')
+    assert.equal(
+      lastMessageOfType(panel.messages, 'transformComplete')?.contentChanged,
+      true
+    )
+
+    await panel.fireDidDispose()
+    await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
   test('does not record identity transform edits in undo history', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-transform-identity-')

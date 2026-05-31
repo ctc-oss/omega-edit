@@ -49,8 +49,16 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE("{\"byte\":\"0xFF\"}" == std::string(xor_info->default_args));
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mask\":[\"0x01\",\"0x02\"]}",
                                                                   xor_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"\\u0062yte\":\"0x01\"}", xor_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"0x01\",\"0x02\"]}",
                                                                    xor_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         "{\"name\":\"caf\\u00E9\",\"emoji\":\"\\uD83D\\uDE00\"}",
+                         "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\",\"pattern\":\"^caf\\u00E9$"
+                         "\"},\"emoji\":{\"type\":\"string\"}},\"additionalProperties\":false}"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"emoji\":\"\\uD83D\"}", "{\"type\":\"object\",\"properties\":{\"emoji\":{\"type\":"
+                                                     "\"string\"}},\"additionalProperties\":false}"));
     const auto zlib_compress_info =
             omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress");
     REQUIRE("Zlib Compress" == std::string(zlib_compress_info->name));
