@@ -29,6 +29,7 @@ import {
   applyTransformPlugin as rawApplyTransformPlugin,
   beginSessionTransaction as rawBeginSessionTransaction,
   countCharacters as rawCountCharacters,
+  createCheckpoint as rawCreateCheckpoint,
   createSession as rawCreateSession,
   destroyLastCheckpoint as rawDestroyLastCheckpoint,
   destroySession as rawDestroySession,
@@ -162,6 +163,16 @@ export async function createSessionFromBytes(
 
 export function destroySession(session_id: string): Promise<string> {
   return rawDestroySession(session_id)
+}
+
+export async function createCheckpoint(session_id: string): Promise<number> {
+  return await enqueueSessionMutation(session_id, async () => {
+    const response = await rawCreateCheckpoint(session_id)
+    return requireSafeIntegerOutput(
+      'checkpoint count',
+      response.checkpointCount
+    )
+  })
 }
 
 export async function destroyLastCheckpoint(

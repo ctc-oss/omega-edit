@@ -1461,6 +1461,32 @@ export interface ReplaceSessionCheckpointedResponse {
   replacementCount: number // Number of replacements performed.
 }
 /**
+ * Request to create a checkpoint from the current session content.
+ *
+ * @generated from protobuf message omega_edit.v1.CreateCheckpointRequest
+ */
+export interface CreateCheckpointRequest {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session to checkpoint.
+}
+/**
+ * Result of creating a checkpoint model.
+ *
+ * @generated from protobuf message omega_edit.v1.CreateCheckpointResponse
+ */
+export interface CreateCheckpointResponse {
+  /**
+   * @generated from protobuf field: string session_id = 1
+   */
+  sessionId: string // Session that was checkpointed.
+  /**
+   * @generated from protobuf field: int64 checkpoint_count = 2
+   */
+  checkpointCount: number // Checkpoint count after creation.
+}
+/**
  * Request to remove the most recent checkpoint model from a session.
  *
  * @generated from protobuf message omega_edit.v1.DestroyLastCheckpointRequest
@@ -9254,6 +9280,162 @@ class ReplaceSessionCheckpointedResponse$Type extends MessageType<ReplaceSession
 export const ReplaceSessionCheckpointedResponse =
   new ReplaceSessionCheckpointedResponse$Type()
 // @generated message type with reflection information, may provide speed optimized methods
+class CreateCheckpointRequest$Type extends MessageType<CreateCheckpointRequest> {
+  constructor() {
+    super('omega_edit.v1.CreateCheckpointRequest', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+    ])
+  }
+  create(
+    value?: PartialMessage<CreateCheckpointRequest>
+  ): CreateCheckpointRequest {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    if (value !== undefined)
+      reflectionMergePartial<CreateCheckpointRequest>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CreateCheckpointRequest
+  ): CreateCheckpointRequest {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CreateCheckpointRequest,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CreateCheckpointRequest
+ */
+export const CreateCheckpointRequest = new CreateCheckpointRequest$Type()
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateCheckpointResponse$Type extends MessageType<CreateCheckpointResponse> {
+  constructor() {
+    super('omega_edit.v1.CreateCheckpointResponse', [
+      { no: 1, name: 'session_id', kind: 'scalar', T: 9 /*ScalarType.STRING*/ },
+      {
+        no: 2,
+        name: 'checkpoint_count',
+        kind: 'scalar',
+        T: 3 /*ScalarType.INT64*/,
+        L: 2 /*LongType.NUMBER*/,
+      },
+    ])
+  }
+  create(
+    value?: PartialMessage<CreateCheckpointResponse>
+  ): CreateCheckpointResponse {
+    const message = globalThis.Object.create(this.messagePrototype!)
+    message.sessionId = ''
+    message.checkpointCount = 0
+    if (value !== undefined)
+      reflectionMergePartial<CreateCheckpointResponse>(this, message, value)
+    return message
+  }
+  internalBinaryRead(
+    reader: IBinaryReader,
+    length: number,
+    options: BinaryReadOptions,
+    target?: CreateCheckpointResponse
+  ): CreateCheckpointResponse {
+    let message = target ?? this.create(),
+      end = reader.pos + length
+    while (reader.pos < end) {
+      let [fieldNo, wireType] = reader.tag()
+      switch (fieldNo) {
+        case /* string session_id */ 1:
+          message.sessionId = reader.string()
+          break
+        case /* int64 checkpoint_count */ 2:
+          message.checkpointCount = reader.int64().toNumber()
+          break
+        default:
+          let u = options.readUnknownField
+          if (u === 'throw')
+            throw new globalThis.Error(
+              `Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`
+            )
+          let d = reader.skip(wireType)
+          if (u !== false)
+            (u === true ? UnknownFieldHandler.onRead : u)(
+              this.typeName,
+              message,
+              fieldNo,
+              wireType,
+              d
+            )
+      }
+    }
+    return message
+  }
+  internalBinaryWrite(
+    message: CreateCheckpointResponse,
+    writer: IBinaryWriter,
+    options: BinaryWriteOptions
+  ): IBinaryWriter {
+    /* string session_id = 1; */
+    if (message.sessionId !== '')
+      writer.tag(1, WireType.LengthDelimited).string(message.sessionId)
+    /* int64 checkpoint_count = 2; */
+    if (message.checkpointCount !== 0)
+      writer.tag(2, WireType.Varint).int64(message.checkpointCount)
+    let u = options.writeUnknownFields
+    if (u !== false)
+      (u == true ? UnknownFieldHandler.onWrite : u)(
+        this.typeName,
+        message,
+        writer
+      )
+    return writer
+  }
+}
+/**
+ * @generated MessageType for protobuf message omega_edit.v1.CreateCheckpointResponse
+ */
+export const CreateCheckpointResponse = new CreateCheckpointResponse$Type()
+// @generated message type with reflection information, may provide speed optimized methods
 class DestroyLastCheckpointRequest$Type extends MessageType<DestroyLastCheckpointRequest> {
   constructor() {
     super('omega_edit.v1.DestroyLastCheckpointRequest', [
@@ -11583,6 +11765,12 @@ export const EditorService = new ServiceType('omega_edit.v1.EditorService', [
     options: {},
     I: ReplaceSessionCheckpointedRequest,
     O: ReplaceSessionCheckpointedResponse,
+  },
+  {
+    name: 'CreateCheckpoint',
+    options: {},
+    I: CreateCheckpointRequest,
+    O: CreateCheckpointResponse,
   },
   {
     name: 'DestroyLastCheckpoint',

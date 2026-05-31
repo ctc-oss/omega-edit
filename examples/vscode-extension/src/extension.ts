@@ -18,11 +18,14 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import {
+  OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
@@ -249,6 +252,33 @@ export async function activate(
       OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
       async () => {
         await provider.replayActiveChangeScript()
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+      async () => {
+        await provider.rollbackActiveSession()
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+      async () => {
+        await provider.rollbackActiveCheckpoint()
+      }
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
+      async () => {
+        await provider.createActiveCheckpoint()
       }
     )
   )
