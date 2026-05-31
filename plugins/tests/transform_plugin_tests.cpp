@@ -39,6 +39,34 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.repeat"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.checksum8"));
+    const auto base64_encode_info =
+            omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_encode");
+    REQUIRE("" == std::string(base64_encode_info->args_schema));
+    const auto xor_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor");
+    REQUIRE("XOR" == std::string(xor_info->name));
+    REQUIRE(std::string(xor_info->help).find("Options JSON accepts") != std::string::npos);
+    REQUIRE("{\"mask\":[\"0x42\",\"0x24\"]}" == std::string(xor_info->example));
+    REQUIRE("{\"byte\":\"0xFF\"}" == std::string(xor_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"mask\":[\"0x01\",\"0x02\"]}",
+                                                                  xor_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"\\u0062yte\":\"0x01\"}", xor_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"bytes\":[\"0x01\",\"0x02\"]}",
+                                                                   xor_info->args_schema));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema(
+                         "{\"name\":\"caf\\u00E9\",\"emoji\":\"\\uD83D\\uDE00\"}",
+                         "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\",\"pattern\":\"^caf\\u00E9$"
+                         "\"},\"emoji\":{\"type\":\"string\"}},\"additionalProperties\":false}"));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema(
+                          "{\"emoji\":\"\\uD83D\"}", "{\"type\":\"object\",\"properties\":{\"emoji\":{\"type\":"
+                                                     "\"string\"}},\"additionalProperties\":false}"));
+    const auto zlib_compress_info =
+            omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress");
+    REQUIRE("Zlib Compress" == std::string(zlib_compress_info->name));
+    REQUIRE(std::string(zlib_compress_info->help).find("level") != std::string::npos);
+    REQUIRE("{\"level\":9}" == std::string(zlib_compress_info->example));
+    REQUIRE("{\"level\":-1}" == std::string(zlib_compress_info->default_args));
+    REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"level\":9}", zlib_compress_info->args_schema));
+    REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"level\":10}", zlib_compress_info->args_schema));
 
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
@@ -76,8 +104,12 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.xor", session_ptr,
                                                                    1, 1, "{\"byte\":256}", &response));
 
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.xor", session_ptr, 2, 2, "{\"bytes\":[\"0x01\",\"0x02\"]}",
+                          &response));
+
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.example.xor", session_ptr, 2, 2, "{\"bytes\":[\"0x01\",\"0x02\"]}",
+                         registry_ptr, "omega.example.xor", session_ptr, 2, 2, "{\"mask\":[\"0x01\",\"0x02\"]}",
                          &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42),
                          static_cast<char>('C' ^ 0x01), static_cast<char>('B' ^ 0x02), 'C', 'D'}) ==
@@ -94,7 +126,7 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     omega_transform_plugin_response_clear(&response);
 
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
-                         registry_ptr, "omega.example.or", session_ptr, 4, 2, "{\"bytes\":[\"0x01\",\"0x02\"]}",
+                         registry_ptr, "omega.example.or", session_ptr, 4, 2, "{\"mask\":[\"0x01\",\"0x02\"]}",
                          &response));
     REQUIRE(std::string({static_cast<char>(0xBE), static_cast<char>('B' ^ 0x42),
                          static_cast<char>(('C' ^ 0x01) & 0x0F),
@@ -114,6 +146,10 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(8 == response.replacement_length);
     omega_transform_plugin_response_clear(&response);
 
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_encode",
+                                                                   codec_session_ptr, 0, 5, "{\"level\":9}",
+                                                                   &response));
+
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.base64_decode",
                                                                   codec_session_ptr, 0, 0, nullptr, &response));
     REQUIRE("hello" == omega_session_get_segment_string(codec_session_ptr, 0,
@@ -129,8 +165,13 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
 
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
+                                                                   codec_session_ptr, 0, 5, "{\"level\":10}",
+                                                                   &response));
+
     REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
-                                                                  codec_session_ptr, 0, 5, nullptr, &response));
+                                                                  codec_session_ptr, 0, 5, "{\"level\":9}",
+                                                                  &response));
     REQUIRE(0 < response.replacement_length);
     {
         const auto compressed = omega_session_get_segment_string(codec_session_ptr, 0,

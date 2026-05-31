@@ -54,7 +54,7 @@ oe patch --session <session-id> --offset 8 --hex 0000000d
 oe list-transform-plugins
 oe apply-transform-plugin --session <session-id> --plugin omega.example.checksum8 --offset 0 --length 128
 oe apply-transform-plugin --session <session-id> --plugin omega.example.base64_encode --offset 0 --length 128
-oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib_compress --offset 0 --length 128
+oe apply-transform-plugin --session <session-id> --plugin omega.example.zlib_compress --offset 0 --length 128 --options-json '{"level":9}'
 
 # Save or export a slice
 oe save-session --session <session-id> --output ./patched.bin --overwrite

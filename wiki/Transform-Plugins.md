@@ -62,12 +62,24 @@ info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
 info_ptr->id = "omega.example.my_plugin";
 info_ptr->name = "My Plugin";
 info_ptr->description = "What this plugin does.";
+info_ptr->help = "Options JSON accepts {\"byte\":\"0x42\"}.";
+info_ptr->example = "{\"byte\":\"0x42\"}";
+info_ptr->default_args = "{\"byte\":\"0xFF\"}";
+info_ptr->args_schema = "{\"type\":\"object\",\"properties\":{...}}";
 info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
 info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
 ```
 
 The plugin ID must be unique across all registered plugins. A reverse-DNS style ID
 is recommended, for example `com.example.base64_encode`.
+
+`description`, `help`, `example`, `default_args`, and `args_schema` are discovery
+metadata for clients. When `args_schema` is set, callers should validate
+`options_json` with the advertised JSON Schema before applying the transform; the
+native transform registry also validates the same schema before invoking the plugin.
+Transforms that do not accept JSON options should leave `args_schema`, `example`,
+and `default_args` empty. Supplying options to a transform without an advertised
+schema is rejected by the native apply path.
 
 `omega_transform_plugin_apply` receives:
 
@@ -125,6 +137,12 @@ omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     info_ptr->id = "com.example.xor";
     info_ptr->name = "XOR";
     info_ptr->description = "XOR every byte in the selected range.";
+    info_ptr->help = "Options JSON accepts {\"byte\":\"0x42\"}.";
+    info_ptr->example = "{\"byte\":\"0x42\"}";
+    info_ptr->default_args = "{\"byte\":\"0xFF\"}";
+    info_ptr->args_schema =
+        "{\"type\":\"object\",\"properties\":{\"byte\":{\"type\":\"string\"}},"
+        "\"additionalProperties\":false}";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags =
         OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE |
@@ -287,7 +305,8 @@ oe apply-transform-plugin \
   --session <session-id> \
   --plugin omega.example.zlib_compress \
   --offset 0 \
-  --length 1024
+  --length 1024 \
+  --options-json '{"level":9}'
 ```
 
 MCP tools:
@@ -301,14 +320,14 @@ The repository ships small examples in `plugins/src/`:
 
 | Plugin ID | Source | Operation | Demonstrates |
 | --- | --- | --- | --- |
-| `omega.example.and` | `and.c` | Replace | One-for-one binary-safe AND transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `bytes` or `mask`; defaults to `0xFF`. |
+| `omega.example.and` | `and.c` | Replace | One-for-one binary-safe AND transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `mask`; defaults to `0xFF`. |
 | `omega.example.base64_encode` | `base64_encode.c` | Replace | Expansion by encoding arbitrary bytes as base64 text. |
 | `omega.example.base64_decode` | `base64_decode.c` | Replace | Shrinking text content back to decoded bytes, with validation. ASCII whitespace is tolerated; other invalid bytes fail. |
 | `omega.example.fnv1a64` | `fnv1a64.c` | Inspect | 64-bit hash calculation without changing session content. |
 | `omega.example.or` | `or.c` | Replace | One-for-one binary-safe OR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence like `{"mask":["0x01","0x02"]}`; defaults to `0x00`. |
-| `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Compression with zlib, supplied by the plugin package toolchain. |
+| `omega.example.zlib_compress` | `zlib_compress.c` | Replace | Compression with zlib, supplied by the plugin package toolchain. Accepts `{"level":9}` with valid levels from `-1` through `9`; defaults to zlib's default compression. |
 | `omega.example.zlib_decompress` | `zlib_decompress.c` | Replace | Decompression with zlib, supplied by the plugin package toolchain. |
-| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe XOR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `bytes` or `mask`; defaults to `0xFF`. |
+| `omega.example.xor` | `xor.c` | Replace | One-for-one binary-safe XOR transform. Accepts options JSON like `{"byte":"0x42"}` or a repeating byte sequence using `mask`; defaults to `0xFF`. |
 | `omega.example.repeat` | `repeat.c` | Replace | Expansion by replacing a range with two copies of itself. |
 | `omega.example.checksum8` | `checksum8.c` | Inspect | Text result without changing session content. |
 

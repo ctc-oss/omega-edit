@@ -8,7 +8,9 @@ const {
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../out/constants.js')
 const { getWebviewContent } = require('../out/webview.js')
@@ -19,6 +21,8 @@ test('package.json matches shared extension constants', () => {
     `onCustomEditor:${OMEGA_EDIT_VIEW_TYPE}`,
     `onCommand:${OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND}`,
     `onCommand:${OMEGA_EDIT_GO_TO_OFFSET_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_UNDO_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_REDO_COMMAND}`,
     `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND}`,
   ])
@@ -36,11 +40,33 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[2].command,
-    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
+    OMEGA_EDIT_UNDO_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[2].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.canUndo'
   )
   assert.equal(
     packageJson.contributes.commands[3].command,
+    OMEGA_EDIT_REDO_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[3].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.canRedo'
+  )
+  assert.equal(
+    packageJson.contributes.commands[4].command,
+    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[5].command,
     OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
+  )
+  assert.deepEqual(
+    packageJson.contributes.configuration.properties[
+      'omegaEdit.transformPluginDirectories'
+    ].default,
+    []
   )
 })
 
@@ -69,6 +95,19 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /getServerInfo/)
   assert.match(providerJs, /profileSession/)
   assert.match(providerJs, /countCharacters/)
+  assert.match(providerJs, /listTransformPlugins/)
+  assert.match(providerJs, /applyTransformPlugin/)
+  assert.match(providerJs, /omegaEdit\.hexEditorActive/)
+  assert.match(providerJs, /omegaEdit\.canUndo/)
+  assert.match(providerJs, /omegaEdit\.canRedo/)
+  assert.match(providerJs, /setContext/)
+  assert.match(providerJs, /type:\s*['"]transformPlugins['"]/)
+  assert.match(providerJs, /help:\s*plugin\.help/)
+  assert.match(providerJs, /example:\s*plugin\.example/)
+  assert.match(providerJs, /defaultArgs:\s*plugin\.defaultArgs/)
+  assert.match(providerJs, /argsSchema:\s*plugin\.argsSchema/)
+  assert.match(providerJs, /case\s+['"]applyTransform['"]/)
+  assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
   assert.match(providerJs, /getContentType/)
   assert.match(providerJs, /getLanguage/)
   assert.match(providerJs, /enqueueAnalysisProfile/)
@@ -78,6 +117,23 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(
     providerJs,
     /getContentType\)\(session\.sessionId,\s*0,\s*contentTypeSampleLength\)/
+  )
+
+  const extensionJs = fs.readFileSync(
+    path.resolve(__dirname, '../out/extension.js'),
+    'utf8'
+  )
+  assert.match(extensionJs, /transformPluginDirectories/)
+  assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
+  assert.match(extensionJs, /undoActive/)
+  assert.match(extensionJs, /redoActive/)
+  assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
+  assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
+  assert.match(extensionJs, /directoryHasTransformPlugin/)
+  assert.match(
+    extensionJs,
+    /startServer\)\(port,\s*undefined,\s*undefined,\s*\{\s*transformPluginDirectories/
   )
 })
 
@@ -99,8 +155,16 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="bottomBtn"/)
   assert.match(html, /id="scrollbarTrack"/)
   assert.match(html, /id="scrollbarThumb"/)
-  assert.match(html, /class="secondary" id="saveBtn"/)
-  assert.match(html, /id="saveAsBtn"/)
+  assert.doesNotMatch(html, /id="saveBtn"/)
+  assert.doesNotMatch(html, /id="saveAsBtn"/)
+  assert.match(html, /id="transformSelect"/)
+  assert.match(html, /id="transformOptions"/)
+  assert.match(html, /id="transformOptionsDialog"/)
+  assert.match(html, /id="transformOptionsApply"/)
+  assert.match(html, /id="transformOptionsCancel"/)
+  assert.match(html, /data-example-index/)
+  assert.doesNotMatch(html, /id="transformApplyBtn"/)
+  assert.doesNotMatch(html, /id="transformRefreshBtn"/)
   assert.match(html, /id="editDialog"/)
   assert.match(html, /id="searchCaseLabel"/)
   assert.match(html, /id="statusDirty"/)
@@ -136,11 +200,12 @@ test('webview HTML includes core controls and configured row width', () => {
   )
   assert.match(html, /\.ascii-char\.non-printable\.high-bit/)
   assert.match(html, /id="structureMetrics"/)
+  assert.match(html, /id="structureHistoryMetrics"/)
   assert.doesNotMatch(html, /id="structureTopBytes"/)
   assert.match(html, /id="statusProgress"/)
   assert.match(html, /\.analysis-bar-fill \{[\s\S]*display: block;/)
-  assert.match(html, /title="Undo \(Ctrl\+Z\)">Undo<\/button>/)
-  assert.match(html, /title="Redo \(Ctrl\+Y\)">Redo<\/button>/)
+  assert.doesNotMatch(html, /id="undoBtn"/)
+  assert.doesNotMatch(html, /id="redoBtn"/)
   assert.match(html, /grid-template-columns: repeat\(32, 1ch\);/)
   assert.match(html, /min-width: calc\(32ch \+ 12px\);/)
   assert.match(
@@ -167,6 +232,7 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function getSelectionStart\(\)/)
   assert.match(html, /function getSelectionEnd\(\)/)
   assert.match(html, /function getSelectionLength\(\)/)
+  assert.match(html, /function selectRange\(offset, length\)/)
   assert.match(html, /function offsetIsSelected\(offset\)/)
   assert.match(
     html,
@@ -204,16 +270,53 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /type: 'search'/)
   assert.match(html, /type: 'replace'/)
   assert.match(html, /type: 'replaceAllMatches'/)
+  assert.match(html, /type: 'requestTransformPlugins'/)
+  assert.match(html, /type: 'applyTransform'/)
+  assert.match(html, /case 'transformPlugins'/)
+  assert.match(html, /case 'transformComplete'/)
+  assert.match(html, /const transformedLength = msg\.contentChanged/)
+  assert.match(html, /selectRange\(msg\.offset, transformedLength\)/)
+  assert.match(html, /function applySelectedTransform\(\)/)
+  assert.match(html, /function getTransformOptionHelp\(plugin\)/)
+  assert.match(html, /function validateTransformOptions\(plugin, optionsJson\)/)
+  assert.match(html, /function validateJsonSchemaValue\(value, schema, path\)/)
+  assert.match(html, /function renderTransformOptionsDialog\(\)/)
+  assert.match(html, /transformSelect\.addEventListener\('pointerdown'/)
+  assert.match(html, /transformSelect\.addEventListener\('change'/)
+  assert.match(html, /function useTransformOptionExample\(index\)/)
+  assert.match(html, /function advertisedTransformExamples\(plugin\)/)
+  assert.match(
+    html,
+    /transformOptionsDialog\.contains\(document\.activeElement\)/
+  )
+  assert.match(html, /Selected Range/)
+  assert.match(html, /formatOffsetDisplay\(selectionStart\)/)
+  assert.match(html, /formatOffsetDisplay\(selectionEnd\)/)
+  assert.doesNotMatch(
+    html,
+    /These options are advertised by the selected transform/
+  )
+  assert.doesNotMatch(html, /does not advertise JSON options/)
+  assert.match(html, /argsSchema/)
+  assert.doesNotMatch(html, /class="help-schema"/)
+  assert.match(html, /did not advertise an options schema/)
+  assert.match(html, /Selected transform advertised an invalid options schema/)
+  assert.doesNotMatch(html, /omega\.example\.xor/)
+  assert.doesNotMatch(html, /bytes\/mask/)
+  assert.match(html, /function flashActionStatus\(\)/)
+  assert.match(html, /\.status-action\.flash/)
+  assert.match(html, /@keyframes status-action-flash/)
+  assert.match(html, /prefers-reduced-motion: reduce/)
+  assert.match(html, /flashActionStatus\(\)/)
+  assert.match(html, /JSON\.parse\(optionsJson\)/)
+  assert.match(html, /function updateTransformControls\(\)/)
+  assert.match(html, /No transforms found/)
   assert.match(
     html,
     /searchBtn\.disabled = searchInput\.value\.trim\(\)\.length === 0/
   )
-  assert.match(html, /saveBtn\.disabled = !isDirty/)
-  assert.match(
-    html,
-    /if \(e\.shiftKey\) {\s*vscode\.postMessage\({ type: 'saveAs' }\)\s*} else if \(!saveBtn\.disabled\) {\s*vscode\.postMessage\({ type: 'save' }\)/
-  )
-  assert.match(html, /type: 'saveAs'/)
+  assert.doesNotMatch(html, /saveBtn\.disabled = !isDirty/)
+  assert.doesNotMatch(html, /type: 'saveAs'/)
   assert.match(html, /function replaceCurrentMatch\(\)/)
   assert.match(html, /function replaceAllMatches\(\)/)
   assert.match(
@@ -268,16 +371,12 @@ test('webview HTML includes core controls and configured row width', () => {
     html,
     /offset: hasSelection\(\) \? getSelectionStart\(\) : Math\.max\(0, visibleOffset\),/
   )
-  assert.match(html, /undoBtn\.textContent = 'Undo \(' \+ undoCount \+ '\)'/)
-  assert.match(html, /redoBtn\.textContent = 'Redo \(' \+ redoCount \+ '\)'/)
-  assert.match(
-    html,
-    /undoBtn\.title = 'Undo ' \+ undoCount \+ ' change\(s\) \(Ctrl\+Z\)'/
-  )
-  assert.match(
-    html,
-    /redoBtn\.title = 'Redo ' \+ redoCount \+ ' change\(s\) \(Ctrl\+Y\)'/
-  )
+  assert.match(html, /function updateHistoryState\(canUndo, canRedo/)
+  assert.match(html, /historyUndoCount = undoCount/)
+  assert.match(html, /historyRedoCount = redoCount/)
+  assert.match(html, /function renderHistoryMetrics\(\)/)
+  assert.match(html, /label: 'Undo', value: historyUndoCount/)
+  assert.match(html, /label: 'Redo', value: historyRedoCount/)
   assert.match(html, /function updateDirtyStatus\(isDirty\)/)
   assert.match(html, /function updateInspectorEndianLabel\(\)/)
   assert.match(html, /function updateInspectorStatus\(\)/)
@@ -352,8 +451,5 @@ test('webview HTML includes core controls and configured row width', () => {
     html,
     /case 'replaceComplete'[\s\S]*'replace-summary'[\s\S]*let nextMatchOffset = null[\s\S]*applySingleReplaceToSearchMatches\([\s\S]*nextMatchOffset === null[\s\S]*msg\.selectionOffset/
   )
-  assert.match(
-    html,
-    /undoBtn\.addEventListener\('click', \(\) => \{[\s\S]*clearReplaceSummaryActionStatus\(\)[\s\S]*type: 'undo'/
-  )
+  assert.doesNotMatch(html, /undoBtn\.addEventListener/)
 })

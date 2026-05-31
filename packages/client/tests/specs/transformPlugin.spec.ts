@@ -125,9 +125,42 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.repeat',
         'omega.example.checksum8',
       ])
+      const xorPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.xor'
+      )
+      expect(xorPlugin?.help).to.include('Options JSON accepts')
+      expect(xorPlugin?.example).to.equal('{"mask":["0x42","0x24"]}')
+      expect(xorPlugin?.defaultArgs).to.equal('{"byte":"0xFF"}')
+      expect(xorPlugin?.argsSchema).to.include('additionalProperties')
+      const base64EncodePlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.base64_encode'
+      )
+      expect(base64EncodePlugin?.argsSchema).to.equal('')
+      const zlibCompressPlugin = plugins.find(
+        (plugin) => plugin.id === 'omega.example.zlib_compress'
+      )
+      expect(zlibCompressPlugin?.help).to.include('level')
+      expect(zlibCompressPlugin?.example).to.equal('{"level":9}')
+      expect(zlibCompressPlugin?.defaultArgs).to.equal('{"level":-1}')
+      expect(zlibCompressPlugin?.argsSchema).to.include('"maximum":9')
 
       const session = await createSessionFromBytes(Buffer.from('abc', 'utf8'))
       sessionId = session.getSessionId()
+
+      try {
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.base64_encode',
+          0,
+          3,
+          JSON.stringify({ level: 9 })
+        )
+        expect.fail(
+          'options should be rejected when no transform schema is advertised'
+        )
+      } catch (err) {
+        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      }
 
       const encodeResponse = await applyTransformPlugin(
         sessionId,
@@ -161,11 +194,27 @@ describe('Transform plugin gRPC integration', () => {
         Buffer.from(await getSegment(sessionId, 0, 3)).toString('utf8')
       ).to.equal('abc')
 
+      try {
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.zlib_compress',
+          0,
+          3,
+          JSON.stringify({ level: 10 })
+        )
+        expect.fail(
+          'level 10 should be rejected by the advertised transform schema'
+        )
+      } catch (err) {
+        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      }
+
       const compressResponse = await applyTransformPlugin(
         sessionId,
         'omega.example.zlib_compress',
         0,
-        3
+        3,
+        JSON.stringify({ level: 9 })
       )
       expect(compressResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
@@ -271,18 +320,33 @@ describe('Transform plugin gRPC integration', () => {
         'b'.charCodeAt(0) ^ 0x42,
       ])
 
-      const xorBytesResponse = await applyTransformPlugin(
+      try {
+        await applyTransformPlugin(
+          sessionId,
+          'omega.example.xor',
+          2,
+          2,
+          JSON.stringify({ bytes: ['0x01', '0x02'] })
+        )
+        expect.fail(
+          'bytes should be rejected by the advertised transform schema'
+        )
+      } catch (err) {
+        expect((err as Error).message).to.include('INVALID_ARGUMENT')
+      }
+
+      const xorMaskResponse = await applyTransformPlugin(
         sessionId,
         'omega.example.xor',
         2,
         2,
-        JSON.stringify({ bytes: ['0x01', '0x02'] })
+        JSON.stringify({ mask: ['0x01', '0x02'] })
       )
-      expect(xorBytesResponse.operation).to.equal(
+      expect(xorMaskResponse.operation).to.equal(
         TransformPluginOperation.REPLACE
       )
-      expect(xorBytesResponse.contentChanged).to.equal(true)
-      expect(xorBytesResponse.replacementLength).to.equal(2)
+      expect(xorMaskResponse.contentChanged).to.equal(true)
+      expect(xorMaskResponse.replacementLength).to.equal(2)
       expect(Array.from(await getSegment(sessionId, 2, 2))).to.deep.equal([
         'c'.charCodeAt(0) ^ 0x01,
         'b'.charCodeAt(0) ^ 0x02,
@@ -308,7 +372,7 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.or',
         3,
         2,
-        JSON.stringify({ bytes: ['0x01', '0x04'] })
+        JSON.stringify({ mask: ['0x01', '0x04'] })
       )
       expect(orResponse.operation).to.equal(TransformPluginOperation.REPLACE)
       expect(orResponse.contentChanged).to.equal(true)

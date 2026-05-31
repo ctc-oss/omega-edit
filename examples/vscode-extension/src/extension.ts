@@ -13,12 +13,17 @@
 // limitations under the License.
 
 import { getClient, startServer, stopServerGraceful } from '@omega-edit/client'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import * as vscode from 'vscode'
 import {
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
 import { HexEditorProvider } from './hexEditorProvider'
@@ -28,6 +33,62 @@ let activeProvider: HexEditorProvider | undefined
 
 const DEFAULT_SERVER_PORT = 9000
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
+
+function transformPluginFileExtension(): string {
+  switch (os.platform()) {
+    case 'win32':
+      return '.dll'
+    case 'darwin':
+      return '.dylib'
+    default:
+      return '.so'
+  }
+}
+
+function directoryHasTransformPlugin(directory: string): boolean {
+  try {
+    const extension = transformPluginFileExtension()
+    return fs
+      .readdirSync(directory, { withFileTypes: true })
+      .some(
+        (entry) =>
+          entry.isFile() &&
+          entry.name.startsWith('omega_transform_') &&
+          entry.name.endsWith(extension)
+      )
+  } catch {
+    return false
+  }
+}
+
+function getDefaultTransformPluginDirectories(
+  context: vscode.ExtensionContext
+): string[] {
+  const repoRoot = path.resolve(context.extensionPath, '..', '..')
+  const candidates = [
+    process.env.OMEGA_EDIT_TEST_PLUGIN_DIR ?? '',
+    path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
+    path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, '_build', 'plugins', 'plugins'),
+    path.join(repoRoot, 'build', 'core', 'src', 'tests', 'plugins'),
+    path.join(repoRoot, 'build-coverage', 'core', 'src', 'tests', 'plugins'),
+  ].filter(Boolean)
+
+  return candidates.filter(directoryHasTransformPlugin)
+}
+
+function resolveTransformPluginDirectories(
+  context: vscode.ExtensionContext,
+  config: vscode.WorkspaceConfiguration
+): string[] {
+  const configured = config
+    .get<string[]>('transformPluginDirectories', [])
+    .filter((directory) => directory.trim().length > 0)
+
+  return configured.length > 0
+    ? configured
+    : getDefaultTransformPluginDirectories(context)
+}
 
 function isTestRuntime(): boolean {
   return process.env.NODE_ENV === 'test'
@@ -62,9 +123,15 @@ export async function activate(
 
   const logLevel = config.get<string>('logLevel', 'info')
   process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL = logLevel
+  const transformPluginDirectories = resolveTransformPluginDirectories(
+    context,
+    config
+  )
 
   try {
-    serverPid = await startServer(port)
+    serverPid = await startServer(port, undefined, undefined, {
+      transformPluginDirectories,
+    })
     if (serverPid && !isTestRuntime()) {
       void vscode.window.showInformationMessage(
         `Ωedit™ server started on port ${port} (pid ${serverPid})`
@@ -154,6 +221,18 @@ export async function activate(
         }
       }
     )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(OMEGA_EDIT_UNDO_COMMAND, async () => {
+      await provider.undoActive()
+    })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(OMEGA_EDIT_REDO_COMMAND, async () => {
+      await provider.redoActive()
+    })
   )
 
   context.subscriptions.push(

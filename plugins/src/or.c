@@ -16,15 +16,17 @@
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
-    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     info_ptr->id = "omega.example.or";
     info_ptr->name = "OR";
-    info_ptr->description =
-            "OR every byte in the selected range. Options JSON may supply {\"byte\":\"0x42\"} or "
-            "{\"bytes\":[\"0x01\",\"0x02\"]}; the sequence may also be supplied as mask. "
-            "Default byte is 0x00.";
+    info_ptr->description = "OR every byte in the selected range.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE;
     info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_ONE_FOR_ONE | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
+    info_ptr->help = "Options JSON accepts {\"byte\":\"0x42\"} for one repeated byte or "
+                     "{\"mask\":[\"0x01\",\"0x02\"]} for a repeating mask sequence.";
+    info_ptr->example = "{\"mask\":[\"0x01\",\"0x02\"]}";
+    info_ptr->default_args = "{\"byte\":\"0x00\"}";
+    info_ptr->args_schema = OMEGA_BITMASK_OPTIONS_ARGS_SCHEMA;
+    info_ptr->abi_version = OMEGA_TRANSFORM_PLUGIN_ABI_VERSION;
     return 0;
 }
 
