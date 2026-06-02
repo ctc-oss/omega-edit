@@ -80,6 +80,7 @@ interface EditorSession {
   offset: number
   visibleRows: number
   capacity: number
+  bytesPerRow: BytesPerRow
   filePath: string
   panel: vscode.WebviewPanel
   document: HexDocument
@@ -87,6 +88,7 @@ interface EditorSession {
   history: EditorHistoryController
   search: EditorSearchController
   restoredFromBackup?: boolean
+  disposed?: boolean
   pendingScrollOffset?: number
   scrollTask?: Promise<void>
   pendingAnalysisProfile?: AnalysisProfileRequest
@@ -116,9 +118,128 @@ const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
+const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
+const MAX_WEBVIEW_HEX_BYTES = 16 * 1024 * 1024
+const MAX_SEARCH_QUERY_LENGTH = 1024 * 1024
+const MAX_TRANSFORM_OPTIONS_LENGTH = 256 * 1024
+const MAX_ANALYSIS_PROFILE_BYTES = 64 * 1024
+const MAX_CHANGE_SCRIPT_BYTES = 32 * 1024 * 1024
+const MAX_CHANGE_SCRIPT_ENTRIES = 100_000
+const MAX_LABEL_LENGTH = 128
+const VALID_BYTES_PER_ROW = [8, 16, 32] as const
+const DEFAULT_BYTES_PER_ROW = 16
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
+const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
+
+type BytesPerRow = (typeof VALID_BYTES_PER_ROW)[number]
+
+function normalizeBytesPerRow(value: unknown): BytesPerRow {
+  return VALID_BYTES_PER_ROW.includes(value as BytesPerRow)
+    ? (value as BytesPerRow)
+    : DEFAULT_BYTES_PER_ROW
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function safeNonNegativeInteger(
+  value: unknown,
+  max = Number.MAX_SAFE_INTEGER
+): number | undefined {
+  return typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 0 &&
+    value <= max
+    ? value
+    : undefined
+}
+
+function safeBoolean(value: unknown, fallback = false): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function safeString(
+  value: unknown,
+  maxLength: number,
+  allowEmpty = false
+): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const text = value.trim()
+  if ((!allowEmpty && text.length === 0) || text.length > maxLength) {
+    return undefined
+  }
+  return text
+}
+
+function safeHexString(
+  value: unknown,
+  maxBytes: number,
+  allowEmpty = false
+): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const text = value.replace(/\s/g, '')
+  if ((!allowEmpty && text.length === 0) || text.length > maxBytes * 2) {
+    return undefined
+  }
+  if (text.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(text)) {
+    return undefined
+  }
+  return text
+}
+
+function safeJsonString(value: unknown, maxLength: number): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const text = value.trim()
+  if (text.length === 0) {
+    return undefined
+  }
+  if (text.length > maxLength) {
+    return undefined
+  }
+  try {
+    JSON.parse(text)
+  } catch {
+    return undefined
+  }
+  return text
+}
+
+function safeFileLengthRange(
+  session: EditorSession,
+  offsetValue: unknown,
+  lengthValue: unknown,
+  allowZeroLength = false,
+  maxLength = Number.MAX_SAFE_INTEGER
+): { offset: number; length: number } | undefined {
+  const offset = safeNonNegativeInteger(offsetValue)
+  const length = safeNonNegativeInteger(lengthValue, maxLength)
+  if (offset === undefined || length === undefined) {
+    return undefined
+  }
+  if ((!allowZeroLength && length === 0) || offset > session.fileSize) {
+    return undefined
+  }
+  if (length > Math.max(0, session.fileSize - offset)) {
+    return undefined
+  }
+  return { offset, length }
+}
+
+function safeSearchQuery(message: Record<string, unknown>): string | undefined {
+  const isHex = message.isHex === true
+  return isHex
+    ? safeHexString(message.query, MAX_SEARCH_QUERY_LENGTH, false)
+    : safeString(message.query, MAX_SEARCH_QUERY_LENGTH)
+}
 
 function classifyServerHealthLatency(
   latencyMs: number
@@ -160,7 +281,12 @@ function transformResultToText(bytes: Uint8Array): string {
     return ''
   }
 
-  return truncateTransformResult(Buffer.from(bytes).toString('utf8'))
+  const preview =
+    bytes.byteLength > MAX_TRANSFORM_RESULT_PREVIEW_BYTES
+      ? bytes.subarray(0, MAX_TRANSFORM_RESULT_PREVIEW_BYTES)
+      : bytes
+  const suffix = preview.byteLength < bytes.byteLength ? '...' : ''
+  return truncateTransformResult(Buffer.from(preview).toString('utf8') + suffix)
 }
 
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -196,6 +322,307 @@ function serializeTransformPlugin(plugin: TransformPluginInfo): {
   }
 }
 
+function safeChangeRecord(value: unknown): ChangeRecord | undefined {
+  if (!isRecord(value)) {
+    return undefined
+  }
+
+  const offset = safeNonNegativeInteger(value.offset)
+  if (offset === undefined) {
+    return undefined
+  }
+  const serial = safeNonNegativeInteger(value.serial) ?? 0
+
+  switch (value.kind) {
+    case 'INSERT': {
+      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES)
+      return data
+        ? { serial, kind: 'INSERT', offset, length: 0, data }
+        : undefined
+    }
+    case 'DELETE': {
+      const length = safeNonNegativeInteger(value.length)
+      return length && length > 0
+        ? { serial, kind: 'DELETE', offset, length, data: '' }
+        : undefined
+    }
+    case 'OVERWRITE': {
+      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES)
+      return data
+        ? {
+            serial,
+            kind: 'OVERWRITE',
+            offset,
+            length: data.length / 2,
+            data,
+          }
+        : undefined
+    }
+    case 'REPLACE': {
+      const length = safeNonNegativeInteger(value.length)
+      const data = safeHexString(value.data, MAX_WEBVIEW_HEX_BYTES, true)
+      const groupId = safeString(value.groupId, MAX_LABEL_LENGTH)
+      if (length === undefined || data === undefined) {
+        return undefined
+      }
+      return groupId
+        ? { serial, kind: 'REPLACE', offset, length, data, groupId }
+        : { serial, kind: 'REPLACE', offset, length, data }
+    }
+    default:
+      return undefined
+  }
+}
+
+function parseChangeScript(content: Uint8Array): ChangeRecord[] {
+  if (content.byteLength > MAX_CHANGE_SCRIPT_BYTES) {
+    throw new Error(
+      `Change script is too large (${content.byteLength.toLocaleString()} bytes)`
+    )
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(new TextDecoder().decode(content))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Invalid change script JSON: ${message}`)
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('Change script must be a JSON array')
+  }
+  if (parsed.length > MAX_CHANGE_SCRIPT_ENTRIES) {
+    throw new Error(
+      `Change script has too many entries (${parsed.length.toLocaleString()})`
+    )
+  }
+
+  return parsed.map((entry, index) => {
+    const change = safeChangeRecord(entry)
+    if (!change) {
+      throw new Error(`Invalid change record at index ${index}`)
+    }
+    return change
+  })
+}
+
+function normalizeWebviewMessage(
+  session: EditorSession,
+  raw: unknown
+): WebviewMessage | undefined {
+  if (!isRecord(raw) || typeof raw.type !== 'string') {
+    return undefined
+  }
+
+  switch (raw.type) {
+    case 'scroll':
+      return raw.direction === 'up' || raw.direction === 'down'
+        ? { type: 'scroll', direction: raw.direction }
+        : undefined
+
+    case 'scrollTo': {
+      const offset = safeNonNegativeInteger(raw.offset)
+      return offset === undefined ? undefined : { type: 'scrollTo', offset }
+    }
+
+    case 'setViewportMetrics': {
+      const visibleRows = safeNonNegativeInteger(raw.visibleRows, 100_000)
+      return visibleRows === undefined
+        ? undefined
+        : { type: 'setViewportMetrics', visibleRows }
+    }
+
+    case 'setBytesPerRow': {
+      const bytesPerRow = normalizeBytesPerRow(raw.bytesPerRow)
+      return raw.bytesPerRow === bytesPerRow
+        ? { type: 'setBytesPerRow', bytesPerRow }
+        : undefined
+    }
+
+    case 'requestAnalysisProfile': {
+      const offset = safeNonNegativeInteger(raw.offset)
+      const length = safeNonNegativeInteger(raw.length)
+      const requestedLength = safeNonNegativeInteger(raw.requestedLength)
+      const requestKey = safeString(raw.requestKey, MAX_LABEL_LENGTH)
+      const scopeLabel = safeString(raw.scopeLabel, MAX_LABEL_LENGTH)
+      if (
+        offset === undefined ||
+        length === undefined ||
+        requestedLength === undefined ||
+        !requestKey ||
+        !scopeLabel
+      ) {
+        return undefined
+      }
+      return {
+        type: 'requestAnalysisProfile',
+        offset,
+        length: Math.min(length, MAX_ANALYSIS_PROFILE_BYTES),
+        requestKey,
+        scopeLabel,
+        requestedLength,
+        isCapped: safeBoolean(raw.isCapped),
+      }
+    }
+
+    case 'requestTransformPlugins':
+    case 'undo':
+    case 'redo':
+    case 'save':
+    case 'saveAs':
+    case 'revert':
+      return { type: raw.type }
+
+    case 'copySelection':
+    case 'cutSelection': {
+      const range = safeFileLengthRange(
+        session,
+        raw.offset,
+        raw.length,
+        false,
+        MAX_WEBVIEW_HEX_BYTES
+      )
+      if (!range || (raw.format !== 'hex' && raw.format !== 'utf8')) {
+        return undefined
+      }
+      return {
+        type: raw.type,
+        ...range,
+        format: raw.format,
+      }
+    }
+
+    case 'insert': {
+      const offset = safeNonNegativeInteger(raw.offset)
+      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES)
+      if (offset === undefined || offset > session.fileSize || !data) {
+        return undefined
+      }
+      return { type: 'insert', offset, data }
+    }
+
+    case 'delete': {
+      const range = safeFileLengthRange(session, raw.offset, raw.length)
+      return range ? { type: 'delete', ...range } : undefined
+    }
+
+    case 'overwrite': {
+      const offset = safeNonNegativeInteger(raw.offset)
+      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES)
+      if (
+        offset === undefined ||
+        !data ||
+        offset >= session.fileSize ||
+        data.length / 2 > Math.max(0, session.fileSize - offset)
+      ) {
+        return undefined
+      }
+      return { type: 'overwrite', offset, data }
+    }
+
+    case 'replace': {
+      const range = safeFileLengthRange(session, raw.offset, raw.length, true)
+      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES, true)
+      return range && data !== undefined
+        ? { type: 'replace', ...range, data }
+        : undefined
+    }
+
+    case 'replaceAllMatches': {
+      const query = safeSearchQuery(raw)
+      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES, true)
+      const length = safeNonNegativeInteger(raw.length)
+      if (!query || data === undefined || !length) {
+        return undefined
+      }
+      return {
+        type: 'replaceAllMatches',
+        query,
+        isHex: raw.isHex === true,
+        caseInsensitive: safeBoolean(raw.caseInsensitive),
+        isReverse: safeBoolean(raw.isReverse),
+        length,
+        data,
+      }
+    }
+
+    case 'applyTransform': {
+      const pluginId = safeString(raw.pluginId, MAX_LABEL_LENGTH)
+      const offset = safeNonNegativeInteger(raw.offset)
+      const length = safeNonNegativeInteger(raw.length)
+      const optionsJson =
+        raw.optionsJson === undefined
+          ? undefined
+          : safeJsonString(raw.optionsJson, MAX_TRANSFORM_OPTIONS_LENGTH)
+      if (
+        !pluginId ||
+        offset === undefined ||
+        length === undefined ||
+        (raw.optionsJson !== undefined && optionsJson === undefined)
+      ) {
+        return undefined
+      }
+      return { type: 'applyTransform', pluginId, offset, length, optionsJson }
+    }
+
+    case 'search': {
+      const query = safeSearchQuery(raw)
+      if (!query) {
+        return undefined
+      }
+      return {
+        type: 'search',
+        query,
+        isHex: raw.isHex === true,
+        caseInsensitive: safeBoolean(raw.caseInsensitive),
+        isReverse: safeBoolean(raw.isReverse),
+      }
+    }
+
+    case 'goToMatch': {
+      const offset = safeNonNegativeInteger(raw.offset)
+      return offset === undefined ? undefined : { type: 'goToMatch', offset }
+    }
+
+    case 'findAdjacentMatch': {
+      const query = safeSearchQuery(raw)
+      const offset = safeNonNegativeInteger(raw.offset)
+      if (
+        !query ||
+        offset === undefined ||
+        (raw.direction !== 'forward' && raw.direction !== 'backward')
+      ) {
+        return undefined
+      }
+      return {
+        type: 'findAdjacentMatch',
+        query,
+        isHex: raw.isHex === true,
+        caseInsensitive: safeBoolean(raw.caseInsensitive),
+        direction: raw.direction,
+        offset,
+      }
+    }
+
+    default:
+      return undefined
+  }
+}
+
+function backupIdToFilePath(backupId: string | undefined): string | undefined {
+  if (!backupId) {
+    return undefined
+  }
+
+  try {
+    const backupUri = vscode.Uri.parse(backupId)
+    return backupUri.scheme === 'file' ? backupUri.fsPath : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Represents a single file opened by the Hex Editor. VS Code tracks dirty
  * state and initiates saves through this object.
@@ -209,7 +636,10 @@ export class HexDocument implements vscode.CustomDocument {
     this.backupId = backupId
   }
 
-  dispose(): void {}
+  dispose(): void {
+    // VS Code calls this when all editors for the document are closed.
+    // Session and webview cleanup happens in webviewPanel.onDidDispose.
+  }
 }
 
 export class HexEditorProvider
@@ -222,9 +652,6 @@ export class HexEditorProvider
   >()
   readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event
 
-  /** Open documents keyed by document URI string */
-  private documents = new Map<string, HexDocument>()
-
   /** Active editor sessions keyed by document URI string */
   private sessions = new Map<string, EditorSession>()
 
@@ -234,11 +661,6 @@ export class HexEditorProvider
   private heartbeatLoop: ServerHeartbeatLoop | undefined
 
   private serverInfo: IServerInfo | undefined
-
-  constructor(
-    private readonly context: vscode.ExtensionContext,
-    _port: number
-  ) {}
 
   private getViewportCapacity(bytesPerRow: number): number {
     const bufferedRows = Math.max(
@@ -279,18 +701,24 @@ export class HexEditorProvider
         await this.performRedoOnSession(session)
         return
       case 'save':
-      case 'saveAs':
-        await this.saveCustomDocument(
-          session.document,
-          new vscode.CancellationTokenSource().token
-        )
+      case 'saveAs': {
+        const cts = new vscode.CancellationTokenSource()
+        try {
+          await this.saveCustomDocument(session.document, cts.token)
+        } finally {
+          cts.dispose()
+        }
         return
-      case 'revert':
-        await this.revertCustomDocument(
-          session.document,
-          new vscode.CancellationTokenSource().token
-        )
+      }
+      case 'revert': {
+        const cts = new vscode.CancellationTokenSource()
+        try {
+          await this.revertCustomDocument(session.document, cts.token)
+        } finally {
+          cts.dispose()
+        }
         return
+      }
     }
 
     await this.handleWebviewMessage(session, msg)
@@ -318,7 +746,6 @@ export class HexEditorProvider
     _token: vscode.CancellationToken
   ): Promise<HexDocument> {
     const doc = new HexDocument(uri, openContext.backupId)
-    this.documents.set(uri.toString(), doc)
     return doc
   }
 
@@ -328,11 +755,14 @@ export class HexEditorProvider
     _token: vscode.CancellationToken
   ): Promise<void> {
     const uri = document.uri
+    if (uri.scheme !== 'file') {
+      throw new Error('OmegaEdit Hex Editor can only open local files')
+    }
     const filePath = uri.fsPath
 
     // --- Create Î©editâ„¢ session for this file ---
     const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRow = config.get<number>('bytesPerRow', 16)
+    const bytesPerRow = normalizeBytesPerRow(config.get('bytesPerRow'))
 
     // Keep a fixed buffered viewport so resizing the editor does not need to
     // resize the server-side viewport. Only the visible row count changes.
@@ -341,10 +771,9 @@ export class HexEditorProvider
     // --- Create a viewport starting at offset 0 ---
     // If VS Code supplies a backup id (crash-recovery), open from the backup so
     // unsaved edits are restored; save still targets the original filePath.
-    const wasRestoredFromBackup = !!document.backupId
-    const restoreFromPath = document.backupId
-      ? vscode.Uri.parse(document.backupId).fsPath
-      : filePath
+    const backupFilePath = backupIdToFilePath(document.backupId)
+    const wasRestoredFromBackup = !!backupFilePath
+    const restoreFromPath = backupFilePath ?? filePath
     document.backupId = undefined // consume – do not re-use on subsequent resolves
 
     const scope = await ScopedEditorSessionHandle.openFile(restoreFromPath, {
@@ -371,6 +800,7 @@ export class HexEditorProvider
       offset: 0,
       visibleRows: 32,
       capacity,
+      bytesPerRow,
       filePath,
       panel: webviewPanel,
       document,
@@ -384,8 +814,14 @@ export class HexEditorProvider
     this.updateEditCommandContexts(session)
 
     // --- Configure the webview ---
-    webviewPanel.webview.options = { enableScripts: true }
-    webviewPanel.webview.html = getWebviewContent(bytesPerRow)
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [],
+    }
+    webviewPanel.webview.html = getWebviewContent(
+      bytesPerRow,
+      webviewPanel.webview.cspSource
+    )
 
     // Send initial data to the webview
     await this.sendViewportData(session)
@@ -395,27 +831,34 @@ export class HexEditorProvider
     await this.startSessionSubscriptions(session)
 
     // --- Handle messages FROM the webview ---
+    const panelDisposables: vscode.Disposable[] = []
+
     webviewPanel.webview.onDidReceiveMessage(
       (msg) => this.handleWebviewMessage(session, msg),
       undefined,
-      this.context.subscriptions
+      panelDisposables
     )
 
     // Track which editor is active (for command routing)
-    webviewPanel.onDidChangeViewState(() => {
-      if (webviewPanel.active) {
-        this.activeSession = session
-        this.updateEditCommandContexts(session)
-      } else if (this.activeSession === session) {
-        this.activeSession = undefined
-        this.updateEditCommandContexts(undefined)
-      }
-    })
+    webviewPanel.onDidChangeViewState(
+      () => {
+        if (webviewPanel.active) {
+          this.activeSession = session
+          this.updateEditCommandContexts(session)
+        } else if (this.activeSession === session) {
+          this.activeSession = undefined
+          this.updateEditCommandContexts(undefined)
+        }
+      },
+      undefined,
+      panelDisposables
+    )
 
     // --- Cleanup on close ---
     webviewPanel.onDidDispose(async () => {
+      session.disposed = true
+      vscode.Disposable.from(...panelDisposables).dispose()
       this.sessions.delete(uri.toString())
-      this.documents.delete(uri.toString())
       if (this.activeSession === session) {
         this.activeSession = undefined
         this.updateEditCommandContexts(undefined)
@@ -452,8 +895,13 @@ export class HexEditorProvider
     if (!session) {
       return
     }
+    if (destination.scheme !== 'file') {
+      throw new Error('OmegaEdit Hex Editor can only save to local files')
+    }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
     session.restoredFromBackup = false
+    session.history.markSaved()
+    this.postEditState(session)
   }
 
   async revertCustomDocument(
@@ -519,7 +967,7 @@ export class HexEditorProvider
           return
         }
 
-        session.panel.webview.postMessage({
+        this.postWebviewMessage(session, {
           type: 'fileSizeChanged',
           fileSize: context.model.fileSize,
         })
@@ -542,9 +990,13 @@ export class HexEditorProvider
   /** Re-read bytesPerRow from config and refresh all open editors */
   refreshBytesPerRow(): void {
     const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRow = config.get<number>('bytesPerRow', 16)
+    const bytesPerRow = normalizeBytesPerRow(config.get('bytesPerRow'))
     for (const session of this.sessions.values()) {
-      session.panel.webview.html = getWebviewContent(bytesPerRow)
+      session.bytesPerRow = bytesPerRow
+      session.panel.webview.html = getWebviewContent(
+        bytesPerRow,
+        session.panel.webview.cspSource
+      )
       session.capacity = this.getViewportCapacity(bytesPerRow)
       this.sendViewportData(session)
       this.postEditState(session)
@@ -553,7 +1005,7 @@ export class HexEditorProvider
 
   async exportActiveChangeScript(targetUri?: vscode.Uri): Promise<void> {
     if (!this.activeSession) {
-      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
       return
     }
 
@@ -576,16 +1028,17 @@ export class HexEditorProvider
       'utf8'
     )
     await vscode.workspace.fs.writeFile(scriptUri, content)
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `Change script saved to ${scriptUri.fsPath}`
     )
   }
 
   async replayActiveChangeScript(sourceUri?: vscode.Uri): Promise<void> {
     if (!this.activeSession) {
-      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
       return
     }
+    const session = this.activeSession
 
     const scriptUri =
       sourceUri ??
@@ -601,34 +1054,50 @@ export class HexEditorProvider
     }
 
     const content = await vscode.workspace.fs.readFile(scriptUri)
-    const changes = JSON.parse(
-      Buffer.from(content).toString('utf8')
-    ) as ChangeRecord[]
-    await this.replayChanges(this.activeSession, changes)
-    vscode.window.showInformationMessage(`Replayed ${changes.length} change(s)`)
+    let changes: ChangeRecord[]
+    try {
+      changes = parseChangeScript(content)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      void vscode.window.showErrorMessage(
+        `Invalid OmegaEdit change script: ${message}`
+      )
+      return
+    }
+    await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: `Replaying ${changes.length} change(s)…`,
+        cancellable: false,
+      },
+      () => this.replayChanges(session, changes)
+    )
+    void vscode.window.showInformationMessage(
+      `Replayed ${changes.length} change(s)`
+    )
   }
 
   async createActiveCheckpoint(): Promise<void> {
     if (!this.activeSession) {
-      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
       return
     }
 
     const count = await this.createSessionCheckpoint(this.activeSession)
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `OmegaEdit checkpoint created (${count} total)`
     )
   }
 
   async rollbackActiveCheckpoint(): Promise<void> {
     if (!this.activeSession) {
-      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
       return
     }
 
     const rolledBack = await this.rollbackCheckpoint(this.activeSession, true)
     if (rolledBack) {
-      vscode.window.showInformationMessage(
+      void vscode.window.showInformationMessage(
         'Rolled back last OmegaEdit checkpoint'
       )
     }
@@ -636,12 +1105,12 @@ export class HexEditorProvider
 
   async rollbackActiveSession(): Promise<void> {
     if (!this.activeSession) {
-      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
       return
     }
 
     await this.rollbackSession(this.activeSession, true)
-    vscode.window.showInformationMessage('Rolled back OmegaEdit session')
+    void vscode.window.showInformationMessage('Rolled back OmegaEdit session')
   }
 
   // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -654,13 +1123,47 @@ export class HexEditorProvider
 
   // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+  private postWebviewMessage(session: EditorSession, message: unknown): void {
+    if (session.disposed) {
+      return
+    }
+
+    try {
+      void session.panel.webview
+        .postMessage(message)
+        .then(undefined, (error) => {
+          if (
+            error instanceof Error &&
+            error.message.includes('Webview is disposed')
+          ) {
+            session.disposed = true
+          }
+        })
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.includes('Webview is disposed')
+      ) {
+        session.disposed = true
+        return
+      }
+      throw error
+    }
+  }
+
   /** Fetch current viewport data and send it to the webview */
   private async sendViewportData(session: EditorSession): Promise<void> {
+    if (session.disposed || session.scope.isDisposed) {
+      return
+    }
     const fetchStartedAt = Date.now()
     const resp = await getViewportData(session.viewportId)
+    if (session.disposed || session.scope.isDisposed) {
+      return
+    }
     const fetchDurationMs = Date.now() - fetchStartedAt
     const data = resp.getData_asU8()
-    session.panel.webview.postMessage({
+    this.postWebviewMessage(session, {
       type: 'viewportData',
       offset: resp.getOffset(),
       visibleOffset: session.offset,
@@ -698,7 +1201,7 @@ export class HexEditorProvider
     if (this.activeSession === session) {
       this.updateEditCommandContexts(session)
     }
-    session.panel.webview.postMessage({
+    this.postWebviewMessage(session, {
       type: 'editState',
       ...editState,
       isDirty: editState.isDirty || !!session.restoredFromBackup,
@@ -722,18 +1225,23 @@ export class HexEditorProvider
       CONTEXT_CAN_REDO,
       !!editState?.canRedo
     )
+    void vscode.commands.executeCommand(
+      'setContext',
+      CONTEXT_HAS_PENDING_CHANGES,
+      !!session && (!!editState?.isDirty || !!session.restoredFromBackup)
+    )
   }
 
   private async sendTransformPlugins(session: EditorSession): Promise<void> {
     try {
       const plugins = await listTransformPlugins()
-      session.panel.webview.postMessage({
+      this.postWebviewMessage(session, {
         type: 'transformPlugins',
         plugins: plugins.map(serializeTransformPlugin),
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      session.panel.webview.postMessage({
+      this.postWebviewMessage(session, {
         type: 'transformPlugins',
         plugins: [],
         error: message,
@@ -801,7 +1309,7 @@ export class HexEditorProvider
       }
     }
 
-    session.panel.webview.postMessage({
+    this.postWebviewMessage(session, {
       type: 'transformComplete',
       pluginId: response.pluginId,
       offset: response.offset,
@@ -831,7 +1339,7 @@ export class HexEditorProvider
             byte.toString(16).toUpperCase().padStart(2, '0')
           ).join(' ')
     await vscode.env.clipboard.writeText(clipboardText)
-    session.panel.webview.postMessage({
+    this.postWebviewMessage(session, {
       type: 'clipboardComplete',
       action,
       byteCount: bytes.byteLength,
@@ -851,7 +1359,11 @@ export class HexEditorProvider
     )
     const clampedLength = Math.max(
       0,
-      Math.min(request.length, Math.max(0, session.fileSize - clampedOffset))
+      Math.min(
+        request.length,
+        MAX_ANALYSIS_PROFILE_BYTES,
+        Math.max(0, session.fileSize - clampedOffset)
+      )
     )
     const startedAt = Date.now()
 
@@ -859,7 +1371,7 @@ export class HexEditorProvider
       if (session.pendingAnalysisProfile) {
         return
       }
-      session.panel.webview.postMessage({
+      this.postWebviewMessage(session, {
         type: 'analysisProfile',
         requestKey: request.requestKey,
         scopeLabel: request.scopeLabel,
@@ -889,7 +1401,11 @@ export class HexEditorProvider
       profileSession(session.sessionId, clampedOffset, clampedLength),
       getByteOrderMark(session.sessionId, clampedOffset),
     ])
-    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
+    if (
+      session.pendingAnalysisProfile ||
+      session.scope.isDisposed ||
+      session.disposed
+    ) {
       return
     }
 
@@ -900,15 +1416,15 @@ export class HexEditorProvider
       getContentType(session.sessionId, 0, contentTypeSampleLength),
       getLanguage(session.sessionId, clampedOffset, clampedLength, bomName),
     ])
-    if (session.pendingAnalysisProfile || session.scope.isDisposed) {
+    if (
+      session.pendingAnalysisProfile ||
+      session.scope.isDisposed ||
+      session.disposed
+    ) {
       return
     }
 
-    if (session.scope.isDisposed) {
-      return
-    }
-
-    session.panel.webview.postMessage({
+    this.postWebviewMessage(session, {
       type: 'analysisProfile',
       requestKey: request.requestKey,
       scopeLabel: request.scopeLabel,
@@ -942,7 +1458,7 @@ export class HexEditorProvider
       session.analysisProfileTask = this.processAnalysisProfileQueue(session)
         .catch((err) => {
           const message = err instanceof Error ? err.message : String(err)
-          vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+          void vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
         })
         .finally(() => {
           session.analysisProfileTask = undefined
@@ -973,6 +1489,29 @@ export class HexEditorProvider
     return counts[0]?.getCount() ?? 0
   }
 
+  private async resetSessionState(
+    session: EditorSession,
+    restoredFromBackup: boolean,
+    markDirty: boolean,
+    scrollToStart: boolean
+  ): Promise<void> {
+    session.history = new EditorHistoryController()
+    session.search = new EditorSearchController(session.sessionId)
+    session.restoredFromBackup = restoredFromBackup
+    this.clearSearchState(session)
+    this.postEditState(session)
+    if (scrollToStart) {
+      // scrollTo repositions the server-side viewport; sendViewportData alone
+      // would leave the server viewport at the old position.
+      await this.scrollTo(session, 0)
+    } else {
+      await this.sendViewportData(session)
+    }
+    if (markDirty) {
+      this.notifyDocumentChanged(session)
+    }
+  }
+
   private async createSessionCheckpoint(
     session: EditorSession
   ): Promise<number> {
@@ -981,12 +1520,7 @@ export class HexEditorProvider
     const sessionSyncVersion = session.sessionSyncVersion
     const count = await createCheckpoint(session.sessionId)
     await this.waitForSessionSync(session, sessionSyncVersion)
-    session.history = new EditorHistoryController()
-    session.search = new EditorSearchController(session.sessionId)
-    session.restoredFromBackup = wasDirty
-    this.clearSearchState(session)
-    this.postEditState(session)
-    await this.sendViewportData(session)
+    await this.resetSessionState(session, wasDirty, false, false)
     return count
   }
 
@@ -996,22 +1530,16 @@ export class HexEditorProvider
   ): Promise<boolean> {
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
-      vscode.window.showWarningMessage('No OmegaEdit checkpoint to roll back')
+      void vscode.window.showWarningMessage(
+        'No OmegaEdit checkpoint to roll back'
+      )
       return false
     }
 
     const sessionSyncVersion = session.sessionSyncVersion
     await destroyLastCheckpoint(session.sessionId)
     await this.waitForSessionSync(session, sessionSyncVersion)
-    session.history = new EditorHistoryController()
-    session.search = new EditorSearchController(session.sessionId)
-    session.restoredFromBackup = markDirty
-    this.clearSearchState(session)
-    this.postEditState(session)
-    await this.sendViewportData(session)
-    if (markDirty) {
-      this.notifyDocumentChanged(session)
-    }
+    await this.resetSessionState(session, markDirty, markDirty, false)
     return true
   }
 
@@ -1027,21 +1555,12 @@ export class HexEditorProvider
     }
     await clear(session.sessionId)
     await this.waitForSessionSync(session, sessionSyncVersion)
-    session.history = new EditorHistoryController()
-    session.search = new EditorSearchController(session.sessionId)
-    session.restoredFromBackup = markDirty
-    session.offset = 0
-    this.clearSearchState(session)
-    this.postEditState(session)
-    await this.sendViewportData(session)
-    if (markDirty) {
-      this.notifyDocumentChanged(session)
-    }
+    await this.resetSessionState(session, markDirty, markDirty, true)
   }
 
   private clearSearchState(session: EditorSession): void {
     if (session.search.clear()) {
-      session.panel.webview.postMessage({ type: 'searchStateCleared' })
+      this.postWebviewMessage(session, { type: 'searchStateCleared' })
     }
   }
 
@@ -1218,7 +1737,7 @@ export class HexEditorProvider
 
   private broadcastServerHealth(payload: ServerHealthState): void {
     for (const session of this.sessions.values()) {
-      session.panel.webview.postMessage(payload)
+      this.postWebviewMessage(session, payload)
     }
   }
 
@@ -1324,16 +1843,13 @@ export class HexEditorProvider
           break
         }
         case 'OVERWRITE': {
-          const serial = await overwrite(
-            session.sessionId,
-            change.offset,
-            Buffer.from(change.data, 'hex')
-          )
+          const buf = Buffer.from(change.data, 'hex')
+          const serial = await overwrite(session.sessionId, change.offset, buf)
           session.history.recordLocalChange({
             serial,
             kind: 'OVERWRITE',
             offset: change.offset,
-            length: Buffer.from(change.data, 'hex').length,
+            length: buf.length,
             data: change.data,
           })
           this.postEditState(session)
@@ -1401,8 +1917,7 @@ export class HexEditorProvider
       return
     }
 
-    const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRow = config.get<number>('bytesPerRow', 16)
+    const bytesPerRow = session.bytesPerRow
     const viewportRows = Math.max(32, session.visibleRows || 32)
     const bufferedRows = Math.max(
       viewportRows,
@@ -1476,16 +1991,21 @@ export class HexEditorProvider
 
   private async handleWebviewMessage(
     session: EditorSession,
-    msg: WebviewMessage
+    rawMessage: unknown
   ): Promise<void> {
+    const msg = normalizeWebviewMessage(session, rawMessage)
+    if (!msg || session.scope.isDisposed || session.disposed) {
+      return
+    }
+
     try {
       switch (msg.type) {
         // --- Scrolling ---
         case 'scroll': {
-          const config = vscode.workspace.getConfiguration('omegaEdit')
-          const bytesPerRow = config.get<number>('bytesPerRow', 16)
           const delta =
-            msg.direction === 'up' ? -bytesPerRow * 4 : bytesPerRow * 4
+            msg.direction === 'up'
+              ? -session.bytesPerRow * 4
+              : session.bytesPerRow * 4
           await this.scrollTo(session, session.offset + delta)
           break
         }
@@ -1581,7 +2101,7 @@ export class HexEditorProvider
           this.notifyDocumentChanged(session)
           await this.waitForSessionSync(session, sessionSyncVersion)
           this.clearSearchState(session)
-          session.panel.webview.postMessage({
+          this.postWebviewMessage(session, {
             type: 'cutComplete',
             offset: msg.offset,
           })
@@ -1654,7 +2174,7 @@ export class HexEditorProvider
               msg.length,
               msg.data
             )
-            session.panel.webview.postMessage({
+            this.postWebviewMessage(session, {
               type: 'replaceComplete',
               scope: 'single',
               replacedOffset: msg.offset,
@@ -1700,7 +2220,7 @@ export class HexEditorProvider
               this.notifyDocumentChanged(session)
             }
 
-            session.panel.webview.postMessage({
+            this.postWebviewMessage(session, {
               type: 'replaceComplete',
               scope: 'all',
               selectionOffset: result.selectionOffset,
@@ -1768,7 +2288,7 @@ export class HexEditorProvider
             caseInsensitive: msg.caseInsensitive ?? false,
             isReverse: msg.isReverse ?? false,
           })
-          session.panel.webview.postMessage({
+          this.postWebviewMessage(session, {
             type: 'searchResults',
             mode: result.mode,
             matches: result.matches,
@@ -1796,7 +2316,7 @@ export class HexEditorProvider
             anchorOffset: msg.offset,
             fileSize: session.fileSize,
           })
-          session.panel.webview.postMessage({
+          this.postWebviewMessage(session, {
             type: 'searchNavigationResult',
             offset: navigation.offset,
             patternLength: navigation.patternLength,
@@ -1809,7 +2329,7 @@ export class HexEditorProvider
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+      void vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
     }
   }
 }

@@ -30,11 +30,38 @@
  *   └─────────────────────────────────────────────────────────┘
  */
 
-export function getWebviewContent(bytesPerRow: number): string {
+import * as crypto from 'node:crypto'
+
+const VALID_BYTES_PER_ROW = new Set([8, 16, 32])
+
+function normalizeBytesPerRow(bytesPerRow: number): number {
+  return VALID_BYTES_PER_ROW.has(bytesPerRow) ? bytesPerRow : 16
+}
+
+function createNonce(): string {
+  return crypto.randomBytes(16).toString('base64')
+}
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+export function getWebviewContent(
+  requestedBytesPerRow: number,
+  cspSource = "'self'",
+  nonce = createNonce()
+): string {
+  const bytesPerRow = normalizeBytesPerRow(requestedBytesPerRow)
   const groupSize = 8
   const byteCellWidth = 22
   const byteGap = 6
   const groupGap = 4
+  const escapedCspSource = escapeHtmlAttribute(cspSource)
+  const escapedNonce = escapeHtmlAttribute(nonce)
   const groupSeparators = Math.floor((bytesPerRow - 1) / groupSize)
   const hexColumnWidth =
     bytesPerRow * byteCellWidth +
@@ -45,6 +72,7 @@ export function getWebviewContent(bytesPerRow: number): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${escapedCspSource} data:; style-src ${escapedCspSource} 'unsafe-inline'; script-src 'nonce-${escapedNonce}';">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ωedit™ Hex Editor</title>
 <style>
@@ -72,7 +100,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     --ascii-muted-fg: color-mix(in srgb, var(--ascii-fg) 45%, var(--fg) 55%);
     --mono: var(--vscode-editor-font-family, 'Consolas', 'Courier New', monospace);
     --font-size: var(--vscode-editor-font-size, 13px);
-    --contrast-border: var(--vscode-contrastActiveBorder, transparent);
+    --accent-frame: var(--vscode-contrastActiveBorder, #cca700);
+    --accent-frame-bg: color-mix(in srgb, var(--accent-frame) 16%, transparent);
     --offset-col-width: 80px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -175,7 +204,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     display: none;
     width: min(520px, calc(100% - 36px));
     padding: 4px;
-    border: 1px solid var(--contrast-border);
+    border: 1px solid var(--accent-frame);
     background: var(--vscode-editorWidget-background, var(--toolbar-bg));
     color: var(--vscode-editorWidget-foreground, var(--fg));
     box-shadow: 0 0 8px 2px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
@@ -208,7 +237,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     border-radius: 2px;
   }
   .find-widget input[type="text"]:focus {
-    outline: 1px solid var(--button-bg);
+    outline: 1px solid var(--accent-frame);
   }
   .find-widget label {
     display: inline-flex;
@@ -320,13 +349,19 @@ export function getWebviewContent(bytesPerRow: number): string {
   .hex-byte:hover {
     background: var(--selected);
     color: var(--selected-fg);
-    outline: 1px solid var(--contrast-border);
+    outline: 1px solid var(--accent-frame);
     outline-offset: -1px;
   }
   .hex-byte.selected {
     background: var(--selected);
     color: var(--selected-fg);
-    outline: 1px solid var(--contrast-border);
+    outline: 1px solid var(--accent-frame);
+    outline-offset: -1px;
+  }
+  .hex-byte.inspector-anchor {
+    background: var(--accent-frame-bg);
+    color: var(--fg);
+    outline: 1px solid var(--accent-frame);
     outline-offset: -1px;
   }
   .hex-byte.match {
@@ -353,13 +388,19 @@ export function getWebviewContent(bytesPerRow: number): string {
   .ascii-char:hover {
     background: var(--selected);
     color: var(--selected-fg);
-    outline: 1px solid var(--contrast-border);
+    outline: 1px solid var(--accent-frame);
     outline-offset: -1px;
   }
   .ascii-char.selected {
     background: var(--selected);
     color: var(--selected-fg);
-    outline: 1px solid var(--contrast-border);
+    outline: 1px solid var(--accent-frame);
+    outline-offset: -1px;
+  }
+  .ascii-char.inspector-anchor {
+    background: var(--accent-frame-bg);
+    color: var(--fg);
+    outline: 1px solid var(--accent-frame);
     outline-offset: -1px;
   }
   .ascii-char.match {
@@ -489,10 +530,16 @@ export function getWebviewContent(bytesPerRow: number): string {
   .analysis-panel.active {
     display: block;
   }
+  .analysis-section {
+    position: relative;
+  }
   .analysis-section + .analysis-section {
     margin-top: 14px;
     padding-top: 12px;
     border-top: 1px solid var(--border);
+  }
+  .analysis-section.dragging {
+    opacity: 0.62;
   }
   .analysis-section-title {
     color: var(--fg);
@@ -559,6 +606,11 @@ export function getWebviewContent(bytesPerRow: number): string {
   .analysis-section-heading .analysis-section-title {
     margin-bottom: 0;
   }
+  .analysis-section-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
   .analysis-mini-button {
     background: transparent;
     border: 1px solid var(--border);
@@ -569,6 +621,42 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
   .analysis-mini-button:hover {
     background: var(--input-bg);
+  }
+  .analysis-drag-handle {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--offset-fg);
+    cursor: grab;
+  }
+  .analysis-drag-handle:hover,
+  .analysis-drag-handle:focus {
+    background: var(--input-bg);
+    color: var(--fg);
+    outline: none;
+  }
+  .analysis-drag-handle:focus-visible {
+    outline: 1px solid var(--accent-frame);
+    outline-offset: 1px;
+  }
+  .analysis-drag-handle.dragging {
+    border-color: var(--accent-frame);
+    background: var(--accent-frame-bg);
+    color: var(--fg);
+    cursor: grabbing;
+  }
+  .analysis-drag-handle::before {
+    content: '';
+    width: 11px;
+    height: 14px;
+    background-image: radial-gradient(currentColor 1px, transparent 1.5px);
+    background-size: 5px 5px;
+    background-position: 0 0;
+    opacity: 0.82;
   }
   .frequency-chart {
     position: relative;
@@ -692,6 +780,11 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
   .status-inline-button:hover {
     background: var(--input-bg);
+  }
+  .status-inline-button.active {
+    border-color: var(--accent-frame);
+    background: var(--accent-frame-bg);
+    color: var(--fg);
   }
   .status-action {
     color: var(--vscode-terminal-ansiYellow, #dcdcaa);
@@ -838,7 +931,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     font-size: 11px;
   }
 
-  /* Hover Inspector */
+  /* Inspector Pane */
   .byte-inspector-popover {
     position: fixed;
     left: 0;
@@ -861,18 +954,17 @@ export function getWebviewContent(bytesPerRow: number): string {
   .byte-inspector-popover.active {
     display: block;
   }
-  .byte-inspector-popover.pinned {
-    border-color: var(--button-bg);
-    box-shadow:
-      0 12px 28px rgba(0, 0, 0, 0.34),
-      0 0 0 1px color-mix(in srgb, var(--button-bg) 40%, transparent);
-  }
   .byte-inspector-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 8px;
+    cursor: grab;
+    user-select: none;
+  }
+  .byte-inspector-header.dragging {
+    cursor: grabbing;
   }
   .byte-inspector-title {
     color: var(--fg);
@@ -880,7 +972,13 @@ export function getWebviewContent(bytesPerRow: number): string {
     font-weight: 600;
   }
   .byte-inspector-meta {
-    color: var(--offset-fg);
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 4px;
+    border: 1px solid var(--accent-frame);
+    border-radius: 2px;
+    background: var(--accent-frame-bg);
+    color: var(--fg);
     font-size: 10px;
   }
   .byte-inspector-actions {
@@ -888,11 +986,6 @@ export function getWebviewContent(bytesPerRow: number): string {
     align-items: center;
     gap: 4px;
     flex: 0 0 auto;
-  }
-  .byte-inspector-actions .active {
-    border-color: var(--button-bg);
-    background: color-mix(in srgb, var(--button-bg) 26%, transparent);
-    color: var(--fg);
   }
   .byte-inspector-grid {
     display: grid;
@@ -930,8 +1023,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
   button.byte-inspector-value:hover,
   button.byte-inspector-value:focus {
-    border-color: var(--button-bg);
-    background: color-mix(in srgb, var(--button-bg) 18%, transparent);
+    border-color: var(--accent-frame);
+    background: var(--accent-frame-bg);
     outline: none;
   }
   .byte-inspector-value.readonly {
@@ -955,6 +1048,9 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
   .byte-inspector-edit input.invalid {
     border-color: var(--vscode-inputValidation-errorBorder, #f14c4c);
+  }
+  .byte-inspector-edit input:focus {
+    outline: 1px solid var(--accent-frame);
   }
   .byte-inspector-edit button {
     flex: 0 0 auto;
@@ -1185,40 +1281,61 @@ export function getWebviewContent(bytesPerRow: number): string {
       </span>
     </div>
     <div class="analysis-body">
-      <section class="analysis-panel active" id="profilePanel" role="tabpanel" aria-labelledby="profileTab">
-        <div class="analysis-section">
-          <div class="analysis-section-title">Viewport</div>
+      <section class="analysis-panel active" id="profilePanel" role="tabpanel" aria-labelledby="profileTab" data-analysis-panel="profile">
+        <div class="analysis-section" data-analysis-section="viewport">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title">Viewport</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Viewport analysis section"></button>
+          </div>
           <div class="analysis-metrics" id="profileViewportMetrics"></div>
         </div>
-        <div class="analysis-section">
-          <div class="analysis-section-title">Byte Classes</div>
+        <div class="analysis-section" data-analysis-section="classes">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title">Byte Classes</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Byte Classes analysis section"></button>
+          </div>
           <div class="analysis-bars" id="profileClassBars"></div>
         </div>
-        <div class="analysis-section">
-          <div class="analysis-section-title">Data Profile</div>
+        <div class="analysis-section" data-analysis-section="data">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title">Data Profile</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Data Profile analysis section"></button>
+          </div>
           <div class="analysis-metrics" id="profileDataMetrics"></div>
         </div>
-        <div class="analysis-section">
+        <div class="analysis-section" data-analysis-section="frequency">
           <div class="analysis-section-heading">
             <div class="analysis-section-title">Frequency</div>
-            <button class="analysis-mini-button" id="profileScaleBtn" title="Toggle frequency scale">Linear</button>
+            <div class="analysis-section-actions">
+              <button class="analysis-mini-button" id="profileScaleBtn" title="Toggle frequency scale">Linear</button>
+              <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Frequency analysis section"></button>
+            </div>
           </div>
           <div class="frequency-chart" id="profileFrequencyChart"></div>
           <div class="analysis-note" id="profileLimitNote"></div>
           <div class="analysis-bars" id="profileByteBars"></div>
         </div>
       </section>
-      <section class="analysis-panel" id="structurePanel" role="tabpanel" aria-labelledby="structureTab">
-        <div class="analysis-section">
-          <div class="analysis-section-title" id="structureScopeTitle">Visible Bytes</div>
+      <section class="analysis-panel" id="structurePanel" role="tabpanel" aria-labelledby="structureTab" data-analysis-panel="structure">
+        <div class="analysis-section" data-analysis-section="visible">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title" id="structureScopeTitle">Visible Bytes</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Visible Bytes analysis section"></button>
+          </div>
           <div class="analysis-metrics" id="structureMetrics"></div>
         </div>
-        <div class="analysis-section">
-          <div class="analysis-section-title">History</div>
+        <div class="analysis-section" data-analysis-section="history">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title">History</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move History analysis section"></button>
+          </div>
           <div class="analysis-metrics" id="structureHistoryMetrics"></div>
         </div>
-        <div class="analysis-section">
-          <div class="analysis-section-title">Timing</div>
+        <div class="analysis-section" data-analysis-section="timing">
+          <div class="analysis-section-heading">
+            <div class="analysis-section-title">Timing</div>
+            <button class="analysis-drag-handle" type="button" data-analysis-drag="true" title="Drag to reorder. Arrow keys move while focused." aria-label="Move Timing analysis section"></button>
+          </div>
           <div class="analysis-metrics" id="profileTimingMetrics"></div>
         </div>
       </section>
@@ -1293,7 +1410,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   </div>
 </div>
 
-<script>
+<script nonce="${escapedNonce}">
 (function () {
   // VS Code webview API
   const vscode = acquireVsCodeApi()
@@ -1305,7 +1422,10 @@ export function getWebviewContent(bytesPerRow: number): string {
   const MIN_SCROLLBAR_THUMB_HEIGHT = 20
   const MAX_PROFILE_BYTES = 64 * 1024
   const INSPECTOR_LOOKAHEAD_BYTES = 8
-  const INSPECTOR_HOVER_DELAY_MS = 420
+  const DEFAULT_ANALYSIS_SECTION_ORDER = {
+    profile: ['viewport', 'classes', 'data', 'frequency'],
+    structure: ['visible', 'history', 'timing'],
+  }
 
   // ── State ───────────────────────────────────────────
   let bufferOffset = 0
@@ -1342,6 +1462,10 @@ export function getWebviewContent(bytesPerRow: number): string {
   let hoveredRowIndex = -1
   let replaceSummaryActive = false
   let analysisMode = 'profile'
+  let analysisSectionOrder = normalizeAnalysisSectionOrder(
+    vscode.getState?.()?.analysisSectionOrder
+  )
+  let analysisDragState = null
   let hoveredFrequencyBar = null
   let viewportSequence = 0
   let lastRenderDurationMs = 0
@@ -1360,12 +1484,15 @@ export function getWebviewContent(bytesPerRow: number): string {
   let transformPluginsRequested = false
   let byteInspectorOffset = -1
   let byteInspectorAnchor = null
-  let byteInspectorHideTimer = null
-  let byteInspectorHoverTimer = null
+  let byteInspectorCandidateOffset = -1
+  let byteInspectorCandidateAnchor = null
   let byteInspectorEditKey = ''
   let byteInspectorEditValue = ''
   let byteInspectorEditError = ''
-  let byteInspectorPinned = false
+  let byteInspectorDragging = false
+  let byteInspectorDragOffsetX = 0
+  let byteInspectorDragOffsetY = 0
+  let byteInspectorManuallyPositioned = false
   let pasteContext = null
   const transformOptionsByPluginId = new Map()
   const renderSamples = []
@@ -1425,6 +1552,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   const transformOptionsField = document.getElementById('transformOptionsField')
   const transformOptionsApply = document.getElementById('transformOptionsApply')
   const transformOptionsCancel = document.getElementById('transformOptionsCancel')
+  const analysisPane = document.getElementById('analysisPane')
   const profileTab = document.getElementById('profileTab')
   const structureTab = document.getElementById('structureTab')
   const profilePanel = document.getElementById('profilePanel')
@@ -1610,6 +1738,26 @@ export function getWebviewContent(bytesPerRow: number): string {
       return []
     }
     return viewportData.slice(index, Math.min(index + length, viewportLength, fileSize - bufferOffset))
+  }
+
+  function byteElementForOffset(offset, pane = activePane) {
+    if (offset < 0) {
+      return null
+    }
+
+    return hexContainer.querySelector('[data-offset="' + offset + '"][data-pane="' + pane + '"]') ??
+      hexContainer.querySelector('[data-offset="' + offset + '"]')
+  }
+
+  function resolveByteInspectorAnchor(offset, preferredAnchor = null) {
+    if (
+      preferredAnchor?.isConnected &&
+      parseInt(preferredAnchor.dataset.offset, 10) === offset
+    ) {
+      return preferredAnchor
+    }
+
+    return byteElementForOffset(offset, preferredAnchor?.dataset?.pane ?? activePane)
   }
 
   function parseBigIntInput(raw) {
@@ -1934,6 +2082,170 @@ export function getWebviewContent(bytesPerRow: number): string {
       read: (bytes, le) => makeDataView(bytes).getFloat64(0, le).toString(),
     },
   ]
+
+  function normalizeAnalysisSectionOrder(rawOrder) {
+    const order = {}
+    Object.entries(DEFAULT_ANALYSIS_SECTION_ORDER).forEach(([panelName, defaults]) => {
+      const saved = Array.isArray(rawOrder?.[panelName]) ? rawOrder[panelName] : []
+      const next = []
+      saved.forEach((sectionId) => {
+        if (defaults.includes(sectionId) && !next.includes(sectionId)) {
+          next.push(sectionId)
+        }
+      })
+      defaults.forEach((sectionId) => {
+        if (!next.includes(sectionId)) {
+          next.push(sectionId)
+        }
+      })
+      order[panelName] = next
+    })
+    return order
+  }
+
+  function analysisPanelElement(panelName) {
+    return panelName === 'structure' ? structurePanel : profilePanel
+  }
+
+  function getAnalysisSection(panelName, sectionId) {
+    return analysisPanelElement(panelName)?.querySelector(
+      '[data-analysis-section="' + sectionId + '"]'
+    ) ?? null
+  }
+
+  function analysisSectionOrderSnapshot() {
+    return {
+      profile: analysisSectionOrder.profile.slice(),
+      structure: analysisSectionOrder.structure.slice(),
+    }
+  }
+
+  function saveAnalysisSectionOrder() {
+    vscode.setState?.({
+      ...(vscode.getState?.() ?? {}),
+      analysisSectionOrder: analysisSectionOrderSnapshot(),
+    })
+  }
+
+  function applyAnalysisSectionOrder(panelName) {
+    const panel = analysisPanelElement(panelName)
+    if (!panel) {
+      return
+    }
+
+    analysisSectionOrder[panelName].forEach((sectionId) => {
+      const section = getAnalysisSection(panelName, sectionId)
+      if (section) {
+        panel.appendChild(section)
+      }
+    })
+  }
+
+  function applyAnalysisSectionOrders() {
+    Object.keys(DEFAULT_ANALYSIS_SECTION_ORDER).forEach(applyAnalysisSectionOrder)
+  }
+
+  function moveAnalysisSection(panelName, sectionId, targetId, placeAfter) {
+    if (!sectionId || !targetId || sectionId === targetId) {
+      return false
+    }
+
+    const order = analysisSectionOrder[panelName]
+    const fromIndex = order.indexOf(sectionId)
+    if (fromIndex < 0 || !order.includes(targetId)) {
+      return false
+    }
+
+    order.splice(fromIndex, 1)
+    const targetIndex = order.indexOf(targetId)
+    order.splice(targetIndex + (placeAfter ? 1 : 0), 0, sectionId)
+    applyAnalysisSectionOrder(panelName)
+    saveAnalysisSectionOrder()
+    return true
+  }
+
+  function moveAnalysisSectionByDelta(panelName, sectionId, delta) {
+    const order = analysisSectionOrder[panelName]
+    const fromIndex = order.indexOf(sectionId)
+    if (fromIndex < 0) {
+      return false
+    }
+
+    const toIndex = clamp(0, fromIndex + delta, order.length - 1)
+    if (toIndex === fromIndex) {
+      return false
+    }
+
+    order.splice(fromIndex, 1)
+    order.splice(toIndex, 0, sectionId)
+    applyAnalysisSectionOrder(panelName)
+    saveAnalysisSectionOrder()
+    getAnalysisSection(panelName, sectionId)
+      ?.querySelector('[data-analysis-drag]')
+      ?.focus()
+    return true
+  }
+
+  function stopAnalysisSectionDrag(pointerId) {
+    if (!analysisDragState) {
+      return
+    }
+
+    analysisDragState.section.classList.remove('dragging')
+    analysisDragState.handle.classList.remove('dragging')
+    if (
+      typeof pointerId === 'number' &&
+      analysisDragState.handle.hasPointerCapture?.(pointerId)
+    ) {
+      analysisDragState.handle.releasePointerCapture(pointerId)
+    }
+    analysisDragState = null
+  }
+
+  function scrollAnalysisPaneDuringDrag(event) {
+    const body = analysisDragState?.section.closest('.analysis-body')
+    if (!body) {
+      return
+    }
+
+    const rect = body.getBoundingClientRect()
+    const edgeSize = 28
+    if (event.clientY < rect.top + edgeSize) {
+      body.scrollTop -= 14
+    } else if (event.clientY > rect.bottom - edgeSize) {
+      body.scrollTop += 14
+    }
+  }
+
+  function handleAnalysisSectionDragMove(event) {
+    if (!analysisDragState) {
+      return
+    }
+
+    event.preventDefault()
+    scrollAnalysisPaneDuringDrag(event)
+    const target = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-analysis-section]')
+    if (!target || target === analysisDragState.section) {
+      return
+    }
+
+    const targetPanelName = target.closest('[data-analysis-panel]')
+      ?.dataset.analysisPanel
+    if (targetPanelName !== analysisDragState.panelName) {
+      return
+    }
+
+    const targetId = target.dataset.analysisSection
+    const rect = target.getBoundingClientRect()
+    moveAnalysisSection(
+      analysisDragState.panelName,
+      analysisDragState.sectionId,
+      targetId,
+      event.clientY > rect.top + rect.height / 2
+    )
+  }
 
   function renderMetricRows(target, rows) {
     target.innerHTML = rows
@@ -2417,11 +2729,19 @@ export function getWebviewContent(bytesPerRow: number): string {
       renderMetricRows(profileDataMetrics, [
         { label: 'Scope', value: '-' },
         { label: 'Bytes', value: '-' },
+        { label: 'DOS EOL', value: '-' },
         { label: 'Mode', value: '-' },
         { label: 'ASCII', value: '-' },
         { label: 'Content', value: '-' },
         { label: 'Language', value: '-' },
         { label: 'BOM', value: '-' },
+        { label: 'BOM Bytes', value: '-' },
+        { label: '1B Chars', value: '-' },
+        { label: '2B Chars', value: '-' },
+        { label: '3B Chars', value: '-' },
+        { label: '4B Chars', value: '-' },
+        { label: 'Invalid', value: '-' },
+        { label: 'Profile', value: '-' },
       ])
       profileLimitNote.textContent = ''
       profileFrequencyChart.innerHTML =
@@ -2438,6 +2758,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       ? (latestDataProfile.numAscii / byteTotal) * 100
       : 0
     const characterCount = latestDataProfile.characterCount ?? {}
+    const dosEolCount = latestDataProfile.byteProfile[256] ?? 0
     const topProfileBytes = latestDataProfile.byteProfile
       .slice(0, 256)
       .map((count, byte) => ({ byte, count }))
@@ -2453,11 +2774,17 @@ export function getWebviewContent(bytesPerRow: number): string {
     renderMetricRows(profileDataMetrics, [
       { label: 'Scope', value: latestDataProfile.scopeLabel },
       { label: 'Bytes', value: byteTotal.toLocaleString() },
+      { label: 'DOS EOL', value: dosEolCount.toLocaleString() },
       { label: 'Mode', value: formatModeByte(modeByte, byteTotal) },
       { label: 'ASCII', value: latestDataProfile.numAscii.toLocaleString() + ' / ' + formatPercent(asciiPercent) },
       { label: 'Content', value: latestDataProfile.contentType || '-' },
       { label: 'Language', value: latestDataProfile.language || '-' },
       { label: 'BOM', value: characterCount.byteOrderMark || '-' },
+      { label: 'BOM Bytes', value: (characterCount.byteOrderMarkBytes ?? 0).toLocaleString() },
+      { label: '1B Chars', value: (characterCount.singleByteCount ?? 0).toLocaleString() },
+      { label: '2B Chars', value: (characterCount.doubleByteCount ?? 0).toLocaleString() },
+      { label: '3B Chars', value: (characterCount.tripleByteCount ?? 0).toLocaleString() },
+      { label: '4B Chars', value: (characterCount.quadByteCount ?? 0).toLocaleString() },
       { label: 'Invalid', value: (characterCount.invalidBytes ?? 0).toLocaleString() },
       { label: 'Profile', value: formatDuration(latestDataProfile.durationMs) },
     ])
@@ -2933,11 +3260,11 @@ export function getWebviewContent(bytesPerRow: number): string {
       transformPlugins
       .map((plugin) => {
         const label = escapeHtml(plugin.name || plugin.id)
-        const title = escapeHtml(
+        const title = escapeAttribute(
           (plugin.description || plugin.id) +
           ' (' + transformOperationLabel(plugin.operation) + ')'
         )
-        return '<option value="' + escapeHtml(plugin.id) + '" title="' + title + '">' + label + '</option>'
+        return '<option value="' + escapeAttribute(plugin.id) + '" title="' + title + '">' + label + '</option>'
       })
       .join('')
 
@@ -3081,49 +3408,23 @@ export function getWebviewContent(bytesPerRow: number): string {
       ' | u32' + endianLabel + ' ' + (u32 === null ? '-' : u32.toLocaleString())
   }
 
-  function cancelByteInspectorTimers() {
-    if (byteInspectorHoverTimer) {
-      clearTimeout(byteInspectorHoverTimer)
-      byteInspectorHoverTimer = null
-    }
-    if (byteInspectorHideTimer) {
-      clearTimeout(byteInspectorHideTimer)
-      byteInspectorHideTimer = null
-    }
-  }
-
   function hideByteInspector() {
-    cancelByteInspectorTimers()
     byteInspector.classList.remove('active')
-    byteInspector.classList.remove('pinned')
     byteInspector.innerHTML = ''
     byteInspectorOffset = -1
     byteInspectorAnchor = null
     byteInspectorEditKey = ''
     byteInspectorEditValue = ''
     byteInspectorEditError = ''
-    byteInspectorPinned = false
-  }
-
-  function scheduleByteInspectorHide() {
-    if (byteInspectorPinned) {
-      return
-    }
-    if (byteInspectorHideTimer) {
-      clearTimeout(byteInspectorHideTimer)
-    }
-    byteInspectorHideTimer = setTimeout(() => {
-      if (!byteInspector.matches(':hover')) {
-        hideByteInspector()
-      }
-    }, 160)
+    byteInspectorManuallyPositioned = false
+    updateRenderedInspectorAnchor()
   }
 
   function positionByteInspector(anchor) {
     if (!anchor || !byteInspector.classList.contains('active')) {
       return
     }
-    if (byteInspectorPinned && byteInspector.style.left && byteInspector.style.top) {
+    if (byteInspectorManuallyPositioned) {
       return
     }
 
@@ -3158,7 +3459,6 @@ export function getWebviewContent(bytesPerRow: number): string {
 
     const le = inspectorLittleEndian
     const endianLabel = le ? 'LE' : 'BE'
-    const pinnedLabel = byteInspectorPinned ? 'Pinned' : 'Pin'
     let rows = ''
 
     for (const field of inspectorFields) {
@@ -3194,10 +3494,9 @@ export function getWebviewContent(bytesPerRow: number): string {
       '<div class="byte-inspector-header">' +
         '<span>' +
           '<span class="byte-inspector-title">' + escapeHtml(formatOffsetDisplay(byteInspectorOffset)) + '</span>' +
-          '<span class="byte-inspector-meta"> ' + escapeHtml(bytesToSpacedHex(bytes)) + '</span>' +
+          '<span class="byte-inspector-meta">' + escapeHtml(bytesToSpacedHex(bytes)) + '</span>' +
         '</span>' +
         '<span class="byte-inspector-actions">' +
-          '<button class="status-inline-button' + (byteInspectorPinned ? ' active' : '') + '" data-inspector-pin="true" title="Toggle pinned inspector with Space">' + pinnedLabel + '</button>' +
           '<button class="status-inline-button" data-inspector-endian="true" title="Toggle inspector endianness">' + endianLabel + '</button>' +
         '</span>' +
       '</div>' +
@@ -3205,7 +3504,11 @@ export function getWebviewContent(bytesPerRow: number): string {
       '<div class="byte-inspector-error">' + escapeHtml(byteInspectorEditError) + '</div>'
 
     byteInspector.classList.add('active')
-    byteInspector.classList.toggle('pinned', byteInspectorPinned)
+    byteInspectorAnchor = resolveByteInspectorAnchor(
+      byteInspectorOffset,
+      byteInspectorAnchor
+    )
+    updateRenderedInspectorAnchor()
     positionByteInspector(byteInspectorAnchor)
 
     const input = document.getElementById('byteInspectorInput')
@@ -3216,38 +3519,49 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function showByteInspector(offset, anchor) {
-    cancelByteInspectorTimers()
+    const resolvedAnchor = resolveByteInspectorAnchor(offset, anchor)
+    if (!resolvedAnchor) {
+      return false
+    }
     byteInspectorOffset = offset
-    byteInspectorAnchor = anchor
+    byteInspectorAnchor = resolvedAnchor
     byteInspectorEditKey = ''
     byteInspectorEditValue = ''
     byteInspectorEditError = ''
-    byteInspectorPinned = false
+    byteInspectorManuallyPositioned = false
     renderByteInspector()
+    return true
   }
 
-  function scheduleByteInspector(offset, anchor) {
-    if (byteInspectorPinned) {
-      return
+  function setByteInspectorCandidate(offset, anchor) {
+    byteInspectorCandidateOffset = offset
+    byteInspectorCandidateAnchor = anchor
+  }
+
+  function clearByteInspectorCandidate() {
+    byteInspectorCandidateOffset = -1
+    byteInspectorCandidateAnchor = null
+  }
+
+  function byteInspectorLaunchTarget() {
+    const activeInspector = byteInspector.classList.contains('active')
+    const offset = activeInspector && byteInspectorOffset >= 0
+      ? byteInspectorOffset
+      : byteInspectorCandidateOffset >= 0
+        ? byteInspectorCandidateOffset
+        : selectedOffset
+
+    if (offset < 0 || getInspectorBytes(offset).length === 0) {
+      return null
     }
-    if (isPointerSelecting || !anchor) {
-      hideByteInspector()
-      return
-    }
-    if (byteInspectorOffset === offset && byteInspector.classList.contains('active')) {
-      byteInspectorAnchor = anchor
-      positionByteInspector(anchor)
-      return
-    }
-    if (byteInspector.classList.contains('active')) {
-      hideByteInspector()
-    }
-    if (byteInspectorHoverTimer) {
-      clearTimeout(byteInspectorHoverTimer)
-    }
-    byteInspectorHoverTimer = setTimeout(() => {
-      showByteInspector(offset, anchor)
-    }, INSPECTOR_HOVER_DELAY_MS)
+
+    const preferredAnchor = activeInspector && offset === byteInspectorOffset
+      ? byteInspectorAnchor
+      : byteInspectorCandidateOffset === offset
+        ? byteInspectorCandidateAnchor
+        : null
+    const anchor = resolveByteInspectorAnchor(offset, preferredAnchor)
+    return anchor ? { offset, anchor } : null
   }
 
   function commitByteInspectorEdit(fieldKey) {
@@ -3267,14 +3581,10 @@ export function getWebviewContent(bytesPerRow: number): string {
       })
       selectRange(byteInspectorOffset, data.length / 2)
       updateActionStatus('Wrote ' + (data.length / 2).toLocaleString() + ' byte(s)')
-      if (byteInspectorPinned) {
-        byteInspectorEditKey = ''
-        byteInspectorEditValue = ''
-        byteInspectorEditError = ''
-        renderByteInspector()
-      } else {
-        hideByteInspector()
-      }
+      byteInspectorEditKey = ''
+      byteInspectorEditValue = ''
+      byteInspectorEditError = ''
+      renderByteInspector()
     } catch (error) {
       byteInspectorEditValue = input.value
       byteInspectorEditError = error instanceof Error ? error.message : String(error)
@@ -3282,14 +3592,32 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
   }
 
-  function toggleByteInspectorPinned(forcePinned) {
-    if (!byteInspector.classList.contains('active')) {
+  function toggleByteInspector() {
+    if (byteInspector.classList.contains('active')) {
+      hideByteInspector()
+      return true
+    }
+    const target = byteInspectorLaunchTarget()
+    if (!target) {
+      return false
+    }
+    return showByteInspector(target.offset, target.anchor)
+  }
+
+  function stopByteInspectorDrag(pointerId) {
+    if (!byteInspectorDragging) {
       return
     }
-    byteInspectorPinned =
-      typeof forcePinned === 'boolean' ? forcePinned : !byteInspectorPinned
-    cancelByteInspectorTimers()
-    renderByteInspector()
+    byteInspectorDragging = false
+    byteInspector
+      .querySelector('.byte-inspector-header')
+      ?.classList.remove('dragging')
+    if (
+      typeof pointerId === 'number' &&
+      byteInspector.hasPointerCapture?.(pointerId)
+    ) {
+      byteInspector.releasePointerCapture(pointerId)
+    }
   }
 
   function updateProgressStatus() {
@@ -3541,6 +3869,26 @@ export function getWebviewContent(bytesPerRow: number): string {
       const offset = parseInt(el.dataset.offset, 10)
       el.classList.toggle('selected', !Number.isNaN(offset) && offsetIsSelected(offset))
     })
+  }
+
+  function updateRenderedInspectorAnchor() {
+    if (!hexContainer) {
+      return
+    }
+
+    hexContainer
+      .querySelectorAll('.inspector-anchor')
+      .forEach((el) => el.classList.remove('inspector-anchor'))
+
+    const hasActiveInspector =
+      byteInspectorOffset >= 0 && byteInspector.classList.contains('active')
+    if (!hasActiveInspector) {
+      return
+    }
+
+    hexContainer
+      .querySelectorAll('[data-offset="' + byteInspectorOffset + '"]')
+      .forEach((el) => el.classList.add('inspector-anchor'))
   }
 
   function selectOffset(offset, extendSelection = false) {
@@ -4521,25 +4869,25 @@ export function getWebviewContent(bytesPerRow: number): string {
   hexContainer.addEventListener('pointermove', (e) => {
     const target = e.target.closest('[data-offset]')
     if (!target) {
+      clearByteInspectorCandidate()
       updateHoverHighlights(-1, -1)
-      scheduleByteInspectorHide()
       return
     }
 
     const offset = parseInt(target.dataset.offset, 10)
     if (Number.isNaN(offset)) {
+      clearByteInspectorCandidate()
       updateHoverHighlights(-1, -1)
-      scheduleByteInspectorHide()
       return
     }
 
+    setByteInspectorCandidate(offset, target)
     const row = target.closest('.hex-row')
     const rowIndex = row ? parseInt(row.dataset.rowIndex, 10) : -1
     updateHoverHighlights(
       Number.isNaN(rowIndex) ? -1 : rowIndex,
       offset % BYTES_PER_ROW
     )
-    scheduleByteInspector(offset, target)
 
     if (isPointerSelecting && (e.buttons & 1) === 1) {
       selectOffset(offset, true)
@@ -4547,8 +4895,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
 
   hexContainer.addEventListener('pointerleave', () => {
+    clearByteInspectorCandidate()
     updateHoverHighlights(-1, -1)
-    scheduleByteInspectorHide()
   })
 
   hexContainer.addEventListener('pointerdown', (e) => {
@@ -4567,6 +4915,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
 
     e.preventDefault()
+    setByteInspectorCandidate(offset, target)
     hideByteInspector()
     setActivePane(target.dataset.pane)
     selectOffset(offset, e.shiftKey)
@@ -4642,6 +4991,12 @@ export function getWebviewContent(bytesPerRow: number): string {
   // ── Keyboard Shortcuts ──────────────────────────────
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && transformOptionsDialog.classList.contains('active')) {
+      e.preventDefault()
+      closeTransformOptionsDialog()
+      return
+    }
+
     if (isEditableTarget(e.target)) {
       return
     }
@@ -4649,9 +5004,10 @@ export function getWebviewContent(bytesPerRow: number): string {
     if (e.key === 'Escape' && pastePopover.classList.contains('active')) {
       e.preventDefault()
       hidePastePopover()
-    } else if (e.key === ' ' && byteInspector.classList.contains('active')) {
-      e.preventDefault()
-      toggleByteInspectorPinned()
+    } else if (e.shiftKey && e.key === ' ') {
+      if (toggleByteInspector()) {
+        e.preventDefault()
+      }
     } else if (e.key === 'Escape' && byteInspector.classList.contains('active')) {
       e.preventDefault()
       hideByteInspector()
@@ -4881,17 +5237,60 @@ export function getWebviewContent(bytesPerRow: number): string {
     frequencyScale = frequencyScale === 'log' ? 'linear' : 'log'
     updateProfileAnalysis()
   })
-  profileFrequencyChart.addEventListener('pointermove', updateFrequencyTooltip)
-  profileFrequencyChart.addEventListener('pointerleave', hideFrequencyTooltip)
-  byteInspector.addEventListener('pointerenter', cancelByteInspectorTimers)
-  byteInspector.addEventListener('pointerleave', scheduleByteInspectorHide)
-  byteInspector.addEventListener('click', (e) => {
-    const pinToggle = e.target.closest('[data-inspector-pin]')
-    if (pinToggle) {
-      toggleByteInspectorPinned()
+  analysisPane.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('[data-analysis-drag]')
+    if (!handle || e.button !== 0) {
       return
     }
 
+    const section = handle.closest('[data-analysis-section]')
+    const panel = section?.closest('[data-analysis-panel]')
+    const panelName = panel?.dataset.analysisPanel
+    const sectionId = section?.dataset.analysisSection
+    if (!section || !panelName || !sectionId) {
+      return
+    }
+
+    e.preventDefault()
+    analysisDragState = {
+      handle,
+      panelName,
+      section,
+      sectionId,
+    }
+    section.classList.add('dragging')
+    handle.classList.add('dragging')
+    handle.setPointerCapture(e.pointerId)
+  })
+  analysisPane.addEventListener('pointermove', handleAnalysisSectionDragMove)
+  analysisPane.addEventListener('pointerup', (e) => {
+    stopAnalysisSectionDrag(e.pointerId)
+  })
+  analysisPane.addEventListener('pointercancel', (e) => {
+    stopAnalysisSectionDrag(e.pointerId)
+  })
+  analysisPane.addEventListener('keydown', (e) => {
+    const handle = e.target.closest('[data-analysis-drag]')
+    if (!handle) {
+      return
+    }
+
+    const section = handle.closest('[data-analysis-section]')
+    const panelName = section?.closest('[data-analysis-panel]')?.dataset.analysisPanel
+    const sectionId = section?.dataset.analysisSection
+    if (!panelName || !sectionId) {
+      return
+    }
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (moveAnalysisSectionByDelta(panelName, sectionId, e.key === 'ArrowUp' ? -1 : 1)) {
+        e.preventDefault()
+      }
+    }
+  })
+  profileFrequencyChart.addEventListener('pointermove', updateFrequencyTooltip)
+  profileFrequencyChart.addEventListener('pointerleave', hideFrequencyTooltip)
+  byteInspector.addEventListener('click', (e) => {
     const endianToggle = e.target.closest('[data-inspector-endian]')
     if (endianToggle) {
       inspectorLittleEndian = !inspectorLittleEndian
@@ -4941,15 +5340,41 @@ export function getWebviewContent(bytesPerRow: number): string {
         byteInspectorEditValue = ''
         byteInspectorEditError = ''
         renderByteInspector()
-      } else if (byteInspectorPinned) {
-        toggleByteInspectorPinned(false)
       } else {
         hideByteInspector()
       }
-    } else if (e.key === ' ' && e.target.id !== 'byteInspectorInput') {
+    } else if (e.shiftKey && e.key === ' ' && e.target.id !== 'byteInspectorInput') {
       e.preventDefault()
-      toggleByteInspectorPinned()
+      toggleByteInspector()
     }
+  })
+  byteInspector.addEventListener('pointerdown', (e) => {
+    const header = e.target.closest('.byte-inspector-header')
+    if (!header || e.button !== 0) {
+      return
+    }
+    e.preventDefault()
+    byteInspectorDragging = true
+    byteInspectorDragOffsetX = e.clientX - parseFloat(byteInspector.style.left || '0')
+    byteInspectorDragOffsetY = e.clientY - parseFloat(byteInspector.style.top || '0')
+    header.classList.add('dragging')
+    byteInspector.setPointerCapture(e.pointerId)
+  })
+  byteInspector.addEventListener('pointermove', (e) => {
+    if (!byteInspectorDragging) {
+      return
+    }
+    const newLeft = clamp(0, e.clientX - byteInspectorDragOffsetX, window.innerWidth - byteInspector.offsetWidth)
+    const newTop = clamp(0, e.clientY - byteInspectorDragOffsetY, window.innerHeight - byteInspector.offsetHeight)
+    byteInspector.style.left = newLeft + 'px'
+    byteInspector.style.top = newTop + 'px'
+    byteInspectorManuallyPositioned = true
+  })
+  byteInspector.addEventListener('pointerup', (e) => {
+    stopByteInspectorDrag(e.pointerId)
+  })
+  byteInspector.addEventListener('pointercancel', (e) => {
+    stopByteInspectorDrag(e.pointerId)
   })
   bytesPerRowSelect.addEventListener('change', () => {
     const nextBytesPerRow = parseInt(bytesPerRowSelect.value, 10)
@@ -5142,6 +5567,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   updateOffsetStatus()
   updateSelectedStatus()
   updateProgressStatus()
+  applyAnalysisSectionOrders()
   updateAnalysisTabs()
   updateAnalysisPanels()
   renderColumnHeader()

@@ -107,7 +107,8 @@
       },
       {
         "command": "omegaEdit.exportChangeScript",
-        "title": "OmegaEdit: Export Change Script"
+        "title": "OmegaEdit: Export Change Script",
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
       },
       {
         "command": "omegaEdit.replayChangeScript",

@@ -31,11 +31,48 @@ import {
 } from './constants'
 import { HexEditorProvider } from './hexEditorProvider'
 
-let serverPid: number | undefined
 let activeProvider: HexEditorProvider | undefined
 
 const DEFAULT_SERVER_PORT = 9000
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
+const VALID_LOG_LEVELS = new Set([
+  'trace',
+  'debug',
+  'info',
+  'warn',
+  'error',
+  'fatal',
+])
+
+function parseServerPort(value: unknown): number | undefined {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 && value <= 65535
+      ? value
+      : undefined
+  }
+
+  if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
+    return undefined
+  }
+
+  const port = Number.parseInt(value.trim(), 10)
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? port : undefined
+}
+
+function isFileUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
+  return !!uri && uri.scheme === 'file'
+}
+
+function parseOffsetInput(value: string): number | undefined {
+  const text = value.trim()
+  if (!/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(text)) {
+    return undefined
+  }
+  const offset = text.toLowerCase().startsWith('0x')
+    ? Number.parseInt(text.slice(2), 16)
+    : Number.parseInt(text, 10)
+  return Number.isSafeInteger(offset) && offset >= 0 ? offset : undefined
+}
 
 function transformPluginFileExtension(): string {
   switch (os.platform()) {
@@ -84,9 +121,15 @@ function resolveTransformPluginDirectories(
   context: vscode.ExtensionContext,
   config: vscode.WorkspaceConfiguration
 ): string[] {
-  const configured = config
-    .get<string[]>('transformPluginDirectories', [])
-    .filter((directory) => directory.trim().length > 0)
+  const configuredValue = config.get<unknown>('transformPluginDirectories', [])
+  const configured = Array.isArray(configuredValue)
+    ? configuredValue
+        .filter(
+          (directory): directory is string =>
+            typeof directory === 'string' && directory.trim().length > 0
+        )
+        .map((directory) => directory.trim())
+    : []
 
   return configured.length > 0
     ? configured
@@ -98,15 +141,21 @@ function isTestRuntime(): boolean {
 }
 
 function resolveServerPort(config: vscode.WorkspaceConfiguration): number {
-  const envPort = Number.parseInt(
-    process.env[SERVER_PORT_OVERRIDE_ENV] ?? '',
-    10
-  )
-  if (Number.isInteger(envPort) && envPort > 0 && envPort <= 65535) {
+  const envPort = parseServerPort(process.env[SERVER_PORT_OVERRIDE_ENV])
+  if (envPort !== undefined) {
     return envPort
   }
 
-  return config.get<number>('serverPort', DEFAULT_SERVER_PORT)
+  return (
+    parseServerPort(config.get<unknown>('serverPort')) ?? DEFAULT_SERVER_PORT
+  )
+}
+
+function resolveLogLevel(config: vscode.WorkspaceConfiguration): string {
+  const value = config.get<unknown>('logLevel', 'info')
+  return typeof value === 'string' && VALID_LOG_LEVELS.has(value)
+    ? value
+    : 'info'
 }
 
 function reportActivationError(message: string): void {
@@ -124,13 +173,14 @@ export async function activate(
   const config = vscode.workspace.getConfiguration('omegaEdit')
   const port = resolveServerPort(config)
 
-  const logLevel = config.get<string>('logLevel', 'info')
+  const logLevel = resolveLogLevel(config)
   process.env.OMEGA_EDIT_CLIENT_LOG_LEVEL = logLevel
   const transformPluginDirectories = resolveTransformPluginDirectories(
     context,
     config
   )
 
+  let serverPid: number | undefined
   try {
     serverPid = await startServer(port, undefined, undefined, {
       transformPluginDirectories,
@@ -150,11 +200,16 @@ export async function activate(
   try {
     await getClient(port)
   } catch {
+    try {
+      await stopServerGraceful()
+    } catch {
+      // Best effort cleanup; activation will report the connection failure.
+    }
     reportActivationError('Ωedit™ server started but is not reachable')
     return
   }
 
-  const provider = new HexEditorProvider(context, port)
+  const provider = new HexEditorProvider()
   activeProvider = provider
 
   context.subscriptions.push(
@@ -190,6 +245,13 @@ export async function activate(
           return
         }
 
+        if (!isFileUri(target)) {
+          void vscode.window.showWarningMessage(
+            'OmegaEdit Hex Editor can only open local files'
+          )
+          return
+        }
+
         await vscode.commands.executeCommand(
           'vscode.openWith',
           target,
@@ -207,20 +269,18 @@ export async function activate(
           prompt: 'Enter byte offset (decimal or 0x hex)',
           placeHolder: '0x0000',
           validateInput: (value) => {
-            const offset = value.startsWith('0x')
-              ? parseInt(value, 16)
-              : parseInt(value, 10)
-            return Number.isNaN(offset) || offset < 0
+            const offset = parseOffsetInput(value)
+            return offset === undefined
               ? 'Enter a valid non-negative integer'
               : null
           },
         })
 
         if (input !== undefined) {
-          const offset = input.startsWith('0x')
-            ? parseInt(input, 16)
-            : parseInt(input, 10)
-          provider.goToOffset(offset)
+          const offset = parseOffsetInput(input)
+          if (offset !== undefined) {
+            provider.goToOffset(offset)
+          }
         }
       }
     )
