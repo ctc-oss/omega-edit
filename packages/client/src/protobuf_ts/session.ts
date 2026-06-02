@@ -20,6 +20,7 @@
 import {
   CountKind,
   type ApplyTransformPluginResponse,
+  type CreateCheckpointResponse,
   type CreateSessionRequest,
   type CreateSessionResponse,
   type GetByteFrequencyProfileResponse,
@@ -134,6 +135,50 @@ export async function destroySession(sessionId: string): Promise<string> {
         return resolve(id)
       } catch (error) {
         return reject(makeWrappedError('destroySession', error))
+      }
+    })
+  })
+}
+
+export async function createCheckpoint(
+  sessionId: string
+): Promise<CreateCheckpointResponse> {
+  const log = getLogger()
+  const request = { sessionId }
+  debugLog(log, () => ({
+    fn: 'protobufTs.createCheckpoint',
+    rqst: request,
+  }))
+  const client = await getClient()
+
+  return new Promise<CreateCheckpointResponse>((resolve, reject) => {
+    client.createCheckpoint(request, (err, response) => {
+      if (err) {
+        log.error({
+          fn: 'protobufTs.createCheckpoint',
+          rqst: request,
+          err: {
+            msg: err.message,
+            details: err.details,
+            code: err.code,
+            stack: err.stack,
+          },
+        })
+        return reject(makeWrappedError('createCheckpoint', err))
+      }
+
+      try {
+        const required = requireResponse(
+          response as CreateCheckpointResponse | undefined,
+          'createCheckpoint'
+        )
+        debugLog(log, () => ({
+          fn: 'protobufTs.createCheckpoint',
+          resp: required,
+        }))
+        return resolve(required)
+      } catch (error) {
+        return reject(makeWrappedError('createCheckpoint', error))
       }
     })
   })

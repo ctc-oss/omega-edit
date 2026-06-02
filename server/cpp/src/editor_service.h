@@ -169,6 +169,10 @@ public:
         const ::omega_edit::v1::ReplaceSessionCheckpointedRequest *request,
         ::omega_edit::v1::ReplaceSessionCheckpointedResponse *response) override;
 
+    grpc::Status CreateCheckpoint(grpc::ServerContext *context,
+                                  const ::omega_edit::v1::CreateCheckpointRequest *request,
+                                  ::omega_edit::v1::CreateCheckpointResponse *response) override;
+
     grpc::Status DestroyLastCheckpoint(
         grpc::ServerContext *context,
         const ::omega_edit::v1::DestroyLastCheckpointRequest *request,

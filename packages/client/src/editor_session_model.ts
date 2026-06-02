@@ -110,7 +110,8 @@ export class EditorSessionModel {
       kind !== SessionEventKind.EDIT &&
       kind !== SessionEventKind.UNDO &&
       kind !== SessionEventKind.CLEAR &&
-      kind !== SessionEventKind.TRANSFORM
+      kind !== SessionEventKind.TRANSFORM &&
+      kind !== SessionEventKind.CREATE_CHECKPOINT
     ) {
       return false
     }

@@ -123,6 +123,14 @@ export function getWebviewContent(bytesPerRow: number): string {
   .toolbar input[type="text"] { width: 160px; }
   .toolbar input.narrow { width: 80px; }
   .toolbar select.transform-select { width: 180px; }
+  .icon-button {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    line-height: 1;
+  }
   button {
     background: var(--button-bg);
     color: var(--button-fg);
@@ -158,6 +166,71 @@ export function getWebviewContent(bytesPerRow: number): string {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    position: relative;
+  }
+  .find-widget {
+    position: absolute;
+    top: 0;
+    right: 28px;
+    display: none;
+    width: min(520px, calc(100% - 36px));
+    padding: 4px;
+    border: 1px solid var(--contrast-border);
+    background: var(--vscode-editorWidget-background, var(--toolbar-bg));
+    color: var(--vscode-editorWidget-foreground, var(--fg));
+    box-shadow: 0 0 8px 2px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+    z-index: 20;
+    transform: translateY(-110%);
+    transition: transform 160ms ease;
+  }
+  .find-widget.visible {
+    display: block;
+    transform: translateY(0);
+  }
+  .find-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .find-row + .find-row {
+    margin-top: 4px;
+  }
+  .find-widget input[type="text"] {
+    min-width: 80px;
+    flex: 1 1 auto;
+    background: var(--input-bg);
+    color: var(--input-fg);
+    border: 1px solid var(--input-border);
+    padding: 3px 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    border-radius: 2px;
+  }
+  .find-widget input[type="text"]:focus {
+    outline: 1px solid var(--button-bg);
+  }
+  .find-widget label {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--offset-fg);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .find-widget .match-nav {
+    min-width: 64px;
+    text-align: center;
+  }
+  .find-toggle {
+    align-self: stretch;
+  }
+  .find-replace-row {
+    display: none;
+    padding-left: 28px;
+  }
+  .find-widget.replace-visible .find-replace-row {
+    display: flex;
   }
   .hex-header {
     display: flex;
@@ -765,6 +838,209 @@ export function getWebviewContent(bytesPerRow: number): string {
     font-size: 11px;
   }
 
+  /* Hover Inspector */
+  .byte-inspector-popover {
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: none;
+    min-width: 340px;
+    max-width: min(560px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+      var(--toolbar-bg);
+    color: var(--fg);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+    z-index: 40;
+    white-space: normal;
+    user-select: text;
+  }
+  .byte-inspector-popover.active {
+    display: block;
+  }
+  .byte-inspector-popover.pinned {
+    border-color: var(--button-bg);
+    box-shadow:
+      0 12px 28px rgba(0, 0, 0, 0.34),
+      0 0 0 1px color-mix(in srgb, var(--button-bg) 40%, transparent);
+  }
+  .byte-inspector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .byte-inspector-title {
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .byte-inspector-meta {
+    color: var(--offset-fg);
+    font-size: 10px;
+  }
+  .byte-inspector-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+  }
+  .byte-inspector-actions .active {
+    border-color: var(--button-bg);
+    background: color-mix(in srgb, var(--button-bg) 26%, transparent);
+    color: var(--fg);
+  }
+  .byte-inspector-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(136px, 1fr));
+    gap: 4px 14px;
+  }
+  .byte-inspector-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
+    min-height: 22px;
+  }
+  .byte-inspector-label {
+    color: var(--offset-fg);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .byte-inspector-value {
+    min-width: 0;
+    color: var(--fg);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
+  button.byte-inspector-value {
+    width: 100%;
+    padding: 2px 4px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background: transparent;
+    cursor: text;
+  }
+  button.byte-inspector-value:hover,
+  button.byte-inspector-value:focus {
+    border-color: var(--button-bg);
+    background: color-mix(in srgb, var(--button-bg) 18%, transparent);
+    outline: none;
+  }
+  .byte-inspector-value.readonly {
+    opacity: 0.82;
+  }
+  .byte-inspector-edit {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .byte-inspector-edit input {
+    min-width: 0;
+    width: 100%;
+    background: var(--input-bg);
+    color: var(--input-fg);
+    border: 1px solid var(--input-border);
+    border-radius: 3px;
+    padding: 2px 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+  .byte-inspector-edit input.invalid {
+    border-color: var(--vscode-inputValidation-errorBorder, #f14c4c);
+  }
+  .byte-inspector-edit button {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  .byte-inspector-error {
+    grid-column: 1 / -1;
+    color: var(--vscode-inputValidation-errorForeground, #f14c4c);
+    font-size: 10px;
+    min-height: 12px;
+  }
+  .paste-popover {
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: none;
+    min-width: 260px;
+    max-width: min(340px, calc(100vw - 24px));
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+      var(--toolbar-bg);
+    color: var(--fg);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+    z-index: 45;
+  }
+  .paste-popover.active {
+    display: block;
+  }
+  .paste-popover-title {
+    color: var(--fg);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .paste-popover-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+  }
+  .paste-popover-label {
+    width: 64px;
+    color: var(--offset-fg);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .paste-popover-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+  .paste-popover-options label {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 11px;
+  }
+  .paste-popover-options label.disabled {
+    opacity: 0.5;
+  }
+  .paste-popover-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .paste-popover-error {
+    color: var(--vscode-inputValidation-errorForeground, #f14c4c);
+    font-size: 10px;
+    min-height: 12px;
+  }
+  @media (max-width: 720px) {
+    .byte-inspector-popover {
+      min-width: 280px;
+    }
+    .byte-inspector-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
   /* ── Edit Dialog ─────────────────────────────────── */
   .edit-dialog {
     display: none;
@@ -856,33 +1132,6 @@ export function getWebviewContent(bytesPerRow: number): string {
     </select>
   </div>
   <div class="toolbar-group">
-    <label>Search:</label>
-    <input type="text" id="searchInput" placeholder="text or hex bytes" />
-    <input type="text" id="replaceInput" placeholder="replace with" />
-    <label><input type="checkbox" id="searchHex" /> Hex</label>
-    <label id="searchCaseLabel"><input type="checkbox" id="searchCase" /> Aa</label>
-    <label for="searchDirectionSelect">Dir:</label>
-    <select id="searchDirectionSelect" title="Search direction">
-      <option value="forward" selected>Top to Bottom</option>
-      <option value="reverse">Bottom to Top</option>
-    </select>
-    <button class="secondary" id="searchBtn">Find</button>
-    <button class="secondary" id="replaceBtn">Replace</button>
-    <button class="secondary" id="replaceAllBtn">All</button>
-    <span class="match-nav" id="matchNav"></span>
-    <button class="secondary" id="prevMatch" title="Previous match">&#9650;</button>
-    <button class="secondary" id="nextMatch" title="Next match">&#9660;</button>
-  </div>
-  <div class="toolbar-group">
-    <button class="secondary" id="topBtn" title="Jump to top">Top</button>
-    <button class="secondary" id="bottomBtn" title="Jump to bottom">Bottom</button>
-  </div>
-  <div class="toolbar-group">
-    <button class="secondary" id="insertBtn" title="Insert bytes at selected offset">Ins</button>
-    <button class="secondary" id="overwriteBtn" title="Overwrite bytes at selected offset">Ovr</button>
-    <button class="secondary" id="deleteBtn" title="Delete bytes at selected offset">Del</button>
-  </div>
-  <div class="toolbar-group">
     <label for="transformSelect">Transform:</label>
     <select class="transform-select" id="transformSelect" title="Byte range transform">
       <option value="">Loading transforms...</option>
@@ -893,6 +1142,28 @@ export function getWebviewContent(bytesPerRow: number): string {
 <!-- ── Hex View ─────────────────────────────────────── -->
 <div class="viewer-shell">
   <div class="viewer-main">
+    <div class="find-widget" id="findWidget" aria-hidden="true">
+      <div class="find-row">
+        <button class="secondary icon-button find-toggle" id="findReplaceToggle" title="Toggle replace">&#8250;</button>
+        <input type="text" id="searchInput" placeholder="Find text or hex bytes" />
+        <label><input type="checkbox" id="searchHex" /> Hex</label>
+        <label id="searchCaseLabel"><input type="checkbox" id="searchCase" /> Aa</label>
+        <select id="searchDirectionSelect" title="Search direction">
+          <option value="forward" selected>Top to Bottom</option>
+          <option value="reverse">Bottom to Top</option>
+        </select>
+        <span class="match-nav" id="matchNav"></span>
+        <button class="secondary icon-button" id="searchBtn" title="Find">&#9166;</button>
+        <button class="secondary icon-button" id="prevMatch" title="Previous match">&#9650;</button>
+        <button class="secondary icon-button" id="nextMatch" title="Next match">&#9660;</button>
+        <button class="secondary icon-button" id="findCloseBtn" title="Close find">x</button>
+      </div>
+      <div class="find-row find-replace-row">
+        <input type="text" id="replaceInput" placeholder="Replace with" />
+        <button class="secondary" id="replaceBtn">Replace</button>
+        <button class="secondary" id="replaceAllBtn">All</button>
+      </div>
+    </div>
     <div class="hex-header" id="hexHeader">
       <span class="offset-col offset-header-label">Offset</span>
       <span class="hex-column-header" id="hexColumnHeader"></span>
@@ -956,10 +1227,14 @@ export function getWebviewContent(bytesPerRow: number): string {
 </div>
 
 <!-- ── Status Bar ───────────────────────────────────── -->
+<div class="byte-inspector-popover" id="byteInspector" role="tooltip"></div>
+<div class="paste-popover" id="pastePopover" role="dialog" aria-label="Paste bytes"></div>
+
 <div class="status-bar">
   <span>State: <span class="highlight" id="statusDirty">Saved</span></span>
   <span>Offset: <span class="highlight" id="statusOffset">0x00000000</span></span>
   <span>Selected: <span class="highlight" id="statusSelected">-</span></span>
+  <span>Mode: <button class="status-inline-button" id="editModeBtn" title="Toggle insert/overwrite mode">Insert</button></span>
   <span>Size: <span class="highlight" id="statusSize">0</span> bytes</span>
   <span>View: <span class="highlight" id="statusProgress">0.00%</span></span>
   <span id="statusMatches"></span>
@@ -1029,6 +1304,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
   const MIN_SCROLLBAR_THUMB_HEIGHT = 20
   const MAX_PROFILE_BYTES = 64 * 1024
+  const INSPECTOR_LOOKAHEAD_BYTES = 8
+  const INSPECTOR_HOVER_DELAY_MS = 420
 
   // ── State ───────────────────────────────────────────
   let bufferOffset = 0
@@ -1046,6 +1323,11 @@ export function getWebviewContent(bytesPerRow: number): string {
   let matchedByteOffsets = new Set()
   let searchMatchIndex = -1
   let searchPatternLength = 0
+  let searchDebounceTimer = null
+  let findWidgetVisible = false
+  let findReplaceVisible = false
+  let byteEditMode = 'insert'
+  let pendingHexNibble = null
   let isDraggingScrollbar = false
   let isPointerSelecting = false
   let scrollbarDragOffsetY = 0
@@ -1076,6 +1358,15 @@ export function getWebviewContent(bytesPerRow: number): string {
   let historyRedoCount = 0
   let transformPlugins = []
   let transformPluginsRequested = false
+  let byteInspectorOffset = -1
+  let byteInspectorAnchor = null
+  let byteInspectorHideTimer = null
+  let byteInspectorHoverTimer = null
+  let byteInspectorEditKey = ''
+  let byteInspectorEditValue = ''
+  let byteInspectorEditError = ''
+  let byteInspectorPinned = false
+  let pasteContext = null
   const transformOptionsByPluginId = new Map()
   const renderSamples = []
 
@@ -1084,6 +1375,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   const hexColumnHeader = document.getElementById('hexColumnHeader')
   const scrollbarTrack = document.getElementById('scrollbarTrack')
   const scrollbarThumb = document.getElementById('scrollbarThumb')
+  const byteInspector = document.getElementById('byteInspector')
+  const pastePopover = document.getElementById('pastePopover')
   const bytesPerRowSelect = document.getElementById('bytesPerRowSelect')
   const offsetRadixSelect = document.getElementById('offsetRadixSelect')
   const statusOffset = document.getElementById('statusOffset')
@@ -1093,6 +1386,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   const statusProgress = document.getElementById('statusProgress')
   const statusMatches = document.getElementById('statusMatches')
   const statusAction = document.getElementById('statusAction')
+  const editModeBtn = document.getElementById('editModeBtn')
   const statusInspector = document.getElementById('statusInspector')
   const inspectorEndianBtn = document.getElementById('inspectorEndianBtn')
   const serverHealth = document.getElementById('serverHealth')
@@ -1100,6 +1394,9 @@ export function getWebviewContent(bytesPerRow: number): string {
   const serverHealthSummary = document.getElementById('serverHealthSummary')
   const serverHealthBadge = document.getElementById('serverHealthBadge')
   const serverHealthMetrics = document.getElementById('serverHealthMetrics')
+  const findWidget = document.getElementById('findWidget')
+  const findReplaceToggle = document.getElementById('findReplaceToggle')
+  const findCloseBtn = document.getElementById('findCloseBtn')
   const searchInput = document.getElementById('searchInput')
   const replaceInput = document.getElementById('replaceInput')
   const searchHex = document.getElementById('searchHex')
@@ -1112,8 +1409,6 @@ export function getWebviewContent(bytesPerRow: number): string {
   const matchNav = document.getElementById('matchNav')
   const prevMatchBtn = document.getElementById('prevMatch')
   const nextMatchBtn = document.getElementById('nextMatch')
-  const topBtn = document.getElementById('topBtn')
-  const bottomBtn = document.getElementById('bottomBtn')
   const transformSelect = document.getElementById('transformSelect')
   const transformOptions = document.getElementById('transformOptions')
   const editDialog = document.getElementById('editDialog')
@@ -1290,6 +1585,355 @@ export function getWebviewContent(bytesPerRow: number): string {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
   }
+
+  function escapeAttribute(text) {
+    return escapeHtml(String(text))
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;')
+  }
+
+  function bytesToHex(bytes) {
+    return bytes.map((byte) => toHex2(byte)).join('')
+  }
+
+  function bytesToSpacedHex(bytes) {
+    return bytes.map((byte) => toHex2(byte)).join(' ')
+  }
+
+  function makeDataView(bytes) {
+    return new DataView(Uint8Array.from(bytes).buffer)
+  }
+
+  function getInspectorBytes(offset, length = INSPECTOR_LOOKAHEAD_BYTES) {
+    const index = offset - bufferOffset
+    if (index < 0 || index >= viewportLength || offset < 0 || offset >= fileSize) {
+      return []
+    }
+    return viewportData.slice(index, Math.min(index + length, viewportLength, fileSize - bufferOffset))
+  }
+
+  function parseBigIntInput(raw) {
+    const text = String(raw).trim().replaceAll('_', '')
+    if (!text) {
+      throw new Error('empty value')
+    }
+
+    let sign = 1n
+    let body = text
+    if (body[0] === '-') {
+      sign = -1n
+      body = body.slice(1)
+    } else if (body[0] === '+') {
+      body = body.slice(1)
+    }
+
+    if (/^0x[0-9a-f]+$/i.test(body) || /^0b[01]+$/i.test(body) || /^0o[0-7]+$/i.test(body) || /^[0-9]+$/.test(body)) {
+      return sign * BigInt(body)
+    }
+
+    throw new Error('invalid integer')
+  }
+
+  function parseIntegerInRange(raw, min, max) {
+    const value = parseBigIntInput(raw)
+    if (value < min || value > max) {
+      throw new Error('out of range')
+    }
+    return value
+  }
+
+  function writeIntegerBytes(value, byteLength, signed, littleEndian) {
+    const buffer = new ArrayBuffer(byteLength)
+    const view = new DataView(buffer)
+    if (byteLength === 1) {
+      signed ? view.setInt8(0, Number(value)) : view.setUint8(0, Number(value))
+    } else if (byteLength === 2) {
+      signed ? view.setInt16(0, Number(value), littleEndian) : view.setUint16(0, Number(value), littleEndian)
+    } else if (byteLength === 3) {
+      const mask = 0xffffffn
+      const unsigned = signed && value < 0 ? (1n << 24n) + value : value
+      const v = Number(unsigned & mask)
+      const bytes = littleEndian
+        ? [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff]
+        : [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff]
+      return bytesToHex(bytes)
+    } else if (byteLength === 4) {
+      signed ? view.setInt32(0, Number(value), littleEndian) : view.setUint32(0, Number(value), littleEndian)
+    } else if (byteLength === 8) {
+      signed ? view.setBigInt64(0, value, littleEndian) : view.setBigUint64(0, value, littleEndian)
+    }
+    return bytesToHex(Array.from(new Uint8Array(buffer)))
+  }
+
+  function getUint24FromBytes(bytes, littleEndian) {
+    return littleEndian
+      ? bytes[0] | (bytes[1] << 8) | (bytes[2] << 16)
+      : (bytes[0] << 16) | (bytes[1] << 8) | bytes[2]
+  }
+
+  function getInt24FromBytes(bytes, littleEndian) {
+    const value = getUint24FromBytes(bytes, littleEndian)
+    return (value & 0x800000) ? value - 0x1000000 : value
+  }
+
+  function readFloat16(bytes, exponentWidth, significandPrecision, littleEndian) {
+    const uint16 = littleEndian
+      ? bytes[0] | (bytes[1] << 8)
+      : (bytes[0] << 8) | bytes[1]
+    const exponentMask = (2 ** exponentWidth - 1) << significandPrecision
+    const fractionMask = 2 ** significandPrecision - 1
+    const exponentBias = 2 ** (exponentWidth - 1) - 1
+    const exponentMin = 1 - exponentBias
+    const exponent = (uint16 & exponentMask) >> significandPrecision
+    const fraction = uint16 & fractionMask
+    const sign = uint16 >> 15 ? -1 : 1
+
+    if (exponent === 0) {
+      return String(sign * 2 ** exponentMin * (fraction / 2 ** significandPrecision))
+    }
+    if (exponent === 2 ** exponentWidth - 1) {
+      return String(fraction ? NaN : sign * Infinity)
+    }
+    return String(sign * 2 ** (exponent - exponentBias) * (1 + fraction / 2 ** significandPrecision))
+  }
+
+  function firstUnicodeCharacter(raw) {
+    const chars = Array.from(String(raw))
+    if (chars.length !== 1) {
+      throw new Error('enter one character')
+    }
+    return chars[0]
+  }
+
+  function formatTextInspectorValue(value) {
+    if (!value) {
+      return '?'
+    }
+    const codePoint = value.codePointAt(0)
+    if (codePoint < 0x20 || codePoint === 0x7f) {
+      return 'U+' + codePoint.toString(16).toUpperCase().padStart(4, '0')
+    }
+    return "'" + value + "'"
+  }
+
+  function decodeFirstUtf8(bytes) {
+    const maxLength = Math.min(4, bytes.length)
+    for (let length = 1; length <= maxLength; length++) {
+      try {
+        const text = new TextDecoder('utf-8', { fatal: true })
+          .decode(Uint8Array.from(bytes.slice(0, length)))
+        const chars = Array.from(text)
+        if (chars.length === 1) {
+          return chars[0]
+        }
+      } catch {
+        // Keep extending the prefix until a complete UTF-8 scalar is available.
+      }
+    }
+    return ''
+  }
+
+  function readUtf16CodeUnit(bytes, index, littleEndian) {
+    return littleEndian
+      ? bytes[index] | (bytes[index + 1] << 8)
+      : (bytes[index] << 8) | bytes[index + 1]
+  }
+
+  function decodeFirstUtf16(bytes, littleEndian) {
+    if (bytes.length < 2) {
+      return ''
+    }
+
+    const first = readUtf16CodeUnit(bytes, 0, littleEndian)
+    if (first >= 0xd800 && first <= 0xdbff) {
+      if (bytes.length < 4) {
+        return ''
+      }
+      const second = readUtf16CodeUnit(bytes, 2, littleEndian)
+      if (second < 0xdc00 || second > 0xdfff) {
+        return ''
+      }
+      return String.fromCodePoint(
+        0x10000 + ((first - 0xd800) << 10) + (second - 0xdc00)
+      )
+    }
+    if (first >= 0xdc00 && first <= 0xdfff) {
+      return ''
+    }
+    return String.fromCharCode(first)
+  }
+
+  function encodeUtf16Character(value, littleEndian) {
+    const char = firstUnicodeCharacter(value)
+    const codePoint = char.codePointAt(0)
+    const codeUnits = codePoint > 0xffff
+      ? [
+          0xd800 + ((codePoint - 0x10000) >> 10),
+          0xdc00 + ((codePoint - 0x10000) & 0x3ff),
+        ]
+      : [codePoint]
+    const bytes = []
+
+    for (const codeUnit of codeUnits) {
+      if (littleEndian) {
+        bytes.push(codeUnit & 0xff, (codeUnit >> 8) & 0xff)
+      } else {
+        bytes.push((codeUnit >> 8) & 0xff, codeUnit & 0xff)
+      }
+    }
+
+    return bytesToHex(bytes)
+  }
+
+  function integerField(key, label, byteLength, signed) {
+    const bits = BigInt(byteLength * 8)
+    const min = signed ? -(1n << (bits - 1n)) : 0n
+    const max = signed ? (1n << (bits - 1n)) - 1n : (1n << bits) - 1n
+    return {
+      key,
+      label,
+      minBytes: byteLength,
+      editable: true,
+      read: (bytes, le) => {
+        const view = makeDataView(bytes)
+        if (byteLength === 1) {
+          return signed ? view.getInt8(0).toString() : view.getUint8(0).toString()
+        }
+        if (byteLength === 2) {
+          return signed ? view.getInt16(0, le).toString() : view.getUint16(0, le).toString()
+        }
+        if (byteLength === 3) {
+          return signed ? getInt24FromBytes(bytes, le).toString() : getUint24FromBytes(bytes, le).toString()
+        }
+        if (byteLength === 4) {
+          return signed ? view.getInt32(0, le).toString() : view.getUint32(0, le).toString()
+        }
+        return signed ? view.getBigInt64(0, le).toString() : view.getBigUint64(0, le).toString()
+      },
+      write: (raw, le) => writeIntegerBytes(parseIntegerInRange(raw, min, max), byteLength, signed, le),
+    }
+  }
+
+  const inspectorFields = [
+    {
+      key: 'hex8',
+      label: 'byte',
+      minBytes: 1,
+      editable: true,
+      read: (bytes) => '0x' + toHex2(bytes[0]),
+      editValue: (bytes) => '0x' + toHex2(bytes[0]),
+      write: (raw) => {
+        const text = String(raw).trim().replace(/^0x/i, '')
+        if (!/^[0-9a-f]{1,2}$/i.test(text)) {
+          throw new Error('invalid byte')
+        }
+        return toHex2(parseInt(text, 16))
+      },
+    },
+    {
+      key: 'ascii',
+      label: 'ascii',
+      minBytes: 1,
+      editable: true,
+      read: (bytes) => isPrintable(bytes[0]) ? "'" + String.fromCharCode(bytes[0]) + "'" : '?',
+      editValue: (bytes) => isPrintable(bytes[0]) ? String.fromCharCode(bytes[0]) : '',
+      write: (raw) => {
+        const value = String(raw)
+        if (value.length !== 1 || value.charCodeAt(0) > 0x7f) {
+          throw new Error('enter one ASCII character')
+        }
+        return toHex2(value.charCodeAt(0))
+      },
+    },
+    {
+      key: 'utf8',
+      label: 'utf-8',
+      minBytes: 1,
+      editable: true,
+      read: (bytes) => formatTextInspectorValue(decodeFirstUtf8(bytes)),
+      editValue: (bytes) => decodeFirstUtf8(bytes),
+      write: (raw) => bytesToHex(Array.from(new TextEncoder().encode(firstUnicodeCharacter(raw)))),
+    },
+    {
+      key: 'utf16',
+      label: 'utf-16',
+      minBytes: 2,
+      editable: true,
+      read: (bytes, le) => formatTextInspectorValue(decodeFirstUtf16(bytes, le)),
+      editValue: (bytes, le) => decodeFirstUtf16(bytes, le),
+      write: (raw, le) => encodeUtf16Character(raw, le),
+    },
+    {
+      key: 'binary',
+      label: 'binary',
+      minBytes: 1,
+      editable: true,
+      read: (bytes) => bytes[0].toString(2).padStart(8, '0'),
+      write: (raw) => {
+        const text = String(raw).trim().replace(/^0b/i, '')
+        if (!/^[01]{1,8}$/.test(text)) {
+          throw new Error('invalid binary byte')
+        }
+        return toHex2(parseInt(text, 2))
+      },
+    },
+    {
+      key: 'octal',
+      label: 'octal',
+      minBytes: 1,
+      editable: true,
+      read: (bytes) => bytes[0].toString(8).padStart(3, '0'),
+      write: (raw) => {
+        const text = String(raw).trim().replace(/^0o/i, '')
+        if (!/^[0-7]{1,3}$/.test(text)) {
+          throw new Error('invalid octal byte')
+        }
+        const value = parseInt(text, 8)
+        if (value > 0xff) {
+          throw new Error('out of range')
+        }
+        return toHex2(value)
+      },
+    },
+    integerField('uint8', 'uint8', 1, false),
+    integerField('int8', 'int8', 1, true),
+    integerField('uint16', 'uint16', 2, false),
+    integerField('int16', 'int16', 2, true),
+    integerField('uint24', 'uint24', 3, false),
+    integerField('int24', 'int24', 3, true),
+    integerField('uint32', 'uint32', 4, false),
+    integerField('int32', 'int32', 4, true),
+    integerField('uint64', 'uint64', 8, false),
+    integerField('int64', 'int64', 8, true),
+    {
+      key: 'float16',
+      label: 'float16',
+      minBytes: 2,
+      editable: false,
+      read: (bytes, le) => readFloat16(bytes, 5, 10, le),
+    },
+    {
+      key: 'bfloat16',
+      label: 'bfloat16',
+      minBytes: 2,
+      editable: false,
+      read: (bytes, le) => readFloat16(bytes, 8, 7, le),
+    },
+    {
+      key: 'float32',
+      label: 'float32',
+      minBytes: 4,
+      editable: false,
+      read: (bytes, le) => makeDataView(bytes).getFloat32(0, le).toString(),
+    },
+    {
+      key: 'float64',
+      label: 'float64',
+      minBytes: 8,
+      editable: false,
+      read: (bytes, le) => makeDataView(bytes).getFloat64(0, le).toString(),
+    },
+  ]
 
   function renderMetricRows(target, rows) {
     target.innerHTML = rows
@@ -2437,6 +3081,217 @@ export function getWebviewContent(bytesPerRow: number): string {
       ' | u32' + endianLabel + ' ' + (u32 === null ? '-' : u32.toLocaleString())
   }
 
+  function cancelByteInspectorTimers() {
+    if (byteInspectorHoverTimer) {
+      clearTimeout(byteInspectorHoverTimer)
+      byteInspectorHoverTimer = null
+    }
+    if (byteInspectorHideTimer) {
+      clearTimeout(byteInspectorHideTimer)
+      byteInspectorHideTimer = null
+    }
+  }
+
+  function hideByteInspector() {
+    cancelByteInspectorTimers()
+    byteInspector.classList.remove('active')
+    byteInspector.classList.remove('pinned')
+    byteInspector.innerHTML = ''
+    byteInspectorOffset = -1
+    byteInspectorAnchor = null
+    byteInspectorEditKey = ''
+    byteInspectorEditValue = ''
+    byteInspectorEditError = ''
+    byteInspectorPinned = false
+  }
+
+  function scheduleByteInspectorHide() {
+    if (byteInspectorPinned) {
+      return
+    }
+    if (byteInspectorHideTimer) {
+      clearTimeout(byteInspectorHideTimer)
+    }
+    byteInspectorHideTimer = setTimeout(() => {
+      if (!byteInspector.matches(':hover')) {
+        hideByteInspector()
+      }
+    }, 160)
+  }
+
+  function positionByteInspector(anchor) {
+    if (!anchor || !byteInspector.classList.contains('active')) {
+      return
+    }
+    if (byteInspectorPinned && byteInspector.style.left && byteInspector.style.top) {
+      return
+    }
+
+    const anchorRect = anchor.getBoundingClientRect()
+    const popoverRect = byteInspector.getBoundingClientRect()
+    const gap = 8
+    let left = anchorRect.left
+    let top = anchorRect.bottom + gap
+
+    if (left + popoverRect.width > window.innerWidth - 8) {
+      left = window.innerWidth - popoverRect.width - 8
+    }
+    if (top + popoverRect.height > window.innerHeight - 8) {
+      top = anchorRect.top - popoverRect.height - gap
+    }
+
+    byteInspector.style.left = Math.max(8, left) + 'px'
+    byteInspector.style.top = Math.max(8, top) + 'px'
+  }
+
+  function renderByteInspector() {
+    if (byteInspectorOffset < 0) {
+      hideByteInspector()
+      return
+    }
+
+    const bytes = getInspectorBytes(byteInspectorOffset)
+    if (bytes.length === 0) {
+      hideByteInspector()
+      return
+    }
+
+    const le = inspectorLittleEndian
+    const endianLabel = le ? 'LE' : 'BE'
+    const pinnedLabel = byteInspectorPinned ? 'Pinned' : 'Pin'
+    let rows = ''
+
+    for (const field of inspectorFields) {
+      const available = bytes.length >= field.minBytes
+      const value = available ? field.read(bytes, le) : 'End of file'
+      const editable = available && field.editable
+      rows += '<div class="byte-inspector-row" data-field-row="' + escapeAttribute(field.key) + '">' +
+        '<span class="byte-inspector-label">' + escapeHtml(field.label) + '</span>'
+
+      if (byteInspectorEditKey === field.key && editable) {
+        const editValue = byteInspectorEditValue || (field.editValue ? field.editValue(bytes, le) : value)
+        rows += '<span class="byte-inspector-edit">' +
+          '<input id="byteInspectorInput" value="' + escapeAttribute(editValue) + '"' +
+            (byteInspectorEditError ? ' class="invalid"' : '') +
+            ' data-field="' + escapeAttribute(field.key) + '" />' +
+          '<button class="secondary" data-inspector-commit="' + escapeAttribute(field.key) + '">OK</button>' +
+          '<button class="secondary" data-inspector-cancel="true">x</button>' +
+        '</span>'
+      } else if (editable) {
+        rows += '<button class="byte-inspector-value" data-inspector-edit="' +
+          escapeAttribute(field.key) +
+          '">' +
+          escapeHtml(value) +
+        '</button>'
+      } else {
+        rows += '<span class="byte-inspector-value readonly">' + escapeHtml(value) + '</span>'
+      }
+
+      rows += '</div>'
+    }
+
+    byteInspector.innerHTML =
+      '<div class="byte-inspector-header">' +
+        '<span>' +
+          '<span class="byte-inspector-title">' + escapeHtml(formatOffsetDisplay(byteInspectorOffset)) + '</span>' +
+          '<span class="byte-inspector-meta"> ' + escapeHtml(bytesToSpacedHex(bytes)) + '</span>' +
+        '</span>' +
+        '<span class="byte-inspector-actions">' +
+          '<button class="status-inline-button' + (byteInspectorPinned ? ' active' : '') + '" data-inspector-pin="true" title="Toggle pinned inspector with Space">' + pinnedLabel + '</button>' +
+          '<button class="status-inline-button" data-inspector-endian="true" title="Toggle inspector endianness">' + endianLabel + '</button>' +
+        '</span>' +
+      '</div>' +
+      '<div class="byte-inspector-grid">' + rows + '</div>' +
+      '<div class="byte-inspector-error">' + escapeHtml(byteInspectorEditError) + '</div>'
+
+    byteInspector.classList.add('active')
+    byteInspector.classList.toggle('pinned', byteInspectorPinned)
+    positionByteInspector(byteInspectorAnchor)
+
+    const input = document.getElementById('byteInspectorInput')
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  }
+
+  function showByteInspector(offset, anchor) {
+    cancelByteInspectorTimers()
+    byteInspectorOffset = offset
+    byteInspectorAnchor = anchor
+    byteInspectorEditKey = ''
+    byteInspectorEditValue = ''
+    byteInspectorEditError = ''
+    byteInspectorPinned = false
+    renderByteInspector()
+  }
+
+  function scheduleByteInspector(offset, anchor) {
+    if (byteInspectorPinned) {
+      return
+    }
+    if (isPointerSelecting || !anchor) {
+      hideByteInspector()
+      return
+    }
+    if (byteInspectorOffset === offset && byteInspector.classList.contains('active')) {
+      byteInspectorAnchor = anchor
+      positionByteInspector(anchor)
+      return
+    }
+    if (byteInspector.classList.contains('active')) {
+      hideByteInspector()
+    }
+    if (byteInspectorHoverTimer) {
+      clearTimeout(byteInspectorHoverTimer)
+    }
+    byteInspectorHoverTimer = setTimeout(() => {
+      showByteInspector(offset, anchor)
+    }, INSPECTOR_HOVER_DELAY_MS)
+  }
+
+  function commitByteInspectorEdit(fieldKey) {
+    const field = inspectorFields.find((candidate) => candidate.key === fieldKey)
+    const input = document.getElementById('byteInspectorInput')
+    if (!field || !input || byteInspectorOffset < 0) {
+      return
+    }
+
+    try {
+      const data = field.write(input.value, inspectorLittleEndian)
+      clearReplaceSummaryActionStatus()
+      vscode.postMessage({
+        type: 'overwrite',
+        offset: byteInspectorOffset,
+        data: data,
+      })
+      selectRange(byteInspectorOffset, data.length / 2)
+      updateActionStatus('Wrote ' + (data.length / 2).toLocaleString() + ' byte(s)')
+      if (byteInspectorPinned) {
+        byteInspectorEditKey = ''
+        byteInspectorEditValue = ''
+        byteInspectorEditError = ''
+        renderByteInspector()
+      } else {
+        hideByteInspector()
+      }
+    } catch (error) {
+      byteInspectorEditValue = input.value
+      byteInspectorEditError = error instanceof Error ? error.message : String(error)
+      renderByteInspector()
+    }
+  }
+
+  function toggleByteInspectorPinned(forcePinned) {
+    if (!byteInspector.classList.contains('active')) {
+      return
+    }
+    byteInspectorPinned =
+      typeof forcePinned === 'boolean' ? forcePinned : !byteInspectorPinned
+    cancelByteInspectorTimers()
+    renderByteInspector()
+  }
+
   function updateProgressStatus() {
     if (fileSize <= 0) {
       statusProgress.textContent = '0.00%'
@@ -2459,6 +3314,56 @@ export function getWebviewContent(bytesPerRow: number): string {
     nextMatchBtn.disabled = !hasMatches
     replaceBtn.disabled = !hasMatches
     replaceAllBtn.disabled = !hasMatches
+  }
+
+  function updateFindWidgetVisibility() {
+    findWidget.classList.toggle('visible', findWidgetVisible)
+    findWidget.classList.toggle('replace-visible', findReplaceVisible)
+    findWidget.setAttribute('aria-hidden', findWidgetVisible ? 'false' : 'true')
+    findReplaceToggle.innerHTML = findReplaceVisible ? '&#8964;' : '&#8250;'
+    findReplaceToggle.title = findReplaceVisible ? 'Hide replace' : 'Show replace'
+  }
+
+  function openFindWidget(showReplace = false) {
+    findWidgetVisible = true
+    findReplaceVisible = findReplaceVisible || showReplace
+    updateFindWidgetVisibility()
+    window.setTimeout(() => {
+      ;(showReplace ? replaceInput : searchInput).focus()
+      ;(showReplace ? replaceInput : searchInput).select()
+    }, 0)
+  }
+
+  function closeFindWidget() {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+    findWidgetVisible = false
+    updateFindWidgetVisibility()
+    hexContainer.focus()
+  }
+
+  function toggleFindReplace() {
+    findReplaceVisible = !findReplaceVisible
+    updateFindWidgetVisibility()
+    if (findReplaceVisible) {
+      replaceInput.focus()
+    }
+  }
+
+  function updateEditModeStatus() {
+    editModeBtn.textContent = byteEditMode === 'insert' ? 'Insert' : 'Overwrite'
+    editModeBtn.title = byteEditMode === 'insert'
+      ? 'Switch to overwrite mode'
+      : 'Switch to insert mode'
+  }
+
+  function toggleByteEditMode() {
+    byteEditMode = byteEditMode === 'insert' ? 'overwrite' : 'insert'
+    pendingHexNibble = null
+    updateEditModeStatus()
+    updateActionStatus('Edit mode: ' + editModeBtn.textContent)
   }
 
   function updateHistoryState(canUndo, canRedo, undoCount = 0, redoCount = 0) {
@@ -2543,6 +3448,7 @@ export function getWebviewContent(bytesPerRow: number): string {
   }
 
   function scrollToViewportOffset(offset) {
+    hideByteInspector()
     const clampedOffset = clampOffset(offset)
     const rowAlignedOffset = clampedOffset - (clampedOffset % BYTES_PER_ROW)
     const renderedByteCount = currentVisibleByteCount()
@@ -2725,6 +3631,21 @@ export function getWebviewContent(bytesPerRow: number): string {
     return utf8ToHex(text)
   }
 
+  function parseClipboardTextAsBase64(text) {
+    const compact = text.trim().replace(/\s/g, '')
+    if (!compact || compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact)) {
+      return null
+    }
+    try {
+      const binary = atob(compact)
+      return Array.from(binary, (char) =>
+        char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')
+      ).join('')
+    } catch {
+      return null
+    }
+  }
+
   function bytesToDisplayText(bytes) {
     return bytes
       .map((byte) => (isPrintable(byte) ? String.fromCharCode(byte) : '?'))
@@ -2733,6 +3654,10 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   function setActivePane(pane) {
     activePane = pane === 'ascii' ? 'ascii' : 'hex'
+  }
+
+  function getClipboardFormat() {
+    return activePane === 'ascii' ? 'utf8' : 'hex'
   }
 
   function getPasteTarget() {
@@ -2750,15 +3675,8 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
   }
 
-  function handleCopyEvent(clipboardData) {
-    const selectedBytes = getSelectedBytes()
-    if (!selectedBytes || selectedBytes.length === 0) {
-      updateActionStatus('Select one or more bytes to copy')
-      return false
-    }
-
+  function writeVisibleSelectionClipboard(clipboardData, selectedBytes) {
     if (!clipboardData) {
-      updateActionStatus('Clipboard is unavailable')
       return false
     }
 
@@ -2772,41 +3690,219 @@ export function getWebviewContent(bytesPerRow: number): string {
       INTERNAL_HEX_CLIPBOARD_FORMAT,
       selectedBytes.map((byte) => toHex2(byte)).join('')
     )
+    return true
+  }
+
+  function postSelectionClipboard(action) {
+    if (!hasSelection() || getSelectionLength() <= 0) {
+      updateActionStatus('Select one or more bytes to ' + action)
+      return false
+    }
+
+    vscode.postMessage({
+      type: action === 'cut' ? 'cutSelection' : 'copySelection',
+      offset: getSelectionStart(),
+      length: getSelectionLength(),
+      format: getClipboardFormat(),
+    })
     updateActionStatus(
-      'Copied ' +
+      (action === 'cut' ? 'Cutting ' : 'Copying ') +
       getSelectionLength().toLocaleString() +
-      ' byte(s) as ' +
-      (activePane === 'ascii' ? 'text' : 'hex')
+      ' byte(s)'
     )
     return true
   }
 
-  function handlePasteEvent(clipboardData) {
+  function handleCopyEvent(clipboardData) {
+    const selectedBytes = getSelectedBytes()
+    if (selectedBytes && selectedBytes.length > 0) {
+      if (!writeVisibleSelectionClipboard(clipboardData, selectedBytes)) {
+        return postSelectionClipboard('copy')
+      }
+      updateActionStatus(
+        'Copied ' +
+        getSelectionLength().toLocaleString() +
+        ' byte(s) as ' +
+        (activePane === 'ascii' ? 'text' : 'hex')
+      )
+      return true
+    }
+
+    return postSelectionClipboard('copy')
+  }
+
+  function getPasteAnchorElement(target) {
+    return target?.closest?.('[data-offset]') ??
+      hexContainer.querySelector('[data-offset="' + selectedOffset + '"]') ??
+      hexContainer
+  }
+
+  function pasteEncodingOptions(context) {
+    return {
+      utf8: context.plainText.length > 0,
+      hex:
+        !!context.internalHex ||
+        (context.plainText.length > 0 &&
+          normalizedHexQuery(context.plainText) !== null),
+      base64: parseClipboardTextAsBase64(context.plainText) !== null,
+    }
+  }
+
+  function decodePasteContext(context) {
+    if (!context) {
+      return null
+    }
+
+    if (context.encoding === 'hex') {
+      return context.internalHex || normalizedHexQuery(context.plainText)
+    }
+    if (context.encoding === 'base64') {
+      return parseClipboardTextAsBase64(context.plainText)
+    }
+    return context.plainText ? utf8ToHex(context.plainText) : null
+  }
+
+  function pasteReplaceLength(context, pasteHex) {
+    if (context.target.type === 'replace') {
+      return context.target.length
+    }
+    return Math.min(pasteHex.length / 2, Math.max(0, fileSize - context.target.offset))
+  }
+
+  function positionPastePopover(anchor) {
+    const rect = anchor.getBoundingClientRect()
+    pastePopover.style.left = '0px'
+    pastePopover.style.top = '0px'
+    pastePopover.classList.add('active')
+    const popoverRect = pastePopover.getBoundingClientRect()
+    const left = clamp(8, rect.left, window.innerWidth - popoverRect.width - 8)
+    const below = rect.bottom + 8
+    const top = below + popoverRect.height <= window.innerHeight - 8
+      ? below
+      : clamp(8, rect.top - popoverRect.height - 8, window.innerHeight - popoverRect.height - 8)
+    pastePopover.style.left = left + 'px'
+    pastePopover.style.top = top + 'px'
+  }
+
+  function renderPastePopover() {
+    if (!pasteContext) {
+      pastePopover.classList.remove('active')
+      pastePopover.innerHTML = ''
+      return
+    }
+
+    const options = pasteEncodingOptions(pasteContext)
+    const pasteHex = decodePasteContext(pasteContext)
+    const byteCount = pasteHex ? pasteHex.length / 2 : 0
+    const encodingRadio = (value, label) =>
+      '<label' + (options[value] ? '' : ' class="disabled"') + '>' +
+      '<input type="radio" name="pasteEncoding" value="' + value + '"' +
+      (pasteContext.encoding === value ? ' checked' : '') +
+      (options[value] ? '' : ' disabled') +
+      ' />' +
+      label +
+      '</label>'
+    const modeRadio = (value, label) =>
+      '<label>' +
+      '<input type="radio" name="pasteMode" value="' + value + '"' +
+      (pasteContext.mode === value ? ' checked' : '') +
+      ' />' +
+      label +
+      '</label>'
+
+    pastePopover.innerHTML =
+      '<div class="paste-popover-title">Paste</div>' +
+      '<div class="paste-popover-row">' +
+        '<div class="paste-popover-label">As</div>' +
+        '<div class="paste-popover-options">' +
+          encodingRadio('utf8', 'UTF-8') +
+          encodingRadio('hex', 'Hex') +
+          encodingRadio('base64', 'Base64') +
+        '</div>' +
+      '</div>' +
+      '<div class="paste-popover-row">' +
+        '<div class="paste-popover-label">Mode</div>' +
+        '<div class="paste-popover-options">' +
+          modeRadio('replace', pasteContext.target.type === 'replace' ? 'Replace selection' : 'Replace') +
+          modeRadio('insert', 'Insert') +
+        '</div>' +
+      '</div>' +
+      '<div class="paste-popover-error">' +
+        (pasteHex ? '' : 'Choose a valid encoding') +
+      '</div>' +
+      '<div class="paste-popover-actions">' +
+        '<button class="secondary" data-paste-action="cancel">Cancel</button>' +
+        '<button data-paste-action="apply"' + (pasteHex ? '' : ' disabled') + '>' +
+          (pasteContext.mode === 'replace' ? 'Replace ' : 'Insert ') +
+          byteCount.toLocaleString() +
+          ' byte(s)' +
+        '</button>' +
+      '</div>'
+
+    positionPastePopover(pasteContext.anchor)
+  }
+
+  function hidePastePopover() {
+    pasteContext = null
+    renderPastePopover()
+  }
+
+  function showPastePopover(clipboardData, anchorTarget) {
     const internalHex = clipboardData?.getData(INTERNAL_HEX_CLIPBOARD_FORMAT) ?? ''
-    const plainText = clipboardData?.getData('text/plain') ?? ''
-    const pasteHex = internalHex ||
-      (activePane === 'ascii'
-        ? (plainText ? utf8ToHex(plainText) : null)
-        : parseClipboardTextAsHex(plainText))
+    const plainText =
+      clipboardData?.getData('text/plain') ||
+      clipboardData?.getData('text') ||
+      ''
+    const target = getPasteTarget()
+    const options = {
+      internalHex,
+      plainText,
+    }
+    const available = pasteEncodingOptions(options)
+    const preferredEncoding =
+      internalHex || (activePane === 'hex' && available.hex)
+        ? 'hex'
+        : available.utf8
+          ? 'utf8'
+          : available.base64
+            ? 'base64'
+            : 'utf8'
+    pasteContext = {
+      ...options,
+      target,
+      anchor: getPasteAnchorElement(anchorTarget),
+      encoding: preferredEncoding,
+      mode: target.type === 'replace' || byteEditMode === 'overwrite' ? 'replace' : 'insert',
+    }
+    renderPastePopover()
+    return true
+  }
+
+  function applyPasteContext() {
+    const pasteHex = decodePasteContext(pasteContext)
     if (!pasteHex) {
       updateActionStatus('Clipboard is empty')
       return false
     }
 
-    const target = getPasteTarget()
-    if (target.type === 'replace') {
+    if (pasteContext.mode === 'replace') {
+      const length = pasteReplaceLength(pasteContext, pasteHex)
+      if (length <= 0 && fileSize > 0) {
+        updateActionStatus('No bytes available to replace')
+        return false
+      }
       clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'replace',
-        offset: target.offset,
-        length: target.length,
+        offset: pasteContext.target.offset,
+        length,
         data: pasteHex,
       })
     } else {
       clearReplaceSummaryActionStatus()
       vscode.postMessage({
         type: 'insert',
-        offset: target.offset,
+        offset: pasteContext.target.offset,
         data: pasteHex,
       })
     }
@@ -2814,6 +3910,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     updateActionStatus(
       'Pasted ' + (pasteHex.length / 2).toLocaleString() + ' byte(s)'
     )
+    hidePastePopover()
     return true
   }
 
@@ -2887,6 +3984,106 @@ export function getWebviewContent(bytesPerRow: number): string {
 
     selectOffset(nextOffset, extendSelection)
     ensureSelectionVisible(direction)
+  }
+
+  function selectedEditOffset() {
+    if (hasSelection()) {
+      return getSelectionStart()
+    }
+    return fileSize > 0 ? clampOffset(visibleOffset) : 0
+  }
+
+  function postDeleteRange(offset, length) {
+    if (length <= 0 || fileSize <= 0) {
+      return
+    }
+    clearReplaceSummaryActionStatus()
+    vscode.postMessage({
+      type: 'delete',
+      offset: offset,
+      length: length,
+    })
+    selectOffset(Math.min(offset, Math.max(0, fileSize - length - 1)))
+  }
+
+  function deleteFromKeyboard(backward = false) {
+    if (fileSize <= 0) {
+      return
+    }
+
+    if (hasSelection() && getSelectionLength() > 1) {
+      postDeleteRange(getSelectionStart(), getSelectionLength())
+      return
+    }
+
+    const offset = selectedEditOffset()
+    if (backward) {
+      if (offset <= 0) {
+        return
+      }
+      postDeleteRange(offset - 1, 1)
+      return
+    }
+
+    postDeleteRange(offset, 1)
+  }
+
+  function applyTypedByte(byte) {
+    const offset = selectedEditOffset()
+    const data = toHex2(byte)
+    clearReplaceSummaryActionStatus()
+
+    if (byteEditMode === 'insert' || fileSize <= 0 || offset >= fileSize) {
+      vscode.postMessage({
+        type: 'insert',
+        offset: offset,
+        data: data,
+      })
+      updateActionStatus('Inserted 1 byte')
+    } else {
+      vscode.postMessage({
+        type: 'overwrite',
+        offset: offset,
+        data: data,
+      })
+      updateActionStatus('Overwrote 1 byte')
+    }
+
+    pendingHexNibble = null
+    selectOffset(Math.min(offset + 1, Math.max(0, fileSize - 1)))
+  }
+
+  function handleTypedByteKey(e) {
+    if (!hasSelection() && fileSize > 0) {
+      return false
+    }
+
+    if (activePane === 'ascii') {
+      if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+        return false
+      }
+      const byte = e.key.charCodeAt(0)
+      if (byte > 0xff) {
+        updateActionStatus('Text pane edits support one-byte characters')
+        return true
+      }
+      applyTypedByte(byte)
+      return true
+    }
+
+    const hexDigit = /^[0-9a-f]$/i.test(e.key) ? parseInt(e.key, 16) : null
+    if (hexDigit === null) {
+      return false
+    }
+
+    if (pendingHexNibble === null) {
+      pendingHexNibble = hexDigit
+      updateActionStatus('Hex edit: ' + e.key.toUpperCase() + '_')
+      return true
+    }
+
+    applyTypedByte((pendingHexNibble << 4) | hexDigit)
+    return true
   }
 
   function syncSearchMode() {
@@ -3093,6 +4290,9 @@ export function getWebviewContent(bytesPerRow: number): string {
     statusSize.textContent = fileSize.toLocaleString()
     updateProgressStatus()
     updateInspectorStatus()
+    if (byteInspector.classList.contains('active')) {
+      renderByteInspector()
+    }
     updateScrollbar()
     lastRenderDurationMs = performance.now() - renderStartedAt
     lastRenderAt = Date.now()
@@ -3284,6 +4484,19 @@ export function getWebviewContent(bytesPerRow: number): string {
         }
         updateAnalysisPanels()
         break
+
+      case 'clipboardComplete':
+        updateActionStatus(
+          (msg.action === 'cut' ? 'Cut ' : 'Copied ') +
+          (msg.byteCount ?? 0).toLocaleString() +
+          ' byte(s) as ' +
+          (msg.format === 'utf8' ? 'text' : 'hex')
+        )
+        break
+
+      case 'cutComplete':
+        selectOffset(msg.offset ?? -1)
+        break
     }
   })
 
@@ -3309,12 +4522,14 @@ export function getWebviewContent(bytesPerRow: number): string {
     const target = e.target.closest('[data-offset]')
     if (!target) {
       updateHoverHighlights(-1, -1)
+      scheduleByteInspectorHide()
       return
     }
 
     const offset = parseInt(target.dataset.offset, 10)
     if (Number.isNaN(offset)) {
       updateHoverHighlights(-1, -1)
+      scheduleByteInspectorHide()
       return
     }
 
@@ -3324,6 +4539,7 @@ export function getWebviewContent(bytesPerRow: number): string {
       Number.isNaN(rowIndex) ? -1 : rowIndex,
       offset % BYTES_PER_ROW
     )
+    scheduleByteInspector(offset, target)
 
     if (isPointerSelecting && (e.buttons & 1) === 1) {
       selectOffset(offset, true)
@@ -3332,6 +4548,7 @@ export function getWebviewContent(bytesPerRow: number): string {
 
   hexContainer.addEventListener('pointerleave', () => {
     updateHoverHighlights(-1, -1)
+    scheduleByteInspectorHide()
   })
 
   hexContainer.addEventListener('pointerdown', (e) => {
@@ -3350,6 +4567,7 @@ export function getWebviewContent(bytesPerRow: number): string {
     }
 
     e.preventDefault()
+    hideByteInspector()
     setActivePane(target.dataset.pane)
     selectOffset(offset, e.shiftKey)
     isPointerSelecting = true
@@ -3428,52 +4646,73 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
 
-    if (e.ctrlKey && e.key === 'f') {
+    if (e.key === 'Escape' && pastePopover.classList.contains('active')) {
       e.preventDefault()
-      searchInput.focus()
+      hidePastePopover()
+    } else if (e.key === ' ' && byteInspector.classList.contains('active')) {
+      e.preventDefault()
+      toggleByteInspectorPinned()
+    } else if (e.key === 'Escape' && byteInspector.classList.contains('active')) {
+      e.preventDefault()
+      hideByteInspector()
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault()
+      openFindWidget(false)
+    } else if (e.ctrlKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault()
+      openFindWidget(true)
     } else if (e.ctrlKey && e.key === 'g') {
       e.preventDefault()
       // Go to offset — trigger via VS Code command instead
+    } else if (e.key === 'Insert') {
+      e.preventDefault()
+      toggleByteEditMode()
     } else if (e.key === 'ArrowLeft') {
       e.preventDefault()
+      pendingHexNibble = null
       moveSelection('left', e.shiftKey)
     } else if (e.key === 'ArrowRight') {
       e.preventDefault()
+      pendingHexNibble = null
       moveSelection('right', e.shiftKey)
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
+      pendingHexNibble = null
       moveSelection('up', e.shiftKey)
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
+      pendingHexNibble = null
       moveSelection('down', e.shiftKey)
     } else if (e.key === 'Delete') {
-      if (hasSelection() && fileSize > 0) {
-        e.preventDefault()
-        const selectionStart = getSelectionStart()
-        clearReplaceSummaryActionStatus()
-        vscode.postMessage({
-          type: 'delete',
-          offset: selectionStart,
-          length: getSelectionLength(),
-        })
-        selectOffset(selectionStart)
-      }
+      e.preventDefault()
+      pendingHexNibble = null
+      deleteFromKeyboard(false)
+    } else if (e.key === 'Backspace') {
+      e.preventDefault()
+      pendingHexNibble = null
+      deleteFromKeyboard(true)
     } else if (e.key === 'PageDown') {
       e.preventDefault()
+      pendingHexNibble = null
       scrollToViewportOffset(
         visibleOffset + Math.max(BYTES_PER_ROW, currentVisibleByteCount())
       )
     } else if (e.key === 'PageUp') {
       e.preventDefault()
+      pendingHexNibble = null
       scrollToViewportOffset(
         visibleOffset - Math.max(BYTES_PER_ROW, currentVisibleByteCount())
       )
-    } else if (e.key === 'Home' && e.ctrlKey) {
+    } else if (e.key === 'Home') {
       e.preventDefault()
+      pendingHexNibble = null
       scrollToViewportOffset(0)
-    } else if (e.key === 'End' && e.ctrlKey) {
+    } else if (e.key === 'End') {
       e.preventDefault()
+      pendingHexNibble = null
       scrollToViewportOffset(Math.max(0, fileSize - BYTES_PER_ROW))
+    } else if (handleTypedByteKey(e)) {
+      e.preventDefault()
     }
   })
 
@@ -3492,27 +4731,17 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
 
-    if (!handleCopyEvent(e.clipboardData)) {
-      return
-    }
-
-    if (!hasSelection() || fileSize <= 0) {
+    if (!hasSelection() || getSelectionLength() <= 0 || fileSize <= 0) {
+      updateActionStatus('Select one or more bytes to cut')
       return
     }
 
     e.preventDefault()
-    const selectionStart = getSelectionStart()
-    const selectionLength = getSelectionLength()
-    clearReplaceSummaryActionStatus()
-    vscode.postMessage({
-      type: 'delete',
-      offset: selectionStart,
-      length: selectionLength,
-    })
-    updateActionStatus(
-      'Cut ' + selectionLength.toLocaleString() + ' byte(s)'
-    )
-    selectOffset(selectionStart)
+    const selectedBytes = getSelectedBytes()
+    if (selectedBytes && selectedBytes.length > 0) {
+      writeVisibleSelectionClipboard(e.clipboardData, selectedBytes)
+    }
+    postSelectionClipboard('cut')
   })
 
   document.addEventListener('paste', (e) => {
@@ -3520,8 +4749,30 @@ export function getWebviewContent(bytesPerRow: number): string {
       return
     }
 
-    if (handlePasteEvent(e.clipboardData)) {
+    if (showPastePopover(e.clipboardData, e.target)) {
       e.preventDefault()
+    }
+  })
+
+  pastePopover.addEventListener('change', (e) => {
+    if (!pasteContext || !(e.target instanceof HTMLInputElement)) {
+      return
+    }
+    if (e.target.name === 'pasteEncoding') {
+      pasteContext.encoding = e.target.value
+      renderPastePopover()
+    } else if (e.target.name === 'pasteMode') {
+      pasteContext.mode = e.target.value
+      renderPastePopover()
+    }
+  })
+
+  pastePopover.addEventListener('click', (e) => {
+    const action = e.target?.dataset?.pasteAction
+    if (action === 'cancel') {
+      hidePastePopover()
+    } else if (action === 'apply') {
+      applyPasteContext()
     }
   })
 
@@ -3547,6 +4798,27 @@ export function getWebviewContent(bytesPerRow: number): string {
       caseInsensitive: !isHex && searchCase.checked,
       isReverse: searchDirectionSelect.value === 'reverse',
     })
+  }
+
+  function scheduleSearch() {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer)
+      searchDebounceTimer = null
+    }
+
+    if (!findWidgetVisible) {
+      return
+    }
+
+    if (searchInput.value.trim().length === 0) {
+      clearSearchResults()
+      return
+    }
+
+    searchDebounceTimer = setTimeout(() => {
+      searchDebounceTimer = null
+      doSearch()
+    }, 200)
   }
 
   function replaceCurrentMatch() {
@@ -3600,6 +4872,9 @@ export function getWebviewContent(bytesPerRow: number): string {
   searchBtn.addEventListener('click', doSearch)
   replaceBtn.addEventListener('click', replaceCurrentMatch)
   replaceAllBtn.addEventListener('click', replaceAllMatches)
+  findReplaceToggle.addEventListener('click', toggleFindReplace)
+  findCloseBtn.addEventListener('click', closeFindWidget)
+  editModeBtn.addEventListener('click', toggleByteEditMode)
   profileTab.addEventListener('click', () => setAnalysisMode('profile'))
   structureTab.addEventListener('click', () => setAnalysisMode('structure'))
   profileScaleBtn.addEventListener('click', () => {
@@ -3608,6 +4883,74 @@ export function getWebviewContent(bytesPerRow: number): string {
   })
   profileFrequencyChart.addEventListener('pointermove', updateFrequencyTooltip)
   profileFrequencyChart.addEventListener('pointerleave', hideFrequencyTooltip)
+  byteInspector.addEventListener('pointerenter', cancelByteInspectorTimers)
+  byteInspector.addEventListener('pointerleave', scheduleByteInspectorHide)
+  byteInspector.addEventListener('click', (e) => {
+    const pinToggle = e.target.closest('[data-inspector-pin]')
+    if (pinToggle) {
+      toggleByteInspectorPinned()
+      return
+    }
+
+    const endianToggle = e.target.closest('[data-inspector-endian]')
+    if (endianToggle) {
+      inspectorLittleEndian = !inspectorLittleEndian
+      updateInspectorEndianLabel()
+      updateInspectorStatus()
+      byteInspectorEditKey = ''
+      byteInspectorEditValue = ''
+      byteInspectorEditError = ''
+      renderByteInspector()
+      return
+    }
+
+    const editButton = e.target.closest('[data-inspector-edit]')
+    if (editButton) {
+      byteInspectorEditKey = editButton.dataset.inspectorEdit
+      const field = inspectorFields.find((candidate) => candidate.key === byteInspectorEditKey)
+      const bytes = getInspectorBytes(byteInspectorOffset)
+      byteInspectorEditValue = field && bytes.length >= field.minBytes
+        ? (field.editValue ? field.editValue(bytes, inspectorLittleEndian) : field.read(bytes, inspectorLittleEndian))
+        : ''
+      byteInspectorEditError = ''
+      renderByteInspector()
+      return
+    }
+
+    const commitButton = e.target.closest('[data-inspector-commit]')
+    if (commitButton) {
+      commitByteInspectorEdit(commitButton.dataset.inspectorCommit)
+      return
+    }
+
+    if (e.target.closest('[data-inspector-cancel]')) {
+      byteInspectorEditKey = ''
+      byteInspectorEditValue = ''
+      byteInspectorEditError = ''
+      renderByteInspector()
+    }
+  })
+  byteInspector.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.id === 'byteInspectorInput') {
+      e.preventDefault()
+      commitByteInspectorEdit(e.target.dataset.field)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      if (byteInspectorEditKey) {
+        byteInspectorEditKey = ''
+        byteInspectorEditValue = ''
+        byteInspectorEditError = ''
+        renderByteInspector()
+      } else if (byteInspectorPinned) {
+        toggleByteInspectorPinned(false)
+      } else {
+        hideByteInspector()
+      }
+    } else if (e.key === ' ' && e.target.id !== 'byteInspectorInput') {
+      e.preventDefault()
+      toggleByteInspectorPinned()
+    }
+  })
   bytesPerRowSelect.addEventListener('change', () => {
     const nextBytesPerRow = parseInt(bytesPerRowSelect.value, 10)
     if ([8, 16, 32].includes(nextBytesPerRow)) {
@@ -3624,17 +4967,42 @@ export function getWebviewContent(bytesPerRow: number): string {
   searchHex.addEventListener('change', syncSearchMode)
   searchInput.addEventListener('input', () => {
     updateSearchButtons()
+    scheduleSearch()
   })
   searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !searchBtn.disabled) doSearch()
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeFindWidget()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (e.shiftKey && !prevMatchBtn.disabled) {
+        prevMatchBtn.click()
+      } else if (!hasSearchResults() && !searchBtn.disabled) {
+        doSearch()
+      } else if (!nextMatchBtn.disabled) {
+        nextMatchBtn.click()
+      }
+    }
   })
   replaceInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') replaceCurrentMatch()
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeFindWidget()
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      replaceCurrentMatch()
+    }
   })
   inspectorEndianBtn.addEventListener('click', () => {
     inspectorLittleEndian = !inspectorLittleEndian
     updateInspectorEndianLabel()
     updateInspectorStatus()
+    if (byteInspector.classList.contains('active')) {
+      byteInspectorEditKey = ''
+      byteInspectorEditValue = ''
+      byteInspectorEditError = ''
+      renderByteInspector()
+    }
   })
   transformSelect.addEventListener('pointerdown', () => {
     if (!transformSelect.disabled) {
@@ -3739,15 +5107,6 @@ export function getWebviewContent(bytesPerRow: number): string {
     closeEditDialog()
   }
 
-  document.getElementById('insertBtn').addEventListener('click', () => openEditDialog('insert'))
-  document.getElementById('overwriteBtn').addEventListener('click', () => openEditDialog('overwrite'))
-  document.getElementById('deleteBtn').addEventListener('click', () => openEditDialog('delete'))
-  topBtn.addEventListener('click', () => {
-    scrollToViewportOffset(0)
-  })
-  bottomBtn.addEventListener('click', () => {
-    scrollToViewportOffset(Math.max(0, fileSize - BYTES_PER_ROW))
-  })
   document.getElementById('editCancel').addEventListener('click', closeEditDialog)
   document.getElementById('editOk').addEventListener('click', submitEdit)
   overlay.addEventListener('click', closeDialogs)
@@ -3770,6 +5129,8 @@ export function getWebviewContent(bytesPerRow: number): string {
   editOffset.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitEdit() })
 
   updateSearchButtons()
+  updateFindWidgetVisibility()
+  updateEditModeStatus()
   updateHistoryState(false, false)
   syncSearchMode()
   updateDirtyStatus(false)

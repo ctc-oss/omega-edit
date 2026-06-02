@@ -26,7 +26,10 @@
     "onCommand:omegaEdit.undo",
     "onCommand:omegaEdit.redo",
     "onCommand:omegaEdit.exportChangeScript",
-    "onCommand:omegaEdit.replayChangeScript"
+    "onCommand:omegaEdit.replayChangeScript",
+    "onCommand:omegaEdit.rollbackSession",
+    "onCommand:omegaEdit.rollbackCheckpoint",
+    "onCommand:omegaEdit.createCheckpoint"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -86,11 +89,11 @@
     "commands": [
       {
         "command": "omegaEdit.openInHexEditor",
-        "title": "Ωedit™: Open in Hex Editor"
+        "title": "OmegaEdit: Open in Hex Editor"
       },
       {
         "command": "omegaEdit.goToOffset",
-        "title": "Ωedit™: Go to Offset"
+        "title": "OmegaEdit: Go to Offset"
       },
       {
         "command": "omegaEdit.undo",
@@ -104,11 +107,26 @@
       },
       {
         "command": "omegaEdit.exportChangeScript",
-        "title": "Ωedit™: Export Change Script"
+        "title": "OmegaEdit: Export Change Script"
       },
       {
         "command": "omegaEdit.replayChangeScript",
-        "title": "Ωedit™: Replay Change Script"
+        "title": "OmegaEdit: Replay Change Script"
+      },
+      {
+        "command": "omegaEdit.rollbackSession",
+        "title": "OmegaEdit: Roll Back Session",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.rollbackCheckpoint",
+        "title": "OmegaEdit: Roll Back Last Checkpoint",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.createCheckpoint",
+        "title": "OmegaEdit: Create Checkpoint",
+        "enablement": "omegaEdit.hexEditorActive"
       }
     ],
     "menus": {
@@ -136,6 +154,18 @@
         },
         {
           "command": "omegaEdit.redo",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.rollbackSession",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.rollbackCheckpoint",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.createCheckpoint",
           "when": "omegaEdit.hexEditorActive"
         }
       ]

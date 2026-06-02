@@ -195,6 +195,10 @@ service EditorService {
   rpc ReplaceSessionCheckpointed(ReplaceSessionCheckpointedRequest)
       returns (ReplaceSessionCheckpointedResponse);
 
+  // Create a checkpoint from the session's current computed content.
+  rpc CreateCheckpoint(CreateCheckpointRequest)
+      returns (CreateCheckpointResponse);
+
   // Revert the most recent checkpoint-backed rewrite by destroying the last
   // checkpoint model and exposing the previous model again.
   rpc DestroyLastCheckpoint(DestroyLastCheckpointRequest)
@@ -909,6 +913,17 @@ message ReplaceSessionCheckpointedResponse {
   int64 offset = 5;              // Starting offset of the processed range.
   int64 length = 6;              // Length of the processed range.
   int64 replacement_count = 7;   // Number of replacements performed.
+}
+
+// Request to create a checkpoint from the current session content.
+message CreateCheckpointRequest {
+  string session_id = 1; // Session to checkpoint.
+}
+
+// Result of creating a checkpoint model.
+message CreateCheckpointResponse {
+  string session_id = 1;           // Session that was checkpointed.
+  int64 checkpoint_count = 2;      // Checkpoint count after creation.
 }
 
 // Request to remove the most recent checkpoint model from a session.

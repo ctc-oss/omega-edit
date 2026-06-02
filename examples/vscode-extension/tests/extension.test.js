@@ -5,11 +5,14 @@ const path = require('node:path')
 
 const packageJson = require('../package.json')
 const {
+  OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../out/constants.js')
@@ -25,6 +28,9 @@ test('package.json matches shared extension constants', () => {
     `onCommand:${OMEGA_EDIT_REDO_COMMAND}`,
     `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_ROLLBACK_SESSION_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND}`,
   ])
   assert.equal(
     packageJson.contributes.customEditors[0].viewType,
@@ -61,6 +67,30 @@ test('package.json matches shared extension constants', () => {
   assert.equal(
     packageJson.contributes.commands[5].command,
     OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[6].command,
+    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[6].enablement,
+    'omegaEdit.hexEditorActive'
+  )
+  assert.equal(
+    packageJson.contributes.commands[7].command,
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[7].enablement,
+    'omegaEdit.hexEditorActive'
+  )
+  assert.equal(
+    packageJson.contributes.commands[8].command,
+    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[8].enablement,
+    'omegaEdit.hexEditorActive'
   )
   assert.deepEqual(
     packageJson.contributes.configuration.properties[
@@ -101,6 +131,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /omegaEdit\.canUndo/)
   assert.match(providerJs, /omegaEdit\.canRedo/)
   assert.match(providerJs, /setContext/)
+  assert.match(providerJs, /revertCustomDocument/)
+  assert.match(providerJs, /createCheckpoint/)
+  assert.match(providerJs, /destroyLastCheckpoint/)
+  assert.match(providerJs, /clear/)
+  assert.match(providerJs, /rollbackSession/)
+  assert.match(providerJs, /rollbackCheckpoint/)
+  assert.match(providerJs, /createSessionCheckpoint/)
+  assert.match(providerJs, /postClipboardSelection/)
+  assert.match(providerJs, /case\s+['"]copySelection['"]/)
+  assert.match(providerJs, /case\s+['"]cutSelection['"]/)
+  assert.match(providerJs, /type:\s*['"]clipboardComplete['"]/)
+  assert.match(providerJs, /workbench\.action\.files\.revert/)
   assert.match(providerJs, /type:\s*['"]transformPlugins['"]/)
   assert.match(providerJs, /help:\s*plugin\.help/)
   assert.match(providerJs, /example:\s*plugin\.example/)
@@ -126,8 +168,14 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
+  assert.match(extensionJs, /rollbackActiveSession/)
+  assert.match(extensionJs, /rollbackActiveCheckpoint/)
+  assert.match(extensionJs, /createActiveCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
   assert.match(extensionJs, /directoryHasTransformPlugin/)
@@ -146,13 +194,15 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="hexColumnHeader"/)
   assert.match(html, /id="bytesPerRowSelect"/)
   assert.match(html, /id="offsetRadixSelect"/)
+  assert.match(html, /id="findWidget"/)
   assert.match(html, /id="searchDirectionSelect"/)
-  assert.match(html, /class="secondary" id="searchBtn"/)
+  assert.match(html, /id="searchBtn"/)
   assert.match(html, /id="replaceInput"/)
   assert.match(html, /id="replaceBtn"/)
   assert.match(html, /id="replaceAllBtn"/)
-  assert.match(html, /id="topBtn"/)
-  assert.match(html, /id="bottomBtn"/)
+  assert.match(html, /id="editModeBtn"/)
+  assert.doesNotMatch(html, /id="topBtn"/)
+  assert.doesNotMatch(html, /id="bottomBtn"/)
   assert.match(html, /id="scrollbarTrack"/)
   assert.match(html, /id="scrollbarThumb"/)
   assert.doesNotMatch(html, /id="saveBtn"/)
@@ -354,15 +404,27 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /document\.addEventListener\('copy'/)
   assert.match(html, /document\.addEventListener\('cut'/)
   assert.match(html, /document\.addEventListener\('paste'/)
+  assert.match(html, /id="pastePopover"/)
+  assert.match(html, /\.paste-popover/)
   assert.match(html, /function handleCopyEvent\(clipboardData\)/)
   assert.match(html, /function getClipboardSelectionHex\(\)/)
+  assert.match(html, /function postSelectionClipboard\(action\)/)
+  assert.match(
+    html,
+    /type: action === 'cut' \? 'cutSelection' : 'copySelection'/
+  )
   assert.match(html, /function bytesToDisplayText\(bytes\)/)
   assert.match(html, /function setActivePane\(pane\)/)
   assert.match(
     html,
     /clipboardData\.setData\(\s*INTERNAL_HEX_CLIPBOARD_FORMAT,/
   )
-  assert.match(html, /function handlePasteEvent\(clipboardData\)/)
+  assert.match(html, /function showPastePopover\(clipboardData, anchorTarget\)/)
+  assert.match(html, /function applyPasteContext\(\)/)
+  assert.match(html, /pasteEncoding/)
+  assert.match(html, /pasteMode/)
+  assert.match(html, /case 'clipboardComplete'/)
+  assert.match(html, /case 'cutComplete'/)
   assert.match(
     html,
     /hasSelection\(\)\s*&&\s*getSelectionLength\(\)\s*>\s*1\s*&&\s*fileSize\s*>\s*0/

@@ -25,12 +25,16 @@ import {
   createSession,
   createSessionFromBytes,
   createViewport,
+  createCheckpoint,
+  CountKind,
   destroySession,
+  destroyLastCheckpoint,
   getByteOrderMark,
   getClient,
   getChangeCount,
   getComputedFileSize,
   getContentType,
+  getCounts,
   getLanguage,
   getSegment,
   getSessionBytes,
@@ -1027,6 +1031,36 @@ describe('Sessions', () => {
         removeDirectory(memoryCheckpointDir)
       }
       expect(fs.existsSync(memoryCheckpointDir)).to.be.false
+    }
+  })
+
+  it('Should create and roll back an explicit checkpoint', async () => {
+    const seed = Buffer.from('checkpoint seed')
+    let session_id = ''
+
+    try {
+      const session = await createSessionFromBytes(
+        seed,
+        'explicit_checkpoint_test'
+      )
+      session_id = session.getSessionId()
+
+      expect(await createCheckpoint(session_id)).to.equal(1)
+      const counts = await getCounts(session_id, [CountKind.CHECKPOINTS])
+      expect(counts[0].getCount()).to.equal(1)
+
+      await insert(session_id, seed.length, Buffer.from('!'))
+      expect(await getSessionBytes(session_id)).to.deep.equal(
+        Buffer.from('checkpoint seed!')
+      )
+
+      expect(await destroyLastCheckpoint(session_id)).to.equal(0)
+      expect(await getSessionBytes(session_id)).to.deep.equal(seed)
+      expect(await getChangeCount(session_id)).to.equal(0)
+    } finally {
+      if (session_id) {
+        await destroySession(session_id)
+      }
     }
   })
 

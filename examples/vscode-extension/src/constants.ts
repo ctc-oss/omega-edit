@@ -7,3 +7,7 @@ export const OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND =
   'omegaEdit.exportChangeScript'
 export const OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND =
   'omegaEdit.replayChangeScript'
+export const OMEGA_EDIT_ROLLBACK_SESSION_COMMAND = 'omegaEdit.rollbackSession'
+export const OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND =
+  'omegaEdit.rollbackCheckpoint'
+export const OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND = 'omegaEdit.createCheckpoint'

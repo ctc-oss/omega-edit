@@ -30,7 +30,10 @@
 import {
   ALL_EVENTS,
   applyTransformPlugin,
+  clear,
   countCharacters,
+  CountKind,
+  createCheckpoint,
   del,
   destroyLastCheckpoint,
   editSimple,
@@ -42,6 +45,7 @@ import {
   getByteOrderMark,
   getClientVersion,
   getContentType,
+  getCounts,
   getLanguage,
   getSegment,
   getServerInfo,
@@ -281,6 +285,12 @@ export class HexEditorProvider
           new vscode.CancellationTokenSource().token
         )
         return
+      case 'revert':
+        await this.revertCustomDocument(
+          session.document,
+          new vscode.CancellationTokenSource().token
+        )
+        return
     }
 
     await this.handleWebviewMessage(session, msg)
@@ -455,31 +465,7 @@ export class HexEditorProvider
       return
     }
 
-    await session.scope.dispose()
-
-    const config = vscode.workspace.getConfiguration('omegaEdit')
-    const bytesPerRow = config.get<number>('bytesPerRow', 16)
-    const capacity = this.getViewportCapacity(bytesPerRow)
-
-    const newScope = await ScopedEditorSessionHandle.openFile(
-      session.filePath,
-      {
-        filePath: session.filePath,
-        capacity,
-      }
-    )
-
-    session.scope = newScope
-    session.restoredFromBackup = false
-    session.history = new EditorHistoryController()
-    session.search = new EditorSearchController(session.sessionId)
-    session.offset = 0
-    session.capacity = capacity
-
-    await this.startSessionSubscriptions(session)
-    await this.sendViewportData(session)
-    this.postEditState(session)
-    await this.sendTransformPlugins(session)
+    await this.rollbackSession(session, false)
   }
 
   async backupCustomDocument(
@@ -620,6 +606,42 @@ export class HexEditorProvider
     ) as ChangeRecord[]
     await this.replayChanges(this.activeSession, changes)
     vscode.window.showInformationMessage(`Replayed ${changes.length} change(s)`)
+  }
+
+  async createActiveCheckpoint(): Promise<void> {
+    if (!this.activeSession) {
+      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      return
+    }
+
+    const count = await this.createSessionCheckpoint(this.activeSession)
+    vscode.window.showInformationMessage(
+      `OmegaEdit checkpoint created (${count} total)`
+    )
+  }
+
+  async rollbackActiveCheckpoint(): Promise<void> {
+    if (!this.activeSession) {
+      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      return
+    }
+
+    const rolledBack = await this.rollbackCheckpoint(this.activeSession, true)
+    if (rolledBack) {
+      vscode.window.showInformationMessage(
+        'Rolled back last OmegaEdit checkpoint'
+      )
+    }
+  }
+
+  async rollbackActiveSession(): Promise<void> {
+    if (!this.activeSession) {
+      vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      return
+    }
+
+    await this.rollbackSession(this.activeSession, true)
+    vscode.window.showInformationMessage('Rolled back OmegaEdit session')
   }
 
   // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -794,6 +816,31 @@ export class HexEditorProvider
     })
   }
 
+  private async postClipboardSelection(
+    session: EditorSession,
+    action: 'copy' | 'cut',
+    offset: number,
+    length: number,
+    format: 'hex' | 'utf8'
+  ): Promise<Uint8Array> {
+    const bytes = await getSegment(session.sessionId, offset, length)
+    const clipboardText =
+      format === 'utf8'
+        ? Buffer.from(bytes).toString('utf8')
+        : Array.from(bytes, (byte) =>
+            byte.toString(16).toUpperCase().padStart(2, '0')
+          ).join(' ')
+    await vscode.env.clipboard.writeText(clipboardText)
+    session.panel.webview.postMessage({
+      type: 'clipboardComplete',
+      action,
+      byteCount: bytes.byteLength,
+      format,
+      offset,
+    })
+    return bytes
+  }
+
   private async postAnalysisProfile(
     session: EditorSession,
     request: AnalysisProfileRequest
@@ -919,6 +966,77 @@ export class HexEditorProvider
     timeoutMs: number = SESSION_SYNC_TIMEOUT_MS
   ): Promise<void> {
     return session.scope.model.waitForSync(minimumVersion, timeoutMs)
+  }
+
+  private async getCheckpointCount(session: EditorSession): Promise<number> {
+    const counts = await getCounts(session.sessionId, [CountKind.CHECKPOINTS])
+    return counts[0]?.getCount() ?? 0
+  }
+
+  private async createSessionCheckpoint(
+    session: EditorSession
+  ): Promise<number> {
+    const wasDirty =
+      session.history.getEditState().isDirty || !!session.restoredFromBackup
+    const sessionSyncVersion = session.sessionSyncVersion
+    const count = await createCheckpoint(session.sessionId)
+    await this.waitForSessionSync(session, sessionSyncVersion)
+    session.history = new EditorHistoryController()
+    session.search = new EditorSearchController(session.sessionId)
+    session.restoredFromBackup = wasDirty
+    this.clearSearchState(session)
+    this.postEditState(session)
+    await this.sendViewportData(session)
+    return count
+  }
+
+  private async rollbackCheckpoint(
+    session: EditorSession,
+    markDirty: boolean
+  ): Promise<boolean> {
+    const checkpointCount = await this.getCheckpointCount(session)
+    if (checkpointCount <= 0) {
+      vscode.window.showWarningMessage('No OmegaEdit checkpoint to roll back')
+      return false
+    }
+
+    const sessionSyncVersion = session.sessionSyncVersion
+    await destroyLastCheckpoint(session.sessionId)
+    await this.waitForSessionSync(session, sessionSyncVersion)
+    session.history = new EditorHistoryController()
+    session.search = new EditorSearchController(session.sessionId)
+    session.restoredFromBackup = markDirty
+    this.clearSearchState(session)
+    this.postEditState(session)
+    await this.sendViewportData(session)
+    if (markDirty) {
+      this.notifyDocumentChanged(session)
+    }
+    return true
+  }
+
+  private async rollbackSession(
+    session: EditorSession,
+    markDirty: boolean
+  ): Promise<void> {
+    const sessionSyncVersion = session.sessionSyncVersion
+    let checkpointCount = await this.getCheckpointCount(session)
+    while (checkpointCount > 0) {
+      await destroyLastCheckpoint(session.sessionId)
+      checkpointCount -= 1
+    }
+    await clear(session.sessionId)
+    await this.waitForSessionSync(session, sessionSyncVersion)
+    session.history = new EditorHistoryController()
+    session.search = new EditorSearchController(session.sessionId)
+    session.restoredFromBackup = markDirty
+    session.offset = 0
+    this.clearSearchState(session)
+    this.postEditState(session)
+    await this.sendViewportData(session)
+    if (markDirty) {
+      this.notifyDocumentChanged(session)
+    }
   }
 
   private clearSearchState(session: EditorSession): void {
@@ -1431,6 +1549,45 @@ export class HexEditorProvider
           break
         }
 
+        case 'copySelection': {
+          await this.postClipboardSelection(
+            session,
+            'copy',
+            msg.offset,
+            msg.length,
+            msg.format
+          )
+          break
+        }
+
+        case 'cutSelection': {
+          const sessionSyncVersion = session.sessionSyncVersion
+          await this.postClipboardSelection(
+            session,
+            'cut',
+            msg.offset,
+            msg.length,
+            msg.format
+          )
+          const serial = await del(session.sessionId, msg.offset, msg.length)
+          session.history.recordLocalChange({
+            serial,
+            kind: 'DELETE',
+            offset: msg.offset,
+            length: msg.length,
+            data: '',
+          })
+          this.postEditState(session)
+          this.notifyDocumentChanged(session)
+          await this.waitForSessionSync(session, sessionSyncVersion)
+          this.clearSearchState(session)
+          session.panel.webview.postMessage({
+            type: 'cutComplete',
+            offset: msg.offset,
+          })
+          break
+        }
+
         // --- Editing ---
         case 'insert': {
           const sessionSyncVersion = session.sessionSyncVersion
@@ -1596,6 +1753,13 @@ export class HexEditorProvider
           break
         }
 
+        case 'revert': {
+          // Delegate to VS Code so File > Revert File and webview-initiated
+          // reverts share the same custom-editor lifecycle.
+          await vscode.commands.executeCommand('workbench.action.files.revert')
+          break
+        }
+
         // --- Search ---
         case 'search': {
           const result = await session.search.search({
@@ -1667,6 +1831,18 @@ type WebviewMessage =
       isCapped: boolean
     }
   | { type: 'requestTransformPlugins' }
+  | {
+      type: 'copySelection'
+      offset: number
+      length: number
+      format: 'hex' | 'utf8'
+    }
+  | {
+      type: 'cutSelection'
+      offset: number
+      length: number
+      format: 'hex' | 'utf8'
+    }
   | { type: 'insert'; offset: number; data: string }
   | { type: 'delete'; offset: number; length: number }
   | { type: 'overwrite'; offset: number; data: string }
@@ -1692,6 +1868,7 @@ type WebviewMessage =
   | { type: 'redo' }
   | { type: 'save' }
   | { type: 'saveAs' }
+  | { type: 'revert' }
   | {
       type: 'search'
       query: string

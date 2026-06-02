@@ -81,6 +81,36 @@ describe('Editor Session Abstractions', () => {
     )
   })
 
+  it('should advance sync waiters for checkpoint creation events', async () => {
+    const model = new EditorSessionModel({
+      sessionId: 'session-id',
+      viewportId: 'viewport-a',
+      fileSize: 12,
+      changeCount: 0,
+    })
+
+    const syncWait = model.waitForSync(model.syncVersion, 1000)
+    const tracked = model.trackSessionEvent(
+      new SessionEvent({
+        sessionId: 'session-id',
+        sessionEventKind: SessionEventKind.CREATE_CHECKPOINT,
+        computedFileSize: 12,
+        changeCount: 0,
+        undoCount: 0,
+      })
+    )
+
+    expect(tracked).to.equal(true)
+    await syncWait
+    expect(model.getSnapshot()).to.deep.equal({
+      sessionId: 'session-id',
+      viewportId: 'viewport-a',
+      fileSize: 12,
+      changeCount: 0,
+      syncVersion: 1,
+    })
+  })
+
   it('should scope session creation, subscriptions, viewport swaps, and cleanup', async () => {
     const calls: string[] = []
     let nextViewportId = 1

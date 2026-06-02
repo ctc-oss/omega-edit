@@ -1539,6 +1539,25 @@ grpc::Status EditorServiceImpl::DestroyLastCheckpoint(
     return grpc::Status::OK;
 }
 
+grpc::Status EditorServiceImpl::CreateCheckpoint(
+        grpc::ServerContext * /*context*/,
+        const ::omega_edit::v1::CreateCheckpointRequest *request,
+        ::omega_edit::v1::CreateCheckpointResponse *response) {
+    auto locked_session = session_manager_.lock_session(request->session_id());
+    if (!locked_session) {
+        return grpc::Status(grpc::StatusCode::NOT_FOUND, "session not found: " + request->session_id());
+    }
+    auto *session = locked_session.session();
+
+    if (0 != omega_edit_create_checkpoint(session)) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "failed to create checkpoint");
+    }
+
+    response->set_session_id(request->session_id());
+    response->set_checkpoint_count(omega_session_get_num_checkpoints(session));
+    return grpc::Status::OK;
+}
+
 grpc::Status EditorServiceImpl::ListTransformPlugins(
         grpc::ServerContext * /*context*/,
         const ::omega_edit::v1::ListTransformPluginsRequest * /*request*/,
