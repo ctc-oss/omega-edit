@@ -65,6 +65,10 @@ test('package.json matches shared extension constants', () => {
     OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
   )
   assert.equal(
+    packageJson.contributes.commands[4].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+  )
+  assert.equal(
     packageJson.contributes.commands[5].command,
     OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
   )
@@ -188,6 +192,39 @@ test('compiled extension entrypoints exist after build', () => {
 test('webview HTML includes core controls and configured row width', () => {
   const html = getWebviewContent(32)
 
+  assert.match(html, /http-equiv="Content-Security-Policy"/)
+  assert.match(html, /default-src 'none'/)
+  assert.match(html, /img-src 'self' data:/)
+  assert.match(html, /style-src 'self' 'unsafe-inline'/)
+  assert.doesNotMatch(html, /&#39;self&#39;/)
+  assert.match(html, /script-src 'nonce-[^']+'/)
+  assert.match(html, /<script nonce="[^"]+">/)
+  assert.match(
+    html,
+    /--accent-frame: var\(--vscode-contrastActiveBorder, #cca700\);/
+  )
+  assert.match(html, /\.byte-inspector-header \{[\s\S]*cursor: grab;/)
+  assert.doesNotMatch(html, /data-inspector-pin/)
+  assert.match(
+    html,
+    /\.status-inline-button\.active \{[\s\S]*border-color: var\(--accent-frame\);/
+  )
+  assert.match(
+    html,
+    /button\.byte-inspector-value:hover,[\s\S]*border-color: var\(--accent-frame\);/
+  )
+  assert.match(
+    html,
+    /\.byte-inspector-meta \{[\s\S]*border: 1px solid var\(--accent-frame\);/
+  )
+  assert.match(
+    html,
+    /\.hex-byte\.inspector-anchor \{[\s\S]*background: var\(--accent-frame-bg\);/
+  )
+  assert.match(
+    html,
+    /\.ascii-char\.inspector-anchor \{[\s\S]*background: var\(--accent-frame-bg\);/
+  )
   assert.match(html, /const BYTES_PER_ROW = 32/)
   assert.match(html, /id="hexContainer"/)
   assert.match(html, /id="hexHeader"/)
@@ -226,6 +263,13 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /id="serverHealthBadge"/)
   assert.match(html, /id="serverHealthMetrics"/)
   assert.match(html, /id="analysisPane"/)
+  assert.match(html, /data-analysis-panel="profile"/)
+  assert.match(html, /data-analysis-panel="structure"/)
+  assert.match(html, /data-analysis-section="viewport"/)
+  assert.match(html, /data-analysis-section="frequency"/)
+  assert.match(html, /data-analysis-section="timing"/)
+  assert.match(html, /data-analysis-drag="true"/)
+  assert.match(html, /\.analysis-drag-handle \{[\s\S]*cursor: grab;/)
   assert.match(html, /id="profileTab"/)
   assert.match(html, /id="structureTab"/)
   assert.match(html, /aria-controls="profilePanel"/)
@@ -333,6 +377,15 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function renderTransformOptionsDialog\(\)/)
   assert.match(html, /transformSelect\.addEventListener\('pointerdown'/)
   assert.match(html, /transformSelect\.addEventListener\('change'/)
+  assert.match(
+    html,
+    /e\.key === 'Escape' && transformOptionsDialog\.classList\.contains\('active'\)[\s\S]*closeTransformOptionsDialog\(\)/
+  )
+  assert.match(
+    html,
+    /e\.shiftKey && e\.key === ' '\) \{[\s\S]*if \(toggleByteInspector\(\)\)/
+  )
+  assert.doesNotMatch(html, /Toggle pinned inspector/)
   assert.match(html, /function useTransformOptionExample\(index\)/)
   assert.match(html, /function advertisedTransformExamples\(plugin\)/)
   assert.match(
@@ -442,6 +495,18 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /function updateDirtyStatus\(isDirty\)/)
   assert.match(html, /function updateInspectorEndianLabel\(\)/)
   assert.match(html, /function updateInspectorStatus\(\)/)
+  assert.match(html, /function updateRenderedInspectorAnchor\(\)/)
+  assert.match(html, /querySelectorAll\('\.inspector-anchor'\)/)
+  assert.match(
+    html,
+    /querySelectorAll\('\[data-offset="' \+ byteInspectorOffset/
+  )
+  assert.match(html, /function byteInspectorLaunchTarget\(\)/)
+  assert.match(html, /function stopByteInspectorDrag\(pointerId\)/)
+  assert.match(
+    html,
+    /byteInspector\.addEventListener\('pointercancel'[\s\S]*stopByteInspectorDrag\(e\.pointerId\)/
+  )
   assert.match(html, /inspectorEndianBtn\.addEventListener\('click'/)
   assert.match(html, /inspectorLittleEndian = !inspectorLittleEndian/)
   assert.match(html, /u16' \+ endianLabel/)
@@ -478,6 +543,46 @@ test('webview HTML includes core controls and configured row width', () => {
   assert.match(html, /case 'analysisProfile'/)
   assert.match(html, /byteProfile/)
   assert.match(html, /characterCount/)
+  assert.match(html, /label: 'DOS EOL', value: dosEolCount\.toLocaleString\(\)/)
+  assert.match(
+    html,
+    /const dosEolCount = latestDataProfile\.byteProfile\[256\] \?\? 0/
+  )
+  assert.match(
+    html,
+    /label: 'BOM Bytes', value: \(characterCount\.byteOrderMarkBytes \?\? 0\)\.toLocaleString\(\)/
+  )
+  assert.match(
+    html,
+    /label: '1B Chars', value: \(characterCount\.singleByteCount \?\? 0\)\.toLocaleString\(\)/
+  )
+  assert.match(
+    html,
+    /label: '2B Chars', value: \(characterCount\.doubleByteCount \?\? 0\)\.toLocaleString\(\)/
+  )
+  assert.match(
+    html,
+    /label: '3B Chars', value: \(characterCount\.tripleByteCount \?\? 0\)\.toLocaleString\(\)/
+  )
+  assert.match(
+    html,
+    /label: '4B Chars', value: \(characterCount\.quadByteCount \?\? 0\)\.toLocaleString\(\)/
+  )
+  assert.match(html, /DEFAULT_ANALYSIS_SECTION_ORDER/)
+  assert.match(html, /function normalizeAnalysisSectionOrder\(rawOrder\)/)
+  assert.match(
+    html,
+    /function moveAnalysisSection\(panelName, sectionId, targetId, placeAfter\)/
+  )
+  assert.match(
+    html,
+    /function moveAnalysisSectionByDelta\(panelName, sectionId, delta\)/
+  )
+  assert.match(html, /function handleAnalysisSectionDragMove\(event\)/)
+  assert.match(html, /analysisPane\.addEventListener\('pointerdown'/)
+  assert.match(html, /analysisPane\.addEventListener\('pointercancel'/)
+  assert.match(html, /analysisPane\.addEventListener\('keydown'/)
+  assert.match(html, /vscode\.setState\?\.\(/)
   assert.match(html, /profileTab\.addEventListener\('click'/)
   assert.match(html, /structureTab\.addEventListener\('click'/)
   assert.match(html, /profileScaleBtn\.addEventListener\('click'/)
