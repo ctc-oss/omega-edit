@@ -187,12 +187,12 @@ export async function activate(
     })
     if (serverPid && !isTestRuntime()) {
       void vscode.window.showInformationMessage(
-        `Ωedit™ server started on port ${port} (pid ${serverPid})`
+        `OmegaEdit server started on port ${port} (pid ${serverPid})`
       )
     }
   } catch (err) {
     reportActivationError(
-      `Failed to start Ωedit™ server: ${err instanceof Error ? err.message : String(err)}`
+      `Failed to start OmegaEdit server: ${err instanceof Error ? err.message : String(err)}`
     )
     return
   }
@@ -205,7 +205,7 @@ export async function activate(
     } catch {
       // Best effort cleanup; activation will report the connection failure.
     }
-    reportActivationError('Ωedit™ server started but is not reachable')
+    reportActivationError('OmegaEdit server started but is not reachable')
     return
   }
 
@@ -235,8 +235,8 @@ export async function activate(
               canSelectMany: false,
               canSelectFiles: true,
               canSelectFolders: false,
-              openLabel: 'Open in Ωedit™ Hex Editor',
-              title: 'Select a file to open in Ωedit™ Hex Editor',
+              openLabel: 'Open in OmegaEdit Hex Editor',
+              title: 'Select a file to open in OmegaEdit Hex Editor',
             })
           )?.[0]
         }
