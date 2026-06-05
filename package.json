@@ -37,7 +37,7 @@
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
     "webpack": "^5.107.2",
-    "webpack-cli": "^7.0.2"
+    "webpack-cli": "^7.0.3"
   },
   "resolutions": {
     "@types/eslint-scope": "8.4.0",
