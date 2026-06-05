@@ -33,7 +33,7 @@
     "copy-webpack-plugin": "^14.0.0",
     "mocha": "^10.8.2",
     "run-script-os": "^1.1.6",
-    "ts-loader": "^9.5.7",
+    "ts-loader": "^9.6.0",
     "typedoc": "^0.28.19",
     "typescript": "^6.0.3",
     "webpack": "^5.107.2",
