@@ -150,6 +150,18 @@
         "command": "omegaEdit.createCheckpoint",
         "title": "%omegaEdit.command.createCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.getEditorState",
+        "title": "%omegaEdit.command.getEditorState.title%"
+      },
+      {
+        "command": "omegaEdit.setExternalHighlights",
+        "title": "%omegaEdit.command.setExternalHighlights.title%"
+      },
+      {
+        "command": "omegaEdit.clearExternalHighlights",
+        "title": "%omegaEdit.command.clearExternalHighlights.title%"
       }
     ],
     "menus": {
@@ -207,6 +219,18 @@
         {
           "command": "omegaEdit.createCheckpoint",
           "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.getEditorState",
+          "when": "false"
+        },
+        {
+          "command": "omegaEdit.setExternalHighlights",
+          "when": "false"
+        },
+        {
+          "command": "omegaEdit.clearExternalHighlights",
+          "when": "false"
         }
       ]
     }

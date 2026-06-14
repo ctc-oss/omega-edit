@@ -141,14 +141,25 @@ test('package.json matches shared extension constants', () => {
     packageJson.contributes.commands[11].enablement,
     'omegaEdit.hexEditorActive'
   )
+  assert.deepEqual(
+    packageJson.contributes.commands.slice(12).map((entry) => entry.command),
+    [
+      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    ]
+  )
   assert.equal(
-    packageJson.contributes.commands.some(
-      (entry) =>
-        entry.command === OMEGA_EDIT_GET_EDITOR_STATE_COMMAND ||
-        entry.command === OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND ||
-        entry.command === OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND
-    ),
-    false
+    packageNls['omegaEdit.command.getEditorState.title'],
+    'OmegaEdit: Get Editor State'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.setExternalHighlights.title'],
+    'OmegaEdit: Set External Highlights'
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.clearExternalHighlights.title'],
+    'OmegaEdit: Clear External Highlights'
   )
   assert.deepEqual(
     packageJson.contributes.configuration.properties[
@@ -202,6 +213,22 @@ test('package.json matches shared extension constants', () => {
       command: OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
       when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges',
     }
+  )
+  assert.deepEqual(
+    [
+      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+    ].map((command) =>
+      packageJson.contributes.menus.commandPalette.find(
+        (entry) => entry.command === command
+      )
+    ),
+    [
+      { command: OMEGA_EDIT_GET_EDITOR_STATE_COMMAND, when: 'false' },
+      { command: OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
+      { command: OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
+    ]
   )
 })
 
@@ -747,6 +774,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /inspectorStart/)
   assert.match(previewGridSource, /class:inspectorRange/)
   assert.match(previewGridSource, /externalHighlightFor/)
+  assert.match(previewGridSource, /externalKind/)
+  assert.match(previewGridSource, /byteTitle/)
   assert.match(previewGridSource, /class:externalHighlight/)
   assert.match(previewGridSource, /class:externalCurrent/)
   assert.match(previewGridSource, /class:externalParsed/)
@@ -761,8 +790,8 @@ test('compiled extension entrypoints exist after build', () => {
   )
   assert.doesNotMatch(previewGridSource, /style=\{/)
   assert.match(previewGridSource, /aria-pressed/)
-  assert.match(previewGridSource, /aria-label=\{formatByteHoverTitle/)
-  assert.match(previewGridSource, /title=\{formatByteHoverTitle/)
+  assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
+  assert.match(previewGridSource, /title=\{byteTitle\}/)
   assert.match(previewGridSource, /searchStart/)
   assert.match(previewGridSource, /class:searchHit/)
   assert.match(previewGridSource, /class="text-byte"/)

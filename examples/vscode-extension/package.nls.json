@@ -18,5 +18,8 @@
   "omegaEdit.command.replayChangeScript.title": "OmegaEdit: Replay Change Script",
   "omegaEdit.command.rollbackSession.title": "OmegaEdit: Roll Back Session",
   "omegaEdit.command.rollbackCheckpoint.title": "OmegaEdit: Roll Back Last Checkpoint",
-  "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint"
+  "omegaEdit.command.createCheckpoint.title": "OmegaEdit: Create Checkpoint",
+  "omegaEdit.command.getEditorState.title": "OmegaEdit: Get Editor State",
+  "omegaEdit.command.setExternalHighlights.title": "OmegaEdit: Set External Highlights",
+  "omegaEdit.command.clearExternalHighlights.title": "OmegaEdit: Clear External Highlights"
 }

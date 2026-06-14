@@ -154,6 +154,14 @@
     return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 
+  function matchesPattern(value: string, pattern: string): boolean | undefined {
+    try {
+      return new RegExp(pattern).test(value)
+    } catch {
+      return undefined
+    }
+  }
+
   function validateJsonSchemaValue(
     value: unknown,
     schema: unknown,
@@ -251,10 +259,15 @@
         return strings.transform.schemaString(path)
       }
       if (
-        typeof schema.pattern === 'string' &&
-        !new RegExp(schema.pattern).test(value)
+        typeof schema.pattern === 'string'
       ) {
-        return strings.transform.schemaPattern(path)
+        const matches = matchesPattern(value, schema.pattern)
+        if (matches === undefined) {
+          return strings.transform.invalidSchema
+        }
+        if (!matches) {
+          return strings.transform.schemaPattern(path)
+        }
       }
     }
 

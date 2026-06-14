@@ -141,7 +141,8 @@
   function formatByteHoverTitle(
     pane: 'hex' | 'ascii',
     byte: number,
-    byteOffset: number
+    byteOffset: number,
+    highlight = externalHighlightFor(byteOffset)
   ): string {
     const baseTitle = strings.grid.byteHoverTitle(
       pane === 'hex' ? strings.grid.hexPane : strings.grid.textPane,
@@ -157,7 +158,6 @@
         ? strings.grid.overwriteTitle
         : strings.grid.insertTitle
     )
-    const highlight = externalHighlightFor(byteOffset)
     return highlight
       ? `${baseTitle}\n${strings.grid.externalHighlight(
           highlight.label,
@@ -201,17 +201,6 @@
         byteOffset >= highlight.offset &&
         byteOffset < highlight.offset + highlight.length
     )
-  }
-
-  function externalHighlightKind(byteOffset: number): string {
-    return externalHighlightFor(byteOffset)?.kind ?? ''
-  }
-
-  function isExternalHighlightKind(
-    byteOffset: number,
-    kind: WebviewExternalHighlight['kind']
-  ): boolean {
-    return externalHighlightKind(byteOffset) === kind
   }
 
   function updateHover(rowIndex: number, column: number): void {
@@ -478,25 +467,27 @@
         <div class="hex-cells">
           {#each row.bytes as byte, index}
             {@const byteOffset = row.rowOffset + index}
+            {@const externalHighlight = externalHighlightFor(byteOffset)}
+            {@const externalKind = externalHighlight?.kind ?? ''}
+            {@const byteTitle = formatByteHoverTitle(
+              'hex',
+              byte,
+              byteOffset,
+              externalHighlight
+            )}
             <button
               type="button"
               class="byte"
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
-              class:externalHighlight={!!externalHighlightFor(byteOffset)}
-              class:externalCurrent={isExternalHighlightKind(byteOffset, 'current')}
-              class:externalParsed={isExternalHighlightKind(byteOffset, 'parsed')}
-              class:externalError={isExternalHighlightKind(byteOffset, 'error')}
-              class:externalWarning={isExternalHighlightKind(byteOffset, 'warning')}
-              class:externalBreakpoint={isExternalHighlightKind(
-                byteOffset,
-                'breakpoint'
-              )}
-              class:externalSecondary={isExternalHighlightKind(
-                byteOffset,
-                'secondary'
-              )}
+              class:externalHighlight={!!externalHighlight}
+              class:externalCurrent={externalKind === 'current'}
+              class:externalParsed={externalKind === 'parsed'}
+              class:externalError={externalKind === 'error'}
+              class:externalWarning={externalKind === 'warning'}
+              class:externalBreakpoint={externalKind === 'breakpoint'}
+              class:externalSecondary={externalKind === 'secondary'}
               class:selected={isSelected(byteOffset)}
               class:focused={byteOffset === selectedOffset}
               class:activePane={activePane === 'hex' && byteOffset === selectedOffset}
@@ -505,8 +496,8 @@
               data-pane="hex"
               data-row-index={rowIndex}
               aria-pressed={isSelected(byteOffset)}
-              aria-label={formatByteHoverTitle('hex', byte, byteOffset)}
-              title={formatByteHoverTitle('hex', byte, byteOffset)}
+              aria-label={byteTitle}
+              title={byteTitle}
               onpointerdown={(event) =>
                 handlePointerDown('hex', byteOffset, rowIndex, index, event)}
             >
@@ -521,6 +512,14 @@
         <span class="ascii">
           {#each row.bytes as byte, index}
             {@const byteOffset = row.rowOffset + index}
+            {@const externalHighlight = externalHighlightFor(byteOffset)}
+            {@const externalKind = externalHighlight?.kind ?? ''}
+            {@const byteTitle = formatByteHoverTitle(
+              'ascii',
+              byte,
+              byteOffset,
+              externalHighlight
+            )}
             <button
               type="button"
               class="text-byte"
@@ -530,19 +529,13 @@
               class:columnHover={isColumnHover(index)}
               class:searchHit={isSearchHit(byteOffset)}
               class:inspectorRange={isInspectorByte(byteOffset)}
-              class:externalHighlight={!!externalHighlightFor(byteOffset)}
-              class:externalCurrent={isExternalHighlightKind(byteOffset, 'current')}
-              class:externalParsed={isExternalHighlightKind(byteOffset, 'parsed')}
-              class:externalError={isExternalHighlightKind(byteOffset, 'error')}
-              class:externalWarning={isExternalHighlightKind(byteOffset, 'warning')}
-              class:externalBreakpoint={isExternalHighlightKind(
-                byteOffset,
-                'breakpoint'
-              )}
-              class:externalSecondary={isExternalHighlightKind(
-                byteOffset,
-                'secondary'
-              )}
+              class:externalHighlight={!!externalHighlight}
+              class:externalCurrent={externalKind === 'current'}
+              class:externalParsed={externalKind === 'parsed'}
+              class:externalError={externalKind === 'error'}
+              class:externalWarning={externalKind === 'warning'}
+              class:externalBreakpoint={externalKind === 'breakpoint'}
+              class:externalSecondary={externalKind === 'secondary'}
               class:selected={isSelected(byteOffset)}
               class:focused={byteOffset === selectedOffset}
               class:activePane={activePane === 'ascii' && byteOffset === selectedOffset}
@@ -551,8 +544,8 @@
               data-pane="ascii"
               data-row-index={rowIndex}
               aria-pressed={isSelected(byteOffset)}
-              aria-label={formatByteHoverTitle('ascii', byte, byteOffset)}
-              title={formatByteHoverTitle('ascii', byte, byteOffset)}
+              aria-label={byteTitle}
+              title={byteTitle}
               onpointerdown={(event) =>
                 handlePointerDown('ascii', byteOffset, rowIndex, index, event)}
             >
