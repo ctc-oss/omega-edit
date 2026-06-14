@@ -4,33 +4,54 @@ const fs = require('node:fs')
 const path = require('node:path')
 
 const packageJson = require('../package.json')
+const packageNls = require('../package.nls.json')
 const {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+  OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+  OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
+  OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../out/constants.js')
-const { getWebviewContent } = require('../out/webview.js')
+const {
+  MAX_ANALYSIS_PROFILE_BYTES,
+  normalizeExternalHighlights,
+  normalizeBytesPerRow,
+  normalizeWebviewMessage,
+} = require('../out/webviewProtocol.js')
 
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
+  assert.equal(packageJson.types, './out/api.d.ts')
+  assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
+  assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Hex Editor')
   assert.deepEqual(packageJson.activationEvents, [
     `onCustomEditor:${OMEGA_EDIT_VIEW_TYPE}`,
     `onCommand:${OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND}`,
     `onCommand:${OMEGA_EDIT_GO_TO_OFFSET_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_SEARCH_NEXT_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND}`,
     `onCommand:${OMEGA_EDIT_UNDO_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REDO_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND}`,
     `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_ROLLBACK_SESSION_COMMAND}`,
     `onCommand:${OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_GET_EDITOR_STATE_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND}`,
   ])
   assert.equal(
     packageJson.contributes.customEditors[0].viewType,
@@ -46,35 +67,39 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[2].command,
-    OMEGA_EDIT_UNDO_COMMAND
+    OMEGA_EDIT_SEARCH_NEXT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[2].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.canUndo'
+    'omegaEdit.hexEditorActive'
   )
   assert.equal(
     packageJson.contributes.commands[3].command,
-    OMEGA_EDIT_REDO_COMMAND
+    OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[3].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.canRedo'
+    'omegaEdit.hexEditorActive'
   )
   assert.equal(
     packageJson.contributes.commands[4].command,
-    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
+    OMEGA_EDIT_UNDO_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[4].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+    'omegaEdit.hexEditorActive && omegaEdit.canUndo'
   )
   assert.equal(
     packageJson.contributes.commands[5].command,
-    OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
+    OMEGA_EDIT_REDO_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[5].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.canRedo'
   )
   assert.equal(
     packageJson.contributes.commands[6].command,
-    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+    OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[6].enablement,
@@ -82,25 +107,101 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[7].command,
-    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
+    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[7].enablement,
-    'omegaEdit.hexEditorActive'
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
   )
   assert.equal(
     packageJson.contributes.commands[8].command,
+    OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[9].command,
+    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[9].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+  )
+  assert.equal(
+    packageJson.contributes.commands[10].command,
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[10].enablement,
+    'omegaEdit.hexEditorActive'
+  )
+  assert.equal(
+    packageJson.contributes.commands[11].command,
     OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
   )
   assert.equal(
-    packageJson.contributes.commands[8].enablement,
+    packageJson.contributes.commands[11].enablement,
     'omegaEdit.hexEditorActive'
+  )
+  assert.equal(
+    packageJson.contributes.commands.some(
+      (entry) =>
+        entry.command === OMEGA_EDIT_GET_EDITOR_STATE_COMMAND ||
+        entry.command === OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND ||
+        entry.command === OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND
+    ),
+    false
   )
   assert.deepEqual(
     packageJson.contributes.configuration.properties[
       'omegaEdit.transformPluginDirectories'
     ].default,
     []
+  )
+  assert.equal(
+    Object.hasOwn(
+      packageJson.contributes.configuration.properties,
+      'omegaEdit.experimentalSvelteWebview'
+    ),
+    false
+  )
+  assert.equal(
+    packageJson.contributes.commands.some(
+      (entry) => entry.command === 'omegaEdit.revertFile'
+    ),
+    false
+  )
+  assert.equal(
+    packageJson.contributes.menus.commandPalette.some(
+      (entry) => entry.command === 'omegaEdit.revertFile'
+    ),
+    false
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus['editor/title'].find(
+      (entry) => entry.command === OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges',
+      group: 'navigation@9',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
+      (entry) => entry.command === OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
+      when: 'omegaEdit.hexEditorActive',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
+      (entry) => entry.command === OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+      when: 'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges',
+    }
   )
 })
 
@@ -114,7 +215,20 @@ test('compiled extension entrypoints exist after build', () => {
     true
   )
   assert.equal(
-    fs.existsSync(path.resolve(__dirname, '../out/webview.js')),
+    fs.existsSync(path.resolve(__dirname, '../out/webviewProtocol.js')),
+    true
+  )
+  assert.equal(fs.existsSync(path.resolve(__dirname, '../out/api.d.ts')), true)
+  assert.equal(
+    fs.existsSync(path.resolve(__dirname, '../out/svelteWebview.js')),
+    true
+  )
+  assert.equal(
+    fs.existsSync(path.resolve(__dirname, '../out/svelte-webview/webview.js')),
+    true
+  )
+  assert.equal(
+    fs.existsSync(path.resolve(__dirname, '../out/svelte-webview/webview.css')),
     true
   )
 
@@ -122,6 +236,101 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/hexEditorProvider.js'),
     'utf8'
   )
+  const protocolJs = fs.readFileSync(
+    path.resolve(__dirname, '../out/webviewProtocol.js'),
+    'utf8'
+  )
+  const protocolSource = fs.readFileSync(
+    path.resolve(__dirname, '../src/webviewProtocol.ts'),
+    'utf8'
+  )
+  const apiDts = fs.readFileSync(
+    path.resolve(__dirname, '../out/api.d.ts'),
+    'utf8'
+  )
+  const svelteHostJs = fs.readFileSync(
+    path.resolve(__dirname, '../out/svelteWebview.js'),
+    'utf8'
+  )
+  const svelteBundleJs = fs.readFileSync(
+    path.resolve(__dirname, '../out/svelte-webview/webview.js'),
+    'utf8'
+  )
+  const svelteBundleCss = fs.readFileSync(
+    path.resolve(__dirname, '../out/svelte-webview/webview.css'),
+    'utf8'
+  )
+  const svelteAppSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/App.svelte'),
+    'utf8'
+  )
+  const i18nSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/i18n.ts'),
+    'utf8'
+  )
+  const previewGridSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/PreviewGrid.svelte'),
+    'utf8'
+  )
+  const fileScrollbarSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/FileScrollbar.svelte'
+    ),
+    'utf8'
+  )
+  const toolbarSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/Toolbar.svelte'),
+    'utf8'
+  )
+  const offsetJumpSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/OffsetJump.svelte'),
+    'utf8'
+  )
+  const transformPanelSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/TransformPanel.svelte'
+    ),
+    'utf8'
+  )
+  const searchPanelSource = fs.readFileSync(
+    path.resolve(__dirname, '../webview-ui/src/components/SearchPanel.svelte'),
+    'utf8'
+  )
+  const byteInspectorSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ByteInspector.svelte'
+    ),
+    'utf8'
+  )
+  const editorWorkspaceSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/EditorWorkspace.svelte'
+    ),
+    'utf8'
+  )
+  const profilerPanelSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/ProfilerPanel.svelte'
+    ),
+    'utf8'
+  )
+  const svelteComponentSources = [
+    ['App.svelte', svelteAppSource],
+    ['PreviewGrid.svelte', previewGridSource],
+    ['FileScrollbar.svelte', fileScrollbarSource],
+    ['Toolbar.svelte', toolbarSource],
+    ['OffsetJump.svelte', offsetJumpSource],
+    ['TransformPanel.svelte', transformPanelSource],
+    ['SearchPanel.svelte', searchPanelSource],
+    ['ByteInspector.svelte', byteInspectorSource],
+    ['EditorWorkspace.svelte', editorWorkspaceSource],
+    ['ProfilerPanel.svelte', profilerPanelSource],
+  ]
   assert.match(providerJs, /editSimple/)
   assert.match(providerJs, /getSegment/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
@@ -135,11 +344,24 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /omegaEdit\.canUndo/)
   assert.match(providerJs, /omegaEdit\.canRedo/)
   assert.match(providerJs, /setContext/)
+  assert.match(providerJs, /searchNextActive/)
+  assert.match(providerJs, /searchPreviousActive/)
+  assert.match(providerJs, /searchNavigationCommand/)
+  assert.match(providerJs, /await this\.sendViewportData\(session\)/)
+  assert.match(
+    providerJs,
+    /baseOffset = session\.pendingScrollOffset \?\? session\.offset/
+  )
+  assert.match(providerJs, /bufferOffset === session\.bufferOffset/)
+  assert.match(providerJs, /visibleRows !== session\.visibleRows/)
+  assert.match(providerJs, /const replacementLength = Buffer\.from/)
+  assert.match(providerJs, /offsetDelta: replacementLength - msg\.length/)
   assert.match(providerJs, /revertCustomDocument/)
   assert.match(providerJs, /createCheckpoint/)
   assert.match(providerJs, /destroyLastCheckpoint/)
   assert.match(providerJs, /clear/)
   assert.match(providerJs, /rollbackSession/)
+  assert.match(providerJs, /revertSessionChanges/)
   assert.match(providerJs, /rollbackCheckpoint/)
   assert.match(providerJs, /createSessionCheckpoint/)
   assert.match(providerJs, /postClipboardSelection/)
@@ -147,6 +369,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /case\s+['"]cutSelection['"]/)
   assert.match(providerJs, /type:\s*['"]clipboardComplete['"]/)
   assert.match(providerJs, /workbench\.action\.files\.revert/)
+  assert.match(providerJs, /type:\s*['"]documentReverted['"]/)
   assert.match(providerJs, /type:\s*['"]transformPlugins['"]/)
   assert.match(providerJs, /help:\s*plugin\.help/)
   assert.match(providerJs, /example:\s*plugin\.example/)
@@ -158,12 +381,547 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /getLanguage/)
   assert.match(providerJs, /enqueueAnalysisProfile/)
   assert.match(providerJs, /processAnalysisProfileQueue/)
+  assert.match(providerJs, /getEditorState/)
+  assert.match(providerJs, /setExternalHighlights/)
+  assert.match(providerJs, /clearExternalHighlights/)
+  assert.match(providerJs, /createStatusBarItem/)
+  assert.match(providerJs, /updateStatusBar/)
+  assert.match(providerJs, /buildServerHealthTooltip/)
+  assert.match(providerJs, /new vscode\.MarkdownString/)
+  assert.match(providerJs, /Ωedit™ Server/)
+  assert.match(providerJs, /formatServerHealthLatencyBand/)
+  assert.match(providerJs, /serverTooltip\.value/)
+  assert.match(providerJs, /volatileLabels/)
+  assert.match(providerJs, /serverHealthColorId/)
+  assert.match(providerJs, /charts\.green/)
+  assert.match(providerJs, /charts\.yellow/)
+  assert.match(providerJs, /charts\.red/)
+  assert.match(providerJs, /debug-disconnect/)
+  assert.match(providerJs, /new vscode\.ThemeColor\(serverColorId\)/)
+  assert.doesNotMatch(providerJs, /statusItems\.mode/)
+  assert.doesNotMatch(providerJs, /Ωedit Edit Mode/)
+  assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('INS'\)/)
+  assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('OVR'\)/)
+  assert.doesNotMatch(providerJs, /editor\.action\.toggleOvertypeInsertMode/)
+  assert.match(providerJs, /normalizeExternalHighlights/)
+  assert.match(providerJs, /type:\s*['"]externalHighlights['"]/)
+  assert.match(providerJs, /case\s+['"]editorStateChanged['"]/)
+  assert.match(providerJs, /buildEditorState/)
   assert.match(providerJs, /clampedLength <= 0/)
   assert.match(providerJs, /const contentTypeSampleLength = Math\.min/)
   assert.match(
     providerJs,
     /getContentType\)\(session\.sessionId,\s*0,\s*contentTypeSampleLength\)/
   )
+  assert.doesNotMatch(providerJs, /experimentalSvelteWebview/)
+  assert.match(providerJs, /getSvelteWebviewContent/)
+  assert.match(protocolJs, /normalizeWebviewMessage/)
+  assert.match(protocolJs, /normalizeExternalHighlights/)
+  assert.match(protocolJs, /editorStateChanged/)
+  assert.match(protocolSource, /externalHighlights/)
+  assert.match(protocolSource, /WebviewEditorState/)
+  assert.match(protocolJs, /MAX_ANALYSIS_PROFILE_BYTES/)
+  assert.match(protocolSource, /documentReverted/)
+  assert.match(protocolJs, /case\s+['"]requestAnalysisProfile['"]/)
+  assert.match(protocolJs, /case\s+['"]applyTransform['"]/)
+  assert.match(apiDts, /OmegaEditExtensionApi/)
+  assert.match(apiDts, /onDidChangeEditorState/)
+  assert.match(apiDts, /setExternalHighlights/)
+  assert.match(apiDts, /OmegaEditExternalHighlightKind/)
+  assert.match(svelteHostJs, /svelte-webview/)
+  assert.match(svelteHostJs, /Content-Security-Policy/)
+  assert.match(svelteHostJs, /webview\.js/)
+  assert.match(svelteHostJs, /webview\.css/)
+  assert.match(svelteHostJs, /vscode\.l10n\.t/)
+  assert.match(svelteHostJs, /escapeHtmlText/)
+  assert.match(svelteHostJs, /Loading OmegaEdit Hex Editor/)
+  assert.doesNotMatch(svelteHostJs, /Svelte Preview/)
+  assert.doesNotMatch(svelteBundleJs, /OmegaEdit Svelte Preview/)
+  assert.match(svelteBundleJs, /Failed to start editor webview/)
+  assert.match(svelteBundleJs, /setBytesPerRow/)
+  assert.match(svelteBundleJs, /scrollTo/)
+  assert.match(svelteBundleJs, /Find text or hex/)
+  assert.match(svelteBundleJs, /Replace All/)
+  assert.doesNotMatch(svelteBundleJs, /<StatusStrip/)
+  assert.match(svelteBundleJs, /requestTransformPlugins/)
+  assert.doesNotMatch(svelteBundleJs, /new App/)
+  assert.match(svelteBundleCss, /--vscode-editor-background/)
+  assert.match(svelteBundleCss, /--bytes-per-row/)
+  assert.match(svelteBundleCss, /html,body,#app/)
+  assert.match(svelteBundleCss, /width:\s*100%/)
+  assert.match(svelteBundleCss, /height:\s*100%/)
+  assert.match(svelteBundleCss, /overflow:\s*hidden/)
+  assert.match(svelteBundleCss, /overscroll-behavior:\s*none/)
+  assert.match(svelteBundleCss, /overscroll-behavior:\s*contain/)
+  assert.match(svelteBundleCss, /bootstrap-status/)
+  assert.doesNotMatch(svelteBundleCss, /\.app-header/)
+  assert.doesNotMatch(svelteBundleCss, /\.badge/)
+  assert.match(svelteBundleCss, /\.search-panel/)
+  assert.match(svelteBundleCss, /\.transform-panel/)
+  assert.doesNotMatch(svelteBundleCss, /\.transform-refresh/)
+  assert.match(svelteBundleCss, /\.transform-dialog/)
+  assert.match(svelteBundleCss, /\.dialog-backdrop/)
+  assert.match(svelteBundleCss, /\.help-example/)
+  assert.match(svelteBundleCss, /\.byte\.searchHit/)
+  assert.match(svelteBundleCss, /\.byte\.inspectorRange/)
+  assert.match(svelteBundleCss, /\.byte\.externalHighlight:before/)
+  assert.match(svelteBundleCss, /\.byte\.externalCurrent/)
+  assert.match(svelteBundleCss, /\.byte\.externalParsed/)
+  assert.match(svelteBundleCss, /\.byte\.externalError/)
+  assert.match(svelteBundleCss, /\.byte\.externalBreakpoint/)
+  assert.match(svelteBundleCss, /\.byte\.inspectorRange:not\(\.selected\)/)
+  assert.match(svelteBundleCss, /\.byte\.inspectorRange:after/)
+  assert.match(svelteBundleCss, /\.byte\.selected/)
+  assert.match(svelteBundleCss, /\.byte-inspector-panel/)
+  assert.match(svelteBundleCss, /\.inspector-toggle/)
+  assert.match(svelteBundleCss, /\.inspector-edit-row/)
+  assert.match(svelteBundleCss, /\.inspector-value-button/)
+  assert.match(svelteBundleCss, /\.editor-main/)
+  assert.match(svelteBundleCss, /\.editor-grid-shell/)
+  assert.match(svelteBundleCss, /\.file-scrollbar/)
+  assert.match(svelteBundleCss, /\.file-scrollbar-track/)
+  assert.match(svelteBundleCss, /\.file-scrollbar-thumb/)
+  assert.match(svelteBundleCss, /\.offset-jump/)
+  assert.match(svelteBundleCss, /\.offset-jump-input/)
+  assert.match(svelteBundleCss, /\.offset-jump-status/)
+  assert.match(svelteBundleCss, /\.profiler-panel/)
+  assert.match(svelteBundleCss, /\.profiler-panel\.collapsed/)
+  assert.match(svelteBundleCss, /\.profiler-collapsed-label/)
+  assert.match(svelteBundleCss, /\.profiler-collapsed-toggle/)
+  assert.match(svelteBundleCss, /rotate\(90deg\)/)
+  assert.match(svelteBundleCss, /\.analysis-tab\.active/)
+  assert.match(svelteBundleCss, /\.analysis-section\.dragging/)
+  assert.match(svelteBundleCss, /\.analysis-section-actions/)
+  assert.match(svelteBundleCss, /\.analysis-drag-handle/)
+  assert.match(svelteBundleCss, /\.hex-heading span/)
+  assert.match(svelteBundleCss, /\.frequency-chart/)
+  assert.match(svelteBundleCss, /\.hex-heading span\.hover/)
+  assert.match(svelteBundleCss, /\.offset\.hover/)
+  assert.match(svelteBundleCss, /\.byte\.columnHover/)
+  assert.match(svelteBundleCss, /\.preview-grid\.overwrite \.byte\.activePane/)
+  assert.match(
+    svelteBundleCss,
+    /\.preview-grid\.overwrite \.text-byte\.activePane/
+  )
+  assert.doesNotMatch(svelteBundleCss, /\.status-strip/)
+  assert.doesNotMatch(svelteBundleCss, /\.server-health-tooltip/)
+  assert.doesNotMatch(svelteBundleCss, /\.status-item\.mode/)
+  for (const [name, source] of svelteComponentSources) {
+    assert.match(source, /\$(props|state|derived|effect)\(/, name)
+    assert.doesNotMatch(source, /(^|\n)\s*export\s+let\s/, name)
+    assert.doesNotMatch(source, /(^|\n)\s*\$:/, name)
+    assert.doesNotMatch(source, /on:[a-z]/, name)
+  }
+  assert.match(svelteAppSource, /selectionAnchor/)
+  assert.match(svelteAppSource, /selectedOffset/)
+  assert.match(svelteAppSource, /const DEFAULT_VISIBLE_ROWS = 16/)
+  assert.match(svelteAppSource, /pendingVisibleOffset/)
+  assert.match(svelteAppSource, /pendingSearchReveal/)
+  assert.match(svelteAppSource, /externalHighlights = \$state/)
+  assert.match(svelteAppSource, /function currentEditorUiState/)
+  assert.match(svelteAppSource, /type: 'editorStateChanged'/)
+  assert.match(svelteAppSource, /type: 'toggleEditMode'/)
+  assert.match(svelteAppSource, /case 'editMode'/)
+  assert.match(svelteAppSource, /type GridEditPane = 'hex' \| 'ascii'/)
+  assert.match(
+    svelteAppSource,
+    /type InspectorEditMode = 'insert' \| 'overwrite'/
+  )
+  assert.match(svelteAppSource, /function requestVisibleOffset/)
+  assert.match(svelteAppSource, /function canRenderVisibleOffset/)
+  assert.match(svelteAppSource, /function computeMaxVisibleOffset/)
+  assert.match(
+    svelteAppSource,
+    /maxScrollableOffset = \$derived\(computeMaxVisibleOffset/
+  )
+  assert.match(svelteAppSource, /function canScroll/)
+  assert.match(svelteAppSource, /if \(!canScroll\(direction\)\)/)
+  assert.match(
+    svelteAppSource,
+    /canScrollUp = \$derived\(\(pendingVisibleOffset \?\? visibleOffset\) > 0\)/
+  )
+  assert.match(svelteAppSource, /canScrollDown =/)
+  assert.match(svelteAppSource, /currentTarget < maxScrollableOffset/)
+  assert.match(
+    svelteAppSource,
+    /navigationOffset = \$derived\(pendingVisibleOffset \?\? visibleOffset\)/
+  )
+  assert.match(svelteAppSource, /function applyPendingSearchReveal/)
+  assert.match(svelteAppSource, /function applyDocumentReverted/)
+  assert.match(svelteAppSource, /case 'documentReverted'/)
+  assert.match(svelteAppSource, /DEFAULT_ANALYSIS_SECTION_ORDER/)
+  assert.match(svelteAppSource, /analysisSectionOrder = \$state/)
+  assert.match(svelteAppSource, /function normalizeAnalysisSectionOrder/)
+  assert.match(svelteAppSource, /function moveAnalysisSectionByDelta/)
+  assert.match(svelteAppSource, /function reorderAnalysisSection/)
+  assert.match(svelteAppSource, /savePreviewState/)
+  assert.match(svelteAppSource, /function handleSearchNavigationResult/)
+  assert.match(svelteAppSource, /kind: 'bounded'/)
+  assert.match(
+    svelteAppSource,
+    /currentTarget = pendingVisibleOffset \?\? visibleOffset/
+  )
+  assert.match(svelteAppSource, /message\.visibleOffset !== requestedOffset/)
+  assert.match(svelteAppSource, /viewportOffset/)
+  assert.match(svelteAppSource, /visibleViewportData/)
+  assert.match(svelteAppSource, /viewportOffset = message\.offset/)
+  assert.match(svelteAppSource, /pendingVisibleOffset = undefined/)
+  assert.match(svelteAppSource, /function selectRange/)
+  assert.match(svelteAppSource, /selectRange\(offset, searchPatternLength\)/)
+  assert.match(svelteAppSource, /onScroll=\{scrollPreview\}/)
+  assert.match(svelteAppSource, /onJumpToBoundary=\{jumpToBoundary\}/)
+  assert.doesNotMatch(svelteAppSource, /app-header/)
+  assert.doesNotMatch(svelteAppSource, /strings\.app\.title/)
+  assert.match(svelteAppSource, /SearchPanel/)
+  assert.match(svelteAppSource, /normalizeSearchQuery/)
+  assert.match(svelteAppSource, /getSearchPatternByteLength/)
+  assert.match(svelteAppSource, /type: 'search'/)
+  assert.match(svelteAppSource, /type: 'replace'/)
+  assert.match(svelteAppSource, /type: 'replaceAllMatches'/)
+  assert.match(svelteAppSource, /transformPlugins = \$state/)
+  assert.match(svelteAppSource, /transformPluginsLoaded = \$state/)
+  assert.match(svelteAppSource, /transformPluginsLoading = \$state/)
+  assert.match(svelteAppSource, /transformPluginError = \$state/)
+  assert.match(svelteAppSource, /transformFeedback = \$state/)
+  assert.match(svelteAppSource, /function requestTransformPlugins/)
+  assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
+  assert.match(svelteAppSource, /function applyTransform/)
+  assert.match(svelteAppSource, /type: 'applyTransform'/)
+  assert.match(svelteAppSource, /case 'transformPlugins'/)
+  assert.match(svelteAppSource, /transformPlugins = message\.plugins/)
+  assert.match(svelteAppSource, /transformPluginsLoaded = true/)
+  assert.match(svelteAppSource, /transformPluginsLoading = false/)
+  assert.match(svelteAppSource, /case 'transformComplete'/)
+  assert.match(svelteAppSource, /describeTransformComplete/)
+  assert.match(
+    svelteAppSource,
+    /selectRange\(message\.offset, transformedLength\)/
+  )
+  assert.match(svelteAppSource, /clearSearchResults\(\)/)
+  assert.match(svelteAppSource, /type: 'findAdjacentMatch'/)
+  assert.match(svelteAppSource, /type: 'goToMatch'/)
+  assert.match(svelteAppSource, /case 'searchNavigationCommand'/)
+  assert.match(svelteAppSource, /case 'replaceComplete'/)
+  assert.match(svelteAppSource, /normalizeReplacementHex/)
+  assert.match(svelteAppSource, /applySingleReplaceToSearchMatches/)
+  assert.match(svelteAppSource, /hasActiveSearchResult/)
+  assert.match(svelteAppSource, /runSearch\(direction\)/)
+  assert.match(svelteAppSource, /copySelection/)
+  assert.match(svelteAppSource, /INTERNAL_HEX_CLIPBOARD_FORMAT/)
+  assert.match(svelteAppSource, /function handleClipboardCopy/)
+  assert.match(svelteAppSource, /function handleClipboardPaste/)
+  assert.match(svelteAppSource, /function decodeClipboardPaste/)
+  assert.match(svelteAppSource, /function pasteClipboardHex/)
+  assert.match(svelteAppSource, /cutSelection/)
+  assert.match(svelteAppSource, /type: 'delete'/)
+  assert.match(svelteAppSource, /function handleGridType/)
+  assert.match(svelteAppSource, /function commitByteEdit/)
+  assert.match(svelteAppSource, /function postDeleteRange/)
+  assert.match(svelteAppSource, /function deleteFromKeyboard/)
+  assert.match(svelteAppSource, /deletedBytes/)
+  assert.match(svelteAppSource, /function toggleInspectorEditMode/)
+  assert.match(svelteAppSource, /function isEditableTarget/)
+  assert.match(svelteAppSource, /event\.key !== 'Insert'/)
+  assert.match(
+    svelteAppSource,
+    /window\.addEventListener\('keydown', keyListener\)/
+  )
+  assert.match(svelteAppSource, /function commitInspectorValue/)
+  assert.match(svelteAppSource, /function inspectRange/)
+  assert.match(svelteAppSource, /function jumpToBoundary/)
+  assert.match(svelteAppSource, /boundary === 'top' \? 0 : maxScrollableOffset/)
+  assert.match(svelteAppSource, /function goToOffset/)
+  assert.match(svelteAppSource, /offset < 0 \|\| offset >= fileSize/)
+  assert.match(svelteAppSource, /onGoToOffset=\{goToOffset\}/)
+  assert.match(svelteAppSource, /scrollOffset=\{navigationOffset\}/)
+  assert.match(svelteAppSource, /onScrollTo=\{requestVisibleOffset\}/)
+  assert.match(svelteAppSource, /function toggleInspectorEndian/)
+  assert.match(svelteAppSource, /function toggleInspectorExpanded/)
+  assert.match(svelteAppSource, /function setOffsetRadix/)
+  assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
+  assert.match(
+    svelteAppSource,
+    /inspectorBytes = \$derived\(visibleBytesAt\([\s\S]*viewportData[\s\S]*viewportOffset[\s\S]*fileSize/
+  )
+  assert.match(svelteAppSource, /type: 'insert'/)
+  assert.match(svelteAppSource, /type: 'overwrite'/)
+  assert.match(svelteAppSource, /invalidAsciiByte/)
+  assert.match(svelteAppSource, /pendingHexLabel/)
+  assert.match(
+    svelteAppSource,
+    /document\.addEventListener\('copy', copyListener\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /document\.addEventListener\('paste', pasteListener\)/
+  )
+  assert.match(svelteAppSource, /clipboardComplete/)
+  assert.match(svelteAppSource, /ByteInspector/)
+  assert.match(svelteAppSource, /EditorWorkspace/)
+  assert.match(svelteAppSource, /MAX_ANALYSIS_PROFILE_BYTES/)
+  assert.match(svelteAppSource, /latestDataProfile/)
+  assert.match(svelteAppSource, /latestViewportProfile/)
+  assert.match(svelteAppSource, /serverHealth = \$state/)
+  assert.match(svelteAppSource, /function requestAnalysisProfile/)
+  assert.match(svelteAppSource, /postToHost\(message\)/)
+  assert.match(svelteAppSource, /case 'analysisProfile'/)
+  assert.match(svelteAppSource, /case 'serverHealth'/)
+  assert.match(svelteAppSource, /serverHealth = message/)
+  assert.match(svelteAppSource, /case 'externalHighlights'/)
+  assert.match(svelteAppSource, /dataProfile=\{latestDataProfile\}/)
+  assert.match(svelteAppSource, /viewportProfile=\{latestViewportProfile\}/)
+  assert.match(svelteAppSource, /\{serverHealth\}/)
+  assert.match(svelteAppSource, /visibleByteCount=\{visibleByteCount\(\)\}/)
+  assert.match(editorWorkspaceSource, /PreviewGrid/)
+  assert.match(editorWorkspaceSource, /FileScrollbar/)
+  assert.match(editorWorkspaceSource, /editor-grid-shell/)
+  assert.match(editorWorkspaceSource, /scrollOffset/)
+  assert.match(editorWorkspaceSource, /onScrollTo/)
+  assert.match(editorWorkspaceSource, /ProfilerPanel/)
+  assert.match(editorWorkspaceSource, /onToggleProfilerExpanded/)
+  assert.match(editorWorkspaceSource, /onProfilerModeChange/)
+  assert.match(editorWorkspaceSource, /analysisSectionOrder/)
+  assert.match(editorWorkspaceSource, /onMoveAnalysisSection/)
+  assert.match(editorWorkspaceSource, /onReorderAnalysisSection/)
+  assert.match(editorWorkspaceSource, /externalHighlights/)
+  assert.match(editorWorkspaceSource, /dataProfile/)
+  assert.match(editorWorkspaceSource, /viewportProfile/)
+  assert.match(editorWorkspaceSource, /serverHealth/)
+  assert.match(previewGridSource, /id="previewGrid"/)
+  assert.match(previewGridSource, /onkeydown/)
+  assert.match(previewGridSource, /onpointerdown/)
+  assert.match(previewGridSource, /onpointermove/)
+  assert.match(previewGridSource, /onpointerup/)
+  assert.match(previewGridSource, /onpointercancel/)
+  assert.match(previewGridSource, /onwheel/)
+  assert.match(previewGridSource, /onMoveSelection/)
+  assert.match(previewGridSource, /canScrollUp/)
+  assert.match(previewGridSource, /canScrollDown/)
+  assert.match(previewGridSource, /event\.stopPropagation\(\)/)
+  assert.match(previewGridSource, /event\.deltaY === 0/)
+  assert.match(previewGridSource, /case 'Insert'/)
+  assert.match(previewGridSource, /case 'Backspace'/)
+  assert.match(previewGridSource, /case 'Delete'/)
+  assert.match(previewGridSource, /case 'Home'/)
+  assert.match(previewGridSource, /onJumpToBoundary\('top'\)/)
+  assert.match(previewGridSource, /case 'End'/)
+  assert.match(previewGridSource, /onJumpToBoundary\('bottom'\)/)
+  assert.match(previewGridSource, /onToggleEditMode/)
+  assert.match(previewGridSource, /onTypeByte\(activePane, event\.key\)/)
+  assert.match(previewGridSource, /onDeleteByte/)
+  assert.doesNotMatch(previewGridSource, /onJumpSelection/)
+  assert.match(previewGridSource, /handlePointerDown\('hex'/)
+  assert.match(previewGridSource, /handlePointerDown\('ascii'/)
+  assert.match(previewGridSource, /isDraggingSelection/)
+  assert.match(previewGridSource, /dragPointerId/)
+  assert.match(previewGridSource, /function handlePointerDown/)
+  assert.match(previewGridSource, /function handlePointerMove/)
+  assert.match(previewGridSource, /function stopDraggingSelection/)
+  assert.match(previewGridSource, /setPointerCapture/)
+  assert.match(previewGridSource, /releasePointerCapture/)
+  assert.match(previewGridSource, /data-offset=\{byteOffset\}/)
+  assert.match(previewGridSource, /data-column=\{index\}/)
+  assert.match(previewGridSource, /data-pane="hex"/)
+  assert.match(previewGridSource, /data-pane="ascii"/)
+  assert.match(previewGridSource, /class:hover=\{index === hoveredColumn\}/)
+  assert.match(
+    previewGridSource,
+    /class:hover=\{rowIndex === hoveredRowIndex\}/
+  )
+  assert.match(previewGridSource, /class:columnHover/)
+  assert.match(previewGridSource, /class:activePane/)
+  assert.match(previewGridSource, /class:printable=\{isPrintable\(byte\)\}/)
+  assert.match(previewGridSource, /class:control=\{isControlByte\(byte\)\}/)
+  assert.match(previewGridSource, /class:high-bit=\{isHighBitByte\(byte\)\}/)
+  assert.match(previewGridSource, /function isControlByte/)
+  assert.match(previewGridSource, /function isHighBitByte/)
+  assert.match(previewGridSource, /function formatBinary/)
+  assert.match(previewGridSource, /function formatTooltipText/)
+  assert.match(previewGridSource, /function byteClassLabel/)
+  assert.match(previewGridSource, /function formatByteHoverTitle/)
+  assert.match(previewGridSource, /strings\.grid\.byteHoverTitle/)
+  assert.match(previewGridSource, /strings\.grid\.notPrintable/)
+  assert.match(previewGridSource, /offsetRadix/)
+  assert.match(previewGridSource, /function formatColumnOffset/)
+  assert.match(previewGridSource, /function formatHexOffset/)
+  assert.match(previewGridSource, /inspectorStart/)
+  assert.match(previewGridSource, /class:inspectorRange/)
+  assert.match(previewGridSource, /externalHighlightFor/)
+  assert.match(previewGridSource, /class:externalHighlight/)
+  assert.match(previewGridSource, /class:externalCurrent/)
+  assert.match(previewGridSource, /class:externalParsed/)
+  assert.match(previewGridSource, /class:externalError/)
+  assert.match(previewGridSource, /class:externalBreakpoint/)
+  assert.match(previewGridSource, /FALLBACK_VISIBLE_ROWS/)
+  assert.match(previewGridSource, /ResizeObserver/)
+  assert.match(previewGridSource, /onVisibleRowsChange/)
+  assert.match(
+    previewGridSource,
+    /class=\{`preview-grid bytes-\$\{bytesPerRow\}`\}/
+  )
+  assert.doesNotMatch(previewGridSource, /style=\{/)
+  assert.match(previewGridSource, /aria-pressed/)
+  assert.match(previewGridSource, /aria-label=\{formatByteHoverTitle/)
+  assert.match(previewGridSource, /title=\{formatByteHoverTitle/)
+  assert.match(previewGridSource, /searchStart/)
+  assert.match(previewGridSource, /class:searchHit/)
+  assert.match(previewGridSource, /class="text-byte"/)
+  assert.match(previewGridSource, /formatAscii\(byte\)/)
+  assert.match(i18nSource, /byteHoverTitle/)
+  assert.match(i18nSource, /Hex offset/)
+  assert.match(i18nSource, /Decimal offset/)
+  assert.match(i18nSource, /externalHighlight/)
+  assert.match(i18nSource, /text: 'TEXT'/)
+  assert.match(toolbarSource, /strings\.toolbar\.offsetRadix/)
+  assert.match(toolbarSource, /strings\.toolbar\.hexOffsets/)
+  assert.match(toolbarSource, /strings\.toolbar\.decOffsets/)
+  assert.match(toolbarSource, /onOffsetRadix/)
+  assert.match(toolbarSource, /OffsetJump/)
+  assert.match(toolbarSource, /fileSize/)
+  assert.match(toolbarSource, /onGoToOffset/)
+  assert.match(toolbarSource, /TransformPanel/)
+  assert.match(toolbarSource, /pluginsLoaded=\{transformPluginsLoaded\}/)
+  assert.match(toolbarSource, /pluginsLoading=\{transformPluginsLoading\}/)
+  assert.match(toolbarSource, /onRequestTransforms/)
+  assert.match(toolbarSource, /onApplyTransform/)
+  assert.doesNotMatch(toolbarSource, /canUndo/)
+  assert.doesNotMatch(toolbarSource, /canRedo/)
+  assert.doesNotMatch(toolbarSource, /onUndo/)
+  assert.doesNotMatch(toolbarSource, /onRedo/)
+  assert.doesNotMatch(toolbarSource, /strings\.toolbar\.undo/)
+  assert.doesNotMatch(toolbarSource, /strings\.toolbar\.redo/)
+  assert.match(transformPanelSource, /strings\.transform\.label/)
+  assert.match(transformPanelSource, /function advertisedTransformExamples/)
+  assert.match(transformPanelSource, /function validateJsonSchemaValue/)
+  assert.match(transformPanelSource, /function validateTransformOptions/)
+  assert.match(transformPanelSource, /function openTransformDialog/)
+  assert.match(transformPanelSource, /function applySelectedTransform/)
+  assert.match(transformPanelSource, /savedOptionsByPluginId = \$state/)
+  assert.match(transformPanelSource, /pluginsLoading/)
+  assert.match(transformPanelSource, /pluginsLoaded/)
+  assert.match(transformPanelSource, /onRequestTransforms/)
+  assert.match(transformPanelSource, /onApplyTransform/)
+  assert.match(transformPanelSource, /role="dialog"/)
+  assert.match(transformPanelSource, /aria-modal="true"/)
+  assert.match(
+    transformPanelSource,
+    /aria-label=\{strings\.transform\.closeDialog\}/
+  )
+  assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /class="help-example"/)
+  assert.match(transformPanelSource, /JSON\.parse\(rawOptionsJson\)/)
+  assert.match(transformPanelSource, /argsSchema/)
+  assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
+  assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
+  assert.doesNotMatch(transformPanelSource, /transform-refresh/)
+  assert.doesNotMatch(transformPanelSource, /refreshTransforms/)
+  assert.doesNotMatch(toolbarSource, /onTop/)
+  assert.doesNotMatch(toolbarSource, /onScrollUp/)
+  assert.doesNotMatch(toolbarSource, /onScrollDown/)
+  assert.doesNotMatch(toolbarSource, /strings\.toolbar\.top/)
+  assert.doesNotMatch(toolbarSource, /strings\.toolbar\.previous/)
+  assert.doesNotMatch(toolbarSource, /strings\.toolbar\.next/)
+  assert.match(offsetJumpSource, /strings\.navigation\.offsetLabel/)
+  assert.match(offsetJumpSource, /strings\.navigation\.offsetPlaceholderHex/)
+  assert.match(offsetJumpSource, /strings\.navigation\.offsetPlaceholderDec/)
+  assert.match(offsetJumpSource, /offsetRadix === 'hex'/)
+  assert.match(offsetJumpSource, /Number\.parseInt\(source, valueBase\)/)
+  assert.match(offsetJumpSource, /parsedOffset >= fileSize/)
+  assert.match(offsetJumpSource, /aria-invalid/)
+  assert.match(offsetJumpSource, /id="offsetJumpInput"/)
+  assert.match(offsetJumpSource, /onGoToOffset\(parsedOffset\)/)
+  assert.match(fileScrollbarSource, /role="scrollbar"/)
+  assert.match(fileScrollbarSource, /aria-controls="previewGrid"/)
+  assert.match(fileScrollbarSource, /strings\.navigation\.scrollbarLabel/)
+  assert.match(fileScrollbarSource, /requestAnimationFrame/)
+  assert.match(fileScrollbarSource, /ResizeObserver/)
+  assert.match(fileScrollbarSource, /function scrollFromTrackPosition/)
+  assert.match(fileScrollbarSource, /function handleKeydown/)
+  assert.match(fileScrollbarSource, /maxStartRow/)
+  assert.match(fileScrollbarSource, /onScrollTo\(nextOffset\)/)
+  assert.match(searchPanelSource, /strings\.search\.label/)
+  assert.match(searchPanelSource, /onSearch/)
+  assert.match(searchPanelSource, /onNavigate/)
+  assert.match(searchPanelSource, /strings\.search\.next/)
+  assert.match(searchPanelSource, /strings\.search\.previous/)
+  assert.match(searchPanelSource, /strings\.search\.replacePlaceholder/)
+  assert.match(searchPanelSource, /strings\.search\.replaceAll/)
+  assert.match(searchPanelSource, /canNavigate/)
+  assert.match(searchPanelSource, /canReplace/)
+  assert.match(searchPanelSource, /onReplaceAll/)
+  assert.match(searchPanelSource, /caseInsensitive/)
+  assert.doesNotMatch(searchPanelSource, />Search Next</)
+  assert.doesNotMatch(searchPanelSource, />Replace All</)
+  assert.match(byteInspectorSource, /strings\.inspector\.label/)
+  assert.match(byteInspectorSource, /strings\.inspector\.littleEndian/)
+  assert.match(byteInspectorSource, /strings\.inspector\.bigEndian/)
+  assert.match(byteInspectorSource, /strings\.inspector\.utf8/)
+  assert.match(byteInspectorSource, /strings\.inspector\.utf16/)
+  assert.match(byteInspectorSource, /\$props\(\)/)
+  assert.match(byteInspectorSource, /\$state\(/)
+  assert.match(byteInspectorSource, /\$derived\(/)
+  assert.match(byteInspectorSource, /\$effect\(/)
+  assert.match(byteInspectorSource, /lastSelectedOffset/)
+  assert.match(byteInspectorSource, /function decodeFirstUtf8/)
+  assert.match(byteInspectorSource, /function decodeFirstUtf16/)
+  assert.match(byteInspectorSource, /function integerField/)
+  assert.match(byteInspectorSource, /function writeIntegerBytes/)
+  assert.match(byteInspectorSource, /getBigUint64/)
+  assert.match(byteInspectorSource, /byteLength/)
+  assert.match(byteInspectorSource, /fieldByteLength/)
+  assert.match(byteInspectorSource, /expanded/)
+  assert.match(byteInspectorSource, /onToggleExpanded/)
+  assert.match(byteInspectorSource, /float32/)
+  assert.match(byteInspectorSource, /editable: false/)
+  assert.match(byteInspectorSource, /inspector-value-button/)
+  assert.match(byteInspectorSource, /onToggleEndian/)
+  assert.match(byteInspectorSource, /onCommitValue/)
+  assert.match(byteInspectorSource, /onInspectRange/)
+  assert.match(byteInspectorSource, /isPrintableAscii/)
+  assert.doesNotMatch(byteInspectorSource, /onCopyByte/)
+  assert.doesNotMatch(byteInspectorSource, /onCopyRange/)
+  assert.match(profilerPanelSource, /strings\.profiler\.label/)
+  assert.match(profilerPanelSource, /data-analysis-panel="profile"/)
+  assert.match(profilerPanelSource, /data-analysis-panel="structure"/)
+  assert.match(profilerPanelSource, /sectionId === 'frequency'/)
+  assert.match(profilerPanelSource, /sectionId === 'server'/)
+  assert.match(profilerPanelSource, /buildServerRows/)
+  assert.match(profilerPanelSource, /serverRows/)
+  assert.match(profilerPanelSource, /analysis-collapse-button/)
+  assert.match(profilerPanelSource, /server-health-value/)
+  assert.match(profilerPanelSource, /toggleSectionCollapsed/)
+  assert.match(profilerPanelSource, /data-analysis-section=\{sectionId\}/)
+  assert.match(profilerPanelSource, /DEFAULT_ANALYSIS_SECTION_ORDER/)
+  assert.match(profilerPanelSource, /sectionOrder/)
+  assert.match(profilerPanelSource, /data-analysis-drag="true"/)
+  assert.match(profilerPanelSource, /function handleDragPointerDown/)
+  assert.match(profilerPanelSource, /function handleDragPointerMove/)
+  assert.match(profilerPanelSource, /function handleDragKeydown/)
+  assert.match(profilerPanelSource, /onMoveSection/)
+  assert.match(profilerPanelSource, /onReorderSection/)
+  assert.match(profilerPanelSource, /frequencyScale/)
+  assert.match(profilerPanelSource, /function analyzeBytes/)
+  assert.match(profilerPanelSource, /function frequencyBarHeight/)
+  assert.doesNotMatch(profilerPanelSource, /onRefresh/)
+  assert.match(profilerPanelSource, /class:collapsed/)
+  assert.match(profilerPanelSource, /profiler-collapsed-toggle/)
+  assert.match(profilerPanelSource, /profiler-collapsed-label/)
+  assert.match(svelteBundleCss, /--omega-byte-class-printable/)
+  assert.match(svelteBundleCss, /--omega-byte-class-control/)
+  assert.match(svelteBundleCss, /--omega-byte-class-high-bit/)
+  assert.match(svelteBundleCss, /\.text-byte\.control/)
+  assert.match(svelteBundleCss, /\.text-byte\.high-bit/)
+  assert.match(
+    svelteBundleCss,
+    /\.analysis-bar-fill\.printable\{background:var\(--omega-byte-class-printable\)/
+  )
+  assert.match(
+    svelteBundleCss,
+    /\.frequency-bar\.high-bit\{background:var\(--omega-byte-class-high-bit\)/
+  )
+  assert.match(svelteBundleCss, /\.server-health-value\.ok/)
+  assert.match(svelteBundleCss, /\.server-health-value\.warn/)
+  assert.match(svelteBundleCss, /\.server-health-value\.error/)
 
   const extensionJs = fs.readFileSync(
     path.resolve(__dirname, '../out/extension.js'),
@@ -172,9 +930,24 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SEARCH_NEXT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND/)
+  assert.match(extensionJs, /searchNextActive/)
+  assert.match(extensionJs, /searchPreviousActive/)
+  assert.match(extensionJs, /refreshActiveTransformPlugins/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_SESSION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_GET_EDITOR_STATE_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND/)
+  assert.match(extensionJs, /getEditorState/)
+  assert.match(extensionJs, /setExternalHighlights/)
+  assert.match(extensionJs, /clearExternalHighlights/)
+  assert.match(extensionJs, /createOmegaEditExtensionApi/)
+  assert.match(extensionJs, /onDidChangeEditorState/)
+  assert.match(extensionJs, /revealOffset/)
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /rollbackActiveSession/)
@@ -189,434 +962,284 @@ test('compiled extension entrypoints exist after build', () => {
   )
 })
 
-test('webview HTML includes core controls and configured row width', () => {
-  const html = getWebviewContent(32)
+test('webview protocol normalizes editor commands and rejects invalid ranges', () => {
+  const context = { fileSize: 10 }
 
-  assert.match(html, /http-equiv="Content-Security-Policy"/)
-  assert.match(html, /default-src 'none'/)
-  assert.match(html, /img-src 'self' data:/)
-  assert.match(html, /style-src 'self' 'unsafe-inline'/)
-  assert.doesNotMatch(html, /&#39;self&#39;/)
-  assert.match(html, /script-src 'nonce-[^']+'/)
-  assert.match(html, /<script nonce="[^"]+">/)
-  assert.match(
-    html,
-    /--accent-frame: var\(--vscode-contrastActiveBorder, #cca700\);/
+  assert.equal(normalizeBytesPerRow(24), 16)
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'editorStateChanged',
+      visibleOffset: 0,
+      visibleByteCount: 10,
+      selectedOffset: 2,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selectionLength: 4,
+      bytesPerRow: 16,
+      offsetRadix: 'hex',
+      activePane: 'ascii',
+      editMode: 'overwrite',
+    }),
+    {
+      type: 'editorStateChanged',
+      visibleOffset: 0,
+      visibleByteCount: 10,
+      selectedOffset: 2,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selectionLength: 4,
+      bytesPerRow: 16,
+      offsetRadix: 'hex',
+      activePane: 'ascii',
+      editMode: 'overwrite',
+    }
   )
-  assert.match(html, /\.byte-inspector-header \{[\s\S]*cursor: grab;/)
-  assert.doesNotMatch(html, /data-inspector-pin/)
-  assert.match(
-    html,
-    /\.status-inline-button\.active \{[\s\S]*border-color: var\(--accent-frame\);/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'editorStateChanged',
+      visibleOffset: 0,
+      visibleByteCount: 10,
+      selectedOffset: 2,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selectionLength: 3,
+      bytesPerRow: 16,
+      offsetRadix: 'hex',
+      activePane: 'ascii',
+      editMode: 'insert',
+    }),
+    undefined
   )
-  assert.match(
-    html,
-    /button\.byte-inspector-value:hover,[\s\S]*border-color: var\(--accent-frame\);/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, { type: 'toggleEditMode' }),
+    {
+      type: 'toggleEditMode',
+    }
   )
-  assert.match(
-    html,
-    /\.byte-inspector-meta \{[\s\S]*border: 1px solid var\(--accent-frame\);/
+  assert.deepEqual(
+    normalizeExternalHighlights(context, [
+      {
+        id: 'dfdl.current',
+        offset: 2,
+        length: 3,
+        kind: 'current',
+        label: 'Current parse point',
+        source: 'DFDL',
+      },
+      {
+        id: 'dfdl.error',
+        offset: 8,
+        length: 1,
+        kind: 'error',
+        label: '',
+      },
+    ]),
+    [
+      {
+        id: 'dfdl.current',
+        offset: 2,
+        length: 3,
+        kind: 'current',
+        label: 'Current parse point',
+        source: 'DFDL',
+      },
+      {
+        id: 'dfdl.error',
+        offset: 8,
+        length: 1,
+        kind: 'error',
+        label: 'error',
+        source: undefined,
+      },
+    ]
   )
-  assert.match(
-    html,
-    /\.hex-byte\.inspector-anchor \{[\s\S]*background: var\(--accent-frame-bg\);/
+  assert.equal(
+    normalizeExternalHighlights(context, [
+      { id: 'duplicate', offset: 0, length: 1, kind: 'current' },
+      { id: 'duplicate', offset: 1, length: 1, kind: 'parsed' },
+    ]),
+    undefined
   )
-  assert.match(
-    html,
-    /\.ascii-char\.inspector-anchor \{[\s\S]*background: var\(--accent-frame-bg\);/
+  assert.equal(
+    normalizeExternalHighlights(context, [
+      { id: 'outside', offset: 9, length: 2, kind: 'error' },
+    ]),
+    undefined
   )
-  assert.match(html, /const BYTES_PER_ROW = 32/)
-  assert.match(html, /id="hexContainer"/)
-  assert.match(html, /id="hexHeader"/)
-  assert.match(html, /id="hexColumnHeader"/)
-  assert.match(html, /id="bytesPerRowSelect"/)
-  assert.match(html, /id="offsetRadixSelect"/)
-  assert.match(html, /id="findWidget"/)
-  assert.match(html, /id="searchDirectionSelect"/)
-  assert.match(html, /id="searchBtn"/)
-  assert.match(html, /id="replaceInput"/)
-  assert.match(html, /id="replaceBtn"/)
-  assert.match(html, /id="replaceAllBtn"/)
-  assert.match(html, /id="editModeBtn"/)
-  assert.doesNotMatch(html, /id="topBtn"/)
-  assert.doesNotMatch(html, /id="bottomBtn"/)
-  assert.match(html, /id="scrollbarTrack"/)
-  assert.match(html, /id="scrollbarThumb"/)
-  assert.doesNotMatch(html, /id="saveBtn"/)
-  assert.doesNotMatch(html, /id="saveAsBtn"/)
-  assert.match(html, /id="transformSelect"/)
-  assert.match(html, /id="transformOptions"/)
-  assert.match(html, /id="transformOptionsDialog"/)
-  assert.match(html, /id="transformOptionsApply"/)
-  assert.match(html, /id="transformOptionsCancel"/)
-  assert.match(html, /data-example-index/)
-  assert.doesNotMatch(html, /id="transformApplyBtn"/)
-  assert.doesNotMatch(html, /id="transformRefreshBtn"/)
-  assert.match(html, /id="editDialog"/)
-  assert.match(html, /id="searchCaseLabel"/)
-  assert.match(html, /id="statusDirty"/)
-  assert.match(html, /id="statusAction"/)
-  assert.match(html, /id="statusInspector"/)
-  assert.match(html, /id="inspectorEndianBtn"/)
-  assert.match(html, /id="serverHealthDot"/)
-  assert.match(html, /id="serverHealthSummary"/)
-  assert.match(html, /id="serverHealthBadge"/)
-  assert.match(html, /id="serverHealthMetrics"/)
-  assert.match(html, /id="analysisPane"/)
-  assert.match(html, /data-analysis-panel="profile"/)
-  assert.match(html, /data-analysis-panel="structure"/)
-  assert.match(html, /data-analysis-section="viewport"/)
-  assert.match(html, /data-analysis-section="frequency"/)
-  assert.match(html, /data-analysis-section="timing"/)
-  assert.match(html, /data-analysis-drag="true"/)
-  assert.match(html, /\.analysis-drag-handle \{[\s\S]*cursor: grab;/)
-  assert.match(html, /id="profileTab"/)
-  assert.match(html, /id="structureTab"/)
-  assert.match(html, /aria-controls="profilePanel"/)
-  assert.match(html, /aria-controls="structurePanel"/)
-  assert.match(html, /id="profileViewportMetrics"/)
-  assert.match(html, /id="profileTimingMetrics"/)
-  assert.match(html, /id="profileDataMetrics"/)
-  assert.match(html, /id="profileScaleBtn"/)
-  assert.match(html, /id="profileFrequencyChart"/)
-  assert.match(html, /id="profileFrequencyTooltip"/)
-  assert.match(html, /id="profileLimitNote"/)
-  assert.match(html, /id="profileByteBars"/)
-  assert.match(html, /id="profileClassBars"/)
-  assert.match(html, /grid-template-columns: repeat\(256, minmax\(0, 1fr\)\);/)
-  assert.match(html, /\.frequency-bar \{[\s\S]*min-width: 0;/)
-  assert.match(html, /\.analysis-tab \{[\s\S]*opacity: 0\.68;/)
-  assert.match(html, /\.analysis-tab\.active \{[\s\S]*box-shadow:/)
-  assert.match(html, /\.ascii-char\.non-printable\.ascii-control/)
-  assert.match(
-    html,
-    /\.ascii-char\.non-printable\.ascii-control \{[\s\S]*ansiBlue/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRow',
+      bytesPerRow: 16,
+    }),
+    { type: 'setBytesPerRow', bytesPerRow: 16 }
   )
-  assert.match(html, /\.ascii-char\.non-printable\.high-bit/)
-  assert.match(html, /id="structureMetrics"/)
-  assert.match(html, /id="structureHistoryMetrics"/)
-  assert.doesNotMatch(html, /id="structureTopBytes"/)
-  assert.match(html, /id="statusProgress"/)
-  assert.match(html, /\.analysis-bar-fill \{[\s\S]*display: block;/)
-  assert.doesNotMatch(html, /id="undoBtn"/)
-  assert.doesNotMatch(html, /id="redoBtn"/)
-  assert.match(html, /grid-template-columns: repeat\(32, 1ch\);/)
-  assert.match(html, /min-width: calc\(32ch \+ 12px\);/)
-  assert.match(
-    html,
-    /--selected-fg: var\(--vscode-editor-selectionForeground, var\(--fg\)\);/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'setBytesPerRow',
+      bytesPerRow: 24,
+    }),
+    undefined
   )
-  assert.match(
-    html,
-    /--offset-column-fg: var\(--vscode-terminal-ansiCyan, #4fc1ff\);/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'insert',
+      offset: 10,
+      data: 'aa ff',
+    }),
+    { type: 'insert', offset: 10, data: 'aaff' }
   )
-  assert.match(
-    html,
-    /--scrollbar-slider-bg: var\(--vscode-scrollbarSlider-background, rgba\(121, 121, 121, 0.4\)\);/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'insert',
+      offset: 11,
+      data: 'ff',
+    }),
+    undefined
   )
-  assert.match(html, /\.toolbar label\.disabled/)
-  assert.match(html, /\.scrollbar-thumb/)
-  assert.match(html, /\.server-health-dot\.warn/)
-  assert.match(html, /\.server-health-badge\.down/)
-  assert.match(html, /searchCase\.disabled = hexMode/)
-  assert.match(html, /function formatOffsetDisplay\(offset\)/)
-  assert.match(html, /function formatRowOffset\(offset\)/)
-  assert.match(html, /function formatColumnOffset\(offset\)/)
-  assert.match(html, /let selectionAnchor = -1/)
-  assert.match(html, /function getSelectionStart\(\)/)
-  assert.match(html, /function getSelectionEnd\(\)/)
-  assert.match(html, /function getSelectionLength\(\)/)
-  assert.match(html, /function selectRange\(offset, length\)/)
-  assert.match(html, /function offsetIsSelected\(offset\)/)
-  assert.match(
-    html,
-    /const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application\/x-omega-edit-hex'/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'delete',
+      offset: 2,
+      length: 3,
+    }),
+    { type: 'delete', offset: 2, length: 3 }
   )
-  assert.match(html, /let activePane = 'hex'/)
-  assert.match(html, /function renderColumnHeader\(\)/)
-  assert.match(html, /let matchedByteOffsets = new Set\(\)/)
-  assert.match(html, /function rebuildMatchedByteOffsets\(\)/)
-  assert.match(html, /progress\.toFixed\(2\) \+ '%'/)
-  assert.match(html, /function scrollToViewportOffset\(offset\)/)
-  assert.match(html, /rowAlignedOffset >= bufferOffset/)
-  assert.match(html, /type: 'setViewportMetrics'/)
-  assert.match(html, /function reportViewportMetrics\(\)/)
-  assert.match(html, /visibleOffset =/)
-  assert.match(html, /bufferOffset = msg\.offset/)
-  assert.match(html, /measuredRowHeight/)
-  assert.match(html, /const MIN_SCROLLBAR_THUMB_HEIGHT = 20/)
-  assert.match(html, /hexContainer\.clientHeight \/ measuredRowHeight/)
-  assert.match(html, /ResizeObserver/)
-  assert.match(html, /moveSelection\('left', e\.shiftKey\)/)
-  assert.match(html, /moveSelection\('right', e\.shiftKey\)/)
-  assert.match(html, /moveSelection\('up', e\.shiftKey\)/)
-  assert.match(html, /moveSelection\('down', e\.shiftKey\)/)
-  assert.match(html, /hexContainer\.addEventListener\('pointerdown'/)
-  assert.match(html, /isPointerSelecting = true/)
-  assert.match(html, /selectOffset\(offset, true\)/)
-  assert.match(html, /hexContainer\.addEventListener\('contextmenu'/)
-  assert.match(html, /scrollToViewportOffset\(0\)/)
-  assert.match(
-    html,
-    /scrollToViewportOffset\(Math\.max\(0, fileSize - BYTES_PER_ROW\)\)/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'delete',
+      offset: 8,
+      length: 3,
+    }),
+    undefined
   )
-  assert.match(html, /type: 'setBytesPerRow'/)
-  assert.match(html, /type: 'search'/)
-  assert.match(html, /type: 'replace'/)
-  assert.match(html, /type: 'replaceAllMatches'/)
-  assert.match(html, /type: 'requestTransformPlugins'/)
-  assert.match(html, /type: 'applyTransform'/)
-  assert.match(html, /case 'transformPlugins'/)
-  assert.match(html, /case 'transformComplete'/)
-  assert.match(html, /const transformedLength = msg\.contentChanged/)
-  assert.match(html, /selectRange\(msg\.offset, transformedLength\)/)
-  assert.match(html, /function applySelectedTransform\(\)/)
-  assert.match(html, /function getTransformOptionHelp\(plugin\)/)
-  assert.match(html, /function validateTransformOptions\(plugin, optionsJson\)/)
-  assert.match(html, /function validateJsonSchemaValue\(value, schema, path\)/)
-  assert.match(html, /function renderTransformOptionsDialog\(\)/)
-  assert.match(html, /transformSelect\.addEventListener\('pointerdown'/)
-  assert.match(html, /transformSelect\.addEventListener\('change'/)
-  assert.match(
-    html,
-    /e\.key === 'Escape' && transformOptionsDialog\.classList\.contains\('active'\)[\s\S]*closeTransformOptionsDialog\(\)/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'replace',
+      offset: 10,
+      length: 0,
+      data: '',
+    }),
+    { type: 'replace', offset: 10, length: 0, data: '' }
   )
-  assert.match(
-    html,
-    /e\.shiftKey && e\.key === ' '\) \{[\s\S]*if \(toggleByteInspector\(\)\)/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'overwrite',
+      offset: 10,
+      data: 'ff',
+    }),
+    undefined
   )
-  assert.doesNotMatch(html, /Toggle pinned inspector/)
-  assert.match(html, /function useTransformOptionExample\(index\)/)
-  assert.match(html, /function advertisedTransformExamples\(plugin\)/)
-  assert.match(
-    html,
-    /transformOptionsDialog\.contains\(document\.activeElement\)/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'copySelection',
+      offset: 1,
+      length: 4,
+      format: 'utf8',
+    }),
+    { type: 'copySelection', offset: 1, length: 4, format: 'utf8' }
   )
-  assert.match(html, /Selected Range/)
-  assert.match(html, /formatOffsetDisplay\(selectionStart\)/)
-  assert.match(html, /formatOffsetDisplay\(selectionEnd\)/)
-  assert.doesNotMatch(
-    html,
-    /These options are advertised by the selected transform/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'copySelection',
+      offset: 1,
+      length: 4,
+      format: 'base64',
+    }),
+    undefined
   )
-  assert.doesNotMatch(html, /does not advertise JSON options/)
-  assert.match(html, /argsSchema/)
-  assert.doesNotMatch(html, /class="help-schema"/)
-  assert.match(html, /did not advertise an options schema/)
-  assert.match(html, /Selected transform advertised an invalid options schema/)
-  assert.doesNotMatch(html, /omega\.example\.xor/)
-  assert.doesNotMatch(html, /bytes\/mask/)
-  assert.match(html, /function flashActionStatus\(\)/)
-  assert.match(html, /\.status-action\.flash/)
-  assert.match(html, /@keyframes status-action-flash/)
-  assert.match(html, /prefers-reduced-motion: reduce/)
-  assert.match(html, /flashActionStatus\(\)/)
-  assert.match(html, /JSON\.parse\(optionsJson\)/)
-  assert.match(html, /function updateTransformControls\(\)/)
-  assert.match(html, /No transforms found/)
-  assert.match(
-    html,
-    /searchBtn\.disabled = searchInput\.value\.trim\(\)\.length === 0/
+})
+
+test('webview protocol normalizes analysis, search, and transform messages', () => {
+  const context = { fileSize: 100_000 }
+  const requestedLength = MAX_ANALYSIS_PROFILE_BYTES + 512
+
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'requestAnalysisProfile',
+      offset: 0,
+      length: requestedLength,
+      requestKey: 'visible',
+      scopeLabel: 'Visible Range',
+      requestedLength,
+      isCapped: true,
+    }),
+    {
+      type: 'requestAnalysisProfile',
+      offset: 0,
+      length: MAX_ANALYSIS_PROFILE_BYTES,
+      requestKey: 'visible',
+      scopeLabel: 'Visible Range',
+      requestedLength,
+      isCapped: true,
+    }
   )
-  assert.doesNotMatch(html, /saveBtn\.disabled = !isDirty/)
-  assert.doesNotMatch(html, /type: 'saveAs'/)
-  assert.match(html, /function replaceCurrentMatch\(\)/)
-  assert.match(html, /function replaceAllMatches\(\)/)
-  assert.match(
-    html,
-    /function applySingleReplaceToSearchMatches\(replacedOffset, offsetDelta\)/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'search',
+      query: '  needle  ',
+      isHex: false,
+      caseInsensitive: true,
+      isReverse: true,
+    }),
+    {
+      type: 'search',
+      query: 'needle',
+      isHex: false,
+      caseInsensitive: true,
+      isReverse: true,
+    }
   )
-  assert.match(
-    html,
-    /matchOffset > replacedOffset \? matchOffset \+ offsetDelta : matchOffset/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'findAdjacentMatch',
+      query: '41 42',
+      isHex: true,
+      direction: 'forward',
+      offset: 3,
+    }),
+    {
+      type: 'findAdjacentMatch',
+      query: '4142',
+      isHex: true,
+      caseInsensitive: false,
+      direction: 'forward',
+      offset: 3,
+    }
   )
-  assert.match(
-    html,
-    /const nextMatchOffset = searchMatches\[searchMatchIndex\]/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'findAdjacentMatch',
+      query: 'AB',
+      isHex: false,
+      direction: 'sideways',
+      offset: 3,
+    }),
+    undefined
   )
-  assert.match(
-    html,
-    /vscode\.postMessage\({ type: 'goToMatch', offset: nextMatchOffset }\)/
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.xor',
+      offset: 1,
+      length: 4,
+      optionsJson: ' { "mask": 255 } ',
+    }),
+    {
+      type: 'applyTransform',
+      pluginId: 'omega.example.xor',
+      offset: 1,
+      length: 4,
+      optionsJson: '{ "mask": 255 }',
+    }
   )
-  assert.match(html, /function normalizeSearchQuery\(query, isHex\)/)
-  assert.match(html, /function getSearchPatternByteLength\(query, isHex\)/)
-  assert.match(
-    html,
-    /const normalizedQuery = normalizeSearchQuery\(query, isHex\)/
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.xor',
+      offset: 1,
+      length: 4,
+      optionsJson: '{',
+    }),
+    undefined
   )
-  assert.match(
-    html,
-    /searchPatternLength = getSearchPatternByteLength\(normalizedQuery, isHex\)/
-  )
-  assert.match(html, /const normalized = normalizeSearchQuery\(query, isHex\)/)
-  assert.match(
-    html,
-    /offsets: searchMode === 'large' \? undefined : searchMatches\.slice\(\)/
-  )
-  assert.doesNotMatch(html, /normalizedQuery\(query\)/)
-  assert.match(html, /document\.addEventListener\('copy'/)
-  assert.match(html, /document\.addEventListener\('cut'/)
-  assert.match(html, /document\.addEventListener\('paste'/)
-  assert.match(html, /id="pastePopover"/)
-  assert.match(html, /\.paste-popover/)
-  assert.match(html, /function handleCopyEvent\(clipboardData\)/)
-  assert.match(html, /function getClipboardSelectionHex\(\)/)
-  assert.match(html, /function postSelectionClipboard\(action\)/)
-  assert.match(
-    html,
-    /type: action === 'cut' \? 'cutSelection' : 'copySelection'/
-  )
-  assert.match(html, /function bytesToDisplayText\(bytes\)/)
-  assert.match(html, /function setActivePane\(pane\)/)
-  assert.match(
-    html,
-    /clipboardData\.setData\(\s*INTERNAL_HEX_CLIPBOARD_FORMAT,/
-  )
-  assert.match(html, /function showPastePopover\(clipboardData, anchorTarget\)/)
-  assert.match(html, /function applyPasteContext\(\)/)
-  assert.match(html, /pasteEncoding/)
-  assert.match(html, /pasteMode/)
-  assert.match(html, /case 'clipboardComplete'/)
-  assert.match(html, /case 'cutComplete'/)
-  assert.match(
-    html,
-    /hasSelection\(\)\s*&&\s*getSelectionLength\(\)\s*>\s*1\s*&&\s*fileSize\s*>\s*0/
-  )
-  assert.match(
-    html,
-    /offset: hasSelection\(\) \? getSelectionStart\(\) : Math\.max\(0, visibleOffset\),/
-  )
-  assert.match(html, /function updateHistoryState\(canUndo, canRedo/)
-  assert.match(html, /historyUndoCount = undoCount/)
-  assert.match(html, /historyRedoCount = redoCount/)
-  assert.match(html, /function renderHistoryMetrics\(\)/)
-  assert.match(html, /label: 'Undo', value: historyUndoCount/)
-  assert.match(html, /label: 'Redo', value: historyRedoCount/)
-  assert.match(html, /function updateDirtyStatus\(isDirty\)/)
-  assert.match(html, /function updateInspectorEndianLabel\(\)/)
-  assert.match(html, /function updateInspectorStatus\(\)/)
-  assert.match(html, /function updateRenderedInspectorAnchor\(\)/)
-  assert.match(html, /querySelectorAll\('\.inspector-anchor'\)/)
-  assert.match(
-    html,
-    /querySelectorAll\('\[data-offset="' \+ byteInspectorOffset/
-  )
-  assert.match(html, /function byteInspectorLaunchTarget\(\)/)
-  assert.match(html, /function stopByteInspectorDrag\(pointerId\)/)
-  assert.match(
-    html,
-    /byteInspector\.addEventListener\('pointercancel'[\s\S]*stopByteInspectorDrag\(e\.pointerId\)/
-  )
-  assert.match(html, /inspectorEndianBtn\.addEventListener\('click'/)
-  assert.match(html, /inspectorLittleEndian = !inspectorLittleEndian/)
-  assert.match(html, /u16' \+ endianLabel/)
-  assert.match(html, /u32' \+ endianLabel/)
-  assert.match(html, /function updateServerHealthStatus\(message\)/)
-  assert.match(html, /function updateProfileAnalysis\(\)/)
-  assert.match(html, /function updateStructureAnalysis\(\)/)
-  assert.match(html, /function analyzeBytes\(bytes\)/)
-  assert.match(html, /function renderFrequencyChart\(profile, total\)/)
-  assert.match(html, /function byteTextClass\(byte\)/)
-  assert.match(html, /function formatByteLabel\(byte\)/)
-  assert.match(html, /function formatModeByte\(entry, total\)/)
-  assert.match(html, /function computeFrequencySpread\(counts, total\)/)
-  assert.match(html, /function formatFrequencySpread\(value, total\)/)
-  assert.match(html, /escapeHtml\(String\(row\.value\)\)/)
-  assert.match(html, /function updateFrequencyTooltip\(event\)/)
-  assert.match(html, /function hideFrequencyTooltip\(\)/)
-  assert.match(html, /const topProfileMaxCount = Math\.max/)
-  assert.match(html, /entry\.count \/ topProfileMaxCount/)
-  assert.match(html, /label: formatByteLabel\(entry\.byte\)/)
-  assert.match(html, /label: 'Mode', value: formatModeByte/)
-  assert.match(html, /label: 'Freq Spread'/)
-  assert.match(html, /frequencySpread: computeFrequencySpread/)
-  assert.match(html, /byteTextClass\(b\)/)
-  assert.match(html, /const MAX_PROFILE_BYTES = 64 \* 1024/)
-  assert.match(html, /function requestAnalysisProfile\(force = false\)/)
-  assert.match(html, /if \(analysisMode !== 'profile'\)/)
-  assert.match(html, /type: 'requestAnalysisProfile'/)
-  assert.match(html, /requestKey: key/)
-  assert.match(html, /scopeLabel: scope\.label/)
-  assert.match(html, /analysisProfileRequestTimer/)
-  assert.match(html, /setTimeout\(\(\) => \{/)
-  assert.match(html, /msg\.requestKey !== pendingAnalysisProfileKey/)
-  assert.match(html, /case 'analysisProfile'/)
-  assert.match(html, /byteProfile/)
-  assert.match(html, /characterCount/)
-  assert.match(html, /label: 'DOS EOL', value: dosEolCount\.toLocaleString\(\)/)
-  assert.match(
-    html,
-    /const dosEolCount = latestDataProfile\.byteProfile\[256\] \?\? 0/
-  )
-  assert.match(
-    html,
-    /label: 'BOM Bytes', value: \(characterCount\.byteOrderMarkBytes \?\? 0\)\.toLocaleString\(\)/
-  )
-  assert.match(
-    html,
-    /label: '1B Chars', value: \(characterCount\.singleByteCount \?\? 0\)\.toLocaleString\(\)/
-  )
-  assert.match(
-    html,
-    /label: '2B Chars', value: \(characterCount\.doubleByteCount \?\? 0\)\.toLocaleString\(\)/
-  )
-  assert.match(
-    html,
-    /label: '3B Chars', value: \(characterCount\.tripleByteCount \?\? 0\)\.toLocaleString\(\)/
-  )
-  assert.match(
-    html,
-    /label: '4B Chars', value: \(characterCount\.quadByteCount \?\? 0\)\.toLocaleString\(\)/
-  )
-  assert.match(html, /DEFAULT_ANALYSIS_SECTION_ORDER/)
-  assert.match(html, /function normalizeAnalysisSectionOrder\(rawOrder\)/)
-  assert.match(
-    html,
-    /function moveAnalysisSection\(panelName, sectionId, targetId, placeAfter\)/
-  )
-  assert.match(
-    html,
-    /function moveAnalysisSectionByDelta\(panelName, sectionId, delta\)/
-  )
-  assert.match(html, /function handleAnalysisSectionDragMove\(event\)/)
-  assert.match(html, /analysisPane\.addEventListener\('pointerdown'/)
-  assert.match(html, /analysisPane\.addEventListener\('pointercancel'/)
-  assert.match(html, /analysisPane\.addEventListener\('keydown'/)
-  assert.match(html, /vscode\.setState\?\.\(/)
-  assert.match(html, /profileTab\.addEventListener\('click'/)
-  assert.match(html, /structureTab\.addEventListener\('click'/)
-  assert.match(html, /profileScaleBtn\.addEventListener\('click'/)
-  assert.match(
-    html,
-    /profileFrequencyChart\.addEventListener\('pointermove', updateFrequencyTooltip\)/
-  )
-  assert.match(
-    html,
-    /profileFrequencyChart\.addEventListener\('pointerleave', hideFrequencyTooltip\)/
-  )
-  assert.match(html, /function formatServerHealthSeverity\(severity\)/)
-  assert.match(
-    html,
-    /serverHealthSummary\.textContent = message\?\.summary \?\? 'Ωedit™ pending'/
-  )
-  assert.match(
-    html,
-    /serverHealthBadge\.className = 'server-health-badge ' \+ severity/
-  )
-  assert.match(html, /serverHealthMetrics\.innerHTML = metrics/)
-  assert.match(html, /case 'serverHealth'/)
-  assert.match(html, /msg\.isDirty \?\? false/)
-  assert.match(html, /msg\.replacedCount \?\? 0/)
-  assert.match(html, /isReverse: searchDirectionSelect\.value === 'reverse'/)
-  assert.match(html, /case 'editState'/)
-  assert.match(html, /msg\.undoCount \?\? 0/)
-  assert.match(html, /msg\.redoCount \?\? 0/)
-  assert.match(html, /case 'replaceComplete'/)
-  assert.match(html, /replaceSummaryActive/)
-  assert.match(html, /function clearReplaceSummaryActionStatus\(\)/)
-  assert.match(
-    html,
-    /case 'replaceComplete'[\s\S]*'replace-summary'[\s\S]*let nextMatchOffset = null[\s\S]*applySingleReplaceToSearchMatches\([\s\S]*nextMatchOffset === null[\s\S]*msg\.selectionOffset/
-  )
-  assert.doesNotMatch(html, /undoBtn\.addEventListener/)
 })

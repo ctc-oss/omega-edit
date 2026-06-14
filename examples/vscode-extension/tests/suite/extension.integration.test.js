@@ -9,10 +9,14 @@ const packageJson = require('../../package.json')
 const { getHexEditorProviderForTesting } = require('../../out/extension.js')
 const { HexEditorProvider } = require('../../out/hexEditorProvider.js')
 const {
+  OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+  OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../../out/constants.js')
 
@@ -28,6 +32,7 @@ const OBSERVE_FINAL_DELAY_MS = parseDelay(
 
 suite('OmegaEdit VS Code extension', () => {
   let testPort
+  let extensionApi
 
   suiteSetup(async () => {
     await vscode.commands.executeCommand('workbench.action.closeAllEditors')
@@ -38,8 +43,15 @@ suite('OmegaEdit VS Code extension', () => {
     const extension = vscode.extensions.getExtension(extensionId)
 
     assert.ok(extension, `Expected extension ${extensionId} to be present`)
-    await extension.activate()
+    extensionApi = await extension.activate()
     assert.equal(extension.isActive, true)
+    assert.equal(extensionApi.version, 1)
+    assert.equal(typeof extensionApi.open, 'function')
+    assert.equal(typeof extensionApi.reveal, 'function')
+    assert.equal(typeof extensionApi.getEditorState, 'function')
+    assert.equal(typeof extensionApi.setExternalHighlights, 'function')
+    assert.equal(typeof extensionApi.clearExternalHighlights, 'function')
+    assert.equal(typeof extensionApi.onDidChangeEditorState, 'function')
   })
 
   teardown(async () => {
@@ -52,6 +64,116 @@ suite('OmegaEdit VS Code extension', () => {
     assert.ok(commands.includes(OMEGA_EDIT_GO_TO_OFFSET_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND))
     assert.ok(commands.includes(OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_GET_EDITOR_STATE_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND))
+    assert.ok(commands.includes(OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND))
+  })
+
+  test('exposes a typed extension API for generic debugger integration', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+    assert.ok(extensionApi, 'Expected the extension to return its public API')
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-typed-api-')
+    )
+    const samplePath = path.join(tmpDir, 'typed-api.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdef', 'utf8'))
+    const uri = vscode.Uri.file(samplePath)
+    const observedStates = []
+    const disposable = extensionApi.onDidChangeEditorState((state) => {
+      observedStates.push(state)
+    })
+
+    try {
+      const openedState = await extensionApi.open(uri, { offset: 1 })
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the typed API test')
+      assert.equal(openedState.uri, uri.toString())
+      assert.equal(openedState.fileSize, 6)
+
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'editorStateChanged',
+        visibleOffset: 0,
+        visibleByteCount: 6,
+        selectedOffset: 1,
+        selectionStart: 1,
+        selectionEnd: 3,
+        selectionLength: 3,
+        bytesPerRow: 16,
+        offsetRadix: 'hex',
+        activePane: 'hex',
+        editMode: 'insert',
+      })
+
+      const selectedState = extensionApi.getEditorState({ uri })
+      assert.equal(selectedState.selectedOffset, 1)
+      assert.equal(selectedState.editMode, 'insert')
+      assert.equal(selectedState.selectionStart, 1)
+      assert.equal(selectedState.selectionEnd, 3)
+
+      const highlightedState = await extensionApi.setExternalHighlights({
+        uri,
+        reveal: true,
+        highlights: [
+          {
+            id: 'parser.node.header',
+            offset: 1,
+            length: 3,
+            kind: 'parsed',
+            label: 'Parsed header',
+            source: 'Generic parser',
+          },
+        ],
+      })
+      assert.deepEqual(highlightedState.externalHighlights, [
+        {
+          id: 'parser.node.header',
+          offset: 1,
+          length: 3,
+          kind: 'parsed',
+          label: 'Parsed header',
+          source: 'Generic parser',
+        },
+      ])
+
+      const revealedState = await extensionApi.reveal(uri, 5)
+      assert.equal(revealedState.uri, uri.toString())
+      await assert.rejects(
+        () => extensionApi.reveal(uri, 99),
+        /outside the file range/
+      )
+
+      const clearedState = extensionApi.clearExternalHighlights({ uri })
+      assert.deepEqual(clearedState.externalHighlights, [])
+      assert.ok(
+        observedStates.some(
+          (state) =>
+            state.uri === uri.toString() &&
+            state.selectedOffset === 1 &&
+            state.selectionStart === 1
+        ),
+        'Expected typed API listener to observe webview state changes'
+      )
+      assert.ok(
+        observedStates.some(
+          (state) =>
+            state.uri === uri.toString() &&
+            state.externalHighlights.some(
+              (highlight) => highlight.id === 'parser.node.header'
+            )
+        ),
+        'Expected typed API listener to observe external highlights'
+      )
+    } finally {
+      disposable.dispose()
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
   })
 
   test('opens sample file through the explicit open-in-hex-editor command', async () => {
@@ -561,6 +683,228 @@ suite('OmegaEdit VS Code extension', () => {
 
     await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
     await fs.rm(tmpDir, { recursive: true, force: true })
+  })
+
+  test('exposes compact editor state and generic external highlights', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-external-state-')
+    )
+    const samplePath = path.join(tmpDir, 'external-state.bin')
+    await fs.writeFile(samplePath, Buffer.from('abcdef', 'utf8'))
+    const uri = vscode.Uri.file(samplePath)
+
+    try {
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the editor state test')
+
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'editorStateChanged',
+        visibleOffset: 0,
+        visibleByteCount: 6,
+        selectedOffset: 2,
+        selectionStart: 2,
+        selectionEnd: 4,
+        selectionLength: 3,
+        bytesPerRow: 16,
+        offsetRadix: 'dec',
+        activePane: 'ascii',
+        editMode: 'insert',
+      })
+
+      const state = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND
+      )
+      assert.equal(state.uri, uri.toString())
+      assert.equal(state.fileSize, 6)
+      assert.equal(state.visibleOffset, 0)
+      assert.equal(state.visibleByteCount, 6)
+      assert.equal(state.selectedOffset, 2)
+      assert.equal(state.selectionStart, 2)
+      assert.equal(state.selectionEnd, 4)
+      assert.equal(state.selectionLength, 3)
+      assert.equal(state.offsetRadix, 'dec')
+      assert.equal(state.activePane, 'ascii')
+      assert.equal(state.editMode, 'insert')
+      assert.deepEqual(state.externalHighlights, [])
+
+      const highlightedState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+        {
+          uri: uri.toString(),
+          reveal: true,
+          highlights: [
+            {
+              id: 'dfdl.current',
+              offset: 1,
+              length: 2,
+              kind: 'current',
+              label: 'Current parse point',
+              source: 'DFDL',
+            },
+            {
+              id: 'dfdl.error',
+              offset: 4,
+              length: 1,
+              kind: 'error',
+              label: 'Parse error',
+            },
+          ],
+        }
+      )
+      assert.deepEqual(highlightedState.externalHighlights, [
+        {
+          id: 'dfdl.current',
+          offset: 1,
+          length: 2,
+          kind: 'current',
+          label: 'Current parse point',
+          source: 'DFDL',
+        },
+        {
+          id: 'dfdl.error',
+          offset: 4,
+          length: 1,
+          kind: 'error',
+          label: 'Parse error',
+          source: undefined,
+        },
+      ])
+      const stateAfterHighlight = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.deepEqual(
+        stateAfterHighlight.externalHighlights,
+        highlightedState.externalHighlights
+      )
+
+      const clearedState = await vscode.commands.executeCommand(
+        OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.deepEqual(clearedState.externalHighlights, [])
+      const stateAfterClear = await vscode.commands.executeCommand(
+        OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+        { uri: uri.toString() }
+      )
+      assert.deepEqual(stateAfterClear.externalHighlights, [])
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('routes native revert through VS Code and OmegaEdit revert through session rollback', async () => {
+    const provider = getHexEditorProviderForTesting()
+    assert.ok(
+      provider,
+      'Expected the activated extension to expose its provider'
+    )
+
+    const tmpDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), 'omega-edit-vscode-command-revert-')
+    )
+    const samplePath = path.join(tmpDir, 'revert-command.bin')
+    await fs.writeFile(samplePath, Buffer.from('abc', 'utf8'))
+    const uri = vscode.Uri.file(samplePath)
+
+    try {
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        uri,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+      const session = await waitForSession(provider, uri)
+      assert.ok(session, 'Expected a live session for the command revert test')
+
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'insert',
+        offset: 0,
+        data: Buffer.from('!', 'utf8').toString('hex'),
+      })
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'insert',
+        offset: 4,
+        data: Buffer.from('?', 'utf8').toString('hex'),
+      })
+      await assertSessionText(session.sessionId, '!abc?')
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: true,
+        canRedo: false,
+        undoCount: 2,
+        redoCount: 0,
+        isDirty: true,
+        savedChangeDepth: 0,
+      })
+
+      await vscode.commands.executeCommand('workbench.action.files.revert')
+      await assertSessionText(session.sessionId, 'abc')
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: false,
+        canRedo: false,
+        undoCount: 0,
+        redoCount: 0,
+        isDirty: false,
+        savedChangeDepth: 0,
+      })
+
+      await provider.dispatchWebviewMessageForTesting(uri, {
+        type: 'insert',
+        offset: 3,
+        data: Buffer.from('!', 'utf8').toString('hex'),
+      })
+      await assertSessionText(session.sessionId, 'abc!')
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: true,
+        canRedo: false,
+        undoCount: 1,
+        redoCount: 0,
+        isDirty: true,
+        savedChangeDepth: 0,
+      })
+
+      await vscode.commands.executeCommand('workbench.action.files.save')
+      assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc!')
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: true,
+        canRedo: false,
+        undoCount: 1,
+        redoCount: 0,
+        isDirty: false,
+        savedChangeDepth: 1,
+      })
+
+      await vscode.commands.executeCommand(OMEGA_EDIT_ROLLBACK_SESSION_COMMAND)
+      await assertSessionText(session.sessionId, 'abc')
+      assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc!')
+      assert.equal(session.restoredFromBackup, true)
+      assert.deepEqual(session.history.getEditState(), {
+        canUndo: false,
+        canRedo: false,
+        undoCount: 0,
+        redoCount: 0,
+        isDirty: false,
+        savedChangeDepth: 0,
+      })
+
+      await vscode.commands.executeCommand('workbench.action.files.save')
+      assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc')
+      assert.equal(session.restoredFromBackup, false)
+    } finally {
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor')
+      await fs.rm(tmpDir, { recursive: true, force: true })
+    }
   })
 
   test('tracks optimized replace counts and clears dirty state on save', async () => {
