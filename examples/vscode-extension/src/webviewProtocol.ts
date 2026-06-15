@@ -624,14 +624,12 @@ export function normalizeWebviewMessage(
     }
 
     case 'requestAnalysisProfile': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      const length = safeNonNegativeInteger(raw.length)
+      const range = safeFileLengthRange(context, raw.offset, raw.length)
       const requestedLength = safeNonNegativeInteger(raw.requestedLength)
       const requestKey = safeString(raw.requestKey, MAX_LABEL_LENGTH)
       const scopeLabel = safeString(raw.scopeLabel, MAX_LABEL_LENGTH)
       if (
-        offset === undefined ||
-        length === undefined ||
+        !range ||
         requestedLength === undefined ||
         !requestKey ||
         !scopeLabel
@@ -640,8 +638,8 @@ export function normalizeWebviewMessage(
       }
       return {
         type: 'requestAnalysisProfile',
-        offset,
-        length: Math.min(length, MAX_ANALYSIS_PROFILE_BYTES),
+        offset: range.offset,
+        length: Math.min(range.length, MAX_ANALYSIS_PROFILE_BYTES),
         requestKey,
         scopeLabel,
         requestedLength,

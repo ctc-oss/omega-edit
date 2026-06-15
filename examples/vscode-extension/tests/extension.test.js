@@ -1261,6 +1261,30 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       isCapped: true,
     }
   )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'requestAnalysisProfile',
+      offset: 99_999,
+      length: 2,
+      requestKey: 'outside',
+      scopeLabel: 'Outside Range',
+      requestedLength: 2,
+      isCapped: false,
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'requestAnalysisProfile',
+      offset: 10,
+      length: 0,
+      requestKey: 'empty',
+      scopeLabel: 'Empty Range',
+      requestedLength: 0,
+      isCapped: false,
+    }),
+    undefined
+  )
   assert.deepEqual(
     normalizeWebviewMessage(context, {
       type: 'search',
