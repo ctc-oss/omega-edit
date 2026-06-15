@@ -3,10 +3,6 @@
 src/**
 tests/**
 webview-ui/**
-out/webview.d.ts
-out/webview.d.ts.map
-out/webview.js
-out/webview.js.map
 .gitignore
 package-lock.json
 tsconfig.json

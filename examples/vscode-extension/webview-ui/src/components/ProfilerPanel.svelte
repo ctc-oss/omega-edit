@@ -68,7 +68,7 @@
     offsetRadix?: 'hex' | 'dec'
     visibleBytes?: number[]
     selectedBytes?: number[]
-    selectedLength?: number
+    selectionLength?: number
     dataProfile?: AnalysisProfileMessage
     viewportProfile?: ViewportProfilerSnapshot
     serverHealth?: ServerHealthMessage
@@ -103,7 +103,7 @@
     offsetRadix = 'hex',
     visibleBytes = [],
     selectedBytes = [],
-    selectedLength = 0,
+    selectionLength = 0,
     dataProfile,
     viewportProfile,
     serverHealth,

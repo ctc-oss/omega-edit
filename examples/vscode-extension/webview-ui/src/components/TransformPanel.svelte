@@ -272,7 +272,7 @@
     }
 
     if (schema.type === 'integer') {
-      if (!Number.isInteger(value)) {
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
         return strings.transform.schemaInteger(path)
       }
       if (typeof schema.minimum === 'number' && value < schema.minimum) {

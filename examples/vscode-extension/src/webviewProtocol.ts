@@ -148,7 +148,6 @@ export type WebviewToHostMessage =
     }
   | {
       type: 'replaceAllMatches'
-      offsets?: number[]
       query: string
       isHex: boolean
       caseInsensitive?: boolean

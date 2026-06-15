@@ -1401,7 +1401,6 @@
     replaceMessage = ''
     postToHost({
       type: 'replaceAllMatches',
-      offsets: searchMode === 'large' ? undefined : searchMatches.slice(),
       query: normalizedQuery,
       isHex: searchHex,
       caseInsensitive: !searchHex && searchCaseInsensitive,

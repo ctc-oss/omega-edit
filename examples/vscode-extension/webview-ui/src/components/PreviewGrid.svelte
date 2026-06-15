@@ -443,7 +443,9 @@
     const observer = new ResizeObserver(() => {
       reportVisibleRows()
     })
-    observer.observe(gridElement)
+    if (gridElement) {
+      observer.observe(gridElement)
+    }
     reportVisibleRows()
     return () => observer.disconnect()
   })
