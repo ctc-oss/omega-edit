@@ -144,6 +144,18 @@ suite('OmegaEdit VS Code extension', () => {
       const revealedState = await extensionApi.reveal(uri, 5)
       assert.equal(revealedState.uri, uri.toString())
       await assert.rejects(
+        () => extensionApi.open(uri, { offset: Number.NaN }),
+        /requires a non-negative integer offset/
+      )
+      await assert.rejects(
+        () => extensionApi.open(uri, { offset: -1 }),
+        /requires a non-negative integer offset/
+      )
+      await assert.rejects(
+        () => extensionApi.open(uri, { offset: 1.5 }),
+        /requires a non-negative integer offset/
+      )
+      await assert.rejects(
         () => extensionApi.reveal(uri),
         /requires a non-negative integer offset/
       )

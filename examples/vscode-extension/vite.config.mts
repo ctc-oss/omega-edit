@@ -6,6 +6,7 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     outDir: 'out/svelte-webview',
+    cssCodeSplit: false,
     sourcemap: false,
     target: 'es2020',
     rollupOptions: {

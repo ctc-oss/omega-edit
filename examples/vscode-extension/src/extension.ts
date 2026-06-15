@@ -233,9 +233,13 @@ function createOmegaEditExtensionApi(
         OMEGA_EDIT_VIEW_TYPE
       )
 
-      return options.offset === undefined
-        ? provider.getEditorState({ uri: target })
-        : provider.revealOffset({ uri: target, offset: options.offset })
+      if (options.offset === undefined) {
+        return provider.getEditorState({ uri: target })
+      }
+
+      return provider.revealOffset(
+        normalizeRevealOptions(target, options.offset)
+      )
     },
     async reveal(uriOrOptions, offset) {
       return provider.revealOffset(normalizeRevealOptions(uriOrOptions, offset))

@@ -287,6 +287,10 @@ test('compiled extension entrypoints exist after build', () => {
     path.resolve(__dirname, '../out/svelte-webview/webview.css'),
     'utf8'
   )
+  const viteConfigSource = fs.readFileSync(
+    path.resolve(__dirname, '../vite.config.mts'),
+    'utf8'
+  )
   const svelteAppSource = fs.readFileSync(
     path.resolve(__dirname, '../webview-ui/src/App.svelte'),
     'utf8'
@@ -462,6 +466,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteHostJs, /vscode\.l10n\.t/)
   assert.match(svelteHostJs, /escapeHtmlText/)
   assert.match(svelteHostJs, /Loading OmegaEdit Hex Editor/)
+  assert.match(viteConfigSource, /cssCodeSplit:\s*false/)
   assert.doesNotMatch(svelteHostJs, /Svelte Preview/)
   assert.doesNotMatch(svelteBundleJs, /OmegaEdit Svelte Preview/)
   assert.match(svelteBundleJs, /Failed to start editor webview/)
