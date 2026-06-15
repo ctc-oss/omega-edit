@@ -763,13 +763,13 @@ export function normalizeWebviewMessage(
     }
 
     case 'goToMatch': {
-      const offset = safeNonNegativeInteger(raw.offset)
+      const offset = safeFileOffset(context, raw.offset)
       return offset === undefined ? undefined : { type: 'goToMatch', offset }
     }
 
     case 'findAdjacentMatch': {
       const query = safeSearchQuery(raw)
-      const offset = safeNonNegativeInteger(raw.offset)
+      const offset = safeFileOffset(context, raw.offset)
       if (
         !query ||
         offset === undefined ||

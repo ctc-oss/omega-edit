@@ -1319,7 +1319,7 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       query: '41 42',
       isHex: true,
       direction: 'forward',
-      offset: 3,
+      offset: 99_999,
     }),
     {
       type: 'findAdjacentMatch',
@@ -1327,8 +1327,32 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       isHex: true,
       caseInsensitive: false,
       direction: 'forward',
-      offset: 3,
+      offset: 99_999,
     }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'goToMatch',
+      offset: 99_999,
+    }),
+    { type: 'goToMatch', offset: 99_999 }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'goToMatch',
+      offset: 100_000,
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'findAdjacentMatch',
+      query: '41 42',
+      isHex: true,
+      direction: 'forward',
+      offset: 100_000,
+    }),
+    undefined
   )
   assert.equal(
     normalizeWebviewMessage(context, {
