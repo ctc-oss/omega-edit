@@ -63,16 +63,13 @@ export function getSvelteWebviewContent(
     vscode.l10n.t('Loading OmegaEdit Hex Editor...')
   )
 
-  // The Svelte UI still uses dynamic inline style attributes for profiler bars,
-  // tooltip positioning, and the custom file scrollbar thumb. Keep style-src
-  // 'unsafe-inline' until those runtime styles move to classes or CSS variables.
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta
     http-equiv="Content-Security-Policy"
-    content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${scriptNonce}' ${cspSource};"
+    content="default-src 'none'; img-src ${cspSource} data:; style-src ${cspSource}; script-src 'nonce-${scriptNonce}' ${cspSource};"
   >
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="${styleUri.toString()}">

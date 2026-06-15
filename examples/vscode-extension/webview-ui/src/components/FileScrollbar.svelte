@@ -80,6 +80,28 @@
       ? strings.navigation.scrollbarDisabled
       : strings.navigation.scrollbarValue(currentOffsetLabel, progressLabel)
   )
+  const thumbStyle = $derived({
+    top: thumbTop,
+    height: thumbHeight,
+    opacity: disabled ? 0 : 1,
+  })
+
+  function dynamicThumbStyle(
+    node: HTMLElement,
+    value: { top: number; height: number; opacity: number }
+  ) {
+    const apply = (nextValue: {
+      top: number
+      height: number
+      opacity: number
+    }): void => {
+      node.style.top = `${nextValue.top}px`
+      node.style.height = `${nextValue.height}px`
+      node.style.opacity = String(nextValue.opacity)
+    }
+    apply(value)
+    return { update: apply }
+  }
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
@@ -258,7 +280,7 @@
       bind:this={thumbElement}
       class="file-scrollbar-thumb"
       class:dragging
-      style={`top: ${thumbTop}px; height: ${thumbHeight}px; opacity: ${disabled ? 0 : 1};`}
+      use:dynamicThumbStyle={thumbStyle}
       title={thumbTitle}
     ></div>
   </div>

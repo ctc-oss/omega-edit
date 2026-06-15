@@ -113,7 +113,7 @@ function normalizeRevealOptions(
   const normalizeOffset = (value: unknown): number => {
     if (!Number.isSafeInteger(value) || Number(value) < 0) {
       throw new Error(
-        vscode.l10n.t('OmegaEdit reveal requires a non-negative integer offset')
+        vscode.l10n.t('OmegaEdit requires a non-negative integer offset')
       )
     }
     return Number(value)

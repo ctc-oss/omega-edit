@@ -207,6 +207,33 @@
         }
   )
 
+  function dynamicWidth(node: HTMLElement, percent: number) {
+    const apply = (nextPercent: number): void => {
+      node.style.width = `${clamp(0, nextPercent, 100).toFixed(1)}%`
+    }
+    apply(percent)
+    return { update: apply }
+  }
+
+  function dynamicBarHeight(node: HTMLElement, height: string) {
+    const apply = (nextHeight: string): void => {
+      node.style.setProperty('--bar-height', nextHeight)
+    }
+    apply(height)
+    return { update: apply }
+  }
+
+  function dynamicTranslate(
+    node: HTMLElement,
+    position: { x: number; y: number }
+  ) {
+    const apply = (nextPosition: { x: number; y: number }): void => {
+      node.style.transform = `translate(${nextPosition.x}px, ${nextPosition.y}px)`
+    }
+    apply(position)
+    return { update: apply }
+  }
+
   function normalizeSectionOrder(
     rawOrder: string[] | undefined,
     defaults: string[]
@@ -1010,7 +1037,7 @@
                         <span class="analysis-bar-track">
                           <span
                             class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                            style={`width: ${clamp(0, row.percent, 100).toFixed(1)}%`}
+                            use:dynamicWidth={row.percent}
                           ></span>
                         </span>
                         <span class="analysis-value">{row.value}</span>
@@ -1110,7 +1137,7 @@
                       <span
                         class={`frequency-bar${frequencyBarClass(byte, byteCounts[byte] ?? 0)}`}
                         class:hovered={hoveredFrequencyByte === byte}
-                        style={`--bar-height: ${frequencyBarHeight(byteCounts[byte] ?? 0)}`}
+                        use:dynamicBarHeight={frequencyBarHeight(byteCounts[byte] ?? 0)}
                         role="presentation"
                       ></span>
                     {/each}
@@ -1118,7 +1145,7 @@
                   {#if hoveredFrequency}
                     <div
                       class="frequency-tooltip active"
-                      style={`transform: translate(${tooltipX}px, ${tooltipY}px)`}
+                      use:dynamicTranslate={{ x: tooltipX, y: tooltipY }}
                     >
                       <div>{formatByteLabel(hoveredFrequency.byte)}</div>
                       <div>
@@ -1142,7 +1169,7 @@
                         <span class="analysis-bar-track">
                           <span
                             class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                            style={`width: ${clamp(0, row.percent, 100).toFixed(1)}%`}
+                            use:dynamicWidth={row.percent}
                           ></span>
                         </span>
                         <span class="analysis-value">{row.value}</span>

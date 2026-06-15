@@ -145,19 +145,19 @@ suite('OmegaEdit VS Code extension', () => {
       assert.equal(revealedState.uri, uri.toString())
       await assert.rejects(
         () => extensionApi.open(uri, { offset: Number.NaN }),
-        /requires a non-negative integer offset/
+        /OmegaEdit requires a non-negative integer offset/
       )
       await assert.rejects(
         () => extensionApi.open(uri, { offset: -1 }),
-        /requires a non-negative integer offset/
+        /OmegaEdit requires a non-negative integer offset/
       )
       await assert.rejects(
         () => extensionApi.open(uri, { offset: 1.5 }),
-        /requires a non-negative integer offset/
+        /OmegaEdit requires a non-negative integer offset/
       )
       await assert.rejects(
         () => extensionApi.reveal(uri),
-        /requires a non-negative integer offset/
+        /OmegaEdit requires a non-negative integer offset/
       )
       await assert.rejects(
         () => extensionApi.reveal('not-a-file-uri', 1),

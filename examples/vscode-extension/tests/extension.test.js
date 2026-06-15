@@ -362,6 +362,13 @@ test('compiled extension entrypoints exist after build', () => {
     ['EditorWorkspace.svelte', editorWorkspaceSource],
     ['ProfilerPanel.svelte', profilerPanelSource],
   ]
+  for (const [name, source] of svelteComponentSources) {
+    assert.doesNotMatch(
+      source,
+      /style=\{/,
+      `${name} should avoid inline styles`
+    )
+  }
   assert.match(providerJs, /editSimple/)
   assert.match(providerJs, /getSegment/)
   assert.match(providerJs, /kind:\s*['"]REPLACE['"]/)
@@ -461,6 +468,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(apiDts, /OmegaEditExternalHighlightKind/)
   assert.match(svelteHostJs, /svelte-webview/)
   assert.match(svelteHostJs, /Content-Security-Policy/)
+  assert.doesNotMatch(svelteHostJs, /unsafe-inline/)
   assert.match(svelteHostJs, /webview\.js/)
   assert.match(svelteHostJs, /webview\.css/)
   assert.match(svelteHostJs, /vscode\.l10n\.t/)
@@ -807,7 +815,6 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /role="columnheader"/)
   assert.match(previewGridSource, /role="rowheader"/)
   assert.match(previewGridSource, /role="gridcell"/)
-  assert.doesNotMatch(previewGridSource, /style=\{/)
   assert.match(previewGridSource, /aria-selected/)
   assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
   assert.match(previewGridSource, /title=\{byteTitle\}/)
@@ -1004,7 +1011,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /createOmegaEditExtensionApi/)
   assert.match(extensionJs, /onDidChangeEditorState/)
   assert.match(extensionJs, /revealOffset/)
-  assert.match(extensionJs, /requires a non-negative integer offset/)
+  assert.match(extensionJs, /OmegaEdit requires a non-negative integer offset/)
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /rollbackActiveSession/)
