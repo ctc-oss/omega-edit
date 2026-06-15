@@ -555,58 +555,58 @@
 
   {#if expanded}
     <div class="inspector-actions">
-    <button type="button" class="secondary" onclick={onToggleEndian}>
-      {endianLabel}
-    </button>
-    <span class="inspector-feedback" aria-live="polite">
-      {editError || clipboardMessage}
-    </span>
+      <button type="button" class="secondary" onclick={onToggleEndian}>
+        {endianLabel}
+      </button>
+      <span class="inspector-feedback" aria-live="polite">
+        {editError || clipboardMessage}
+      </span>
     </div>
 
     <dl class="inspector-values">
-    {#each renderedFields as item (item.field.key)}
-      <div>
-        <dt>{item.field.label}</dt>
-        <dd>
-          {#if editingKey === item.field.key}
-            <span class="inspector-edit-row">
-              <input
-                aria-label={strings.inspector.valueInput(item.field.label)}
-                bind:value={editValue}
-                spellcheck="false"
-                onkeydown={(event) => handleEditKeydown(event, item)}
-              />
+      {#each renderedFields as item (item.field.key)}
+        <div>
+          <dt>{item.field.label}</dt>
+          <dd>
+            {#if editingKey === item.field.key}
+              <span class="inspector-edit-row">
+                <input
+                  aria-label={strings.inspector.valueInput(item.field.label)}
+                  bind:value={editValue}
+                  spellcheck="false"
+                  onkeydown={(event) => handleEditKeydown(event, item)}
+                />
+                <button
+                  type="button"
+                  class="secondary"
+                  onclick={() => commitEdit(item)}
+                >
+                  {strings.inspector.apply}
+                </button>
+              </span>
+            {:else if item.field.editable && item.available && selectedOffset >= 0}
               <button
                 type="button"
-                class="secondary"
-                onclick={() => commitEdit(item)}
+                class="inspector-value-button"
+                onclick={() => beginEdit(item)}
               >
-                {strings.inspector.apply}
+                {item.value}
               </button>
-            </span>
-          {:else if item.field.editable && item.available && selectedOffset >= 0}
-            <button
-              type="button"
-              class="inspector-value-button"
-              onclick={() => beginEdit(item)}
-            >
-              {item.value}
-            </button>
-          {:else}
-            <button
-              type="button"
-              class="inspector-value-button"
-              class:inspector-value-readonly={!item.field.editable}
-              disabled={!item.available || selectedOffset < 0}
-              onclick={() =>
-                item.field.editable ? beginEdit(item) : inspectField(item)}
-            >
-              {item.value}
-            </button>
-          {/if}
-        </dd>
-      </div>
-    {/each}
+            {:else}
+              <button
+                type="button"
+                class="inspector-value-button"
+                class:inspector-value-readonly={!item.field.editable}
+                disabled={!item.available || selectedOffset < 0}
+                onclick={() =>
+                  item.field.editable ? beginEdit(item) : inspectField(item)}
+              >
+                {item.value}
+              </button>
+            {/if}
+          </dd>
+        </div>
+      {/each}
     </dl>
   {/if}
 </section>

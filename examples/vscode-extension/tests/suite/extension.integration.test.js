@@ -878,7 +878,7 @@ suite('OmegaEdit VS Code extension', () => {
 
       await vscode.commands.executeCommand('workbench.action.files.revert')
       await assertSessionText(session.sessionId, 'abc')
-      assert.deepEqual(session.history.getEditState(), {
+      await assertEditState(session, {
         canUndo: false,
         canRedo: false,
         undoCount: 0,
@@ -917,7 +917,7 @@ suite('OmegaEdit VS Code extension', () => {
       await assertSessionText(session.sessionId, 'abc')
       assert.equal(await fs.readFile(samplePath, 'utf8'), 'abc!')
       assert.equal(session.restoredFromBackup, true)
-      assert.deepEqual(session.history.getEditState(), {
+      await assertEditState(session, {
         canUndo: false,
         canRedo: false,
         undoCount: 0,
@@ -1290,6 +1290,28 @@ async function assertSessionText(
   }
 
   assert.equal(lastValue, expectedBuffer.toString('utf8'))
+}
+
+async function assertEditState(
+  session,
+  expected,
+  timeoutMs = 3000,
+  intervalMs = 50
+) {
+  const deadline = Date.now() + timeoutMs
+  let lastState = session.history.getEditState()
+
+  while (Date.now() < deadline) {
+    lastState = session.history.getEditState()
+    try {
+      assert.deepEqual(lastState, expected)
+      return
+    } catch {
+      await delay(intervalMs)
+    }
+  }
+
+  assert.deepEqual(lastState, expected)
 }
 
 function parseDelay(rawValue, fallbackMs) {
