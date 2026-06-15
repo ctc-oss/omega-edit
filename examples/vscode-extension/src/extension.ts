@@ -93,16 +93,25 @@ function normalizeRevealOptions(
   uriOrOptions: vscode.Uri | string | OmegaEditRevealOptions,
   offset?: number
 ): { uri?: vscode.Uri | string; offset: number } {
+  const normalizeOffset = (value: unknown): number => {
+    if (!Number.isSafeInteger(value) || Number(value) < 0) {
+      throw new Error(
+        vscode.l10n.t('OmegaEdit reveal requires a non-negative integer offset')
+      )
+    }
+    return Number(value)
+  }
+
   if (isRecord(uriOrOptions) && 'offset' in uriOrOptions) {
     return {
       uri: uriOrOptions.uri as vscode.Uri | string | undefined,
-      offset: uriOrOptions.offset as number,
+      offset: normalizeOffset(uriOrOptions.offset),
     }
   }
 
   return {
     uri: uriOrOptions as vscode.Uri | string,
-    offset: offset as number,
+    offset: normalizeOffset(offset),
   }
 }
 

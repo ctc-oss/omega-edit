@@ -81,6 +81,23 @@
       return { rowOffset, bytes }
     }
   ))
+  const externalHighlightByOffset = $derived.by(() => {
+    const lookup = new Map<number, WebviewExternalHighlight>()
+    const visibleStart = offset
+    const visibleEnd = offset + data.length
+
+    for (const highlight of externalHighlights) {
+      const start = Math.max(visibleStart, highlight.offset)
+      const end = Math.min(visibleEnd, highlight.offset + highlight.length)
+      for (let byteOffset = start; byteOffset < end; byteOffset += 1) {
+        if (!lookup.has(byteOffset)) {
+          lookup.set(byteOffset, highlight)
+        }
+      }
+    }
+
+    return lookup
+  })
 
   function formatHex(byte: number): string {
     return byte.toString(16).toUpperCase().padStart(2, '0')
@@ -196,11 +213,7 @@
   function externalHighlightFor(
     byteOffset: number
   ): WebviewExternalHighlight | undefined {
-    return externalHighlights.find(
-      (highlight) =>
-        byteOffset >= highlight.offset &&
-        byteOffset < highlight.offset + highlight.length
-    )
+    return externalHighlightByOffset.get(byteOffset)
   }
 
   function updateHover(rowIndex: number, column: number): void {
@@ -399,10 +412,8 @@
     const row = gridElement.querySelector('.grid-row')
     const headerHeight = header?.getBoundingClientRect().height ?? 24
     const rowHeight = row?.getBoundingClientRect().height ?? 24
-    const nextVisibleRows = Math.max(
-      FALLBACK_VISIBLE_ROWS,
-      Math.floor((gridElement.clientHeight - headerHeight) / rowHeight)
-    )
+    const availableHeight = Math.max(0, gridElement.clientHeight - headerHeight)
+    const nextVisibleRows = Math.max(1, Math.floor(availableHeight / rowHeight))
 
     if (nextVisibleRows !== lastReportedVisibleRows) {
       lastReportedVisibleRows = nextVisibleRows

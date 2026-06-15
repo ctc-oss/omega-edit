@@ -773,7 +773,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /function formatHexOffset/)
   assert.match(previewGridSource, /inspectorStart/)
   assert.match(previewGridSource, /class:inspectorRange/)
+  assert.match(previewGridSource, /externalHighlightByOffset = \$derived\.by/)
   assert.match(previewGridSource, /externalHighlightFor/)
+  assert.match(
+    previewGridSource,
+    /externalHighlightByOffset\.get\(byteOffset\)/
+  )
   assert.match(previewGridSource, /externalKind/)
   assert.match(previewGridSource, /byteTitle/)
   assert.match(previewGridSource, /class:externalHighlight/)
@@ -782,6 +787,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /class:externalError/)
   assert.match(previewGridSource, /class:externalBreakpoint/)
   assert.match(previewGridSource, /FALLBACK_VISIBLE_ROWS/)
+  assert.match(previewGridSource, /availableHeight/)
+  assert.match(previewGridSource, /Math\.max\(1, Math\.floor/)
   assert.match(previewGridSource, /ResizeObserver/)
   assert.match(previewGridSource, /onVisibleRowsChange/)
   assert.match(
@@ -977,6 +984,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /createOmegaEditExtensionApi/)
   assert.match(extensionJs, /onDidChangeEditorState/)
   assert.match(extensionJs, /revealOffset/)
+  assert.match(extensionJs, /requires a non-negative integer offset/)
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
   assert.match(extensionJs, /rollbackActiveSession/)

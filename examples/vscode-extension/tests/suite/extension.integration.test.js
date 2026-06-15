@@ -144,6 +144,10 @@ suite('OmegaEdit VS Code extension', () => {
       const revealedState = await extensionApi.reveal(uri, 5)
       assert.equal(revealedState.uri, uri.toString())
       await assert.rejects(
+        () => extensionApi.reveal(uri),
+        /requires a non-negative integer offset/
+      )
+      await assert.rejects(
         () => extensionApi.reveal(uri, 99),
         /outside the file range/
       )
