@@ -317,8 +317,12 @@
       label: strings.inspector.ascii,
       minBytes: 1,
       editable: true,
-      read: (value) =>
-        isPrintableAscii(value[0]) ? `'${String.fromCharCode(value[0])}'` : '?',
+      read: (value) => {
+        if (!isPrintableAscii(value[0])) {
+          throw new Error(strings.inspector.invalidAsciiByte)
+        }
+        return `'${String.fromCharCode(value[0])}'`
+      },
       write: (raw) => {
         if (raw.length !== 1 || !isPrintableAscii(raw.charCodeAt(0))) {
           throw new Error(strings.inspector.invalidAsciiByte)

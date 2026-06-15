@@ -725,21 +725,19 @@ export function normalizeWebviewMessage(
 
     case 'applyTransform': {
       const pluginId = safeString(raw.pluginId, MAX_LABEL_LENGTH)
-      const offset = safeNonNegativeInteger(raw.offset)
-      const length = safeNonNegativeInteger(raw.length)
+      const range = safeFileLengthRange(context, raw.offset, raw.length)
       const optionsJson =
         raw.optionsJson === undefined
           ? undefined
           : safeJsonString(raw.optionsJson, MAX_TRANSFORM_OPTIONS_LENGTH)
       if (
         !pluginId ||
-        offset === undefined ||
-        length === undefined ||
+        !range ||
         (raw.optionsJson !== undefined && optionsJson === undefined)
       ) {
         return undefined
       }
-      return { type: 'applyTransform', pluginId, offset, length, optionsJson }
+      return { type: 'applyTransform', pluginId, ...range, optionsJson }
     }
 
     case 'search': {

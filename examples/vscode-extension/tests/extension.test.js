@@ -904,6 +904,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /function decodeFirstUtf16/)
   assert.match(byteInspectorSource, /function integerField/)
   assert.match(byteInspectorSource, /function writeIntegerBytes/)
+  assert.match(byteInspectorSource, /strings\.inspector\.invalidAsciiByte/)
   assert.match(byteInspectorSource, /getBigUint64/)
   assert.match(byteInspectorSource, /byteLength/)
   assert.match(byteInspectorSource, /fieldByteLength/)
@@ -1272,6 +1273,24 @@ test('webview protocol normalizes analysis, search, and transform messages', () 
       length: 4,
       optionsJson: '{ "mask": 255 }',
     }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.xor',
+      offset: 1,
+      length: 0,
+    }),
+    undefined
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.xor',
+      offset: 99_999,
+      length: 2,
+    }),
+    undefined
   )
   assert.equal(
     normalizeWebviewMessage(context, {

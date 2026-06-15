@@ -511,7 +511,7 @@ suite('OmegaEdit VS Code extension', () => {
     await fs.rm(tmpDir, { recursive: true, force: true })
   })
 
-  test('clamps stale transform ranges before applying', async () => {
+  test('rejects invalid transform ranges and applies valid ranges', async () => {
     const tmpDir = await fs.mkdtemp(
       path.join(os.tmpdir(), 'omega-edit-vscode-transform-clamp-')
     )
@@ -540,6 +540,18 @@ suite('OmegaEdit VS Code extension', () => {
       pluginId: 'omega.example.base64_encode',
       offset: 1,
       length: 999,
+    })
+    await assertSessionText(session.sessionId, 'abc')
+    assert.equal(
+      lastMessageOfType(panel.messages, 'transformComplete'),
+      undefined
+    )
+
+    await provider.dispatchWebviewMessageForTesting(document.uri, {
+      type: 'applyTransform',
+      pluginId: 'omega.example.base64_encode',
+      offset: 1,
+      length: 2,
     })
 
     await assertSessionText(session.sessionId, 'aYmM=')
