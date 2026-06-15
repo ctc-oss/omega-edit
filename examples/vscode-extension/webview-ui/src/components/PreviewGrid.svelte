@@ -459,6 +459,8 @@
   role="grid"
   tabindex="0"
   aria-label={strings.grid.label}
+  aria-colcount={1 + bytesPerRow * 2}
+  aria-rowcount={rows.length + 1}
   onkeydown={handleKeydown}
   onpointermove={handlePointerMove}
   onpointerup={stopDraggingSelection}
@@ -466,25 +468,50 @@
   onpointerleave={handlePointerLeave}
   onwheel={handleWheel}
 >
-  <div class="grid-header">
-    <span class="offset-heading">{strings.grid.offset}</span>
-    <div class="hex-heading" aria-hidden="true">
+  <div class="grid-header" role="row" aria-rowindex="1">
+    <span class="offset-heading" role="columnheader" aria-colindex="1">
+      {strings.grid.offset}
+    </span>
+    <div class="hex-heading" role="presentation">
       {#each Array.from({ length: bytesPerRow }) as _, index}
-        <span class:hover={index === hoveredColumn}>{formatColumnOffset(index)}</span>
+        <span
+          class:hover={index === hoveredColumn}
+          role="columnheader"
+          aria-colindex={index + 2}
+        >
+          {formatColumnOffset(index)}
+        </span>
       {/each}
     </div>
-    <span class="ascii-heading">{strings.grid.text}</span>
+    <span
+      class="ascii-heading"
+      role="columnheader"
+      aria-colindex={bytesPerRow + 2}
+      aria-colspan={bytesPerRow}
+    >
+      {strings.grid.text}
+    </span>
   </div>
 
   {#if rows.length === 0}
     <div class="empty-row">{strings.grid.waitingForData}</div>
   {:else}
     {#each rows as row, rowIndex}
-      <div class="grid-row" data-row-index={rowIndex}>
-        <span class="offset" class:hover={rowIndex === hoveredRowIndex}>
+      <div
+        class="grid-row"
+        data-row-index={rowIndex}
+        role="row"
+        aria-rowindex={rowIndex + 2}
+      >
+        <span
+          class="offset"
+          class:hover={rowIndex === hoveredRowIndex}
+          role="rowheader"
+          aria-colindex="1"
+        >
           {formatOffset(row.rowOffset)}
         </span>
-        <div class="hex-cells">
+        <div class="hex-cells" role="presentation">
           {#each row.bytes as byte, index}
             {@const byteOffset = row.rowOffset + index}
             {@const externalHighlight = externalHighlightFor(byteOffset)}
@@ -515,7 +542,9 @@
               data-offset={byteOffset}
               data-pane="hex"
               data-row-index={rowIndex}
-              aria-pressed={isSelected(byteOffset)}
+              role="gridcell"
+              aria-colindex={index + 2}
+              aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
               title={byteTitle}
               onpointerdown={(event) =>
@@ -529,7 +558,7 @@
             </button>
           {/each}
         </div>
-        <span class="ascii">
+        <span class="ascii" role="presentation">
           {#each row.bytes as byte, index}
             {@const byteOffset = row.rowOffset + index}
             {@const externalHighlight = externalHighlightFor(byteOffset)}
@@ -563,7 +592,9 @@
               data-offset={byteOffset}
               data-pane="ascii"
               data-row-index={rowIndex}
-              aria-pressed={isSelected(byteOffset)}
+              role="gridcell"
+              aria-colindex={bytesPerRow + index + 2}
+              aria-selected={isSelected(byteOffset)}
               aria-label={byteTitle}
               title={byteTitle}
               onpointerdown={(event) =>

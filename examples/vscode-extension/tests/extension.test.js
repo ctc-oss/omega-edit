@@ -797,8 +797,13 @@ test('compiled extension entrypoints exist after build', () => {
     previewGridSource,
     /class=\{`preview-grid bytes-\$\{bytesPerRow\}`\}/
   )
+  assert.match(previewGridSource, /role="grid"/)
+  assert.match(previewGridSource, /role="row"/)
+  assert.match(previewGridSource, /role="columnheader"/)
+  assert.match(previewGridSource, /role="rowheader"/)
+  assert.match(previewGridSource, /role="gridcell"/)
   assert.doesNotMatch(previewGridSource, /style=\{/)
-  assert.match(previewGridSource, /aria-pressed/)
+  assert.match(previewGridSource, /aria-selected/)
   assert.match(previewGridSource, /aria-label=\{byteTitle\}/)
   assert.match(previewGridSource, /title=\{byteTitle\}/)
   assert.match(previewGridSource, /searchStart/)
@@ -841,6 +846,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /onApplyTransform/)
   assert.match(transformPanelSource, /role="dialog"/)
   assert.match(transformPanelSource, /aria-modal="true"/)
+  assert.match(transformPanelSource, /MAX_TRANSFORM_OPTIONS_LENGTH/)
+  assert.match(
+    transformPanelSource,
+    /maxlength=\{MAX_TRANSFORM_OPTIONS_LENGTH\}/
+  )
   assert.match(
     transformPanelSource,
     /aria-label=\{strings\.transform\.closeDialog\}/

@@ -1,7 +1,10 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import { strings } from '../i18n'
-  import type { WebviewTransformPlugin } from '../protocol'
+  import {
+    MAX_TRANSFORM_OPTIONS_LENGTH,
+    type WebviewTransformPlugin,
+  } from '../protocol'
 
   type OffsetRadix = 'hex' | 'dec'
 
@@ -505,6 +508,7 @@
           <input
             bind:this={optionsInput}
             value={optionsJson}
+            maxlength={MAX_TRANSFORM_OPTIONS_LENGTH}
             placeholder={advertisedExamples[0]
               ? strings.transform.examplePlaceholder(advertisedExamples[0])
               : strings.transform.optionsPlaceholder}

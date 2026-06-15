@@ -10,5 +10,6 @@ export type {
 
 export {
   MAX_ANALYSIS_PROFILE_BYTES,
+  MAX_TRANSFORM_OPTIONS_LENGTH,
   normalizeBytesPerRow,
 } from '../../src/webviewProtocol'
