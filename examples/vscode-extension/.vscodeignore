@@ -2,6 +2,8 @@
 .vscode-test/**
 src/**
 tests/**
+webview-ui/**
 .gitignore
 package-lock.json
 tsconfig.json
+vite.config.mts
