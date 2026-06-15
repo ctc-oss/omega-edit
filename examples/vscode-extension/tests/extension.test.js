@@ -1081,6 +1081,30 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     }
   )
   assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'scrollTo',
+      offset: 9,
+    }),
+    { type: 'scrollTo', offset: 9 }
+  )
+  assert.equal(
+    normalizeWebviewMessage(context, {
+      type: 'scrollTo',
+      offset: 10,
+    }),
+    undefined
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(
+      { fileSize: 0 },
+      {
+        type: 'scrollTo',
+        offset: 0,
+      }
+    ),
+    { type: 'scrollTo', offset: 0 }
+  )
+  assert.deepEqual(
     normalizeExternalHighlights(context, [
       {
         id: 'dfdl.current',

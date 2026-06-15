@@ -406,6 +406,17 @@ function safeFileLengthRange(
   return { offset, length }
 }
 
+function safeFileOffset(
+  context: WebviewProtocolContext,
+  value: unknown,
+  allowEnd = false
+): number | undefined {
+  const maxOffset = allowEnd
+    ? context.fileSize
+    : Math.max(0, context.fileSize - 1)
+  return safeNonNegativeInteger(value, maxOffset)
+}
+
 function safeSearchQuery(message: Record<string, unknown>): string | undefined {
   const isHex = message.isHex === true
   return isHex
@@ -594,7 +605,7 @@ export function normalizeWebviewMessage(
         : undefined
 
     case 'scrollTo': {
-      const offset = safeNonNegativeInteger(raw.offset)
+      const offset = safeFileOffset(context, raw.offset)
       return offset === undefined ? undefined : { type: 'scrollTo', offset }
     }
 
