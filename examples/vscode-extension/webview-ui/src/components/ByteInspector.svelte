@@ -592,7 +592,7 @@
             <button
               type="button"
               class="inspector-value-button"
-              class:readonly={!item.field.editable}
+              class:inspector-value-readonly={!item.field.editable}
               disabled={!item.available || selectedOffset < 0}
               onclick={() =>
                 item.field.editable ? beginEdit(item) : inspectField(item)}

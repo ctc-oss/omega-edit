@@ -85,6 +85,10 @@
     const lookup = new Map<number, WebviewExternalHighlight>()
     const visibleStart = offset
     const visibleEnd = offset + data.length
+    const visibleByteCount = Math.max(0, visibleEnd - visibleStart)
+    if (visibleByteCount === 0) {
+      return lookup
+    }
 
     for (const highlight of externalHighlights) {
       const start = Math.max(visibleStart, highlight.offset)
@@ -92,6 +96,9 @@
       for (let byteOffset = start; byteOffset < end; byteOffset += 1) {
         if (!lookup.has(byteOffset)) {
           lookup.set(byteOffset, highlight)
+          if (lookup.size >= visibleByteCount) {
+            return lookup
+          }
         }
       }
     }

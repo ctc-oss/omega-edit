@@ -774,6 +774,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /inspectorStart/)
   assert.match(previewGridSource, /class:inspectorRange/)
   assert.match(previewGridSource, /externalHighlightByOffset = \$derived\.by/)
+  assert.match(previewGridSource, /visibleByteCount/)
+  assert.match(previewGridSource, /lookup\.size >= visibleByteCount/)
   assert.match(previewGridSource, /externalHighlightFor/)
   assert.match(
     previewGridSource,
@@ -910,6 +912,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /float32/)
   assert.match(byteInspectorSource, /editable: false/)
   assert.match(byteInspectorSource, /inspector-value-button/)
+  assert.match(byteInspectorSource, /class:inspector-value-readonly/)
+  assert.doesNotMatch(byteInspectorSource, /class:readonly/)
   assert.match(byteInspectorSource, /onToggleEndian/)
   assert.match(byteInspectorSource, /onCommitValue/)
   assert.match(byteInspectorSource, /onInspectRange/)
