@@ -160,6 +160,26 @@ suite('OmegaEdit VS Code extension', () => {
         /requires a non-negative integer offset/
       )
       await assert.rejects(
+        () => extensionApi.reveal('not-a-file-uri', 1),
+        /can only open local files/
+      )
+      await assert.rejects(
+        () =>
+          extensionApi.reveal({
+            uri: vscode.Uri.parse('untitled:typed-api.bin'),
+            offset: 1,
+          }),
+        /can only open local files/
+      )
+      await assert.rejects(
+        () =>
+          extensionApi.reveal({
+            uri: { scheme: 'file', path: samplePath },
+            offset: 1,
+          }),
+        /can only open local files/
+      )
+      await assert.rejects(
         () => extensionApi.reveal(uri, 99),
         /outside the file range/
       )

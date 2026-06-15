@@ -80,8 +80,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function requireApiFileUri(uri: vscode.Uri): vscode.Uri {
-  if (!isFileUri(uri)) {
+function parseApiFileUri(value: unknown): vscode.Uri | undefined {
+  if (value instanceof vscode.Uri) {
+    return isFileUri(value) ? value : undefined
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined
+  }
+
+  try {
+    const uri = vscode.Uri.parse(value.trim(), true)
+    return isFileUri(uri) ? uri : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function requireApiFileUri(value: unknown): vscode.Uri {
+  const uri = parseApiFileUri(value)
+  if (!uri) {
     throw new Error(
       vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
     )
@@ -103,14 +120,17 @@ function normalizeRevealOptions(
   }
 
   if (isRecord(uriOrOptions) && 'offset' in uriOrOptions) {
-    return {
-      uri: uriOrOptions.uri as vscode.Uri | string | undefined,
+    const options: { uri?: vscode.Uri; offset: number } = {
       offset: normalizeOffset(uriOrOptions.offset),
     }
+    if ('uri' in uriOrOptions && uriOrOptions.uri !== undefined) {
+      options.uri = requireApiFileUri(uriOrOptions.uri)
+    }
+    return options
   }
 
   return {
-    uri: uriOrOptions as vscode.Uri | string,
+    uri: requireApiFileUri(uriOrOptions),
     offset: normalizeOffset(offset),
   }
 }
