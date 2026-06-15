@@ -119,8 +119,8 @@
 
   let frequencyScale = $state<'linear' | 'log'>('linear')
   let hoveredFrequencyByte = $state<number | undefined>(undefined)
-  let tooltipX = $state(0)
-  let tooltipY = $state(0)
+  let tooltipHorizontal = $state<'left' | 'center' | 'right'>('right')
+  let tooltipVertical = $state<'top' | 'bottom'>('bottom')
   let draggingSection = $state<
     | {
         mode: AnalysisMode
@@ -206,33 +206,6 @@
           ),
         }
   )
-
-  function dynamicWidth(node: HTMLElement, percent: number) {
-    const apply = (nextPercent: number): void => {
-      node.style.width = `${clamp(0, nextPercent, 100).toFixed(1)}%`
-    }
-    apply(percent)
-    return { update: apply }
-  }
-
-  function dynamicBarHeight(node: HTMLElement, height: string) {
-    const apply = (nextHeight: string): void => {
-      node.style.setProperty('--bar-height', nextHeight)
-    }
-    apply(height)
-    return { update: apply }
-  }
-
-  function dynamicTranslate(
-    node: HTMLElement,
-    position: { x: number; y: number }
-  ) {
-    const apply = (nextPosition: { x: number; y: number }): void => {
-      node.style.transform = `translate(${nextPosition.x}px, ${nextPosition.y}px)`
-    }
-    apply(position)
-    return { update: apply }
-  }
 
   function normalizeSectionOrder(
     rawOrder: string[] | undefined,
@@ -880,17 +853,21 @@
     ]
   }
 
-  function frequencyBarHeight(count: number): string {
+  function barWidth(percent: number): number {
+    return clamp(0, percent, 100)
+  }
+
+  function frequencyBarHeight(count: number): number {
     const maxCount = Math.max(0, ...byteCounts)
     if (byteTotal <= 0 || maxCount <= 0 || count <= 0) {
-      return '1px'
+      return 1
     }
     const maxLog = Math.log2(maxCount + 1)
     const ratio =
       frequencyScale === 'log'
         ? Math.log2(count + 1) / Math.max(1, maxLog)
         : count / maxCount
-    return `${clamp(2, ratio * 100, 100).toFixed(1)}%`
+    return clamp(2, ratio * 100, 100)
   }
 
   function updateFrequencyTooltip(event: PointerEvent): void {
@@ -904,9 +881,11 @@
       return
     }
     const x = clamp(0, event.clientX - rect.left - 4, innerWidth)
-    hoveredFrequencyByte = clamp(0, Math.floor((x / innerWidth) * 256), 255)
-    tooltipX = clamp(4, event.clientX - rect.left + 10, Math.max(4, rect.width - 116))
-    tooltipY = clamp(4, event.clientY - rect.top - 58, Math.max(4, rect.height - 46))
+    const byte = clamp(0, Math.floor((x / innerWidth) * 256), 255)
+    hoveredFrequencyByte = byte
+    tooltipHorizontal = byte > 170 ? 'left' : byte < 85 ? 'right' : 'center'
+    tooltipVertical =
+      event.clientY - rect.top > rect.height / 2 ? 'top' : 'bottom'
   }
 </script>
 
@@ -1035,10 +1014,21 @@
                       <div class="analysis-bar-row">
                         <span class="analysis-label">{row.label}</span>
                         <span class="analysis-bar-track">
-                          <span
-                            class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                            use:dynamicWidth={row.percent}
-                          ></span>
+                          <svg
+                            class="analysis-bar-svg"
+                            viewBox="0 0 100 1"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              class={`analysis-bar-fill ${row.colorClass ?? ''}`}
+                              x="0"
+                              y="0"
+                              width={barWidth(row.percent)}
+                              height="1"
+                              rx="0.5"
+                            ></rect>
+                          </svg>
                         </span>
                         <span class="analysis-value">{row.value}</span>
                       </div>
@@ -1133,19 +1123,28 @@
                       {strings.profiler.noProfileData}
                     </div>
                   {:else}
-                    {#each Array.from({ length: 256 }, (_, byte) => byte) as byte}
-                      <span
-                        class={`frequency-bar${frequencyBarClass(byte, byteCounts[byte] ?? 0)}`}
-                        class:hovered={hoveredFrequencyByte === byte}
-                        use:dynamicBarHeight={frequencyBarHeight(byteCounts[byte] ?? 0)}
-                        role="presentation"
-                      ></span>
-                    {/each}
+                    <svg
+                      class="frequency-bars"
+                      viewBox="0 0 256 100"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      {#each Array.from({ length: 256 }, (_, byte) => byte) as byte}
+                        {@const height = frequencyBarHeight(byteCounts[byte] ?? 0)}
+                        <rect
+                          class={`frequency-bar${frequencyBarClass(byte, byteCounts[byte] ?? 0)}`}
+                          class:hovered={hoveredFrequencyByte === byte}
+                          x={byte}
+                          y={100 - height}
+                          width="1"
+                          height={height}
+                        ></rect>
+                      {/each}
+                    </svg>
                   {/if}
                   {#if hoveredFrequency}
                     <div
-                      class="frequency-tooltip active"
-                      use:dynamicTranslate={{ x: tooltipX, y: tooltipY }}
+                      class={`frequency-tooltip active ${tooltipHorizontal} ${tooltipVertical}`}
                     >
                       <div>{formatByteLabel(hoveredFrequency.byte)}</div>
                       <div>
@@ -1167,10 +1166,21 @@
                       <div class="analysis-bar-row">
                         <span class="analysis-label">{row.label}</span>
                         <span class="analysis-bar-track">
-                          <span
-                            class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                            use:dynamicWidth={row.percent}
-                          ></span>
+                          <svg
+                            class="analysis-bar-svg"
+                            viewBox="0 0 100 1"
+                            preserveAspectRatio="none"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              class={`analysis-bar-fill ${row.colorClass ?? ''}`}
+                              x="0"
+                              y="0"
+                              width={barWidth(row.percent)}
+                              height="1"
+                              rx="0.5"
+                            ></rect>
+                          </svg>
                         </span>
                         <span class="analysis-value">{row.value}</span>
                       </div>

@@ -26,7 +26,7 @@
   }: Props = $props()
 
   let trackElement = $state<HTMLDivElement>()
-  let thumbElement = $state<HTMLDivElement>()
+  let thumbElement = $state<SVGRectElement>()
   let trackHeight = $state(0)
   let dragging = $state(false)
   let dragPointerId = $state<number | undefined>(undefined)
@@ -80,28 +80,11 @@
       ? strings.navigation.scrollbarDisabled
       : strings.navigation.scrollbarValue(currentOffsetLabel, progressLabel)
   )
-  const thumbStyle = $derived({
-    top: thumbTop,
-    height: thumbHeight,
-    opacity: disabled ? 0 : 1,
-  })
-
-  function dynamicThumbStyle(
-    node: HTMLElement,
-    value: { top: number; height: number; opacity: number }
-  ) {
-    const apply = (nextValue: {
-      top: number
-      height: number
-      opacity: number
-    }): void => {
-      node.style.top = `${nextValue.top}px`
-      node.style.height = `${nextValue.height}px`
-      node.style.opacity = String(nextValue.opacity)
-    }
-    apply(value)
-    return { update: apply }
-  }
+  const thumbViewBoxHeight = $derived(Math.max(1, trackHeight))
+  const safeThumbHeight = $derived(Math.min(thumbViewBoxHeight, thumbHeight))
+  const safeThumbTop = $derived(
+    Math.max(0, Math.min(thumbViewBoxHeight - safeThumbHeight, thumbTop))
+  )
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
@@ -276,12 +259,22 @@
     onpointercancel={stopDrag}
     onkeydown={handleKeydown}
   >
-    <div
-      bind:this={thumbElement}
-      class="file-scrollbar-thumb"
-      class:dragging
-      use:dynamicThumbStyle={thumbStyle}
-      title={thumbTitle}
-    ></div>
+    <svg
+      class="file-scrollbar-svg"
+      viewBox={`0 0 14 ${thumbViewBoxHeight}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <rect
+        bind:this={thumbElement}
+        class="file-scrollbar-thumb"
+        class:dragging
+        x="0"
+        y={safeThumbTop}
+        width="14"
+        height={safeThumbHeight}
+        rx="3"
+      ></rect>
+    </svg>
   </div>
 </div>

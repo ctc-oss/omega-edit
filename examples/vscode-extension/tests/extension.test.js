@@ -368,6 +368,11 @@ test('compiled extension entrypoints exist after build', () => {
       /style=\{/,
       `${name} should avoid inline styles`
     )
+    assert.doesNotMatch(
+      source,
+      /\bnode\.style\b|\.style\.|\.style\s*=|setProperty\(/,
+      `${name} should avoid runtime inline style mutation`
+    )
   }
   assert.match(providerJs, /editSimple/)
   assert.match(providerJs, /getSegment/)
@@ -899,6 +904,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(fileScrollbarSource, /function handleKeydown/)
   assert.match(fileScrollbarSource, /maxStartRow/)
   assert.match(fileScrollbarSource, /onScrollTo\(nextOffset\)/)
+  assert.match(fileScrollbarSource, /<svg/)
+  assert.doesNotMatch(fileScrollbarSource, /dynamicThumbStyle/)
   assert.match(searchPanelSource, /strings\.search\.label/)
   assert.match(searchPanelSource, /onSearch/)
   assert.match(searchPanelSource, /onNavigate/)
@@ -965,6 +972,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /frequencyScale/)
   assert.match(profilerPanelSource, /function analyzeBytes/)
   assert.match(profilerPanelSource, /function frequencyBarHeight/)
+  assert.match(profilerPanelSource, /function barWidth/)
+  assert.match(profilerPanelSource, /frequency-bars/)
+  assert.doesNotMatch(profilerPanelSource, /dynamicWidth/)
+  assert.doesNotMatch(profilerPanelSource, /dynamicBarHeight/)
+  assert.doesNotMatch(profilerPanelSource, /dynamicTranslate/)
   assert.doesNotMatch(profilerPanelSource, /onRefresh/)
   assert.match(profilerPanelSource, /class:collapsed/)
   assert.match(profilerPanelSource, /profiler-collapsed-toggle/)
@@ -976,11 +988,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.text-byte\.high-bit/)
   assert.match(
     svelteBundleCss,
-    /\.analysis-bar-fill\.printable\{background:var\(--omega-byte-class-printable\)/
+    /\.analysis-bar-fill\.printable\{fill:var\(--omega-byte-class-printable\)/
   )
   assert.match(
     svelteBundleCss,
-    /\.frequency-bar\.high-bit\{background:var\(--omega-byte-class-high-bit\)/
+    /\.frequency-bar\.high-bit\{fill:var\(--omega-byte-class-high-bit\)/
   )
   assert.match(svelteBundleCss, /\.server-health-value\.ok/)
   assert.match(svelteBundleCss, /\.server-health-value\.warn/)

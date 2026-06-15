@@ -493,23 +493,30 @@ button.dialog-backdrop:focus-visible {
 }
 
 .file-scrollbar-thumb {
-  position: absolute;
-  right: 0;
-  left: 0;
-  min-height: 0;
-  border-radius: 999px;
-  background: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4));
+  fill: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4));
   cursor: pointer;
-  transition: background 120ms ease;
+  transition: fill 120ms ease;
+}
+
+.file-scrollbar-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.file-scrollbar-track.disabled .file-scrollbar-thumb {
+  opacity: 0;
 }
 
 .file-scrollbar-thumb:hover {
-  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
+  fill: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7));
 }
 
 .file-scrollbar.dragging .file-scrollbar-thumb,
 .file-scrollbar-thumb.dragging {
-  background: var(
+  fill: var(
     --vscode-scrollbarSlider-activeBackground,
     rgba(191, 191, 191, 0.4)
   );
@@ -813,25 +820,26 @@ button.dialog-backdrop:focus-visible {
   );
 }
 
-.analysis-bar-fill {
+.analysis-bar-svg {
   display: block;
-  width: 0;
-  min-width: 1px;
+  width: 100%;
   height: 100%;
-  border-radius: 999px;
-  background: var(--vscode-terminal-ansiCyan, #4fc1ff);
+}
+
+.analysis-bar-fill {
+  fill: var(--vscode-terminal-ansiCyan, #4fc1ff);
 }
 
 .analysis-bar-fill.control {
-  background: var(--omega-byte-class-control);
+  fill: var(--omega-byte-class-control);
 }
 
 .analysis-bar-fill.printable {
-  background: var(--omega-byte-class-printable);
+  fill: var(--omega-byte-class-printable);
 }
 
 .analysis-bar-fill.high-bit {
-  background: var(--omega-byte-class-high-bit);
+  fill: var(--omega-byte-class-high-bit);
 }
 
 .frequency-chart {
@@ -883,35 +891,39 @@ button.dialog-backdrop:focus-visible {
 }
 
 .frequency-bar {
-  width: 100%;
-  min-width: 0;
-  height: var(--bar-height, 1px);
-  border-radius: 1px 1px 0 0;
-  background: var(--vscode-terminal-ansiCyan, #4fc1ff);
+  fill: var(--vscode-terminal-ansiCyan, #4fc1ff);
   opacity: 0.86;
 }
 
 .frequency-bar.zero {
-  height: 1px;
   opacity: 0.18;
 }
 
 .frequency-bar.control {
-  background: var(--omega-byte-class-control);
+  fill: var(--omega-byte-class-control);
 }
 
 .frequency-bar.printable {
-  background: var(--omega-byte-class-printable);
+  fill: var(--omega-byte-class-printable);
 }
 
 .frequency-bar.high-bit {
-  background: var(--omega-byte-class-high-bit);
+  fill: var(--omega-byte-class-high-bit);
 }
 
 .frequency-bar.hovered {
   opacity: 1;
   filter: brightness(1.4);
-  outline: 1px solid var(--vscode-contrastActiveBorder, rgba(255, 255, 255, 0.3));
+  stroke: var(--vscode-contrastActiveBorder, rgba(255, 255, 255, 0.3));
+  stroke-width: 0.4;
+}
+
+.frequency-bars {
+  position: absolute;
+  inset: 8px 4px 18px;
+  width: calc(100% - 8px);
+  height: calc(100% - 26px);
+  overflow: visible;
 }
 
 .frequency-tooltip {
@@ -935,6 +947,29 @@ button.dialog-backdrop:focus-visible {
 
 .frequency-tooltip.active {
   display: block;
+}
+
+.frequency-tooltip.left {
+  left: 8px;
+}
+
+.frequency-tooltip.center {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.frequency-tooltip.right {
+  right: 8px;
+  left: auto;
+}
+
+.frequency-tooltip.top {
+  top: 8px;
+}
+
+.frequency-tooltip.bottom {
+  top: auto;
+  bottom: 22px;
 }
 
 .analysis-note {
