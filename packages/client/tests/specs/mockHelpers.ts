@@ -17,17 +17,27 @@ export async function withPlatform(
   run: () => Promise<void>
 ): Promise<void> {
   const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
-  Object.defineProperty(process, 'platform', {
-    configurable: true,
+  if (!descriptor || !descriptor.configurable) {
+    throw new Error('process.platform cannot be overridden in this runtime')
+  }
+
+  const overrideDescriptor: PropertyDescriptor = {
+    configurable: descriptor.configurable,
+    enumerable: descriptor.enumerable,
     value: platform,
+  }
+  if ('writable' in descriptor) {
+    overrideDescriptor.writable = descriptor.writable
+  }
+
+  Object.defineProperty(process, 'platform', {
+    ...overrideDescriptor,
   })
 
   try {
     await run()
   } finally {
-    if (descriptor) {
-      Object.defineProperty(process, 'platform', descriptor)
-    }
+    Object.defineProperty(process, 'platform', descriptor)
   }
 }
 

@@ -236,6 +236,19 @@ describe('Client Utilities', () => {
     }
   })
 
+  it('should restore the platform descriptor after platform overrides', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    expect(descriptor).to.not.equal(undefined)
+
+    await withPlatform('linux', async () => {
+      expect(process.platform).to.equal('linux')
+    })
+
+    expect(Object.getOwnPropertyDescriptor(process, 'platform')).to.deep.equal(
+      descriptor
+    )
+  })
+
   it('should fall back from a unix socket candidate to TCP client creation', async () => {
     resetClient()
     const uris: string[] = []

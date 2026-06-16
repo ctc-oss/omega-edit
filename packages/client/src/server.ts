@@ -200,6 +200,8 @@ async function waitForFileToExistWhileProcessRuns(
     }
 
     const check = async () => {
+      if (settled) return
+
       try {
         await fs.promises.stat(filePath)
         finish(() => {
@@ -216,6 +218,8 @@ async function waitForFileToExistWhileProcessRuns(
         // keep waiting
       }
 
+      if (settled) return
+
       if (Date.now() - start >= timeout) {
         finish(() => {
           const errMsg = `File does not exist after ${timeout} milliseconds`
@@ -229,6 +233,8 @@ async function waitForFileToExistWhileProcessRuns(
         })
         return
       }
+
+      if (settled) return
 
       timer = setTimeout(check, FILE_EXISTENCE_POLL_INTERVAL_MS)
     }
