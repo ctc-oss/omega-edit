@@ -14,16 +14,16 @@ A standalone reference VS Code extension that demonstrates how to use [Ωedit™
 | Direct open from command palette / explorer               | [extension.ts](src/extension.ts)                                                    |
 | Create session per opened file                            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | Viewport to webview data flow                             | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
-| Insert / delete / overwrite / replace from UI             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
-| Search and replace with text/hex and direction controls   | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
-| Discover and apply byte range transform plugins           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
-| VS Code undo / redo with Structure-pane stack counts      | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Insert / delete / overwrite / replace from UI             | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [App.svelte](webview-ui/src/App.svelte) |
+| Search and replace with text/hex and direction controls   | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [SearchPanel.svelte](webview-ui/src/components/SearchPanel.svelte) |
+| Discover and apply byte range transform plugins           | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [TransformPanel.svelte](webview-ui/src/components/TransformPanel.svelte) |
+| VS Code undo / redo with Structure-pane stack counts      | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ProfilerPanel.svelte](webview-ui/src/components/ProfilerPanel.svelte) |
 | VS Code dirty-document tracking (`onDidChangeCustomDocument`) | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | VS Code-initiated save / save-as / revert / backup            | [hexEditorProvider.ts](src/hexEditorProvider.ts)                                    |
 | Export / replay JSON change scripts                       | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [extension.ts](src/extension.ts) |
-| Bytes-per-row and offset-radix controls                   | [webview.ts](src/webview.ts)                                                        |
-| Status bar, binary inspector, and server health indicator | [webview.ts](src/webview.ts)                                                        |
-| Profiling and structure analysis side pane                | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [webview.ts](src/webview.ts)     |
+| Bytes-per-row and offset-radix controls                   | [Toolbar.svelte](webview-ui/src/components/Toolbar.svelte)                         |
+| Native VS Code status-bar items, binary inspector, and server health indicator | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ByteInspector.svelte](webview-ui/src/components/ByteInspector.svelte) |
+| Profiling and structure analysis side pane                | [hexEditorProvider.ts](src/hexEditorProvider.ts) + [ProfilerPanel.svelte](webview-ui/src/components/ProfilerPanel.svelte) |
 | Extension settings                                        | [package.json](package.json)                                                        |
 
 ## Client Helpers Used Here
@@ -78,7 +78,7 @@ Current implementation note:
 1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
 2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
 3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
-4. The webview drives edits, navigation, search, replace, and transforms through the provider, while native VS Code actions handle undo, redo, save, and save-as. The provider pushes back reactive state updates for the viewport, Structure-pane undo/redo counts, dirty state, replace counts, transform results, and server health. Transform option help, examples, defaults, and JSON Schema validation come from the plugin metadata rather than hardcoded webview logic.
+4. The webview drives edits, navigation, search, replace, and transforms through the provider, while native VS Code actions handle undo, redo, save, save-as, and status-bar presentation. The provider pushes back reactive state updates for the viewport, Structure-pane undo/redo counts, dirty state, replace counts, transform results, and server health. Transform option help, examples, defaults, and JSON Schema validation come from the plugin metadata rather than hardcoded webview logic.
 5. The analysis side pane profiles the current visible range or active multi-byte selection. The provider asks Ωedit™ for byte frequency, server-detected content type, language, and character-count data, while the webview renders a 256-bin frequency chart with linear/log scaling and derives local byte classes, mode, frequency-spread, top-byte summaries, entropy, and longest-run structure hints from the buffered data. Content type is sampled from the beginning of the session so file signatures and extension-aware server fallbacks remain useful even while inspecting a later range. Large selections are capped for profiling so exploratory range analysis does not monopolize the extension host.
 6. `deactivate()` calls `stopServerGraceful()` so the server can shut down cleanly.
 
@@ -160,11 +160,12 @@ The repository's tagged release workflow also builds this extension and uploads 
 |   -> webview state sync                                      |
 |   -> heartbeat as the only intentional poll                  |
 |                                                              |
-|  webview.ts                                                  |
+|  svelteWebview.ts + webview-ui/                              |
+|   -> Svelte bundle host, CSP, and VS Code resource wiring     |
 |   -> hex + text rendering                                    |
 |   -> virtual navigation controls                             |
 |   -> profile / structure analysis side pane                  |
-|   -> toolbar / dialogs / status bar                          |
+|   -> toolbar / dialogs                                       |
 +-----------------------------+--------------------------------+
                               |
                               | gRPC
@@ -197,6 +198,73 @@ This reference implementation is intentionally compact. A few natural next steps
 - Add export actions for the analysis pane's profile and structure summaries
 - Add bookmarks and richer navigation helpers
 - Share session IDs across instances for collaborative or multi-tool workflows
+
+For the planned Svelte/Vite webview migration, Daffodil debugger bridge, and
+AI/LLM automation requirements, see
+[Svelte Webview and Automation Requirements](docs/svelte-ai-migration-requirements.md).
+
+### Svelte Webview
+
+The extension uses the Svelte/Vite webview as the editor UI. To try it from an
+Extension Development Host:
+
+1. Run `npm run compile`.
+2. Open a local file with `OmegaEdit: Open in Hex Editor`.
+
+The Svelte UI supports local byte selection, keyboard and wheel navigation,
+host-backed search navigation, match highlighting on both the byte and text
+columns, command-routed Search Next / Search Previous, search replace /
+replace-all through the provider, active-pane Ctrl-C/Ctrl-X clipboard handling,
+active-pane Ctrl-V insert handling, direct grid editing for hex bytes and
+printable ASCII with Insert-key editing-mode toggling. The extension uses VS
+Code's native status-bar behavior for overwrite mode: blank in insert mode and
+`OVR` in overwrite mode. The UI also includes a
+lightweight byte inspector with LE/BE contextual value editing for non-float
+values including UTF-8 and UTF-16 when valid. Native VS Code status-bar items
+show the active pane, current offset/progress, transform count, dirty state, and
+color-coded server health with a disconnected icon when the server is
+unavailable. Live server metrics remain visible under Analysis > Structure >
+Server so the status-bar hover can stay stable. The inspector is collapsible,
+inspector values highlight their participating bytes in both grid panes, offsets
+can be shown in hex or decimal, and the Analysis side pane supports reorderable
+sections. The webview derives visible rows from the editor pane height, clamps
+virtual scrolling at file boundaries, and keeps UI strings in an i18n string
+table.
+
+Generic parser/debugger integrations can call `omegaEdit.getEditorState`,
+`omegaEdit.setExternalHighlights`, and `omegaEdit.clearExternalHighlights` to
+read compact editor state and annotate byte ranges without scraping the webview.
+External highlight kinds are generic (`current`, `parsed`, `error`, `warning`,
+`breakpoint`, and `secondary`) so Daffodil, DFDL tools, and other byte-level
+parsers can map their own concepts into the shared editor.
+
+TypeScript extensions can also consume the typed API returned from activation.
+The package declaration entrypoint is `out/api.d.ts`.
+
+```ts
+import type { OmegaEditExtensionApi } from 'omega-edit-hex-editor'
+
+const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
+  'omega-edit-example.omega-edit-hex-editor'
+)
+const omegaEdit = await extension?.activate()
+
+await omegaEdit?.open(document.uri, { offset: 128 })
+await omegaEdit?.setExternalHighlights({
+  uri: document.uri,
+  reveal: true,
+  highlights: [
+    {
+      id: 'parser.current',
+      offset: 128,
+      length: 4,
+      kind: 'current',
+      label: 'Current parse point',
+      source: 'DFDL',
+    },
+  ],
+})
+```
 
 ## Related
 

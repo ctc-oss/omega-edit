@@ -56,6 +56,11 @@ runs:
       shell: bash
       run: conan profile detect --force
 
+    - name: Configure Conan for Visual Studio 18
+      if: inputs.runner-os == 'Windows' && startsWith(inputs.os-name, 'windows-2025')
+      shell: bash
+      run: echo "CONAN_MSBUILD_VS_CONF=-c tools.microsoft.msbuild:vs_version=18" >> "$GITHUB_ENV"
+
     - name: Cache Conan packages
       uses: actions/cache@v4
       with:
@@ -71,6 +76,7 @@ runs:
         conan install plugins --output-folder=_build_core/plugin-conan \
           --build=missing \
           -s build_type=Release \
+          ${CONAN_MSBUILD_VS_CONF:-} \
           -c tools.cmake.cmaketoolchain:generator=Ninja
 
     - name: Install transform plugin system dependencies
@@ -108,6 +114,7 @@ runs:
           --build=missing \
           -s build_type=Release \
           -s compiler.cppstd=17 \
+          ${CONAN_MSBUILD_VS_CONF:-} \
           -c tools.cmake.cmaketoolchain:generator=Ninja
 
     - name: Install uuid-dev (Linux)
