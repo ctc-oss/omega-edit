@@ -12,6 +12,25 @@ export function overrideProperty(
   }
 }
 
+export async function withPlatform(
+  platform: NodeJS.Platform,
+  run: () => Promise<void>
+): Promise<void> {
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+  Object.defineProperty(process, 'platform', {
+    configurable: true,
+    value: platform,
+  })
+
+  try {
+    await run()
+  } finally {
+    if (descriptor) {
+      Object.defineProperty(process, 'platform', descriptor)
+    }
+  }
+}
+
 export function makeObjectIdResponse(id: string) {
   return {
     getId() {

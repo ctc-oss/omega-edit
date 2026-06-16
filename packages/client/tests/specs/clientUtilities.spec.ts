@@ -22,7 +22,11 @@ import * as net from 'net'
 import * as os from 'os'
 import * as path from 'path'
 import { expect, initChai } from './common.js'
-import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
+import {
+  overrideProperty,
+  silenceClientLogger,
+  withPlatform,
+} from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -74,25 +78,6 @@ describe('Client Utilities', () => {
       process.env.OMEGA_EDIT_SERVER_SOCKET = originalServerSocket
     }
   })
-
-  const withPlatform = async (
-    platform: NodeJS.Platform,
-    run: () => Promise<void>
-  ) => {
-    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
-    Object.defineProperty(process, 'platform', {
-      configurable: true,
-      value: platform,
-    })
-
-    try {
-      await run()
-    } finally {
-      if (descriptor) {
-        Object.defineProperty(process, 'platform', descriptor)
-      }
-    }
-  }
 
   const removeDirWithRetry = async (dirPath: string) => {
     // Temp directory cleanup is best-effort on Windows where logger handles can lag.

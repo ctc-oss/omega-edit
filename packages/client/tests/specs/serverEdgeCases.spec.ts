@@ -22,7 +22,11 @@ import * as os from 'os'
 import * as path from 'path'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initChai } from './common.js'
-import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
+import {
+  overrideProperty,
+  silenceClientLogger,
+  withPlatform,
+} from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -87,25 +91,6 @@ describe('Server Edge Cases', () => {
   after(() => {
     restoreLogger()
   })
-
-  const withPlatform = async (
-    platform: NodeJS.Platform,
-    run: () => Promise<void>
-  ) => {
-    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
-    Object.defineProperty(process, 'platform', {
-      configurable: true,
-      value: platform,
-    })
-
-    try {
-      await run()
-    } finally {
-      if (descriptor) {
-        Object.defineProperty(process, 'platform', descriptor)
-      }
-    }
-  }
 
   it('should start a source server with a stale pid file and query info endpoints', async () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
