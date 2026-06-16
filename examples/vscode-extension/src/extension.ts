@@ -18,14 +18,27 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import {
+  OMEGA_EDIT_EXTENSION_API_VERSION,
+  type OmegaEditExtensionApi,
+  type OmegaEditExternalHighlightRequest,
+  type OmegaEditOpenOptions,
+  type OmegaEditRevealOptions,
+} from './api'
+import {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
+  OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
+  OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
   OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
   OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND,
+  OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
   OMEGA_EDIT_REDO_COMMAND,
   OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND,
   OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND,
   OMEGA_EDIT_ROLLBACK_SESSION_COMMAND,
+  OMEGA_EDIT_SEARCH_NEXT_COMMAND,
+  OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
+  OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
@@ -61,6 +74,65 @@ function parseServerPort(value: unknown): number | undefined {
 
 function isFileUri(uri: vscode.Uri | undefined): uri is vscode.Uri {
   return !!uri && uri.scheme === 'file'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parseApiFileUri(value: unknown): vscode.Uri | undefined {
+  if (value instanceof vscode.Uri) {
+    return isFileUri(value) ? value : undefined
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined
+  }
+
+  try {
+    const uri = vscode.Uri.parse(value.trim(), true)
+    return isFileUri(uri) ? uri : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function requireApiFileUri(value: unknown): vscode.Uri {
+  const uri = parseApiFileUri(value)
+  if (!uri) {
+    throw new Error(
+      vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+    )
+  }
+  return uri
+}
+
+function normalizeRevealOptions(
+  uriOrOptions: vscode.Uri | string | OmegaEditRevealOptions,
+  offset?: number
+): { uri?: vscode.Uri | string; offset: number } {
+  const normalizeOffset = (value: unknown): number => {
+    if (!Number.isSafeInteger(value) || Number(value) < 0) {
+      throw new Error(
+        vscode.l10n.t('OmegaEdit requires a non-negative integer offset')
+      )
+    }
+    return Number(value)
+  }
+
+  if (isRecord(uriOrOptions) && 'offset' in uriOrOptions) {
+    const options: { uri?: vscode.Uri; offset: number } = {
+      offset: normalizeOffset(uriOrOptions.offset),
+    }
+    if ('uri' in uriOrOptions && uriOrOptions.uri !== undefined) {
+      options.uri = requireApiFileUri(uriOrOptions.uri)
+    }
+    return options
+  }
+
+  return {
+    uri: requireApiFileUri(uriOrOptions),
+    offset: normalizeOffset(offset),
+  }
 }
 
 function parseOffsetInput(value: string): number | undefined {
@@ -167,9 +239,46 @@ function reportActivationError(message: string): void {
   void vscode.window.showErrorMessage(message)
 }
 
+function createOmegaEditExtensionApi(
+  provider: HexEditorProvider
+): OmegaEditExtensionApi {
+  return {
+    version: OMEGA_EDIT_EXTENSION_API_VERSION,
+    onDidChangeEditorState: provider.onDidChangeEditorState,
+    async open(uri: vscode.Uri, options: OmegaEditOpenOptions = {}) {
+      const target = requireApiFileUri(uri)
+      await vscode.commands.executeCommand(
+        'vscode.openWith',
+        target,
+        OMEGA_EDIT_VIEW_TYPE
+      )
+
+      if (options.offset === undefined) {
+        return provider.getEditorState({ uri: target })
+      }
+
+      return provider.revealOffset(
+        normalizeRevealOptions(target, options.offset)
+      )
+    },
+    async reveal(uriOrOptions, offset) {
+      return provider.revealOffset(normalizeRevealOptions(uriOrOptions, offset))
+    },
+    getEditorState(options) {
+      return provider.getEditorState(options)
+    },
+    async setExternalHighlights(request: OmegaEditExternalHighlightRequest) {
+      return provider.setExternalHighlights(request)
+    },
+    clearExternalHighlights(options) {
+      return provider.clearExternalHighlights(options)
+    },
+  }
+}
+
 export async function activate(
   context: vscode.ExtensionContext
-): Promise<void> {
+): Promise<OmegaEditExtensionApi | undefined> {
   const config = vscode.workspace.getConfiguration('omegaEdit')
   const port = resolveServerPort(config)
 
@@ -187,12 +296,17 @@ export async function activate(
     })
     if (serverPid && !isTestRuntime()) {
       void vscode.window.showInformationMessage(
-        `Ωedit™ server started on port ${port} (pid ${serverPid})`
+        vscode.l10n.t('Ωedit™ server started on port {port} (pid {pid})', {
+          port,
+          pid: serverPid,
+        })
       )
     }
   } catch (err) {
     reportActivationError(
-      `Failed to start Ωedit™ server: ${err instanceof Error ? err.message : String(err)}`
+      vscode.l10n.t('Failed to start Ωedit™ server: {message}', {
+        message: err instanceof Error ? err.message : String(err),
+      })
     )
     return
   }
@@ -205,11 +319,13 @@ export async function activate(
     } catch {
       // Best effort cleanup; activation will report the connection failure.
     }
-    reportActivationError('Ωedit™ server started but is not reachable')
+    reportActivationError(
+      vscode.l10n.t('Ωedit™ server started but is not reachable')
+    )
     return
   }
 
-  const provider = new HexEditorProvider()
+  const provider = new HexEditorProvider(context)
   activeProvider = provider
 
   context.subscriptions.push(
@@ -235,8 +351,10 @@ export async function activate(
               canSelectMany: false,
               canSelectFiles: true,
               canSelectFolders: false,
-              openLabel: 'Open in Ωedit™ Hex Editor',
-              title: 'Select a file to open in Ωedit™ Hex Editor',
+              openLabel: vscode.l10n.t('Open in Ωedit™ Hex Editor'),
+              title: vscode.l10n.t(
+                'Select a file to open in Ωedit™ Hex Editor'
+              ),
             })
           )?.[0]
         }
@@ -247,7 +365,7 @@ export async function activate(
 
         if (!isFileUri(target)) {
           void vscode.window.showWarningMessage(
-            'OmegaEdit Hex Editor can only open local files'
+            vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
           )
           return
         }
@@ -266,12 +384,12 @@ export async function activate(
       OMEGA_EDIT_GO_TO_OFFSET_COMMAND,
       async () => {
         const input = await vscode.window.showInputBox({
-          prompt: 'Enter byte offset (decimal or 0x hex)',
+          prompt: vscode.l10n.t('Enter byte offset (decimal or 0x hex)'),
           placeHolder: '0x0000',
           validateInput: (value) => {
             const offset = parseOffsetInput(value)
             return offset === undefined
-              ? 'Enter a valid non-negative integer'
+              ? vscode.l10n.t('Enter a valid non-negative integer')
               : null
           },
         })
@@ -296,6 +414,27 @@ export async function activate(
     vscode.commands.registerCommand(OMEGA_EDIT_REDO_COMMAND, async () => {
       await provider.redoActive()
     })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_NEXT_COMMAND, () => {
+      provider.searchNextActive()
+    })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND, () => {
+      provider.searchPreviousActive()
+    })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND,
+      async () => {
+        await provider.refreshActiveTransformPlugins()
+      }
+    )
   )
 
   context.subscriptions.push(
@@ -344,12 +483,36 @@ export async function activate(
   )
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
+      (options?: unknown) => provider.getEditorState(options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+      async (highlightsOrRequest?: unknown, options?: unknown) =>
+        provider.setExternalHighlights(highlightsOrRequest, options)
+    )
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
+      (options?: unknown) => provider.clearExternalHighlights(options)
+    )
+  )
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration('omegaEdit.bytesPerRow')) {
         provider.refreshBytesPerRow()
       }
     })
   )
+
+  return createOmegaEditExtensionApi(provider)
 }
 
 export async function deactivate(): Promise<void> {

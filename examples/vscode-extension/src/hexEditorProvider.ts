@@ -69,7 +69,27 @@ import {
 } from '@omega-edit/client'
 import * as vscode from 'vscode'
 import { OMEGA_EDIT_VIEW_TYPE } from './constants'
-import { getWebviewContent } from './webview'
+import {
+  getSvelteWebviewContent,
+  getSvelteWebviewLocalResourceRoot,
+} from './svelteWebview'
+import {
+  MAX_ANALYSIS_PROFILE_BYTES,
+  MAX_LABEL_LENGTH,
+  MAX_WEBVIEW_HEX_BYTES,
+  type BytesPerRow,
+  type WebviewEditMode,
+  type WebviewEditorState,
+  type WebviewEditorUiState,
+  type WebviewExternalHighlight,
+  type WebviewTransformPlugin,
+  type HostToWebviewMessage,
+  type ServerHealthMessage,
+  type WebviewToHostMessage,
+  normalizeExternalHighlights,
+  normalizeBytesPerRow,
+  normalizeWebviewMessage,
+} from './webviewProtocol'
 
 interface EditorSession {
   readonly sessionId: string
@@ -78,6 +98,7 @@ interface EditorSession {
   readonly changeCount: number
   readonly sessionSyncVersion: number
   offset: number
+  bufferOffset: number
   visibleRows: number
   capacity: number
   bytesPerRow: BytesPerRow
@@ -93,6 +114,11 @@ interface EditorSession {
   scrollTask?: Promise<void>
   pendingAnalysisProfile?: AnalysisProfileRequest
   analysisProfileTask?: Promise<void>
+  webviewState: WebviewEditorUiState
+  externalHighlights: WebviewExternalHighlight[]
+  transformPlugins: WebviewTransformPlugin[]
+  contentType?: string
+  language?: string
 }
 
 interface AnalysisProfileRequest {
@@ -104,41 +130,25 @@ interface AnalysisProfileRequest {
   isCapped: boolean
 }
 
-interface ServerHealthState {
-  type: 'serverHealth'
-  ok: boolean
-  summary: string
-  detail: string
-  severity: 'ok' | 'warn' | 'error' | 'down'
-  metrics: Array<{ label: string; value: string }>
-}
-
 const SESSION_SYNC_TIMEOUT_MS = 2000
 const VIEWPORT_BUFFER_BYTES = 8 * 1024
 const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
-const MAX_WEBVIEW_HEX_BYTES = 16 * 1024 * 1024
-const MAX_SEARCH_QUERY_LENGTH = 1024 * 1024
-const MAX_TRANSFORM_OPTIONS_LENGTH = 256 * 1024
-const MAX_ANALYSIS_PROFILE_BYTES = 64 * 1024
 const MAX_CHANGE_SCRIPT_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_SCRIPT_ENTRIES = 100_000
-const MAX_LABEL_LENGTH = 128
-const VALID_BYTES_PER_ROW = [8, 16, 32] as const
-const DEFAULT_BYTES_PER_ROW = 16
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
 const CONTEXT_CAN_UNDO = 'omegaEdit.canUndo'
 const CONTEXT_CAN_REDO = 'omegaEdit.canRedo'
 const CONTEXT_HAS_PENDING_CHANGES = 'omegaEdit.hasPendingChanges'
 
-type BytesPerRow = (typeof VALID_BYTES_PER_ROW)[number]
+function openEditorFirstMessage(): string {
+  return vscode.l10n.t('Open an OmegaEdit editor first')
+}
 
-function normalizeBytesPerRow(value: unknown): BytesPerRow {
-  return VALID_BYTES_PER_ROW.includes(value as BytesPerRow)
-    ? (value as BytesPerRow)
-    : DEFAULT_BYTES_PER_ROW
+function omegaEditErrorMessage(message: string): string {
+  return vscode.l10n.t('OmegaEdit error: {message}', { message })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -155,10 +165,6 @@ function safeNonNegativeInteger(
     value <= max
     ? value
     : undefined
-}
-
-function safeBoolean(value: unknown, fallback = false): boolean {
-  return typeof value === 'boolean' ? value : fallback
 }
 
 function safeString(
@@ -194,56 +200,39 @@ function safeHexString(
   return text
 }
 
-function safeJsonString(value: unknown, maxLength: number): string | undefined {
-  if (typeof value !== 'string') {
+function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
+  return {
+    visibleOffset: 0,
+    visibleByteCount: 0,
+    selectedOffset: -1,
+    selectionStart: -1,
+    selectionEnd: -1,
+    selectionLength: 0,
+    bytesPerRow,
+    offsetRadix: 'hex',
+    activePane: 'hex',
+    editMode: 'insert',
+  }
+}
+
+function parseCommandUri(value: unknown): vscode.Uri | undefined {
+  if (value instanceof vscode.Uri) {
+    return value
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
     return undefined
   }
-  const text = value.trim()
-  if (text.length === 0) {
-    return undefined
-  }
-  if (text.length > maxLength) {
-    return undefined
-  }
+
   try {
-    JSON.parse(text)
+    return vscode.Uri.parse(value.trim(), true)
   } catch {
     return undefined
   }
-  return text
-}
-
-function safeFileLengthRange(
-  session: EditorSession,
-  offsetValue: unknown,
-  lengthValue: unknown,
-  allowZeroLength = false,
-  maxLength = Number.MAX_SAFE_INTEGER
-): { offset: number; length: number } | undefined {
-  const offset = safeNonNegativeInteger(offsetValue)
-  const length = safeNonNegativeInteger(lengthValue, maxLength)
-  if (offset === undefined || length === undefined) {
-    return undefined
-  }
-  if ((!allowZeroLength && length === 0) || offset > session.fileSize) {
-    return undefined
-  }
-  if (length > Math.max(0, session.fileSize - offset)) {
-    return undefined
-  }
-  return { offset, length }
-}
-
-function safeSearchQuery(message: Record<string, unknown>): string | undefined {
-  const isHex = message.isHex === true
-  return isHex
-    ? safeHexString(message.query, MAX_SEARCH_QUERY_LENGTH, false)
-    : safeString(message.query, MAX_SEARCH_QUERY_LENGTH)
 }
 
 function classifyServerHealthLatency(
   latencyMs: number
-): ServerHealthState['severity'] {
+): ServerHealthMessage['severity'] {
   if (latencyMs <= SERVER_HEALTH_WARN_LATENCY_MS) {
     return 'ok'
   }
@@ -274,6 +263,172 @@ function truncateTransformResult(value: string): string {
     return value
   }
   return `${value.slice(0, MAX_TRANSFORM_RESULT_TEXT_LENGTH - 1)}...`
+}
+
+function formatStatusByteCount(value: number): string {
+  return value.toLocaleString()
+}
+
+function formatStatusOffset(offset: number, radix: 'hex' | 'dec'): string {
+  return radix === 'dec'
+    ? offset.toLocaleString()
+    : `0x${offset.toString(16).toUpperCase()}`
+}
+
+function formatStatusProgress(
+  fileSize: number,
+  visibleOffset: number,
+  visibleByteCount: number
+): string {
+  if (fileSize <= 0 || visibleByteCount <= 0) {
+    return '0.00%'
+  }
+  const visibleEnd = Math.min(
+    fileSize,
+    Math.max(0, visibleOffset) + visibleByteCount
+  )
+  const progress = visibleEnd >= fileSize ? 100 : (visibleEnd / fileSize) * 100
+  return `${progress.toFixed(2)}%`
+}
+
+function formatServerHealthSeverity(
+  severity: ServerHealthMessage['severity']
+): string {
+  switch (severity) {
+    case 'ok':
+      return vscode.l10n.t('OK')
+    case 'warn':
+      return vscode.l10n.t('Warn')
+    case 'error':
+      return vscode.l10n.t('Error')
+    case 'down':
+      return vscode.l10n.t('Down')
+  }
+}
+
+function serverHealthColorId(
+  severity: ServerHealthMessage['severity'] | 'pending'
+): string {
+  switch (severity) {
+    case 'ok':
+      return 'charts.green'
+    case 'warn':
+      return 'charts.yellow'
+    case 'error':
+    case 'down':
+      return 'charts.red'
+    case 'pending':
+      return 'statusBar.foreground'
+  }
+}
+
+function serverHealthIcon(
+  severity: ServerHealthMessage['severity'] | 'pending'
+): string {
+  return severity === 'down' ? 'debug-disconnect' : 'server'
+}
+
+function formatServerHealthLatencyBand(
+  severity: ServerHealthMessage['severity'] | 'pending'
+): string {
+  switch (severity) {
+    case 'ok':
+      return vscode.l10n.t('Low (<= {threshold} ms)', {
+        threshold: SERVER_HEALTH_WARN_LATENCY_MS,
+      })
+    case 'warn':
+      return vscode.l10n.t('{low}-{high} ms', {
+        low: SERVER_HEALTH_WARN_LATENCY_MS + 1,
+        high: SERVER_HEALTH_ERROR_LATENCY_MS,
+      })
+    case 'error':
+      return vscode.l10n.t('High (> {threshold} ms)', {
+        threshold: SERVER_HEALTH_ERROR_LATENCY_MS,
+      })
+    case 'down':
+      return vscode.l10n.t('Unavailable')
+    case 'pending':
+      return vscode.l10n.t('Pending')
+  }
+}
+
+function appendServerHealthTooltipLine(
+  tooltip: vscode.MarkdownString,
+  label: string,
+  value: string
+): void {
+  tooltip.appendText(`${label}: ${value}`)
+  tooltip.appendMarkdown('\n\n')
+}
+
+function buildServerHealthTooltip(
+  health: ServerHealthMessage | undefined
+): vscode.MarkdownString {
+  const statusLabel = vscode.l10n.t('Status')
+  const latencyLabel = vscode.l10n.t('Latency')
+  const volatileLabels = new Set(
+    [
+      latencyLabel,
+      vscode.l10n.t('Sessions'),
+      vscode.l10n.t('Uptime'),
+      vscode.l10n.t('Load Avg'),
+      vscode.l10n.t('RSS'),
+      vscode.l10n.t('Virtual'),
+      vscode.l10n.t('Peak RSS'),
+    ].map((label) => label.toLocaleLowerCase())
+  )
+  const tooltip = new vscode.MarkdownString()
+  tooltip.supportThemeIcons = true
+  tooltip.appendMarkdown(`**${vscode.l10n.t('Ωedit™ Server')}**\n\n`)
+
+  if (!health) {
+    appendServerHealthTooltipLine(
+      tooltip,
+      statusLabel,
+      vscode.l10n.t('Pending')
+    )
+    appendServerHealthTooltipLine(
+      tooltip,
+      latencyLabel,
+      formatServerHealthLatencyBand('pending')
+    )
+    return tooltip
+  }
+
+  appendServerHealthTooltipLine(
+    tooltip,
+    statusLabel,
+    formatServerHealthSeverity(health.severity)
+  )
+  appendServerHealthTooltipLine(
+    tooltip,
+    latencyLabel,
+    formatServerHealthLatencyBand(health.severity)
+  )
+
+  const seenLabels = new Set([
+    statusLabel.toLocaleLowerCase(),
+    latencyLabel.toLocaleLowerCase(),
+  ])
+  for (const metric of health.metrics) {
+    const label = metric.label.trim()
+    const value = metric.value.trim()
+    const key = label.toLocaleLowerCase()
+    if (!label || !value || seenLabels.has(key) || volatileLabels.has(key)) {
+      continue
+    }
+    seenLabels.add(key)
+    appendServerHealthTooltipLine(tooltip, label, value)
+  }
+
+  return tooltip
+}
+
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 function transformResultToText(bytes: Uint8Array): string {
@@ -407,209 +562,6 @@ function parseChangeScript(content: Uint8Array): ChangeRecord[] {
   })
 }
 
-function normalizeWebviewMessage(
-  session: EditorSession,
-  raw: unknown
-): WebviewMessage | undefined {
-  if (!isRecord(raw) || typeof raw.type !== 'string') {
-    return undefined
-  }
-
-  switch (raw.type) {
-    case 'scroll':
-      return raw.direction === 'up' || raw.direction === 'down'
-        ? { type: 'scroll', direction: raw.direction }
-        : undefined
-
-    case 'scrollTo': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      return offset === undefined ? undefined : { type: 'scrollTo', offset }
-    }
-
-    case 'setViewportMetrics': {
-      const visibleRows = safeNonNegativeInteger(raw.visibleRows, 100_000)
-      return visibleRows === undefined
-        ? undefined
-        : { type: 'setViewportMetrics', visibleRows }
-    }
-
-    case 'setBytesPerRow': {
-      const bytesPerRow = normalizeBytesPerRow(raw.bytesPerRow)
-      return raw.bytesPerRow === bytesPerRow
-        ? { type: 'setBytesPerRow', bytesPerRow }
-        : undefined
-    }
-
-    case 'requestAnalysisProfile': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      const length = safeNonNegativeInteger(raw.length)
-      const requestedLength = safeNonNegativeInteger(raw.requestedLength)
-      const requestKey = safeString(raw.requestKey, MAX_LABEL_LENGTH)
-      const scopeLabel = safeString(raw.scopeLabel, MAX_LABEL_LENGTH)
-      if (
-        offset === undefined ||
-        length === undefined ||
-        requestedLength === undefined ||
-        !requestKey ||
-        !scopeLabel
-      ) {
-        return undefined
-      }
-      return {
-        type: 'requestAnalysisProfile',
-        offset,
-        length: Math.min(length, MAX_ANALYSIS_PROFILE_BYTES),
-        requestKey,
-        scopeLabel,
-        requestedLength,
-        isCapped: safeBoolean(raw.isCapped),
-      }
-    }
-
-    case 'requestTransformPlugins':
-    case 'undo':
-    case 'redo':
-    case 'save':
-    case 'saveAs':
-    case 'revert':
-      return { type: raw.type }
-
-    case 'copySelection':
-    case 'cutSelection': {
-      const range = safeFileLengthRange(
-        session,
-        raw.offset,
-        raw.length,
-        false,
-        MAX_WEBVIEW_HEX_BYTES
-      )
-      if (!range || (raw.format !== 'hex' && raw.format !== 'utf8')) {
-        return undefined
-      }
-      return {
-        type: raw.type,
-        ...range,
-        format: raw.format,
-      }
-    }
-
-    case 'insert': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES)
-      if (offset === undefined || offset > session.fileSize || !data) {
-        return undefined
-      }
-      return { type: 'insert', offset, data }
-    }
-
-    case 'delete': {
-      const range = safeFileLengthRange(session, raw.offset, raw.length)
-      return range ? { type: 'delete', ...range } : undefined
-    }
-
-    case 'overwrite': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES)
-      if (
-        offset === undefined ||
-        !data ||
-        offset >= session.fileSize ||
-        data.length / 2 > Math.max(0, session.fileSize - offset)
-      ) {
-        return undefined
-      }
-      return { type: 'overwrite', offset, data }
-    }
-
-    case 'replace': {
-      const range = safeFileLengthRange(session, raw.offset, raw.length, true)
-      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES, true)
-      return range && data !== undefined
-        ? { type: 'replace', ...range, data }
-        : undefined
-    }
-
-    case 'replaceAllMatches': {
-      const query = safeSearchQuery(raw)
-      const data = safeHexString(raw.data, MAX_WEBVIEW_HEX_BYTES, true)
-      const length = safeNonNegativeInteger(raw.length)
-      if (!query || data === undefined || !length) {
-        return undefined
-      }
-      return {
-        type: 'replaceAllMatches',
-        query,
-        isHex: raw.isHex === true,
-        caseInsensitive: safeBoolean(raw.caseInsensitive),
-        isReverse: safeBoolean(raw.isReverse),
-        length,
-        data,
-      }
-    }
-
-    case 'applyTransform': {
-      const pluginId = safeString(raw.pluginId, MAX_LABEL_LENGTH)
-      const offset = safeNonNegativeInteger(raw.offset)
-      const length = safeNonNegativeInteger(raw.length)
-      const optionsJson =
-        raw.optionsJson === undefined
-          ? undefined
-          : safeJsonString(raw.optionsJson, MAX_TRANSFORM_OPTIONS_LENGTH)
-      if (
-        !pluginId ||
-        offset === undefined ||
-        length === undefined ||
-        (raw.optionsJson !== undefined && optionsJson === undefined)
-      ) {
-        return undefined
-      }
-      return { type: 'applyTransform', pluginId, offset, length, optionsJson }
-    }
-
-    case 'search': {
-      const query = safeSearchQuery(raw)
-      if (!query) {
-        return undefined
-      }
-      return {
-        type: 'search',
-        query,
-        isHex: raw.isHex === true,
-        caseInsensitive: safeBoolean(raw.caseInsensitive),
-        isReverse: safeBoolean(raw.isReverse),
-      }
-    }
-
-    case 'goToMatch': {
-      const offset = safeNonNegativeInteger(raw.offset)
-      return offset === undefined ? undefined : { type: 'goToMatch', offset }
-    }
-
-    case 'findAdjacentMatch': {
-      const query = safeSearchQuery(raw)
-      const offset = safeNonNegativeInteger(raw.offset)
-      if (
-        !query ||
-        offset === undefined ||
-        (raw.direction !== 'forward' && raw.direction !== 'backward')
-      ) {
-        return undefined
-      }
-      return {
-        type: 'findAdjacentMatch',
-        query,
-        isHex: raw.isHex === true,
-        caseInsensitive: safeBoolean(raw.caseInsensitive),
-        direction: raw.direction,
-        offset,
-      }
-    }
-
-    default:
-      return undefined
-  }
-}
-
 function backupIdToFilePath(backupId: string | undefined): string | undefined {
   if (!backupId) {
     return undefined
@@ -651,6 +603,9 @@ export class HexEditorProvider
     vscode.CustomDocumentEditEvent<HexDocument>
   >()
   readonly onDidChangeCustomDocument = this._onDidChangeCustomDocument.event
+  private readonly _onDidChangeEditorState =
+    new vscode.EventEmitter<WebviewEditorState>()
+  readonly onDidChangeEditorState = this._onDidChangeEditorState.event
 
   /** Active editor sessions keyed by document URI string */
   private sessions = new Map<string, EditorSession>()
@@ -661,6 +616,49 @@ export class HexEditorProvider
   private heartbeatLoop: ServerHeartbeatLoop | undefined
 
   private serverInfo: IServerInfo | undefined
+
+  private latestServerHealth: ServerHealthMessage | undefined
+
+  private lastServerStatusItemKey = ''
+
+  private readonly statusItems = {
+    offset: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      106
+    ),
+    pane: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      105
+    ),
+    transforms: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      104
+    ),
+    dirty: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      103
+    ),
+    server: vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Right,
+      102
+    ),
+  }
+
+  constructor(
+    private readonly extensionContext?: Pick<
+      vscode.ExtensionContext,
+      'extensionUri' | 'subscriptions'
+    >
+  ) {
+    this.extensionContext?.subscriptions.push(
+      this.statusItems.offset,
+      this.statusItems.pane,
+      this.statusItems.transforms,
+      this.statusItems.dirty,
+      this.statusItems.server
+    )
+    this.hideStatusBar()
+  }
 
   private getViewportCapacity(bytesPerRow: number): number {
     const bufferedRows = Math.max(
@@ -677,9 +675,29 @@ export class HexEditorProvider
     return this.sessions.get(uri.toString())
   }
 
+  private getLocalResourceRoots(): readonly vscode.Uri[] {
+    const extensionUri = this.extensionContext?.extensionUri
+    return extensionUri ? [getSvelteWebviewLocalResourceRoot(extensionUri)] : []
+  }
+
+  private renderWebviewHtml(
+    webview: vscode.Webview,
+    bytesPerRow: BytesPerRow
+  ): string {
+    const extensionUri = this.extensionContext?.extensionUri
+    if (!extensionUri) {
+      const message = escapeHtmlText(
+        vscode.l10n.t('OmegaEdit webview unavailable.')
+      )
+      return `<!DOCTYPE html><html><body>${message}</body></html>`
+    }
+
+    return getSvelteWebviewContent(webview, extensionUri, bytesPerRow)
+  }
+
   public async dispatchWebviewMessageForTesting(
     uri: vscode.Uri,
-    msg: WebviewMessage
+    msg: WebviewToHostMessage
   ): Promise<void> {
     if (process.env.NODE_ENV !== 'test') {
       throw new Error('Test-only message dispatch is unavailable outside tests')
@@ -738,6 +756,35 @@ export class HexEditorProvider
     await vscode.commands.executeCommand('redo')
   }
 
+  public searchNextActive(): void {
+    this.postSearchNavigationCommand('forward')
+  }
+
+  public searchPreviousActive(): void {
+    this.postSearchNavigationCommand('backward')
+  }
+
+  public async refreshActiveTransformPlugins(): Promise<void> {
+    if (!this.activeSession) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    await this.sendTransformPlugins(this.activeSession)
+  }
+
+  private postSearchNavigationCommand(direction: 'forward' | 'backward'): void {
+    if (!this.activeSession) {
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
+      return
+    }
+
+    this.postWebviewMessage(this.activeSession, {
+      type: 'searchNavigationCommand',
+      direction,
+    })
+  }
+
   // â”€â”€ VS Code Custom Editor API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async openCustomDocument(
@@ -756,7 +803,9 @@ export class HexEditorProvider
   ): Promise<void> {
     const uri = document.uri
     if (uri.scheme !== 'file') {
-      throw new Error('OmegaEdit Hex Editor can only open local files')
+      throw new Error(
+        vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+      )
     }
     const filePath = uri.fsPath
 
@@ -798,6 +847,7 @@ export class HexEditorProvider
         return this.scope.model.syncVersion
       },
       offset: 0,
+      bufferOffset: 0,
       visibleRows: 32,
       capacity,
       bytesPerRow,
@@ -807,6 +857,9 @@ export class HexEditorProvider
       scope,
       history: new EditorHistoryController(),
       search: new EditorSearchController(scope.sessionId),
+      webviewState: initialWebviewState(bytesPerRow),
+      externalHighlights: [],
+      transformPlugins: [],
       restoredFromBackup: wasRestoredFromBackup,
     }
     this.sessions.set(uri.toString(), session)
@@ -816,16 +869,17 @@ export class HexEditorProvider
     // --- Configure the webview ---
     webviewPanel.webview.options = {
       enableScripts: true,
-      localResourceRoots: [],
+      localResourceRoots: this.getLocalResourceRoots(),
     }
-    webviewPanel.webview.html = getWebviewContent(
-      bytesPerRow,
-      webviewPanel.webview.cspSource
+    webviewPanel.webview.html = this.renderWebviewHtml(
+      webviewPanel.webview,
+      bytesPerRow
     )
 
     // Send initial data to the webview
     await this.sendViewportData(session)
     this.postEditState(session)
+    this.postEditMode(session)
     this.startHealthPolling()
 
     await this.startSessionSubscriptions(session)
@@ -896,7 +950,9 @@ export class HexEditorProvider
       return
     }
     if (destination.scheme !== 'file') {
-      throw new Error('OmegaEdit Hex Editor can only save to local files')
+      throw new Error(
+        vscode.l10n.t('OmegaEdit Hex Editor can only save to local files')
+      )
     }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
     session.restoredFromBackup = false
@@ -913,7 +969,7 @@ export class HexEditorProvider
       return
     }
 
-    await this.rollbackSession(session, false)
+    await this.revertSessionChanges(session, false)
   }
 
   async backupCustomDocument(
@@ -983,8 +1039,80 @@ export class HexEditorProvider
   /** Navigate the active editor to a byte offset */
   goToOffset(offset: number): void {
     if (this.activeSession) {
-      this.scrollTo(this.activeSession, offset)
+      void this.revealOffset({ offset })
     }
+  }
+
+  async revealOffset(options: {
+    uri?: vscode.Uri | string
+    offset: number
+  }): Promise<WebviewEditorState | undefined> {
+    const offset = safeNonNegativeInteger(options.offset)
+    if (offset === undefined) {
+      throw new TypeError('Offset must be a non-negative safe integer')
+    }
+
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return undefined
+    }
+
+    const maxOffset = Math.max(0, session.fileSize - 1)
+    if (offset > maxOffset) {
+      throw new RangeError(
+        `Offset ${offset} is outside the file range 0..${maxOffset}`
+      )
+    }
+
+    await this.scrollTo(session, offset)
+    return this.buildEditorState(session)
+  }
+
+  getEditorState(options?: unknown): WebviewEditorState | undefined {
+    const session = this.resolveCommandSession(options)
+    return session ? this.buildEditorState(session) : undefined
+  }
+
+  async setExternalHighlights(
+    highlightsOrRequest?: unknown,
+    options?: unknown
+  ): Promise<WebviewEditorState | undefined> {
+    const request = this.parseExternalHighlightCommand(
+      highlightsOrRequest,
+      options
+    )
+    const session = this.resolveCommandSession(request.options)
+    if (!session) {
+      return undefined
+    }
+
+    const highlights = normalizeExternalHighlights(
+      { fileSize: session.fileSize },
+      request.highlights
+    )
+    if (!highlights) {
+      throw new Error('Invalid external highlight request')
+    }
+
+    session.externalHighlights = highlights
+    this.postExternalHighlights(session)
+
+    if (request.options.reveal && highlights.length > 0) {
+      await this.scrollTo(session, highlights[0].offset)
+    }
+
+    return this.buildEditorState(session)
+  }
+
+  clearExternalHighlights(options?: unknown): WebviewEditorState | undefined {
+    const session = this.resolveCommandSession(options)
+    if (!session) {
+      return undefined
+    }
+
+    session.externalHighlights = []
+    this.postExternalHighlights(session)
+    return this.buildEditorState(session)
   }
 
   /** Re-read bytesPerRow from config and refresh all open editors */
@@ -993,9 +1121,17 @@ export class HexEditorProvider
     const bytesPerRow = normalizeBytesPerRow(config.get('bytesPerRow'))
     for (const session of this.sessions.values()) {
       session.bytesPerRow = bytesPerRow
-      session.panel.webview.html = getWebviewContent(
+      session.webviewState = {
+        ...session.webviewState,
         bytesPerRow,
-        session.panel.webview.cspSource
+      }
+      session.panel.webview.options = {
+        ...session.panel.webview.options,
+        localResourceRoots: this.getLocalResourceRoots(),
+      }
+      session.panel.webview.html = this.renderWebviewHtml(
+        session.panel.webview,
+        bytesPerRow
       )
       session.capacity = this.getViewportCapacity(bytesPerRow)
       this.sendViewportData(session)
@@ -1005,7 +1141,7 @@ export class HexEditorProvider
 
   async exportActiveChangeScript(targetUri?: vscode.Uri): Promise<void> {
     if (!this.activeSession) {
-      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
@@ -1029,13 +1165,15 @@ export class HexEditorProvider
     )
     await vscode.workspace.fs.writeFile(scriptUri, content)
     void vscode.window.showInformationMessage(
-      `Change script saved to ${scriptUri.fsPath}`
+      vscode.l10n.t('Change script saved to {path}', {
+        path: scriptUri.fsPath,
+      })
     )
   }
 
   async replayActiveChangeScript(sourceUri?: vscode.Uri): Promise<void> {
     if (!this.activeSession) {
-      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
     const session = this.activeSession
@@ -1060,57 +1198,63 @@ export class HexEditorProvider
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       void vscode.window.showErrorMessage(
-        `Invalid OmegaEdit change script: ${message}`
+        vscode.l10n.t('Invalid OmegaEdit change script: {message}', {
+          message,
+        })
       )
       return
     }
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: `Replaying ${changes.length} change(s)…`,
+        title: vscode.l10n.t('Replaying {count} change(s)…', {
+          count: changes.length,
+        }),
         cancellable: false,
       },
       () => this.replayChanges(session, changes)
     )
     void vscode.window.showInformationMessage(
-      `Replayed ${changes.length} change(s)`
+      vscode.l10n.t('Replayed {count} change(s)', { count: changes.length })
     )
   }
 
   async createActiveCheckpoint(): Promise<void> {
     if (!this.activeSession) {
-      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
     const count = await this.createSessionCheckpoint(this.activeSession)
     void vscode.window.showInformationMessage(
-      `OmegaEdit checkpoint created (${count} total)`
+      vscode.l10n.t('OmegaEdit checkpoint created ({count} total)', { count })
     )
   }
 
   async rollbackActiveCheckpoint(): Promise<void> {
     if (!this.activeSession) {
-      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
     const rolledBack = await this.rollbackCheckpoint(this.activeSession, true)
     if (rolledBack) {
       void vscode.window.showInformationMessage(
-        'Rolled back last OmegaEdit checkpoint'
+        vscode.l10n.t('Rolled back last OmegaEdit checkpoint')
       )
     }
   }
 
   async rollbackActiveSession(): Promise<void> {
     if (!this.activeSession) {
-      void vscode.window.showWarningMessage('Open an OmegaEdit editor first')
+      void vscode.window.showWarningMessage(openEditorFirstMessage())
       return
     }
 
-    await this.rollbackSession(this.activeSession, true)
-    void vscode.window.showInformationMessage('Rolled back OmegaEdit session')
+    await this.revertSessionChanges(this.activeSession, true)
+    void vscode.window.showInformationMessage(
+      vscode.l10n.t('Rolled back OmegaEdit session')
+    )
   }
 
   // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1123,7 +1267,10 @@ export class HexEditorProvider
 
   // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  private postWebviewMessage(session: EditorSession, message: unknown): void {
+  private postWebviewMessage(
+    session: EditorSession,
+    message: HostToWebviewMessage
+  ): void {
     if (session.disposed) {
       return
     }
@@ -1163,6 +1310,15 @@ export class HexEditorProvider
     }
     const fetchDurationMs = Date.now() - fetchStartedAt
     const data = resp.getData_asU8()
+    session.bufferOffset = resp.getOffset()
+    session.webviewState = {
+      ...session.webviewState,
+      visibleOffset: session.offset,
+      visibleByteCount: Math.min(
+        session.visibleRows * session.bytesPerRow,
+        Math.max(0, session.fileSize - session.offset)
+      ),
+    }
     this.postWebviewMessage(session, {
       type: 'viewportData',
       offset: resp.getOffset(),
@@ -1171,6 +1327,7 @@ export class HexEditorProvider
       length: resp.getLength(),
       fileSize: session.fileSize,
       followingByteCount: resp.getFollowingByteCount(),
+      externalHighlights: session.externalHighlights,
       profile: {
         fetchDurationMs,
         sentAt: Date.now(),
@@ -1181,6 +1338,7 @@ export class HexEditorProvider
         sessionSyncVersion: session.sessionSyncVersion,
       },
     })
+    this.fireEditorStateChanged(session)
   }
 
   private async recreateViewport(
@@ -1206,6 +1364,112 @@ export class HexEditorProvider
       ...editState,
       isDirty: editState.isDirty || !!session.restoredFromBackup,
     })
+    this.fireEditorStateChanged(session)
+  }
+
+  private postExternalHighlights(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'externalHighlights',
+      highlights: session.externalHighlights,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private postEditMode(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'editMode',
+      editMode: session.webviewState.editMode,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
+  private toggleEditMode(session: EditorSession): void {
+    const editMode: WebviewEditMode =
+      session.webviewState.editMode === 'insert' ? 'overwrite' : 'insert'
+    session.webviewState = {
+      ...session.webviewState,
+      editMode,
+    }
+    this.postEditMode(session)
+  }
+
+  private fireEditorStateChanged(session: EditorSession): void {
+    if (session.disposed || session.scope.isDisposed) {
+      return
+    }
+
+    if (this.activeSession === session) {
+      this.updateStatusBar(session)
+    }
+    this._onDidChangeEditorState.fire(this.buildEditorState(session))
+  }
+
+  private buildEditorState(session: EditorSession): WebviewEditorState {
+    const editState = session.history.getEditState()
+    return {
+      uri: session.document.uri.toString(),
+      filePath: session.filePath,
+      fileSize: session.fileSize,
+      dirty: editState.isDirty || !!session.restoredFromBackup,
+      canUndo: editState.canUndo,
+      canRedo: editState.canRedo,
+      undoCount: editState.undoCount,
+      redoCount: editState.redoCount,
+      savedChangeDepth: editState.savedChangeDepth,
+      changeCount: session.changeCount,
+      sessionSyncVersion: session.sessionSyncVersion,
+      ...session.webviewState,
+      externalHighlights: session.externalHighlights,
+      transformSummaries: session.transformPlugins.map((plugin) => ({
+        id: plugin.id,
+        name: plugin.name,
+        description: plugin.description,
+        operation: plugin.operation,
+        flags: plugin.flags,
+      })),
+      contentType: session.contentType,
+      language: session.language,
+    }
+  }
+
+  private resolveCommandSession(options?: unknown): EditorSession | undefined {
+    const rawUri = isRecord(options) ? options.uri : options
+    const uri = parseCommandUri(rawUri)
+    if (!uri) {
+      return this.activeSession
+    }
+    return this.sessions.get(uri.toString())
+  }
+
+  private parseExternalHighlightCommand(
+    highlightsOrRequest: unknown,
+    options?: unknown
+  ): {
+    highlights: unknown
+    options: { uri?: vscode.Uri | string; reveal?: boolean }
+  } {
+    if (
+      isRecord(highlightsOrRequest) &&
+      Array.isArray(highlightsOrRequest.highlights)
+    ) {
+      return {
+        highlights: highlightsOrRequest.highlights,
+        options: {
+          uri: highlightsOrRequest.uri as vscode.Uri | string | undefined,
+          reveal: highlightsOrRequest.reveal === true,
+        },
+      }
+    }
+
+    return {
+      highlights: highlightsOrRequest,
+      options: {
+        uri: isRecord(options)
+          ? (options.uri as vscode.Uri | string | undefined)
+          : undefined,
+        reveal: isRecord(options) && options.reveal === true,
+      },
+    }
   }
 
   private updateEditCommandContexts(session: EditorSession | undefined): void {
@@ -1228,19 +1492,110 @@ export class HexEditorProvider
     void vscode.commands.executeCommand(
       'setContext',
       CONTEXT_HAS_PENDING_CHANGES,
-      !!session && (!!editState?.isDirty || !!session.restoredFromBackup)
+      !!session &&
+        (!!editState?.isDirty ||
+          !!editState?.undoCount ||
+          !!session.restoredFromBackup)
     )
+    this.updateStatusBar(session)
+  }
+
+  private hideStatusBar(): void {
+    for (const item of Object.values(this.statusItems)) {
+      item.hide()
+    }
+  }
+
+  private updateStatusBar(session: EditorSession | undefined): void {
+    if (!session || session.disposed || session.scope.isDisposed) {
+      this.hideStatusBar()
+      return
+    }
+
+    const editState = session.history.getEditState()
+    const state = session.webviewState
+    const visibleProgress = formatStatusProgress(
+      session.fileSize,
+      state.visibleOffset,
+      state.visibleByteCount
+    )
+    const visibleEnd = Math.min(
+      session.fileSize,
+      Math.max(0, state.visibleOffset) + Math.max(0, state.visibleByteCount)
+    )
+    const offset = formatStatusOffset(state.visibleOffset, state.offsetRadix)
+    this.statusItems.offset.text = `$(arrow-right) ${offset} ${visibleProgress}`
+    this.statusItems.offset.tooltip = vscode.l10n.t(
+      'Ωedit offset {offset}; visible bytes {start} to {end} of {size}.',
+      {
+        offset,
+        start: formatStatusByteCount(state.visibleOffset),
+        end: formatStatusByteCount(visibleEnd),
+        size: formatStatusByteCount(session.fileSize),
+      }
+    )
+
+    this.statusItems.pane.text =
+      state.activePane === 'ascii'
+        ? vscode.l10n.t('TEXT')
+        : vscode.l10n.t('HEX')
+    this.statusItems.pane.tooltip = vscode.l10n.t('Ωedit active edit pane')
+
+    this.statusItems.transforms.text = `$(tools) ${session.transformPlugins.length.toLocaleString()}`
+    this.statusItems.transforms.tooltip = vscode.l10n.t(
+      'Ωedit transform plugins available'
+    )
+
+    const dirty = editState.isDirty || !!session.restoredFromBackup
+    this.statusItems.dirty.text = dirty
+      ? vscode.l10n.t('$(circle-filled) Dirty')
+      : vscode.l10n.t('$(check) Saved')
+    this.statusItems.dirty.tooltip = dirty
+      ? vscode.l10n.t('Ωedit session has unsaved changes')
+      : vscode.l10n.t('Ωedit session is saved')
+
+    const health = this.latestServerHealth
+    const serverSeverity = health?.severity ?? 'pending'
+    const serverText = `$(${serverHealthIcon(serverSeverity)})`
+    const serverColorId = serverHealthColorId(serverSeverity)
+    const serverTooltip = buildServerHealthTooltip(health)
+    const serverStatusItemKey = [
+      serverText,
+      serverColorId,
+      serverTooltip.value,
+    ].join('\0')
+
+    if (this.lastServerStatusItemKey !== serverStatusItemKey) {
+      this.statusItems.server.text = serverText
+      this.statusItems.server.name = vscode.l10n.t('Ωedit™ Server')
+      this.statusItems.server.color = new vscode.ThemeColor(serverColorId)
+      this.statusItems.server.tooltip = serverTooltip
+      this.lastServerStatusItemKey = serverStatusItemKey
+    }
+
+    for (const item of Object.values(this.statusItems)) {
+      item.show()
+    }
   }
 
   private async sendTransformPlugins(session: EditorSession): Promise<void> {
     try {
       const plugins = await listTransformPlugins()
+      const serializedPlugins = plugins.map(serializeTransformPlugin)
+      session.transformPlugins = serializedPlugins
+      if (this.activeSession === session) {
+        this.updateStatusBar(session)
+      }
       this.postWebviewMessage(session, {
         type: 'transformPlugins',
-        plugins: plugins.map(serializeTransformPlugin),
+        plugins: serializedPlugins,
       })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      session.transformPlugins = []
+      if (this.activeSession === session) {
+        this.updateStatusBar(session)
+      }
       this.postWebviewMessage(session, {
         type: 'transformPlugins',
         plugins: [],
@@ -1424,6 +1779,9 @@ export class HexEditorProvider
       return
     }
 
+    session.contentType = contentType.getContentType()
+    session.language = language.getLanguage()
+
     this.postWebviewMessage(session, {
       type: 'analysisProfile',
       requestKey: request.requestKey,
@@ -1435,8 +1793,8 @@ export class HexEditorProvider
       durationMs: Date.now() - startedAt,
       byteProfile,
       numAscii: numAscii(byteProfile),
-      contentType: contentType.getContentType(),
-      language: language.getLanguage(),
+      contentType: session.contentType,
+      language: session.language,
       characterCount: {
         byteOrderMark: characterCount.getByteOrderMark(),
         byteOrderMarkBytes: characterCount.getByteOrderMarkBytes(),
@@ -1458,7 +1816,7 @@ export class HexEditorProvider
       session.analysisProfileTask = this.processAnalysisProfileQueue(session)
         .catch((err) => {
           const message = err instanceof Error ? err.message : String(err)
-          void vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+          void vscode.window.showErrorMessage(omegaEditErrorMessage(message))
         })
         .finally(() => {
           session.analysisProfileTask = undefined
@@ -1531,7 +1889,7 @@ export class HexEditorProvider
     const checkpointCount = await this.getCheckpointCount(session)
     if (checkpointCount <= 0) {
       void vscode.window.showWarningMessage(
-        'No OmegaEdit checkpoint to roll back'
+        vscode.l10n.t('No OmegaEdit checkpoint to roll back')
       )
       return false
     }
@@ -1558,6 +1916,14 @@ export class HexEditorProvider
     await this.resetSessionState(session, markDirty, markDirty, true)
   }
 
+  private async revertSessionChanges(
+    session: EditorSession,
+    markDirty: boolean
+  ): Promise<void> {
+    await this.rollbackSession(session, markDirty)
+    this.postWebviewMessage(session, { type: 'documentReverted' })
+  }
+
   private clearSearchState(session: EditorSession): void {
     if (session.search.clear()) {
       this.postWebviewMessage(session, { type: 'searchStateCleared' })
@@ -1581,10 +1947,10 @@ export class HexEditorProvider
         this.broadcastServerHealth({
           type: 'serverHealth',
           ok: false,
-          summary: 'Ωedit™ unavailable',
+          summary: vscode.l10n.t('Ωedit™ unavailable'),
           detail: error.message,
           severity: 'down',
-          metrics: [{ label: 'Error', value: error.message }],
+          metrics: [{ label: vscode.l10n.t('Error'), value: error.message }],
         })
       },
     })
@@ -1619,7 +1985,11 @@ export class HexEditorProvider
         Math.round(heartbeat.serverUptime / 1000)
       )
       const formatMemoryMiB = (bytes?: number): string =>
-        bytes === undefined ? 'n/a' : `${Math.round(bytes / (1024 * 1024))} MiB`
+        bytes === undefined
+          ? vscode.l10n.t('n/a')
+          : vscode.l10n.t('{mib} MiB', {
+              mib: Math.round(bytes / (1024 * 1024)),
+            })
       const severity = classifyServerHealthLatency(heartbeat.latency)
       const runtimeKind = getOptionalStringProperty(serverInfo, 'runtimeKind')
       const runtimeName = getOptionalStringProperty(serverInfo, 'runtimeName')
@@ -1650,64 +2020,86 @@ export class HexEditorProvider
         'serverPeakResidentMemoryBytes'
       )
       const metrics = [
-        { label: 'Version', value: serverInfo.serverVersion },
-        { label: 'Client', value: getClientVersion() },
-        { label: 'Host', value: serverInfo.serverHostname },
-        { label: 'PID', value: String(serverInfo.serverProcessId) },
-        { label: 'Runtime', value: runtimeValue || 'n/a' },
-        { label: 'Latency', value: `${heartbeat.latency} ms` },
-        { label: 'Sessions', value: String(heartbeat.sessionCount) },
-        { label: 'Uptime', value: `${uptimeSeconds}s` },
-        { label: 'CPU', value: `${heartbeat.serverCpuCount} cores` },
+        { label: vscode.l10n.t('Version'), value: serverInfo.serverVersion },
+        { label: vscode.l10n.t('Client'), value: getClientVersion() },
+        { label: vscode.l10n.t('Host'), value: serverInfo.serverHostname },
+        {
+          label: vscode.l10n.t('PID'),
+          value: String(serverInfo.serverProcessId),
+        },
+        {
+          label: vscode.l10n.t('Runtime'),
+          value: runtimeValue || vscode.l10n.t('n/a'),
+        },
+        {
+          label: vscode.l10n.t('Latency'),
+          value: vscode.l10n.t('{latency} ms', {
+            latency: heartbeat.latency,
+          }),
+        },
+        {
+          label: vscode.l10n.t('Sessions'),
+          value: String(heartbeat.sessionCount),
+        },
+        {
+          label: vscode.l10n.t('Uptime'),
+          value: vscode.l10n.t('{seconds}s', { seconds: uptimeSeconds }),
+        },
+        {
+          label: vscode.l10n.t('CPU'),
+          value: vscode.l10n.t('{count} cores', {
+            count: heartbeat.serverCpuCount,
+          }),
+        },
       ]
 
       if (heartbeat.serverCpuLoadAverage !== undefined) {
         metrics.push({
-          label: 'Load Avg',
+          label: vscode.l10n.t('Load Avg'),
           value: heartbeat.serverCpuLoadAverage.toFixed(2),
         })
       }
 
       if (availableProcessors !== undefined) {
         metrics.push({
-          label: 'Processors',
+          label: vscode.l10n.t('Processors'),
           value: String(availableProcessors),
         })
       }
 
       if (platformValue) {
-        metrics.push({ label: 'Platform', value: platformValue })
+        metrics.push({ label: vscode.l10n.t('Platform'), value: platformValue })
       }
 
       if (compilerValue) {
-        metrics.push({ label: 'Compiler', value: compilerValue })
+        metrics.push({ label: vscode.l10n.t('Compiler'), value: compilerValue })
       }
 
       if (buildValue) {
-        metrics.push({ label: 'Build', value: buildValue })
+        metrics.push({ label: vscode.l10n.t('Build'), value: buildValue })
       }
 
       if (cppStandardValue) {
-        metrics.push({ label: 'C++', value: cppStandardValue })
+        metrics.push({ label: vscode.l10n.t('C++'), value: cppStandardValue })
       }
 
       if (residentMemoryBytes !== undefined) {
         metrics.push({
-          label: 'RSS',
+          label: vscode.l10n.t('RSS'),
           value: formatMemoryMiB(residentMemoryBytes),
         })
       }
 
       if (virtualMemoryBytes !== undefined) {
         metrics.push({
-          label: 'Virtual',
+          label: vscode.l10n.t('Virtual'),
           value: formatMemoryMiB(virtualMemoryBytes),
         })
       }
 
       if (peakResidentMemoryBytes !== undefined) {
         metrics.push({
-          label: 'Peak RSS',
+          label: vscode.l10n.t('Peak RSS'),
           value: formatMemoryMiB(peakResidentMemoryBytes),
         })
       }
@@ -1715,7 +2107,9 @@ export class HexEditorProvider
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: true,
-        summary: `Ωedit™ ${heartbeat.latency} ms`,
+        summary: vscode.l10n.t('Ωedit™ {latency} ms', {
+          latency: heartbeat.latency,
+        }),
         detail: metrics
           .map((metric) => `${metric.label}: ${metric.value}`)
           .join('\n'),
@@ -1727,15 +2121,19 @@ export class HexEditorProvider
       this.broadcastServerHealth({
         type: 'serverHealth',
         ok: false,
-        summary: 'Ωedit™ unavailable',
+        summary: vscode.l10n.t('Ωedit™ unavailable'),
         detail: message,
         severity: 'down',
-        metrics: [{ label: 'Error', value: message }],
+        metrics: [{ label: vscode.l10n.t('Error'), value: message }],
       })
     }
   }
 
-  private broadcastServerHealth(payload: ServerHealthState): void {
+  private broadcastServerHealth(payload: ServerHealthMessage): void {
+    this.latestServerHealth = payload
+    if (this.activeSession) {
+      this.updateStatusBar(this.activeSession)
+    }
     for (const session of this.sessions.values()) {
       this.postWebviewMessage(session, payload)
     }
@@ -1936,9 +2334,17 @@ export class HexEditorProvider
       0,
       rowAlignedOffset - preloadBeforeRows * bytesPerRow
     )
+    if (
+      rowAlignedOffset === session.offset &&
+      bufferOffset === session.bufferOffset
+    ) {
+      return
+    }
+
     session.offset = rowAlignedOffset
     try {
       await modifyViewport(session.viewportId, bufferOffset, session.capacity)
+      await this.sendViewportData(session)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
 
@@ -1954,7 +2360,8 @@ export class HexEditorProvider
 
       throw error
     }
-    // Viewport event subscription will trigger sendViewportData
+    // Viewport events still refresh edit-driven changes; scrolls push data
+    // immediately so the UI does not wait on subscription delivery.
   }
 
   /** Coalesce rapid viewport updates from resize/scroll into a single in-flight mutation */
@@ -1993,20 +2400,46 @@ export class HexEditorProvider
     session: EditorSession,
     rawMessage: unknown
   ): Promise<void> {
-    const msg = normalizeWebviewMessage(session, rawMessage)
+    const msg = normalizeWebviewMessage(
+      { fileSize: session.fileSize },
+      rawMessage
+    )
     if (!msg || session.scope.isDisposed || session.disposed) {
       return
     }
 
     try {
       switch (msg.type) {
+        case 'editorStateChanged': {
+          session.webviewState = {
+            visibleOffset: msg.visibleOffset,
+            visibleByteCount: msg.visibleByteCount,
+            selectedOffset: msg.selectedOffset,
+            selectionStart: msg.selectionStart,
+            selectionEnd: msg.selectionEnd,
+            selectionLength: msg.selectionLength,
+            bytesPerRow: msg.bytesPerRow,
+            offsetRadix: msg.offsetRadix,
+            activePane: msg.activePane,
+            editMode: session.webviewState.editMode,
+          }
+          this.fireEditorStateChanged(session)
+          break
+        }
+
+        case 'toggleEditMode': {
+          await this.toggleEditMode(session)
+          break
+        }
+
         // --- Scrolling ---
         case 'scroll': {
           const delta =
             msg.direction === 'up'
               ? -session.bytesPerRow * 4
               : session.bytesPerRow * 4
-          await this.scrollTo(session, session.offset + delta)
+          const baseOffset = session.pendingScrollOffset ?? session.offset
+          await this.scrollTo(session, baseOffset + delta)
           break
         }
 
@@ -2055,7 +2488,11 @@ export class HexEditorProvider
         }
 
         case 'setViewportMetrics': {
-          session.visibleRows = Math.max(1, Math.floor(msg.visibleRows))
+          const visibleRows = Math.max(1, Math.floor(msg.visibleRows))
+          if (visibleRows !== session.visibleRows) {
+            session.visibleRows = visibleRows
+            await this.scrollTo(session, session.offset)
+          }
           break
         }
 
@@ -2168,28 +2605,31 @@ export class HexEditorProvider
         case 'replace': {
           const sessionSyncVersion = session.sessionSyncVersion
           await session.search.preserveState(async () => {
+            const replacementLength = Buffer.from(msg.data, 'hex').length
             const changed = await this.applyReplace(
               session,
               msg.offset,
               msg.length,
               msg.data
             )
+            if (changed) {
+              await this.waitForSessionSync(session, sessionSyncVersion)
+              await this.sendViewportData(session)
+            }
             this.postWebviewMessage(session, {
               type: 'replaceComplete',
               scope: 'single',
               replacedOffset: msg.offset,
-              offsetDelta: Buffer.from(msg.data, 'hex').length - msg.length,
+              offsetDelta: replacementLength - msg.length,
               selectionOffset: changed && msg.data.length > 0 ? msg.offset : -1,
               replacedCount: changed ? 1 : 0,
             })
-            if (changed) {
-              await this.waitForSessionSync(session, sessionSyncVersion)
-            }
           })
           break
         }
 
         case 'replaceAllMatches': {
+          const sessionSyncVersion = session.sessionSyncVersion
           await session.search.preserveState(async () => {
             const result = await session.search.replaceAll({
               query: msg.query,
@@ -2218,6 +2658,8 @@ export class HexEditorProvider
               }
               this.postEditState(session)
               this.notifyDocumentChanged(session)
+              await this.waitForSessionSync(session, sessionSyncVersion)
+              await this.sendViewportData(session)
             }
 
             this.postWebviewMessage(session, {
@@ -2329,79 +2771,7 @@ export class HexEditorProvider
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      void vscode.window.showErrorMessage(`OmegaEdit error: ${message}`)
+      void vscode.window.showErrorMessage(omegaEditErrorMessage(message))
     }
   }
 }
-
-// â”€â”€ Webview Message Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-type WebviewMessage =
-  | { type: 'scroll'; direction: 'up' | 'down' }
-  | { type: 'scrollTo'; offset: number }
-  | { type: 'setViewportMetrics'; visibleRows: number }
-  | { type: 'setBytesPerRow'; bytesPerRow: 8 | 16 | 32 }
-  | {
-      type: 'requestAnalysisProfile'
-      offset: number
-      length: number
-      requestKey: string
-      scopeLabel: string
-      requestedLength: number
-      isCapped: boolean
-    }
-  | { type: 'requestTransformPlugins' }
-  | {
-      type: 'copySelection'
-      offset: number
-      length: number
-      format: 'hex' | 'utf8'
-    }
-  | {
-      type: 'cutSelection'
-      offset: number
-      length: number
-      format: 'hex' | 'utf8'
-    }
-  | { type: 'insert'; offset: number; data: string }
-  | { type: 'delete'; offset: number; length: number }
-  | { type: 'overwrite'; offset: number; data: string }
-  | { type: 'replace'; offset: number; length: number; data: string }
-  | {
-      type: 'applyTransform'
-      pluginId: string
-      offset: number
-      length: number
-      optionsJson?: string
-    }
-  | {
-      type: 'replaceAllMatches'
-      offsets?: number[]
-      query: string
-      isHex: boolean
-      caseInsensitive?: boolean
-      isReverse?: boolean
-      length: number
-      data: string
-    }
-  | { type: 'undo' }
-  | { type: 'redo' }
-  | { type: 'save' }
-  | { type: 'saveAs' }
-  | { type: 'revert' }
-  | {
-      type: 'search'
-      query: string
-      isHex: boolean
-      caseInsensitive?: boolean
-      isReverse?: boolean
-    }
-  | { type: 'goToMatch'; offset: number }
-  | {
-      type: 'findAdjacentMatch'
-      query: string
-      isHex: boolean
-      caseInsensitive?: boolean
-      direction: 'forward' | 'backward'
-      offset: number
-    }

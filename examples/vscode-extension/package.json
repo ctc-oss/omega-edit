@@ -1,7 +1,7 @@
 {
   "name": "omega-edit-hex-editor",
-  "displayName": "Ωedit™ Hex Editor",
-  "description": "A minimal reference hex/data editor VS Code extension powered by Ωedit™",
+  "displayName": "%omegaEdit.displayName%",
+  "description": "%omegaEdit.description%",
   "version": "2.0.0",
   "publisher": "omega-edit-example",
   "license": "Apache-2.0",
@@ -23,20 +23,27 @@
     "onCustomEditor:omegaEdit.hexEditor",
     "onCommand:omegaEdit.openInHexEditor",
     "onCommand:omegaEdit.goToOffset",
+    "onCommand:omegaEdit.searchNext",
+    "onCommand:omegaEdit.searchPrevious",
     "onCommand:omegaEdit.undo",
     "onCommand:omegaEdit.redo",
+    "onCommand:omegaEdit.refreshTransformPlugins",
     "onCommand:omegaEdit.exportChangeScript",
     "onCommand:omegaEdit.replayChangeScript",
     "onCommand:omegaEdit.rollbackSession",
     "onCommand:omegaEdit.rollbackCheckpoint",
-    "onCommand:omegaEdit.createCheckpoint"
+    "onCommand:omegaEdit.createCheckpoint",
+    "onCommand:omegaEdit.getEditorState",
+    "onCommand:omegaEdit.setExternalHighlights",
+    "onCommand:omegaEdit.clearExternalHighlights"
   ],
   "main": "./out/extension.js",
+  "types": "./out/api.d.ts",
   "contributes": {
     "customEditors": [
       {
         "viewType": "omegaEdit.hexEditor",
-        "displayName": "Ωedit™ Hex Editor",
+        "displayName": "%omegaEdit.customEditor.displayName%",
         "selector": [
           {
             "filenamePattern": "*"
@@ -46,12 +53,12 @@
       }
     ],
     "configuration": {
-      "title": "Ωedit™ Hex Editor",
+      "title": "%omegaEdit.configuration.title%",
       "properties": {
         "omegaEdit.serverPort": {
           "type": "number",
           "default": 9000,
-          "description": "Port for the OmegaEdit gRPC server"
+          "description": "%omegaEdit.configuration.serverPort.description%"
         },
         "omegaEdit.logLevel": {
           "type": "string",
@@ -64,7 +71,7 @@
             "error",
             "fatal"
           ],
-          "description": "Log level for the OmegaEdit client"
+          "description": "%omegaEdit.configuration.logLevel.description%"
         },
         "omegaEdit.bytesPerRow": {
           "type": "number",
@@ -74,7 +81,7 @@
             16,
             32
           ],
-          "description": "Number of bytes displayed per row in the hex view"
+          "description": "%omegaEdit.configuration.bytesPerRow.description%"
         },
         "omegaEdit.transformPluginDirectories": {
           "type": "array",
@@ -82,52 +89,79 @@
           "items": {
             "type": "string"
           },
-          "description": "Directories containing OmegaEdit transform plugin shared libraries"
+          "description": "%omegaEdit.configuration.transformPluginDirectories.description%"
         }
       }
     },
     "commands": [
       {
         "command": "omegaEdit.openInHexEditor",
-        "title": "OmegaEdit: Open in Hex Editor"
+        "title": "%omegaEdit.command.openInHexEditor.title%"
       },
       {
         "command": "omegaEdit.goToOffset",
-        "title": "OmegaEdit: Go to Offset"
+        "title": "%omegaEdit.command.goToOffset.title%"
+      },
+      {
+        "command": "omegaEdit.searchNext",
+        "title": "%omegaEdit.command.searchNext.title%",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.searchPrevious",
+        "title": "%omegaEdit.command.searchPrevious.title%",
+        "enablement": "omegaEdit.hexEditorActive"
       },
       {
         "command": "omegaEdit.undo",
-        "title": "OmegaEdit: Undo",
+        "title": "%omegaEdit.command.undo.title%",
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.canUndo"
       },
       {
         "command": "omegaEdit.redo",
-        "title": "OmegaEdit: Redo",
+        "title": "%omegaEdit.command.redo.title%",
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.canRedo"
       },
       {
+        "command": "omegaEdit.refreshTransformPlugins",
+        "title": "%omegaEdit.command.refreshTransformPlugins.title%",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
         "command": "omegaEdit.exportChangeScript",
-        "title": "OmegaEdit: Export Change Script",
+        "title": "%omegaEdit.command.exportChangeScript.title%",
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
       },
       {
         "command": "omegaEdit.replayChangeScript",
-        "title": "OmegaEdit: Replay Change Script"
+        "title": "%omegaEdit.command.replayChangeScript.title%"
       },
       {
         "command": "omegaEdit.rollbackSession",
-        "title": "OmegaEdit: Roll Back Session",
-        "enablement": "omegaEdit.hexEditorActive"
+        "title": "%omegaEdit.command.rollbackSession.title%",
+        "enablement": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
       },
       {
         "command": "omegaEdit.rollbackCheckpoint",
-        "title": "OmegaEdit: Roll Back Last Checkpoint",
+        "title": "%omegaEdit.command.rollbackCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive"
       },
       {
         "command": "omegaEdit.createCheckpoint",
-        "title": "OmegaEdit: Create Checkpoint",
+        "title": "%omegaEdit.command.createCheckpoint.title%",
         "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
+        "command": "omegaEdit.getEditorState",
+        "title": "%omegaEdit.command.getEditorState.title%"
+      },
+      {
+        "command": "omegaEdit.setExternalHighlights",
+        "title": "%omegaEdit.command.setExternalHighlights.title%"
+      },
+      {
+        "command": "omegaEdit.clearExternalHighlights",
+        "title": "%omegaEdit.command.clearExternalHighlights.title%"
       }
     ],
     "menus": {
@@ -143,11 +177,24 @@
           "command": "omegaEdit.openInHexEditor",
           "when": "resourceScheme == file",
           "group": "navigation"
+        },
+        {
+          "command": "omegaEdit.rollbackSession",
+          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges",
+          "group": "navigation@9"
         }
       ],
       "commandPalette": [
         {
           "command": "omegaEdit.openInHexEditor"
+        },
+        {
+          "command": "omegaEdit.searchNext",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.searchPrevious",
+          "when": "omegaEdit.hexEditorActive"
         },
         {
           "command": "omegaEdit.undo",
@@ -158,8 +205,12 @@
           "when": "omegaEdit.hexEditorActive"
         },
         {
-          "command": "omegaEdit.rollbackSession",
+          "command": "omegaEdit.refreshTransformPlugins",
           "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.rollbackSession",
+          "when": "omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges"
         },
         {
           "command": "omegaEdit.rollbackCheckpoint",
@@ -168,14 +219,30 @@
         {
           "command": "omegaEdit.createCheckpoint",
           "when": "omegaEdit.hexEditorActive"
+        },
+        {
+          "command": "omegaEdit.getEditorState",
+          "when": "false"
+        },
+        {
+          "command": "omegaEdit.setExternalHighlights",
+          "when": "false"
+        },
+        {
+          "command": "omegaEdit.clearExternalHighlights",
+          "when": "false"
         }
       ]
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "npm run compile:extension && npm run check:webview && npm run compile:webview",
+    "compile:extension": "tsc -p ./",
+    "check:webview": "svelte-check --tsconfig ./webview-ui/tsconfig.json",
+    "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
+    "watch:webview": "vite build --watch",
     "package:vsix": "vsce package --out omega-edit-hex-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
@@ -197,11 +264,15 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@vscode/vsce": "^3.7.1",
-    "@vscode/test-electron": "^2.5.2",
-    "@types/node": "^18.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@types/node": "^22.12.0",
     "@types/vscode": "^1.110.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.7.1",
     "mocha": "^10.8.2",
-    "typescript": "^5.0.0"
+    "svelte": "^5.56.3",
+    "svelte-check": "^4.1.0",
+    "typescript": "^5.0.0",
+    "vite": "^8.0.16"
   }
 }

@@ -45,6 +45,11 @@ runs:
       shell: bash
       run: conan profile detect --force
 
+    - name: Configure Conan for Visual Studio 18
+      if: inputs.runner-os == 'Windows' && startsWith(inputs.os-name, 'windows-2025')
+      shell: bash
+      run: echo "CONAN_MSBUILD_VS_CONF=-c tools.microsoft.msbuild:vs_version=18" >> "$GITHUB_ENV"
+
     - name: Cache transform plugin Conan packages
       if: inputs.runner-os == 'Windows'
       uses: actions/cache@v4
@@ -61,6 +66,7 @@ runs:
         conan install plugins --output-folder=build/plugin-conan \
           --build=missing \
           -s build_type=Release \
+          ${CONAN_MSBUILD_VS_CONF:-} \
           -c tools.cmake.cmaketoolchain:generator=Ninja
 
     - name: Install transform plugin system dependencies
