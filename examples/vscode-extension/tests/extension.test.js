@@ -1032,9 +1032,27 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
   assert.match(extensionJs, /directoryHasTransformPlugin/)
+  assert.match(extensionJs, /resolveServerConnection/)
+  assert.match(extensionJs, /OMEGA_EDIT_SERVER_SOCKET/)
+  assert.match(extensionJs, /XDG_RUNTIME_DIR/)
   assert.match(
     extensionJs,
-    /startServer\)\(port,\s*undefined,\s*undefined,\s*\{\s*transformPluginDirectories/
+    /Unix domain sockets are not supported on Windows by the current Node\/gRPC stack/
+  )
+  assert.match(extensionJs, /process\.platform === ['"]darwin['"]/)
+  assert.match(extensionJs, /process\.platform === ['"]linux['"]/)
+  assert.doesNotMatch(extensionJs, /platformAllowsUnixSocketFallback/)
+  assert.doesNotMatch(extensionJs, /process\.platform === ['"]win32['"]/)
+  assert.match(extensionJs, /startTcpServerConnection/)
+  assert.doesNotMatch(extensionJs, /fallbackReason/)
+  assert.match(extensionJs, /startServerUnixSocket/)
+  assert.match(
+    extensionJs,
+    /startServer\)\(\s*tcpConnection\.port,\s*undefined,\s*undefined,\s*\{\s*transformPluginDirectories/
+  )
+  assert.match(
+    extensionJs,
+    /getClient\)\(connection\.port,\s*undefined,\s*\{\s*socketPath:\s*connection\.socketPath/
   )
 })
 

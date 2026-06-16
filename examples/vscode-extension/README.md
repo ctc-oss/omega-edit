@@ -75,7 +75,7 @@ Current implementation note:
 - `EditorSessionModel` owns live session metadata and sync waiters.
 - `EditorHistoryController` and `EditorSearchController` own the reusable undo/save-state and large-search behavior.
 
-1. `activate()` reads the `omegaEdit.serverPort` setting and starts the bundled native server through `@omega-edit/client`.
+1. `activate()` starts the bundled native server through `@omega-edit/client`, using a Unix domain socket by default on macOS/Linux and TCP on Windows or when a port is explicitly configured. On Linux, the socket path is created under `XDG_RUNTIME_DIR` when available. Windows stays on TCP until the Node/gRPC stack supports Windows AF_UNIX reliably.
 2. Opening a file creates an Ωedit™ session and viewport, then uses the client-managed heartbeat and subscription helpers for the steady-state connection wiring.
 3. The native server now uses server-managed checkpoint directories under the host temp directory for auto-managed sessions, which keeps checkpoint artifacts out of the source file's folder and makes cleanup predictable.
 4. The webview drives edits, navigation, search, replace, and transforms through the provider, while native VS Code actions handle undo, redo, save, save-as, and status-bar presentation. The provider pushes back reactive state updates for the viewport, Structure-pane undo/redo counts, dirty state, replace counts, transform results, and server health. Transform option help, examples, defaults, and JSON Schema validation come from the plugin metadata rather than hardcoded webview logic.
@@ -95,7 +95,7 @@ This mode decision is made only when the user runs an explicit search. If a repl
 
 | Setting                 | Default | Description                                                                |
 | ----------------------- | ------- | -------------------------------------------------------------------------- |
-| `omegaEdit.serverPort`  | `9000`  | gRPC server port                                                           |
+| `omegaEdit.serverPort`  | `9000`  | TCP gRPC server port; setting this explicitly opts out of the default macOS/Linux Unix socket transport |
 | `omegaEdit.logLevel`    | `info`  | Client log level (`trace` / `debug` / `info` / `warn` / `error` / `fatal`) |
 | `omegaEdit.bytesPerRow` | `16`    | Bytes displayed per row (8 / 16 / 32)                                      |
 | `omegaEdit.transformPluginDirectories` | `[]` | Native transform plugin directories; local build plugin folders are auto-detected when this is empty |

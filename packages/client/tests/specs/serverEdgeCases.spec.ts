@@ -88,6 +88,25 @@ describe('Server Edge Cases', () => {
     restoreLogger()
   })
 
+  const withPlatform = async (
+    platform: NodeJS.Platform,
+    run: () => Promise<void>
+  ) => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', {
+      configurable: true,
+      value: platform,
+    })
+
+    try {
+      await run()
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(process, 'platform', descriptor)
+      }
+    }
+  }
+
   it('should start a source server with a stale pid file and query info endpoints', async () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
@@ -1010,7 +1029,9 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      await serverModule.startServerUnixSocket(socketPath)
+      await withPlatform('linux', async () => {
+        await serverModule.startServerUnixSocket(socketPath)
+      })
       expect.fail(
         'startServerUnixSocket should reject when stale socket cleanup fails'
       )
@@ -1021,4 +1042,26 @@ describe('Server Edge Cases', () => {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   }).timeout(7000)
+
+  it('should reject unix socket startup immediately on Windows', async () => {
+    const socketDir = path.join(
+      os.tmpdir(),
+      `omega-edit-windows-uds-${process.pid}-${Date.now()}`
+    )
+    const socketPath = path.join(socketDir, 'omega-edit.sock')
+    const unsupportedMessage =
+      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
+
+    try {
+      await withPlatform('win32', async () => {
+        await serverModule.startServerUnixSocket(socketPath)
+      })
+      expect.fail('startServerUnixSocket should reject on Windows')
+    } catch (err) {
+      expect((err as Error).message).to.equal(unsupportedMessage)
+      expect(fs.existsSync(socketDir)).to.equal(false)
+    } finally {
+      fs.rmSync(socketDir, { recursive: true, force: true })
+    }
+  })
 })

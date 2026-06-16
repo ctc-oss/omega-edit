@@ -75,6 +75,25 @@ describe('Client Utilities', () => {
     }
   })
 
+  const withPlatform = async (
+    platform: NodeJS.Platform,
+    run: () => Promise<void>
+  ) => {
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+    Object.defineProperty(process, 'platform', {
+      configurable: true,
+      value: platform,
+    })
+
+    try {
+      await run()
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(process, 'platform', descriptor)
+      }
+    }
+  }
+
   const removeDirWithRetry = async (dirPath: string) => {
     // Temp directory cleanup is best-effort on Windows where logger handles can lag.
     const lockCodes = new Set(['ENOTEMPTY', 'EPERM', 'EBUSY', 'EACCES'])
@@ -271,13 +290,87 @@ describe('Client Utilities', () => {
     )
 
     try {
-      process.env.OMEGA_EDIT_SERVER_SOCKET = 'relative.sock'
-      delete process.env.OMEGA_EDIT_SERVER_URI
+      await withPlatform('linux', async () => {
+        process.env.OMEGA_EDIT_SERVER_SOCKET = 'relative.sock'
+        delete process.env.OMEGA_EDIT_SERVER_URI
 
-      const client = await clientModule.getClient(9310, '127.0.0.1')
-      expect(client).to.be.instanceOf(FakeEditorClient)
-      expect(uris).to.deep.equal(['unix:relative.sock', '127.0.0.1:9310'])
-      expect(closedUris).to.deep.equal(['unix:relative.sock'])
+        const client = await clientModule.getClient(9310, '127.0.0.1')
+        expect(client).to.be.instanceOf(FakeEditorClient)
+        expect(uris).to.deep.equal(['unix:relative.sock', '127.0.0.1:9310'])
+        expect(closedUris).to.deep.equal(['unix:relative.sock'])
+      })
+    } finally {
+      resetClient()
+      restoreCreateInsecure()
+      restoreEditorClient()
+    }
+  })
+
+  it('should reject unix socket client targets immediately on Windows', async () => {
+    resetClient()
+    delete process.env.OMEGA_EDIT_SERVER_URI
+    delete process.env.OMEGA_EDIT_SERVER_SOCKET
+    const uris: string[] = []
+    const unsupportedMessage =
+      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
+
+    class FakeEditorClient {
+      constructor(uri: string) {
+        uris.push(uri)
+      }
+
+      waitForReady(_deadline: unknown, callback: (err?: Error) => void) {
+        callback()
+      }
+
+      close() {}
+    }
+
+    const restoreEditorClient = overrideProperty(
+      grpcClientModule as Record<string, any>,
+      'EditorClient',
+      FakeEditorClient
+    )
+    const restoreCreateInsecure = overrideProperty(
+      grpcModule.credentials as Record<string, any>,
+      'createInsecure',
+      () => ({})
+    )
+
+    try {
+      await withPlatform('win32', async () => {
+        try {
+          await clientModule.getClient(9310, '127.0.0.1', {
+            socketPath: 'relative.sock',
+            allowTcpFallback: true,
+          })
+          expect.fail('getClient should reject explicit Windows socket paths')
+        } catch (err) {
+          expect((err as Error).message).to.equal(unsupportedMessage)
+        }
+
+        process.env.OMEGA_EDIT_SERVER_SOCKET = 'relative.sock'
+        try {
+          await clientModule.getClient(9310, '127.0.0.1')
+          expect.fail('getClient should reject Windows socket env targets')
+        } catch (err) {
+          expect((err as Error).message).to.equal(unsupportedMessage)
+        } finally {
+          delete process.env.OMEGA_EDIT_SERVER_SOCKET
+        }
+
+        process.env.OMEGA_EDIT_SERVER_URI = 'unix:relative.sock'
+        try {
+          await clientModule.getClient(9310, '127.0.0.1')
+          expect.fail('getClient should reject Windows unix URI targets')
+        } catch (err) {
+          expect((err as Error).message).to.equal(unsupportedMessage)
+        } finally {
+          delete process.env.OMEGA_EDIT_SERVER_URI
+        }
+      })
+
+      expect(uris).to.deep.equal([])
     } finally {
       resetClient()
       restoreCreateInsecure()
@@ -363,21 +456,23 @@ describe('Client Utilities', () => {
     )
 
     try {
-      const tcpClient = await clientModule.getClient(9314, '127.0.0.1')
-      const socketClient = await clientModule.getClient(9314, '127.0.0.1', {
-        socketPath: 'relative.sock',
-      })
-
-      expect(socketClient).to.not.equal(tcpClient)
-      expect(await clientModule.getClient(9314, '127.0.0.1')).to.equal(
-        tcpClient
-      )
-      expect(
-        await clientModule.getClient(9314, '127.0.0.1', {
+      await withPlatform('linux', async () => {
+        const tcpClient = await clientModule.getClient(9314, '127.0.0.1')
+        const socketClient = await clientModule.getClient(9314, '127.0.0.1', {
           socketPath: 'relative.sock',
         })
-      ).to.equal(socketClient)
-      expect(uris).to.deep.equal(['127.0.0.1:9314', 'unix:relative.sock'])
+
+        expect(socketClient).to.not.equal(tcpClient)
+        expect(await clientModule.getClient(9314, '127.0.0.1')).to.equal(
+          tcpClient
+        )
+        expect(
+          await clientModule.getClient(9314, '127.0.0.1', {
+            socketPath: 'relative.sock',
+          })
+        ).to.equal(socketClient)
+        expect(uris).to.deep.equal(['127.0.0.1:9314', 'unix:relative.sock'])
+      })
 
       resetClient()
       expect(closedUris.sort()).to.deep.equal([
@@ -517,10 +612,12 @@ describe('Client Utilities', () => {
     )
 
     try {
-      process.env.OMEGA_EDIT_SERVER_SOCKET = '/tmp/omega-edit.sock'
-      delete process.env.OMEGA_EDIT_SERVER_URI
+      await withPlatform('linux', async () => {
+        process.env.OMEGA_EDIT_SERVER_SOCKET = '/tmp/omega-edit.sock'
+        delete process.env.OMEGA_EDIT_SERVER_URI
 
-      await clientModule.getClient(9311, '127.0.0.1')
+        await clientModule.getClient(9311, '127.0.0.1')
+      })
       expect.fail('getClient should reject when every candidate fails')
     } catch (err) {
       expect((err as Error).message).to.equal('127.0.0.1:9311 unavailable')

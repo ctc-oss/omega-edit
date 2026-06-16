@@ -33,7 +33,7 @@ import {
   ServerControlKind,
   ServerControlStatus,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
-import { execFile } from 'child_process'
+import { execFile, type ChildProcess } from 'child_process'
 import { promisify } from 'util'
 import {
   requireOptionalSafeIntegerOutput,
@@ -142,6 +142,103 @@ export async function waitForFileToExist(
       }
 
       timer = setTimeout(check, FILE_EXISTENCE_POLL_INTERVAL_MS)
+    }
+
+    check()
+  })
+}
+
+async function waitForFileToExistWhileProcessRuns(
+  filePath: string,
+  childProcess: ChildProcess,
+  timeout: number
+): Promise<boolean> {
+  const log = getLogger()
+  log.debug({
+    fn: 'waitForFileToExistWhileProcessRuns',
+    file: filePath,
+    pid: childProcess.pid,
+  })
+
+  let timer: NodeJS.Timeout | undefined
+
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const start = Date.now()
+
+    const cleanup = () => {
+      if (timer) {
+        clearTimeout(timer)
+        timer = undefined
+      }
+      childProcess.off('exit', onExit)
+      childProcess.off('error', onError)
+    }
+
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      callback()
+    }
+
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      finish(() => {
+        const errMsg = `Server process exited before ${filePath} existed (code ${code ?? 'unknown'}${signal ? `, signal ${signal}` : ''})`
+        log.error({
+          fn: 'waitForFileToExistWhileProcessRuns',
+          file: filePath,
+          pid: childProcess.pid,
+          err: { msg: errMsg },
+        })
+        reject(new Error(errMsg))
+      })
+    }
+
+    const onError = (err: Error) => {
+      finish(() => reject(err))
+    }
+
+    const check = async () => {
+      try {
+        await fs.promises.stat(filePath)
+        finish(() => {
+          log.debug({
+            fn: 'waitForFileToExistWhileProcessRuns',
+            file: filePath,
+            exists: true,
+            pid: childProcess.pid,
+          })
+          resolve(true)
+        })
+        return
+      } catch {
+        // keep waiting
+      }
+
+      if (Date.now() - start >= timeout) {
+        finish(() => {
+          const errMsg = `File does not exist after ${timeout} milliseconds`
+          log.error({
+            fn: 'waitForFileToExistWhileProcessRuns',
+            file: filePath,
+            pid: childProcess.pid,
+            err: { msg: errMsg },
+          })
+          reject(new Error(errMsg))
+        })
+        return
+      }
+
+      timer = setTimeout(check, FILE_EXISTENCE_POLL_INTERVAL_MS)
+    }
+
+    childProcess.once('exit', onExit)
+    childProcess.once('error', onError)
+
+    if (childProcess.exitCode !== null || childProcess.signalCode !== null) {
+      onExit(childProcess.exitCode, childProcess.signalCode)
+      return
     }
 
     check()
@@ -730,7 +827,7 @@ export async function startServer(
   if (pidFile) {
     const pidFromFile = await getServerPid(pidFile)
 
-    if (pidFromFile !== pid && process.platform !== 'win32') {
+    if (pidFromFile !== pid) {
       const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
       log.error({
         ...logMetadata,
@@ -790,6 +887,18 @@ export async function startServerUnixSocket(
   }
   const log = getLogger()
   log.debug(logMetadata)
+
+  if (process.platform === 'win32') {
+    const errMsg =
+      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
+    log.error({
+      ...logMetadata,
+      err: {
+        msg: errMsg,
+      },
+    })
+    throw new Error(errMsg)
+  }
 
   const socketDir = path.dirname(socketPath)
   if (socketDir && socketDir !== '.') {
@@ -903,7 +1012,8 @@ export async function startServerUnixSocket(
     args.push(`--pidfile=${pidFile}`)
   }
 
-  const { pid } = await runServerWithArgs(args, heartbeat)
+  const serverProcess = await runServerWithArgs(args, heartbeat)
+  const { pid } = serverProcess
 
   log.debug({
     ...logMetadata,
@@ -912,7 +1022,18 @@ export async function startServerUnixSocket(
   const socketWaitMs = Number(
     process.env.OMEGA_EDIT_SERVER_SOCKET_WAIT_MS || '20000'
   )
-  await waitForFileToExist(socketPath, socketWaitMs)
+  try {
+    await waitForFileToExistWhileProcessRuns(
+      socketPath,
+      serverProcess,
+      socketWaitMs
+    )
+  } catch (err) {
+    if (pid !== undefined && pid) {
+      await stopProcessUsingPID(pid)
+    }
+    throw err
+  }
   log.debug({
     ...logMetadata,
     state: 'online',
@@ -921,7 +1042,7 @@ export async function startServerUnixSocket(
   if (pidFile) {
     const pidFromFile = await getServerPid(pidFile)
 
-    if (pidFromFile !== pid && process.platform !== 'win32') {
+    if (pidFromFile !== pid) {
       const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
       log.error({
         ...logMetadata,
@@ -940,7 +1061,15 @@ export async function startServerUnixSocket(
       ...logMetadata,
       pid: pid,
     })
-    await getClient(port, host, { socketPath })
+    try {
+      await getClient(port, host, {
+        socketPath,
+        allowTcpFallback: !udsOnly,
+      })
+    } catch (err) {
+      await stopProcessUsingPID(pid)
+      throw err
+    }
     return pid
   } else {
     const errMsg = 'Error getting server pid'

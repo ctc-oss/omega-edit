@@ -98,6 +98,18 @@ function normalizeUnixSocketTarget(socket: string): string {
   return `unix:${socket}`
 }
 
+function isUnixSocketTarget(uri: string): boolean {
+  return uri.startsWith('unix:')
+}
+
+function assertWindowsAllowsUnixSocketTarget(uri: string): void {
+  if (process.platform === 'win32' && isUnixSocketTarget(uri)) {
+    throw new Error(
+      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
+    )
+  }
+}
+
 function resolveCandidates(
   port: number,
   host: string,
@@ -112,6 +124,7 @@ function resolveCandidates(
   const tcpUri = `${host}:${port}`
 
   if (options?.serverUri) {
+    assertWindowsAllowsUnixSocketTarget(options.serverUri)
     return {
       requestKey: options.serverUri,
       candidates: [options.serverUri],
@@ -120,6 +133,7 @@ function resolveCandidates(
 
   if (options?.socketPath) {
     const socketUri = normalizeUnixSocketTarget(options.socketPath)
+    assertWindowsAllowsUnixSocketTarget(socketUri)
     const candidates = options.allowTcpFallback
       ? [socketUri, tcpUri]
       : [socketUri]
@@ -134,6 +148,7 @@ function resolveCandidates(
   const serverSocket = process.env.OMEGA_EDIT_SERVER_SOCKET
 
   if (serverUri) {
+    assertWindowsAllowsUnixSocketTarget(serverUri)
     return {
       requestKey: serverUri,
       candidates: [serverUri],
@@ -142,6 +157,7 @@ function resolveCandidates(
 
   if (serverSocket) {
     const socketUri = normalizeUnixSocketTarget(serverSocket)
+    assertWindowsAllowsUnixSocketTarget(socketUri)
     const candidates = [socketUri, tcpUri]
     return {
       requestKey: candidates.join('|'),
