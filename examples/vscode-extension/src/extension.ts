@@ -53,6 +53,7 @@ let activeProvider: HexEditorProvider | undefined
 let activeServerSocketPath: string | undefined
 
 const DEFAULT_SERVER_PORT = 9000
+const DARWIN_UNIX_SOCKET_PATH_MAX_BYTES = 103
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
 const SERVER_SOCKET_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_SOCKET'
 const UNIX_SOCKET_UNSUPPORTED_MESSAGE =
@@ -276,6 +277,19 @@ function getDefaultServerSocketPath(): string {
   )
 }
 
+function assertSupportedUnixSocketPath(socketPath: string): void {
+  if (process.platform !== 'darwin') {
+    return
+  }
+
+  const pathBytes = Buffer.byteLength(socketPath)
+  if (pathBytes > DARWIN_UNIX_SOCKET_PATH_MAX_BYTES) {
+    throw new Error(
+      `Unix socket path is too long for macOS: ${pathBytes} bytes (maximum ${DARWIN_UNIX_SOCKET_PATH_MAX_BYTES})`
+    )
+  }
+}
+
 function resolveServerPort(config: vscode.WorkspaceConfiguration): number {
   const envPort = parseServerPort(process.env[SERVER_PORT_OVERRIDE_ENV])
   if (envPort !== undefined) {
@@ -295,6 +309,7 @@ function resolveServerConnection(
     if (!platformCanAttemptUnixSocket()) {
       throw new Error(UNIX_SOCKET_UNSUPPORTED_MESSAGE)
     }
+    assertSupportedUnixSocketPath(socketOverride)
 
     return {
       kind: 'unix',
@@ -316,10 +331,12 @@ function resolveServerConnection(
   }
 
   if (platformCanAttemptUnixSocket()) {
+    const socketPath = getDefaultServerSocketPath()
+    assertSupportedUnixSocketPath(socketPath)
     return {
       kind: 'unix',
       port: DEFAULT_SERVER_PORT,
-      socketPath: getDefaultServerSocketPath(),
+      socketPath,
     }
   }
 

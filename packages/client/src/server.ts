@@ -894,6 +894,53 @@ export async function startServerUnixSocket(
   const log = getLogger()
   log.debug(logMetadata)
 
+  const cleanupFailedUnixSocketStart = async (
+    serverPid: number | undefined
+  ) => {
+    let shouldRemoveSocket = true
+
+    if (serverPid !== undefined && serverPid) {
+      try {
+        shouldRemoveSocket = await stopProcessUsingPID(serverPid)
+      } catch (err) {
+        shouldRemoveSocket = false
+        log.warn({
+          ...logMetadata,
+          err: {
+            msg:
+              err instanceof Error
+                ? err.message
+                : `failed to stop server process ${serverPid}`,
+          },
+        })
+      }
+    }
+
+    if (!shouldRemoveSocket) {
+      return
+    }
+
+    try {
+      fs.unlinkSync(socketPath)
+      log.debug({
+        ...logMetadata,
+        msg: 'Removed unix socket after failed startup',
+      })
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        log.warn({
+          ...logMetadata,
+          err: {
+            msg:
+              err instanceof Error
+                ? err.message
+                : 'failed to remove unix socket after failed startup',
+          },
+        })
+      }
+    }
+  }
+
   if (process.platform === 'win32') {
     const errMsg =
       'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
@@ -1035,9 +1082,7 @@ export async function startServerUnixSocket(
       socketWaitMs
     )
   } catch (err) {
-    if (pid !== undefined && pid) {
-      await stopProcessUsingPID(pid)
-    }
+    await cleanupFailedUnixSocketStart(pid)
     throw err
   }
   log.debug({
@@ -1045,47 +1090,47 @@ export async function startServerUnixSocket(
     state: 'online',
   })
 
-  if (pidFile) {
-    const pidFromFile = await getServerPid(pidFile)
+  try {
+    if (pidFile) {
+      const pidFromFile = await getServerPid(pidFile)
 
-    if (pidFromFile !== pid) {
-      const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
-      log.error({
-        ...logMetadata,
-        err: {
-          msg: errMsg,
-          pid: pid,
-          pidFromFile: pidFromFile,
-        },
-      })
-      throw new Error(errMsg)
+      if (pidFromFile !== pid) {
+        const errMsg = `Error pid from pidFile(${pidFromFile}) and pid(${pid}) from server script do not match`
+        log.error({
+          ...logMetadata,
+          err: {
+            msg: errMsg,
+            pid: pid,
+            pidFromFile: pidFromFile,
+          },
+        })
+        throw new Error(errMsg)
+      }
     }
-  }
 
-  if (pid !== undefined && pid) {
-    log.debug({
-      ...logMetadata,
-      pid: pid,
-    })
-    try {
+    if (pid !== undefined && pid) {
+      log.debug({
+        ...logMetadata,
+        pid: pid,
+      })
       await getClient(port, host, {
         socketPath,
         allowTcpFallback: !udsOnly,
       })
-    } catch (err) {
-      await stopProcessUsingPID(pid)
-      throw err
+      return pid
+    } else {
+      const errMsg = 'Error getting server pid'
+      log.error({
+        ...logMetadata,
+        err: {
+          msg: errMsg,
+        },
+      })
+      throw new Error(errMsg)
     }
-    return pid
-  } else {
-    const errMsg = 'Error getting server pid'
-    log.error({
-      ...logMetadata,
-      err: {
-        msg: errMsg,
-      },
-    })
-    throw new Error(errMsg)
+  } catch (err) {
+    await cleanupFailedUnixSocketStart(pid)
+    throw err
   }
 }
 
