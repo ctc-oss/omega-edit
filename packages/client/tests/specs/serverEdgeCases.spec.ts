@@ -48,6 +48,7 @@ const {
   stopProcessUsingPID,
   stopServiceOnPort,
   stopServerImmediate,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
 } = clientPackage
 
 describe('Server Edge Cases', () => {
@@ -1034,16 +1035,15 @@ describe('Server Edge Cases', () => {
       `omega-edit-windows-uds-${process.pid}-${Date.now()}`
     )
     const socketPath = path.join(socketDir, 'omega-edit.sock')
-    const unsupportedMessage =
-      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
-
     try {
       await withPlatform('win32', async () => {
         await serverModule.startServerUnixSocket(socketPath)
       })
       expect.fail('startServerUnixSocket should reject on Windows')
     } catch (err) {
-      expect((err as Error).message).to.equal(unsupportedMessage)
+      expect((err as Error).message).to.equal(
+        WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
+      )
       expect(fs.existsSync(socketDir)).to.equal(false)
     } finally {
       fs.rmSync(socketDir, { recursive: true, force: true })

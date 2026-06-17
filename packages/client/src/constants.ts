@@ -17,19 +17,5 @@
  * limitations under the License.
  */
 
-export * from './change'
-export * from './client'
-export * from './constants'
-export * from './editor_history'
-export * from './editor_scoped_session'
-export * from './editor_search'
-export * from './editor_session_model'
-export * from './logger'
-export * from './server'
-export * from './session'
-export * from './subscriptions'
-export * from './version'
-export * from './viewport'
-
-// generated files from protoc
-export * from './proto'
+export const WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE =
+  'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'

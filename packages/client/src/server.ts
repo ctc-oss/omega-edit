@@ -33,6 +33,7 @@ import {
   ServerControlKind,
   ServerControlStatus,
 } from './protobuf_ts/generated/omega_edit/v1/omega_edit'
+import { WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE } from './constants'
 import { execFile, type ChildProcess } from 'child_process'
 import { promisify } from 'util'
 import {
@@ -942,8 +943,7 @@ export async function startServerUnixSocket(
   }
 
   if (process.platform === 'win32') {
-    const errMsg =
-      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
+    const errMsg = WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
     log.error({
       ...logMetadata,
       err: {

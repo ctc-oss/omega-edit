@@ -20,6 +20,7 @@
 import * as grpc from '@grpc/grpc-js'
 import { EditorClient } from '../omega_edit_grpc_pb'
 import { getLogger } from '../logger'
+import { WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE } from '../constants'
 
 export interface ClientConnectionOptions {
   serverUri?: string
@@ -104,9 +105,7 @@ function isUnixSocketTarget(uri: string): boolean {
 
 function assertWindowsAllowsUnixSocketTarget(uri: string): void {
   if (process.platform === 'win32' && isUnixSocketTarget(uri)) {
-    throw new Error(
-      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
-    )
+    throw new Error(WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE)
   }
 }
 

@@ -16,7 +16,9 @@ import {
   getClient,
   startServer,
   startServerUnixSocket,
+  stopProcessUsingPID,
   stopServerGraceful,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
 } from '@omega-edit/client'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
@@ -50,14 +52,14 @@ import {
 import { HexEditorProvider } from './hexEditorProvider'
 
 let activeProvider: HexEditorProvider | undefined
+let activeServerConnection: ServerConnection | undefined
+let activeServerPid: number | undefined
 let activeServerSocketPath: string | undefined
 
 const DEFAULT_SERVER_PORT = 9000
 const DARWIN_UNIX_SOCKET_PATH_MAX_BYTES = 103
 const SERVER_PORT_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_PORT'
 const SERVER_SOCKET_OVERRIDE_ENV = 'OMEGA_EDIT_SERVER_SOCKET'
-const UNIX_SOCKET_UNSUPPORTED_MESSAGE =
-  'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
 const VALID_LOG_LEVELS = new Set([
   'trace',
   'debug',
@@ -260,6 +262,10 @@ function resolveServerSocketOverride(): string | undefined {
 }
 
 function getDefaultServerSocketDirectory(): string {
+  if (process.platform === 'darwin') {
+    return path.join('/tmp', 'omega-edit')
+  }
+
   if (process.platform === 'linux') {
     const xdgRuntimeDir = process.env.XDG_RUNTIME_DIR?.trim()
     if (xdgRuntimeDir && path.isAbsolute(xdgRuntimeDir)) {
@@ -307,7 +313,7 @@ function resolveServerConnection(
   const socketOverride = resolveServerSocketOverride()
   if (socketOverride !== undefined) {
     if (!platformCanAttemptUnixSocket()) {
-      throw new Error(UNIX_SOCKET_UNSUPPORTED_MESSAGE)
+      throw new Error(WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE)
     }
     assertSupportedUnixSocketPath(socketOverride)
 
@@ -408,6 +414,33 @@ async function connectToServer(connection: ServerConnection): Promise<void> {
   await getClient(connection.port)
 }
 
+async function stopServerConnectionGraceful(
+  connection: ServerConnection | undefined,
+  serverPid: number | undefined
+): Promise<boolean> {
+  try {
+    if (connection) {
+      await connectToServer(connection)
+    }
+    await stopServerGraceful()
+    return true
+  } catch (err) {
+    if (serverPid !== undefined && serverPid) {
+      try {
+        return await stopProcessUsingPID(serverPid)
+      } catch (pidErr) {
+        console.warn(
+          `Failed to stop OmegaEdit server process ${serverPid}: ${toErrorMessage(pidErr)}`
+        )
+      }
+    } else {
+      console.warn(`Failed to stop OmegaEdit server: ${toErrorMessage(err)}`)
+    }
+  }
+
+  return false
+}
+
 function resolveLogLevel(config: vscode.WorkspaceConfiguration): string {
   const value = config.get<unknown>('logLevel', 'info')
   return typeof value === 'string' && VALID_LOG_LEVELS.has(value)
@@ -491,6 +524,8 @@ export async function activate(
       connection,
       transformPluginDirectories
     )
+    activeServerConnection = startedServer.connection
+    activeServerPid = startedServer.serverPid
     activeServerSocketPath =
       startedServer.connection.kind === 'unix'
         ? startedServer.connection.socketPath
@@ -507,15 +542,16 @@ export async function activate(
   try {
     await connectToServer(startedServer.connection)
   } catch {
-    try {
-      await stopServerGraceful()
-    } catch {
-      // Best effort cleanup; activation will report the connection failure.
-    }
-    if (startedServer.connection.kind === 'unix') {
+    const stopped = await stopServerConnectionGraceful(
+      startedServer.connection,
+      startedServer.serverPid
+    )
+    if (stopped && startedServer.connection.kind === 'unix') {
       removeServerSocketFile(startedServer.connection.socketPath)
-      activeServerSocketPath = undefined
     }
+    activeServerConnection = undefined
+    activeServerPid = undefined
+    activeServerSocketPath = undefined
     reportActivationError(
       vscode.l10n.t('Ωedit™ server started but is not reachable')
     )
@@ -735,16 +771,16 @@ export async function activate(
 
 export async function deactivate(): Promise<void> {
   activeProvider = undefined
+  const connection = activeServerConnection
+  const serverPid = activeServerPid
   const socketPath = activeServerSocketPath
+  activeServerConnection = undefined
+  activeServerPid = undefined
   activeServerSocketPath = undefined
 
-  try {
-    await stopServerGraceful()
-  } catch {
-    // Server may already be stopped; swallow errors during deactivation.
-  }
+  const stopped = await stopServerConnectionGraceful(connection, serverPid)
 
-  if (socketPath) {
+  if (stopped && socketPath) {
     removeServerSocketFile(socketPath)
   }
 }

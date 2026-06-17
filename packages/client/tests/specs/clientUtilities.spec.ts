@@ -47,6 +47,7 @@ const {
   stopProcessUsingPID,
   waitForFileToExist,
   waitForReady,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
 } = clientPackage
 
 describe('Client Utilities', () => {
@@ -309,9 +310,6 @@ describe('Client Utilities', () => {
     delete process.env.OMEGA_EDIT_SERVER_URI
     delete process.env.OMEGA_EDIT_SERVER_SOCKET
     const uris: string[] = []
-    const unsupportedMessage =
-      'Unix domain sockets are not supported on Windows by the current Node/gRPC stack'
-
     class FakeEditorClient {
       constructor(uri: string) {
         uris.push(uri)
@@ -344,7 +342,9 @@ describe('Client Utilities', () => {
           })
           expect.fail('getClient should reject explicit Windows socket paths')
         } catch (err) {
-          expect((err as Error).message).to.equal(unsupportedMessage)
+          expect((err as Error).message).to.equal(
+            WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
+          )
         }
 
         process.env.OMEGA_EDIT_SERVER_SOCKET = 'relative.sock'
@@ -352,7 +352,9 @@ describe('Client Utilities', () => {
           await clientModule.getClient(9310, '127.0.0.1')
           expect.fail('getClient should reject Windows socket env targets')
         } catch (err) {
-          expect((err as Error).message).to.equal(unsupportedMessage)
+          expect((err as Error).message).to.equal(
+            WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
+          )
         } finally {
           delete process.env.OMEGA_EDIT_SERVER_SOCKET
         }
@@ -362,7 +364,9 @@ describe('Client Utilities', () => {
           await clientModule.getClient(9310, '127.0.0.1')
           expect.fail('getClient should reject Windows unix URI targets')
         } catch (err) {
-          expect((err as Error).message).to.equal(unsupportedMessage)
+          expect((err as Error).message).to.equal(
+            WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
+          )
         } finally {
           delete process.env.OMEGA_EDIT_SERVER_URI
         }

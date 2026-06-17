@@ -1035,10 +1035,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /resolveServerConnection/)
   assert.match(extensionJs, /OMEGA_EDIT_SERVER_SOCKET/)
   assert.match(extensionJs, /XDG_RUNTIME_DIR/)
-  assert.match(
-    extensionJs,
-    /Unix domain sockets are not supported on Windows by the current Node\/gRPC stack/
-  )
+  assert.match(extensionJs, /WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE/)
+  assert.match(extensionJs, /\/tmp['"],\s*['"]omega-edit/)
   assert.match(extensionJs, /process\.platform === ['"]darwin['"]/)
   assert.match(extensionJs, /process\.platform === ['"]linux['"]/)
   assert.doesNotMatch(extensionJs, /platformAllowsUnixSocketFallback/)
