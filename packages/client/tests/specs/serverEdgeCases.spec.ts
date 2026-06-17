@@ -22,7 +22,11 @@ import * as os from 'os'
 import * as path from 'path'
 import { status as GrpcStatus } from '@grpc/grpc-js'
 import { expect, initChai } from './common.js'
-import { overrideProperty, silenceClientLogger } from './mockHelpers.js'
+import {
+  overrideProperty,
+  silenceClientLogger,
+  withPlatform,
+} from './mockHelpers.js'
 import { getModuleCompat } from './moduleCompat.js'
 
 const { require } = getModuleCompat(import.meta.url)
@@ -44,6 +48,7 @@ const {
   stopProcessUsingPID,
   stopServiceOnPort,
   stopServerImmediate,
+  WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE,
 } = clientPackage
 
 describe('Server Edge Cases', () => {
@@ -1010,7 +1015,9 @@ describe('Server Edge Cases', () => {
     )
 
     try {
-      await serverModule.startServerUnixSocket(socketPath)
+      await withPlatform('linux', async () => {
+        await serverModule.startServerUnixSocket(socketPath)
+      })
       expect.fail(
         'startServerUnixSocket should reject when stale socket cleanup fails'
       )
@@ -1021,4 +1028,25 @@ describe('Server Edge Cases', () => {
       fs.rmSync(tempDir, { recursive: true, force: true })
     }
   }).timeout(7000)
+
+  it('should reject unix socket startup immediately on Windows', async () => {
+    const socketDir = path.join(
+      os.tmpdir(),
+      `omega-edit-windows-uds-${process.pid}-${Date.now()}`
+    )
+    const socketPath = path.join(socketDir, 'omega-edit.sock')
+    try {
+      await withPlatform('win32', async () => {
+        await serverModule.startServerUnixSocket(socketPath)
+      })
+      expect.fail('startServerUnixSocket should reject on Windows')
+    } catch (err) {
+      expect((err as Error).message).to.equal(
+        WINDOWS_UNIX_SOCKET_UNSUPPORTED_MESSAGE
+      )
+      expect(fs.existsSync(socketDir)).to.equal(false)
+    } finally {
+      fs.rmSync(socketDir, { recursive: true, force: true })
+    }
+  })
 })
