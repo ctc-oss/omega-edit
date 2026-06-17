@@ -3,7 +3,7 @@
   "omegaEdit.description": "A minimal reference hex/data editor VS Code extension powered by Ωedit™",
   "omegaEdit.customEditor.displayName": "Ωedit™ Hex Editor",
   "omegaEdit.configuration.title": "Ωedit™ Hex Editor",
-  "omegaEdit.configuration.serverPort.description": "Port for the OmegaEdit gRPC server",
+  "omegaEdit.configuration.serverPort.description": "TCP port for the OmegaEdit gRPC server; explicitly setting it opts out of Unix socket transport on macOS/Linux",
   "omegaEdit.configuration.logLevel.description": "Log level for the OmegaEdit client",
   "omegaEdit.configuration.bytesPerRow.description": "Number of bytes displayed per row in the hex view",
   "omegaEdit.configuration.transformPluginDirectories.description": "Directories containing OmegaEdit transform plugin shared libraries",

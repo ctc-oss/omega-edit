@@ -12,6 +12,35 @@ export function overrideProperty(
   }
 }
 
+export async function withPlatform(
+  platform: NodeJS.Platform,
+  run: () => Promise<void>
+): Promise<void> {
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+  if (!descriptor || !descriptor.configurable) {
+    throw new Error('process.platform cannot be overridden in this runtime')
+  }
+
+  const overrideDescriptor: PropertyDescriptor = {
+    configurable: descriptor.configurable,
+    enumerable: descriptor.enumerable,
+    value: platform,
+  }
+  if ('writable' in descriptor) {
+    overrideDescriptor.writable = descriptor.writable
+  }
+
+  Object.defineProperty(process, 'platform', {
+    ...overrideDescriptor,
+  })
+
+  try {
+    await run()
+  } finally {
+    Object.defineProperty(process, 'platform', descriptor)
+  }
+}
+
 export function makeObjectIdResponse(id: string) {
   return {
     getId() {
