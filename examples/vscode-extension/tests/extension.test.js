@@ -6,6 +6,12 @@ const path = require('node:path')
 const packageJson = require('../package.json')
 const packageNls = require('../package.nls.json')
 const {
+  OMEGA_EDIT_EXTENSION_API_VERSION,
+  OMEGA_EDIT_EXTENSION_ID,
+  OMEGA_EDIT_EXTENSION_NAME,
+  OMEGA_EDIT_EXTENSION_PUBLISHER,
+} = require('../out/api.js')
+const {
   OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND,
   OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
   OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND,
@@ -33,8 +39,19 @@ const {
 test('package.json matches shared extension constants', () => {
   assert.equal(packageJson.main, './out/extension.js')
   assert.equal(packageJson.types, './out/api.d.ts')
+  assert.equal(OMEGA_EDIT_EXTENSION_API_VERSION, 1)
+  assert.equal(packageJson.name, OMEGA_EDIT_EXTENSION_NAME)
+  assert.equal(packageJson.publisher, OMEGA_EDIT_EXTENSION_PUBLISHER)
+  assert.equal(
+    `${packageJson.publisher}.${packageJson.name}`,
+    OMEGA_EDIT_EXTENSION_ID
+  )
+  assert.equal(
+    packageJson.scripts['package:vsix'],
+    'vsce package --out omega-edit-data-editor.vsix'
+  )
   assert.equal(packageJson.displayName, '%omegaEdit.displayName%')
-  assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Hex Editor')
+  assert.equal(packageNls['omegaEdit.displayName'], 'Ωedit™ Data Editor')
   assert.deepEqual(packageJson.activationEvents, [
     `onCustomEditor:${OMEGA_EDIT_VIEW_TYPE}`,
     `onCommand:${OMEGA_EDIT_OPEN_IN_HEX_EDITOR_COMMAND}`,
@@ -477,6 +494,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(protocolJs, /case\s+['"]requestAnalysisProfile['"]/)
   assert.match(protocolJs, /case\s+['"]applyTransform['"]/)
   assert.match(apiDts, /OmegaEditExtensionApi/)
+  assert.match(apiDts, /OMEGA_EDIT_EXTENSION_ID/)
+  assert.match(apiDts, /extensionId/)
   assert.match(apiDts, /onDidChangeEditorState/)
   assert.match(apiDts, /setExternalHighlights/)
   assert.match(apiDts, /OmegaEditExternalHighlightKind/)
@@ -487,7 +506,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteHostJs, /webview\.css/)
   assert.match(svelteHostJs, /vscode\.l10n\.t/)
   assert.match(svelteHostJs, /escapeHtmlText/)
-  assert.match(svelteHostJs, /Loading OmegaEdit Hex Editor/)
+  assert.match(svelteHostJs, /Loading OmegaEdit Data Editor/)
   assert.match(viteConfigSource, /cssCodeSplit:\s*false/)
   assert.doesNotMatch(svelteHostJs, /Svelte Preview/)
   assert.doesNotMatch(svelteBundleJs, /OmegaEdit Svelte Preview/)
@@ -1086,6 +1105,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /setExternalHighlights/)
   assert.match(extensionJs, /clearExternalHighlights/)
   assert.match(extensionJs, /createOmegaEditExtensionApi/)
+  assert.match(extensionJs, /OMEGA_EDIT_EXTENSION_ID/)
+  assert.match(extensionJs, /OMEGA_EDIT_EXTENSION_API_VERSION/)
+  assert.match(extensionJs, /extensionId/)
   assert.match(extensionJs, /onDidChangeEditorState/)
   assert.match(extensionJs, /revealOffset/)
   assert.match(extensionJs, /OmegaEdit requires a non-negative integer offset/)

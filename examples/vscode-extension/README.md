@@ -1,8 +1,8 @@
-# Ωedit™ Hex Editor - Reference VS Code Extension
+# Ωedit™ Data Editor - VS Code Extension
 
-A standalone reference VS Code extension that demonstrates how to use [Ωedit™](https://github.com/ctc-oss/omega-edit) as a fast, usable data/hex editor. It is still intentionally smaller than a marketplace-grade product, but it now covers the core editing, navigation, save, replay, and testing paths needed to evaluate a serious integration.
+A standalone VS Code extension that uses [Ωedit™](https://github.com/ctc-oss/omega-edit) as a fast, usable data/hex editor. It covers the core editing, navigation, save, replay, and integration API paths needed for byte-level parser and debugger integrations.
 
-![Ωedit™ Hex Editor](./images/omega-hex.png)
+![Ωedit™ Data Editor](./images/omega-hex.png)
 
 ## What This Demonstrates
 
@@ -47,7 +47,7 @@ The example now leans on higher-level editor-facing helpers from `@omega-edit/cl
 
 The current VS Code floor is `1.110` because that is the oldest version exercised in CI and it matches the `@types/vscode` version used to compile the example. If the support range is widened later, the CI matrix should be widened with it.
 
-This reference extension intentionally depends on the in-repo `@omega-edit/client` package through a local `file:` dependency. That keeps the example and CI aligned with the current Ωedit™ 2.x client implementation in this checkout instead of a separately published npm version.
+This extension intentionally depends on the in-repo `@omega-edit/client` package through a local `file:` dependency. That keeps the VS Code package and CI aligned with the current Ωedit™ 2.x client implementation in this checkout instead of a separately published npm version.
 
 If you rebuild `packages/client` while iterating on the extension, run `npm install` in `examples/vscode-extension` again so the local installed `file:` dependency picks up the refreshed `dist/` artifacts.
 
@@ -63,8 +63,8 @@ Then open this folder in VS Code and press `F5`. A new Extension Development Hos
 
 In the new window:
 
-- Run `OmegaEdit: Open in Hex Editor` from the Command Palette to pick any file directly
-- Or right-click a file in the Explorer and choose `OmegaEdit: Open in Hex Editor`
+- Run `OmegaEdit: Open in Data Editor` from the Command Palette to pick any file directly
+- Or right-click a file in the Explorer and choose `OmegaEdit: Open in Data Editor`
 
 ## What Happens Under The Hood
 
@@ -139,7 +139,7 @@ Build a local `.vsix` package with:
 npm run package:vsix
 ```
 
-That writes `omega-edit-hex-editor.vsix` in this folder after running the normal `vscode:prepublish` compile step.
+That writes `omega-edit-data-editor.vsix` in this folder after running the normal `vscode:prepublish` compile step.
 
 The repository's tagged release workflow also builds this extension and uploads the packaged `.vsix` to the GitHub release assets alongside the other release artifacts.
 
@@ -192,7 +192,7 @@ Subscription rule:
 
 ## Extending This Example
 
-This reference implementation is intentionally compact. A few natural next steps are:
+This implementation is intentionally compact. A few natural next steps are:
 
 - Add multiple coordinated viewports or overview panels
 - Add export actions for the analysis pane's profile and structure summaries
@@ -209,7 +209,7 @@ The extension uses the Svelte/Vite webview as the editor UI. To try it from an
 Extension Development Host:
 
 1. Run `npm run compile`.
-2. Open a local file with `OmegaEdit: Open in Hex Editor`.
+2. Open a local file with `OmegaEdit: Open in Data Editor`.
 
 The Svelte UI supports local byte selection, keyboard and wheel navigation,
 host-backed search navigation, match highlighting on both the byte and text
@@ -242,13 +242,29 @@ parsers can map their own concepts into the shared editor.
 TypeScript extensions can also consume the typed API returned from activation.
 The package declaration entrypoint is `out/api.d.ts`.
 
+### Extension Dependency Contract
+
+Downstream VS Code extensions should depend on the stable extension id
+`ctc-oss.omega-edit-data-editor` and then activate the typed API. The API's
+`version` property is the activation contract version, not the package version.
+
+```json
+{
+  "extensionDependencies": ["ctc-oss.omega-edit-data-editor"]
+}
+```
+
 ```ts
-import type { OmegaEditExtensionApi } from 'omega-edit-hex-editor'
+import type { OmegaEditExtensionApi } from 'omega-edit-data-editor'
 
 const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
-  'omega-edit-example.omega-edit-hex-editor'
+  'ctc-oss.omega-edit-data-editor'
 )
 const omegaEdit = await extension?.activate()
+
+if (omegaEdit?.version !== 1) {
+  throw new Error('Unsupported OmegaEdit Data Editor API version')
+}
 
 await omegaEdit?.open(document.uri, { offset: 128 })
 await omegaEdit?.setExternalHighlights({

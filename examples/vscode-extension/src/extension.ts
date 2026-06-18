@@ -25,6 +25,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import {
+  OMEGA_EDIT_EXTENSION_ID,
   OMEGA_EDIT_EXTENSION_API_VERSION,
   type OmegaEditExtensionApi,
   type OmegaEditExternalHighlightRequest,
@@ -125,7 +126,7 @@ function requireApiFileUri(value: unknown): vscode.Uri {
   const uri = parseApiFileUri(value)
   if (!uri) {
     throw new Error(
-      vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+      vscode.l10n.t('OmegaEdit Data Editor can only open local files')
     )
   }
   return uri
@@ -461,6 +462,7 @@ function createOmegaEditExtensionApi(
   provider: HexEditorProvider
 ): OmegaEditExtensionApi {
   return {
+    extensionId: OMEGA_EDIT_EXTENSION_ID,
     version: OMEGA_EDIT_EXTENSION_API_VERSION,
     onDidChangeEditorState: provider.onDidChangeEditorState,
     async open(uri: vscode.Uri, options: OmegaEditOpenOptions = {}) {
@@ -605,9 +607,9 @@ export async function activate(
               canSelectMany: false,
               canSelectFiles: true,
               canSelectFolders: false,
-              openLabel: vscode.l10n.t('Open in Ωedit™ Hex Editor'),
+              openLabel: vscode.l10n.t('Open in Ωedit™ Data Editor'),
               title: vscode.l10n.t(
-                'Select a file to open in Ωedit™ Hex Editor'
+                'Select a file to open in Ωedit™ Data Editor'
               ),
             })
           )?.[0]
@@ -619,7 +621,7 @@ export async function activate(
 
         if (!isFileUri(target)) {
           void vscode.window.showWarningMessage(
-            vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+            vscode.l10n.t('OmegaEdit Data Editor can only open local files')
           )
           return
         }

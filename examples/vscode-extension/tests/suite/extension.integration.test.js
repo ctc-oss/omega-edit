@@ -6,6 +6,10 @@ const vscode = require('vscode')
 const { getComputedFileSize, getSegment } = require('@omega-edit/client')
 
 const packageJson = require('../../package.json')
+const {
+  OMEGA_EDIT_EXTENSION_API_VERSION,
+  OMEGA_EDIT_EXTENSION_ID,
+} = require('../../out/api.js')
 const { getHexEditorProviderForTesting } = require('../../out/extension.js')
 const { HexEditorProvider } = require('../../out/hexEditorProvider.js')
 const {
@@ -39,13 +43,20 @@ suite('OmegaEdit VS Code extension', () => {
 
     testPort = getConfiguredTestPort()
 
-    const extensionId = `${packageJson.publisher}.${packageJson.name}`
-    const extension = vscode.extensions.getExtension(extensionId)
+    assert.equal(
+      `${packageJson.publisher}.${packageJson.name}`,
+      OMEGA_EDIT_EXTENSION_ID
+    )
+    const extension = vscode.extensions.getExtension(OMEGA_EDIT_EXTENSION_ID)
 
-    assert.ok(extension, `Expected extension ${extensionId} to be present`)
+    assert.ok(
+      extension,
+      `Expected extension ${OMEGA_EDIT_EXTENSION_ID} to be present`
+    )
     extensionApi = await extension.activate()
     assert.equal(extension.isActive, true)
-    assert.equal(extensionApi.version, 1)
+    assert.equal(extensionApi.extensionId, OMEGA_EDIT_EXTENSION_ID)
+    assert.equal(extensionApi.version, OMEGA_EDIT_EXTENSION_API_VERSION)
     assert.equal(typeof extensionApi.open, 'function')
     assert.equal(typeof extensionApi.reveal, 'function')
     assert.equal(typeof extensionApi.getEditorState, 'function')

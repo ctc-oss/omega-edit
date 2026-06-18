@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /**
- * Î©editâ„¢ Hex Editor â€” Custom Editor Provider
+ * Î©editâ„¢ Data Editor - Custom Editor Provider
  *
  * This is the core integration point between VS Code's custom editor API and
  * the Î©editâ„¢ editing engine. It demonstrates:
@@ -688,7 +688,7 @@ function backupIdToFilePath(backupId: string | undefined): string | undefined {
 }
 
 /**
- * Represents a single file opened by the Hex Editor. VS Code tracks dirty
+ * Represents a single file opened by the Data Editor. VS Code tracks dirty
  * state and initiates saves through this object.
  */
 export class HexDocument implements vscode.CustomDocument {
@@ -916,7 +916,7 @@ export class HexEditorProvider
     const uri = document.uri
     if (uri.scheme !== 'file') {
       throw new Error(
-        vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+        vscode.l10n.t('OmegaEdit Data Editor can only open local files')
       )
     }
     const filePath = uri.fsPath
@@ -1063,7 +1063,7 @@ export class HexEditorProvider
     }
     if (destination.scheme !== 'file') {
       throw new Error(
-        vscode.l10n.t('OmegaEdit Hex Editor can only save to local files')
+        vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)

@@ -21,9 +21,9 @@ The intended ownership split is:
 
 ## Work Plan
 
-- [ ] Productize the extension identity and packaging surface so downstream
+- [x] Productize the extension identity and packaging surface so downstream
   extensions can depend on a stable extension id.
-- [ ] Treat the activation return value as a versioned API contract for parser
+- [x] Treat the activation return value as a versioned API contract for parser
   and debugger integrations.
 - [ ] Audit the current Apache Daffodil Data Editor integration points and map
   each behavior to an OmegaEdit API call or an identified API gap.
@@ -43,17 +43,21 @@ annotating data files.
 
 ```json
 {
-  "extensionDependencies": ["omega-edit-example.omega-edit-hex-editor"]
+  "extensionDependencies": ["ctc-oss.omega-edit-data-editor"]
 }
 ```
 
 ```ts
-import type { OmegaEditExtensionApi } from 'omega-edit-hex-editor'
+import type { OmegaEditExtensionApi } from 'omega-edit-data-editor'
 
 const extension = vscode.extensions.getExtension<OmegaEditExtensionApi>(
-  'omega-edit-example.omega-edit-hex-editor'
+  'ctc-oss.omega-edit-data-editor'
 )
 const omegaEdit = await extension?.activate()
+
+if (omegaEdit?.version !== 1) {
+  throw new Error('Unsupported OmegaEdit Data Editor API version')
+}
 
 await omegaEdit?.open(document.uri, { offset: parserOffset })
 await omegaEdit?.setExternalHighlights({
@@ -72,14 +76,8 @@ await omegaEdit?.setExternalHighlights({
 })
 ```
 
-The extension id above is intentionally the current reference id. One outcome of
-this work is deciding and documenting the production id Daffodil should depend
-on.
-
 ## Open Questions
 
-- What production publisher/name should replace the current
-  `omega-edit-example.omega-edit-hex-editor` identity?
 - Which Daffodil Data Editor features must be preserved before the embedded
   editor can be removed?
 - Does Daffodil need editor-originated selection/cursor events beyond the
