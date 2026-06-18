@@ -191,13 +191,16 @@
       : strings.search.invalidSearch
     : searchMode === 'large'
       ? searchCurrentOffset >= 0
-        ? strings.search.largeMatchSummary(searchWindowLimit, searchCurrentOffset)
+        ? strings.search.largeMatchSummary(
+            searchWindowLimit,
+            formatSearchOffset(searchCurrentOffset)
+          )
         : strings.search.noMatches
       : searchMatches.length > 0 && searchMatchIndex >= 0
         ? strings.search.boundedMatchSummary(
             searchMatchIndex,
             searchMatches.length,
-            searchMatches[searchMatchIndex]
+            formatSearchOffset(searchMatches[searchMatchIndex])
           )
         : searchMessage
   )
@@ -1092,6 +1095,12 @@
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
     offsetRadix = radix
+  }
+
+  function formatSearchOffset(offset: number): string {
+    return offsetRadix === 'dec'
+      ? offset.toLocaleString()
+      : `0x${offset.toString(16).toUpperCase()}`
   }
 
   function requestTransformPlugins(): void {

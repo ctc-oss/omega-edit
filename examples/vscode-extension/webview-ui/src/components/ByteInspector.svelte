@@ -59,12 +59,15 @@
   const selectionLength = $derived(
     hasSelection ? selectionEnd - selectionStart + 1 : 0
   )
-  const endianLabel = $derived(
-    littleEndian ? strings.inspector.littleEndian : strings.inspector.bigEndian
-  )
   const toggleLabel = $derived(
     expanded ? strings.inspector.hide : strings.inspector.show
   )
+
+  function setEndian(useLittleEndian: boolean): void {
+    if (littleEndian !== useLittleEndian) {
+      onToggleEndian()
+    }
+  }
 
   function formatOffset(offset: number): string {
     return offsetRadix === 'dec'
@@ -551,16 +554,41 @@
         <strong>{strings.inspector.noSelection}</strong>
       {/if}
     </div>
+
+    {#if expanded}
+      <div class="inspector-byte-order">
+        <span class="inspector-byte-order-label">
+          {strings.inspector.byteOrder}
+        </span>
+        <div
+          class="segmented inspector-byte-order-toggle"
+          role="group"
+          aria-label={strings.inspector.byteOrder}
+        >
+          <button
+            type="button"
+            class:active={littleEndian}
+            aria-pressed={littleEndian}
+            onclick={() => setEndian(true)}
+          >
+            {strings.inspector.littleEndian}
+          </button>
+          <button
+            type="button"
+            class:active={!littleEndian}
+            aria-pressed={!littleEndian}
+            onclick={() => setEndian(false)}
+          >
+            {strings.inspector.bigEndian}
+          </button>
+        </div>
+      </div>
+    {/if}
   </div>
 
   {#if expanded}
-    <div class="inspector-actions">
-      <button type="button" class="secondary" onclick={onToggleEndian}>
-        {endianLabel}
-      </button>
-      <span class="inspector-feedback" aria-live="polite">
-        {editError || clipboardMessage}
-      </span>
+    <div class="inspector-feedback" aria-live="polite">
+      {editError || clipboardMessage}
     </div>
 
     <dl class="inspector-values">

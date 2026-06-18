@@ -223,10 +223,11 @@ lightweight byte inspector with LE/BE contextual value editing for non-float
 values including UTF-8 and UTF-16 when valid. Native VS Code status-bar items
 show the active pane, current offset/progress, transform count, dirty state, and
 color-coded server health with a disconnected icon when the server is
-unavailable. Live server metrics remain visible under Analysis > Structure >
-Server so the status-bar hover can stay stable. The inspector is collapsible,
-inspector values highlight their participating bytes in both grid panes, offsets
-can be shown in hex or decimal, and the Analysis side pane supports reorderable
+unavailable. The Server status-bar hover groups stable health, current
+instance, and host/build metadata, while live server metrics remain in Analysis
+> Structure > Server. The inspector is collapsible, inspector values highlight
+their participating bytes in both grid panes, offsets can be shown in hex or
+decimal, and the Analysis side pane supports reorderable and collapsible
 sections. The webview derives visible rows from the editor pane height, clamps
 virtual scrolling at file boundaries, and keeps UI strings in an i18n string
 table.

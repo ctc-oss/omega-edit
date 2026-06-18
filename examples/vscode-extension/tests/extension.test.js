@@ -434,7 +434,16 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(providerJs, /Ωedit™ Server/)
   assert.match(providerJs, /formatServerHealthLatencyBand/)
   assert.match(providerJs, /serverTooltip\.value/)
+  assert.match(providerJs, /appendServerHealthTooltipSection/)
+  assert.match(providerJs, /Live Status/)
+  assert.match(providerJs, /Current Instance/)
+  assert.match(providerJs, /Host and Build/)
+  assert.match(providerJs, /Logical CPUs/)
   assert.match(providerJs, /volatileLabels/)
+  assert.match(providerJs, /\[pidLabel\]/)
+  assert.doesNotMatch(providerJs, /latencyMetric/)
+  assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('CPU'\)/)
+  assert.doesNotMatch(providerJs, /vscode\.l10n\.t\('Processors'\)/)
   assert.match(providerJs, /serverHealthColorId/)
   assert.match(providerJs, /charts\.green/)
   assert.match(providerJs, /charts\.yellow/)
@@ -519,6 +528,8 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.byte\.selected/)
   assert.match(svelteBundleCss, /\.byte-inspector-panel/)
   assert.match(svelteBundleCss, /\.inspector-toggle/)
+  assert.match(svelteBundleCss, /\.inspector-byte-order/)
+  assert.match(svelteBundleCss, /\.inspector-byte-order-toggle/)
   assert.match(svelteBundleCss, /\.inspector-edit-row/)
   assert.match(svelteBundleCss, /\.inspector-value-button/)
   assert.match(svelteBundleCss, /\.editor-main/)
@@ -529,6 +540,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.offset-jump/)
   assert.match(svelteBundleCss, /\.offset-jump-input/)
   assert.match(svelteBundleCss, /\.offset-jump-status/)
+  assert.match(svelteBundleCss, /--segmented-button-width/)
+  assert.match(
+    svelteBundleCss,
+    /inline-size:\s*var\(--segmented-button-width\)/
+  )
   assert.match(svelteBundleCss, /\.profiler-panel/)
   assert.match(svelteBundleCss, /\.profiler-panel\.collapsed/)
   assert.match(svelteBundleCss, /\.profiler-collapsed-label/)
@@ -684,6 +700,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /function toggleInspectorExpanded/)
   assert.match(svelteAppSource, /function setOffsetRadix/)
   assert.match(svelteAppSource, /offsetRadix = \$state<'hex' \| 'dec'>/)
+  assert.match(svelteAppSource, /function formatSearchOffset/)
+  assert.match(
+    svelteAppSource,
+    /strings\.search\.largeMatchSummary\(\s*searchWindowLimit,\s*formatSearchOffset\(searchCurrentOffset\)/
+  )
+  assert.match(
+    svelteAppSource,
+    /strings\.search\.boundedMatchSummary\([\s\S]*formatSearchOffset\(searchMatches\[searchMatchIndex\]\)/
+  )
   assert.match(
     svelteAppSource,
     /inspectorBytes = \$derived\(visibleBytesAt\([\s\S]*viewportData[\s\S]*viewportOffset[\s\S]*fileSize/
@@ -788,7 +813,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /strings\.grid\.notPrintable/)
   assert.match(previewGridSource, /offsetRadix/)
   assert.match(previewGridSource, /function formatColumnOffset/)
-  assert.match(previewGridSource, /function formatHexOffset/)
+  assert.match(previewGridSource, /strings\.grid\.hexByteTitle/)
+  assert.match(previewGridSource, /strings\.grid\.textByteTitle/)
+  assert.doesNotMatch(previewGridSource, /function formatHexOffset/)
   assert.match(previewGridSource, /inspectorStart/)
   assert.match(previewGridSource, /class:inspectorRange/)
   assert.match(previewGridSource, /externalHighlightByOffset = \$derived\.by/)
@@ -828,8 +855,18 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(previewGridSource, /class="text-byte"/)
   assert.match(previewGridSource, /formatAscii\(byte\)/)
   assert.match(i18nSource, /byteHoverTitle/)
-  assert.match(i18nSource, /Hex offset/)
-  assert.match(i18nSource, /Decimal offset/)
+  assert.match(i18nSource, /HEX Byte/)
+  assert.match(
+    i18nSource,
+    /largeMatchSummary: \(limit: number, offset: string\)/
+  )
+  assert.match(
+    i18nSource,
+    /boundedMatchSummary: \(index: number, total: number, offset: string\)/
+  )
+  assert.doesNotMatch(i18nSource, /matches @ 0x/)
+  assert.doesNotMatch(i18nSource, /Hex offset/)
+  assert.doesNotMatch(i18nSource, /Decimal offset/)
   assert.match(i18nSource, /externalHighlight/)
   assert.match(i18nSource, /text: 'TEXT'/)
   assert.match(toolbarSource, /strings\.toolbar\.offsetRadix/)
@@ -920,6 +957,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(searchPanelSource, />Search Next</)
   assert.doesNotMatch(searchPanelSource, />Replace All</)
   assert.match(byteInspectorSource, /strings\.inspector\.label/)
+  assert.match(byteInspectorSource, /strings\.inspector\.byteOrder/)
   assert.match(byteInspectorSource, /strings\.inspector\.littleEndian/)
   assert.match(byteInspectorSource, /strings\.inspector\.bigEndian/)
   assert.match(byteInspectorSource, /strings\.inspector\.utf8/)
@@ -939,6 +977,12 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(byteInspectorSource, /fieldByteLength/)
   assert.match(byteInspectorSource, /expanded/)
   assert.match(byteInspectorSource, /onToggleExpanded/)
+  assert.match(
+    byteInspectorSource,
+    /class="segmented inspector-byte-order-toggle"/
+  )
+  assert.match(byteInspectorSource, /aria-pressed=\{littleEndian\}/)
+  assert.match(byteInspectorSource, /aria-pressed=\{!littleEndian\}/)
   assert.match(byteInspectorSource, /float32/)
   assert.match(byteInspectorSource, /editable: false/)
   assert.match(byteInspectorSource, /inspector-value-button/)
@@ -957,7 +1001,23 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /sectionId === 'server'/)
   assert.match(profilerPanelSource, /buildServerRows/)
   assert.match(profilerPanelSource, /serverRows/)
+  assert.match(profilerPanelSource, /SERVER_CURRENT_INSTANCE_LABELS/)
+  assert.match(profilerPanelSource, /SERVER_HOST_BUILD_LABELS/)
+  assert.match(profilerPanelSource, /strings\.profiler\.liveStatus/)
+  assert.match(profilerPanelSource, /strings\.profiler\.currentInstance/)
+  assert.match(profilerPanelSource, /strings\.profiler\.hostAndBuild/)
+  assert.match(profilerPanelSource, /strings\.profiler\.details/)
+  assert.match(profilerPanelSource, /row\.kind === 'heading'/)
+  assert.match(profilerPanelSource, /server-health-section/)
+  assert.doesNotMatch(profilerPanelSource, /serverRows\.slice\(1\)/)
   assert.match(profilerPanelSource, /analysis-collapse-button/)
+  assert.match(profilerPanelSource, /sectionCollapseLabel/)
+  assert.match(profilerPanelSource, /sectionCollapseGlyph/)
+  assert.equal(
+    (profilerPanelSource.match(/class="analysis-collapse-button"/g) ?? [])
+      .length,
+    8
+  )
   assert.match(profilerPanelSource, /server-health-value/)
   assert.match(profilerPanelSource, /toggleSectionCollapsed/)
   assert.match(profilerPanelSource, /data-analysis-section=\{sectionId\}/)
@@ -973,6 +1033,10 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(profilerPanelSource, /function analyzeBytes/)
   assert.match(profilerPanelSource, /function frequencyBarHeight/)
   assert.match(profilerPanelSource, /function barWidth/)
+  assert.match(
+    profilerPanelSource,
+    /sectionId === 'frequency'[\s\S]*class="analysis-mini-button"[\s\S]*class="analysis-collapse-button"[\s\S]*class="analysis-drag-handle"/
+  )
   assert.match(profilerPanelSource, /frequency-bars/)
   assert.doesNotMatch(profilerPanelSource, /dynamicWidth/)
   assert.doesNotMatch(profilerPanelSource, /dynamicBarHeight/)
@@ -984,6 +1048,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /--omega-byte-class-printable/)
   assert.match(svelteBundleCss, /--omega-byte-class-control/)
   assert.match(svelteBundleCss, /--omega-byte-class-high-bit/)
+  assert.match(svelteBundleCss, /\.server-health-section/)
   assert.match(svelteBundleCss, /\.text-byte\.control/)
   assert.match(svelteBundleCss, /\.text-byte\.high-bit/)
   assert.match(

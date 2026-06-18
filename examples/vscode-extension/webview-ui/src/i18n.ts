@@ -117,10 +117,10 @@ export const strings = {
     noMatches: 'No matches',
     searchComplete: 'Search complete',
     noMatch: 'No match',
-    largeMatchSummary: (limit: number, offset: number) =>
-      `${limit.toLocaleString()}+ matches @ 0x${offset.toString(16).toUpperCase()}`,
-    boundedMatchSummary: (index: number, total: number, offset: number) =>
-      `${index + 1} / ${total} @ 0x${offset.toString(16).toUpperCase()}`,
+    largeMatchSummary: (limit: number, offset: string) =>
+      `${limit.toLocaleString()}+ matches @ ${offset}`,
+    boundedMatchSummary: (index: number, total: number, offset: string) =>
+      `${index + 1} / ${total} @ ${offset}`,
     replaceSummary: (count: number) =>
       count === 1
         ? 'Replaced 1 match'
@@ -141,11 +141,11 @@ export const strings = {
     highBitByte: 'High-bit byte',
     byteLabel: (hex: string, offset: string) => `Byte ${hex} at offset ${offset}`,
     textLabel: (text: string, offset: string) => `Text ${text} at offset ${offset}`,
+    hexByteTitle: (hex: string) => `HEX Byte '${hex}'`,
+    textByteTitle: 'TEXT Byte',
     byteHoverTitle: (
       pane: string,
       offset: string,
-      hexOffset: string,
-      decimalOffset: string,
       hex: string,
       decimal: string,
       binary: string,
@@ -153,7 +153,7 @@ export const strings = {
       byteClass: string,
       mode: string
     ) =>
-      `${pane} byte\nOffset: ${offset}\nHex offset: ${hexOffset}\nDecimal offset: ${decimalOffset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
+      `${pane}\nOffset: ${offset}\nValue: 0x${hex} / ${decimal} / ${binary}\nText: ${text}\nClass: ${byteClass}\nMode: ${mode}`,
     externalHighlight: (label: string, source?: string) =>
       source ? `External: ${label} (${source})` : `External: ${label}`,
   },
@@ -200,6 +200,7 @@ export const strings = {
     int64: 'int64',
     float32: 'float32',
     float64: 'float64',
+    byteOrder: 'Byte order',
     littleEndian: 'LE',
     bigEndian: 'BE',
     valueInput: (label: string) => `${label} value`,
@@ -255,6 +256,10 @@ export const strings = {
     history: 'History',
     timing: 'Timing',
     server: 'Server',
+    liveStatus: 'Live Status',
+    currentInstance: 'Current Instance',
+    hostAndBuild: 'Host and Build',
+    details: 'Details',
     status: 'Status',
     pending: 'Pending',
     ok: 'OK',

@@ -352,13 +352,88 @@ function formatServerHealthLatencyBand(
   }
 }
 
-function appendServerHealthTooltipLine(
-  tooltip: vscode.MarkdownString,
-  label: string,
+interface ServerHealthTooltipEntry {
+  label: string
   value: string
+}
+
+function normalizeServerHealthLabel(label: string): string {
+  return label.trim().toLocaleLowerCase()
+}
+
+function appendServerHealthTooltipSection(
+  tooltip: vscode.MarkdownString,
+  heading: string,
+  entries: ServerHealthTooltipEntry[]
 ): void {
-  tooltip.appendText(`${label}: ${value}`)
-  tooltip.appendMarkdown('\n\n')
+  const trimmedEntries = entries
+    .map(({ label, value }) => ({
+      label: label.trim(),
+      value: value.trim(),
+    }))
+    .filter(({ label, value }) => label && value)
+
+  if (trimmedEntries.length === 0) {
+    return
+  }
+
+  tooltip.appendMarkdown(`**${heading}**\n\n`)
+  for (const { label, value } of trimmedEntries) {
+    tooltip.appendMarkdown('- ')
+    tooltip.appendText(`${label}: ${value}`)
+    tooltip.appendMarkdown('\n')
+  }
+  tooltip.appendMarkdown('\n')
+}
+
+function getServerHealthMetricMap(
+  metrics: ServerHealthMessage['metrics']
+): Map<string, ServerHealthTooltipEntry> {
+  const metricByLabel = new Map<string, ServerHealthTooltipEntry>()
+  for (const metric of metrics) {
+    const label = metric.label.trim()
+    const value = metric.value.trim()
+    const key = normalizeServerHealthLabel(label)
+    if (!label || !value || metricByLabel.has(key)) {
+      continue
+    }
+    metricByLabel.set(key, { label, value })
+  }
+  return metricByLabel
+}
+
+function collectServerHealthTooltipMetrics(
+  metricByLabel: Map<string, ServerHealthTooltipEntry>,
+  labels: string[],
+  seenLabels: Set<string>
+): ServerHealthTooltipEntry[] {
+  const entries: ServerHealthTooltipEntry[] = []
+  for (const label of labels) {
+    const key = normalizeServerHealthLabel(label)
+    const metric = metricByLabel.get(key)
+    if (!metric || seenLabels.has(key)) {
+      continue
+    }
+    seenLabels.add(key)
+    entries.push(metric)
+  }
+  return entries
+}
+
+function collectRemainingServerHealthTooltipMetrics(
+  metricByLabel: Map<string, ServerHealthTooltipEntry>,
+  seenLabels: Set<string>,
+  excludedLabels = new Set<string>()
+): ServerHealthTooltipEntry[] {
+  const entries: ServerHealthTooltipEntry[] = []
+  for (const [key, metric] of metricByLabel) {
+    if (seenLabels.has(key) || excludedLabels.has(key)) {
+      continue
+    }
+    seenLabels.add(key)
+    entries.push(metric)
+  }
+  return entries
 }
 
 function buildServerHealthTooltip(
@@ -366,60 +441,97 @@ function buildServerHealthTooltip(
 ): vscode.MarkdownString {
   const statusLabel = vscode.l10n.t('Status')
   const latencyLabel = vscode.l10n.t('Latency')
+  const pidLabel = vscode.l10n.t('PID')
+  const sessionsLabel = vscode.l10n.t('Sessions')
+  const uptimeLabel = vscode.l10n.t('Uptime')
+  const loadAverageLabel = vscode.l10n.t('Load Avg')
+  const residentMemoryLabel = vscode.l10n.t('RSS')
+  const virtualMemoryLabel = vscode.l10n.t('Virtual')
+  const peakResidentMemoryLabel = vscode.l10n.t('Peak RSS')
+  const versionLabel = vscode.l10n.t('Version')
+  const clientLabel = vscode.l10n.t('Client')
+  const hostLabel = vscode.l10n.t('Host')
+  const runtimeLabel = vscode.l10n.t('Runtime')
+  const platformLabel = vscode.l10n.t('Platform')
+  const logicalCpusLabel = vscode.l10n.t('Logical CPUs')
+  const compilerLabel = vscode.l10n.t('Compiler')
+  const buildLabel = vscode.l10n.t('Build')
+  const cppStandardLabel = vscode.l10n.t('C++')
   const volatileLabels = new Set(
     [
       latencyLabel,
-      vscode.l10n.t('Sessions'),
-      vscode.l10n.t('Uptime'),
-      vscode.l10n.t('Load Avg'),
-      vscode.l10n.t('RSS'),
-      vscode.l10n.t('Virtual'),
-      vscode.l10n.t('Peak RSS'),
-    ].map((label) => label.toLocaleLowerCase())
+      sessionsLabel,
+      uptimeLabel,
+      loadAverageLabel,
+      residentMemoryLabel,
+      virtualMemoryLabel,
+      peakResidentMemoryLabel,
+    ].map(normalizeServerHealthLabel)
   )
   const tooltip = new vscode.MarkdownString()
   tooltip.supportThemeIcons = true
   tooltip.appendMarkdown(`**${vscode.l10n.t('Ωedit™ Server')}**\n\n`)
 
   if (!health) {
-    appendServerHealthTooltipLine(
-      tooltip,
-      statusLabel,
-      vscode.l10n.t('Pending')
-    )
-    appendServerHealthTooltipLine(
-      tooltip,
-      latencyLabel,
-      formatServerHealthLatencyBand('pending')
-    )
+    appendServerHealthTooltipSection(tooltip, vscode.l10n.t('Live Status'), [
+      { label: statusLabel, value: vscode.l10n.t('Pending') },
+      { label: latencyLabel, value: formatServerHealthLatencyBand('pending') },
+    ])
     return tooltip
   }
 
-  appendServerHealthTooltipLine(
+  const metricByLabel = getServerHealthMetricMap(health.metrics)
+  const seenLabels = new Set<string>()
+  const latencyKey = normalizeServerHealthLabel(latencyLabel)
+  const latencyBand = formatServerHealthLatencyBand(health.severity)
+  seenLabels.add(latencyKey)
+
+  appendServerHealthTooltipSection(tooltip, vscode.l10n.t('Live Status'), [
+    {
+      label: statusLabel,
+      value: formatServerHealthSeverity(health.severity),
+    },
+    {
+      label: latencyLabel,
+      value: latencyBand,
+    },
+  ])
+
+  appendServerHealthTooltipSection(
     tooltip,
-    statusLabel,
-    formatServerHealthSeverity(health.severity)
-  )
-  appendServerHealthTooltipLine(
-    tooltip,
-    latencyLabel,
-    formatServerHealthLatencyBand(health.severity)
+    vscode.l10n.t('Current Instance'),
+    collectServerHealthTooltipMetrics(metricByLabel, [pidLabel], seenLabels)
   )
 
-  const seenLabels = new Set([
-    statusLabel.toLocaleLowerCase(),
-    latencyLabel.toLocaleLowerCase(),
-  ])
-  for (const metric of health.metrics) {
-    const label = metric.label.trim()
-    const value = metric.value.trim()
-    const key = label.toLocaleLowerCase()
-    if (!label || !value || seenLabels.has(key) || volatileLabels.has(key)) {
-      continue
-    }
-    seenLabels.add(key)
-    appendServerHealthTooltipLine(tooltip, label, value)
-  }
+  appendServerHealthTooltipSection(
+    tooltip,
+    vscode.l10n.t('Host and Build'),
+    collectServerHealthTooltipMetrics(
+      metricByLabel,
+      [
+        hostLabel,
+        platformLabel,
+        logicalCpusLabel,
+        runtimeLabel,
+        versionLabel,
+        clientLabel,
+        compilerLabel,
+        buildLabel,
+        cppStandardLabel,
+      ],
+      seenLabels
+    )
+  )
+
+  appendServerHealthTooltipSection(
+    tooltip,
+    vscode.l10n.t('Details'),
+    collectRemainingServerHealthTooltipMetrics(
+      metricByLabel,
+      seenLabels,
+      volatileLabels
+    )
+  )
 
   return tooltip
 }
@@ -2019,6 +2131,14 @@ export class HexEditorProvider
         heartbeat,
         'serverPeakResidentMemoryBytes'
       )
+      const logicalCpuValue =
+        availableProcessors !== undefined &&
+        availableProcessors !== heartbeat.serverCpuCount
+          ? vscode.l10n.t('{available} available, {reported} heartbeat', {
+              available: availableProcessors,
+              reported: heartbeat.serverCpuCount,
+            })
+          : String(availableProcessors ?? heartbeat.serverCpuCount)
       const metrics = [
         { label: vscode.l10n.t('Version'), value: serverInfo.serverVersion },
         { label: vscode.l10n.t('Client'), value: getClientVersion() },
@@ -2046,10 +2166,8 @@ export class HexEditorProvider
           value: vscode.l10n.t('{seconds}s', { seconds: uptimeSeconds }),
         },
         {
-          label: vscode.l10n.t('CPU'),
-          value: vscode.l10n.t('{count} cores', {
-            count: heartbeat.serverCpuCount,
-          }),
+          label: vscode.l10n.t('Logical CPUs'),
+          value: logicalCpuValue,
         },
       ]
 
@@ -2057,13 +2175,6 @@ export class HexEditorProvider
         metrics.push({
           label: vscode.l10n.t('Load Avg'),
           value: heartbeat.serverCpuLoadAverage.toFixed(2),
-        })
-      }
-
-      if (availableProcessors !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('Processors'),
-          value: String(availableProcessors),
         })
       }
 

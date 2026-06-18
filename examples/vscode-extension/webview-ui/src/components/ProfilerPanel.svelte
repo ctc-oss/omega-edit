@@ -34,7 +34,31 @@
   interface MetricRow {
     label: string
     value: string
+    kind?: 'heading'
+    severity?: ServerHealthMessage['severity'] | 'pending'
   }
+
+  const SERVER_LIVE_STATUS_LABELS = ['Latency']
+  const SERVER_CURRENT_INSTANCE_LABELS = [
+    'PID',
+    'Sessions',
+    'Uptime',
+    'Load Avg',
+    'RSS',
+    'Virtual',
+    'Peak RSS',
+  ]
+  const SERVER_HOST_BUILD_LABELS = [
+    'Host',
+    'Platform',
+    'Logical CPUs',
+    'Runtime',
+    'Version',
+    'Client',
+    'Compiler',
+    'Build',
+    'C++',
+  ]
 
   interface BarRow {
     label: string
@@ -184,7 +208,6 @@
     { label: strings.profiler.canRedo, value: yesNo(canRedo) },
   ])
   const serverRows = $derived(buildServerRows())
-  const serverSeverity = $derived(serverHealth?.severity ?? 'pending')
   const profileLimitNote = $derived(
     dataProfile?.isCapped
       ? strings.profiler.profileCapped(
@@ -271,6 +294,17 @@
       ...collapsedSections,
       [sectionId]: !isSectionCollapsed(sectionId),
     }
+  }
+
+  function sectionCollapseLabel(sectionId: string): string {
+    const title = sectionTitle(sectionId)
+    return isSectionCollapsed(sectionId)
+      ? strings.profiler.expandSection(title)
+      : strings.profiler.collapseSection(title)
+  }
+
+  function sectionCollapseGlyph(sectionId: string): string {
+    return isSectionCollapsed(sectionId) ? '+' : '-'
   }
 
   function handleDragPointerDown(
@@ -834,23 +868,127 @@
     }
   }
 
+  function normalizeServerMetricLabel(label: string): string {
+    return label.trim().toLocaleLowerCase()
+  }
+
+  function mapServerMetrics(
+    metrics: ServerHealthMessage['metrics']
+  ): Map<string, MetricRow> {
+    const metricByLabel = new Map<string, MetricRow>()
+
+    for (const metric of metrics) {
+      const label = metric.label.trim()
+      const value = metric.value.trim()
+      const key = normalizeServerMetricLabel(label)
+      if (!label || !value || metricByLabel.has(key)) {
+        continue
+      }
+      metricByLabel.set(key, { label, value })
+    }
+
+    return metricByLabel
+  }
+
+  function collectServerMetrics(
+    metricByLabel: Map<string, MetricRow>,
+    labels: string[],
+    seenLabels: Set<string>
+  ): MetricRow[] {
+    const rows: MetricRow[] = []
+
+    for (const label of labels) {
+      const key = normalizeServerMetricLabel(label)
+      const row = metricByLabel.get(key)
+      if (!row || seenLabels.has(key)) {
+        continue
+      }
+      seenLabels.add(key)
+      rows.push(row)
+    }
+
+    return rows
+  }
+
+  function collectRemainingServerMetrics(
+    metricByLabel: Map<string, MetricRow>,
+    seenLabels: Set<string>
+  ): MetricRow[] {
+    const rows: MetricRow[] = []
+
+    for (const [key, row] of metricByLabel) {
+      if (seenLabels.has(key)) {
+        continue
+      }
+      seenLabels.add(key)
+      rows.push(row)
+    }
+
+    return rows
+  }
+
+  function appendServerMetricSection(
+    rows: MetricRow[],
+    label: string,
+    metrics: MetricRow[]
+  ): void {
+    if (metrics.length === 0) {
+      return
+    }
+
+    rows.push({ label, value: '', kind: 'heading' }, ...metrics)
+  }
+
   function buildServerRows(): MetricRow[] {
+    const rows: MetricRow[] = []
+
     if (!serverHealth) {
-      return [
+      appendServerMetricSection(rows, strings.profiler.liveStatus, [
         {
           label: strings.profiler.status,
           value: strings.profiler.pending,
+          severity: 'pending',
         },
-      ]
+      ])
+      return rows
     }
 
-    return [
+    const metricByLabel = mapServerMetrics(serverHealth.metrics)
+    const seenLabels = new Set<string>()
+
+    appendServerMetricSection(rows, strings.profiler.liveStatus, [
       {
         label: strings.profiler.status,
         value: formatServerSeverity(serverHealth.severity),
+        severity: serverHealth.severity,
       },
-      ...serverHealth.metrics,
-    ]
+      ...collectServerMetrics(
+        metricByLabel,
+        SERVER_LIVE_STATUS_LABELS,
+        seenLabels
+      ),
+    ])
+    appendServerMetricSection(
+      rows,
+      strings.profiler.currentInstance,
+      collectServerMetrics(
+        metricByLabel,
+        SERVER_CURRENT_INSTANCE_LABELS,
+        seenLabels
+      )
+    )
+    appendServerMetricSection(
+      rows,
+      strings.profiler.hostAndBuild,
+      collectServerMetrics(metricByLabel, SERVER_HOST_BUILD_LABELS, seenLabels)
+    )
+    appendServerMetricSection(
+      rows,
+      strings.profiler.details,
+      collectRemainingServerMetrics(metricByLabel, seenLabels)
+    )
+
+    return rows
   }
 
   function barWidth(percent: number): number {
@@ -958,6 +1096,16 @@
                   <div class="analysis-section-actions">
                     <button
                       type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
                       class="analysis-drag-handle"
                       class:dragging={isDraggingSection('profile', sectionId)}
                       data-analysis-drag="true"
@@ -973,12 +1121,14 @@
                     ></button>
                   </div>
                 </div>
-                <div class="analysis-metrics">
-                  {#each profileViewportRows as row}
-                    <span class="analysis-label">{row.label}</span>
-                    <span class="analysis-value">{row.value}</span>
-                  {/each}
-                </div>
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-metrics">
+                    {#each profileViewportRows as row}
+                      <span class="analysis-label">{row.label}</span>
+                      <span class="analysis-value">{row.value}</span>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {:else if sectionId === 'classes'}
               <div
@@ -991,60 +1141,14 @@
                   <div class="analysis-section-actions">
                     <button
                       type="button"
-                      class="analysis-drag-handle"
-                      class:dragging={isDraggingSection('profile', sectionId)}
-                      data-analysis-drag="true"
-                      aria-label={strings.profiler.moveSection(sectionTitle(sectionId))}
-                      title={strings.profiler.moveSectionTitle}
-                      onpointerdown={(event) =>
-                        handleDragPointerDown(event, 'profile', sectionId)}
-                      onpointermove={handleDragPointerMove}
-                      onpointerup={stopAnalysisDrag}
-                      onpointercancel={stopAnalysisDrag}
-                      onkeydown={(event) =>
-                        handleDragKeydown(event, 'profile', sectionId)}
-                    ></button>
-                  </div>
-                </div>
-                <div class="analysis-bars">
-                  {#if profileClassRows.length === 0}
-                    <div class="analysis-note">{strings.profiler.noBytes}</div>
-                  {:else}
-                    {#each profileClassRows as row}
-                      <div class="analysis-bar-row">
-                        <span class="analysis-label">{row.label}</span>
-                        <span class="analysis-bar-track">
-                          <svg
-                            class="analysis-bar-svg"
-                            viewBox="0 0 100 1"
-                            preserveAspectRatio="none"
-                            aria-hidden="true"
-                          >
-                            <rect
-                              class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                              x="0"
-                              y="0"
-                              width={barWidth(row.percent)}
-                              height="1"
-                              rx="0.5"
-                            ></rect>
-                          </svg>
-                        </span>
-                        <span class="analysis-value">{row.value}</span>
-                      </div>
-                    {/each}
-                  {/if}
-                </div>
-              </div>
-            {:else if sectionId === 'data'}
-              <div
-                class="analysis-section"
-                class:dragging={isDraggingSection('profile', sectionId)}
-                data-analysis-section={sectionId}
-              >
-                <div class="analysis-section-heading">
-                  <div class="analysis-section-title">{sectionTitle(sectionId)}</div>
-                  <div class="analysis-section-actions">
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
                     <button
                       type="button"
                       class="analysis-drag-handle"
@@ -1062,12 +1166,82 @@
                     ></button>
                   </div>
                 </div>
-                <div class="analysis-metrics">
-                  {#each profileDataRows as row}
-                    <span class="analysis-label">{row.label}</span>
-                    <span class="analysis-value">{row.value}</span>
-                  {/each}
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-bars">
+                    {#if profileClassRows.length === 0}
+                      <div class="analysis-note">{strings.profiler.noBytes}</div>
+                    {:else}
+                      {#each profileClassRows as row}
+                        <div class="analysis-bar-row">
+                          <span class="analysis-label">{row.label}</span>
+                          <span class="analysis-bar-track">
+                            <svg
+                              class="analysis-bar-svg"
+                              viewBox="0 0 100 1"
+                              preserveAspectRatio="none"
+                              aria-hidden="true"
+                            >
+                              <rect
+                                class={`analysis-bar-fill ${row.colorClass ?? ''}`}
+                                x="0"
+                                y="0"
+                                width={barWidth(row.percent)}
+                                height="1"
+                                rx="0.5"
+                              ></rect>
+                            </svg>
+                          </span>
+                          <span class="analysis-value">{row.value}</span>
+                        </div>
+                      {/each}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            {:else if sectionId === 'data'}
+              <div
+                class="analysis-section"
+                class:dragging={isDraggingSection('profile', sectionId)}
+                data-analysis-section={sectionId}
+              >
+                <div class="analysis-section-heading">
+                  <div class="analysis-section-title">{sectionTitle(sectionId)}</div>
+                  <div class="analysis-section-actions">
+                    <button
+                      type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-drag-handle"
+                      class:dragging={isDraggingSection('profile', sectionId)}
+                      data-analysis-drag="true"
+                      aria-label={strings.profiler.moveSection(sectionTitle(sectionId))}
+                      title={strings.profiler.moveSectionTitle}
+                      onpointerdown={(event) =>
+                        handleDragPointerDown(event, 'profile', sectionId)}
+                      onpointermove={handleDragPointerMove}
+                      onpointerup={stopAnalysisDrag}
+                      onpointercancel={stopAnalysisDrag}
+                      onkeydown={(event) =>
+                        handleDragKeydown(event, 'profile', sectionId)}
+                    ></button>
+                  </div>
                 </div>
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-metrics">
+                    {#each profileDataRows as row}
+                      <span class="analysis-label">{row.label}</span>
+                      <span class="analysis-value">{row.value}</span>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {:else if sectionId === 'frequency'}
               <div
@@ -1096,6 +1270,16 @@
                     </button>
                     <button
                       type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
                       class="analysis-drag-handle"
                       class:dragging={isDraggingSection('profile', sectionId)}
                       data-analysis-drag="true"
@@ -1111,82 +1295,84 @@
                     ></button>
                   </div>
                 </div>
-                <div
-                  class="frequency-chart"
-                  role="img"
-                  aria-label={strings.profiler.frequency}
-                  onpointermove={updateFrequencyTooltip}
-                  onpointerleave={() => (hoveredFrequencyByte = undefined)}
-                >
-                  {#if byteTotal <= 0}
-                    <div class="analysis-note">
-                      {strings.profiler.noProfileData}
-                    </div>
-                  {:else}
-                    <svg
-                      class="frequency-bars"
-                      viewBox="0 0 256 100"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      {#each Array.from({ length: 256 }, (_, byte) => byte) as byte}
-                        {@const height = frequencyBarHeight(byteCounts[byte] ?? 0)}
-                        <rect
-                          class={`frequency-bar${frequencyBarClass(byte, byteCounts[byte] ?? 0)}`}
-                          class:hovered={hoveredFrequencyByte === byte}
-                          x={byte}
-                          y={100 - height}
-                          width="1"
-                          height={height}
-                        ></rect>
+                {#if !isSectionCollapsed(sectionId)}
+                  <div
+                    class="frequency-chart"
+                    role="img"
+                    aria-label={strings.profiler.frequency}
+                    onpointermove={updateFrequencyTooltip}
+                    onpointerleave={() => (hoveredFrequencyByte = undefined)}
+                  >
+                    {#if byteTotal <= 0}
+                      <div class="analysis-note">
+                        {strings.profiler.noProfileData}
+                      </div>
+                    {:else}
+                      <svg
+                        class="frequency-bars"
+                        viewBox="0 0 256 100"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                      >
+                        {#each Array.from({ length: 256 }, (_, byte) => byte) as byte}
+                          {@const height = frequencyBarHeight(byteCounts[byte] ?? 0)}
+                          <rect
+                            class={`frequency-bar${frequencyBarClass(byte, byteCounts[byte] ?? 0)}`}
+                            class:hovered={hoveredFrequencyByte === byte}
+                            x={byte}
+                            y={100 - height}
+                            width="1"
+                            height={height}
+                          ></rect>
+                        {/each}
+                      </svg>
+                    {/if}
+                    {#if hoveredFrequency}
+                      <div
+                        class={`frequency-tooltip active ${tooltipHorizontal} ${tooltipVertical}`}
+                      >
+                        <div>{formatByteLabel(hoveredFrequency.byte)}</div>
+                        <div>
+                          {strings.profiler.count}
+                          {hoveredFrequency.count.toLocaleString()} |
+                          {hoveredFrequency.percent}
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
+                  {#if profileLimitNote}
+                    <div class="analysis-note">{profileLimitNote}</div>
+                  {/if}
+                  <div class="analysis-bars">
+                    {#if profileByteRows.length === 0}
+                      <div class="analysis-note">{strings.profiler.noBytes}</div>
+                    {:else}
+                      {#each profileByteRows as row}
+                        <div class="analysis-bar-row">
+                          <span class="analysis-label">{row.label}</span>
+                          <span class="analysis-bar-track">
+                            <svg
+                              class="analysis-bar-svg"
+                              viewBox="0 0 100 1"
+                              preserveAspectRatio="none"
+                              aria-hidden="true"
+                            >
+                              <rect
+                                class={`analysis-bar-fill ${row.colorClass ?? ''}`}
+                                x="0"
+                                y="0"
+                                width={barWidth(row.percent)}
+                                height="1"
+                                rx="0.5"
+                              ></rect>
+                            </svg>
+                          </span>
+                          <span class="analysis-value">{row.value}</span>
+                        </div>
                       {/each}
-                    </svg>
-                  {/if}
-                  {#if hoveredFrequency}
-                    <div
-                      class={`frequency-tooltip active ${tooltipHorizontal} ${tooltipVertical}`}
-                    >
-                      <div>{formatByteLabel(hoveredFrequency.byte)}</div>
-                      <div>
-                        {strings.profiler.count}
-                        {hoveredFrequency.count.toLocaleString()} |
-                        {hoveredFrequency.percent}
-                      </div>
-                    </div>
-                  {/if}
-                </div>
-                {#if profileLimitNote}
-                  <div class="analysis-note">{profileLimitNote}</div>
+                    {/if}
+                  </div>
                 {/if}
-                <div class="analysis-bars">
-                  {#if profileByteRows.length === 0}
-                    <div class="analysis-note">{strings.profiler.noBytes}</div>
-                  {:else}
-                    {#each profileByteRows as row}
-                      <div class="analysis-bar-row">
-                        <span class="analysis-label">{row.label}</span>
-                        <span class="analysis-bar-track">
-                          <svg
-                            class="analysis-bar-svg"
-                            viewBox="0 0 100 1"
-                            preserveAspectRatio="none"
-                            aria-hidden="true"
-                          >
-                            <rect
-                              class={`analysis-bar-fill ${row.colorClass ?? ''}`}
-                              x="0"
-                              y="0"
-                              width={barWidth(row.percent)}
-                              height="1"
-                              rx="0.5"
-                            ></rect>
-                          </svg>
-                        </span>
-                        <span class="analysis-value">{row.value}</span>
-                      </div>
-                    {/each}
-                  {/if}
-                </div>
               </div>
             {/if}
           {/each}
@@ -1205,6 +1391,16 @@
                   <div class="analysis-section-actions">
                     <button
                       type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
                       class="analysis-drag-handle"
                       class:dragging={isDraggingSection('structure', sectionId)}
                       data-analysis-drag="true"
@@ -1220,12 +1416,14 @@
                     ></button>
                   </div>
                 </div>
-                <div class="analysis-metrics">
-                  {#each structureRows as row}
-                    <span class="analysis-label">{row.label}</span>
-                    <span class="analysis-value">{row.value}</span>
-                  {/each}
-                </div>
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-metrics">
+                    {#each structureRows as row}
+                      <span class="analysis-label">{row.label}</span>
+                      <span class="analysis-value">{row.value}</span>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {:else if sectionId === 'history'}
               <div
@@ -1238,37 +1436,14 @@
                   <div class="analysis-section-actions">
                     <button
                       type="button"
-                      class="analysis-drag-handle"
-                      class:dragging={isDraggingSection('structure', sectionId)}
-                      data-analysis-drag="true"
-                      aria-label={strings.profiler.moveSection(sectionTitle(sectionId))}
-                      title={strings.profiler.moveSectionTitle}
-                      onpointerdown={(event) =>
-                        handleDragPointerDown(event, 'structure', sectionId)}
-                      onpointermove={handleDragPointerMove}
-                      onpointerup={stopAnalysisDrag}
-                      onpointercancel={stopAnalysisDrag}
-                      onkeydown={(event) =>
-                        handleDragKeydown(event, 'structure', sectionId)}
-                    ></button>
-                  </div>
-                </div>
-                <div class="analysis-metrics">
-                  {#each historyRows as row}
-                    <span class="analysis-label">{row.label}</span>
-                    <span class="analysis-value">{row.value}</span>
-                  {/each}
-                </div>
-              </div>
-            {:else if sectionId === 'timing'}
-              <div
-                class="analysis-section"
-                class:dragging={isDraggingSection('structure', sectionId)}
-                data-analysis-section={sectionId}
-              >
-                <div class="analysis-section-heading">
-                  <div class="analysis-section-title">{sectionTitle(sectionId)}</div>
-                  <div class="analysis-section-actions">
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
                     <button
                       type="button"
                       class="analysis-drag-handle"
@@ -1286,12 +1461,59 @@
                     ></button>
                   </div>
                 </div>
-                <div class="analysis-metrics">
-                  {#each profileTimingRows as row}
-                    <span class="analysis-label">{row.label}</span>
-                    <span class="analysis-value">{row.value}</span>
-                  {/each}
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-metrics">
+                    {#each historyRows as row}
+                      <span class="analysis-label">{row.label}</span>
+                      <span class="analysis-value">{row.value}</span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+            {:else if sectionId === 'timing'}
+              <div
+                class="analysis-section"
+                class:dragging={isDraggingSection('structure', sectionId)}
+                data-analysis-section={sectionId}
+              >
+                <div class="analysis-section-heading">
+                  <div class="analysis-section-title">{sectionTitle(sectionId)}</div>
+                  <div class="analysis-section-actions">
+                    <button
+                      type="button"
+                      class="analysis-collapse-button"
+                      aria-expanded={!isSectionCollapsed(sectionId)}
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
+                      onclick={() => toggleSectionCollapsed(sectionId)}
+                    >
+                      {sectionCollapseGlyph(sectionId)}
+                    </button>
+                    <button
+                      type="button"
+                      class="analysis-drag-handle"
+                      class:dragging={isDraggingSection('structure', sectionId)}
+                      data-analysis-drag="true"
+                      aria-label={strings.profiler.moveSection(sectionTitle(sectionId))}
+                      title={strings.profiler.moveSectionTitle}
+                      onpointerdown={(event) =>
+                        handleDragPointerDown(event, 'structure', sectionId)}
+                      onpointermove={handleDragPointerMove}
+                      onpointerup={stopAnalysisDrag}
+                      onpointercancel={stopAnalysisDrag}
+                      onkeydown={(event) =>
+                        handleDragKeydown(event, 'structure', sectionId)}
+                    ></button>
+                  </div>
                 </div>
+                {#if !isSectionCollapsed(sectionId)}
+                  <div class="analysis-metrics">
+                    {#each profileTimingRows as row}
+                      <span class="analysis-label">{row.label}</span>
+                      <span class="analysis-value">{row.value}</span>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {:else if sectionId === 'server'}
               <div
@@ -1306,19 +1528,11 @@
                       type="button"
                       class="analysis-collapse-button"
                       aria-expanded={!isSectionCollapsed(sectionId)}
-                      aria-label={
-                        isSectionCollapsed(sectionId)
-                          ? strings.profiler.expandSection(sectionTitle(sectionId))
-                          : strings.profiler.collapseSection(sectionTitle(sectionId))
-                      }
-                      title={
-                        isSectionCollapsed(sectionId)
-                          ? strings.profiler.expandSection(sectionTitle(sectionId))
-                          : strings.profiler.collapseSection(sectionTitle(sectionId))
-                      }
+                      aria-label={sectionCollapseLabel(sectionId)}
+                      title={sectionCollapseLabel(sectionId)}
                       onclick={() => toggleSectionCollapsed(sectionId)}
                     >
-                      {isSectionCollapsed(sectionId) ? '+' : '-'}
+                      {sectionCollapseGlyph(sectionId)}
                     </button>
                     <button
                       type="button"
@@ -1339,13 +1553,21 @@
                 </div>
                 {#if !isSectionCollapsed(sectionId)}
                   <div class="analysis-metrics server-health-metrics">
-                    <span class="analysis-label">{strings.profiler.status}</span>
-                    <span class={`analysis-value server-health-value ${serverSeverity}`}>
-                      {formatServerSeverity(serverSeverity)}
-                    </span>
-                    {#each serverRows.slice(1) as row}
-                      <span class="analysis-label">{row.label}</span>
-                      <span class="analysis-value">{row.value}</span>
+                    {#each serverRows as row}
+                      {#if row.kind === 'heading'}
+                        <span class="server-health-section">{row.label}</span>
+                      {:else}
+                        <span class="analysis-label">{row.label}</span>
+                        <span
+                          class={`analysis-value ${
+                            row.severity
+                              ? `server-health-value ${row.severity}`
+                              : ''
+                          }`}
+                        >
+                          {row.value}
+                        </span>
+                      {/if}
                     {/each}
                   </div>
                 {/if}
