@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Check out Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Verify repository files are accessible
         run: |
