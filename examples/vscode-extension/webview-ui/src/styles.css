@@ -1363,10 +1363,6 @@ button.dialog-backdrop:focus-visible {
   white-space: nowrap;
 }
 
-.inspector-feedback:empty {
-  display: none;
-}
-
 .inspector-values {
   display: grid;
   grid-column: 1 / -1;

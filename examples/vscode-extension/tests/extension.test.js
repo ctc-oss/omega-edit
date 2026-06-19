@@ -555,6 +555,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.inspector-byte-order-toggle/)
   assert.match(svelteBundleCss, /\.inspector-edit-row/)
   assert.match(svelteBundleCss, /\.inspector-value-button/)
+  assert.doesNotMatch(svelteBundleCss, /\.inspector-feedback:empty/)
   assert.match(svelteBundleCss, /\.editor-main/)
   assert.match(svelteBundleCss, /\.editor-grid-shell/)
   assert.match(svelteBundleCss, /\.file-scrollbar/)
