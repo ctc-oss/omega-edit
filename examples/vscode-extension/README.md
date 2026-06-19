@@ -283,6 +283,19 @@ await omegaEdit?.setExternalHighlights({
 })
 ```
 
+### Daffodil Integration Notes
+
+The Apache Daffodil integration audit maps the current downstream replacement
+path to this activation API: Daffodil opens the configured debug data file with
+`open`, mirrors `daffodil.data` byte-position events with
+`setExternalHighlights({ reveal: true })`, and clears those annotations with
+`clearExternalHighlights` when the debug session ends. Daffodil-owned surfaces
+such as infoset display, infoset diff, parse-error dialogs, and leftover-data
+messages remain outside the OmegaEdit dependency boundary.
+
+See [docs/daffodil-vscode-integration-plan.md](docs/daffodil-vscode-integration-plan.md)
+for the detailed audit mapping and remaining validation item.
+
 ## Related
 
 - [Ωedit™ TypeScript Examples](../typescript/) - Standalone Node.js examples using `@omega-edit/client`
