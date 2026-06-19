@@ -58,9 +58,9 @@ export function getSvelteWebviewContent(
   const cspSource = escapeHtmlAttribute(webview.cspSource)
   const scriptNonce = nonce()
   const normalizedBytesPerRow = normalizeBytesPerRow(bytesPerRow)
-  const title = escapeHtmlText(vscode.l10n.t('OmegaEdit Hex Editor'))
+  const title = escapeHtmlText(vscode.l10n.t('OmegaEdit Data Editor'))
   const loading = escapeHtmlText(
-    vscode.l10n.t('Loading OmegaEdit Hex Editor...')
+    vscode.l10n.t('Loading OmegaEdit Data Editor...')
   )
 
   return `<!DOCTYPE html>

@@ -101,6 +101,10 @@ button:focus-visible {
   min-width: 0;
 }
 
+.segmented {
+  --segmented-button-width: 52px;
+}
+
 .toolbar-group {
   flex: 1 1 auto;
   justify-content: flex-end;
@@ -156,16 +160,20 @@ button:focus-visible {
 }
 
 .segmented button {
+  inline-size: var(--segmented-button-width);
   min-width: 34px;
-  color: var(--vscode-foreground);
+  color: var(--vscode-descriptionForeground);
   background: var(--vscode-input-background);
   border-color: var(--vscode-input-border, var(--vscode-editorGroup-border));
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .segmented button.active {
   color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
   border-color: var(--vscode-focusBorder);
+  font-weight: 600;
 }
 
 .search-panel {
@@ -780,6 +788,27 @@ button.dialog-backdrop:focus-visible {
   font-weight: 600;
 }
 
+.server-health-section {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 7px;
+  overflow: hidden;
+  border-top: 1px solid var(--vscode-editorGroup-border);
+  color: var(--vscode-descriptionForeground);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.server-health-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
 .server-health-value.ok {
   color: var(--vscode-charts-green);
 }
@@ -1258,7 +1287,7 @@ button.dialog-backdrop:focus-visible {
 
 .byte-inspector-panel {
   display: grid;
-  grid-template-columns: minmax(18ch, 1fr) auto minmax(0, 2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px 12px;
   min-height: 48px;
   padding: 6px 10px;
@@ -1269,6 +1298,7 @@ button.dialog-backdrop:focus-visible {
 .inspector-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -1282,10 +1312,11 @@ button.dialog-backdrop:focus-visible {
 .inspector-summary {
   display: flex;
   align-items: center;
+  flex: 1 1 22ch;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
   color: var(--vscode-descriptionForeground);
-  white-space: nowrap;
 }
 
 .inspector-summary strong {
@@ -1297,12 +1328,31 @@ button.dialog-backdrop:focus-visible {
   color: var(--vscode-terminal-ansiCyan, #4fc1ff);
 }
 
-.inspector-actions {
+.inspector-byte-order {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 6px;
+  margin-left: auto;
   min-width: 0;
+}
+
+.inspector-byte-order-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.inspector-byte-order-toggle {
+  flex: 0 0 auto;
+  --segmented-button-width: 40px;
+}
+
+.inspector-byte-order-toggle button {
+  min-width: 32px;
+  min-height: 24px;
+  padding: 2px 7px;
 }
 
 .inspector-feedback {
@@ -1427,6 +1477,10 @@ button.dialog-backdrop:focus-visible {
 
   .byte-inspector-panel {
     grid-template-columns: 1fr;
+  }
+
+  .inspector-byte-order {
+    margin-left: 0;
   }
 
   .inspector-values {

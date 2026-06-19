@@ -1,6 +1,8 @@
 export type {
   BytesPerRow,
   HostToWebviewMessage,
+  ServerHealthMetric,
+  ServerHealthMetricId,
   ServerHealthMessage,
   WebviewEditorUiState,
   WebviewExternalHighlight,

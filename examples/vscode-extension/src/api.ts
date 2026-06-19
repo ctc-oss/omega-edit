@@ -5,6 +5,10 @@ import type {
   WebviewExternalHighlight,
 } from './webviewProtocol'
 
+export const OMEGA_EDIT_EXTENSION_PUBLISHER = 'ctc-oss'
+export const OMEGA_EDIT_EXTENSION_NAME = 'omega-edit-data-editor'
+export const OMEGA_EDIT_EXTENSION_ID =
+  `${OMEGA_EDIT_EXTENSION_PUBLISHER}.${OMEGA_EDIT_EXTENSION_NAME}` as const
 export const OMEGA_EDIT_EXTENSION_API_VERSION = 1
 
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
@@ -30,6 +34,13 @@ export interface OmegaEditExternalHighlightRequest
 }
 
 export interface OmegaEditExtensionApi {
+  /**
+   * Stable VS Code extension id expected by dependent extensions.
+   */
+  readonly extensionId: typeof OMEGA_EDIT_EXTENSION_ID
+  /**
+   * Version of this activation API contract, independent of package version.
+   */
   readonly version: typeof OMEGA_EDIT_EXTENSION_API_VERSION
   readonly onDidChangeEditorState: vscode.Event<OmegaEditEditorState>
   open(

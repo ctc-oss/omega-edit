@@ -13,18 +13,18 @@
 // limitations under the License.
 
 /**
- * Î©editâ„¢ Hex Editor â€” Custom Editor Provider
+ * Ωedit™ Data Editor - Custom Editor Provider
  *
  * This is the core integration point between VS Code's custom editor API and
- * the Î©editâ„¢ editing engine. It demonstrates:
+ * the Ωedit™ editing engine. It demonstrates:
  *
- *   - Creating an Î©editâ„¢ session for each opened file
+ *   - Creating an Ωedit™ session for each opened file
  *   - Creating a viewport that tracks the visible region
  *   - Subscribing to viewport events so the webview updates live
  *   - Handling insert / delete / overwrite edits from the webview
  *   - Undo / redo wired through VS Code's built-in command palette
  *   - Search within the file
- *   - Saving via Î©editâ„¢'s server-side replay
+ *   - Saving via Ωedit™'s server-side replay
  */
 
 import {
@@ -84,6 +84,8 @@ import {
   type WebviewExternalHighlight,
   type WebviewTransformPlugin,
   type HostToWebviewMessage,
+  type ServerHealthMetric,
+  type ServerHealthMetricId,
   type ServerHealthMessage,
   type WebviewToHostMessage,
   normalizeExternalHighlights,
@@ -352,13 +354,100 @@ function formatServerHealthLatencyBand(
   }
 }
 
-function appendServerHealthTooltipLine(
+interface ServerHealthTooltipEntry {
+  label: string
+  value: string
+}
+
+function appendServerHealthTooltipSection(
   tooltip: vscode.MarkdownString,
+  heading: string,
+  entries: ServerHealthTooltipEntry[]
+): void {
+  const trimmedEntries = entries
+    .map(({ label, value }) => ({
+      label: label.trim(),
+      value: value.trim(),
+    }))
+    .filter(({ label, value }) => label && value)
+
+  if (trimmedEntries.length === 0) {
+    return
+  }
+
+  tooltip.appendMarkdown(`**${heading}**\n\n`)
+  for (const { label, value } of trimmedEntries) {
+    tooltip.appendMarkdown('- ')
+    tooltip.appendText(`${label}: ${value}`)
+    tooltip.appendMarkdown('\n')
+  }
+  tooltip.appendMarkdown('\n')
+}
+
+const SERVER_HEALTH_VOLATILE_METRIC_IDS = new Set<ServerHealthMetricId>([
+  'latency',
+  'sessions',
+  'uptime',
+  'loadAverage',
+  'residentMemory',
+  'virtualMemory',
+  'peakResidentMemory',
+])
+
+function serverHealthMetric(
+  id: ServerHealthMetricId,
   label: string,
   value: string
-): void {
-  tooltip.appendText(`${label}: ${value}`)
-  tooltip.appendMarkdown('\n\n')
+): ServerHealthMetric {
+  return { id, label, value }
+}
+
+function getServerHealthMetricMap(
+  metrics: ServerHealthMessage['metrics']
+): Map<ServerHealthMetricId, ServerHealthTooltipEntry> {
+  const metricById = new Map<ServerHealthMetricId, ServerHealthTooltipEntry>()
+  for (const metric of metrics) {
+    const label = metric.label.trim()
+    const value = metric.value.trim()
+    if (!label || !value || metricById.has(metric.id)) {
+      continue
+    }
+    metricById.set(metric.id, { label, value })
+  }
+  return metricById
+}
+
+function collectServerHealthTooltipMetrics(
+  metricById: Map<ServerHealthMetricId, ServerHealthTooltipEntry>,
+  ids: readonly ServerHealthMetricId[],
+  seenIds: Set<ServerHealthMetricId>
+): ServerHealthTooltipEntry[] {
+  const entries: ServerHealthTooltipEntry[] = []
+  for (const id of ids) {
+    const metric = metricById.get(id)
+    if (!metric || seenIds.has(id)) {
+      continue
+    }
+    seenIds.add(id)
+    entries.push(metric)
+  }
+  return entries
+}
+
+function collectRemainingServerHealthTooltipMetrics(
+  metricById: Map<ServerHealthMetricId, ServerHealthTooltipEntry>,
+  seenIds: Set<ServerHealthMetricId>,
+  excludedIds = new Set<ServerHealthMetricId>()
+): ServerHealthTooltipEntry[] {
+  const entries: ServerHealthTooltipEntry[] = []
+  for (const [id, metric] of metricById) {
+    if (seenIds.has(id) || excludedIds.has(id)) {
+      continue
+    }
+    seenIds.add(id)
+    entries.push(metric)
+  }
+  return entries
 }
 
 function buildServerHealthTooltip(
@@ -366,60 +455,69 @@ function buildServerHealthTooltip(
 ): vscode.MarkdownString {
   const statusLabel = vscode.l10n.t('Status')
   const latencyLabel = vscode.l10n.t('Latency')
-  const volatileLabels = new Set(
-    [
-      latencyLabel,
-      vscode.l10n.t('Sessions'),
-      vscode.l10n.t('Uptime'),
-      vscode.l10n.t('Load Avg'),
-      vscode.l10n.t('RSS'),
-      vscode.l10n.t('Virtual'),
-      vscode.l10n.t('Peak RSS'),
-    ].map((label) => label.toLocaleLowerCase())
-  )
   const tooltip = new vscode.MarkdownString()
   tooltip.supportThemeIcons = true
   tooltip.appendMarkdown(`**${vscode.l10n.t('Ωedit™ Server')}**\n\n`)
 
   if (!health) {
-    appendServerHealthTooltipLine(
-      tooltip,
-      statusLabel,
-      vscode.l10n.t('Pending')
-    )
-    appendServerHealthTooltipLine(
-      tooltip,
-      latencyLabel,
-      formatServerHealthLatencyBand('pending')
-    )
+    appendServerHealthTooltipSection(tooltip, vscode.l10n.t('Live Status'), [
+      { label: statusLabel, value: vscode.l10n.t('Pending') },
+      { label: latencyLabel, value: formatServerHealthLatencyBand('pending') },
+    ])
     return tooltip
   }
 
-  appendServerHealthTooltipLine(
+  const metricById = getServerHealthMetricMap(health.metrics)
+  const seenIds = new Set<ServerHealthMetricId>()
+  const latencyBand = formatServerHealthLatencyBand(health.severity)
+  seenIds.add('latency')
+
+  appendServerHealthTooltipSection(tooltip, vscode.l10n.t('Live Status'), [
+    {
+      label: statusLabel,
+      value: formatServerHealthSeverity(health.severity),
+    },
+    {
+      label: latencyLabel,
+      value: latencyBand,
+    },
+  ])
+
+  appendServerHealthTooltipSection(
     tooltip,
-    statusLabel,
-    formatServerHealthSeverity(health.severity)
-  )
-  appendServerHealthTooltipLine(
-    tooltip,
-    latencyLabel,
-    formatServerHealthLatencyBand(health.severity)
+    vscode.l10n.t('Current Instance'),
+    collectServerHealthTooltipMetrics(metricById, ['pid'], seenIds)
   )
 
-  const seenLabels = new Set([
-    statusLabel.toLocaleLowerCase(),
-    latencyLabel.toLocaleLowerCase(),
-  ])
-  for (const metric of health.metrics) {
-    const label = metric.label.trim()
-    const value = metric.value.trim()
-    const key = label.toLocaleLowerCase()
-    if (!label || !value || seenLabels.has(key) || volatileLabels.has(key)) {
-      continue
-    }
-    seenLabels.add(key)
-    appendServerHealthTooltipLine(tooltip, label, value)
-  }
+  appendServerHealthTooltipSection(
+    tooltip,
+    vscode.l10n.t('Host and Build'),
+    collectServerHealthTooltipMetrics(
+      metricById,
+      [
+        'host',
+        'platform',
+        'logicalCpus',
+        'runtime',
+        'version',
+        'client',
+        'compiler',
+        'build',
+        'cppStandard',
+      ],
+      seenIds
+    )
+  )
+
+  appendServerHealthTooltipSection(
+    tooltip,
+    vscode.l10n.t('Details'),
+    collectRemainingServerHealthTooltipMetrics(
+      metricById,
+      seenIds,
+      SERVER_HEALTH_VOLATILE_METRIC_IDS
+    )
+  )
 
   return tooltip
 }
@@ -576,7 +674,7 @@ function backupIdToFilePath(backupId: string | undefined): string | undefined {
 }
 
 /**
- * Represents a single file opened by the Hex Editor. VS Code tracks dirty
+ * Represents a single file opened by the Data Editor. VS Code tracks dirty
  * state and initiates saves through this object.
  */
 export class HexDocument implements vscode.CustomDocument {
@@ -785,7 +883,7 @@ export class HexEditorProvider
     })
   }
 
-  // â”€â”€ VS Code Custom Editor API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- VS Code Custom Editor API ---
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -804,12 +902,12 @@ export class HexEditorProvider
     const uri = document.uri
     if (uri.scheme !== 'file') {
       throw new Error(
-        vscode.l10n.t('OmegaEdit Hex Editor can only open local files')
+        vscode.l10n.t('OmegaEdit Data Editor can only open local files')
       )
     }
     const filePath = uri.fsPath
 
-    // --- Create Î©editâ„¢ session for this file ---
+    // --- Create Ωedit™ session for this file ---
     const config = vscode.workspace.getConfiguration('omegaEdit')
     const bytesPerRow = normalizeBytesPerRow(config.get('bytesPerRow'))
 
@@ -924,7 +1022,7 @@ export class HexEditorProvider
     })
   }
 
-  // â"€â"€ CustomEditorProvider required methods â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // --- CustomEditorProvider required methods ---
 
   async saveCustomDocument(
     document: HexDocument,
@@ -951,7 +1049,7 @@ export class HexEditorProvider
     }
     if (destination.scheme !== 'file') {
       throw new Error(
-        vscode.l10n.t('OmegaEdit Hex Editor can only save to local files')
+        vscode.l10n.t('OmegaEdit Data Editor can only save to local files')
       )
     }
     await saveSession(session.sessionId, destination.fsPath, IOFlags.OVERWRITE)
@@ -1034,7 +1132,7 @@ export class HexEditorProvider
     })
   }
 
-  // â”€â”€ Public methods called from extension.ts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Public methods called from extension.ts ---
 
   /** Navigate the active editor to a byte offset */
   goToOffset(offset: number): void {
@@ -1257,15 +1355,15 @@ export class HexEditorProvider
     )
   }
 
-  // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Event Subscriptions ---
 
   /**
-   * Subscribe to Î©editâ„¢ viewport events. When edits change data visible in
+   * Subscribe to Ωedit™ viewport events. When edits change data visible in
    * the viewport, the server streams an event and we push fresh data to the
-   * webview. This is the reactive data flow at the heart of Î©editâ„¢.
+   * webview. This is the reactive data flow at the heart of Ωedit™.
    */
 
-  // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Viewport Data ---
 
   private postWebviewMessage(
     session: EditorSession,
@@ -1950,7 +2048,9 @@ export class HexEditorProvider
           summary: vscode.l10n.t('Ωedit™ unavailable'),
           detail: error.message,
           severity: 'down',
-          metrics: [{ label: vscode.l10n.t('Error'), value: error.message }],
+          metrics: [
+            serverHealthMetric('error', vscode.l10n.t('Error'), error.message),
+          ],
         })
       },
     })
@@ -2019,89 +2119,138 @@ export class HexEditorProvider
         heartbeat,
         'serverPeakResidentMemoryBytes'
       )
+      const logicalCpuValue =
+        availableProcessors !== undefined &&
+        availableProcessors !== heartbeat.serverCpuCount
+          ? vscode.l10n.t('{available} available, {reported} heartbeat', {
+              available: availableProcessors,
+              reported: heartbeat.serverCpuCount,
+            })
+          : String(availableProcessors ?? heartbeat.serverCpuCount)
       const metrics = [
-        { label: vscode.l10n.t('Version'), value: serverInfo.serverVersion },
-        { label: vscode.l10n.t('Client'), value: getClientVersion() },
-        { label: vscode.l10n.t('Host'), value: serverInfo.serverHostname },
-        {
-          label: vscode.l10n.t('PID'),
-          value: String(serverInfo.serverProcessId),
-        },
-        {
-          label: vscode.l10n.t('Runtime'),
-          value: runtimeValue || vscode.l10n.t('n/a'),
-        },
-        {
-          label: vscode.l10n.t('Latency'),
-          value: vscode.l10n.t('{latency} ms', {
+        serverHealthMetric(
+          'version',
+          vscode.l10n.t('Version'),
+          serverInfo.serverVersion
+        ),
+        serverHealthMetric(
+          'client',
+          vscode.l10n.t('Client'),
+          getClientVersion()
+        ),
+        serverHealthMetric(
+          'host',
+          vscode.l10n.t('Host'),
+          serverInfo.serverHostname
+        ),
+        serverHealthMetric(
+          'pid',
+          vscode.l10n.t('PID'),
+          String(serverInfo.serverProcessId)
+        ),
+        serverHealthMetric(
+          'runtime',
+          vscode.l10n.t('Runtime'),
+          runtimeValue || vscode.l10n.t('n/a')
+        ),
+        serverHealthMetric(
+          'latency',
+          vscode.l10n.t('Latency'),
+          vscode.l10n.t('{latency} ms', {
             latency: heartbeat.latency,
-          }),
-        },
-        {
-          label: vscode.l10n.t('Sessions'),
-          value: String(heartbeat.sessionCount),
-        },
-        {
-          label: vscode.l10n.t('Uptime'),
-          value: vscode.l10n.t('{seconds}s', { seconds: uptimeSeconds }),
-        },
-        {
-          label: vscode.l10n.t('CPU'),
-          value: vscode.l10n.t('{count} cores', {
-            count: heartbeat.serverCpuCount,
-          }),
-        },
+          })
+        ),
+        serverHealthMetric(
+          'sessions',
+          vscode.l10n.t('Sessions'),
+          String(heartbeat.sessionCount)
+        ),
+        serverHealthMetric(
+          'uptime',
+          vscode.l10n.t('Uptime'),
+          vscode.l10n.t('{seconds}s', { seconds: uptimeSeconds })
+        ),
+        serverHealthMetric(
+          'logicalCpus',
+          vscode.l10n.t('Logical CPUs'),
+          logicalCpuValue
+        ),
       ]
 
       if (heartbeat.serverCpuLoadAverage !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('Load Avg'),
-          value: heartbeat.serverCpuLoadAverage.toFixed(2),
-        })
-      }
-
-      if (availableProcessors !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('Processors'),
-          value: String(availableProcessors),
-        })
+        metrics.push(
+          serverHealthMetric(
+            'loadAverage',
+            vscode.l10n.t('Load Avg'),
+            heartbeat.serverCpuLoadAverage.toFixed(2)
+          )
+        )
       }
 
       if (platformValue) {
-        metrics.push({ label: vscode.l10n.t('Platform'), value: platformValue })
+        metrics.push(
+          serverHealthMetric(
+            'platform',
+            vscode.l10n.t('Platform'),
+            platformValue
+          )
+        )
       }
 
       if (compilerValue) {
-        metrics.push({ label: vscode.l10n.t('Compiler'), value: compilerValue })
+        metrics.push(
+          serverHealthMetric(
+            'compiler',
+            vscode.l10n.t('Compiler'),
+            compilerValue
+          )
+        )
       }
 
       if (buildValue) {
-        metrics.push({ label: vscode.l10n.t('Build'), value: buildValue })
+        metrics.push(
+          serverHealthMetric('build', vscode.l10n.t('Build'), buildValue)
+        )
       }
 
       if (cppStandardValue) {
-        metrics.push({ label: vscode.l10n.t('C++'), value: cppStandardValue })
+        metrics.push(
+          serverHealthMetric(
+            'cppStandard',
+            vscode.l10n.t('C++'),
+            cppStandardValue
+          )
+        )
       }
 
       if (residentMemoryBytes !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('RSS'),
-          value: formatMemoryMiB(residentMemoryBytes),
-        })
+        metrics.push(
+          serverHealthMetric(
+            'residentMemory',
+            vscode.l10n.t('RSS'),
+            formatMemoryMiB(residentMemoryBytes)
+          )
+        )
       }
 
       if (virtualMemoryBytes !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('Virtual'),
-          value: formatMemoryMiB(virtualMemoryBytes),
-        })
+        metrics.push(
+          serverHealthMetric(
+            'virtualMemory',
+            vscode.l10n.t('Virtual'),
+            formatMemoryMiB(virtualMemoryBytes)
+          )
+        )
       }
 
       if (peakResidentMemoryBytes !== undefined) {
-        metrics.push({
-          label: vscode.l10n.t('Peak RSS'),
-          value: formatMemoryMiB(peakResidentMemoryBytes),
-        })
+        metrics.push(
+          serverHealthMetric(
+            'peakResidentMemory',
+            vscode.l10n.t('Peak RSS'),
+            formatMemoryMiB(peakResidentMemoryBytes)
+          )
+        )
       }
 
       this.broadcastServerHealth({
@@ -2124,7 +2273,7 @@ export class HexEditorProvider
         summary: vscode.l10n.t('Ωedit™ unavailable'),
         detail: message,
         severity: 'down',
-        metrics: [{ label: vscode.l10n.t('Error'), value: message }],
+        metrics: [serverHealthMetric('error', vscode.l10n.t('Error'), message)],
       })
     }
   }
@@ -2394,7 +2543,7 @@ export class HexEditorProvider
     return session.scrollTask
   }
 
-  // â”€â”€ Webview Message Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Webview Message Handler ---
 
   private async handleWebviewMessage(
     session: EditorSession,

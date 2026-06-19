@@ -152,10 +152,6 @@
       : `0x${offset.toString(16).toUpperCase().padStart(8, '0')}`
   }
 
-  function formatHexOffset(offset: number): string {
-    return `0x${offset.toString(16).toUpperCase().padStart(8, '0')}`
-  }
-
   function formatColumnOffset(offset: number): string {
     return offsetRadix === 'dec'
       ? offset.toString().padStart(2, '0')
@@ -168,12 +164,13 @@
     byteOffset: number,
     highlight = externalHighlightFor(byteOffset)
   ): string {
+    const hex = formatHex(byte)
     const baseTitle = strings.grid.byteHoverTitle(
-      pane === 'hex' ? strings.grid.hexPane : strings.grid.textPane,
+      pane === 'hex'
+        ? strings.grid.hexByteTitle(hex)
+        : strings.grid.textByteTitle,
       formatOffset(byteOffset),
-      formatHexOffset(byteOffset),
-      byteOffset.toLocaleString(),
-      formatHex(byte),
+      hex,
       byte.toLocaleString(),
       formatBinary(byte),
       formatTooltipText(byte),

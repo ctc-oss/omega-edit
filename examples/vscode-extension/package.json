@@ -1,9 +1,9 @@
 {
-  "name": "omega-edit-hex-editor",
+  "name": "omega-edit-data-editor",
   "displayName": "%omegaEdit.displayName%",
   "description": "%omegaEdit.description%",
   "version": "2.0.0",
-  "publisher": "omega-edit-example",
+  "publisher": "ctc-oss",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -243,7 +243,7 @@
     "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "vite build --watch",
-    "package:vsix": "vsce package --out omega-edit-hex-editor.vsix",
+    "package:vsix": "vsce package --out omega-edit-data-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
     "lint": "biome ci .",
