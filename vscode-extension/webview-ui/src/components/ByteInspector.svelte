@@ -536,10 +536,19 @@
     <button
       type="button"
       class="inspector-toggle"
+      class:inspector-collapsed-toggle={!expanded}
       aria-expanded={expanded}
+      title={expanded ? strings.inspector.collapse : strings.inspector.expand}
       onclick={onToggleExpanded}
     >
-      {toggleLabel}
+      {#if expanded}
+        {toggleLabel}
+      {:else}
+        <span>{strings.inspector.show}</span>
+        <span class="inspector-collapsed-label">
+          {strings.inspector.title}
+        </span>
+      {/if}
     </button>
     <div class="inspector-summary">
       <span class="inspector-label">{strings.inspector.label}</span>

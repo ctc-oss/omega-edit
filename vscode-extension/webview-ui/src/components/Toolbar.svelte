@@ -1,45 +1,74 @@
 <script lang="ts">
-  import type { BytesPerRow, WebviewTransformPlugin } from '../protocol'
+  import type {
+    BytesPerRow,
+    InsertDirection,
+    WebviewTransformPlugin,
+  } from '../protocol'
   import { strings } from '../i18n'
   import OffsetJump from './OffsetJump.svelte'
   import TransformPanel from './TransformPanel.svelte'
 
+  interface TransformResultHistoryItem {
+    id: string
+    title: string
+    summary: string
+    label: string
+    rangeStart: string
+    rangeEnd: string
+    historyLabel: string
+  }
+
   interface Props {
     bytesPerRow: BytesPerRow
     offsetRadix?: 'hex' | 'dec'
+    insertDirection?: InsertDirection
     fileSize?: number
     transformPlugins?: WebviewTransformPlugin[]
     transformPluginsLoaded?: boolean
     transformPluginsLoading?: boolean
     transformPluginError?: string
     transformFeedback?: string
+    transformResults?: TransformResultHistoryItem[]
+    activeTransformResultId?: string
     selectionStart?: number
     selectionEnd?: number
     selectionLength?: number
     onBytesPerRow: (bytesPerRow: BytesPerRow) => void
     onOffsetRadix: (radix: 'hex' | 'dec') => void
+    onInsertDirection: (direction: InsertDirection) => void
     onGoToOffset: (offset: number) => void
     onRequestTransforms: () => void
-    onApplyTransform: (pluginId: string, optionsJson?: string) => void
+    onApplyTransform: (
+      pluginId: string,
+      offset: number,
+      length: number,
+      optionsJson?: string
+    ) => void
+    onOpenTransformResult: (resultId: string) => void
   }
 
   let {
     bytesPerRow,
     offsetRadix = 'hex',
+    insertDirection = 'forward',
     fileSize = 0,
     transformPlugins = [],
     transformPluginsLoaded = false,
     transformPluginsLoading = false,
     transformPluginError = '',
     transformFeedback = '',
+    transformResults = [],
+    activeTransformResultId = '',
     selectionStart = -1,
     selectionEnd = -1,
     selectionLength = 0,
     onBytesPerRow,
     onOffsetRadix,
+    onInsertDirection,
     onGoToOffset,
     onRequestTransforms,
     onApplyTransform,
+    onOpenTransformResult,
   }: Props = $props()
 
   const rowOptions: BytesPerRow[] = [8, 16, 32]
@@ -52,6 +81,7 @@
         type="button"
         class:active={option === bytesPerRow}
         aria-pressed={option === bytesPerRow}
+        title={strings.toolbar.bytesPerRowTitle(option)}
         onclick={() => onBytesPerRow(option)}
       >
         {option}
@@ -64,6 +94,7 @@
       type="button"
       class:active={offsetRadix === 'hex'}
       aria-pressed={offsetRadix === 'hex'}
+      title={strings.toolbar.hexOffsetsTitle}
       onclick={() => onOffsetRadix('hex')}
     >
       {strings.toolbar.hexOffsets}
@@ -72,11 +103,37 @@
       type="button"
       class:active={offsetRadix === 'dec'}
       aria-pressed={offsetRadix === 'dec'}
+      title={strings.toolbar.decOffsetsTitle}
       onclick={() => onOffsetRadix('dec')}
     >
       {strings.toolbar.decOffsets}
     </button>
   </div>
+
+  <button
+    type="button"
+    class="direction-toggle"
+    class:backward={insertDirection === 'backward'}
+    aria-label={
+      insertDirection === 'forward'
+        ? strings.toolbar.forwardInsertTitle
+        : strings.toolbar.backwardInsertTitle
+    }
+    aria-pressed={insertDirection === 'backward'}
+    title={
+      insertDirection === 'forward'
+        ? strings.toolbar.forwardInsertTitle
+        : strings.toolbar.backwardInsertTitle
+    }
+    onclick={() =>
+      onInsertDirection(insertDirection === 'forward' ? 'backward' : 'forward')}
+  >
+    {#if insertDirection === 'forward'}
+      &rarr;
+    {:else}
+      &larr;
+    {/if}
+  </button>
 
   <OffsetJump {fileSize} {offsetRadix} {onGoToOffset} />
 
@@ -86,13 +143,17 @@
       pluginsLoaded={transformPluginsLoaded}
       pluginsLoading={transformPluginsLoading}
       error={transformPluginError}
+      {fileSize}
       {selectionStart}
       {selectionEnd}
       {selectionLength}
       {offsetRadix}
       feedback={transformFeedback}
+      results={transformResults}
+      {activeTransformResultId}
       {onRequestTransforms}
       {onApplyTransform}
+      {onOpenTransformResult}
     />
   </div>
 </div>

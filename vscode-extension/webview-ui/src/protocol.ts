@@ -1,6 +1,7 @@
 export type {
   BytesPerRow,
   HostToWebviewMessage,
+  InsertDirection,
   ServerHealthMetric,
   ServerHealthMetricId,
   ServerHealthMessage,

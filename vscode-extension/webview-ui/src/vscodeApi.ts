@@ -2,6 +2,8 @@ import type { WebviewToHostMessage } from './protocol'
 
 export interface PersistedPreviewState {
   bytesPerRow?: number
+  offsetRadix?: 'hex' | 'dec'
+  insertDirection?: 'forward' | 'backward'
   profilerExpanded?: boolean
   analysisSectionOrder?: Record<string, string[]>
 }

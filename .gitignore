@@ -23,6 +23,7 @@ cmake-build*/
 core/src/include/omega_edit/features.h
 node_modules/
 venv/
+.venv-conan/
 package-lock.json
 
 # log files

@@ -49,12 +49,12 @@ The current VS Code floor is `1.110` because that is the oldest version exercise
 
 This extension intentionally depends on the in-repo `@omega-edit/client` package through a local `file:` dependency. That keeps the VS Code package and CI aligned with the current Ωedit™ 2.x client implementation in this checkout instead of a separately published npm version.
 
-If you rebuild `packages/client` while iterating on the extension, run `npm install` in `examples/vscode-extension` again so the local installed `file:` dependency picks up the refreshed `dist/` artifacts.
+If you rebuild `packages/client` while iterating on the extension, run `npm install` in `vscode-extension` again so the local installed `file:` dependency picks up the refreshed `dist/` artifacts.
 
 ### Run With F5
 
 ```bash
-cd examples/vscode-extension
+cd vscode-extension
 npm install
 npm test
 ```

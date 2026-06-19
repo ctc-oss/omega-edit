@@ -26,12 +26,12 @@ This will automatically update:
 - `packages/client/package.json`
 - `packages/server/package.json`
 - `packages/ai/package.json`
-- `examples/vscode-extension/package.json`
-- `examples/vscode-extension/package-lock.json` metadata
+- `vscode-extension/package.json`
+- `vscode-extension/package-lock.json` metadata
 - Client-server and AI-client dependency versions
 - VS Code extension version metadata
 
-The VS Code extension example intentionally depends on the local workspace client via `file:../../packages/client` so CI and local development exercise the in-repo client implementation directly.
+The VS Code extension example intentionally depends on the local workspace client via `file:../packages/client` so CI and local development exercise the in-repo client implementation directly.
 
 ## Build System Integration
 
@@ -50,7 +50,7 @@ The Node.js packages use the `sync-version.js` script to maintain version consis
 
 ### VS Code Extension Release Asset
 The VS Code extension example uses the synced version in:
-- `examples/vscode-extension/package.json`
+- `vscode-extension/package.json`
 - GitHub release asset naming for the generated `.vsix`
 
 ## Automated Version Management

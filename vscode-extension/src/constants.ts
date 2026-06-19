@@ -5,6 +5,8 @@ export const OMEGA_EDIT_SEARCH_NEXT_COMMAND = 'omegaEdit.searchNext'
 export const OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND = 'omegaEdit.searchPrevious'
 export const OMEGA_EDIT_UNDO_COMMAND = 'omegaEdit.undo'
 export const OMEGA_EDIT_REDO_COMMAND = 'omegaEdit.redo'
+export const OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND =
+  'omegaEdit.toggleInsertDirection'
 export const OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND =
   'omegaEdit.refreshTransformPlugins'
 export const OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND =

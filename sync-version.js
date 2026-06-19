@@ -75,7 +75,6 @@ fs.writeFileSync(
 // Update VS Code extension example package.json
 const vscodeExtensionPackageJsonPath = path.join(
   __dirname,
-  'examples',
   'vscode-extension',
   'package.json'
 )
@@ -88,7 +87,7 @@ if (
   vscodeExtensionPackageJson.dependencies['@omega-edit/client']
 ) {
   vscodeExtensionPackageJson.dependencies['@omega-edit/client'] =
-    'file:../../packages/client'
+    'file:../packages/client'
 }
 fs.writeFileSync(
   vscodeExtensionPackageJsonPath,
@@ -98,7 +97,6 @@ fs.writeFileSync(
 // Update VS Code extension example package-lock.json metadata when present
 const vscodeExtensionPackageLockPath = path.join(
   __dirname,
-  'examples',
   'vscode-extension',
   'package-lock.json'
 )
@@ -116,7 +114,7 @@ if (fs.existsSync(vscodeExtensionPackageLockPath)) {
     ) {
       vscodeExtensionPackageLock.packages[''].dependencies[
         '@omega-edit/client'
-      ] = 'file:../../packages/client'
+      ] = 'file:../packages/client'
     }
   }
   fs.writeFileSync(

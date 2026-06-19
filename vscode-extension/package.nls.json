@@ -13,6 +13,7 @@
   "omegaEdit.command.searchPrevious.title": "OmegaEdit: Search Previous",
   "omegaEdit.command.undo.title": "OmegaEdit: Undo",
   "omegaEdit.command.redo.title": "OmegaEdit: Redo",
+  "omegaEdit.command.toggleInsertDirection.title": "OmegaEdit: Toggle Insert Direction",
   "omegaEdit.command.refreshTransformPlugins.title": "OmegaEdit: Refresh Transform List",
   "omegaEdit.command.exportChangeScript.title": "OmegaEdit: Export Change Script",
   "omegaEdit.command.replayChangeScript.title": "OmegaEdit: Replay Change Script",

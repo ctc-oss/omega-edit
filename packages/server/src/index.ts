@@ -127,7 +127,8 @@ function getPlatformBinaryName(): string {
  * Find the C++ server binary path.
  * First checks the CPP_SERVER_BINARY environment variable for a local dev override.
  * Then looks for a platform-specific native binary (e.g., omega-edit-grpc-server-linux-x64).
- * Falls back to the plain name (omega-edit-grpc-server) for backward compatibility.
+ * Falls back to the plain name (omega-edit-grpc-server) for backward-compatible
+ * single-platform/dev packages only when no platform-suffixed binaries are present.
  * @param binDir the bin directory to search in
  * @returns the resolved path to the server executable
  */
@@ -150,6 +151,27 @@ function findServerBinary(binDir: string): string {
   const platformBinary = path.join(binDir, getPlatformBinaryName())
   if (fs.existsSync(platformBinary)) {
     return platformBinary
+  }
+
+  const packagedBinaries = fs
+    .readdirSync(binDir)
+    .filter((file) =>
+      /^omega-edit-grpc-server-(linux|macos|windows)-/.test(file)
+    )
+  if (packagedBinaries.length > 0) {
+    const normalizedPlatform =
+      os.platform() === 'darwin'
+        ? 'macos'
+        : os.platform() === 'win32'
+          ? 'windows'
+          : os.platform()
+    throw new Error(
+      `No pre-built server binary for ${normalizedPlatform}-${os.arch()} in ${binDir}.\n` +
+        `Expected ${getPlatformBinaryName()} because this package contains platform-specific server binaries.\n` +
+        'Supported platforms: linux-x64, linux-arm64, macos-x64, macos-arm64, windows-x64.\n' +
+        'To use a custom build, set CPP_SERVER_BINARY=/path/to/omega-edit-grpc-server\n' +
+        'Build from source: https://github.com/ctc-oss/omega-edit/blob/main/CONTRIBUTING.md'
+    )
   }
 
   // Check for plain-named C++ binary (single-platform or dev build)

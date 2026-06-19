@@ -21,7 +21,7 @@ env:
   export_cmd: |
     GIT_TAG=$(echo ${GITHUB_REF#refs/*/} | cut -d 'v' -f 2)
     PKG_VERSION=$(echo $(node -p "JSON.stringify(require('./package.json').version)") | sed 's|"||g')
-    VSCODE_EXTENSION_VERSION=$(echo $(node -p "JSON.stringify(require('./examples/vscode-extension/package.json').version)") | sed 's|"||g')
+    VSCODE_EXTENSION_VERSION=$(echo $(node -p "JSON.stringify(require('./vscode-extension/package.json').version)") | sed 's|"||g')
     echo "GIT_TAG=$GIT_TAG" >> $GITHUB_ENV
     echo "PKG_VERSION=$PKG_VERSION" >> $GITHUB_ENV
     echo "VSCODE_EXTENSION_VERSION=$VSCODE_EXTENSION_VERSION" >> $GITHUB_ENV
@@ -251,6 +251,30 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+      - name: Stage platform transform plugins
+        shell: bash
+        run: |
+          patterns=("-name" "omega_transform_*.so")
+          if [[ "${{ matrix.runner-os }}" == "Windows" ]]; then
+            patterns=("-name" "omega_transform_*.dll")
+          elif [[ "${{ matrix.runner-os }}" == "macOS" ]]; then
+            patterns=("(" "-name" "omega_transform_*.so" "-o" "-name" "omega_transform_*.dylib" ")")
+          fi
+          src="_build_core/plugins/plugins"
+          dest="_vscode_transform_plugins/${{ matrix.platform }}"
+          mkdir -p "$dest"
+          find "$src" -maxdepth 1 -type f "${patterns[@]}" -exec cp {} "$dest" \;
+          test "$(find "$dest" -maxdepth 1 -type f | wc -l)" -gt 0
+          echo "TRANSFORM_PLUGIN_ARTIFACT_DIR=$dest" >> "$GITHUB_ENV"
+
+      - name: Upload platform transform plugin artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cpp-transforms-${{ matrix.platform }}
+          path: ${{ env.TRANSFORM_PLUGIN_ARTIFACT_DIR }}/*
+          retention-days: 1
+          if-no-files-found: error
+
   node-server-release:
     name: Node Server Release (Universal)
     needs: [create-release, cpp-server-build]
@@ -391,7 +415,7 @@ jobs:
 
   vscode-extension-release:
     name: VS Code Extension Release
-    needs: [create-release]
+    needs: [create-release, cpp-server-build]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
@@ -416,15 +440,92 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.node_version }}
-          cache: 'npm'
-          cache-dependency-path: examples/vscode-extension/package-lock.json
+          cache: 'yarn'
 
-      - name: Build local OmegaEdit middleware for the example
-        uses: ./.github/workflows/build-middleware
+      - name: Install dependencies
+        run: yarn
+
+      - name: Create server binaries directory
+        run: mkdir -p _server_binaries
+
+      - name: Download Linux x64 binary
+        uses: actions/download-artifact@v8
         with:
-          runner-os: Linux
-          os-name: ubuntu-22.04
-          skip-tests: 'true'
+          name: cpp-server-linux-x64
+          path: _server_binaries
+
+      - name: Download Linux arm64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-linux-arm64
+          path: _server_binaries
+
+      - name: Download macOS x64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-macos-x64
+          path: _server_binaries
+
+      - name: Download macOS arm64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-macos-arm64
+          path: _server_binaries
+
+      - name: Download Windows x64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-server-windows-x64
+          path: _server_binaries
+
+      - name: Download Linux x64 transform plugins
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-transforms-linux-x64
+          path: _transform_plugins/linux-x64
+
+      - name: Download Linux arm64 transform plugins
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-transforms-linux-arm64
+          path: _transform_plugins/linux-arm64
+
+      - name: Download macOS x64 transform plugins
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-transforms-macos-x64
+          path: _transform_plugins/macos-x64
+
+      - name: Download macOS arm64 transform plugins
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-transforms-macos-arm64
+          path: _transform_plugins/macos-arm64
+
+      - name: Download Windows x64 transform plugins
+        uses: actions/download-artifact@v8
+        with:
+          name: cpp-transforms-windows-x64
+          path: _transform_plugins/windows-x64
+
+      - name: Verify supported server binaries
+        shell: bash
+        run: |
+          expected=(
+            omega-edit-grpc-server-linux-x64
+            omega-edit-grpc-server-linux-arm64
+            omega-edit-grpc-server-macos-x64
+            omega-edit-grpc-server-macos-arm64
+            omega-edit-grpc-server-windows-x64.exe
+          )
+          for binary in "${expected[@]}"; do
+            test -f "_server_binaries/$binary"
+          done
+
+      - name: Build universal server release tarball
+        run: yarn workspace @omega-edit/server package
+        env:
+          CPP_SERVER_BINARIES_DIR: ${{ github.workspace }}/_server_binaries
 
       - name: Build local client release tarball
         run: yarn workspace @omega-edit/client package
@@ -433,14 +534,15 @@ jobs:
         shell: bash
         run: |
           STAGE_DIR="$(mktemp -d)"
-          cp -R examples/vscode-extension/. "$STAGE_DIR"
+          cp -R vscode-extension/. "$STAGE_DIR"
           cd "$STAGE_DIR"
           npm pkg set "dependencies.@omega-edit/client=${PKG_VERSION}"
           npm install --no-save \
             "${GITHUB_WORKSPACE}/packages/server/omega-edit-node-server-v${PKG_VERSION}.tgz" \
             "${GITHUB_WORKSPACE}/packages/client/omega-edit-node-client-v${PKG_VERSION}.tgz"
+          npm run stage:transform-plugins -- "${GITHUB_WORKSPACE}/_transform_plugins"
           npm run package:vsix
-          echo "VSIX_PATH=$STAGE_DIR/omega-edit-hex-editor.vsix" >> "$GITHUB_ENV"
+          echo "VSIX_PATH=$STAGE_DIR/omega-edit-data-editor.vsix" >> "$GITHUB_ENV"
 
       - name: Upload VS Code extension release asset
         uses: actions/upload-release-asset@v1
@@ -449,7 +551,7 @@ jobs:
         with:
           upload_url: ${{ env.UPLOAD_URL }}
           asset_path: ${{ env.VSIX_PATH }}
-          asset_name: omega-edit-hex-editor-v${{ env.VSCODE_EXTENSION_VERSION }}.vsix
+          asset_name: omega-edit-data-editor-v${{ env.VSCODE_EXTENSION_VERSION }}.vsix
           asset_content_type: application/vsix
 
   node-ai-release:

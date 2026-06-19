@@ -1,4 +1,5 @@
 out/
+bundled/
 node_modules/
 *.vsix
 .vscode-test/

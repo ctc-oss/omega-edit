@@ -21,6 +21,7 @@
 
 #include <filesystem>
 #include <string>
+#include <vector>
 
 TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(std::filesystem::is_directory(PLUGIN_DIR));
@@ -164,6 +165,26 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
                                                static_cast<size_t>(response.result_length)));
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
+
+    const auto large_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(large_session_ptr);
+    const std::vector<omega_byte_t> large_bytes(5 * 1024 * 1024, static_cast<omega_byte_t>(1));
+    REQUIRE(0 < omega_edit_insert_bytes(large_session_ptr, 0, large_bytes.data(),
+                                        static_cast<int64_t>(large_bytes.size())));
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.checksum8",
+                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(4 == response.result_length);
+    REQUIRE("0x00" == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                  static_cast<size_t>(response.result_length)));
+    omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.fnv1a64",
+                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(18 == response.result_length);
+    REQUIRE("fnv1a64" == std::string(response.result_label));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(large_session_ptr);
 
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
                                                                    codec_session_ptr, 0, 5, "{\"level\":10}",

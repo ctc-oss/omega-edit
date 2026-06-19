@@ -38,7 +38,7 @@ multiple viewports.
 | I want to… | Install | Time |
 |---|---|---|
 | **Use Ωedit™ from TypeScript / Node.js** | `npm install @omega-edit/client` | 2 min |
-| **Build a VS Code extension** | See [`examples/vscode-extension/`](examples/vscode-extension/) | 5 min |
+| **Build a VS Code extension** | See [`vscode-extension/`](vscode-extension/) | 5 min |
 | **Use the C/C++ library** | [Pre-built binaries](https://github.com/ctc-oss/omega-edit/releases) or build from source (see below) | 5 min |
 
 **TypeScript — first edit in 15 lines:**
@@ -268,7 +268,7 @@ Node packages will be in `.tgz` files located at:
 Tagged releases also attach the VS Code extension example as:
 
 ```
-omega-edit-hex-editor-v${VERSION}.vsix
+omega-edit-data-editor-v${VERSION}.vsix
 ```
 
 More information about the node packages can be found in the [packages](packages/README.md) folder.

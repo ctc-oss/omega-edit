@@ -9,7 +9,7 @@
     "type": "git",
     "url": "https://github.com/ctc-oss/omega-edit.git"
   },
-  "homepage": "https://github.com/ctc-oss/omega-edit/tree/main/examples/vscode-extension",
+  "homepage": "https://github.com/ctc-oss/omega-edit/tree/main/vscode-extension",
   "bugs": {
     "url": "https://github.com/ctc-oss/omega-edit/issues"
   },
@@ -27,6 +27,7 @@
     "onCommand:omegaEdit.searchPrevious",
     "onCommand:omegaEdit.undo",
     "onCommand:omegaEdit.redo",
+    "onCommand:omegaEdit.toggleInsertDirection",
     "onCommand:omegaEdit.refreshTransformPlugins",
     "onCommand:omegaEdit.exportChangeScript",
     "onCommand:omegaEdit.replayChangeScript",
@@ -123,6 +124,11 @@
         "enablement": "omegaEdit.hexEditorActive && omegaEdit.canRedo"
       },
       {
+        "command": "omegaEdit.toggleInsertDirection",
+        "title": "%omegaEdit.command.toggleInsertDirection.title%",
+        "enablement": "omegaEdit.hexEditorActive"
+      },
+      {
         "command": "omegaEdit.refreshTransformPlugins",
         "title": "%omegaEdit.command.refreshTransformPlugins.title%",
         "enablement": "omegaEdit.hexEditorActive"
@@ -205,6 +211,10 @@
           "when": "omegaEdit.hexEditorActive"
         },
         {
+          "command": "omegaEdit.toggleInsertDirection",
+          "when": "omegaEdit.hexEditorActive"
+        },
+        {
           "command": "omegaEdit.refreshTransformPlugins",
           "when": "omegaEdit.hexEditorActive"
         },
@@ -243,6 +253,7 @@
     "compile:webview": "vite build",
     "watch": "tsc -watch -p ./",
     "watch:webview": "vite build --watch",
+    "stage:transform-plugins": "node scripts/stage-transform-plugins.cjs",
     "package:vsix": "vsce package --out omega-edit-data-editor.vsix",
     "format:check": "biome format .",
     "format:write": "biome format --write .",
@@ -254,7 +265,7 @@
     "test": "npm run lint && npm run compile && npm run test:unit && npm run test:integration"
   },
   "dependencies": {
-    "@omega-edit/client": "file:../../packages/client"
+    "@omega-edit/client": "file:../packages/client"
   },
   "overrides": {
     "mocha": {

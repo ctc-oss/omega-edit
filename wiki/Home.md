@@ -68,7 +68,7 @@ Run it:
 npx ts-node hello.ts
 ```
 
-> **Next steps:** See the [TypeScript examples](https://github.com/ctc-oss/omega-edit/tree/main/examples/typescript) for search, viewports, profiling, and record/replay. See the [reference VS Code extension](https://github.com/ctc-oss/omega-edit/tree/main/examples/vscode-extension) for a complete hex editor built on Ωedit™.
+> **Next steps:** See the [TypeScript examples](https://github.com/ctc-oss/omega-edit/tree/main/examples/typescript) for search, viewports, profiling, and record/replay. See the [reference VS Code extension](https://github.com/ctc-oss/omega-edit/tree/main/vscode-extension) for a complete hex editor built on Ωedit™.
 
 ### Path 2 — C/C++ (native library)
 
@@ -127,7 +127,7 @@ Build a data/hex editor extension with a single npm dependency:
 }
 ```
 
-A complete, runnable reference extension lives at [`examples/vscode-extension/`](https://github.com/ctc-oss/omega-edit/tree/main/examples/vscode-extension). It demonstrates:
+A complete, runnable reference extension lives at [`vscode-extension/`](https://github.com/ctc-oss/omega-edit/tree/main/vscode-extension). It demonstrates:
 
 - Starting/stopping the Ωedit™ server in `activate()` / `deactivate()`
 - `CustomReadonlyEditorProvider` with hex + ASCII webview
@@ -138,7 +138,7 @@ A complete, runnable reference extension lives at [`examples/vscode-extension/`]
 The current reference implementation also uses the higher-level `@omega-edit/client` editor helpers for session lifecycle, live session state, undo/save-state bookkeeping, and bounded-vs-large search behavior instead of hand-rolling that glue in the provider.
 
 ```bash
-cd examples/vscode-extension
+cd vscode-extension
 npm install
 # Press F5 in VS Code → right-click any file → "Open With…" → "Ωedit™ Hex Editor"
 ```

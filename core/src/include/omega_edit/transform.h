@@ -49,7 +49,8 @@ typedef enum {
     OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_EXPAND = 1 << 1,
     OMEGA_TRANSFORM_PLUGIN_FLAG_MAY_SHRINK = 1 << 2,
     OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT = 1 << 3,
-    OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE = 1 << 4
+    OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE = 1 << 4,
+    OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING = 1 << 5
 } omega_transform_plugin_flags_t;
 
 typedef struct {
@@ -70,9 +71,11 @@ typedef struct {
 } omega_transform_plugin_info_t;
 
 typedef void *(*omega_transform_plugin_alloc_t)(size_t size, void *user_data_ptr);
+typedef int64_t (*omega_transform_plugin_read_t)(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                                 void *user_data_ptr);
 
 typedef struct {
-    /** Bytes from the requested session range. */
+    /** Bytes from the requested session range when the host materialized them. May be null for streaming requests. */
     const omega_byte_t *input_bytes;
     /** Length of input_bytes. */
     int64_t input_length;
@@ -85,6 +88,11 @@ typedef struct {
     /** Allocator plugins must use for response buffers and strings. */
     omega_transform_plugin_alloc_t alloc;
     void *allocator_user_data_ptr;
+    /** Read bytes from the requested range without requiring one contiguous input buffer. */
+    omega_transform_plugin_read_t read;
+    void *reader_user_data_ptr;
+    /** Suggested maximum chunk size for read calls. */
+    int64_t preferred_chunk_size;
 } omega_transform_plugin_request_t;
 
 /**
