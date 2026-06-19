@@ -34,7 +34,7 @@ jobs:
       GRPCURL_IMAGE: fullstorydev/grpcurl:v1.9.3
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Prepare compose environment
         shell: bash

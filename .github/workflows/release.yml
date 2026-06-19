@@ -34,7 +34,7 @@ jobs:
       checks: read
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Count lines of code (CLOC)
         id: cloc
@@ -163,7 +163,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -224,7 +224,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build C++ Middleware
         uses: ./.github/workflows/build-middleware
@@ -260,7 +260,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -348,7 +348,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}
@@ -397,7 +397,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Export git tag and package versions
         run: ${{ env.export_cmd }}
@@ -461,7 +461,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Export git tag and package.json version
         run: ${{ env.export_cmd }}

@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source 🛎️
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Deploy Wiki 📚
         uses: Andrew-Chen-Wang/github-wiki-action@v5
