@@ -1,7 +1,10 @@
 <script lang="ts">
   import { strings } from '../i18n'
-  import type { HostToWebviewMessage } from '../protocol'
-  import type { ServerHealthMessage } from '../protocol'
+  import type {
+    HostToWebviewMessage,
+    ServerHealthMessage,
+    ServerHealthMetricId,
+  } from '../protocol'
 
   type AnalysisProfileMessage = Extract<
     HostToWebviewMessage,
@@ -38,26 +41,28 @@
     severity?: ServerHealthMessage['severity'] | 'pending'
   }
 
-  const SERVER_LIVE_STATUS_LABELS = ['Latency']
-  const SERVER_CURRENT_INSTANCE_LABELS = [
-    'PID',
-    'Sessions',
-    'Uptime',
-    'Load Avg',
-    'RSS',
-    'Virtual',
-    'Peak RSS',
+  const SERVER_LIVE_STATUS_METRIC_IDS: readonly ServerHealthMetricId[] = [
+    'latency',
   ]
-  const SERVER_HOST_BUILD_LABELS = [
-    'Host',
-    'Platform',
-    'Logical CPUs',
-    'Runtime',
-    'Version',
-    'Client',
-    'Compiler',
-    'Build',
-    'C++',
+  const SERVER_CURRENT_INSTANCE_METRIC_IDS: readonly ServerHealthMetricId[] = [
+    'pid',
+    'sessions',
+    'uptime',
+    'loadAverage',
+    'residentMemory',
+    'virtualMemory',
+    'peakResidentMemory',
+  ]
+  const SERVER_HOST_BUILD_METRIC_IDS: readonly ServerHealthMetricId[] = [
+    'host',
+    'platform',
+    'logicalCpus',
+    'runtime',
+    'version',
+    'client',
+    'compiler',
+    'build',
+    'cppStandard',
   ]
 
   interface BarRow {
@@ -868,42 +873,36 @@
     }
   }
 
-  function normalizeServerMetricLabel(label: string): string {
-    return label.trim().toLowerCase()
-  }
-
   function mapServerMetrics(
     metrics: ServerHealthMessage['metrics']
-  ): Map<string, MetricRow> {
-    const metricByLabel = new Map<string, MetricRow>()
+  ): Map<ServerHealthMetricId, MetricRow> {
+    const metricById = new Map<ServerHealthMetricId, MetricRow>()
 
     for (const metric of metrics) {
       const label = metric.label.trim()
       const value = metric.value.trim()
-      const key = normalizeServerMetricLabel(label)
-      if (!label || !value || metricByLabel.has(key)) {
+      if (!label || !value || metricById.has(metric.id)) {
         continue
       }
-      metricByLabel.set(key, { label, value })
+      metricById.set(metric.id, { label, value })
     }
 
-    return metricByLabel
+    return metricById
   }
 
   function collectServerMetrics(
-    metricByLabel: Map<string, MetricRow>,
-    labels: string[],
-    seenLabels: Set<string>
+    metricById: Map<ServerHealthMetricId, MetricRow>,
+    ids: readonly ServerHealthMetricId[],
+    seenIds: Set<ServerHealthMetricId>
   ): MetricRow[] {
     const rows: MetricRow[] = []
 
-    for (const label of labels) {
-      const key = normalizeServerMetricLabel(label)
-      const row = metricByLabel.get(key)
-      if (!row || seenLabels.has(key)) {
+    for (const id of ids) {
+      const row = metricById.get(id)
+      if (!row || seenIds.has(id)) {
         continue
       }
-      seenLabels.add(key)
+      seenIds.add(id)
       rows.push(row)
     }
 
@@ -911,16 +910,16 @@
   }
 
   function collectRemainingServerMetrics(
-    metricByLabel: Map<string, MetricRow>,
-    seenLabels: Set<string>
+    metricById: Map<ServerHealthMetricId, MetricRow>,
+    seenIds: Set<ServerHealthMetricId>
   ): MetricRow[] {
     const rows: MetricRow[] = []
 
-    for (const [key, row] of metricByLabel) {
-      if (seenLabels.has(key)) {
+    for (const [id, row] of metricById) {
+      if (seenIds.has(id)) {
         continue
       }
-      seenLabels.add(key)
+      seenIds.add(id)
       rows.push(row)
     }
 
@@ -953,8 +952,8 @@
       return rows
     }
 
-    const metricByLabel = mapServerMetrics(serverHealth.metrics)
-    const seenLabels = new Set<string>()
+    const metricById = mapServerMetrics(serverHealth.metrics)
+    const seenIds = new Set<ServerHealthMetricId>()
 
     appendServerMetricSection(rows, strings.profiler.liveStatus, [
       {
@@ -963,29 +962,29 @@
         severity: serverHealth.severity,
       },
       ...collectServerMetrics(
-        metricByLabel,
-        SERVER_LIVE_STATUS_LABELS,
-        seenLabels
+        metricById,
+        SERVER_LIVE_STATUS_METRIC_IDS,
+        seenIds
       ),
     ])
     appendServerMetricSection(
       rows,
       strings.profiler.currentInstance,
       collectServerMetrics(
-        metricByLabel,
-        SERVER_CURRENT_INSTANCE_LABELS,
-        seenLabels
+        metricById,
+        SERVER_CURRENT_INSTANCE_METRIC_IDS,
+        seenIds
       )
     )
     appendServerMetricSection(
       rows,
       strings.profiler.hostAndBuild,
-      collectServerMetrics(metricByLabel, SERVER_HOST_BUILD_LABELS, seenLabels)
+      collectServerMetrics(metricById, SERVER_HOST_BUILD_METRIC_IDS, seenIds)
     )
     appendServerMetricSection(
       rows,
       strings.profiler.details,
-      collectRemainingServerMetrics(metricByLabel, seenLabels)
+      collectRemainingServerMetrics(metricById, seenIds)
     )
 
     return rows

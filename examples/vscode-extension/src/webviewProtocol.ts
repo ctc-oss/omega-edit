@@ -285,13 +285,39 @@ export type HostToWebviewMessage =
     }
   | ServerHealthMessage
 
+export type ServerHealthMetricId =
+  | 'version'
+  | 'client'
+  | 'host'
+  | 'pid'
+  | 'runtime'
+  | 'latency'
+  | 'sessions'
+  | 'uptime'
+  | 'logicalCpus'
+  | 'loadAverage'
+  | 'platform'
+  | 'compiler'
+  | 'build'
+  | 'cppStandard'
+  | 'residentMemory'
+  | 'virtualMemory'
+  | 'peakResidentMemory'
+  | 'error'
+
+export interface ServerHealthMetric {
+  id: ServerHealthMetricId
+  label: string
+  value: string
+}
+
 export interface ServerHealthMessage {
   type: 'serverHealth'
   ok: boolean
   summary: string
   detail: string
   severity: 'ok' | 'warn' | 'error' | 'down'
-  metrics: Array<{ label: string; value: string }>
+  metrics: ServerHealthMetric[]
 }
 
 export function normalizeBytesPerRow(value: unknown): BytesPerRow {
