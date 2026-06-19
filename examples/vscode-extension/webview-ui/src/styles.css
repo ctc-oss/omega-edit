@@ -170,7 +170,7 @@ button:focus-visible {
 }
 
 .segmented button.active {
-  color: var(--vscode-foreground);
+  color: var(--vscode-button-foreground);
   background: var(--vscode-button-background);
   border-color: var(--vscode-focusBorder);
   font-weight: 600;

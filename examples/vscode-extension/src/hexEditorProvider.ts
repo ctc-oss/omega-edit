@@ -13,18 +13,18 @@
 // limitations under the License.
 
 /**
- * Î©editâ„¢ Data Editor - Custom Editor Provider
+ * Ωedit™ Data Editor - Custom Editor Provider
  *
  * This is the core integration point between VS Code's custom editor API and
- * the Î©editâ„¢ editing engine. It demonstrates:
+ * the Ωedit™ editing engine. It demonstrates:
  *
- *   - Creating an Î©editâ„¢ session for each opened file
+ *   - Creating an Ωedit™ session for each opened file
  *   - Creating a viewport that tracks the visible region
  *   - Subscribing to viewport events so the webview updates live
  *   - Handling insert / delete / overwrite edits from the webview
  *   - Undo / redo wired through VS Code's built-in command palette
  *   - Search within the file
- *   - Saving via Î©editâ„¢'s server-side replay
+ *   - Saving via Ωedit™'s server-side replay
  */
 
 import {
@@ -358,7 +358,7 @@ interface ServerHealthTooltipEntry {
 }
 
 function normalizeServerHealthLabel(label: string): string {
-  return label.trim().toLocaleLowerCase()
+  return label.trim().toLowerCase()
 }
 
 function appendServerHealthTooltipSection(
@@ -897,7 +897,7 @@ export class HexEditorProvider
     })
   }
 
-  // â”€â”€ VS Code Custom Editor API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- VS Code Custom Editor API ---
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -921,7 +921,7 @@ export class HexEditorProvider
     }
     const filePath = uri.fsPath
 
-    // --- Create Î©editâ„¢ session for this file ---
+    // --- Create Ωedit™ session for this file ---
     const config = vscode.workspace.getConfiguration('omegaEdit')
     const bytesPerRow = normalizeBytesPerRow(config.get('bytesPerRow'))
 
@@ -1036,7 +1036,7 @@ export class HexEditorProvider
     })
   }
 
-  // â"€â"€ CustomEditorProvider required methods â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+  // --- CustomEditorProvider required methods ---
 
   async saveCustomDocument(
     document: HexDocument,
@@ -1146,7 +1146,7 @@ export class HexEditorProvider
     })
   }
 
-  // â”€â”€ Public methods called from extension.ts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Public methods called from extension.ts ---
 
   /** Navigate the active editor to a byte offset */
   goToOffset(offset: number): void {
@@ -1369,15 +1369,15 @@ export class HexEditorProvider
     )
   }
 
-  // â”€â”€ Event Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Event Subscriptions ---
 
   /**
-   * Subscribe to Î©editâ„¢ viewport events. When edits change data visible in
+   * Subscribe to Ωedit™ viewport events. When edits change data visible in
    * the viewport, the server streams an event and we push fresh data to the
-   * webview. This is the reactive data flow at the heart of Î©editâ„¢.
+   * webview. This is the reactive data flow at the heart of Ωedit™.
    */
 
-  // â”€â”€ Viewport Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Viewport Data ---
 
   private postWebviewMessage(
     session: EditorSession,
@@ -2505,7 +2505,7 @@ export class HexEditorProvider
     return session.scrollTask
   }
 
-  // â”€â”€ Webview Message Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // --- Webview Message Handler ---
 
   private async handleWebviewMessage(
     session: EditorSession,

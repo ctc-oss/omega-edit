@@ -869,7 +869,7 @@
   }
 
   function normalizeServerMetricLabel(label: string): string {
-    return label.trim().toLocaleLowerCase()
+    return label.trim().toLowerCase()
   }
 
   function mapServerMetrics(
