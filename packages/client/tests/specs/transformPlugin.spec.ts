@@ -117,8 +117,25 @@ describe('Transform plugin gRPC integration', () => {
         'omega.example.and',
         'omega.example.base64_decode',
         'omega.example.base64_encode',
+        'omega.example.blake2b512',
+        'omega.example.blake2s256',
+        'omega.example.character_transcode',
+        'omega.example.common_checksums',
+        'omega.example.decimal_codecs',
+        'omega.example.endian_swap',
+        'omega.example.format_inspectors',
         'omega.example.fnv1a64',
+        'omega.example.md5',
         'omega.example.or',
+        'omega.example.record_text_helpers',
+        'omega.example.sha1',
+        'omega.example.sha224',
+        'omega.example.sha256',
+        'omega.example.sha3_256',
+        'omega.example.sha3_512',
+        'omega.example.sha384',
+        'omega.example.sha512',
+        'omega.example.text_codecs',
         'omega.example.zlib_compress',
         'omega.example.zlib_decompress',
         'omega.example.xor',
@@ -288,6 +305,23 @@ describe('Transform plugin gRPC integration', () => {
       expect(hashResponse.resultMimeType).to.equal('text/plain')
       expect(Buffer.from(hashResponse.result).toString('utf8')).to.equal(
         '0x6334A32D761281D8'
+      )
+      expect(await getComputedFileSize(sessionId)).to.equal(5)
+
+      const sha256Response = await applyTransformPlugin(
+        sessionId,
+        'omega.example.sha256',
+        0,
+        5
+      )
+      expect(sha256Response.operation).to.equal(
+        TransformPluginOperation.INSPECT
+      )
+      expect(sha256Response.contentChanged).to.equal(false)
+      expect(sha256Response.resultLabel).to.equal('sha256')
+      expect(sha256Response.resultMimeType).to.equal('text/plain')
+      expect(Buffer.from(sha256Response.result).toString('utf8')).to.equal(
+        'c490aea7e19cad1b8b49dac9c2e02c023c6f21f1379fdd70335f461273f84cc7'
       )
       expect(await getComputedFileSize(sessionId)).to.equal(5)
 

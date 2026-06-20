@@ -8,6 +8,7 @@ class OmegaEditTransformPluginsConan(ConanFile):
     generators = "CMakeDeps", "CMakeToolchain"
 
     def requirements(self):
+        self.requires("openssl/3.3.2")
         self.requires("zlib/1.3.1")
 
     def layout(self):

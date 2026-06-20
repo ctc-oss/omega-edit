@@ -47,7 +47,12 @@ runs:
 
     - name: Perform cmake operators 🔧
       shell: bash
-      run: docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "(make clean || true) && make TYPE=Release all"
+      run: |
+        docker exec omega-edit-${{ inputs.os-name }}-cont bash -c "\
+          if command -v apt-get >/dev/null 2>&1; then \
+            apt-get update && apt-get install -y libssl-dev zlib1g-dev; \
+          fi; \
+          (make clean || true) && make TYPE=Release all"
 
     - name: Copy library file from docker container 🔻
       shell: bash

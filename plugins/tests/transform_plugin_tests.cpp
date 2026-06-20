@@ -29,12 +29,29 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     const auto registry_ptr = omega_transform_plugin_registry_create();
     REQUIRE(registry_ptr);
     REQUIRE(0 < omega_transform_plugin_registry_register_directory(registry_ptr, PLUGIN_DIR.string().c_str()));
-    REQUIRE(10 <= omega_transform_plugin_registry_get_count(registry_ptr));
+    REQUIRE(16 <= omega_transform_plugin_registry_get_count(registry_ptr));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.and"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_decode"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.base64_encode"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.blake2b512"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.blake2s256"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.character_transcode"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.common_checksums"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.decimal_codecs"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.endian_swap"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.format_inspectors"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.fnv1a64"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.md5"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.or"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.record_text_helpers"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha1"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha224"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha256"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha3_256"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha3_512"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha384"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha512"));
+    REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.text_codecs"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_compress"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.zlib_decompress"));
     REQUIRE(nullptr != omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.xor"));
@@ -68,6 +85,10 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE("{\"level\":-1}" == std::string(zlib_compress_info->default_args));
     REQUIRE(0 == omega_transform_plugin_options_match_args_schema("{\"level\":9}", zlib_compress_info->args_schema));
     REQUIRE(-1 == omega_transform_plugin_options_match_args_schema("{\"level\":10}", zlib_compress_info->args_schema));
+    const auto sha256_info = omega_transform_plugin_registry_find_info(registry_ptr, "omega.example.sha256");
+    REQUIRE("SHA-256" == std::string(sha256_info->name));
+    REQUIRE(std::string(sha256_info->description).find("SHA-256") != std::string::npos);
+    REQUIRE(std::string(OMEGA_TRANSFORM_PLUGIN_NO_ARGS_SCHEMA) == std::string(sha256_info->args_schema));
 
     const auto session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(session_ptr);
@@ -166,6 +187,39 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
 
+    const auto require_digest_result = [&](const char *plugin_id, const char *label, const char *expected) {
+        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, plugin_id, codec_session_ptr, 0,
+                                                                      5, nullptr, &response));
+        REQUIRE(static_cast<int64_t>(std::string(expected).size()) == response.result_length);
+        REQUIRE(expected == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                        static_cast<size_t>(response.result_length)));
+        REQUIRE(label == std::string(response.result_label));
+        omega_transform_plugin_response_clear(&response);
+    };
+
+    require_digest_result("omega.example.md5", "md5", "5d41402abc4b2a76b9719d911017c592");
+    require_digest_result("omega.example.sha1", "sha1", "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d");
+    require_digest_result("omega.example.sha224", "sha224",
+                          "ea09ae9cc6768c50fcee903ed054556e5bfc8347907f12598aa24193");
+    require_digest_result("omega.example.sha256", "sha256",
+                          "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+    require_digest_result("omega.example.sha384", "sha384",
+                          "59e1748777448c69de6b800d7a33bbfb9ff1b463e44354c3553bcdb9c666fa90125a3c79f"
+                          "90397bdf5f6a13de828684f");
+    require_digest_result("omega.example.sha512", "sha512",
+                          "9b71d224bd62f3785d96d46ad3ea3d73319bfbc2890caadae2dff72519673ca72323c"
+                          "3d99ba5c11d7c7acc6e14b8c5da0c4663475c2e5c3adef46f73bcdec043");
+    require_digest_result("omega.example.sha3_256", "sha3-256",
+                          "3338be694f50c5f338814986cdf0686453a888b84f424d792af4b9202398f392");
+    require_digest_result("omega.example.sha3_512", "sha3-512",
+                          "75d527c368f2efe848ecf6b073a36767800805e9eef2b1857d5f984f036eb6df891d75f72d9b"
+                          "154518c1cd58835286d1da9a38deba3de98b5a53e5ed78a84976");
+    require_digest_result("omega.example.blake2b512", "blake2b-512",
+                          "e4cfa39a3d37be31c59609e807970799caa68a19bfaa15135f165085e01d41a65ba1e1b146ae"
+                          "b6bd0092b49eac214c103ccfa3a365954bbbe52f74a2b3620c94");
+    require_digest_result("omega.example.blake2s256", "blake2s-256",
+                          "19213bacc58dee6dbde3ceb9a47cbb330b3d86f8cca8997eb00be456f140ca25");
+
     const auto large_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
     REQUIRE(large_session_ptr);
     const std::vector<omega_byte_t> large_bytes(5 * 1024 * 1024, static_cast<omega_byte_t>(1));
@@ -184,7 +238,172 @@ TEST_CASE("Packaged Transform Plugins", "[TransformPlugin]") {
     REQUIRE(18 == response.result_length);
     REQUIRE("fnv1a64" == std::string(response.result_label));
     omega_transform_plugin_response_clear(&response);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.sha256",
+                                                                  large_session_ptr, 0, 0, nullptr, &response));
+    REQUIRE(64 == response.result_length);
+    REQUIRE("c283e17a1b90a352c91de2c445b711c5c4126279eff884b8ffc44893576b19ef" ==
+            std::string(reinterpret_cast<const char *>(response.result_bytes),
+                        static_cast<size_t>(response.result_length)));
+    REQUIRE("sha256" == std::string(response.result_label));
+    omega_transform_plugin_response_clear(&response);
     omega_edit_destroy_session(large_session_ptr);
+
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.common_checksums", codec_session_ptr, 0, 5,
+                         "{\"algorithm\":\"crc32\"}", &response));
+    REQUIRE("0x3610A686" == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                        static_cast<size_t>(response.result_length)));
+    REQUIRE("crc32" == std::string(response.result_label));
+    omega_transform_plugin_response_clear(&response);
+
+    const auto checksum_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(checksum_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(checksum_session_ptr, 0, "123456789"));
+    const auto require_checksum_result = [&](const char *algorithm, const char *expected) {
+        const std::string options = std::string("{\"algorithm\":\"") + algorithm + "\"}";
+        REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.common_checksums",
+                                                                      checksum_session_ptr, 0, 9, options.c_str(),
+                                                                      &response));
+        REQUIRE(expected == std::string(reinterpret_cast<const char *>(response.result_bytes),
+                                        static_cast<size_t>(response.result_length)));
+        REQUIRE(algorithm == std::string(response.result_label));
+        omega_transform_plugin_response_clear(&response);
+    };
+    require_checksum_result("crc32", "0xCBF43926");
+    require_checksum_result("crc32c", "0xE3069283");
+    require_checksum_result("crc32-mpeg2", "0x0376E6E7");
+    require_checksum_result("crc32-bzip2", "0xFC891918");
+    require_checksum_result("crc16-ibm", "0xBB3D");
+    require_checksum_result("crc16-ccitt-false", "0x29B1");
+    require_checksum_result("crc16-xmodem", "0x31C3");
+    require_checksum_result("crc16-modbus", "0x4B37");
+    require_checksum_result("crc16-kermit", "0x2189");
+    require_checksum_result("crc8", "0xF4");
+    require_checksum_result("adler32", "0x091E01DE");
+    require_checksum_result("fletcher16", "0x1EDE");
+    require_checksum_result("fletcher32", "0x09DF09D5");
+    require_checksum_result("internet-checksum", "0xF62A");
+    require_checksum_result("lrc", "0x23");
+    require_checksum_result("bcc", "0x31");
+    require_checksum_result("sum8", "0xDD");
+    require_checksum_result("sum16", "0x01DD");
+    require_checksum_result("sum32", "0x000001DD");
+    require_checksum_result("fnv1a32", "0xBB86B11C");
+    require_checksum_result("fnv1a64", "0x06D5573923C6CDFC");
+    require_checksum_result("murmur3-32", "0xB4FEF382");
+    require_checksum_result("xxhash32", "0x937BAD67");
+    require_checksum_result("xxhash64", "0x8CB841DB40E6AE83");
+    omega_edit_destroy_session(checksum_session_ptr);
+
+    const auto text_codec_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(text_codec_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(text_codec_session_ptr, 0, "hello"));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.text_codecs", text_codec_session_ptr, 0, 5,
+                         "{\"codec\":\"hex\",\"direction\":\"encode\"}", &response));
+    REQUIRE("68656c6c6f" == omega_session_get_segment_string(text_codec_session_ptr, 0,
+                                                            omega_session_get_computed_file_size(text_codec_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.text_codecs", text_codec_session_ptr, 0, 0,
+                         "{\"codec\":\"hex\",\"direction\":\"decode\"}", &response));
+    REQUIRE("hello" == omega_session_get_segment_string(text_codec_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(text_codec_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.text_codecs", text_codec_session_ptr, 0, 5,
+                         "{\"codec\":\"base64url\",\"direction\":\"encode\"}", &response));
+    REQUIRE("aGVsbG8" == omega_session_get_segment_string(text_codec_session_ptr, 0,
+                                                          omega_session_get_computed_file_size(text_codec_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.text_codecs", text_codec_session_ptr, 0, 0,
+                         "{\"codec\":\"base64url\",\"direction\":\"decode\"}", &response));
+    REQUIRE("hello" == omega_session_get_segment_string(text_codec_session_ptr, 0,
+                                                        omega_session_get_computed_file_size(text_codec_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(text_codec_session_ptr);
+
+    const auto charset_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(charset_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(charset_session_ptr, 0, "ABC"));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.character_transcode", charset_session_ptr, 0, 3,
+                         "{\"from\":\"utf-8\",\"to\":\"ebcdic-037\"}", &response));
+    REQUIRE(std::string({static_cast<char>(0xC1), static_cast<char>(0xC2), static_cast<char>(0xC3)}) ==
+            omega_session_get_segment_string(charset_session_ptr, 0, omega_session_get_computed_file_size(charset_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.character_transcode", charset_session_ptr, 0, 3,
+                         "{\"from\":\"ebcdic-037\",\"to\":\"utf-8\"}", &response));
+    REQUIRE("ABC" == omega_session_get_segment_string(charset_session_ptr, 0,
+                                                      omega_session_get_computed_file_size(charset_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(charset_session_ptr);
+
+    const auto invalid_utf8_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(invalid_utf8_session_ptr);
+    const omega_byte_t overlong_utf8_bytes[] = {0xC0, 0xAF};
+    REQUIRE(0 < omega_edit_insert_bytes(invalid_utf8_session_ptr, 0, overlong_utf8_bytes, 2));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.character_transcode", invalid_utf8_session_ptr, 0, 2,
+                          "{\"from\":\"utf-8\",\"to\":\"utf-16le\"}", &response));
+    omega_edit_destroy_session(invalid_utf8_session_ptr);
+
+    const auto helper_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(helper_session_ptr);
+    const omega_byte_t endian_bytes[] = {1, 2, 3, 4};
+    REQUIRE(0 < omega_edit_insert_bytes(helper_session_ptr, 0, endian_bytes, 4));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.endian_swap",
+                                                                  helper_session_ptr, 0, 4, "{\"width\":2}",
+                                                                  &response));
+    REQUIRE(std::string({2, 1, 4, 3}) ==
+            omega_session_get_segment_string(helper_session_ptr, 0, omega_session_get_computed_file_size(helper_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(helper_session_ptr);
+
+    const auto decimal_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(decimal_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(decimal_session_ptr, 0, "123"));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.decimal_codecs", decimal_session_ptr, 0, 3,
+                         "{\"codec\":\"packed-decimal\",\"direction\":\"encode\"}", &response));
+    REQUIRE(std::string({static_cast<char>(0x12), static_cast<char>(0x3C)}) ==
+            omega_session_get_segment_string(decimal_session_ptr, 0, omega_session_get_computed_file_size(decimal_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(decimal_session_ptr);
+
+    const auto format_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(format_session_ptr);
+    const omega_byte_t varint_bytes[] = {0x96, 0x01};
+    REQUIRE(0 < omega_edit_insert_bytes(format_session_ptr, 0, varint_bytes, 2));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.format_inspectors", format_session_ptr, 0, 2,
+                         "{\"format\":\"protobuf-varint\"}", &response));
+    REQUIRE(std::string(reinterpret_cast<const char *>(response.result_bytes),
+                        static_cast<size_t>(response.result_length)).find("value=150") != std::string::npos);
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(format_session_ptr);
+
+    const auto record_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(record_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(record_session_ptr, 0, "<&"));
+    REQUIRE(0 == omega_transform_plugin_registry_apply_to_session(
+                         registry_ptr, "omega.example.record_text_helpers", record_session_ptr, 0, 2,
+                         "{\"action\":\"xml-escape\"}", &response));
+    REQUIRE("&lt;&amp;" == omega_session_get_segment_string(record_session_ptr, 0,
+                                                           omega_session_get_computed_file_size(record_session_ptr)));
+    omega_transform_plugin_response_clear(&response);
+    omega_edit_destroy_session(record_session_ptr);
+
+    const auto invalid_csv_session_ptr = omega_edit_create_session(nullptr, nullptr, nullptr, NO_EVENTS, nullptr);
+    REQUIRE(invalid_csv_session_ptr);
+    REQUIRE(0 < omega_edit_insert_string(invalid_csv_session_ptr, 0, "\"abc\"\""));
+    REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(
+                          registry_ptr, "omega.example.record_text_helpers", invalid_csv_session_ptr, 0, 6,
+                          "{\"action\":\"csv-unquote\"}", &response));
+    omega_edit_destroy_session(invalid_csv_session_ptr);
 
     REQUIRE(-1 == omega_transform_plugin_registry_apply_to_session(registry_ptr, "omega.example.zlib_compress",
                                                                    codec_session_ptr, 0, 5, "{\"level\":10}",
