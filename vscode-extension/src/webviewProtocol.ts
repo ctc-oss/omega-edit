@@ -25,6 +25,7 @@ export type BytesPerRow = (typeof VALID_BYTES_PER_ROW)[number]
 export type OffsetRadix = 'hex' | 'dec'
 export type GridEditPane = 'hex' | 'ascii'
 export type WebviewEditMode = 'insert' | 'overwrite'
+export type InsertDirection = 'forward' | 'backward'
 export type ExternalHighlightKind =
   | 'current'
   | 'parsed'
@@ -80,6 +81,7 @@ export interface WebviewEditorUiState {
   offsetRadix: OffsetRadix
   activePane: GridEditPane
   editMode: WebviewEditMode
+  insertDirection: InsertDirection
 }
 
 export interface WebviewEditorState extends WebviewEditorUiState {
@@ -139,6 +141,7 @@ export type WebviewToHostMessage =
   | { type: 'overwrite'; offset: number; data: string }
   | { type: 'replace'; offset: number; length: number; data: string }
   | { type: 'toggleEditMode' }
+  | { type: 'setInsertDirection'; insertDirection: InsertDirection }
   | {
       type: 'applyTransform'
       pluginId: string
@@ -282,6 +285,10 @@ export type HostToWebviewMessage =
   | {
       type: 'editMode'
       editMode: WebviewEditMode
+    }
+  | {
+      type: 'insertDirection'
+      insertDirection: InsertDirection
     }
   | ServerHealthMessage
 
@@ -462,6 +469,10 @@ function safeWebviewEditMode(value: unknown): WebviewEditMode | undefined {
   return value === 'insert' || value === 'overwrite' ? value : undefined
 }
 
+function safeInsertDirection(value: unknown): InsertDirection | undefined {
+  return value === 'forward' || value === 'backward' ? value : undefined
+}
+
 function safeExternalHighlightKind(
   value: unknown
 ): ExternalHighlightKind | undefined {
@@ -495,6 +506,7 @@ function normalizeEditorUiState(
   const offsetRadix = safeOffsetRadix(raw.offsetRadix)
   const activePane = safeGridEditPane(raw.activePane)
   const editMode = safeWebviewEditMode(raw.editMode)
+  const insertDirection = safeInsertDirection(raw.insertDirection) ?? 'forward'
 
   if (
     visibleOffset === undefined ||
@@ -506,7 +518,8 @@ function normalizeEditorUiState(
     raw.bytesPerRow !== bytesPerRow ||
     !offsetRadix ||
     !activePane ||
-    !editMode
+    !editMode ||
+    !insertDirection
   ) {
     return undefined
   }
@@ -518,7 +531,7 @@ function normalizeEditorUiState(
     return undefined
   }
 
-  if (selectedOffset >= context.fileSize && context.fileSize > 0) {
+  if (selectedOffset > context.fileSize) {
     return undefined
   }
 
@@ -548,6 +561,7 @@ function normalizeEditorUiState(
     offsetRadix,
     activePane,
     editMode,
+    insertDirection,
   }
 }
 
@@ -738,6 +752,13 @@ export function normalizeWebviewMessage(
 
     case 'toggleEditMode':
       return { type: 'toggleEditMode' }
+
+    case 'setInsertDirection': {
+      const insertDirection = safeInsertDirection(raw.insertDirection)
+      return insertDirection
+        ? { type: 'setInsertDirection', insertDirection }
+        : undefined
+    }
 
     case 'replaceAllMatches': {
       const query = safeSearchQuery(raw)

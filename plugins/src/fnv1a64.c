@@ -15,6 +15,16 @@
 #include <omega_edit/transform_plugin_sdk.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+static int update_hash(const omega_byte_t *bytes, int64_t length, uint64_t *hash_ptr) {
+    if (length < 0 || !hash_ptr || (length > 0 && !bytes)) { return -1; }
+    for (int64_t i = 0; i < length; ++i) {
+        *hash_ptr ^= bytes[i];
+        *hash_ptr *= UINT64_C(1099511628211);
+    }
+    return 0;
+}
 
 OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transform_plugin_info_t *info_ptr) {
     if (!info_ptr) { return -1; }
@@ -22,7 +32,8 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_get_info(omega_transfor
     info_ptr->name = "FNV-1a 64-bit Hash";
     info_ptr->description = "Calculate an FNV-1a 64-bit hash over the selected range.";
     info_ptr->operation = OMEGA_TRANSFORM_PLUGIN_OPERATION_INSPECT;
-    info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE;
+    info_ptr->flags = OMEGA_TRANSFORM_PLUGIN_FLAG_TEXT_RESULT | OMEGA_TRANSFORM_PLUGIN_FLAG_BINARY_SAFE |
+                      OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING;
     info_ptr->help = "No JSON options are used.";
     info_ptr->example = "";
     info_ptr->default_args = "";
@@ -36,9 +47,27 @@ OMEGA_TRANSFORM_PLUGIN_EXPORT int omega_transform_plugin_apply(const omega_trans
     if (!request_ptr || !response_ptr || !request_ptr->alloc || request_ptr->input_length < 0) { return -1; }
 
     uint64_t hash = UINT64_C(14695981039346656037);
-    for (int64_t i = 0; i < request_ptr->input_length; ++i) {
-        hash ^= request_ptr->input_bytes[i];
-        hash *= UINT64_C(1099511628211);
+    if (request_ptr->read) {
+        const int64_t chunk_size = request_ptr->preferred_chunk_size > 0
+                                           ? request_ptr->preferred_chunk_size
+                                           : 65536;
+        omega_byte_t *buffer = (omega_byte_t *) malloc((size_t) chunk_size);
+        if (!buffer) { return -1; }
+        for (int64_t position = 0; position < request_ptr->session_length;) {
+            int64_t bytes_read = request_ptr->read(position, buffer, chunk_size, request_ptr->reader_user_data_ptr);
+            if (bytes_read <= 0) {
+                free(buffer);
+                return -1;
+            }
+            if (update_hash(buffer, bytes_read, &hash) != 0) {
+                free(buffer);
+                return -1;
+            }
+            position += bytes_read;
+        }
+        free(buffer);
+    } else if (update_hash(request_ptr->input_bytes, request_ptr->input_length, &hash) != 0) {
+        return -1;
     }
 
     char result[32];

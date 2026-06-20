@@ -78,6 +78,7 @@ import {
   MAX_LABEL_LENGTH,
   MAX_WEBVIEW_HEX_BYTES,
   type BytesPerRow,
+  type InsertDirection,
   type WebviewEditMode,
   type WebviewEditorState,
   type WebviewEditorUiState,
@@ -138,6 +139,7 @@ const SERVER_HEALTH_WARN_LATENCY_MS = 75
 const SERVER_HEALTH_ERROR_LATENCY_MS = 250
 const MAX_TRANSFORM_RESULT_TEXT_LENGTH = 240
 const MAX_TRANSFORM_RESULT_PREVIEW_BYTES = 4 * 1024
+const MAX_TRANSFORM_NOOP_COMPARE_BYTES = 1024 * 1024
 const MAX_CHANGE_SCRIPT_BYTES = 32 * 1024 * 1024
 const MAX_CHANGE_SCRIPT_ENTRIES = 100_000
 const CONTEXT_HEX_EDITOR_ACTIVE = 'omegaEdit.hexEditorActive'
@@ -214,7 +216,12 @@ function initialWebviewState(bytesPerRow: BytesPerRow): WebviewEditorUiState {
     offsetRadix: 'hex',
     activePane: 'hex',
     editMode: 'insert',
+    insertDirection: 'forward',
   }
+}
+
+function safeInsertDirection(value: unknown): InsertDirection | undefined {
+  return value === 'forward' || value === 'backward' ? value : undefined
 }
 
 function parseCommandUri(value: unknown): vscode.Uri | undefined {
@@ -1213,6 +1220,35 @@ export class HexEditorProvider
     return this.buildEditorState(session)
   }
 
+  setInsertDirection(
+    directionOrOptions?: unknown,
+    options?: unknown
+  ): WebviewEditorState | undefined {
+    const requestedDirection =
+      safeInsertDirection(directionOrOptions) ??
+      (isRecord(directionOrOptions)
+        ? safeInsertDirection(
+            directionOrOptions.insertDirection ?? directionOrOptions.direction
+          )
+        : undefined)
+    const commandOptions =
+      requestedDirection && !isRecord(directionOrOptions)
+        ? options
+        : directionOrOptions
+    const session = this.resolveCommandSession(commandOptions)
+    if (!session) {
+      return undefined
+    }
+
+    const insertDirection =
+      requestedDirection ??
+      (session.webviewState.insertDirection === 'forward'
+        ? 'backward'
+        : 'forward')
+    this.setSessionInsertDirection(session, insertDirection)
+    return this.buildEditorState(session)
+  }
+
   /** Re-read bytesPerRow from config and refresh all open editors */
   refreshBytesPerRow(): void {
     const config = vscode.workspace.getConfiguration('omegaEdit')
@@ -1481,6 +1517,14 @@ export class HexEditorProvider
     this.fireEditorStateChanged(session)
   }
 
+  private postInsertDirection(session: EditorSession): void {
+    this.postWebviewMessage(session, {
+      type: 'insertDirection',
+      insertDirection: session.webviewState.insertDirection,
+    })
+    this.fireEditorStateChanged(session)
+  }
+
   private toggleEditMode(session: EditorSession): void {
     const editMode: WebviewEditMode =
       session.webviewState.editMode === 'insert' ? 'overwrite' : 'insert'
@@ -1489,6 +1533,17 @@ export class HexEditorProvider
       editMode,
     }
     this.postEditMode(session)
+  }
+
+  private setSessionInsertDirection(
+    session: EditorSession,
+    insertDirection: InsertDirection
+  ): void {
+    session.webviewState = {
+      ...session.webviewState,
+      insertDirection,
+    }
+    this.postInsertDirection(session)
   }
 
   private fireEditorStateChanged(session: EditorSession): void {
@@ -1713,10 +1768,6 @@ export class HexEditorProvider
     const remainingLength = Math.max(0, session.fileSize - clampedOffset)
     const originalLength =
       length === 0 ? remainingLength : Math.min(length, remainingLength)
-    const originalBytes =
-      originalLength > 0
-        ? await getSegment(session.sessionId, clampedOffset, originalLength)
-        : new Uint8Array()
     const sessionSyncVersion = session.sessionSyncVersion
     const response = await applyTransformPlugin(
       session.sessionId,
@@ -1728,8 +1779,17 @@ export class HexEditorProvider
 
     let contentChanged = response.contentChanged
     if (response.contentChanged) {
+      const canCompareNoOp =
+        response.offset === clampedOffset &&
+        response.length === originalLength &&
+        originalLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES &&
+        response.replacementLength <= MAX_TRANSFORM_NOOP_COMPARE_BYTES
+      const originalBytes =
+        canCompareNoOp && originalLength > 0
+          ? await getSegment(session.sessionId, clampedOffset, originalLength)
+          : new Uint8Array()
       const replacement =
-        response.replacementLength > 0
+        canCompareNoOp && response.replacementLength > 0
           ? await getSegment(
               session.sessionId,
               response.offset,
@@ -1737,9 +1797,7 @@ export class HexEditorProvider
             )
           : new Uint8Array()
       const isNoOpReplace =
-        response.offset === clampedOffset &&
-        response.length === originalLength &&
-        bytesEqual(originalBytes, replacement)
+        canCompareNoOp && bytesEqual(originalBytes, replacement)
 
       if (isNoOpReplace) {
         await this.waitForSessionSync(session, sessionSyncVersion)
@@ -1753,7 +1811,10 @@ export class HexEditorProvider
           kind: 'REPLACE',
           offset: response.offset,
           length: response.length,
-          data: Buffer.from(replacement).toString('hex'),
+          data:
+            replacement.byteLength > 0
+              ? Buffer.from(replacement).toString('hex')
+              : '',
         })
         this.postEditState(session)
         this.notifyDocumentChanged(session)
@@ -2034,7 +2095,7 @@ export class HexEditorProvider
     }
 
     this.heartbeatLoop = startServerHeartbeatLoop({
-      intervalMs: 5000,
+      intervalMs: 1000,
       getSessionIds: () =>
         Array.from(this.sessions.values(), (session) => session.sessionId),
       onHeartbeat: async (heartbeat) => {
@@ -2571,6 +2632,7 @@ export class HexEditorProvider
             offsetRadix: msg.offsetRadix,
             activePane: msg.activePane,
             editMode: session.webviewState.editMode,
+            insertDirection: msg.insertDirection,
           }
           this.fireEditorStateChanged(session)
           break
@@ -2578,6 +2640,11 @@ export class HexEditorProvider
 
         case 'toggleEditMode': {
           await this.toggleEditMode(session)
+          break
+        }
+
+        case 'setInsertDirection': {
+          this.setSessionInsertDirection(session, msg.insertDirection)
           break
         }
 

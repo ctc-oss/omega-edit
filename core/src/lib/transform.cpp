@@ -505,6 +505,15 @@ namespace {
 
     void *plugin_malloc_(size_t size, void *) { return std::malloc(size == 0 ? 1 : size); }
 
+    constexpr int64_t TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES = 1024 * 1024;
+    constexpr int64_t TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES = 4 * 1024 * 1024;
+
+    struct session_range_reader_t {
+        const omega_session_t *session_ptr{};
+        int64_t offset{};
+        int64_t length{};
+    };
+
     // Transfers plugin-owned response buffers to the caller. If no caller response is supplied,
     // the temporary response is cleared here so plugins never leak allocator-owned memory.
     void move_plugin_response_(omega_transform_plugin_response_t *response_ptr,
@@ -542,6 +551,37 @@ namespace {
         bytes.assign(data_ptr, data_ptr + copied_length);
         std::free(data_ptr);
         return 0;
+    }
+
+    auto read_session_range_chunk_(int64_t relative_offset, omega_byte_t *buffer, int64_t length,
+                                   void *user_data_ptr) -> int64_t {
+        auto *reader = static_cast<session_range_reader_t *>(user_data_ptr);
+        if (!reader || !reader->session_ptr || !buffer || relative_offset < 0 || length < 0 ||
+            relative_offset > reader->length) {
+            return -1;
+        }
+
+        const auto remaining = reader->length - relative_offset;
+        const auto read_length = std::min(length, remaining);
+        if (read_length == 0) { return 0; }
+
+        auto *segment = omega_segment_create(read_length);
+        if (!segment) { return -1; }
+        const auto rc = omega_session_get_segment(reader->session_ptr, segment, reader->offset + relative_offset);
+        if (rc != 0) {
+            omega_segment_destroy(segment);
+            return -1;
+        }
+
+        const auto segment_length = std::min(read_length, omega_segment_get_length(segment));
+        auto *data = omega_segment_get_data(segment);
+        if (segment_length > 0 && !data) {
+            omega_segment_destroy(segment);
+            return -1;
+        }
+        if (segment_length > 0) { std::memcpy(buffer, data, static_cast<size_t>(segment_length)); }
+        omega_segment_destroy(segment);
+        return segment_length;
     }
 }
 
@@ -638,13 +678,21 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
     if (iter == registry_ptr->plugins.end()) { return -1; }
     if (0 != omega_transform_plugin_options_match_args_schema(options_json, (*iter)->info.args_schema)) { return -1; }
 
-    std::vector<omega_byte_t> input_bytes;
-    if (0 != read_session_range_(session_ptr, offset, length, input_bytes)) { return -1; }
-
     const auto computed_file_size = omega_session_get_computed_file_size(session_ptr);
     const auto requested_length = length == 0 ? computed_file_size - offset
                                               : std::min(length, computed_file_size - offset);
     if (requested_length < 0) { return -1; }
+
+    const auto operation = (*iter)->info.operation;
+    const auto can_stream = ((*iter)->info.flags & OMEGA_TRANSFORM_PLUGIN_FLAG_STREAMING) != 0;
+    const auto should_materialize = !can_stream || requested_length <= TRANSFORM_PLUGIN_CONTIGUOUS_INPUT_LIMIT_BYTES ||
+                                    operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
+                                    operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT;
+
+    std::vector<omega_byte_t> input_bytes;
+    if (should_materialize && 0 != read_session_range_(session_ptr, offset, length, input_bytes)) { return -1; }
+
+    session_range_reader_t reader{session_ptr, offset, requested_length};
 
     omega_transform_plugin_request_t request{};
     request.input_bytes = input_bytes.empty() ? nullptr : input_bytes.data();
@@ -654,6 +702,9 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
     request.options_json = options_json;
     request.alloc = plugin_malloc_;
     request.allocator_user_data_ptr = nullptr;
+    request.read = read_session_range_chunk_;
+    request.reader_user_data_ptr = &reader;
+    request.preferred_chunk_size = TRANSFORM_PLUGIN_STREAM_CHUNK_BYTES;
 
     omega_transform_plugin_response_t plugin_response{};
     if (0 != (*iter)->apply(&request, &plugin_response)) {
@@ -666,7 +717,6 @@ int omega_transform_plugin_registry_apply_to_session(omega_transform_plugin_regi
         return -1;
     }
 
-    const auto operation = (*iter)->info.operation;
     if (operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE ||
         operation == OMEGA_TRANSFORM_PLUGIN_OPERATION_REPLACE_AND_INSPECT) {
         const auto serial = omega_edit_replace_bytes(session_ptr, offset, requested_length,

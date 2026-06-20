@@ -6,7 +6,7 @@
       "type": "shell",
       "command": "npm run compile",
       "options": {
-        "cwd": "${workspaceFolder}/examples/vscode-extension"
+        "cwd": "${workspaceFolder}/vscode-extension"
       },
       "group": "build",
       "problemMatcher": [

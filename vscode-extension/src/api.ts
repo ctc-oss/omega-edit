@@ -1,6 +1,7 @@
 import type * as vscode from 'vscode'
 import type {
   ExternalHighlightKind,
+  InsertDirection,
   WebviewEditorState,
   WebviewExternalHighlight,
 } from './webviewProtocol'
@@ -14,6 +15,7 @@ export const OMEGA_EDIT_EXTENSION_API_VERSION = 1
 export type OmegaEditExternalHighlightKind = ExternalHighlightKind
 export type OmegaEditExternalHighlight = WebviewExternalHighlight
 export type OmegaEditEditorState = WebviewEditorState
+export type OmegaEditInsertDirection = InsertDirection
 
 export interface OmegaEditEditorSelector {
   uri?: vscode.Uri | string
@@ -25,6 +27,11 @@ export interface OmegaEditOpenOptions {
 
 export interface OmegaEditRevealOptions extends OmegaEditEditorSelector {
   offset: number
+}
+
+export interface OmegaEditInsertDirectionOptions
+  extends OmegaEditEditorSelector {
+  direction?: OmegaEditInsertDirection
 }
 
 export interface OmegaEditExternalHighlightRequest
@@ -58,6 +65,14 @@ export interface OmegaEditExtensionApi {
     request: OmegaEditExternalHighlightRequest
   ): Promise<OmegaEditEditorState | undefined>
   clearExternalHighlights(
+    options?: vscode.Uri | string | OmegaEditEditorSelector
+  ): OmegaEditEditorState | undefined
+  setInsertDirection(
+    directionOrOptions?:
+      | OmegaEditInsertDirection
+      | vscode.Uri
+      | string
+      | OmegaEditInsertDirectionOptions,
     options?: vscode.Uri | string | OmegaEditEditorSelector
   ): OmegaEditEditorState | undefined
 }

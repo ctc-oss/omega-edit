@@ -117,7 +117,12 @@
     oninput={handleInput}
     onkeydown={handleKeydown}
   />
-  <button type="button" class="secondary offset-jump-button" onclick={submitOffset}>
+  <button
+    type="button"
+    class="secondary offset-jump-button"
+    title={strings.navigation.goTitle}
+    onclick={submitOffset}
+  >
     {strings.navigation.go}
   </button>
   {#if showValidation}

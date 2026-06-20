@@ -9,10 +9,10 @@
         "--disable-extensions",
         "--disable-workspace-trust",
         "--skip-welcome",
-        "--extensionDevelopmentPath=${workspaceFolder}/examples/vscode-extension"
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-extension"
       ],
       "outFiles": [
-        "${workspaceFolder}/examples/vscode-extension/out/**/*.js"
+        "${workspaceFolder}/vscode-extension/out/**/*.js"
       ],
       "preLaunchTask": "compile:vscode-extension"
     }

@@ -13,13 +13,39 @@
     pluginsLoaded?: boolean
     pluginsLoading?: boolean
     error?: string
+    fileSize?: number
     selectionStart?: number
     selectionEnd?: number
     selectionLength?: number
     offsetRadix?: OffsetRadix
     feedback?: string
+    results?: TransformResultHistoryItem[]
+    activeTransformResultId?: string
     onRequestTransforms: () => void
-    onApplyTransform: (pluginId: string, optionsJson?: string) => void
+    onApplyTransform: (
+      pluginId: string,
+      offset: number,
+      length: number,
+      optionsJson?: string
+    ) => void
+    onOpenTransformResult: (resultId: string) => void
+  }
+
+  interface TransformResultHistoryItem {
+    id: string
+    title: string
+    summary: string
+    label: string
+    rangeStart: string
+    rangeEnd: string
+    historyLabel: string
+  }
+
+  interface TransformRangeState {
+    offset: number
+    end: number
+    length: number
+    error: string
   }
 
   let {
@@ -27,21 +53,28 @@
     pluginsLoaded = false,
     pluginsLoading = false,
     error = '',
+    fileSize = 0,
     selectionStart = -1,
     selectionEnd = -1,
     selectionLength = 0,
     offsetRadix = 'hex',
     feedback = '',
+    results = [],
+    activeTransformResultId = '',
     onRequestTransforms,
     onApplyTransform,
+    onOpenTransformResult,
   }: Props = $props()
 
   let selectedPluginId = $state('')
   let dialogOpen = $state(false)
   let optionsJson = $state('')
+  let rangeStartInput = $state('')
+  let rangeEndInput = $state('')
   let savedOptionsByPluginId = $state<Record<string, string>>({})
   let optionsInput = $state<HTMLInputElement>()
   let applyButton = $state<HTMLButtonElement>()
+  let resultHistoryMenu = $state<HTMLDetailsElement>()
 
   const selectedPlugin = $derived(
     plugins.find((plugin) => plugin.id === selectedPluginId)
@@ -52,8 +85,16 @@
   const hasOptionsSchema = $derived(Boolean(selectedPlugin?.argsSchema))
   const advertisedExamples = $derived(advertisedTransformExamples(selectedPlugin))
   const optionHelp = $derived(getTransformOptionHelp(selectedPlugin))
-  const validationError = $derived(
+  const transformRange = $derived(
+    validateTransformRange(rangeStartInput, rangeEndInput)
+  )
+  const optionsValidationError = $derived(
     selectedPlugin ? validateTransformOptions(selectedPlugin, optionsJson.trim()) : ''
+  )
+  const canApplyTransform = $derived(
+    transformRange.error === '' &&
+      transformRange.length > 0 &&
+      optionsValidationError === ''
   )
   const controlTitle = $derived(
     !canTransformSelection
@@ -66,6 +107,10 @@
   )
   const statusMessage = $derived(
     error || feedback || (pluginsLoading ? strings.transform.loading : '')
+  )
+  const latestResult = $derived(results[0])
+  const resultHistorySummary = $derived(
+    statusMessage || latestResult?.summary || strings.transform.resultHistoryLabel
   )
 
   $effect(() => {
@@ -86,6 +131,72 @@
     return offsetRadix === 'dec'
       ? offset.toLocaleString()
       : `0x${offset.toString(16).toUpperCase()}`
+  }
+
+  function formatOffsetInput(offset: number): string {
+    return offsetRadix === 'dec'
+      ? Math.max(0, offset).toString()
+      : `0x${Math.max(0, offset).toString(16).toUpperCase()}`
+  }
+
+  function parseOffsetInput(value: string): number | undefined {
+    const text = value.trim()
+    if (text.length === 0) {
+      return undefined
+    }
+
+    const isExplicitHex = /^0x/i.test(text)
+    const source = isExplicitHex ? text.slice(2) : text
+    const base = isExplicitHex || offsetRadix === 'hex' ? 16 : 10
+    const pattern = base === 16 ? /^[0-9a-f]+$/i : /^[0-9]+$/
+    if (!pattern.test(source)) {
+      return undefined
+    }
+
+    const offset = Number.parseInt(source, base)
+    return Number.isSafeInteger(offset) && offset >= 0 ? offset : undefined
+  }
+
+  function validateTransformRange(
+    startInput: string,
+    endInput: string
+  ): TransformRangeState {
+    const emptyRange = { offset: -1, end: -1, length: 0 }
+    if (fileSize <= 0) {
+      return { ...emptyRange, error: strings.transform.noFileRange }
+    }
+
+    const maxOffset = fileSize - 1
+    const start = parseOffsetInput(startInput)
+    const end = parseOffsetInput(endInput)
+    if (start === undefined || end === undefined) {
+      return { ...emptyRange, error: strings.transform.invalidRangeOffset }
+    }
+    if (start > maxOffset || end > maxOffset) {
+      return {
+        ...emptyRange,
+        error: strings.transform.rangeOutOfBounds(formatOffset(maxOffset)),
+      }
+    }
+    if (end < start) {
+      return { ...emptyRange, error: strings.transform.rangeEndBeforeStart }
+    }
+
+    return { offset: start, end, length: end - start + 1, error: '' }
+  }
+
+  function resetRangeInputs(): void {
+    const start = selectionStart >= 0 ? selectionStart : 0
+    const end = selectionEnd >= start ? selectionEnd : start
+    rangeStartInput = formatOffsetInput(start)
+    rangeEndInput = formatOffsetInput(end)
+  }
+
+  function useMaxRangeEnd(): void {
+    if (fileSize <= 0) {
+      return
+    }
+    rangeEndInput = formatOffsetInput(fileSize - 1)
   }
 
   function transformOperationLabel(operation: number): string {
@@ -336,6 +447,7 @@
     optionsJson = plugin.argsSchema
       ? (savedOptionsByPluginId[plugin.id] ?? plugin.defaultArgs ?? '')
       : ''
+    resetRangeInputs()
     dialogOpen = true
     await tick()
     if (plugin.argsSchema) {
@@ -371,7 +483,7 @@
 
   function applySelectedTransform(): void {
     const plugin = selectedPlugin
-    if (!plugin || validationError || !canTransformSelection) {
+    if (!plugin || !canApplyTransform || !canTransformSelection) {
       return
     }
 
@@ -386,8 +498,20 @@
       delete remainingOptions[plugin.id]
       savedOptionsByPluginId = remainingOptions
     }
-    onApplyTransform(plugin.id, trimmedOptions || undefined)
+    onApplyTransform(
+      plugin.id,
+      transformRange.offset,
+      transformRange.length,
+      trimmedOptions || undefined
+    )
     closeTransformDialog()
+  }
+
+  function openResult(resultId: string): void {
+    onOpenTransformResult(resultId)
+    if (resultHistoryMenu) {
+      resultHistoryMenu.open = false
+    }
   }
 
   function handleDialogKeydown(event: KeyboardEvent): void {
@@ -398,7 +522,14 @@
   }
 
   function handleOptionsKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !validationError) {
+    if (event.key === 'Enter' && canApplyTransform) {
+      event.preventDefault()
+      applySelectedTransform()
+    }
+  }
+
+  function handleRangeKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && canApplyTransform) {
       event.preventDefault()
       applySelectedTransform()
     }
@@ -438,7 +569,36 @@
       {/each}
     {/if}
   </select>
-  {#if statusMessage}
+  {#if results.length > 0}
+    <details bind:this={resultHistoryMenu} class="transform-result-history">
+      <summary
+        aria-label={strings.transform.resultHistoryTitle}
+        title={strings.transform.resultHistoryTitle}
+      >
+        <span aria-live="polite">{resultHistorySummary}</span>
+      </summary>
+      <div
+        class="transform-result-history-menu"
+        role="menu"
+        aria-label={strings.transform.resultHistoryLabel}
+      >
+        {#each results as result (result.id)}
+          <button
+            type="button"
+            class:active={result.id === activeTransformResultId}
+            role="menuitem"
+            title={strings.transform.openResult(result.title, result.label)}
+            onclick={() => openResult(result.id)}
+          >
+            <span class="transform-result-history-name">{result.title}</span>
+            <span class="transform-result-history-meta">
+              {result.historyLabel}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </details>
+  {:else if statusMessage}
     <span class="transform-status" aria-live="polite">{statusMessage}</span>
   {/if}
 </div>
@@ -466,14 +626,62 @@
       <p>{optionHelp.description}</p>
 
       <div class="help-section-title">{strings.transform.selectedRange}</div>
-      <div class="analysis-metrics">
-        <span class="analysis-label">{strings.transform.start}</span>
-        <span class="analysis-value">{formatOffset(selectionStart)}</span>
-        <span class="analysis-label">{strings.transform.end}</span>
-        <span class="analysis-value">{formatOffset(selectionEnd)}</span>
-        <span class="analysis-label">{strings.transform.length}</span>
-        <span class="analysis-value">{strings.transform.bytes(selectionLength)}</span>
+      <div class="transform-range-grid">
+        <div class="transform-range-field">
+          <label for="transformRangeStart">{strings.transform.start}</label>
+          <input
+            id="transformRangeStart"
+            value={rangeStartInput}
+            aria-invalid={transformRange.error ? 'true' : 'false'}
+            title={strings.transform.rangeOffsetTitle}
+            oninput={(event) => {
+              const input = event.currentTarget
+              if (input instanceof HTMLInputElement) {
+                rangeStartInput = input.value
+              }
+            }}
+            onkeydown={handleRangeKeydown}
+          />
+        </div>
+        <div class="transform-range-field">
+          <label for="transformRangeEnd">{strings.transform.end}</label>
+          <div class="transform-range-end-control">
+            <input
+              id="transformRangeEnd"
+              value={rangeEndInput}
+              aria-invalid={transformRange.error ? 'true' : 'false'}
+              title={strings.transform.rangeOffsetTitle}
+              oninput={(event) => {
+                const input = event.currentTarget
+                if (input instanceof HTMLInputElement) {
+                  rangeEndInput = input.value
+                }
+              }}
+              onkeydown={handleRangeKeydown}
+            />
+            <button
+              type="button"
+              class="secondary transform-range-max"
+              title={strings.transform.useMaxOffset}
+              onclick={useMaxRangeEnd}
+            >
+              {strings.transform.maxOffset}
+            </button>
+          </div>
+        </div>
+        <div class="transform-range-length">
+          <span class="analysis-label">{strings.transform.length}</span>
+          <span class="analysis-value">
+            {strings.transform.bytes(
+              transformRange.length > 0 ? transformRange.length : selectionLength
+            )}
+          </span>
+        </div>
       </div>
+
+      {#if transformRange.error}
+        <div class="transform-error" aria-live="polite">{transformRange.error}</div>
+      {/if}
 
       {#if optionHelp.help}
         <div class="help-section-title">
@@ -512,7 +720,7 @@
             placeholder={advertisedExamples[0]
               ? strings.transform.examplePlaceholder(advertisedExamples[0])
               : strings.transform.optionsPlaceholder}
-            aria-invalid={validationError ? 'true' : 'false'}
+            aria-invalid={optionsValidationError ? 'true' : 'false'}
             oninput={(event) => {
               const input = event.currentTarget
               if (input instanceof HTMLInputElement) {
@@ -524,8 +732,8 @@
         </label>
       {/if}
 
-      {#if validationError}
-        <div class="transform-error" aria-live="polite">{validationError}</div>
+      {#if optionsValidationError}
+        <div class="transform-error" aria-live="polite">{optionsValidationError}</div>
       {/if}
     </div>
 
@@ -536,7 +744,7 @@
       <button
         bind:this={applyButton}
         type="button"
-        disabled={Boolean(validationError)}
+        disabled={!canApplyTransform}
         onclick={applySelectedTransform}
       >
         {strings.transform.apply}

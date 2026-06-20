@@ -47,6 +47,7 @@ import {
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } from './constants'
@@ -172,39 +173,96 @@ function parseOffsetInput(value: string): number | undefined {
   return Number.isSafeInteger(offset) && offset >= 0 ? offset : undefined
 }
 
-function transformPluginFileExtension(): string {
+function transformPluginFileExtensions(): string[] {
   switch (os.platform()) {
     case 'win32':
-      return '.dll'
+      return ['.dll']
     case 'darwin':
-      return '.dylib'
+      return ['.dylib', '.so']
     default:
-      return '.so'
+      return ['.so']
+  }
+}
+
+function getSupportedTransformPluginPlatformId(): string | undefined {
+  const arch = os.arch()
+  switch (os.platform()) {
+    case 'linux':
+      return arch === 'x64' || arch === 'arm64' ? `linux-${arch}` : undefined
+    case 'darwin':
+      return arch === 'x64' || arch === 'arm64' ? `macos-${arch}` : undefined
+    case 'win32':
+      return arch === 'x64' ? 'windows-x64' : undefined
+    default:
+      return undefined
   }
 }
 
 function directoryHasTransformPlugin(directory: string): boolean {
   try {
-    const extension = transformPluginFileExtension()
+    const extensions = transformPluginFileExtensions()
     return fs
       .readdirSync(directory, { withFileTypes: true })
       .some(
         (entry) =>
           entry.isFile() &&
           entry.name.startsWith('omega_transform_') &&
-          entry.name.endsWith(extension)
+          extensions.some((extension) => entry.name.endsWith(extension))
       )
   } catch {
     return false
   }
 }
 
+function directoryExists(directory: string): boolean {
+  try {
+    return fs.statSync(directory).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function normalizeWindowsPath(directory: string): string {
+  if (process.platform !== 'win32') {
+    return directory
+  }
+
+  const msysPath = directory.match(/^\/([a-zA-Z])\/(.*)$/)
+  return msysPath
+    ? `${msysPath[1]}:\\${msysPath[2].replace(/\//g, '\\')}`
+    : directory
+}
+
+function findRepositoryRoot(extensionPath: string): string {
+  const candidates = [
+    path.resolve(extensionPath, '..'),
+    path.resolve(extensionPath, '..', '..'),
+  ]
+
+  return (
+    candidates.find(
+      (candidate) =>
+        directoryExists(path.join(candidate, 'packages', 'client')) &&
+        directoryExists(path.join(candidate, 'server', 'cpp'))
+    ) ?? path.resolve(extensionPath, '..')
+  )
+}
+
 function getDefaultTransformPluginDirectories(
   context: vscode.ExtensionContext
 ): string[] {
-  const repoRoot = path.resolve(context.extensionPath, '..', '..')
+  const repoRoot = findRepositoryRoot(context.extensionPath)
+  const bundledPlatform = getSupportedTransformPluginPlatformId()
   const candidates = [
-    process.env.OMEGA_EDIT_TEST_PLUGIN_DIR ?? '',
+    bundledPlatform
+      ? path.join(
+          context.extensionPath,
+          'bundled',
+          'transform-plugins',
+          bundledPlatform
+        )
+      : '',
+    normalizeWindowsPath(process.env.OMEGA_EDIT_TEST_PLUGIN_DIR ?? ''),
     path.join(repoRoot, '_build_core', 'plugins', 'plugins'),
     path.join(repoRoot, '_build_core', 'core', 'src', 'tests', 'plugins'),
     path.join(repoRoot, '_build', 'plugins', 'plugins'),
@@ -493,6 +551,9 @@ function createOmegaEditExtensionApi(
     clearExternalHighlights(options) {
       return provider.clearExternalHighlights(options)
     },
+    setInsertDirection(directionOrOptions, options) {
+      return provider.setInsertDirection(directionOrOptions, options)
+    },
   }
 }
 
@@ -670,6 +731,14 @@ export async function activate(
     vscode.commands.registerCommand(OMEGA_EDIT_REDO_COMMAND, async () => {
       await provider.redoActive()
     })
+  )
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
+      (directionOrOptions?: unknown, options?: unknown) =>
+        provider.setInsertDirection(directionOrOptions, options)
+    )
   )
 
   context.subscriptions.push(

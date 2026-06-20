@@ -26,6 +26,7 @@ const {
   OMEGA_EDIT_SEARCH_NEXT_COMMAND,
   OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND,
   OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
+  OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
   OMEGA_EDIT_UNDO_COMMAND,
   OMEGA_EDIT_VIEW_TYPE,
 } = require('../out/constants.js')
@@ -60,6 +61,7 @@ test('package.json matches shared extension constants', () => {
     `onCommand:${OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND}`,
     `onCommand:${OMEGA_EDIT_UNDO_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REDO_COMMAND}`,
+    `onCommand:${OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND}`,
     `onCommand:${OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND}`,
     `onCommand:${OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND}`,
@@ -116,7 +118,7 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[6].command,
-    OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
+    OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[6].enablement,
@@ -124,47 +126,59 @@ test('package.json matches shared extension constants', () => {
   )
   assert.equal(
     packageJson.contributes.commands[7].command,
-    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
+    OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[7].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
-  )
-  assert.equal(
-    packageJson.contributes.commands[8].command,
-    OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
-  )
-  assert.equal(
-    packageJson.contributes.commands[9].command,
-    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
-  )
-  assert.equal(
-    packageJson.contributes.commands[9].enablement,
-    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
-  )
-  assert.equal(
-    packageJson.contributes.commands[10].command,
-    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
-  )
-  assert.equal(
-    packageJson.contributes.commands[10].enablement,
     'omegaEdit.hexEditorActive'
   )
   assert.equal(
+    packageJson.contributes.commands[8].command,
+    OMEGA_EDIT_EXPORT_CHANGE_SCRIPT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[8].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+  )
+  assert.equal(
+    packageJson.contributes.commands[9].command,
+    OMEGA_EDIT_REPLAY_CHANGE_SCRIPT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[10].command,
+    OMEGA_EDIT_ROLLBACK_SESSION_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[10].enablement,
+    'omegaEdit.hexEditorActive && omegaEdit.hasPendingChanges'
+  )
+  assert.equal(
     packageJson.contributes.commands[11].command,
-    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+    OMEGA_EDIT_ROLLBACK_CHECKPOINT_COMMAND
   )
   assert.equal(
     packageJson.contributes.commands[11].enablement,
     'omegaEdit.hexEditorActive'
   )
+  assert.equal(
+    packageJson.contributes.commands[12].command,
+    OMEGA_EDIT_CREATE_CHECKPOINT_COMMAND
+  )
+  assert.equal(
+    packageJson.contributes.commands[12].enablement,
+    'omegaEdit.hexEditorActive'
+  )
   assert.deepEqual(
-    packageJson.contributes.commands.slice(12).map((entry) => entry.command),
+    packageJson.contributes.commands.slice(13).map((entry) => entry.command),
     [
       OMEGA_EDIT_GET_EDITOR_STATE_COMMAND,
       OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND,
       OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND,
     ]
+  )
+  assert.equal(
+    packageNls['omegaEdit.command.toggleInsertDirection.title'],
+    'OmegaEdit: Toggle Insert Direction'
   )
   assert.equal(
     packageNls['omegaEdit.command.getEditorState.title'],
@@ -215,6 +229,15 @@ test('package.json matches shared extension constants', () => {
   )
   assert.deepEqual(
     packageJson.contributes.menus.commandPalette.find(
+      (entry) => entry.command === OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND
+    ),
+    {
+      command: OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND,
+      when: 'omegaEdit.hexEditorActive',
+    }
+  )
+  assert.deepEqual(
+    packageJson.contributes.menus.commandPalette.find(
       (entry) => entry.command === OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND
     ),
     {
@@ -246,6 +269,38 @@ test('package.json matches shared extension constants', () => {
       { command: OMEGA_EDIT_SET_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
       { command: OMEGA_EDIT_CLEAR_EXTERNAL_HIGHLIGHTS_COMMAND, when: 'false' },
     ]
+  )
+})
+
+test('root build stages transform plugins before packaging the VSIX', () => {
+  const rootBuildScript = fs.readFileSync(
+    path.resolve(__dirname, '../../build.sh'),
+    'utf8'
+  )
+  assert.match(rootBuildScript, /detect_vscode_transform_platform/)
+  assert.match(rootBuildScript, /stage_vscode_transform_plugins/)
+  assert.match(
+    rootBuildScript,
+    /build-shared-\$\{type\}\/core\/src\/tests\/plugins/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm run stage:transform-plugins -- "\$transform_plugins_stage" --platform "\$transform_plugin_platform"/
+  )
+  assert.match(
+    rootBuildScript,
+    /npm run stage:transform-plugins[\s\S]*npm run package:vsix/
+  )
+
+  const stageTransformPluginsScript = fs.readFileSync(
+    path.resolve(__dirname, '../scripts/stage-transform-plugins.cjs'),
+    'utf8'
+  )
+  assert.match(stageTransformPluginsScript, /platformFilter/)
+  assert.match(stageTransformPluginsScript, /--platform=/)
+  assert.match(
+    stageTransformPluginsScript,
+    /platforms = platformFilter[\s\S]*: supportedPlatforms/
   )
 })
 
@@ -342,6 +397,13 @@ test('compiled extension entrypoints exist after build', () => {
     ),
     'utf8'
   )
+  const transformResultPanelSource = fs.readFileSync(
+    path.resolve(
+      __dirname,
+      '../webview-ui/src/components/TransformResultPanel.svelte'
+    ),
+    'utf8'
+  )
   const searchPanelSource = fs.readFileSync(
     path.resolve(__dirname, '../webview-ui/src/components/SearchPanel.svelte'),
     'utf8'
@@ -374,6 +436,7 @@ test('compiled extension entrypoints exist after build', () => {
     ['Toolbar.svelte', toolbarSource],
     ['OffsetJump.svelte', offsetJumpSource],
     ['TransformPanel.svelte', transformPanelSource],
+    ['TransformResultPanel.svelte', transformResultPanelSource],
     ['SearchPanel.svelte', searchPanelSource],
     ['ByteInspector.svelte', byteInspectorSource],
     ['EditorWorkspace.svelte', editorWorkspaceSource],
@@ -537,6 +600,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteBundleCss, /\.transform-panel/)
   assert.doesNotMatch(svelteBundleCss, /\.transform-refresh/)
   assert.match(svelteBundleCss, /\.transform-dialog/)
+  assert.match(svelteBundleCss, /\.transform-range-grid/)
+  assert.match(svelteBundleCss, /\.transform-result-panel/)
+  assert.match(svelteBundleCss, /\.transform-result-value/)
   assert.match(svelteBundleCss, /\.dialog-backdrop/)
   assert.match(svelteBundleCss, /\.help-example/)
   assert.match(svelteBundleCss, /\.byte\.searchHit/)
@@ -668,16 +734,29 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(svelteAppSource, /transformPluginsLoading = \$state/)
   assert.match(svelteAppSource, /transformPluginError = \$state/)
   assert.match(svelteAppSource, /transformFeedback = \$state/)
+  assert.match(svelteAppSource, /transformResult = \$state/)
+  assert.match(svelteAppSource, /transformResultHistory = \$state/)
+  assert.match(svelteAppSource, /TRANSFORM_RESULT_HISTORY_LIMIT = 8/)
+  assert.match(svelteAppSource, /TransformResultPanel/)
   assert.match(svelteAppSource, /function requestTransformPlugins/)
   assert.match(svelteAppSource, /if \(transformPluginsLoading\)/)
   assert.match(svelteAppSource, /function applyTransform/)
   assert.match(svelteAppSource, /type: 'applyTransform'/)
+  assert.match(svelteAppSource, /offsetRadix: 'hex' \| 'dec'/)
+  assert.match(
+    svelteAppSource,
+    /normalizeOffsetRadix\(restoredState\?\.offsetRadix\)/
+  )
+  assert.match(svelteAppSource, /savePreviewState\(\{ offsetRadix: radix \}\)/)
   assert.match(svelteAppSource, /case 'transformPlugins'/)
   assert.match(svelteAppSource, /transformPlugins = message\.plugins/)
   assert.match(svelteAppSource, /transformPluginsLoaded = true/)
   assert.match(svelteAppSource, /transformPluginsLoading = false/)
   assert.match(svelteAppSource, /case 'transformComplete'/)
   assert.match(svelteAppSource, /describeTransformComplete/)
+  assert.match(svelteAppSource, /createTransformResult\(message\)/)
+  assert.match(svelteAppSource, /rememberTransformResult/)
+  assert.match(svelteAppSource, /openTransformResult/)
   assert.match(
     svelteAppSource,
     /selectRange\(message\.offset, transformedLength\)/
@@ -899,6 +978,9 @@ test('compiled extension entrypoints exist after build', () => {
   assert.doesNotMatch(i18nSource, /Decimal offset/)
   assert.match(i18nSource, /externalHighlight/)
   assert.match(i18nSource, /text: 'TEXT'/)
+  assert.match(i18nSource, /resultAvailable/)
+  assert.match(i18nSource, /resultHistoryTitle/)
+  assert.match(i18nSource, /rangeEndBeforeStart/)
   assert.match(toolbarSource, /strings\.toolbar\.offsetRadix/)
   assert.match(toolbarSource, /strings\.toolbar\.hexOffsets/)
   assert.match(toolbarSource, /strings\.toolbar\.decOffsets/)
@@ -907,8 +989,11 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(toolbarSource, /fileSize/)
   assert.match(toolbarSource, /onGoToOffset/)
   assert.match(toolbarSource, /TransformPanel/)
+  assert.match(toolbarSource, /\{fileSize\}/)
   assert.match(toolbarSource, /pluginsLoaded=\{transformPluginsLoaded\}/)
   assert.match(toolbarSource, /pluginsLoading=\{transformPluginsLoading\}/)
+  assert.match(toolbarSource, /transformResults/)
+  assert.match(toolbarSource, /onOpenTransformResult/)
   assert.match(toolbarSource, /onRequestTransforms/)
   assert.match(toolbarSource, /onApplyTransform/)
   assert.doesNotMatch(toolbarSource, /canUndo/)
@@ -921,8 +1006,13 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(transformPanelSource, /function advertisedTransformExamples/)
   assert.match(transformPanelSource, /function validateJsonSchemaValue/)
   assert.match(transformPanelSource, /function validateTransformOptions/)
+  assert.match(transformPanelSource, /function validateTransformRange/)
+  assert.match(transformPanelSource, /function parseOffsetInput/)
+  assert.match(transformPanelSource, /function useMaxRangeEnd/)
   assert.match(transformPanelSource, /function openTransformDialog/)
   assert.match(transformPanelSource, /function applySelectedTransform/)
+  assert.match(transformPanelSource, /rangeStartInput = \$state/)
+  assert.match(transformPanelSource, /rangeEndInput = \$state/)
   assert.match(transformPanelSource, /savedOptionsByPluginId = \$state/)
   assert.match(transformPanelSource, /pluginsLoading/)
   assert.match(transformPanelSource, /pluginsLoaded/)
@@ -940,13 +1030,24 @@ test('compiled extension entrypoints exist after build', () => {
     /aria-label=\{strings\.transform\.closeDialog\}/
   )
   assert.match(transformPanelSource, /class="transform-select"/)
+  assert.match(transformPanelSource, /class="transform-result-history"/)
+  assert.match(transformPanelSource, /onOpenTransformResult/)
   assert.match(transformPanelSource, /class="help-example"/)
   assert.match(transformPanelSource, /JSON\.parse\(rawOptionsJson\)/)
   assert.match(transformPanelSource, /argsSchema/)
   assert.match(transformPanelSource, /strings\.transform\.invalidJson/)
   assert.match(transformPanelSource, /strings\.transform\.invalidSchema/)
+  assert.match(transformPanelSource, /strings\.transform\.maxOffset/)
+  assert.match(
+    transformPanelSource,
+    /onApplyTransform\([\s\S]*plugin\.id[\s\S]*transformRange\.offset[\s\S]*transformRange\.length/
+  )
   assert.doesNotMatch(transformPanelSource, /transform-refresh/)
   assert.doesNotMatch(transformPanelSource, /refreshTransforms/)
+  assert.match(transformResultPanelSource, /strings\.transform\.resultTitle/)
+  assert.match(transformResultPanelSource, /navigator\.clipboard\.writeText/)
+  assert.match(transformResultPanelSource, /class="transform-result-value"/)
+  assert.match(transformResultPanelSource, /onDismiss/)
   assert.doesNotMatch(toolbarSource, /onTop/)
   assert.doesNotMatch(toolbarSource, /onScrollUp/)
   assert.doesNotMatch(toolbarSource, /onScrollDown/)
@@ -1100,6 +1201,7 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /transformPluginDirectories/)
   assert.match(extensionJs, /OMEGA_EDIT_UNDO_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REDO_COMMAND/)
+  assert.match(extensionJs, /OMEGA_EDIT_TOGGLE_INSERT_DIRECTION_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_REFRESH_TRANSFORM_PLUGINS_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SEARCH_NEXT_COMMAND/)
   assert.match(extensionJs, /OMEGA_EDIT_SEARCH_PREVIOUS_COMMAND/)
@@ -1124,10 +1226,15 @@ test('compiled extension entrypoints exist after build', () => {
   assert.match(extensionJs, /OmegaEdit requires a non-negative integer offset/)
   assert.match(extensionJs, /undoActive/)
   assert.match(extensionJs, /redoActive/)
+  assert.match(extensionJs, /setInsertDirection/)
   assert.match(extensionJs, /rollbackActiveSession/)
   assert.match(extensionJs, /rollbackActiveCheckpoint/)
   assert.match(extensionJs, /createActiveCheckpoint/)
   assert.match(extensionJs, /getDefaultTransformPluginDirectories/)
+  assert.match(extensionJs, /findRepositoryRoot/)
+  assert.match(extensionJs, /path\.resolve\(extensionPath,\s*['"]\.\.['"]\)/)
+  assert.match(extensionJs, /normalizeWindowsPath/)
+  assert.match(extensionJs, /replace\(\/\\\/\/g,\s*['"]\\\\['"]\)/)
   assert.match(extensionJs, /_build_core['"],\s*['"]plugins['"],\s*['"]plugins/)
   assert.match(extensionJs, /directoryHasTransformPlugin/)
   assert.match(extensionJs, /resolveServerConnection/)
@@ -1169,6 +1276,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       offsetRadix: 'hex',
       activePane: 'ascii',
       editMode: 'overwrite',
+      insertDirection: 'forward',
     }),
     {
       type: 'editorStateChanged',
@@ -1182,6 +1290,36 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       offsetRadix: 'hex',
       activePane: 'ascii',
       editMode: 'overwrite',
+      insertDirection: 'forward',
+    }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'editorStateChanged',
+      visibleOffset: 0,
+      visibleByteCount: 10,
+      selectedOffset: 2,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selectionLength: 4,
+      bytesPerRow: 16,
+      offsetRadix: 'hex',
+      activePane: 'ascii',
+      editMode: 'overwrite',
+    }),
+    {
+      type: 'editorStateChanged',
+      visibleOffset: 0,
+      visibleByteCount: 10,
+      selectedOffset: 2,
+      selectionStart: 2,
+      selectionEnd: 5,
+      selectionLength: 4,
+      bytesPerRow: 16,
+      offsetRadix: 'hex',
+      activePane: 'ascii',
+      editMode: 'overwrite',
+      insertDirection: 'forward',
     }
   )
   assert.equal(
@@ -1197,6 +1335,7 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
       offsetRadix: 'hex',
       activePane: 'ascii',
       editMode: 'insert',
+      insertDirection: 'backward',
     }),
     undefined
   )
@@ -1204,6 +1343,16 @@ test('webview protocol normalizes editor commands and rejects invalid ranges', (
     normalizeWebviewMessage(context, { type: 'toggleEditMode' }),
     {
       type: 'toggleEditMode',
+    }
+  )
+  assert.deepEqual(
+    normalizeWebviewMessage(context, {
+      type: 'setInsertDirection',
+      insertDirection: 'backward',
+    }),
+    {
+      type: 'setInsertDirection',
+      insertDirection: 'backward',
     }
   )
   assert.deepEqual(

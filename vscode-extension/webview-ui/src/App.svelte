@@ -4,12 +4,14 @@
   import EditorWorkspace from './components/EditorWorkspace.svelte'
   import SearchPanel from './components/SearchPanel.svelte'
   import Toolbar from './components/Toolbar.svelte'
+  import TransformResultPanel from './components/TransformResultPanel.svelte'
   import { strings } from './i18n'
   import {
     MAX_ANALYSIS_PROFILE_BYTES,
     normalizeBytesPerRow,
     type BytesPerRow,
     type HostToWebviewMessage,
+    type InsertDirection,
     type ServerHealthMessage,
     type WebviewEditorUiState,
     type WebviewExternalHighlight,
@@ -19,6 +21,7 @@
 
   const DEFAULT_VISIBLE_ROWS = 16
   const INTERNAL_HEX_CLIPBOARD_FORMAT = 'application/x-omega-edit-hex'
+  const TRANSFORM_RESULT_HISTORY_LIMIT = 8
 
   type SearchResultsMessage = Extract<
     HostToWebviewMessage,
@@ -32,6 +35,10 @@
     HostToWebviewMessage,
     { type: 'analysisProfile' }
   >
+  type TransformCompleteMessage = Extract<
+    HostToWebviewMessage,
+    { type: 'transformComplete' }
+  >
   type ViewportDataMessage = Extract<
     HostToWebviewMessage,
     { type: 'viewportData' }
@@ -44,6 +51,19 @@
   type GridEditPane = 'hex' | 'ascii'
   type AnalysisMode = 'profile' | 'structure'
   type AnalysisSectionOrder = Record<AnalysisMode, string[]>
+  interface TransformResultState {
+    id: string
+    title: string
+    summary: string
+    label: string
+    value: string
+    mimeType: string
+    rangeStart: string
+    rangeEnd: string
+    length: string
+    createdAtLabel: string
+    historyLabel: string
+  }
 
   const DEFAULT_ANALYSIS_SECTION_ORDER: AnalysisSectionOrder = {
     profile: ['viewport', 'classes', 'data', 'frequency'],
@@ -80,6 +100,9 @@
   let pendingVisibleOffset = $state<number | undefined>(undefined)
   let pendingSearchReveal = $state<PendingSearchReveal | undefined>(undefined)
   let inspectorEditMode = $state<InspectorEditMode>('insert')
+  let insertDirection = $state<InsertDirection>(
+    normalizeInsertDirection(restoredState?.insertDirection)
+  )
   let activePane = $state<GridEditPane>('hex')
   let pendingHexNibble = $state<number | undefined>(undefined)
   let pendingHexLabel = $state('')
@@ -92,12 +115,17 @@
   let analysisSectionOrder = $state<AnalysisSectionOrder>(
     normalizeAnalysisSectionOrder(restoredState?.analysisSectionOrder)
   )
-  let offsetRadix = $state<'hex' | 'dec'>('hex')
+  let offsetRadix = $state<'hex' | 'dec'>(
+    normalizeOffsetRadix(restoredState?.offsetRadix)
+  )
   let transformPlugins = $state<WebviewTransformPlugin[]>([])
   let transformPluginsLoaded = $state(false)
   let transformPluginsLoading = $state(false)
   let transformPluginError = $state('')
   let transformFeedback = $state('')
+  let transformResult = $state<TransformResultState | undefined>(undefined)
+  let transformResultHistory = $state<TransformResultState[]>([])
+  let transformResultSequence = $state(0)
   let externalHighlights = $state<WebviewExternalHighlight[]>([])
   let canUndo = $state(false)
   let canRedo = $state(false)
@@ -278,12 +306,16 @@
   function savePreviewState(
     overrides: Partial<{
       bytesPerRow: BytesPerRow
+      offsetRadix: 'hex' | 'dec'
+      insertDirection: InsertDirection
       profilerExpanded: boolean
       analysisSectionOrder: AnalysisSectionOrder
     }> = {}
   ): void {
     setPreviewState({
       bytesPerRow,
+      offsetRadix,
+      insertDirection,
       profilerExpanded,
       analysisSectionOrder,
       ...overrides,
@@ -334,6 +366,14 @@
     }
 
     return normalized
+  }
+
+  function normalizeOffsetRadix(rawRadix: unknown): 'hex' | 'dec' {
+    return rawRadix === 'dec' ? 'dec' : 'hex'
+  }
+
+  function normalizeInsertDirection(rawDirection: unknown): InsertDirection {
+    return rawDirection === 'backward' ? 'backward' : 'forward'
   }
 
   function updateAnalysisSectionOrder(
@@ -468,6 +508,7 @@
       offsetRadix,
       activePane,
       editMode: inspectorEditMode,
+      insertDirection,
     }
   }
 
@@ -708,6 +749,9 @@
     if (selectionStart >= 0) {
       return selectionStart
     }
+    if (selectedOffset >= 0) {
+      return Math.max(0, Math.min(selectedOffset, fileSize))
+    }
     return fileSize > 0 ? clampOffset(visibleOffset) : 0
   }
 
@@ -792,7 +836,7 @@
     if (selectionStart >= 0 && selectionLength > 0) {
       return { offset: selectionStart, length: selectionLength }
     }
-    if (selectedOffset >= 0) {
+    if (selectedOffset >= 0 && selectedOffset < fileSize) {
       return { offset: selectedOffset, length: 1 }
     }
     return undefined
@@ -946,8 +990,8 @@
 
     const byteLength = data.length / 2
     postToHost({ type: 'insert', offset, data })
-    selectionAnchor = offset
-    selectedOffset = offset
+    fileSize += byteLength
+    selectAfterInsertedBytes(offset, byteLength)
     clipboardMessage = strings.inspector.pastedBytes(byteLength)
   }
 
@@ -979,6 +1023,12 @@
     postToHost({ type: 'toggleEditMode' })
   }
 
+  function setInsertDirection(direction: InsertDirection): void {
+    insertDirection = direction
+    savePreviewState({ insertDirection: direction })
+    postToHost({ type: 'setInsertDirection', insertDirection: direction })
+  }
+
   function setActivePane(pane: GridEditPane): void {
     activePane = pane
     pendingHexNibble = undefined
@@ -1007,6 +1057,27 @@
     )
   }
 
+  function setInsertionCaret(offset: number): void {
+    const nextOffset = Math.max(0, Math.min(offset, fileSize))
+    if (nextOffset >= fileSize) {
+      selectionAnchor = -1
+      selectedOffset = nextOffset
+    } else {
+      selectionAnchor = nextOffset
+      selectedOffset = nextOffset
+    }
+  }
+
+  function selectAfterInsertedBytes(offset: number, byteLength: number): void {
+    if (insertDirection === 'backward') {
+      selectionAnchor = Math.max(0, Math.min(offset, Math.max(0, fileSize - 1)))
+      selectedOffset = selectionAnchor
+      return
+    }
+
+    setInsertionCaret(offset + byteLength)
+  }
+
   function commitByteEdit(offset: number, byte: number): void {
     if (offset < 0 || byte < 0 || byte > 0xff) {
       return
@@ -1021,6 +1092,8 @@
       return
     } else if (offset <= fileSize) {
       postToHost({ type: 'insert', offset, data })
+      fileSize += 1
+      selectAfterInsertedBytes(offset, 1)
       clipboardMessage = strings.inspector.insertedByte
     } else {
       return
@@ -1028,8 +1101,10 @@
 
     pendingHexNibble = undefined
     pendingHexLabel = ''
-    selectionAnchor = offset
-    selectedOffset = offset
+    if (inspectorEditMode === 'overwrite') {
+      selectionAnchor = offset
+      selectedOffset = offset
+    }
   }
 
   function handleGridType(pane: GridEditPane, key: string): boolean {
@@ -1095,6 +1170,7 @@
 
   function setOffsetRadix(radix: 'hex' | 'dec'): void {
     offsetRadix = radix
+    savePreviewState({ offsetRadix: radix })
   }
 
   function formatSearchOffset(offset: number): string {
@@ -1111,30 +1187,38 @@
     postToHost({ type: 'requestTransformPlugins' })
   }
 
-  function applyTransform(pluginId: string, optionsJson?: string): void {
-    if (selectionStart < 0 || selectionLength <= 0) {
+  function applyTransform(
+    pluginId: string,
+    offset: number,
+    length: number,
+    optionsJson?: string
+  ): void {
+    if (
+      fileSize <= 0 ||
+      offset < 0 ||
+      length <= 0 ||
+      offset + length > fileSize
+    ) {
       transformFeedback = strings.transform.selectRangeFirst
       return
     }
 
     const plugin = transformPlugins.find((entry) => entry.id === pluginId)
     transformFeedback = strings.transform.applying(plugin?.name || pluginId)
+    transformResult = undefined
     postToHost({
       type: 'applyTransform',
       pluginId,
-      offset: selectionStart,
-      length: selectionLength,
+      offset,
+      length,
       optionsJson,
     })
   }
 
-  function describeTransformComplete(
-    message: Extract<HostToWebviewMessage, { type: 'transformComplete' }>
-  ): string {
+  function describeTransformComplete(message: TransformCompleteMessage): string {
     if (message.resultText) {
-      return strings.transform.result(
-        message.resultLabel || strings.transform.resultDefault,
-        message.resultText
+      return strings.transform.resultAvailable(
+        message.resultLabel || strings.transform.resultDefault
       )
     }
     if (message.contentChanged) {
@@ -1144,6 +1228,83 @@
       )
     }
     return strings.transform.completed
+  }
+
+  function transformPluginTitle(pluginId: string): string {
+    const plugin = transformPlugins.find((entry) => entry.id === pluginId)
+    return plugin?.name || plugin?.id || pluginId
+  }
+
+  function formatTransformResultTime(timestamp: number): string {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  }
+
+  function createTransformResult(
+    message: TransformCompleteMessage
+  ): TransformResultState | undefined {
+    if (!message.resultText) {
+      return undefined
+    }
+
+    const displayLength = message.contentChanged
+      ? message.replacementLength || message.length || 1
+      : message.length || 1
+    const rangeEnd = Math.min(
+      Math.max(0, fileSize - 1),
+      message.offset + displayLength - 1
+    )
+    const timestamp = Date.now()
+    const title = transformPluginTitle(message.pluginId)
+    const label = message.resultLabel || strings.transform.resultDefault
+    const rangeStart = formatSearchOffset(message.offset)
+    const rangeEndLabel = formatSearchOffset(rangeEnd)
+    const createdAtLabel = formatTransformResultTime(timestamp)
+    transformResultSequence += 1
+
+    return {
+      id: `${timestamp}-${transformResultSequence}-${message.pluginId}-${message.offset}-${displayLength}`,
+      title,
+      summary: describeTransformComplete(message),
+      label,
+      value: message.resultText,
+      mimeType: message.resultMimeType,
+      rangeStart,
+      rangeEnd: rangeEndLabel,
+      length: strings.transform.bytes(displayLength),
+      createdAtLabel,
+      historyLabel: strings.transform.resultHistoryItem(
+        label,
+        rangeStart,
+        rangeEndLabel,
+        createdAtLabel
+      ),
+    }
+  }
+
+  function rememberTransformResult(
+    result: TransformResultState | undefined
+  ): void {
+    if (!result) {
+      transformResult = undefined
+      return
+    }
+
+    transformResultHistory = [
+      result,
+      ...transformResultHistory.filter((entry) => entry.id !== result.id),
+    ].slice(0, TRANSFORM_RESULT_HISTORY_LIMIT)
+    transformResult = result
+  }
+
+  function openTransformResult(resultId: string): void {
+    const result = transformResultHistory.find((entry) => entry.id === resultId)
+    if (result) {
+      transformResult = result
+    }
   }
 
   function inspectRange(offset: number, length: number): void {
@@ -1591,9 +1752,9 @@
         } else if (selectedOffset < 0) {
           selectionAnchor = message.visibleOffset
           selectedOffset = message.visibleOffset
-        } else if (selectedOffset >= message.fileSize) {
-          const nextOffset = message.fileSize - 1
-          selectionAnchor = nextOffset
+        } else if (selectedOffset > message.fileSize) {
+          const nextOffset = message.fileSize
+          selectionAnchor = -1
           selectedOffset = nextOffset
         }
           applyPendingSearchReveal()
@@ -1607,9 +1768,9 @@
           selectionAnchor = -1
           selectedOffset = -1
           clearSearchResults()
-        } else if (selectedOffset >= message.fileSize) {
-          const nextOffset = message.fileSize - 1
-          selectionAnchor = nextOffset
+        } else if (selectedOffset > message.fileSize) {
+          const nextOffset = message.fileSize
+          selectionAnchor = -1
           selectedOffset = nextOffset
         }
         break
@@ -1698,6 +1859,7 @@
           selectRange(message.offset, transformedLength)
         }
         transformFeedback = describeTransformComplete(message)
+        rememberTransformResult(createTransformResult(message))
         pendingAnalysisProfileKey = ''
         requestAnalysisProfile(true)
         break
@@ -1710,9 +1872,17 @@
       case 'editMode':
         setInspectorEditMode(message.editMode)
         break
+      case 'insertDirection':
+        insertDirection = message.insertDirection
+        savePreviewState({ insertDirection })
+        break
       case 'cutComplete':
         break
     }
+  }
+
+  function dismissTransformResult(): void {
+    transformResult = undefined
   }
 
   $effect(() => {
@@ -1771,44 +1941,65 @@
   <Toolbar
     {bytesPerRow}
     {offsetRadix}
+    {insertDirection}
     {fileSize}
     {transformPlugins}
     {transformPluginsLoaded}
     {transformPluginsLoading}
     {transformPluginError}
     {transformFeedback}
+    transformResults={transformResultHistory}
+    activeTransformResultId={transformResult?.id}
     {selectionStart}
     {selectionEnd}
     {selectionLength}
     onBytesPerRow={setBytesPerRow}
     onOffsetRadix={setOffsetRadix}
+    onInsertDirection={setInsertDirection}
     onGoToOffset={goToOffset}
     onRequestTransforms={requestTransformPlugins}
     onApplyTransform={applyTransform}
+    onOpenTransformResult={openTransformResult}
   />
 
-  <SearchPanel
-    query={searchQuery}
-    replacement={replacementQuery}
-    isHex={searchHex}
-    caseInsensitive={searchCaseInsensitive}
-    isReverse={searchReverse}
-    invalid={searchInputInvalid}
-    replacementInvalid={replacementInputInvalid}
-    canNavigate={searchCanNavigate}
-    canReplace={searchCanReplace}
-    summary={searchResultSummary}
-    replaceSummary={replaceMessage}
-    onQueryChange={setSearchQuery}
-    onReplacementChange={setReplacementQuery}
-    onHexChange={setSearchHex}
-    onCaseInsensitiveChange={setSearchCaseInsensitive}
-    onReverseChange={(enabled) => (searchReverse = enabled)}
-    onSearch={runSearch}
-    onNavigate={navigateSearch}
-    onReplace={replaceCurrentMatch}
-    onReplaceAll={replaceAllMatches}
-  />
+  <div class="top-panels">
+    <SearchPanel
+      query={searchQuery}
+      replacement={replacementQuery}
+      isHex={searchHex}
+      caseInsensitive={searchCaseInsensitive}
+      isReverse={searchReverse}
+      invalid={searchInputInvalid}
+      replacementInvalid={replacementInputInvalid}
+      canNavigate={searchCanNavigate}
+      canReplace={searchCanReplace}
+      summary={searchResultSummary}
+      replaceSummary={replaceMessage}
+      onQueryChange={setSearchQuery}
+      onReplacementChange={setReplacementQuery}
+      onHexChange={setSearchHex}
+      onCaseInsensitiveChange={setSearchCaseInsensitive}
+      onReverseChange={(enabled) => (searchReverse = enabled)}
+      onSearch={runSearch}
+      onNavigate={navigateSearch}
+      onReplace={replaceCurrentMatch}
+      onReplaceAll={replaceAllMatches}
+    />
+
+    {#if transformResult}
+      <TransformResultPanel
+        title={transformResult.title}
+        summary={transformResult.summary}
+        label={transformResult.label}
+        value={transformResult.value}
+        mimeType={transformResult.mimeType}
+        rangeStart={transformResult.rangeStart}
+        rangeEnd={transformResult.rangeEnd}
+        length={transformResult.length}
+        onDismiss={dismissTransformResult}
+      />
+    {/if}
+  </div>
 
   <EditorWorkspace
     {data}
